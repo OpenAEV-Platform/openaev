@@ -156,6 +156,163 @@ public class WidgetFixture {
     return widget;
   }
 
+  /**
+   * Mirrors the platform default "Exposure command center": one series per expectation status over
+   * the same entity, aggregated by expectation type. Widgets shaped like this display a total that
+   * spans several series, which is the case a single {@code series_index} cannot describe.
+   *
+   * @param statuses one series per status, in the order the drill-downs will address them
+   */
+  public static Widget createExpectationStatusSeriesWidget(
+      CustomDashboardTimeRange timeRange,
+      String dateAttribute,
+      List<BaseInjectExpectation.EXPECTATION_STATUS> statuses) {
+    Widget widget = new Widget();
+    widget.setType(DONUT);
+    StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
+    widgetConfig.setSeries(
+        statuses.stream()
+            .map(
+                status -> {
+                  WidgetConfigurationWithSeries.Series series =
+                      new WidgetConfigurationWithSeries.Series();
+                  series.setName(status.name());
+                  Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+                  filterGroup.setMode(Filters.FilterMode.and);
+                  filterGroup.setFilters(
+                      new ArrayList<>(
+                          List.of(
+                              createFilter(
+                                  "base_entity",
+                                  Filters.FilterMode.or,
+                                  Filters.FilterOperator.eq,
+                                  List.of("expectation-inject")),
+                              createFilter(
+                                  "inject_expectation_status",
+                                  Filters.FilterMode.or,
+                                  Filters.FilterOperator.eq,
+                                  List.of(status.name())))));
+                  series.setFilter(filterGroup);
+                  return series;
+                })
+            .toList());
+    widgetConfig.setTitle(NAME);
+    widgetConfig.setField("inject_expectation_type");
+    widgetConfig.setDateAttribute(dateAttribute);
+    widgetConfig.setTimeRange(timeRange);
+    widget.setWidgetConfiguration(widgetConfig);
+    widget.setLayout(new WidgetLayout());
+    return widget;
+  }
+
+  /**
+   * Two series diverging on two keys at once, the second series' type values being a strict subset
+   * of the first's. Their OR cannot be collapsed into a flat per-key union: {@code type IN (P, D)
+   * AND status IN (SUCCESS, FAILED)} admits a DETECTION/FAILED document that matches neither
+   * series, so a multi-series drill-down must reject this shape rather than over-count it.
+   */
+  public static Widget createDivergentSeriesWidget(
+      CustomDashboardTimeRange timeRange, String dateAttribute) {
+    Widget widget = new Widget();
+    widget.setType(DONUT);
+    StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
+    widgetConfig.setSeries(
+        List.of(
+            createExpectationSerie(
+                List.of(
+                    BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.name(),
+                    BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.name()),
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name()),
+            createExpectationSerie(
+                List.of(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.name()),
+                BaseInjectExpectation.EXPECTATION_STATUS.FAILED.name())));
+    widgetConfig.setTitle(NAME);
+    widgetConfig.setField("inject_expectation_type");
+    widgetConfig.setDateAttribute(dateAttribute);
+    widgetConfig.setTimeRange(timeRange);
+    widget.setWidgetConfiguration(widgetConfig);
+    widget.setLayout(new WidgetLayout());
+    return widget;
+  }
+
+  /**
+   * Two series over the same entity whose status filters agree on keys yet select documents
+   * differently - each with the given operator and values. A per-key value union of such series
+   * means something neither of them said (and negated operators combine their values as must-not
+   * clauses, so a union narrows instead of widening), so a multi-series drill-down must reject the
+   * shape rather than collapse it.
+   */
+  public static Widget createStatusSeriesWidgetWithOperators(
+      CustomDashboardTimeRange timeRange,
+      String dateAttribute,
+      Filters.FilterOperator firstOperator,
+      List<String> firstValues,
+      Filters.FilterOperator secondOperator,
+      List<String> secondValues) {
+    Widget widget = new Widget();
+    widget.setType(DONUT);
+    StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
+    widgetConfig.setSeries(
+        List.of(
+            createStatusOperatorSerie(firstOperator, firstValues),
+            createStatusOperatorSerie(secondOperator, secondValues)));
+    widgetConfig.setTitle(NAME);
+    widgetConfig.setField("inject_expectation_type");
+    widgetConfig.setDateAttribute(dateAttribute);
+    widgetConfig.setTimeRange(timeRange);
+    widget.setWidgetConfiguration(widgetConfig);
+    widget.setLayout(new WidgetLayout());
+    return widget;
+  }
+
+  private static WidgetConfigurationWithSeries.Series createStatusOperatorSerie(
+      Filters.FilterOperator operator, List<String> values) {
+    WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
+    series.setName(operator.name());
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.and);
+    filterGroup.setFilters(
+        new ArrayList<>(
+            List.of(
+                createFilter(
+                    "base_entity",
+                    Filters.FilterMode.or,
+                    Filters.FilterOperator.eq,
+                    List.of("expectation-inject")),
+                createFilter(
+                    "inject_expectation_status", Filters.FilterMode.or, operator, values))));
+    series.setFilter(filterGroup);
+    return series;
+  }
+
+  private static WidgetConfigurationWithSeries.Series createExpectationSerie(
+      List<String> types, String status) {
+    WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
+    series.setName(status);
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.and);
+    filterGroup.setFilters(
+        new ArrayList<>(
+            List.of(
+                createFilter(
+                    "base_entity",
+                    Filters.FilterMode.or,
+                    Filters.FilterOperator.eq,
+                    List.of("expectation-inject")),
+                createFilter(
+                    "inject_expectation_type",
+                    Filters.FilterMode.or,
+                    Filters.FilterOperator.eq,
+                    types),
+                createFilter(
+                    "inject_expectation_status",
+                    Filters.FilterMode.or,
+                    Filters.FilterOperator.eq,
+                    List.of(status)))));
+    series.setFilter(filterGroup);
+    return series;
+  }
+
   public static Widget createStructuralWidgetWithTimeRange(
       CustomDashboardTimeRange timeRange, String dateAttribute, String field, String entityName) {
     Widget widget = new Widget();

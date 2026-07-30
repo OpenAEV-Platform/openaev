@@ -10,6 +10,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.utils.ConditionUtils;
+import io.openaev.utils.IpAddressUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -131,8 +132,12 @@ public class WorkflowStateService {
     // Find filter conditions in the workflow template that match the output key types
     Set<ConditionType> excludedTypes = Set.of(ConditionType.MAPPER, ConditionType.DEPEND_ON);
     List<Condition> matchingConditions =
-        conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-            workflowTemplateId, outputKeyTypes, excludedTypes);
+        conditionRepository.findFilterConditionsByWorkflowId(workflowTemplateId, excludedTypes);
+
+    matchingConditions =
+        matchingConditions.stream()
+            .filter(root -> rootHasMatchingLeafKeyTypes(root, outputKeyTypes))
+            .toList();
 
     if (matchingConditions.isEmpty()) {
       return Map.of();
@@ -232,8 +237,7 @@ public class WorkflowStateService {
                     (root.getConditionChildren() != null
                             ? root.getConditionChildren().stream()
                             : java.util.stream.Stream.<Condition>empty())
-                        .filter(child -> child.getKeyType() != null)
-                        .map(child -> child.getKeyType().name()))
+                        .flatMap(child -> getConditionKeyTypeNames(child).stream()))
             .collect(Collectors.toSet());
 
     // Filter output values: keep only those matching interested key types and relevant to the event
@@ -255,6 +259,24 @@ public class WorkflowStateService {
       }
     }
     return valuesToPropagate;
+  }
+
+  private boolean rootHasMatchingLeafKeyTypes(Condition root, Set<PrimitiveType> outputKeyTypes) {
+    if (root.getConditionChildren() == null || root.getConditionChildren().isEmpty()) {
+      return false;
+    }
+    Set<String> outputKeyTypeNames =
+        outputKeyTypes.stream().map(PrimitiveType::name).collect(Collectors.toSet());
+    return root.getConditionChildren().stream()
+        .flatMap(child -> getConditionKeyTypeNames(child).stream())
+        .anyMatch(outputKeyTypeNames::contains);
+  }
+
+  private Set<String> getConditionKeyTypeNames(Condition condition) {
+    if (condition.getKeyTypes() != null && !condition.getKeyTypes().isEmpty()) {
+      return condition.getKeyTypes().stream().map(PrimitiveType::name).collect(Collectors.toSet());
+    }
+    return Set.of();
   }
 
   /**
@@ -361,7 +383,8 @@ public class WorkflowStateService {
           for (PrimitiveType primitiveType : primitiveTypes) {
             if (PrimitiveValueValidator.isAcceptedForPrimitiveType(
                 primitiveType, val, validationContext)) {
-              recordValue(primitiveType.name(), val, entries, parsedByType);
+              recordAcceptedPrimitiveValue(
+                  primitiveType, val, entries, parsedByType, validationContext);
             }
           }
         } else if (element.isJsonObject() && isComplex) {
@@ -391,6 +414,41 @@ public class WorkflowStateService {
       Map<String, List<String>> parsedByType) {
     entries.getInputByKey(key).getValues().add(value);
     parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+  }
+
+  private void recordAcceptedPrimitiveValue(
+      PrimitiveType primitiveType,
+      String value,
+      WorkflowStateEntries entries,
+      Map<String, List<String>> parsedByType,
+      PrimitiveValidationContext validationContext) {
+    recordValue(primitiveType.name(), value, entries, parsedByType);
+    if (primitiveType == PrimitiveType.IpSubnet) {
+      recordExpandedSubnetHosts(value, entries, parsedByType, validationContext);
+    }
+  }
+
+  private void recordExpandedSubnetHosts(
+      String subnet,
+      WorkflowStateEntries entries,
+      Map<String, List<String>> parsedByType,
+      PrimitiveValidationContext validationContext) {
+    IpAddressUtils.ExpandedSubnetHosts expanded =
+        IpAddressUtils.expandSubnetToHostsByFamily(subnet);
+    for (String expandedIp : expanded.ipv4Hosts()) {
+      PrimitiveType primitiveType = PrimitiveType.IPv4;
+      if (PrimitiveValueValidator.isAcceptedForPrimitiveType(
+          primitiveType, expandedIp, validationContext)) {
+        recordValue(primitiveType.name(), expandedIp, entries, parsedByType);
+      }
+    }
+    for (String expandedIp : expanded.ipv6Hosts()) {
+      PrimitiveType primitiveType = PrimitiveType.IPv6;
+      if (PrimitiveValueValidator.isAcceptedForPrimitiveType(
+          primitiveType, expandedIp, validationContext)) {
+        recordValue(primitiveType.name(), expandedIp, entries, parsedByType);
+      }
+    }
   }
 
   /**
@@ -455,11 +513,10 @@ public class WorkflowStateService {
 
       pairSet.add(new WorkflowStateEntries.Pair(primitiveType.name(), valStr));
 
-      String primKey = primitiveType.name();
       pendingUpdates.add(
           () -> {
-            entries.getInputByKey(primKey).getValues().add(valStr);
-            parsedByType.computeIfAbsent(primKey, k -> new ArrayList<>()).add(valStr);
+            recordAcceptedPrimitiveValue(
+                primitiveType, valStr, entries, parsedByType, validationContext);
           });
     }
 

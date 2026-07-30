@@ -77,6 +77,9 @@ interface Props {
   // callers in that context can display them as PENDING instead. Disabled injects
   // always display as "Disabled" regardless of this flag.
   displayDraftAsPending?: boolean;
+  // External trigger to refresh the paginated list when data changes outside
+  // the list controls (e.g. live execution updates).
+  reloadContentCount?: number;
 }
 
 const InjectResultList: FunctionComponent<Props> = ({
@@ -90,6 +93,7 @@ const InjectResultList: FunctionComponent<Props> = ({
   onBulkDelete,
   deleteConfirmation,
   displayDraftAsPending,
+  reloadContentCount = 0,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -263,7 +267,7 @@ const InjectResultList: FunctionComponent<Props> = ({
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         contextId={contextId}
-        reloadContentCount={reloadCount}
+        reloadContentCount={reloadContentCount + reloadCount}
         topBarButtons={showActions ? (
           <Box display="flex" gap={1} alignItems="center">
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>

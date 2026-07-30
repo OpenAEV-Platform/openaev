@@ -38,7 +38,7 @@ public class ContractOutputElementSimple {
   @JsonProperty("contract_output_element_type")
   @Schema(
       description = "Represents the data type being extracted.",
-      example = "text, number, port, portscan, ipv4, ipv6, credentials")
+      example = "text, action_output, number, port, portscan, ipv4, ipv6, credentials")
   @NotNull
   private ContractOutputType type;
 

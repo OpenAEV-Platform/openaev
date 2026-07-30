@@ -8,6 +8,7 @@ public enum ComplexType {
   Credentials,
   CVE,
   Delegation,
+  File,
   Group,
   PasswordPolicy,
   PortsScan,

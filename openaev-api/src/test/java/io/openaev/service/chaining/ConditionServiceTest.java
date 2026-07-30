@@ -249,7 +249,16 @@ public class ConditionServiceTest {
       Condition mapper = new Condition();
       mapper.setType(ConditionType.MAPPER);
       mapper.setMappingType(mappingType);
-      mapper.setKeyType(keyType);
+      mapper.setKeyTypes(List.of(keyType));
+      mapper.setValue(value);
+      return mapper;
+    }
+
+    private Condition mapper(MappingType mappingType, List<PrimitiveType> keyTypes, String value) {
+      Condition mapper = new Condition();
+      mapper.setType(ConditionType.MAPPER);
+      mapper.setMappingType(mappingType);
+      mapper.setKeyTypes(keyTypes);
       mapper.setValue(value);
       return mapper;
     }
@@ -341,6 +350,46 @@ public class ConditionServiceTest {
                   })
               .collect(java.util.stream.Collectors.toSet());
       assertEquals(Set.of("10.0.0.1:80", "10.0.0.1:443", "10.0.0.2:80", "10.0.0.2:443"), pairs);
+    }
+
+    @Test
+    void given_mapperWithMultipleKeyTypes_should_generateOneBatchPerMatchedPrimitiveValue() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-multi-key-types");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.GLOBAL, List.of(PrimitiveType.IPv4, PrimitiveType.Service), null));
+
+      WorkflowStateEntries globalEntries =
+          entries(List.of(input("IPv4", "10.0.0.1"), input("Service", "ssh")), List.of());
+      WorkflowStateEntries localEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-multi-key-types"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      Set<String> payloads =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    if (json.has("IPv4")) {
+                      return "IPv4:" + json.get("IPv4").getAsString();
+                    }
+                    return "Service:" + json.get("Service").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("IPv4:10.0.0.1", "Service:ssh"), payloads);
     }
 
     @Test
@@ -907,7 +956,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -944,7 +993,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -980,7 +1029,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -1016,7 +1065,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -1051,7 +1100,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -1089,7 +1138,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -1127,7 +1176,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -1296,7 +1345,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(PrimitiveType.Port);
+      childInput.setKeyTypes(List.of(PrimitiveType.Port));
       childInput.setValue("445");
 
       EventInput input =
@@ -1368,7 +1417,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(PrimitiveType.Text);
+      childInput.setKeyTypes(List.of(PrimitiveType.Text));
       childInput.setValue("ok");
 
       EventInput input =
@@ -1686,6 +1735,13 @@ public class ConditionServiceTest {
         assertFalse(
             conditionUtils.isFilterConditionValid(
                 "unknown", leaf(ConditionType.IN, "admin, root")));
+      }
+
+      @Test
+      void in_shouldTrimSingleTargetCandidate() {
+        assertTrue(
+            conditionUtils.isFilterConditionValid(
+                "prefix-admin-suffix", leaf(ConditionType.IN, "  admin  ")));
       }
 
       @Test

@@ -116,7 +116,8 @@ public class StepService {
     // If no condition mapper and step already executed, we skip the step to avoid to execute it
     // again
     if (!conditionService.hasConditionMapper(persistedTemplate)
-        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())) {
+        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())
+        && injectExecutionStep.hasPayload(persistedTemplate)) {
       return List.of();
     }
 
@@ -130,15 +131,32 @@ public class StepService {
       return List.of();
     }
 
-    // Expand each condition batch into one batch per scope target (one per asset, one per IP)
-    // so that each READY step handles exactly one inject.
-    // Only for injector-based steps (no payload): payload-based injects
-    // handle multi-asset distribution internally => one step covers all assets.
-    if (StepActionClass.INJECT_EXECUTION.equals(persistedTemplate.getStepAction())
-        && !injectExecutionStep.hasPayload(persistedTemplate)) {
-      executionBatches = injectExecutionStep.expandTargetBatches(executionBatches, workflowRun);
+    // Expand each condition batch into one batch per scope target so that each READY step handles
+    // exactly one inject → one execution unit. The injector-vs-payload targeting policy (external
+    // injectors also expand per manual IP target) is owned by expandTargetBatches, so StepService
+    // stays agnostic here.
+    if (StepActionClass.INJECT_EXECUTION.equals(persistedTemplate.getStepAction())) {
+      executionBatches =
+          injectExecutionStep.expandTargetBatches(executionBatches, workflowRun, persistedTemplate);
       if (executionBatches.isEmpty()) {
         return List.of();
+      }
+
+      // Per-target deduplication: expanded batches carry a per-target hash (combo + target).
+      // The combo-level dedup in prepareInputsForStepExecution runs BEFORE expansion and only
+      // knows the combo hash, so it cannot skip individual targets already executed. Load the
+      // committed hashes once and drop batches whose target was already turned into a READY step,
+      // preventing the same inject from being re-executed on every scheduling cycle.
+      Set<String> committedTargetHashes =
+          conditionService.getCommittedHashes(persistedTemplate, workflowRun);
+      if (!committedTargetHashes.isEmpty()) {
+        executionBatches =
+            executionBatches.stream()
+                .filter(batch -> !committedTargetHashes.contains(batch.hash()))
+                .toList();
+        if (executionBatches.isEmpty()) {
+          return List.of();
+        }
       }
     }
     List<Step> stepReadys = new ArrayList<>();
@@ -422,7 +440,7 @@ public class StepService {
           Condition.builder()
               .type(firstCondition.getType())
               .key(firstCondition.getKey())
-              .keyType(firstCondition.getKeyType())
+              .keyTypes(firstCondition.getKeyTypes())
               .value(firstCondition.getValue())
               .caseSensitive(firstCondition.isCaseSensitive())
               .mappingType(firstCondition.getMappingType())
@@ -457,7 +475,7 @@ public class StepService {
             Condition.builder()
                 .type(condition.getType())
                 .key(condition.getKey())
-                .keyType(condition.getKeyType())
+                .keyTypes(condition.getKeyTypes())
                 .value(condition.getValue())
                 .caseSensitive(condition.isCaseSensitive())
                 .mappingType(condition.getMappingType())

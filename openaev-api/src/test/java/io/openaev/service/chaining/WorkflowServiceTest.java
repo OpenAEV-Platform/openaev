@@ -579,6 +579,11 @@ class WorkflowServiceTest {
                               .build(),
                           WorkflowScopeRule.builder()
                               .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.IP_SUBNET)
+                              .ruleValue("2001:db8::/126")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
                               .valueType(ScopeRuleValueType.ASSET_ID)
                               .ruleValue("asset-123")
                               .build(),
@@ -613,6 +618,9 @@ class WorkflowServiceTest {
           "10.0.0.0/24",
           mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP_SUBNET.name()).get(0).getAsString());
       assertEquals(
+          "2001:db8::/126",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP_SUBNET.name()).get(1).getAsString());
+      assertEquals(
           "asset-123",
           mappedScopeData.getAsJsonArray(ScopeRuleValueType.ASSET_ID.name()).get(0).getAsString());
       assertEquals(
@@ -643,6 +651,27 @@ class WorkflowServiceTest {
               .getValue()
               .get(ScopeRuleValueType.ASSET_GROUP_ID.name())
               .primitiveTypes());
+
+      assertTrue(mappedScopeData.has(PrimitiveType.IPv4.name()));
+      assertEquals(254, mappedScopeData.getAsJsonArray(PrimitiveType.IPv4.name()).size());
+      assertEquals(
+          "10.0.0.1",
+          mappedScopeData.getAsJsonArray(PrimitiveType.IPv4.name()).get(0).getAsString());
+      assertEquals(
+          "10.0.0.254",
+          mappedScopeData
+              .getAsJsonArray(PrimitiveType.IPv4.name())
+              .get(mappedScopeData.getAsJsonArray(PrimitiveType.IPv4.name()).size() - 1)
+              .getAsString());
+
+      assertTrue(mappedScopeData.has(PrimitiveType.IPv6.name()));
+      assertEquals(4, mappedScopeData.getAsJsonArray(PrimitiveType.IPv6.name()).size());
+      assertEquals(
+          List.of(PrimitiveType.IPv4),
+          scopeTypeCaptor.getValue().get(PrimitiveType.IPv4.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.IPv6),
+          scopeTypeCaptor.getValue().get(PrimitiveType.IPv6.name()).primitiveTypes());
     }
   }
 

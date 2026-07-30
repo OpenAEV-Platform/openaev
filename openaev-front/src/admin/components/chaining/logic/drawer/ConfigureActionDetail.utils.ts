@@ -6,11 +6,25 @@ export const EXPECTATION_FIELD_TYPE = 'expectation';
 export const EXPECTATIONS_CONTENT_KEY = 'expectations';
 
 /**
- * Maps contract field types to their auto-link outputType (PrimitiveType label).
+ * Maps contract field types to their auto-link output primitive type (PrimitiveType label).
  * Fields whose type appears here are automatically linked when the action form opens.
  * Extend this map to add new auto-links.
  */
 const AUTO_LINK_BY_FIELD_TYPE: Partial<Record<ContractType, string>> = { 'targeted-asset': 'targeted-asset' };
+
+const resolveDefaultOutputType = (
+  field: ContractElement,
+  argumentWithDefaultValueTypes: Set<string>,
+): string | undefined => {
+  const strictAutoType = AUTO_LINK_BY_FIELD_TYPE[field.type];
+  if (strictAutoType) {
+    return strictAutoType;
+  }
+  if (argumentWithDefaultValueTypes.has(field.type)) {
+    return field.type;
+  }
+  return undefined;
+};
 
 /**
  * Returns an updated fieldLinks record with auto-links applied for fields whose type
@@ -19,14 +33,15 @@ const AUTO_LINK_BY_FIELD_TYPE: Partial<Record<ContractType, string>> = { 'target
 export const applyAutoLinks = (
   contractFields: ContractElement[],
   existingLinks: Record<string, FieldLink>,
+  argumentWithDefaultValueTypes: Set<string>,
 ): Record<string, FieldLink> => {
   const updates: Record<string, FieldLink> = {};
   for (const field of contractFields) {
     if (existingLinks[field.key]) continue;
-    const outputType = AUTO_LINK_BY_FIELD_TYPE[field.type];
+    const outputType = resolveDefaultOutputType(field, argumentWithDefaultValueTypes);
     if (outputType) {
       updates[field.key] = {
-        outputType,
+        outputTypes: [outputType],
         localScope: false,
       };
     }
@@ -127,4 +142,20 @@ export const applyPredefinedExpectations = (
     ...content,
     [EXPECTATIONS_CONTENT_KEY]: defaultExpectations,
   };
+};
+
+export const normalizeFieldLinks = (
+  links: Record<string, FieldLink> | undefined,
+): Record<string, FieldLink> => {
+  if (!links) {
+    return {};
+  }
+  const normalized: Record<string, FieldLink> = {};
+  for (const [fieldKey, link] of Object.entries(links)) {
+    normalized[fieldKey] = {
+      ...link,
+      outputTypes: link.outputTypes ?? [],
+    };
+  }
+  return normalized;
 };
