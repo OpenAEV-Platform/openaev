@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260730221735000__Add_condition_key_types_jsonb extends BaseJavaMigration {
+public class V6_20260730091735000__Add_condition_key_types_jsonb extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
