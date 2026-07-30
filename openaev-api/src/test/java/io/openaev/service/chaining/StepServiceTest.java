@@ -524,9 +524,8 @@ class StepServiceTest {
        * assets.
        */
       @Test
-      void
-          given_payloadStepWithNoMapperAlreadyExecutedOnce_should_stillCreateReadySteps_forRemainingAssets()
-              throws Exception {
+      void given_payloadStepAlreadyExecutedOnce_should_stillCreateReadySteps_forRemainingAssets()
+          throws Exception {
         // Arrange
         Step nextStepTemplateToExecute = mock(Step.class);
         Step persistedTemplate = mock(Step.class);
