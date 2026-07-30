@@ -875,22 +875,23 @@ public class WorkflowService {
             key, ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(rule.getValueType()));
 
         if (ScopeRuleValueType.IP_SUBNET.equals(rule.getValueType())) {
-          for (String expandedIp : IpAddressUtils.expandSubnetToHostIps(rule.getRuleValue())) {
-            if (IpAddressUtils.isIpv4Address(expandedIp)) {
-              scopeData
-                  .computeIfAbsent(PrimitiveType.IPv4.name(), ignored -> new ArrayList<>())
-                  .add(expandedIp);
-              typeMappings.putIfAbsent(
-                  PrimitiveType.IPv4.name(),
-                  ChainingMappedType.primitive(List.of(PrimitiveType.IPv4)));
-            } else if (IpAddressUtils.isIpv6Address(expandedIp)) {
-              scopeData
-                  .computeIfAbsent(PrimitiveType.IPv6.name(), ignored -> new ArrayList<>())
-                  .add(expandedIp);
-              typeMappings.putIfAbsent(
-                  PrimitiveType.IPv6.name(),
-                  ChainingMappedType.primitive(List.of(PrimitiveType.IPv6)));
-            }
+          IpAddressUtils.ExpandedSubnetHosts expanded =
+              IpAddressUtils.expandSubnetToHostsByFamily(rule.getRuleValue());
+          if (!expanded.ipv4Hosts().isEmpty()) {
+            scopeData
+                .computeIfAbsent(PrimitiveType.IPv4.name(), ignored -> new ArrayList<>())
+                .addAll(expanded.ipv4Hosts());
+            typeMappings.putIfAbsent(
+                PrimitiveType.IPv4.name(),
+                ChainingMappedType.primitive(List.of(PrimitiveType.IPv4)));
+          }
+          if (!expanded.ipv6Hosts().isEmpty()) {
+            scopeData
+                .computeIfAbsent(PrimitiveType.IPv6.name(), ignored -> new ArrayList<>())
+                .addAll(expanded.ipv6Hosts());
+            typeMappings.putIfAbsent(
+                PrimitiveType.IPv6.name(),
+                ChainingMappedType.primitive(List.of(PrimitiveType.IPv6)));
           }
         }
       }
