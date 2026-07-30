@@ -380,9 +380,8 @@ public class WorkflowService {
   }
 
   private String resolveScopeVariableValue(ScopeVariable existing, ScopeVariableInput input) {
-    if (PrimitiveValueMaskingUtils.isMaskedEcho(input.getType(), existing.getValue(), input.getValue())
-        || PrimitiveValueMaskingUtils.isMaskedEcho(
-            existing.getType(), existing.getValue(), input.getValue())) {
+    if (PrimitiveValueMaskingUtils.isMaskedEcho(
+        existing.getType(), existing.getValue(), input.getValue())) {
       return existing.getValue();
     }
     return input.getValue();
