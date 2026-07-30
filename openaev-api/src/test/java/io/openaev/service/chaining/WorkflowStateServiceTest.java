@@ -543,7 +543,7 @@ class WorkflowStateServiceTest {
       // Event condition on Host key type: matches "10.0.0.1"
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.Host)
+              .keyTypes(List.of(PrimitiveType.Host))
               .value("10.0.0.1")
               .type(ConditionType.EQ)
               .build();
@@ -555,8 +555,7 @@ class WorkflowStateServiceTest {
               .conditionSteps(List.of(cs1))
               .build();
 
-      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(workflowTemplateId), anySet(), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
           .thenReturn(List.of(rootCondition));
 
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
@@ -627,7 +626,7 @@ class WorkflowStateServiceTest {
       // Event condition on Host: expects "192.168.1.1" — no field in the tuple matches
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.Host)
+              .keyTypes(List.of(PrimitiveType.Host))
               .value("192.168.1.1")
               .type(ConditionType.EQ)
               .build();
@@ -639,8 +638,7 @@ class WorkflowStateServiceTest {
               .conditionSteps(List.of(cs2))
               .build();
 
-      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(workflowTemplateId), anySet(), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
           .thenReturn(List.of(rootCondition));
 
       // no matchesAnyLeafCondition returns true
@@ -718,7 +716,7 @@ class WorkflowStateServiceTest {
 
       Condition leafCondition =
           Condition.builder()
-              .keyType(PrimitiveType.Host)
+              .keyTypes(List.of(PrimitiveType.Host))
               .value("10.0.0.1")
               .type(ConditionType.EQ)
               .build();
@@ -730,8 +728,7 @@ class WorkflowStateServiceTest {
               .conditionSteps(List.of(cs3))
               .build();
 
-      when(conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
-              eq(workflowTemplateId), anySet(), anySet()))
+      when(conditionRepository.findFilterConditionsByWorkflowId(eq(workflowTemplateId), anySet()))
           .thenReturn(List.of(rootCondition));
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
               stepTemplateId, workflowId))

@@ -6,6 +6,7 @@ import type { ContractElement } from '../../../../../utils/api-types-custom';
 import InjectDataFieldItem, { type FieldLink } from './InjectDataFieldItem';
 
 interface ActionInjectDataProps {
+  panelOpen?: boolean;
   loading: boolean;
   fields: ContractElement[];
   fieldValues: Record<string, unknown>;
@@ -20,6 +21,7 @@ interface ActionInjectDataProps {
 }
 
 const ActionInjectData = ({
+  panelOpen = true,
   loading,
   fields,
   fieldValues,
@@ -67,6 +69,7 @@ const ActionInjectData = ({
           return (
             <InjectDataFieldItem
               key={field.key}
+              panelOpen={panelOpen}
               fieldKey={field.key}
               fieldLabel={fieldLabel}
               value={String(fieldValues[field.key] ?? '')}

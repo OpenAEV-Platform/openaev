@@ -17,12 +17,25 @@ import {
 import type { ActionMeta, EventMeta } from './types';
 
 export interface MapperConditionRow {
-  condition_key_type: string;
+  condition_key_types?: string[];
+  condition_key_type?: string;
   condition_key_subtype?: string;
   condition_key: string;
   condition_value?: string;
   condition_mapping_type: string;
 }
+
+export const resolveConditionKeyTypes = (condition: Record<string, unknown>): string[] => {
+  const keyTypes = condition.condition_key_types as string[] | undefined;
+  if (keyTypes && keyTypes.length > 0) {
+    return keyTypes;
+  }
+  const legacyKeyType = condition.condition_key_type;
+  if (typeof legacyKeyType === 'string' && legacyKeyType.length > 0) {
+    return [legacyKeyType];
+  }
+  return ['text'];
+};
 
 // Layout design tokens for tactic groups (px)
 const TACTIC_WIDTH = 280; // Width of each tactic column
@@ -90,12 +103,15 @@ export const buildActionMetas = (steps: StepOutput[]): Record<string, ActionMeta
         inject_assets: (data?.inject_assets as string[]) ?? [],
         inject_asset_objects: [],
         step_condition_ids: s.step_condition_ids ?? [],
-        step_conditions: (s.step_mapper_conditions ?? []).map(mc => ({
-          condition_key_type: mc.condition_key_type ?? 'text',
-          condition_key: mc.condition_key ?? '',
-          condition_value: mc.condition_value,
-          condition_mapping_type: mc.condition_mapping_type ?? 'GLOBAL',
-        })),
+        step_conditions: (s.step_mapper_conditions ?? []).map((mc) => {
+          const resolvedKeyTypes = resolveConditionKeyTypes(mc as unknown as Record<string, unknown>);
+          return {
+            condition_key_types: resolvedKeyTypes,
+            condition_key: mc.condition_key ?? '',
+            condition_value: mc.condition_value,
+            condition_mapping_type: mc.condition_mapping_type ?? 'GLOBAL',
+          };
+        }),
         step_output_types: s.step_output_types ?? [],
         contract_fields: [],
       };
@@ -182,9 +198,10 @@ const reconstructConditionGroups = (
       if (isLogical) {
         subGroups.push(buildGroup(child));
       } else {
+        const conditionKeyTypes = resolveConditionKeyTypes(child as unknown as Record<string, unknown>);
         conditions.push({
           id: child.condition_id ?? generateId(),
-          field: (child.condition_key_type as ConditionKeyType) ?? 'text',
+          field: conditionKeyTypes[0] as ConditionKeyType,
           operator: (child.condition_type as ComparisonOperator) ?? 'IN',
           value: child.condition_value ?? '',
           caseSensitive: child.condition_case_sensitive !== false,
@@ -235,13 +252,16 @@ const reconstructConditionGroups = (
     const group: ConditionGroup = {
       id: rootId,
       operator: (rootNode.condition_type as LogicalOperator) ?? 'AND',
-      conditions: topConditions.map(c => ({
-        id: c.condition_id ?? generateId(),
-        field: (c.condition_key_type as ConditionKeyType) ?? 'text',
-        operator: (c.condition_type as ComparisonOperator) ?? 'IN',
-        value: c.condition_value ?? '',
-        caseSensitive: c.condition_case_sensitive !== false,
-      })),
+      conditions: topConditions.map((c) => {
+        const conditionKeyTypes = resolveConditionKeyTypes(c as unknown as Record<string, unknown>);
+        return {
+          id: c.condition_id ?? generateId(),
+          field: conditionKeyTypes[0] as ConditionKeyType,
+          operator: (c.condition_type as ComparisonOperator) ?? 'IN',
+          value: c.condition_value ?? '',
+          caseSensitive: c.condition_case_sensitive !== false,
+        };
+      }),
       subGroups: [],
     };
     return {

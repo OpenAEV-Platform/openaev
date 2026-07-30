@@ -134,7 +134,11 @@ const LogicFlow = ({
     const stepConditions: ConditionCreateInput[] = action.step_conditions.map((c, i) => ({
       condition_temporary_id: String(i),
       condition_type: 'MAPPER' as const,
-      condition_key_type: c.condition_key_type as ConditionCreateInput['condition_key_type'],
+      condition_key_types: (
+        c.condition_key_types && c.condition_key_types.length > 0
+          ? c.condition_key_types
+          : ['text']
+      ) as ConditionCreateInput['condition_key_types'],
       condition_key: c.condition_key,
       condition_value: c.condition_value,
       condition_mapping_type: c.condition_mapping_type as ConditionCreateInput['condition_mapping_type'],

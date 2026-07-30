@@ -193,7 +193,8 @@ class StepServiceTest {
       verify(conditionService).createConditionTree(eq(inputs), any(), any(), any(), isNull());
 
       Map<PrimitiveType, Condition> byKey =
-          producedConditions.stream().collect(Collectors.toMap(Condition::getKeyType, c -> c));
+          producedConditions.stream()
+              .collect(Collectors.toMap(c -> c.getKeyTypes().getFirst(), c -> c));
 
       expectedParentMap.forEach(
           (childKey, parentKey) -> {
@@ -251,11 +252,11 @@ class StepServiceTest {
               StepActionClass.INJECT_EXECUTION,
               List.of(
                   ConditionCreateInput.builder()
-                      .keyType(PrimitiveType.Text)
+                      .keyTypes(List.of(PrimitiveType.Text))
                       .temporaryIdConditionParent(null)
                       .build(),
                   ConditionCreateInput.builder()
-                      .keyType(PrimitiveType.Number)
+                      .keyTypes(List.of(PrimitiveType.Number))
                       .temporaryIdConditionParent(null)
                       .build()));
 
@@ -278,7 +279,7 @@ class StepServiceTest {
       // Arrange
       ConditionCreateInput conditionCreateInput =
           ConditionCreateInput.builder()
-              .keyType(PrimitiveType.Text)
+              .keyTypes(List.of(PrimitiveType.Text))
               .temporaryIdConditionParent("X")
               .build();
       StepsCreateInput.StepInput stepInput =
@@ -901,7 +902,7 @@ class StepServiceTest {
 
     ConditionCreateInput c = mock(ConditionCreateInput.class);
 
-    when(c.getKeyType()).thenReturn(keyType);
+    when(c.getKeyTypes()).thenReturn(List.of(keyType));
     when(c.getTemporaryId()).thenReturn(temporaryId);
     when(c.getTemporaryIdConditionParent()).thenReturn(parentTempId);
 
@@ -1093,7 +1094,7 @@ class StepServiceTest {
           Condition.builder()
               .type(ConditionType.AND)
               .key("test_key")
-              .keyType(PrimitiveType.AssetGroupId)
+              .keyTypes(List.of(PrimitiveType.AssetGroupId))
               .value("test_value")
               .caseSensitive(false) // non-default (default is true)
               .mappingType(MappingType.GLOBAL)
@@ -1107,7 +1108,7 @@ class StepServiceTest {
           Condition.builder()
               .type(ConditionType.EQ)
               .key("child_key")
-              .keyType(PrimitiveType.AssetGroupId)
+              .keyTypes(List.of(PrimitiveType.AssetGroupId))
               .value("child_value")
               .caseSensitive(false)
               .mappingType(MappingType.LOCAL)
@@ -1140,7 +1141,7 @@ class StepServiceTest {
       assertEquals(2, savedConditions.size());
       Condition copiedRoot = savedConditions.get(0);
       assertEquals(rootCondition.getKey(), copiedRoot.getKey());
-      assertEquals(rootCondition.getKeyType(), copiedRoot.getKeyType());
+      assertEquals(rootCondition.getKeyTypes(), copiedRoot.getKeyTypes());
       assertEquals(rootCondition.getType(), copiedRoot.getType());
       assertEquals(rootCondition.getValue(), copiedRoot.getValue());
       assertEquals(rootCondition.isCaseSensitive(), copiedRoot.isCaseSensitive());
@@ -1149,7 +1150,7 @@ class StepServiceTest {
       // Assert — child condition fields
       Condition copiedChild = savedConditions.get(1);
       assertEquals(childCondition.getKey(), copiedChild.getKey());
-      assertEquals(childCondition.getKeyType(), copiedChild.getKeyType());
+      assertEquals(childCondition.getKeyTypes(), copiedChild.getKeyTypes());
       assertEquals(childCondition.getType(), copiedChild.getType());
       assertEquals(childCondition.getValue(), copiedChild.getValue());
       assertEquals(childCondition.isCaseSensitive(), copiedChild.isCaseSensitive());

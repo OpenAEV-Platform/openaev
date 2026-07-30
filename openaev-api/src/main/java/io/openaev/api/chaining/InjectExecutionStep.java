@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
@@ -555,7 +556,11 @@ public class InjectExecutionStep implements ActionStep {
 
         Map<String, Object> input = new HashMap<>();
         input.put("key", condition.getKey());
-        input.put("keyType", condition.getKeyType() != null ? condition.getKeyType().name() : null);
+        input.put(
+            "keyTypes",
+            condition.getKeyTypes() != null
+                ? condition.getKeyTypes().stream().map(Enum::name).toList()
+                : List.of());
         input.put("path", condition.getValue());
         input.put("mappingType", condition.getMappingType());
         input.put("id_step_from", condition.getStepFrom());
@@ -1064,15 +1069,31 @@ public class InjectExecutionStep implements ActionStep {
    * @param inputValues the source JSON containing the values to map
    */
   private void applyMapping(ObjectNode contentNode, Condition mapping, JsonNode inputValues) {
-    if (mapping.getKeyType() == null) {
-      log.warn("[Chaining] Skipping mapper condition {} because keyType is null", mapping.getId());
+    List<String> keyTypes =
+        mapping.getKeyTypes() != null && !mapping.getKeyTypes().isEmpty()
+            ? mapping.getKeyTypes().stream().map(Enum::name).toList()
+            : List.of();
+    if (keyTypes.isEmpty()) {
+      if (mapping.getMappingType() == MappingType.DEFAULT) {
+        // DEFAULT mapper with no keyTypes: apply static value directly.
+        // If blank, leave the injector contract default for this field untouched.
+        String targetJsonKey = mapping.getKey();
+        if (targetJsonKey != null && mapping.getValue() != null && !mapping.getValue().isBlank()) {
+          contentNode.set(targetJsonKey, TextNode.valueOf(mapping.getValue()));
+        }
+        return;
+      }
+      log.warn(
+          "[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
       return;
     }
-    String inputKey = mapping.getKeyType().name(); // e.g., "IPv4"
     String targetJsonKey = mapping.getKey();
 
-    if (inputValues.has(inputKey)) {
-      contentNode.set(targetJsonKey, inputValues.get(inputKey));
+    for (String inputKey : keyTypes) {
+      if (inputValues.has(inputKey)) {
+        contentNode.set(targetJsonKey, inputValues.get(inputKey));
+        return;
+      }
     }
   }
 

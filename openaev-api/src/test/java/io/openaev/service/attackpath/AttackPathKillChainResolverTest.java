@@ -34,7 +34,11 @@ class AttackPathKillChainResolverTest {
   @DisplayName("a leaf filter surfaces the consumed key with the PrimitiveType label, not name()")
   void leafFilterSurfacesLabel() {
     Condition portLeaf =
-        Condition.builder().type(ConditionType.EQ).keyType(PrimitiveType.Port).value("445").build();
+        Condition.builder()
+            .type(ConditionType.EQ)
+            .keyTypes(List.of(PrimitiveType.Port))
+            .value("445")
+            .build();
 
     KillChainMeta meta = resolver.resolve(List.of(portLeaf));
 
@@ -47,11 +51,15 @@ class AttackPathKillChainResolverTest {
   @DisplayName("a composite AND filter surfaces ALL its leaf keys (the tree is flattened)")
   void compositeFilterFlattens() {
     Condition portLeaf =
-        Condition.builder().type(ConditionType.EQ).keyType(PrimitiveType.Port).value("445").build();
+        Condition.builder()
+            .type(ConditionType.EQ)
+            .keyTypes(List.of(PrimitiveType.Port))
+            .value("445")
+            .build();
     Condition serviceLeaf =
         Condition.builder()
             .type(ConditionType.EQ)
-            .keyType(PrimitiveType.Service)
+            .keyTypes(List.of(PrimitiveType.Service))
             .value("smb")
             .build();
     Condition andRoot =
