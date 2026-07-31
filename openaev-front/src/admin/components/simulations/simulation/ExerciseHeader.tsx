@@ -282,19 +282,24 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openDateDialog, setOpenDateDialog] = useState(false);
 
+  // Launch is blocked for chaining until at least one allowlist scope rule exists
+  // (denylist alone is only a filter), with healthcheck as fallback.
   const isScopeMissing = isScopeMissingForChaining({
     isChaining: isSimulationChaining,
     workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],
     healthchecks,
   });
+  // Normalize scope healthchecks so the banner/button stay aligned to the same rule.
   const scopeAwareHealthchecks = getScopeAwareHealthchecks({
     healthchecks,
     isChaining: isSimulationChaining,
     isScopeMissing,
   });
+  // Chaining header shows only scope backend warnings; classic simulations keep all healthchecks.
   const healthchecksForIndicator = isSimulationChaining
     ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => healthcheck.type === 'SCOPE_DEFINITION')
     : scopeAwareHealthchecks;
+  // Logic warnings ("event field has no provider action") are computed separately and merged in the indicator.
   const logicWarnings = useUnprovisionedLogicWarnings(isSimulationChaining ? exerciseWorkflowId : undefined);
 
   useEffect(() => {
