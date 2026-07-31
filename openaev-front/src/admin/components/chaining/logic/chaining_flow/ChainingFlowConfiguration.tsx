@@ -6,6 +6,7 @@ import {
   updateCondition,
   updateStep,
 } from '../../../../../actions/chaining/chaining-actions';
+import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
 import { useFormatter } from '../../../../../components/i18n';
 import type {
   ConditionCreateInput,
@@ -14,6 +15,7 @@ import type {
   ScopeAssetOutput,
   ThreatArsenalAction,
 } from '../../../../../utils/api-types';
+import type { ContractElement } from '../../../../../utils/api-types-custom';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import AddActionList from '../drawer/AddActionList';
 import AddComponentDrawer from '../drawer/AddComponentDrawer';
@@ -148,19 +150,57 @@ const ChainingFlowConfiguration = ({
   const handleBackToChoose = () => onDrawerViewChange('choose');
 
   // -- Actions --
+  // Build the same default links as the action form: one GLOBAL mapper per field argumentType.
+  const buildAutoLinkStepConditions = useCallback(
+    async (injectorContractId: string): Promise<ConditionCreateInput[]> => {
+      try {
+        const response = await directFetchInjectorContract(injectorContractId) as { data?: { injector_contract_content?: string } };
+        const content = response.data?.injector_contract_content;
+        if (!content) {
+          return [];
+        }
+        const parsed = JSON.parse(content) as { fields?: ContractElement[] };
+        const fields = Array.isArray(parsed.fields) ? parsed.fields : [];
+        const seen = new Set<string>();
+        const conditions: ConditionCreateInput[] = [];
+        for (const field of fields) {
+          const key = typeof field.key === 'string' ? field.key.trim() : '';
+          const argumentType = typeof field.argumentType === 'string' ? field.argumentType.trim() : '';
+          // Skip invalid or duplicate keys to avoid creating duplicate mappers.
+          if (!key || !argumentType || seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          conditions.push({
+            condition_temporary_id: String(conditions.length),
+            condition_type: 'MAPPER',
+            condition_key: key,
+            condition_key_types: [argumentType] as ConditionCreateInput['condition_key_types'],
+            condition_mapping_type: 'GLOBAL',
+          });
+        }
+        return conditions;
+      } catch {
+        return [];
+      }
+    },
+    [],
+  );
 
   const handleAddActions = async (selectedActions: ThreatArsenalAction[]) => {
     if (!workflowId || selectedActions.length === 0) return;
 
-    const promises = selectedActions.map((action) => {
+    const promises = selectedActions.map(async (action) => {
       const title = action.action_labels?.en
         ?? action.action_labels?.fr
         ?? 'Untitled action';
+      const stepConditions = await buildAutoLinkStepConditions(action.injector_contract_id);
 
       return createStep({
         step_workflow_id: workflowId,
         step_action: 'INJECT_EXECUTION' as const,
         step_condition_ids: linkToEventId ? [linkToEventId] : [],
+        step_conditions: stepConditions.length > 0 ? stepConditions : undefined,
         step_data_step: {
           inject_title: title,
           inject_injector_contract: action.injector_contract_id,

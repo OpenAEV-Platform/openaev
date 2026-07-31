@@ -374,10 +374,11 @@ public class InjectorApiTest extends IntegrationTest {
       List<InjectorContract> contracts =
           injectorContractRepository.findByInjectorsContaining(persisted.get());
       assertThat(contracts).hasSize(1);
-      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].key"))
-          .isEqualTo("target");
-      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].argumentType"))
-          .isEqualTo("text");
+      String fieldKey = JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].key");
+      String fieldArgumentType =
+          JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].argumentType");
+      assertThat(fieldKey).isEqualTo("target");
+      assertThat(fieldArgumentType).isEqualTo("text");
     }
 
     @Test
@@ -445,12 +446,14 @@ public class InjectorApiTest extends IntegrationTest {
       List<InjectorContract> contracts =
           injectorContractRepository.findByInjectorsContaining(persisted.get());
       assertThat(contracts).hasSize(1);
-      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].argumentType"))
-          .isEqualTo("text");
-      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[1].argumentType"))
-          .isEqualTo("text");
-      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[2].argumentType"))
-          .isEqualTo("text");
+      String missingType =
+          JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].argumentType");
+      String nullType = JsonPath.read(contracts.getFirst().getContent(), "$.fields[1].argumentType");
+      String emptyType =
+          JsonPath.read(contracts.getFirst().getContent(), "$.fields[2].argumentType");
+      assertThat(missingType).isEqualTo("text");
+      assertThat(nullType).isEqualTo("text");
+      assertThat(emptyType).isEqualTo("text");
     }
 
     @Test

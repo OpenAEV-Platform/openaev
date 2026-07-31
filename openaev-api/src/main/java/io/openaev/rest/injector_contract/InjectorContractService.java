@@ -1016,7 +1016,7 @@ public class InjectorContractService implements DependenciesManager {
    *
    * <p>For externally pushed injector contracts, {@code argumentType} may be omitted, null, or an
    * empty string. In such cases, this method sets it to {@code text} to keep contract content
-   * consistent.
+   * consistent. If the JSON cannot be parsed, the original content is returned unchanged.
    */
   public String normalizeContractContentArgumentType(String rawContent) {
     if (!StringUtils.hasText(rawContent)) {
