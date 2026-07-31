@@ -13,6 +13,7 @@ import io.openaev.aop.lock.LockAcquisitionException;
 import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.rest.exception.*;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.stix.parsing.ParsingException;
@@ -247,6 +248,19 @@ public class RestBehavior {
   @ResponseStatus(HttpStatus.FORBIDDEN)
   @ExceptionHandler(LicenseRestrictionException.class)
   public ValidationErrorBag handleLicenseError(LicenseRestrictionException ex) {
+    ValidationErrorBag bag =
+        new ValidationErrorBag(HttpStatus.FORBIDDEN.value(), "LICENSE_RESTRICTION");
+    ValidationError errors = new ValidationError();
+    Map<String, ValidationContent> errorsBag = new HashMap<>();
+    errorsBag.put("message", new ValidationContent(ex.getMessage()));
+    errors.setChildren(errorsBag);
+    bag.setErrors(errors);
+    return bag;
+  }
+
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  @ExceptionHandler(EnterpriseEditionException.class)
+  public ValidationErrorBag handleEnterpriseEditionException(EnterpriseEditionException ex) {
     ValidationErrorBag bag =
         new ValidationErrorBag(HttpStatus.FORBIDDEN.value(), "LICENSE_RESTRICTION");
     ValidationError errors = new ValidationError();
