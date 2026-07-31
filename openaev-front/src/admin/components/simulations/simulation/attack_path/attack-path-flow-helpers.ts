@@ -475,7 +475,15 @@ export const buildClusteredAttackPathFlow = (
   for (const e of execEdges) {
     const src = e.edgeSourceId;
     const tgt = e.edgeTargetId;
-    if (!src || !tgt || !assetById.has(tgt)) {
+    if (!tgt || !assetById.has(tgt)) {
+      continue;
+    }
+    // The endpoint is a reached node even for endpoint-local actions.
+    if (!reachedOrder.includes(tgt)) {
+      reachedOrder.push(tgt);
+    }
+    // Endpoint-local action (source === target): not reached "by" an injector — no self arrow.
+    if (!src || src === tgt) {
       continue;
     }
     const injs = injectorsByEndpoint.get(tgt) ?? [];
@@ -483,9 +491,6 @@ export const buildClusteredAttackPathFlow = (
       injs.push(src);
     }
     injectorsByEndpoint.set(tgt, injs);
-    if (!reachedOrder.includes(tgt)) {
-      reachedOrder.push(tgt);
-    }
   }
 
   // Reveal the most-exposed endpoints first (most findings = highest chokepoint score), so expanding
@@ -724,6 +729,10 @@ export const pivotEndpointIds = (
     if (e.type !== EDGE_EXECUTIONS) {
       continue;
     }
+    // A self-loop (endpoint-local action) is not a pivot.
+    if (e.edgeSourceId === e.edgeTargetId) {
+      continue;
+    }
     if (e.edgeSourceId) {
       sources.add(e.edgeSourceId);
     }
@@ -804,7 +813,8 @@ export const buildFindingPathFlow = (
   // The injector(s) that reached this endpoint (execution edges into it).
   const injectorIds = new Set<string>();
   for (const e of dto.attackPathEdges ?? []) {
-    if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === endpointId && e.edgeSourceId) {
+    if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === endpointId && e.edgeSourceId
+      && e.edgeSourceId !== e.edgeTargetId) {
       injectorIds.add(e.edgeSourceId);
     }
   }
@@ -1709,6 +1719,11 @@ export const buildCausalChainFlow = (
       // Injectors that hit this asset, stacked within the block, each with its own labelled edge.
       injectors.forEach((injId, i) => {
         const s = steps.get(injId) as ChainStep;
+        // Endpoint-local action: the "injector" is this very endpoint (self-loop). Draw no injector
+        // node and no self arrow — the endpoint node and its findings already render above.
+        if (injId === epId) {
+          return;
+        }
         if (!injectorPlaced.has(injId)) {
           injectorPlaced.add(injId);
           const injCenterY = injectors.length === 1

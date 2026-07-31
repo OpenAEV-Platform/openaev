@@ -723,7 +723,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       (dto.attackPathNodes ?? []).filter(n => n.type === 'ASSET' && n.id).map(n => [n.id as string, n]),
     );
     for (const e of dto.attackPathEdges ?? []) {
-      if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId && e.edgeTargetId && assetById.has(e.edgeTargetId)) {
+      if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId && e.edgeTargetId
+        && e.edgeSourceId !== e.edgeTargetId && assetById.has(e.edgeTargetId)) {
         const ref = assetById.get(e.edgeTargetId)?.ref ?? e.edgeTargetId;
         const arr = map.get(e.edgeSourceId) ?? [];
         if (!arr.includes(ref)) {
@@ -1686,7 +1687,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       );
       const producingInjectors = new Set<string>();
       for (const e of fullDto?.attackPathEdges ?? []) {
-        if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId
+        if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId && e.edgeSourceId !== e.edgeTargetId
           && (e.executionIds ?? []).some(id => highlightedExecutionIds.has(id))) {
           producingInjectors.add(e.edgeSourceId);
         }
@@ -1713,7 +1714,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       pathSet.add(selectedNodeId);
       pathSet.add(AP_SHARED_EP_CLUSTER_ID);
       for (const e of dto?.attackPathEdges ?? []) {
-        if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === selectedNodeId && e.edgeSourceId) {
+        if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === selectedNodeId && e.edgeSourceId
+          && e.edgeSourceId !== e.edgeTargetId) {
           pathSet.add(e.edgeSourceId);
         }
       }
