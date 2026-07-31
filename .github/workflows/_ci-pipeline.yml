@@ -106,6 +106,8 @@ jobs:
       matrix:
         include: ${{ fromJSON(inputs.api-matrix) }}
     env:
+      # Every pattern claimed by an explicit shard. The "catchall" shard runs the
+      # complement, so any package added here must belong to a shard below.
       EXPLICITLY_SHARDED_TESTS: |-
         io/openaev/api/**/*Test.java
         io/openaev/integration/**/*Test.java
@@ -113,6 +115,26 @@ jobs:
         io/openaev/opencti/**/*Test.java
         io/openaev/service/**/*Test.java
         io/openaev/rest/**/*Test.java
+        io/openaev/config/**/*Test.java
+        io/openaev/database/**/*Test.java
+        io/openaev/scheduler/**/*Test.java
+        io/openaev/datapack/**/*Test.java
+        io/openaev/debug/**/*Test.java
+        io/openaev/output_processor/**/*Test.java
+        io/openaev/executors/**/*Test.java
+        io/openaev/engine/**/*Test.java
+        io/openaev/context/**/*Test.java
+        io/openaev/processor/**/*Test.java
+        io/openaev/injector_contract/**/*Test.java
+        io/openaev/helper/**/*Test.java
+        io/openaev/runner/**/*Test.java
+        io/openaev/healthcheck/**/*Test.java
+        io/openaev/telemetry/**/*Test.java
+        io/openaev/aop/**/*Test.java
+        io/openaev/architecture/**/*Test.java
+        io/openaev/utils/**/*Test.java
+        io/openaev/utilstest/**/*Test.java
+        io/openaev/notification/**/*Test.java
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
@@ -172,6 +194,8 @@ jobs:
           project: ${{ matrix.project }}
           docker-image: ${{ matrix.docker_image }}
           search-engine: ${{ matrix.search_engine }}
+          includes: ${{ matrix.includes }}
+          excludes: ${{ matrix.excludes }}
           artifact-suffix: ${{ matrix.artifact_suffix }}
 
   # ════════════════════════════════════════════════════════════════════
@@ -435,6 +459,8 @@ jobs:
   #
   # ⚠️  REQUIRED status check for branch protection.
   #     Snyk is intentionally excluded: advisory in Core, blocking in Nightly.
+  #     Codecov is excluded too: coverage upload is best-effort and must not
+  #     hold the gate (and therefore the merge) behind a reporting step.
   #     The full check name is "<caller-job> / ✅ Pipeline Gate".
   #     If the caller job key changes, update the branch-protection rule.
   # ════════════════════════════════════════════════════════════════════
@@ -455,7 +481,6 @@ jobs:
       - backend-package-musl
       - docker-build
       - docker-merge
-      - codecov
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -499,3 +524,5 @@ jobs:
 
       - uses: actions/checkout@v7
       - uses: ./.github/actions/sanity-check
+        with:
+          github-token: ${{ github.token }}

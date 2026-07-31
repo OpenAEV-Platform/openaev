@@ -214,3 +214,5 @@ runs:
         name: ${{ steps.names.outputs.artifact_name }}
         path: ${{ steps.names.outputs.artifact_name }}.tar.gz
         retention-days: 1
+        # Already gzipped — re-zipping costs CPU on both upload and download for ~0% gain
+        compression-level: 0

@@ -36,6 +36,17 @@ inputs:
     description: "Playwright project name to run (defaults to the browser input value)."
     required: false
     default: ""
+  includes:
+    description: >
+      Newline-separated path filters (regex, matched against the spec path) selecting
+      which specs this shard runs. Use "catchall" to run every spec not claimed by
+      another shard (see excludes). Empty runs the project's whole set.
+    required: false
+    default: ""
+  excludes:
+    description: "Newline-separated path filters owned by explicit shards. Only read when includes is 'catchall'."
+    required: false
+    default: ""
   artifact-suffix:
     description: "Suffix appended to artifact names to avoid conflicts (e.g. '-opensearch')"
     required: false
@@ -119,12 +130,24 @@ runs:
       run: yarn install --immutable
       shell: bash
       working-directory: openaev-front
+    - name: Resolve Playwright version
+      id: pw-version
+      run: |
+        VERSION=$(node -p "require('./package.json').devDependencies['@playwright/test']")
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "Playwright $VERSION"
+      shell: bash
+      working-directory: openaev-front
     - name: Cache Playwright browsers
       id: playwright-cache
       uses: actions/cache@v6
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('openaev-front/yarn.lock') }}
+        # Browser builds track the Playwright version, not the whole lockfile, so an
+        # unrelated dependency bump no longer forces a re-download.
+        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw-version.outputs.version }}
+        restore-keys: |
+          playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-
     - name: Install Playwright browsers (${{ inputs.browser }} + chromium for setup)
       if: steps.playwright-cache.outputs.cache-hit != 'true'
       run: |
@@ -321,16 +344,44 @@ runs:
 
     - name: Run E2E tests (${{ inputs.project || inputs.browser }})
       run: |
+        set -euo pipefail
         CONFIG="${{ inputs.playwright-config }}"
         PROJECT="${{ inputs.project || inputs.browser }}"
-        ARGS="--config $CONFIG"
-        ARGS="$ARGS --project=setup --project=$PROJECT"
+        ARGS="--config $CONFIG --project=setup --project=$PROJECT"
+
+        FILTERS=""
+        if [ "$SHARD_INCLUDES" = "catchall" ]; then
+          SPECS=$(find tests_e2e -name '*.spec.ts' | sed 's|^\./||' | sort)
+          if [ -n "$SHARD_EXCLUDES" ]; then
+            EXCL_RE=$(printf '%s\n' "$SHARD_EXCLUDES" | grep -v '^[[:space:]]*$' | paste -sd'|' -)
+            SPECS=$(printf '%s\n' "$SPECS" | grep -Ev "$EXCL_RE" || true)
+          fi
+          if [ -z "$SPECS" ]; then
+            echo "⏭️ Catch-all shard: every spec is claimed by another shard — nothing to run"
+            exit 0
+          fi
+          echo "🔄 Catch-all shard running:"
+          printf '  %s\n' $SPECS
+          FILTERS=$(printf '%s\n' "$SPECS" | paste -sd' ' -)
+        elif [ -n "$SHARD_INCLUDES" ]; then
+          FILTERS=$(printf '%s\n' "$SHARD_INCLUDES" | grep -v '^[[:space:]]*$' | paste -sd' ' -)
+          echo "📋 Shard filters: $FILTERS"
+        fi
+
+        # auth.setup.ts must stay in scope or the setup project matches nothing
+        # and every dependent project starts without a storageState.
+        if [ -n "$FILTERS" ]; then
+          ARGS="$ARGS tests_e2e/auth\.setup\.ts $FILTERS"
+        fi
+
         yarn playwright test $ARGS
       shell: bash
       working-directory: openaev-front
       env:
         APP_URL: http://localhost:8080
         E2E_COVERAGE: "true"
+        SHARD_INCLUDES: ${{ inputs.includes }}
+        SHARD_EXCLUDES: ${{ inputs.excludes }}
     - name: Upload Playwright report (${{ inputs.browser }})
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7

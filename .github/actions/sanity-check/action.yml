@@ -1,18 +1,22 @@
 name: Sanity Check
 description: >
-  Download all workflow artifacts and validate their presence, file sizes,
-  and directory structure. Reports a summary with pass/warn/fail counts.
+  Verify every release-critical artifact was produced, using the artifacts API
+  (name + size) rather than downloading them. Image internals are already
+  validated where they are built — docker-build checks the JAR, Java runtime and
+  layer count, docker-merge checks the platform list.
+
+inputs:
+  github-token:
+    description: Token used to query the workflow artifacts API.
+    required: true
 
 runs:
   using: composite
   steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v8
-      with:
-        path: /tmp/artifacts
-
-    - name: Sanity check — artifacts & images
+    - name: Sanity check — artifact inventory
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
         set -euo pipefail
 
@@ -20,46 +24,32 @@ runs:
         FAIL=0
         WARN=0
 
-        check_file() {
-          local path="$1" min_bytes="$2" label="$3"
-          if [ ! -f "$path" ]; then
-            echo "❌ MISSING: $label ($path)"
-            FAIL=$((FAIL + 1))
-            return
-          fi
-          local size
-          size=$(stat --format=%s "$path" 2>/dev/null || stat -f%z "$path" 2>/dev/null)
-          local size_human
-          if [ "$size" -ge 1073741824 ]; then
-            size_human="$(awk "BEGIN {printf \"%.2f GB\", $size / 1073741824}")"
-          elif [ "$size" -ge 1048576 ]; then
-            size_human="$(awk "BEGIN {printf \"%.1f MB\", $size / 1048576}")"
-          else
-            size_human="$(awk "BEGIN {printf \"%.1f KB\", $size / 1024}")"
-          fi
-          if [ "$size" -lt "$min_bytes" ]; then
-            echo "⚠️  TOO SMALL: $label — $size_human (expected ≥ $(numfmt --to=iec "$min_bytes"))"
-            WARN=$((WARN + 1))
-          else
-            echo "✅ $label — $size_human"
-            PASS=$((PASS + 1))
-          fi
+        ARTIFACTS=$(gh api --paginate \
+          "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" \
+          --jq '.artifacts[] | "\(.name)\t\(.size_in_bytes)"')
+
+        human() {
+          awk -v s="$1" 'BEGIN {
+            if (s >= 1073741824) printf "%.2f GB", s / 1073741824;
+            else if (s >= 1048576) printf "%.1f MB", s / 1048576;
+            else printf "%.1f KB", s / 1024;
+          }'
         }
 
-        check_dir() {
-          local path="$1" min_files="$2" label="$3"
-          if [ ! -d "$path" ]; then
-            echo "❌ MISSING: $label ($path)"
+        check_artifact() {
+          local name="$1" min_bytes="$2" label="$3"
+          local size
+          size=$(printf '%s\n' "$ARTIFACTS" | awk -F'\t' -v n="$name" '$1 == n { print $2; exit }')
+          if [ -z "$size" ]; then
+            echo "❌ MISSING: $label (artifact '$name' was never uploaded)"
             FAIL=$((FAIL + 1))
             return
           fi
-          local count
-          count=$(find "$path" -type f | wc -l)
-          if [ "$count" -lt "$min_files" ]; then
-            echo "⚠️  TOO FEW FILES: $label — $count file(s) (expected ≥ $min_files)"
+          if [ "$size" -lt "$min_bytes" ]; then
+            echo "⚠️  TOO SMALL: $label — $(human "$size") (expected ≥ $(numfmt --to=iec "$min_bytes"))"
             WARN=$((WARN + 1))
           else
-            echo "✅ $label — $count file(s)"
+            echo "✅ $label — $(human "$size")"
             PASS=$((PASS + 1))
           fi
         }
@@ -70,28 +60,21 @@ runs:
         echo ""
 
         echo "── Frontend ──"
-        check_dir "/tmp/artifacts/frontend-build" 5 "Frontend build bundle"
+        check_artifact "frontend-build" 1048576 "Frontend build bundle"
         echo ""
 
         echo "── Backend JARs ──"
-        check_file "/tmp/artifacts/openaev-api-jar/openaev-api.jar" 52428800 "Backend JAR (glibc)"
-        check_file "/tmp/artifacts/openaev-api-jar-musl/openaev-api.jar" 52428800 "Backend JAR (musl)"
+        check_artifact "openaev-api-jar" 52428800 "Backend JAR (glibc)"
+        check_artifact "openaev-api-jar-musl" 52428800 "Backend JAR (musl)"
         echo ""
 
         echo "── Release Assets ──"
-        check_dir "/tmp/artifacts/release-assets" 1 "Release assets (agents/implants/catalog)"
-        CATALOG=$(find /tmp/artifacts/release-assets -name 'catalog-integrators.json' 2>/dev/null | head -1)
-        if [ -n "$CATALOG" ]; then
-          check_file "$CATALOG" 1024 "Catalog JSON (catalog-integrators.json)"
-        else
-          echo "⚠️  Catalog JSON not found in release-assets"
-          WARN=$((WARN + 1))
-        fi
+        check_artifact "release-assets" 1048576 "Release assets (agents/implants/catalog)"
         echo ""
 
         echo "── Docker Images ──"
-        check_file "/tmp/artifacts/openaev-image/openaev-image.tar.gz" 157286400 "Standard Docker image (OCI archive)"
-        check_file "/tmp/artifacts/openaev-ubi9-image/openaev-ubi9-image.tar.gz" 157286400 "UBI9 Docker image (OCI archive)"
+        check_artifact "openaev-image" 157286400 "Standard Docker image (multi-arch OCI archive)"
+        check_artifact "openaev-ubi9-image" 157286400 "UBI9 Docker image (multi-arch OCI archive)"
         echo ""
 
         echo "══════════════════════════════════════════════════════════"

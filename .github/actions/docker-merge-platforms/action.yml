@@ -155,3 +155,5 @@ runs:
         name: ${{ inputs.artifact-name }}
         path: ${{ inputs.artifact-name }}.tar.gz
         retention-days: 1
+        # Already gzipped — re-zipping costs CPU for ~0% gain
+        compression-level: 0
