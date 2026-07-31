@@ -559,68 +559,69 @@ public class HealthCheckUtilsTest {
       assertFalse(isReady);
     }
 
-    @Nested
-    class ScopeDefinitionChecksTests {
+  }
 
-      @Test
-      void given_no_scope_rules_should_return_scope_definition_empty_warning() {
-        // -- PREPARE --
-        Workflow workflow = new Workflow();
+  @Nested
+  class ScopeDefinitionChecksTests {
 
-        // -- EXECUTE --
-        List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+    @Test
+    void given_no_scope_rules_should_return_scope_definition_empty_warning() {
+      // -- PREPARE --
+      Workflow workflow = new Workflow();
 
-        // -- ASSERT --
-        assertTrue(
-            checks.stream()
-                .anyMatch(
-                    check ->
-                        HealthCheck.Type.SCOPE_DEFINITION.equals(check.getType())
-                            && HealthCheck.Detail.EMPTY.equals(check.getDetail())));
-      }
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
 
-      @Test
-      void given_only_denylist_scope_rules_should_return_scope_definition_empty_warning() {
-        // -- PREPARE --
-        Workflow workflow = new Workflow();
-        workflow.setWorkflowScopeRules(List.of(buildScopeRule(ScopeRuleSelectedMode.DENYLIST, "asset-1")));
+      // -- ASSERT --
+      assertTrue(
+          checks.stream()
+              .anyMatch(
+                  check ->
+                      HealthCheck.Type.SCOPE_DEFINITION.equals(check.getType())
+                          && HealthCheck.Detail.EMPTY.equals(check.getDetail())));
+    }
 
-        // -- EXECUTE --
-        List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+    @Test
+    void given_only_denylist_scope_rules_should_return_scope_definition_empty_warning() {
+      // -- PREPARE --
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(List.of(buildScopeRule(ScopeRuleSelectedMode.DENYLIST, "asset-1")));
 
-        // -- ASSERT --
-        assertTrue(
-            checks.stream()
-                .anyMatch(
-                    check ->
-                        HealthCheck.Type.SCOPE_DEFINITION.equals(check.getType())
-                            && HealthCheck.Detail.EMPTY.equals(check.getDetail())));
-      }
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
 
-      @Test
-      void given_allowlist_scope_rule_with_value_should_not_return_scope_definition_empty_warning() {
-        // -- PREPARE --
-        Workflow workflow = new Workflow();
-        workflow.setWorkflowScopeRules(List.of(buildScopeRule(ScopeRuleSelectedMode.ALLOWLIST, "asset-1")));
+      // -- ASSERT --
+      assertTrue(
+          checks.stream()
+              .anyMatch(
+                  check ->
+                      HealthCheck.Type.SCOPE_DEFINITION.equals(check.getType())
+                          && HealthCheck.Detail.EMPTY.equals(check.getDetail())));
+    }
 
-        // -- EXECUTE --
-        List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+    @Test
+    void given_allowlist_scope_rule_with_value_should_not_return_scope_definition_empty_warning() {
+      // -- PREPARE --
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(List.of(buildScopeRule(ScopeRuleSelectedMode.ALLOWLIST, "asset-1")));
 
-        // -- ASSERT --
-        assertFalse(
-            checks.stream()
-                .anyMatch(
-                    check ->
-                        HealthCheck.Type.SCOPE_DEFINITION.equals(check.getType())
-                            && HealthCheck.Detail.EMPTY.equals(check.getDetail())));
-      }
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
 
-      private WorkflowScopeRule buildScopeRule(ScopeRuleSelectedMode mode, String value) {
-        WorkflowScopeRule rule = new WorkflowScopeRule();
-        rule.setSelectedMode(mode);
-        rule.setRuleValue(value);
-        return rule;
-      }
+      // -- ASSERT --
+      assertFalse(
+          checks.stream()
+              .anyMatch(
+                  check ->
+                      HealthCheck.Type.SCOPE_DEFINITION.equals(check.getType())
+                          && HealthCheck.Detail.EMPTY.equals(check.getDetail())));
+    }
+
+    private WorkflowScopeRule buildScopeRule(ScopeRuleSelectedMode mode, String value) {
+      WorkflowScopeRule rule = new WorkflowScopeRule();
+      rule.setSelectedMode(mode);
+      rule.setRuleValue(value);
+      return rule;
     }
   }
 }

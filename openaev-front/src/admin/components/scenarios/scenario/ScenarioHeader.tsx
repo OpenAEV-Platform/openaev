@@ -19,7 +19,6 @@ import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
-import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
 import { fetchScenarioArticles } from '../../../../actions/channels/article-action';
 import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
@@ -54,7 +53,6 @@ import {
   type Inject,
   type Scenario,
   type Team,
-  type WorkflowScopeRuleOutput,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -83,15 +81,6 @@ const ScenarioHeader = ({
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
 }: ScenarioHeaderProps) => {
-  const isScopeDefinitionEmptyHealthcheck = (healthcheck: HealthCheck): boolean =>
-    healthcheck.type === 'SCOPE_DEFINITION' && healthcheck.detail === 'EMPTY';
-  const SCOPE_DEFINITION_EMPTY_WARNING: HealthCheck = {
-    creation_date: '',
-    detail: 'EMPTY',
-    status: 'WARNING',
-    type: 'SCOPE_DEFINITION',
-  };
-
   // Standard hooks
   const { t, locale, fld } = useFormatter();
   const dispatch = useAppDispatch();
@@ -149,30 +138,8 @@ const ScenarioHeader = ({
   const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
-  const { workflowConfiguration } = useHelper((helper: WorkflowConfigurationHelper) => ({
-    workflowConfiguration: scenarioWorkflowId
-      ? helper.getWorkflowConfiguration(scenarioWorkflowId)
-      : undefined,
-  }));
-  const hasAllowlistEntry = (workflowConfiguration?.workflow_scope_rules ?? []).some(
-    (rule: WorkflowScopeRuleOutput) =>
-      rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
-      && !!rule.workflow_scope_rule_value?.trim(),
-  );
-  // Launch is blocked for chaining until at least one allowlist scope rule exists
-  // (denylist alone is only a filter), with healthcheck as fallback.
   const isScopeMissing = isScenarioChaining
-    && (
-      !hasAllowlistEntry
-      || healthchecks.some(isScopeDefinitionEmptyHealthcheck)
-    );
-  const hasScopeDefinitionWarning = healthchecks.some(isScopeDefinitionEmptyHealthcheck);
-  const healthchecksForIndicator = useMemo(
-    () => (isScopeMissing && !hasScopeDefinitionWarning
-      ? [...healthchecks, SCOPE_DEFINITION_EMPTY_WARNING]
-      : healthchecks),
-    [healthchecks, isScopeMissing, hasScopeDefinitionWarning],
-  );
+    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
@@ -206,7 +173,7 @@ const ScenarioHeader = ({
 
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-  }, [scenarioId, scenario, workflowConfiguration]);
+  }, [scenarioId, scenario]);
 
   // Expectation drift between the injector contract templates and the inject
   // content - recomputed when the scenario or its inject set changes.
@@ -306,10 +273,7 @@ const ScenarioHeader = ({
             <>
               {/* Contextual configuration alert - self-hides when healthy. */}
               {canManage && (
-                <HealthcheckIndicator
-                  healthchecks={healthchecksForIndicator}
-                  scenarioId={scenarioId}
-                />
+                <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
               )}
               {/* Expectation drift warning - self-hides when aligned or dismissed. */}
               {canManage && (
