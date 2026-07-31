@@ -24,6 +24,7 @@ import { fetchScenarioArticles } from '../../../../actions/channels/article-acti
 import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import {
   createRunningExerciseFromScenario,
   dismissScenarioExpectationsDrift,
@@ -138,6 +139,11 @@ const ScenarioHeader = ({
   const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+  const { workflowConfiguration } = useHelper((helper: WorkflowConfigurationHelper) => ({
+    workflowConfiguration: scenarioWorkflowId
+      ? helper.getWorkflowConfiguration(scenarioWorkflowId)
+      : undefined,
+  }));
   const isScopeMissing = isScenarioChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
@@ -173,7 +179,7 @@ const ScenarioHeader = ({
 
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-  }, [scenarioId, scenario]);
+  }, [scenarioId, scenario, workflowConfiguration]);
 
   // Expectation drift between the injector contract templates and the inject
   // content - recomputed when the scenario or its inject set changes.
