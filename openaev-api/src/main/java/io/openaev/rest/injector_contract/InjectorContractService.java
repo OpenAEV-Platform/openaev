@@ -94,8 +94,8 @@ import org.springframework.util.StringUtils;
 public class InjectorContractService implements DependenciesManager {
   private static final String CONTRACT_CONTENT_FIELDS_NODE = "fields";
   private static final String CONTRACT_FIELD_ARGUMENT_TYPE = "argumentType";
-  private static final String LEGACY_CONTRACT_FIELD_PAYLOAD_ARGUMENT_TYPE = "payloadArgumentType";
-  private static final String DEFAULT_PAYLOAD_ARGUMENT_TYPE_LABEL = PrimitiveType.Text.label;
+  private static final String LEGACY_CONTRACT_FIELD_ALTERNATE_ARGUMENT_TYPE = "payloadArgumentType";
+  private static final String DEFAULT_ARGUMENT_TYPE_LABEL = PrimitiveType.Text.label;
 
   @PersistenceContext private EntityManager entityManager;
   @Resource private ObjectMapper mapper;
@@ -993,7 +993,7 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setLabels(in.getLabels());
     injectorContract.addInjector(injector);
     injectorContract.setTenant(new Tenant(injector.getTenantId()));
-    injectorContract.setContent(normalizePayloadArgumentTypeInContractContent(in.getContent()));
+    injectorContract.setContent(normalizeContractContentArgumentType(in.getContent()));
     injectorContract.setAtomicTesting(in.isAtomicTesting());
     injectorContract.setPlatforms(in.getPlatforms());
     if (!in.getAttackPatternsExternalIds().isEmpty()) {
@@ -1019,9 +1019,9 @@ public class InjectorContractService implements DependenciesManager {
    * empty string. In such cases, this method sets it to {@code text} to keep contract content
    * consistent.
    *
-   * <p>Legacy {@code payloadArgumentType} values are copied to {@code argumentType}.
+   * <p>Legacy alternate field-name values are copied to {@code argumentType}.
    */
-  public String normalizePayloadArgumentTypeInContractContent(String rawContent) {
+  public String normalizeContractContentArgumentType(String rawContent) {
     if (!StringUtils.hasText(rawContent)) {
       return rawContent;
     }
@@ -1041,8 +1041,8 @@ public class InjectorContractService implements DependenciesManager {
           continue;
         }
         JsonNode argumentTypeNode = fieldNode.get(CONTRACT_FIELD_ARGUMENT_TYPE);
-        JsonNode legacyPayloadArgumentTypeNode =
-            fieldNode.get(LEGACY_CONTRACT_FIELD_PAYLOAD_ARGUMENT_TYPE);
+        JsonNode legacyAlternateArgumentTypeNode =
+            fieldNode.get(LEGACY_CONTRACT_FIELD_ALTERNATE_ARGUMENT_TYPE);
 
         boolean isMissingOrNull = argumentTypeNode == null || argumentTypeNode.isNull();
         boolean isBlankString =
@@ -1051,11 +1051,11 @@ public class InjectorContractService implements DependenciesManager {
                 && !StringUtils.hasText(argumentTypeNode.asText());
 
         if (isMissingOrNull || isBlankString) {
-          String normalizedValue = DEFAULT_PAYLOAD_ARGUMENT_TYPE_LABEL;
-          if (legacyPayloadArgumentTypeNode != null
-              && legacyPayloadArgumentTypeNode.isTextual()
-              && StringUtils.hasText(legacyPayloadArgumentTypeNode.asText())) {
-            normalizedValue = legacyPayloadArgumentTypeNode.asText();
+          String normalizedValue = DEFAULT_ARGUMENT_TYPE_LABEL;
+          if (legacyAlternateArgumentTypeNode != null
+              && legacyAlternateArgumentTypeNode.isTextual()
+              && StringUtils.hasText(legacyAlternateArgumentTypeNode.asText())) {
+            normalizedValue = legacyAlternateArgumentTypeNode.asText();
           }
           ((ObjectNode) fieldNode).put(CONTRACT_FIELD_ARGUMENT_TYPE, normalizedValue);
           changed = true;

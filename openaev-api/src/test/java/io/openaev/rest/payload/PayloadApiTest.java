@@ -441,14 +441,14 @@ class PayloadApiTest extends IntegrationTest {
               "arg_username",
               "arg_cve");
       Map<String, String> keyToContractType = new HashMap<>();
-      Map<String, String> keyToPayloadArgumentType = new HashMap<>();
+      Map<String, String> keyToArgumentType = new HashMap<>();
       ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
       contractFields.forEach(
           f -> {
             String key = f.get("key").asText();
             if (argumentKeys.contains(key)) {
               keyToContractType.put(key, f.get("type").asText());
-              keyToPayloadArgumentType.put(key, f.get("argumentType").asText());
+              keyToArgumentType.put(key, f.get("argumentType").asText());
             }
           });
 
@@ -458,20 +458,19 @@ class PayloadApiTest extends IntegrationTest {
           (key, type) ->
               assertEquals(
                   "text", type, "Argument '" + key + "' must produce a text contract field"));
-      assertEquals("text", keyToPayloadArgumentType.get("arg_text"));
-      assertEquals("number", keyToPayloadArgumentType.get("arg_number"));
-      assertEquals("port", keyToPayloadArgumentType.get("arg_port"));
-      assertEquals("host", keyToPayloadArgumentType.get("arg_host"));
-      assertEquals("ipv4", keyToPayloadArgumentType.get("arg_ipv4"));
-      assertEquals("ipv6", keyToPayloadArgumentType.get("arg_ipv6"));
-      assertEquals("username", keyToPayloadArgumentType.get("arg_username"));
-      assertEquals("cve", keyToPayloadArgumentType.get("arg_cve"));
+      assertEquals("text", keyToArgumentType.get("arg_text"));
+      assertEquals("number", keyToArgumentType.get("arg_number"));
+      assertEquals("port", keyToArgumentType.get("arg_port"));
+      assertEquals("host", keyToArgumentType.get("arg_host"));
+      assertEquals("ipv4", keyToArgumentType.get("arg_ipv4"));
+      assertEquals("ipv6", keyToArgumentType.get("arg_ipv6"));
+      assertEquals("username", keyToArgumentType.get("arg_username"));
+      assertEquals("cve", keyToArgumentType.get("arg_cve"));
     }
 
     @Test
-    @DisplayName(
-        "Given payload argument types, should persist them on generated injector contract fields")
-    void given_payloadArgumentTypes_should_propagate_to_injectorContract_fields() throws Exception {
+    @DisplayName("Given argument types, should persist them on generated injector contract fields")
+    void given_argumentTypes_should_propagate_to_injectorContract_fields() throws Exception {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
@@ -502,30 +501,29 @@ class PayloadApiTest extends IntegrationTest {
               .orElse(null);
       assertNotNull(injectorContract);
 
-      Map<String, String> expectedPayloadArgumentTypes =
+      Map<String, String> expectedArgumentTypes =
           Map.of(
               "arg_text", "text",
               "arg_port", "port",
               "arg_username", "username",
               "arg_targeted_asset", "targeted-asset");
 
-      Map<String, String> actualPayloadArgumentTypes = new HashMap<>();
+      Map<String, String> actualArgumentTypes = new HashMap<>();
       ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
       contractFields.forEach(
           f -> {
             String key = f.get("key").asText();
-            if (expectedPayloadArgumentTypes.containsKey(key) && f.has("argumentType")) {
-              actualPayloadArgumentTypes.put(key, f.get("argumentType").asText());
+            if (expectedArgumentTypes.containsKey(key) && f.has("argumentType")) {
+              actualArgumentTypes.put(key, f.get("argumentType").asText());
             }
           });
 
-      assertEquals(expectedPayloadArgumentTypes, actualPayloadArgumentTypes);
+      assertEquals(expectedArgumentTypes, actualArgumentTypes);
     }
 
     @Test
-    @DisplayName(
-        "Given missing payload argument type, should default to text in payload and contract")
-    void given_missingPayloadArgumentType_should_default_to_text() throws Exception {
+    @DisplayName("Given missing argument type, should default to text in payload and contract")
+    void given_missingArgumentType_should_default_to_text() throws Exception {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
