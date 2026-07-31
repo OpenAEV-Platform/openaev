@@ -84,6 +84,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+
   const isScopeMissing = isScenarioChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
