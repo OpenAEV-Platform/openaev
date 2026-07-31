@@ -12,6 +12,7 @@ import io.openaev.database.model.*;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.InjectExpectationService;
@@ -46,6 +47,10 @@ public class ExecutableInjectService {
   private static final Set<String> RESERVED_PLACEHOLDERS = Set.of("location", "payload_location");
   private static final Pattern argumentsRegex = Pattern.compile("#\\{([^#{}]+)}");
   private static final Pattern cmdVariablesRegex = Pattern.compile("%(\\w+)%");
+  private static final Pattern unixLikeForbiddenCharsRegex = Pattern.compile("[;&|`$<>\\r\\n]");
+  private static final Pattern windowsCmdForbiddenCharsRegex = Pattern.compile("[&|<>^%\\r\\n]");
+  private static final Pattern windowsPowerShellForbiddenCharsRegex =
+      Pattern.compile("[;&|`$<>\\r\\n]");
 
   private List<String> getArgumentsFromCommandLines(String command) {
     Matcher matcher = argumentsRegex.matcher(command);
@@ -92,6 +97,7 @@ public class ExecutableInjectService {
    */
   public String replaceArgumentsByValue(
       String command,
+      String executor,
       List<PayloadArgument> defaultPayloadArguments,
       List<ObjectNode> injectorContractContentFields,
       ObjectNode injectContent) {
@@ -139,9 +145,30 @@ public class ExecutableInjectService {
         }
       }
 
+      validateArgumentValue(argumentKey, value, executor);
+
       command = command.replace("#{" + argumentKey + "}", value);
     }
     return command;
+  }
+
+  private void validateArgumentValue(String argumentKey, String value, String executor) {
+    if (!hasText(value) || !hasText(executor)) {
+      return;
+    }
+    Pattern forbiddenPattern =
+        switch (executor.toLowerCase()) {
+          case "bash", "sh", "zsh" -> unixLikeForbiddenCharsRegex;
+          case "cmd" -> windowsCmdForbiddenCharsRegex;
+          case "psh", "pwsh", "powershell" -> windowsPowerShellForbiddenCharsRegex;
+          default -> null;
+        };
+    if (forbiddenPattern != null && forbiddenPattern.matcher(value).find()) {
+      String message =
+          "Inject argument '" + argumentKey + "' with value '" + value + "'man '" + executor + "'.";
+      log.warn(message);
+      throw new BadRequestException(message);
+    }
   }
 
   public static String replaceCmdVariables(String cmd) {
@@ -193,7 +220,11 @@ public class ExecutableInjectService {
     OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
     String computedCommand =
         replaceArgumentsByValue(
-            command, defaultPayloadArguments, injectorContractContentFields, injectContent);
+            command,
+            executor,
+            defaultPayloadArguments,
+            injectorContractContentFields,
+            injectContent);
 
     if (CMD.equals(executor)) {
       computedCommand = replaceCmdVariables(computedCommand);
@@ -372,7 +403,11 @@ public class ExecutableInjectService {
     DnsResolution dnsResolution = (DnsResolution) payloadToExecute;
     dnsResolution.setHostname(
         replaceArgumentsByValue(
-            dnsResolution.getHostname(), dnsResolution.getArguments(), null, inject.getContent()));
+            dnsResolution.getHostname(),
+            null,
+            dnsResolution.getArguments(),
+            null,
+            inject.getContent()));
     return dnsResolution;
   }
 }

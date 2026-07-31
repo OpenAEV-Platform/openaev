@@ -697,6 +697,50 @@ class InjectApiTest extends IntegrationTest {
       assertEquals(expectedCmdEncoded, JsonPath.read(response, "$.command_content"));
     }
 
+    @DisplayName("Should reject executable payload when argument contains shell metacharacters")
+    @Test
+    void given_argumentWithShellMetacharacters_should_rejectExecutablePayload() throws Exception {
+      // -- PREPARE --
+      PayloadPrerequisite prerequisite = new PayloadPrerequisite();
+      prerequisite.setGetCommand("cd ./src");
+      prerequisite.setExecutor("bash");
+      Command payloadCommand =
+          PayloadFixture.createCommand(
+              "bash", "echo command name #{arg_value}", List.of(prerequisite), "echo cleanup cmd");
+
+      Map<String, Object> payloadArguments = new HashMap<>();
+      payloadArguments.put("arg_value", "hello; whoami");
+
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.createInjectWithPayloadArg(payloadArguments))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .persist()
+              .get();
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertThatJson(response).when(Option.IGNORING_VALUES).node("message").isEqualTo("ignored");
+      assertTrue(
+          response.contains("unsupported characters"),
+          "The API should explicitly reject shell metacharacters in inject arguments");
+    }
+
     @DisplayName("Should replace by asset IDs given Targeted asset argument")
     @Test
     void given_targetedAssetArgument_should_replaceByAssetIDs() throws Exception {
