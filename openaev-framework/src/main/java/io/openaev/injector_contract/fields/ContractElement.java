@@ -91,7 +91,7 @@ public abstract class ContractElement {
   /**
    * Argument primitive type that originated this contract field.
    *
-   * <p>Only set for fields generated from payload arguments.
+   * <p>Only set for fields generated from input arguments.
    */
   private PrimitiveType argumentType;
 
