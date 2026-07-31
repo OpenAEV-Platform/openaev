@@ -87,7 +87,7 @@ class ConnectorOrchestrationServiceTest {
   @DisplayName(
       "Migrating with a collector id unknown in the current tenant fails with a 400 carrying the"
           + " real reason, not a 409 that the UI renders as 'already exists'")
-  void migrationWithUnknownCollectorIdFailsWithBadRequest() {
+  void given_migrationWithUnknownCollectorId_should_failWithBadRequest() {
     when(collectorService.collector(COLLECTOR_ID))
         .thenThrow(new ElementNotFoundException("Collector not found with id: " + COLLECTOR_ID));
 
@@ -104,7 +104,7 @@ class ConnectorOrchestrationServiceTest {
   @Test
   @DisplayName(
       "Migrating with a collector id resolvable in the current tenant creates the instance")
-  void migrationWithExistingCollectorIdCreatesInstance() {
+  void given_migrationWithExistingCollectorId_should_createInstance() {
     when(collectorService.collector(COLLECTOR_ID)).thenReturn(new Collector());
 
     CreateConnectorInstanceInput input = migrationInput(COLLECTOR_ID);
@@ -116,7 +116,7 @@ class ConnectorOrchestrationServiceTest {
 
   @Test
   @DisplayName("A plain create (no connector id in input) skips the migration existence check")
-  void plainCreateSkipsMigrationCheck() {
+  void given_plainCreateWithoutConnectorId_should_skipMigrationCheck() {
     CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
     ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalog = collectorCatalog();
 

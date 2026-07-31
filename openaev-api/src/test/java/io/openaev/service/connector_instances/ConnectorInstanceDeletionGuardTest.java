@@ -27,7 +27,7 @@ class ConnectorInstanceDeletionGuardTest {
 
   @Test
   @DisplayName("A started instance without a stop request cannot be deleted")
-  void startedInstanceCannotBeDeleted() {
+  void given_startedInstanceWithoutStopRequest_should_rejectDeletion() {
     assertThatThrownBy(
             () ->
                 ConnectorInstanceService.throwIfInstanceRunning(
@@ -40,7 +40,7 @@ class ConnectorInstanceDeletionGuardTest {
 
   @Test
   @DisplayName("A started instance with no requested status at all cannot be deleted")
-  void startedInstanceWithoutRequestedStatusCannotBeDeleted() {
+  void given_startedInstanceWithoutRequestedStatus_should_rejectDeletion() {
     assertThatThrownBy(
             () ->
                 ConnectorInstanceService.throwIfInstanceRunning(
@@ -50,7 +50,7 @@ class ConnectorInstanceDeletionGuardTest {
 
   @Test
   @DisplayName("A started instance whose stop has been requested can be deleted")
-  void stopRequestedInstanceCanBeDeleted() {
+  void given_stopRequestedInstance_should_allowDeletion() {
     assertThatCode(
             () ->
                 ConnectorInstanceService.throwIfInstanceRunning(
@@ -62,7 +62,7 @@ class ConnectorInstanceDeletionGuardTest {
 
   @Test
   @DisplayName("A stopped instance can be deleted")
-  void stoppedInstanceCanBeDeleted() {
+  void given_stoppedInstance_should_allowDeletion() {
     assertThatCode(
             () ->
                 ConnectorInstanceService.throwIfInstanceRunning(

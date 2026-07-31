@@ -17,13 +17,13 @@ import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -118,9 +118,9 @@ public class ConnectorOrchestrationService {
    * Validates that the connector referenced by a migration input actually exists.
    *
    * <p>Failures are client errors (400 with the real message), NOT {@link
-   * DataIntegrityViolationException}: that exception maps to HTTP 409, which the frontend renders
-   * as a blanket "The element already exists" - utterly misleading when the actual problem is a
-   * missing id or a connector that is not visible in the current tenant.
+   * org.springframework.dao.DataIntegrityViolationException}: that exception maps to HTTP 409,
+   * which the frontend renders as a blanket "The element already exists" - utterly misleading when
+   * the actual problem is a missing id or a connector that is not visible in the current tenant.
    */
   private void throwIfConnectorIdDoesNotExist(
       CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
@@ -149,7 +149,7 @@ public class ConnectorOrchestrationService {
       log.warn(e.getMessage());
       throw new BadRequestException(
           "Cannot migrate: no "
-              + catalogConnector.getContainerType().name().toLowerCase()
+              + catalogConnector.getContainerType().name().toLowerCase(Locale.ROOT)
               + " with id "
               + connectorId
               + " is visible in the current tenant");

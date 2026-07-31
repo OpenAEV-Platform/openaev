@@ -84,7 +84,7 @@ class CollectorServiceDeleteTest {
 
   @Test
   @DisplayName("An unmanaged collector with a fresh heartbeat cannot be deleted")
-  void unmanagedRunningCollectorCannotBeDeleted() {
+  void given_unmanagedCollectorWithFreshHeartbeat_should_rejectDeletion() {
     collector(Instant.now());
     when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
             "COLLECTOR_ID", COLLECTOR_ID, TENANT_ID))
@@ -98,7 +98,7 @@ class CollectorServiceDeleteTest {
 
   @Test
   @DisplayName("An unmanaged collector that stopped pinging can be deleted")
-  void unmanagedStoppedCollectorCanBeDeleted() {
+  void given_unmanagedCollectorWithStaleHeartbeat_should_allowDeletion() {
     Collector stale = collector(Instant.now().minus(Duration.ofMinutes(10)));
     when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
             "COLLECTOR_ID", COLLECTOR_ID, TENANT_ID))
@@ -113,7 +113,7 @@ class CollectorServiceDeleteTest {
 
   @Test
   @DisplayName("A managed collector whose instance is started cannot be deleted")
-  void managedRunningCollectorCannotBeDeleted() {
+  void given_managedCollectorWithStartedInstance_should_rejectDeletion() {
     collector(Instant.now());
     when(owningInstanceIds.getConnectorInstanceId()).thenReturn(INSTANCE_ID);
     when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
@@ -130,7 +130,8 @@ class CollectorServiceDeleteTest {
 
   @Test
   @DisplayName("A managed collector whose instance has a stop requested is deleted via its owner")
-  void managedStoppableCollectorIsDeletedThroughItsInstance() throws Exception {
+  void given_managedCollectorWithStopRequestedInstance_should_deleteThroughItsInstance()
+      throws Exception {
     Collector managed = collector(Instant.now());
     when(owningInstanceIds.getConnectorInstanceId()).thenReturn(INSTANCE_ID);
     when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(

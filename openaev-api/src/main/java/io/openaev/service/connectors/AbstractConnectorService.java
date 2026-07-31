@@ -295,7 +295,7 @@ public abstract class AbstractConnectorService<
         && lastHeartbeat.isAfter(Instant.now().minus(ACTIVE_HEARTBEAT_WINDOW))) {
       throw new BadRequestException(
           "The "
-              + this.connectorType.name().toLowerCase()
+              + this.connectorType.name().toLowerCase(Locale.ROOT)
               + " "
               + connector.getName()
               + " is still running (last heartbeat "
