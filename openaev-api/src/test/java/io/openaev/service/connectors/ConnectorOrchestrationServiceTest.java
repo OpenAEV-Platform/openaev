@@ -132,6 +132,23 @@ class ConnectorOrchestrationServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "Migrating with an absent (Java null) connector id value fails with a 400 asking for an id:"
+          + " Optional.map wraps the null so the isNull/asText chain is never reached")
+  void given_migrationWithAbsentConnectorIdValue_should_failWithBadRequest() {
+    CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
+    CreateConnectorInstanceInput.ConfigurationInput idConfig =
+        new CreateConnectorInstanceInput.ConfigurationInput();
+    idConfig.setKey("COLLECTOR_ID");
+    idConfig.setValue(null);
+    input.setConfigurations(List.of(idConfig));
+
+    assertThatThrownBy(() -> service.createConnectorInstance(collectorCatalog(), input, TENANT_ID))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("A connector id is required");
+  }
+
+  @Test
   @DisplayName("A plain create (no connector id in input) skips the migration existence check")
   void given_plainCreateWithoutConnectorId_should_skipMigrationCheck() {
     CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
