@@ -1743,13 +1743,28 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           }
         }
       }
+    } else if (selectedFindingId && chainMode) {
+      // Chain view: mirror the selectedInjectorId&&chainMode branch above — a finding several hops
+      // into the causal chain (e.g. a captured file dropped by a late-stage action) previously only
+      // lit its immediate producing injector, because the restricted walk below (kept for the
+      // non-chain/clustered case) explicitly skips causal edges. In chain mode there's no shared-hub
+      // ambiguity to guard against, so walk the same unrestricted way: from the first action through
+      // every action that led to this finding.
+      pathSet.add(selectedFindingId);
+      for (let pass = 0; pass < 8; pass += 1) {
+        for (const e of baseFlow.edges) {
+          if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            pathSet.add(e.source);
+          }
+        }
+      }
     } else if (selectedFindingId) {
       // Walk UP a finding's PRODUCTION path only: endpoint(s) it was found on, then the injector(s) that
-      // actually produced it. Two guards keep it scoped on a shared/hub endpoint (chain mode): never follow
-      // a causal ("Triggered …") edge — those point forward to the NEXT action, so following them lit the
-      // whole downstream kill-chain (NetExec + shares) off a mere portscan click; and when we know the
-      // producing injector(s) from the finding's executions, don't light the other injectors that merely
-      // also reached the endpoint.
+      // actually produced it. Two guards keep it scoped on a shared/hub endpoint (clustered view): never
+      // follow a causal ("Triggered …") edge — those point forward to the NEXT action, so following them
+      // lit the whole downstream kill-chain (NetExec + shares) off a mere portscan click; and when we know
+      // the producing injector(s) from the finding's executions, don't light the other injectors that
+      // merely also reached the endpoint.
       const injectorNodeIds = new Set(
         baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
       );
