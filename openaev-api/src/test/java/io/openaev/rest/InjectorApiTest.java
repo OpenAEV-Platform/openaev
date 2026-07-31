@@ -328,7 +328,7 @@ public class InjectorApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Should register external injector when contract fields do not include payloadArgumentType")
+        "Should register external injector and default missing payloadArgumentType to text")
     void shouldRegisterExternalInjectorWithoutPayloadArgumentTypeInContractContent() throws Exception {
       String injectorId = "ext-injector-without-argument-type";
       String injectorType = "openaev_ext_no_argument_type";
@@ -377,9 +377,81 @@ public class InjectorApiTest extends IntegrationTest {
       assertThat(contracts).hasSize(1);
       assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].key"))
           .isEqualTo("target");
-      assertThatThrownBy(
-              () -> JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].payloadArgumentType"))
-          .isInstanceOf(Exception.class);
+      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].payloadArgumentType"))
+          .isEqualTo("text");
+    }
+
+    @Test
+    @DisplayName(
+        "Should default payloadArgumentType to text when external contract sends null or empty values")
+    void shouldDefaultPayloadArgumentTypeToTextWhenNullOrEmpty() throws Exception {
+      String injectorId = "ext-injector-null-empty-argument-type";
+      String injectorType = "openaev_ext_null_empty_argument_type";
+      String contractId = "ext-contract-null-empty-argument-type";
+
+      InjectorContractInput contract = new InjectorContractInput();
+      contract.setId(contractId);
+      contract.setLabels(Map.of("en", "Contract with null and empty payloadArgumentType"));
+      contract.setContent(
+          """
+          {
+            "fields": [
+              {
+                "key": "missing_type",
+                "label": "missing_type",
+                "type": "text",
+                "mandatory": true,
+                "defaultValue": "value-1"
+              },
+              {
+                "key": "null_type",
+                "label": "null_type",
+                "type": "text",
+                "mandatory": true,
+                "defaultValue": "value-2",
+                "payloadArgumentType": null
+              },
+              {
+                "key": "empty_type",
+                "label": "empty_type",
+                "type": "text",
+                "mandatory": true,
+                "defaultValue": "value-3",
+                "payloadArgumentType": ""
+              }
+            ]
+          }
+          """);
+
+      InjectorCreateInput input = new InjectorCreateInput();
+      input.setId(injectorId);
+      input.setName("External Injector Null Empty Type");
+      input.setType(injectorType);
+      input.setCategory("attack");
+      input.setPayloads(false);
+      input.setContracts(List.of(contract));
+
+      mvc.perform(
+              multipart(INJECT0R_URI)
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      Optional<Injector> persisted =
+          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+      assertThat(persisted).isPresent();
+
+      List<InjectorContract> contracts =
+          injectorContractRepository.findByInjectorsContaining(persisted.get());
+      assertThat(contracts).hasSize(1);
+      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].payloadArgumentType"))
+          .isEqualTo("text");
+      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[1].payloadArgumentType"))
+          .isEqualTo("text");
+      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[2].payloadArgumentType"))
+          .isEqualTo("text");
     }
 
     @Test

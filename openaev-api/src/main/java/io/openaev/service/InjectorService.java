@@ -331,7 +331,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 applyContractAuthor(contract, authorOrganization);
                 contract.setManual(current.get().isManual());
                 contract.setLabels(current.get().getLabels());
-                contract.setContent(current.get().getContent());
+                contract.setContent(
+                    injectorContractService.normalizePayloadArgumentTypeInContractContent(
+                        current.get().getContent()));
                 contract.setAtomicTesting(current.get().isAtomicTesting());
                 contract.setPlatforms(current.get().getPlatforms());
                 if (!current.get().getAttackPatternsExternalIds().isEmpty()) {
