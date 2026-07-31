@@ -723,8 +723,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       (dto.attackPathNodes ?? []).filter(n => n.type === 'ASSET' && n.id).map(n => [n.id as string, n]),
     );
     for (const e of dto.attackPathEdges ?? []) {
-      if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId && e.edgeTargetId
-        && assetById.has(e.edgeTargetId)) {
+      if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId && e.edgeTargetId && assetById.has(e.edgeTargetId)) {
         const ref = assetById.get(e.edgeTargetId)?.ref ?? e.edgeTargetId;
         const arr = map.get(e.edgeSourceId) ?? [];
         if (!arr.includes(ref)) {
@@ -1686,13 +1685,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
       );
       const producingInjectors = new Set<string>();
+      let hasProducingExecution = false;
       for (const e of fullDto?.attackPathEdges ?? []) {
-        if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId && e.edgeSourceId !== e.edgeTargetId
+        if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId
           && (e.executionIds ?? []).some(id => highlightedExecutionIds.has(id))) {
-          producingInjectors.add(e.edgeSourceId);
+          hasProducingExecution = true;
+          // A self-loop (endpoint-local action) has no injector node to light: it still activates the
+          // restriction (the producer is known — it is the endpoint itself), but adds no injector.
+          if (e.edgeSourceId !== e.edgeTargetId) {
+            producingInjectors.add(e.edgeSourceId);
+          }
         }
       }
-      const restrictInjectors = producingInjectors.size > 0;
+      const restrictInjectors = hasProducingExecution;
       pathSet.add(selectedFindingId);
       for (let pass = 0; pass < 6; pass += 1) {
         for (const e of baseFlow.edges) {
