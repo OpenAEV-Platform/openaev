@@ -82,6 +82,13 @@ class ChainingApiEnterpriseEditionAccessTest extends IntegrationTest {
         get(tenantUri(WorkflowApi.TENANT_WORKFLOW_URI) + "/workflow-id/valid-assets"));
   }
 
+  @Test
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Given inactive enterprise license should deny Chaining API findAll")
+  void given_inactiveEnterpriseLicense_should_denyChainingFindAll() {
+    assertEnterpriseEditionDenied(get(tenantUri(ChainingApi.TENANT_CHAINING_URI)));
+  }
+
   private void assertEnterpriseEditionDenied(MockHttpServletRequestBuilder request) {
     ServletException exception = assertThrows(ServletException.class, () -> mvc.perform(request));
     EnterpriseEditionException cause =
