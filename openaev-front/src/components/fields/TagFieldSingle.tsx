@@ -137,7 +137,7 @@ const TagFieldSingle: FunctionComponent<Props> = ({
       >
         <AddOutlined />
       </IconButton>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
         <Dialog
           open={tagCreation}
           onClose={handleCloseTagCreation}

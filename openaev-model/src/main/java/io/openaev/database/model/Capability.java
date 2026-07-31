@@ -347,7 +347,7 @@ public enum Capability {
   ACCESS_TAGS(
       null,
       CapabilityGroup.TAXONOMY,
-      EnumSet.of(CapabilityScope.PLATFORM, CapabilityScope.TENANT),
+      EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.TAG, Action.READ),
       pair(ResourceType.TAG, Action.SEARCH)),
   MANAGE_TAGS(

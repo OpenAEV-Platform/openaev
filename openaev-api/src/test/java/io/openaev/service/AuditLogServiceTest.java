@@ -7,10 +7,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
-import io.openaev.rest.settings.PreviewFeature;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,7 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayName("AuditLogService")
 class AuditLogServiceTest {
 
-  @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private AuditLogger auditLogger;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private PlatformSettingsService platformSettingsService;
@@ -39,7 +39,7 @@ class AuditLogServiceTest {
     @DisplayName("given_auditFlagDisabled_should_cleanBanner")
     void given_auditFlagDisabled_should_cleanBanner() {
       // -- PREPARE --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(false);
+      when(auditLogger.isAuditLoggingEnabled()).thenReturn(false);
 
       // -- EXECUTE --
       auditLogService.checkLicenseBanner();
@@ -54,7 +54,7 @@ class AuditLogServiceTest {
     @DisplayName("given_auditFlagEnabled_and_licenseActive_should_cleanBanner")
     void given_auditFlagEnabled_and_licenseActive_should_cleanBanner() {
       // -- PREPARE --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
+      when(auditLogger.isAuditLoggingEnabled()).thenReturn(true);
       when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
       when(enterpriseEditionService.isLicenseActive(license)).thenReturn(true);
 
@@ -71,7 +71,7 @@ class AuditLogServiceTest {
     @DisplayName("given_auditFlagEnabled_and_licenseInactive_should_showBanner")
     void given_auditFlagEnabled_and_licenseInactive_should_showBanner() {
       // -- PREPARE --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
+      when(auditLogger.isAuditLoggingEnabled()).thenReturn(true);
       when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
       when(enterpriseEditionService.isLicenseActive(license)).thenReturn(false);
 
