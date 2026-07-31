@@ -35,9 +35,7 @@ const useUnprovisionedLogicWarnings = (workflowId: string | undefined): Unprovis
           setWarnings(findUnprovisionedLogicWarningItems(eventMetas, providers));
         }
       } catch {
-        if (!stale) {
-          setWarnings([]);
-        }
+        // Keep previous warnings on transient request failures.
       }
     };
 
@@ -45,7 +43,11 @@ const useUnprovisionedLogicWarnings = (workflowId: string | undefined): Unprovis
     const onChainingUpdated = (event: Event) => {
       const customEvent = event as CustomEvent<ChainingUpdatedDetail>;
       if (customEvent.detail?.workflowId === workflowId) {
-        void loadWarnings();
+        if (customEvent.detail.logicWarnings) {
+          setWarnings(customEvent.detail.logicWarnings);
+        } else {
+          void loadWarnings();
+        }
       }
     };
     window.addEventListener(CHAINING_UPDATED_EVENT, onChainingUpdated as EventListener);

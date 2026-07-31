@@ -41,6 +41,7 @@ import {
   enrichActionMetasWithContracts,
   positionEventNodes,
 } from '../logic-flow-helpers';
+import { findUnprovisionedLogicWarningItems } from '../logic-warning-utils';
 import type { ActionMeta, EventMeta } from '../types';
 import { useOutputProviders } from '../useOutputProviders';
 import edgeTypes from './edges';
@@ -194,15 +195,17 @@ const LogicFlow = ({
     const eventToGroupX = buildEventToGroupX(enrichedActionMetas, groupNodes, actionNodes);
     const positionedEventNodes = positionEventNodes(eventNodes, eventToGroupX);
     const edgesData = buildEdges(enrichedActionMetas, eventMetas);
+    const providersMap = buildOutputProvidersMap(enrichedActionMetas);
+    const logicWarnings = findUnprovisionedLogicWarningItems(eventMetas, providersMap);
 
     setActionMetas(enrichedActionMetas);
-    setContextProviders(buildOutputProvidersMap(enrichedActionMetas));
+    setContextProviders(providersMap);
     setEventMetas(eventMetas);
     onEventMetasChange?.(eventMetas);
     setNodes([...groupNodes, ...positionedEventNodes, ...actionNodes]);
     setEdges(edgesData);
     setLoading(false);
-    emitChainingUpdated(workflowId);
+    emitChainingUpdated(workflowId, logicWarnings);
   }, [workflowId, t, setNodes, setEdges, setContextProviders]);
 
   useEffect(() => {

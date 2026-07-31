@@ -23,14 +23,15 @@ const ScenarioScope = () => {
   );
 
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+  const isScenarioChaining = !!scenario?.scenario_workflow_id;
   const isScopeMissing = isScopeMissingForChaining({
-    isChaining: true,
+    isChaining: isScenarioChaining,
     workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],
     healthchecks,
   });
   const healthchecksForBanner = getScopeAwareHealthchecks({
     healthchecks,
-    isChaining: true,
+    isChaining: isScenarioChaining,
     isScopeMissing,
   });
 

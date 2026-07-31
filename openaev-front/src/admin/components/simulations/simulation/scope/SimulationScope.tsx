@@ -23,14 +23,15 @@ const SimulationScope = () => {
   );
 
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+  const isSimulationChaining = !!exercise?.exercise_workflow_id;
   const isScopeMissing = isScopeMissingForChaining({
-    isChaining: true,
+    isChaining: isSimulationChaining,
     workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],
     healthchecks,
   });
   const healthchecksForBanner = getScopeAwareHealthchecks({
     healthchecks,
-    isChaining: true,
+    isChaining: isSimulationChaining,
     isScopeMissing,
   });
 
