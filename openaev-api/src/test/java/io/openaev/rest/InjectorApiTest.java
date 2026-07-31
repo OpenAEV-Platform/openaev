@@ -448,7 +448,8 @@ public class InjectorApiTest extends IntegrationTest {
       assertThat(contracts).hasSize(1);
       String missingType =
           JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].argumentType");
-      String nullType = JsonPath.read(contracts.getFirst().getContent(), "$.fields[1].argumentType");
+      String nullType =
+          JsonPath.read(contracts.getFirst().getContent(), "$.fields[1].argumentType");
       String emptyType =
           JsonPath.read(contracts.getFirst().getContent(), "$.fields[2].argumentType");
       assertThat(missingType).isEqualTo("text");
