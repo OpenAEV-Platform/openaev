@@ -327,6 +327,62 @@ public class InjectorApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "Should register external injector when contract fields do not include payloadArgumentType")
+    void shouldRegisterExternalInjectorWithoutPayloadArgumentTypeInContractContent() throws Exception {
+      String injectorId = "ext-injector-without-argument-type";
+      String injectorType = "openaev_ext_no_argument_type";
+      String contractId = "ext-contract-no-argument-type";
+
+      InjectorContractInput contract = new InjectorContractInput();
+      contract.setId(contractId);
+      contract.setLabels(Map.of("en", "Contract without payloadArgumentType"));
+      contract.setContent(
+          """
+          {
+            "fields": [
+              {
+                "key": "target",
+                "label": "target",
+                "type": "text",
+                "mandatory": true,
+                "defaultValue": "srv-01"
+              }
+            ]
+          }
+          """);
+
+      InjectorCreateInput input = new InjectorCreateInput();
+      input.setId(injectorId);
+      input.setName("External Injector Without Argument Type");
+      input.setType(injectorType);
+      input.setCategory("attack");
+      input.setPayloads(false);
+      input.setContracts(List.of(contract));
+
+      mvc.perform(
+              multipart(INJECT0R_URI)
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      Optional<Injector> persisted =
+          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+      assertThat(persisted).isPresent();
+
+      List<InjectorContract> contracts =
+          injectorContractRepository.findByInjectorsContaining(persisted.get());
+      assertThat(contracts).hasSize(1);
+      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].key"))
+          .isEqualTo("target");
+      assertThatThrownBy(
+              () -> JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].payloadArgumentType"))
+          .isInstanceOf(Exception.class);
+    }
+
+    @Test
     @DisplayName("Should update an existing external injector when re-registering with the same ID")
     void shouldUpdateExistingExternalInjectorOnReRegistration() throws Exception {
       // -- ARRANGE --

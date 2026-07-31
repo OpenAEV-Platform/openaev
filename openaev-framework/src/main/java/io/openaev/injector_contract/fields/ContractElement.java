@@ -93,7 +93,7 @@ public abstract class ContractElement {
    *
    * <p>Only set for fields generated from payload arguments.
    */
-  private PrimitiveType argumentType;
+  private PrimitiveType payloadArgumentType;
 
   /**
    * Creates a new contract element.
