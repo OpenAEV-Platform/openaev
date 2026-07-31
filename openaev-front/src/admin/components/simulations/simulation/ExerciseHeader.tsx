@@ -287,11 +287,14 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],
     healthchecks,
   });
-  const healthchecksForIndicator = getScopeAwareHealthchecks({
+  const scopeAwareHealthchecks = getScopeAwareHealthchecks({
     healthchecks,
     isChaining: isSimulationChaining,
     isScopeMissing,
   });
+  const healthchecksForIndicator = isSimulationChaining
+    ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => healthcheck.type === 'SCOPE_DEFINITION')
+    : scopeAwareHealthchecks;
   const logicWarnings = useUnprovisionedLogicWarnings(isSimulationChaining ? exerciseWorkflowId : undefined);
 
   useEffect(() => {

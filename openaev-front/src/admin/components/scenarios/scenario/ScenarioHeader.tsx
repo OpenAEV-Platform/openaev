@@ -152,11 +152,14 @@ const ScenarioHeader = ({
     healthchecks,
   });
   const healthchecksForIndicator = useMemo(() => {
-    return getScopeAwareHealthchecks({
+    const scopeAwareHealthchecks = getScopeAwareHealthchecks({
       healthchecks,
       isChaining: isScenarioChaining,
       isScopeMissing,
     });
+    return isScenarioChaining
+      ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => healthcheck.type === 'SCOPE_DEFINITION')
+      : scopeAwareHealthchecks;
   }, [healthchecks, isScenarioChaining, isScopeMissing]);
   const logicWarnings = useUnprovisionedLogicWarnings(isScenarioChaining ? scenarioWorkflowId : undefined);
 
