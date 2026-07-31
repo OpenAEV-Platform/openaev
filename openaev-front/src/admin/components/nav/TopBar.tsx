@@ -151,7 +151,12 @@ const TopBar: FunctionComponent = () => {
           </Stack>
           <div>
             <Stack direction="row" gap={1} alignItems="center">
-              {settings.filigran_chatbot_ai_cgu_status !== 'disabled' && (
+              {/* XTM One (agentic AI) block: only when XTM One is configured
+                  and the chatbot has not been explicitly disabled — the same
+                  gating the buttons apply themselves, repeated here so the
+                  divider never renders as an orphan. */}
+              {settings.filigran_chatbot_ai_cgu_status !== 'disabled'
+                && settings.platform_xtm_one_configured === true && (
                 <>
                   <AskArianeButton />
                   <CtemCommandCenterButton />

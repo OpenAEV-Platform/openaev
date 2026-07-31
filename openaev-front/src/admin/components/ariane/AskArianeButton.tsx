@@ -28,8 +28,11 @@ const AskArianeButton = () => {
   const chatbotCguStatus = settings.filigran_chatbot_ai_cgu_status;
   const isCguPending = chatbotCguStatus === 'pending' || chatbotCguStatus === undefined;
 
-  // Hide if chatbot has been explicitly disabled
-  if (chatbotCguStatus === 'disabled') {
+  // Hide if chatbot has been explicitly disabled, or if XTM One is not
+  // configured (url + token): the chat proxy (`/api/xtmone/chat/*`) rejects
+  // every call in that case, so the button cannot lead anywhere. Same gating
+  // as the CTEM Command Center shortcut next to it.
+  if (chatbotCguStatus === 'disabled' || settings.platform_xtm_one_configured !== true) {
     return null;
   }
 
