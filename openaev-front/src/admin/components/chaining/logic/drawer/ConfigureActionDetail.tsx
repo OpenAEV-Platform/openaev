@@ -103,11 +103,11 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       const disabledAutoLinks = initialData?.inject_content?.[AUTO_LINK_DISABLED_FIELDS_CONTENT_KEY];
       const disabledKeys = Array.isArray(disabledAutoLinks)
         ? new Set(
-          disabledAutoLinks
-            .filter((value): value is string => typeof value === 'string')
-            .map(value => value.trim())
-            .filter(value => value.length > 0),
-        )
+            disabledAutoLinks
+              .filter((value): value is string => typeof value === 'string')
+              .map(value => value.trim())
+              .filter(value => value.length > 0),
+          )
         : new Set<string>();
       reset({ inject_title: label });
       setFieldValues(initialData?.inject_content ?? {});
