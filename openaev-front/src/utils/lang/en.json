@@ -1521,7 +1521,7 @@
   "healthcheck.description.NMAP.SERVICE_UNAVAILABLE": "missing Nmap injector, please check your configuration",
   "healthcheck.description.NUCLEI.SERVICE_UNAVAILABLE": "missing Nuclei injector, please check your configuration",
   "healthcheck.description.OPTIONAL_ARGS.MANDATORY_CONTENT": "Optional Args",
-  "healthcheck.description.SCOPE_DEFINITION.EMPTY": "At least one allow list entry is required to define the scope of your inject.",
+  "healthcheck.description.SCOPE_DEFINITION.EMPTY": "At least one allow list entry is required to define the scope of your action.",
   "healthcheck.description.SECURITY_SYSTEM_COLLECTOR.EMPTY": "To fetch alert raised through OpenAEV, please setup a collector",
   "healthcheck.description.SMTP.SERVICE_UNAVAILABLE": "missing SMTP services, please check your configuration or credentials",
   "healthcheck.description.SUBJECT.MANDATORY_CONTENT": "Subject",
