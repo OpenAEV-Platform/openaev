@@ -29,11 +29,17 @@ jobs:
         with:
           app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
+          owner: OpenAEV-Platform
+          repositories: |
+            openaev
+            filigran-private
 
       - name: Sync status
-        uses: FiligranHQ/filigran-ci-tools/actions/sync-status-on-merge@main
+        uses: ./.github/actions/sync-status-on-merge
         with:
           token: ${{ steps.generate-token.outputs.token }}
           pr-number: ${{ github.event.inputs.pr_number || '' }}
           project-owner: "OpenAEV-Platform"
           project-number: "2"
+          issue-owner: "OpenAEV-Platform"
+          issue-repo: "filigran-private"
