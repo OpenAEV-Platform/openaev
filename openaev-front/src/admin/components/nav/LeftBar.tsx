@@ -25,13 +25,17 @@ import {
 } from 'mdi-material-ui';
 import { useContext } from 'react';
 
-import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
 import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/leftmenu-model';
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 import settingsEntries from './config/settings.config';
+// LOCAL-ONLY DEMO SWAP (never commit): FdsNavRenderer replaces LeftMenu below,
+// rendering these same real entries/bottomEntries through the new
+// @filigran/design-system Navbar instead of the MUI Drawer. See
+// FdsNavRenderer.tsx for details. Revert with `git checkout -- LeftBar.tsx`.
+import FdsNavRenderer from './FdsNavRenderer';
 import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
 
@@ -216,7 +220,7 @@ const LeftBar = () => {
     },
   ];
   return (
-    <LeftMenu
+    <FdsNavRenderer
       entries={entries}
       bottomEntries={bottomEntries}
       logoHeader={(navOpen: boolean) => <LeftBarHeader navOpen={navOpen} />}

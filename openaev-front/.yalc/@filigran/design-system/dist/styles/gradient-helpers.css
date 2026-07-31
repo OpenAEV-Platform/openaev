@@ -1,0 +1,75 @@
+/* Generated gradient helper classes (not part of token declarations). */
+/* ── Gradient Border — shared mechanics ── */
+.gradient-border-focus,
+.gradient-border-warning,
+.gradient-border-ia,
+.gradient-border-default {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid transparent;
+}
+.gradient-border-focus::before,
+.gradient-border-warning::before,
+.gradient-border-ia::before,
+.gradient-border-default::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  z-index: 0;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+.gradient-border-focus > *,
+.gradient-border-warning > *,
+.gradient-border-ia > *,
+.gradient-border-default > * {
+  position: relative;
+  z-index: 1;
+}
+.gradient-border-focus::before {
+  background: var(--gradient-focus);
+}
+.gradient-border-warning::before {
+  background: var(--gradient-warning);
+}
+.gradient-border-ia::before {
+  background: var(--gradient-ia);
+}
+.gradient-border-default::before {
+  background: var(--gradient-default);
+}
+/* ── Icon Gradient Mask — shared mechanics ── */
+.icon-gradient-mask {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+.icon-gradient-mask-focus {
+  background-image: var(--gradient-focus);
+}
+.icon-gradient-mask-warning {
+  background-image: var(--gradient-warning);
+}
+.icon-gradient-mask-ia {
+  background-image: var(--gradient-ia);
+}
+.icon-gradient-mask-default {
+  background-image: var(--gradient-default);
+}

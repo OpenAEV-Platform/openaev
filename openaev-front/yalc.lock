@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "packages": {
+    "@filigran/design-system": {
+      "signature": "753b343cdd7ddb8315d274f9d123e924",
+      "file": true
+    }
+  }
+}
