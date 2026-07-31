@@ -37,8 +37,20 @@ public abstract class AbstractConnectorService<
 
   protected abstract T getConnectorById(String id);
 
+  /**
+   * Maps a connector entity to its output DTO.
+   *
+   * @param connector the connector entity (may be Hibernate-managed: implementations must never
+   *     mutate it, see {@link #toConnectorOutput})
+   * @param displayName the resolved display name to expose (instance-configured name when the
+   *     connector is deployed through the Integration Manager, entity name otherwise)
+   * @param catalogConnector the matching catalog entry, if any
+   * @param instance the owning connector instance, if any
+   * @param existingConnector false for pending connectors not yet registered
+   */
   protected abstract Output mapToOutput(
       T connector,
+      String displayName,
       CatalogConnector catalogConnector,
       ConnectorInstance instance,
       boolean existingConnector);
@@ -72,10 +84,17 @@ public abstract class AbstractConnectorService<
         isVerified && instance instanceof ConnectorInstancePersisted
             ? ((ConnectorInstancePersisted) instance).getCatalogConnector()
             : catalogConnectorService.findBySlug(connector.getType()).orElse(null);
+    // The instance-configured name is a pure display concern: resolve it into the DTO without
+    // touching the managed entity. Calling connector.setName() here dirties the entity, and the
+    // open-in-view session flushes that UPDATE at response commit (outside the controller's
+    // read-only transaction, via the spring-session save) - a connector deleted or re-registered
+    // in between then makes the flush fail with StaleStateException and the GET returns a 500
+    // (issue #7092, regression of #6469).
+    String displayName = connector.getName();
     if (instance instanceof ConnectorInstancePersisted persistedInstance) {
-      getConfiguredConnectorName(persistedInstance).ifPresent(connector::setName);
+      displayName = getConfiguredConnectorName(persistedInstance).orElse(displayName);
     }
-    return mapToOutput(connector, catalogConnector, instance, true);
+    return mapToOutput(connector, displayName, catalogConnector, instance, true);
   }
 
   private Output toExistingConnectorOutput(
@@ -194,6 +213,7 @@ public abstract class AbstractConnectorService<
                 result.add(
                     mapToOutput(
                         newConnector,
+                        newConnector.getName(),
                         entry.getValue().getCatalogConnector(),
                         entry.getValue(),
                         false));
