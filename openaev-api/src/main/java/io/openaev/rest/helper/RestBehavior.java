@@ -212,7 +212,9 @@ public class RestBehavior {
   @ExceptionHandler(BadRequestException.class)
   public ResponseEntity<ErrorMessage> handleBadRequestException(BadRequestException ex) {
     ErrorMessage message = new ErrorMessage(ex.getMessage());
-    log.warn(String.format("BadRequestException: %s", ex.getMessage()), ex);
+    // Client error thrown all over the codebase: DEBUG (with the stack) keeps prod logs
+    // actionable while still supporting troubleshooting.
+    log.debug("BadRequestException: {}", ex.getMessage(), ex);
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 

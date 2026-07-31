@@ -264,25 +264,6 @@ public abstract class AbstractConnectorService<
   }
 
   /**
-   * Deletes the connector instance that owns this connector, when the connector was deployed
-   * through the Integration Manager.
-   *
-   * <p>The instance list is the desired state the XTM Composer polls, and the composer only tears a
-   * deployment down when its id disappears from that list. Deleting the connector entity alone
-   * therefore leaves the container running against a connector that no longer exists - and the
-   * container recreates the entity on its next registration heartbeat, so the deletion looks like
-   * it silently failed. The instance delete removes the connector entity too, hence the return
-   * value: callers must not delete the row again.
-   *
-   * <p>Tenant safety: the owning instance is resolved with an explicit tenant predicate (native
-   * queries bypass the Hibernate tenant filter) and only when the connector itself is visible in
-   * the current tenant, so a foreign or crafted connector id can never tear down another tenant's
-   * deployment.
-   *
-   * @param connectorId the collector / injector / executor id being deleted
-   * @return true when an instance was found and deleted, so the connector row is already gone
-   */
-  /**
    * Rejects the deletion of a connector that is still running (OpenCTI parity: a started connector
    * can never be deleted, it must be stopped first).
    *
@@ -323,6 +304,25 @@ public abstract class AbstractConnectorService<
     }
   }
 
+  /**
+   * Deletes the connector instance that owns this connector, when the connector was deployed
+   * through the Integration Manager.
+   *
+   * <p>The instance list is the desired state the XTM Composer polls, and the composer only tears a
+   * deployment down when its id disappears from that list. Deleting the connector entity alone
+   * therefore leaves the container running against a connector that no longer exists - and the
+   * container recreates the entity on its next registration heartbeat, so the deletion looks like
+   * it silently failed. The instance delete removes the connector entity too, hence the return
+   * value: callers must not delete the row again.
+   *
+   * <p>Tenant safety: the owning instance is resolved with an explicit tenant predicate (native
+   * queries bypass the Hibernate tenant filter) and only when the connector itself is visible in
+   * the current tenant, so a foreign or crafted connector id can never tear down another tenant's
+   * deployment.
+   *
+   * @param connectorId the collector / injector / executor id being deleted
+   * @return true when an instance was found and deleted, so the connector row is already gone
+   */
   protected boolean deleteOwningConnectorInstance(String connectorId)
       throws ConnectorStatusException {
     T connector = getConnectorById(connectorId);

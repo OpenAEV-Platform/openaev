@@ -36,6 +36,8 @@ import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnector
 interface DeployedMeta {
   connector: ConnectorOutput;
   type: ConnectorItemType;
+  /** The resolved catalog entry, when the connector's catalog ref matches one. */
+  catalogConnector?: CatalogConnectorOutput;
 }
 
 interface Props {
@@ -119,6 +121,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
         meta.set(connector.id, {
           connector,
           type,
+          catalogConnector: catalogMatch,
         });
       });
     };
@@ -144,13 +147,10 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const onMigrateBtnClick = (e: SyntheticEvent, deployed: DeployedMeta) => {
     e.preventDefault();
     e.stopPropagation();
-    const catalogConnector = catalogConnectors.find(
-      connector => connector.catalog_connector_id === deployed.connector.catalog?.catalog_connector_id,
-    );
-    // Without a catalog entry the drawer would post an empty catalog id and fail
-    // with a silently-swallowed 404, looking like a dead button.
-    if (!catalogConnector) return;
-    setSelectedCatalogConnector(catalogConnector);
+    // The resolved catalog entry gates the button's visibility (canMigrate), so a
+    // rendered button always has one - the guard only narrows the type.
+    if (!deployed.catalogConnector) return;
+    setSelectedCatalogConnector(deployed.catalogConnector);
     setMigrationSource(deployed.connector.id);
     setOpenMigrateDrawer(true);
   };
@@ -162,10 +162,13 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     const deployed = metaById.get(item.id);
     if (!deployed) return null;
     const { connector } = deployed;
-    // A catalog entry is required to migrate: the drawer needs the catalog id and
-    // configuration schema to build the managed instance.
+    // A resolvable catalog entry is required to migrate: the drawer needs the
+    // catalog id and configuration schema to build the managed instance. Key the
+    // visibility on the entry actually resolved from the catalog list (not just
+    // the connector's embedded catalog ref) so a rendered button can never be a
+    // no-op click.
     const canMigrate = connector.isExternal && connector.connectorInstance == null
-      && isXtmComposerUp && connector.catalog != null;
+      && isXtmComposerUp && deployed.catalogConnector != null;
     const { started, lastSeen, healthy, builtIn } = computeConnectorLiveliness(connector);
     const diskColor = healthy ? theme.palette.success.main : theme.palette.error.main;
     let diskTooltip: string;
