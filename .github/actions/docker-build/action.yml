@@ -93,6 +93,9 @@ runs:
       run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
       shell: bash
 
+    # Only main writes the layer cache: a mode=max export costs ~6 min and blocks every
+    # E2E job, while a PR-scoped cache is unreadable from any other PR. PRs read main's
+    # cache through cache-from for free.
     - name: Build image (single-platform OCI archive)
       id: docker-build
       uses: docker/build-push-action@v7
@@ -108,7 +111,7 @@ runs:
         tags: ${{ inputs.tags }}
         labels: ${{ inputs.labels }}
         cache-from: type=gha,scope=${{ steps.names.outputs.cache_scope }}
-        cache-to: type=gha,mode=max,scope=${{ steps.names.outputs.cache_scope }}
+        cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', steps.names.outputs.cache_scope) || '' }}
 
     - name: Print build timing summary
       run: |
