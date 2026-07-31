@@ -193,10 +193,9 @@ const LogicFlow = ({
     const eventToGroupX = buildEventToGroupX(enrichedActionMetas, groupNodes, actionNodes);
     const positionedEventNodes = positionEventNodes(eventNodes, eventToGroupX);
     const edgesData = buildEdges(enrichedActionMetas, eventMetas);
-    const providersMap = buildOutputProvidersMap(enrichedActionMetas);
 
     setActionMetas(enrichedActionMetas);
-    setContextProviders(providersMap);
+    setContextProviders(buildOutputProvidersMap(enrichedActionMetas));
     setEventMetas(eventMetas);
     onEventMetasChange?.(eventMetas);
     setNodes([...groupNodes, ...positionedEventNodes, ...actionNodes]);

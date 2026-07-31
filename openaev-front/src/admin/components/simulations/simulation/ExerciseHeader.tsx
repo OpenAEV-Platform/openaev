@@ -36,7 +36,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import { useHelper } from '../../../../store';
-import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team } from '../../../../utils/api-types';
+import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team, type WorkflowScopeRuleOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
@@ -234,8 +234,8 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
 }) => {
   const isScopeDefinitionEmptyHealthcheck = (healthcheck: HealthCheck): boolean =>
     healthcheck.type === 'SCOPE_DEFINITION' && healthcheck.detail === 'EMPTY';
-  const hasAllowlistEntry = (workflowScopeRules: Array<{ workflow_scope_rule_selected_mode?: string; workflow_scope_rule_value?: string }> = []): boolean =>
-    workflowScopeRules.some(rule =>
+  const hasAllowlistEntry = (workflowScopeRules: WorkflowScopeRuleOutput[] = []): boolean =>
+    workflowScopeRules.some((rule: WorkflowScopeRuleOutput) =>
       rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
       && !!rule.workflow_scope_rule_value?.trim(),
     );
