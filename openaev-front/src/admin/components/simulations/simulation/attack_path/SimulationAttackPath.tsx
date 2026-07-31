@@ -724,7 +724,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     );
     for (const e of dto.attackPathEdges ?? []) {
       if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId && e.edgeTargetId
-        && e.edgeSourceId !== e.edgeTargetId && assetById.has(e.edgeTargetId)) {
+        && assetById.has(e.edgeTargetId)) {
         const ref = assetById.get(e.edgeTargetId)?.ref ?? e.edgeTargetId;
         const arr = map.get(e.edgeSourceId) ?? [];
         if (!arr.includes(ref)) {
