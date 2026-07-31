@@ -158,6 +158,29 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Run cannot be started from status " + run.getStatus());
     }
+    engageOrchestrator(run);
+    run.setStatus(AutonomousRunStatus.RUNNING);
+    run.setLastError(null);
+    AutonomousRun saved = runRepository.save(run);
+    eventService.append(
+        runId,
+        run.getSimulationId(),
+        AutonomousEventType.STATUS,
+        "Run started",
+        "Orchestrator engaged; autonomous execution is now running.",
+        null);
+    return saved;
+  }
+
+  /**
+   * Engages (or re-engages) the XTM One orchestrator for {@code run} and captures the returned
+   * session handle. The upstream start endpoint is idempotent AND re-engaging: it resets the run's
+   * existing durable execution to a fresh engagement when one already exists (restart / resume) or
+   * creates one otherwise, so this single call covers first start, resume, and restart. Shared by
+   * {@link #start} and {@link #resume} so both attribute the run to the acting operator's JWT and
+   * refresh {@code xtmSessionId} the same way.
+   */
+  private void engageOrchestrator(AutonomousRun run) {
     Map<String, Object> handle =
         xtmOneClient.startAutonomousRun(
             run.getXtmAgentSlug(),
@@ -174,20 +197,14 @@ public class AutonomousRunService {
         run.setXtmAgentSlug(slug);
       }
     }
-    run.setStatus(AutonomousRunStatus.RUNNING);
-    run.setLastError(null);
-    AutonomousRun saved = runRepository.save(run);
-    eventService.append(
-        runId,
-        run.getSimulationId(),
-        AutonomousEventType.STATUS,
-        "Run started",
-        "Orchestrator engaged; autonomous execution is now running.",
-        null);
-    return saved;
   }
 
-  /** Pauses a live run and the underlying chained simulation, keeping all state for resumption. */
+  /**
+   * Pauses a live run and the underlying chained simulation, keeping all state for resumption. The
+   * XTM One orchestration is cancelled too so it stops burning decision cycles while paused; {@link
+   * #resume} re-engages it (the upstream start is re-engaging, so a fresh cycle picks the run back
+   * up from the current OpenAEV + shared state).
+   */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun pause(String runId) {
     requireFeature();
@@ -197,23 +214,26 @@ public class AutonomousRunService {
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId, run.getSimulationId(), AutonomousEventType.STATUS, "Run paused", null, null);
+    cancelOrchestratorAfterCommit(runId, "run paused by operator");
     return saved;
   }
 
-  /** Resumes a paused run and its chained simulation. */
+  /** Resumes a paused run and its chained simulation, re-engaging the XTM One orchestrator. */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun resume(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
     transitionSimulation(run, ExerciseStatus.RUNNING);
+    engageOrchestrator(run);
     run.setStatus(AutonomousRunStatus.RUNNING);
+    run.setLastError(null);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId, run.getSimulationId(), AutonomousEventType.STATUS, "Run resumed", null, null);
     return saved;
   }
 
-  /** Cancels a run and its chained simulation. Terminal. */
+  /** Cancels a run and its chained simulation, halting the XTM One orchestrator. Terminal. */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun cancel(String runId) {
     requireFeature();
@@ -223,6 +243,7 @@ public class AutonomousRunService {
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId, run.getSimulationId(), AutonomousEventType.STATUS, "Run canceled", null, null);
+    cancelOrchestratorAfterCommit(runId, "run canceled by operator");
     return saved;
   }
 
@@ -244,6 +265,10 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Run can only be restarted once it has stopped");
     }
+    // Stop the previous XTM One orchestration before tearing its simulation down, so a lingering
+    // decision cycle can't dispatch injects against the simulation we are about to delete. The
+    // subsequent start() re-engages the run cleanly (upstream start resets the same execution).
+    cancelOrchestratorAfterCommit(runId, "run restarted by operator");
     // Tear the previous simulation down (attack-path executions + findings included) so the graph
     // and posture reset to empty rather than lingering from the previous run.
     if (hasText(run.getSimulationId())) {
@@ -307,11 +332,17 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Stop the autonomous run before deleting its scenario");
     }
+    // Halt the XTM One orchestration first: once the run row is gone OpenAEV can no longer be
+    // driven, but a still-live durable execution would keep self-resuming and dispatching injects
+    // against the deleted simulation. Fired after commit (the run id is captured now) so the
+    // upstream cancel resolves the same execution by its stable dedup key.
+    String runId = run.getId();
+    cancelOrchestratorAfterCommit(runId, "autonomous scenario deleted");
     if (hasText(run.getSimulationId())) {
       exerciseService.deleteById(run.getSimulationId());
     }
-    directiveRepository.deleteByRunId(run.getId());
-    eventService.deleteByRun(run.getId());
+    directiveRepository.deleteByRunId(runId);
+    eventService.deleteByRun(runId);
     runRepository.delete(run);
   }
 
@@ -431,6 +462,27 @@ public class AutonomousRunService {
           });
     } else {
       xtmOneClient.wakeAutonomousRun(runId, reason);
+    }
+  }
+
+  /**
+   * Registers a best-effort, after-commit cancel of the XTM One orchestration for {@code runId}.
+   * Deferred to {@code afterCommit} so the orchestrator loop is only stopped once the OpenAEV-side
+   * stop / delete / restart has durably committed (never on a rolled-back transaction); a
+   * synchronous fallback covers the no-active-transaction case. Best-effort: a transport failure is
+   * swallowed by the client and the adapter's own self-guard is the backstop.
+   */
+  private void cancelOrchestratorAfterCommit(String runId, String reason) {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              xtmOneClient.cancelAutonomousRun(runId, reason);
+            }
+          });
+    } else {
+      xtmOneClient.cancelAutonomousRun(runId, reason);
     }
   }
 

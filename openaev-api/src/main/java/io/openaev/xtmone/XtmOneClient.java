@@ -471,6 +471,46 @@ public class XtmOneClient {
     }
   }
 
+  /**
+   * Terminally stops the XTM One orchestration behind an autonomous run. Called when the operator
+   * stops, pauses, restarts, or deletes a run so the orchestrator loop halts on the XTM One side
+   * too - otherwise the durable execution keeps self-resuming every few seconds and, on a deleted
+   * run, keeps dispatching injects against a vanished simulation.
+   *
+   * <p>Authenticated with the acting operator's per-user JWT (same as start / wake), so the stop is
+   * attributed to the real user. Fire-and-forget and idempotent: a missing / already-terminal run
+   * is a no-op upstream, and a transport failure must never block the OpenAEV-side stop/delete (the
+   * adapter also self-terminates a run whose OpenAEV row it can no longer reach).
+   */
+  public void cancelAutonomousRun(String openaevRunId, String reason) {
+    if (!config.isConfigured() || openaevRunId == null) {
+      return;
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      Map<String, Object> body = new HashMap<>();
+      if (reason != null) body.put("reason", reason);
+      String json = objectMapper.writeValueAsString(body);
+      String encodedRunId = URLEncoder.encode(openaevRunId, StandardCharsets.UTF_8);
+      HttpPost httpPost =
+          chatPostBuilder(
+              "/api/v1/platform/autonomous/runs/" + encodedRunId + "/cancel", jwt, json);
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(20)).build());
+      httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getEntity() != null) {
+              EntityUtils.consume(response.getEntity());
+            }
+            return null;
+          });
+    } catch (Exception e) {
+      // Non-fatal: the OpenAEV-side stop/delete still proceeds; the adapter's own
+      // self-guard is the backstop for a lost cancel signal.
+      log.warn("[XTM One] Cancel autonomous run error, run={}.", openaevRunId, e);
+    }
+  }
+
   @SuppressWarnings("unchecked")
   public String uploadChatFile(String conversationId, MultipartFile file) {
     if (!config.isConfigured()) {
