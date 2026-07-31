@@ -89,7 +89,7 @@ public abstract class ContractElement {
   private List<String> linkedValues = new ArrayList<>();
 
   /**
-   * Payload argument primitive type that originated this contract field.
+   * Argument primitive type that originated this contract field.
    *
    * <p>Only set for fields generated from payload arguments.
    */

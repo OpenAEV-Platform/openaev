@@ -94,7 +94,6 @@ import org.springframework.util.StringUtils;
 public class InjectorContractService implements DependenciesManager {
   private static final String CONTRACT_CONTENT_FIELDS_NODE = "fields";
   private static final String CONTRACT_FIELD_ARGUMENT_TYPE = "argumentType";
-  private static final String LEGACY_CONTRACT_FIELD_ALTERNATE_ARGUMENT_TYPE = "payloadArgumentType";
   private static final String DEFAULT_ARGUMENT_TYPE_LABEL = PrimitiveType.Text.label;
 
   @PersistenceContext private EntityManager entityManager;
@@ -1018,8 +1017,6 @@ public class InjectorContractService implements DependenciesManager {
    * <p>For externally pushed injector contracts, {@code argumentType} may be omitted, null, or an
    * empty string. In such cases, this method sets it to {@code text} to keep contract content
    * consistent.
-   *
-   * <p>Legacy alternate field-name values are copied to {@code argumentType}.
    */
   public String normalizeContractContentArgumentType(String rawContent) {
     if (!StringUtils.hasText(rawContent)) {
@@ -1041,8 +1038,6 @@ public class InjectorContractService implements DependenciesManager {
           continue;
         }
         JsonNode argumentTypeNode = fieldNode.get(CONTRACT_FIELD_ARGUMENT_TYPE);
-        JsonNode legacyAlternateArgumentTypeNode =
-            fieldNode.get(LEGACY_CONTRACT_FIELD_ALTERNATE_ARGUMENT_TYPE);
 
         boolean isMissingOrNull = argumentTypeNode == null || argumentTypeNode.isNull();
         boolean isBlankString =
@@ -1051,13 +1046,7 @@ public class InjectorContractService implements DependenciesManager {
                 && !StringUtils.hasText(argumentTypeNode.asText());
 
         if (isMissingOrNull || isBlankString) {
-          String normalizedValue = DEFAULT_ARGUMENT_TYPE_LABEL;
-          if (legacyAlternateArgumentTypeNode != null
-              && legacyAlternateArgumentTypeNode.isTextual()
-              && StringUtils.hasText(legacyAlternateArgumentTypeNode.asText())) {
-            normalizedValue = legacyAlternateArgumentTypeNode.asText();
-          }
-          ((ObjectNode) fieldNode).put(CONTRACT_FIELD_ARGUMENT_TYPE, normalizedValue);
+          ((ObjectNode) fieldNode).put(CONTRACT_FIELD_ARGUMENT_TYPE, DEFAULT_ARGUMENT_TYPE_LABEL);
           changed = true;
         }
       }
