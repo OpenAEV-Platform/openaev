@@ -351,8 +351,12 @@ public enum Capability {
       pair(ResourceType.TAG, Action.READ),
       pair(ResourceType.TAG, Action.SEARCH)),
   MANAGE_TAGS(
-      ACCESS_TAGS, pair(ResourceType.TAG, Action.WRITE), pair(ResourceType.TAG, Action.CREATE)),
-  DELETE_TAGS(MANAGE_TAGS, pair(ResourceType.TAG, Action.DELETE)),
+      ACCESS_TAGS,
+      pair(ResourceType.TAG, Action.WRITE),
+      pair(ResourceType.TAG, Action.CREATE)),
+  DELETE_TAGS(
+      MANAGE_TAGS,
+      pair(ResourceType.TAG, Action.DELETE)),
   MANAGE_TENANT_SETTINGS(
       ACCESS_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.WRITE),

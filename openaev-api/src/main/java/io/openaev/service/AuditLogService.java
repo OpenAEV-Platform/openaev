@@ -3,7 +3,7 @@ package io.openaev.service;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.aop.audit_log.AuditLogger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AuditLogService {
 
-  private final PreviewFeatureService previewFeatureService;
+  private final AuditLogger auditLogger;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final PlatformSettingsService platformSettingsService;
@@ -29,8 +29,8 @@ public class AuditLogService {
   // -- OPTIONS --
 
   /**
-   * Checks whether the audit-log feature flag is enabled and, if so, whether an active Enterprise
-   * Edition license is present.
+   * Checks whether audit logging is enabled and, if so, whether an active Enterprise Edition license
+   * is present.
    *
    * <ul>
    *   <li>If the feature flag is ON but the EE license is absent/inactive → shows the {@code
@@ -40,7 +40,7 @@ public class AuditLogService {
    */
   @Transactional
   public void checkLicenseBanner() {
-    boolean isAuditFlagEnabled = previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+    boolean isAuditFlagEnabled = auditLogger.isAuditLoggingEnabled();
     if (!isAuditFlagEnabled) {
       // Feature not enabled: nothing to warn about.
       platformSettingsService.cleanMessage(
