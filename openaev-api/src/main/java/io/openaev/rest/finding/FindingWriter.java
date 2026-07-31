@@ -78,3 +78,4 @@ public class FindingWriter {
     findingRepository.insertFindingTags(findingId, tagIds);
   }
 }
+
