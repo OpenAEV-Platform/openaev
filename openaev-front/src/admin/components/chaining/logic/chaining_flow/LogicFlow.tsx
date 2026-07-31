@@ -27,7 +27,6 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
 import type { ConditionCreateInput, KillChainPhase } from '../../../../../utils/api-types';
-import { emitChainingUpdated } from '../chaining-refresh-events';
 import {
   buildActionMetas,
   buildEdges,
@@ -41,7 +40,6 @@ import {
   enrichActionMetasWithContracts,
   positionEventNodes,
 } from '../logic-flow-helpers';
-import { findUnprovisionedLogicWarningItems } from '../logic-warning-utils';
 import type { ActionMeta, EventMeta } from '../types';
 import { useOutputProviders } from '../useOutputProviders';
 import edgeTypes from './edges';
@@ -196,8 +194,6 @@ const LogicFlow = ({
     const positionedEventNodes = positionEventNodes(eventNodes, eventToGroupX);
     const edgesData = buildEdges(enrichedActionMetas, eventMetas);
     const providersMap = buildOutputProvidersMap(enrichedActionMetas);
-    // Recompute logic warnings from the same fresh graph snapshot we render.
-    const logicWarnings = findUnprovisionedLogicWarningItems(eventMetas, providersMap);
 
     setActionMetas(enrichedActionMetas);
     setContextProviders(providersMap);
@@ -206,8 +202,6 @@ const LogicFlow = ({
     setNodes([...groupNodes, ...positionedEventNodes, ...actionNodes]);
     setEdges(edgesData);
     setLoading(false);
-    // Notify headers so "to configure" is refreshed immediately after logic edits.
-    emitChainingUpdated(workflowId, logicWarnings);
   }, [workflowId, t, setNodes, setEdges, setContextProviders]);
 
   useEffect(() => {

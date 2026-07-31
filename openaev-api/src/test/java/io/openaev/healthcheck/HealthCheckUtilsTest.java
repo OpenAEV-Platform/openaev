@@ -12,8 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Command;
+import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.PrimitiveType;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.Workflow;
+import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.util.ArrayList;
@@ -553,6 +559,64 @@ public class HealthCheckUtilsTest {
 
       // -- ASSERT --
       assertFalse(isReady);
+    }
+  }
+
+  @Nested
+  class LogicDefinitionChecksTests {
+
+    @Test
+    void given_event_fields_covered_by_action_outputs_should_not_return_logic_healthcheck() {
+      // Arrange
+      Workflow workflow = new Workflow();
+      Step step = new Step();
+      step.setData(
+          """
+          {
+            "inject_injector_contract": {
+              "injector_contract_providing": ["username"]
+            }
+          }
+          """);
+      workflow.setSteps(List.of(step));
+      Condition eventCondition =
+          Condition.builder().type(ConditionType.EQ).keyTypes(List.of(PrimitiveType.Username)).build();
+
+      // Act
+      List<HealthCheck> result =
+          healthCheckUtils.runLogicDefinitionChecks(workflow, List.of(eventCondition));
+
+      // Assert
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void given_event_fields_not_covered_by_action_outputs_should_return_logic_healthcheck() {
+      // Arrange
+      Workflow workflow = new Workflow();
+      Step step = new Step();
+      step.setData(
+          """
+          {
+            "inject_injector_contract": {
+              "injector_contract_providing": ["username"]
+            }
+          }
+          """);
+      workflow.setSteps(List.of(step));
+      Condition eventCondition =
+          Condition.builder().type(ConditionType.EQ).keyTypes(List.of(PrimitiveType.AssetId)).build();
+
+      // Act
+      List<HealthCheck> result =
+          healthCheckUtils.runLogicDefinitionChecks(workflow, List.of(eventCondition));
+
+      // Assert
+      assertFalse(result.isEmpty());
+      HealthCheck healthCheck = result.get(0);
+      assertEquals(HealthCheck.Type.LOGIC_DEFINITION, healthCheck.getType());
+      assertEquals(HealthCheck.Detail.NOT_READY, healthCheck.getDetail());
+      assertEquals(HealthCheck.Status.WARNING, healthCheck.getStatus());
     }
   }
 }

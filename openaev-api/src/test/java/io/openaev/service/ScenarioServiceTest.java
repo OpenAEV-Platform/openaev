@@ -25,6 +25,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -91,6 +92,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private WorkflowService workflowService;
+  @Mock private ConditionService conditionService;
   @Mock private WorkflowExportInitializer workflowExportInitializer;
   @Autowired private PreviewFeatureService previewFeatureService;
 
@@ -134,6 +136,7 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRepository,
             healthCheckUtils,
             scenarioMapper,
+            conditionService,
             workflowService,
             workflowExportInitializer,
             bulkDeleteExecutor);

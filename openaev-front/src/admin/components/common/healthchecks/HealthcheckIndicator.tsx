@@ -6,19 +6,14 @@ import { useNavigate } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import type { HealthCheck } from '../../../../utils/api-types';
-import { formatConditionKeyLabel } from '../../chaining/logic/events/event-types';
-import type { UnprovisionedLogicWarningItem } from '../../chaining/logic/logic-warning-utils';
 
 interface Props {
   healthchecks: HealthCheck[];
-  logicWarnings?: UnprovisionedLogicWarningItem[];
   scenarioId?: string;
   exerciseId?: string;
 }
 
 const DOCUMENTATION_ROOT_URL = 'https://docs.openaev.io';
-// UI-only warning kind used to route Logic tab issues through the same action switch as healthchecks.
-const LOGIC_WARNING_TYPE = 'LOGIC_WARNING';
 
 /**
  * Discrete, hero-friendly replacement for the bulky Healthchecks accordion:
@@ -28,7 +23,6 @@ const LOGIC_WARNING_TYPE = 'LOGIC_WARNING';
  */
 const HealthcheckIndicator: FunctionComponent<Props> = ({
   healthchecks,
-  logicWarnings = [],
   scenarioId,
   exerciseId,
 }) => {
@@ -37,8 +31,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
-  // Chaining headers aggregate backend healthchecks + frontend logic warnings in one counter.
-  const totalWarnings = healthchecks.length + logicWarnings.length;
+  const totalWarnings = healthchecks.length;
   if (totalWarnings === 0) {
     return null;
   }
@@ -75,33 +68,21 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
       case 'SCOPE_DEFINITION':
         navigate(exerciseId ? `/admin/simulations/${exerciseId}/scope` : `/admin/scenarios/${scenarioId}/scope`);
         break;
-      case LOGIC_WARNING_TYPE:
-        // Logic warning rows are resolved in the Logic tab (event field has no provider action).
+      case 'LOGIC_DEFINITION':
         navigate(exerciseId ? `/admin/simulations/${exerciseId}/logic` : `/admin/scenarios/${scenarioId}/logic`);
         break;
       default:
     }
   };
 
-  const warningRows = [
-    ...ordered.map((healthcheck, index) => ({
-      id: `healthcheck-${healthcheck.type}-${index}`,
-      type: healthcheck.type!,
-      title: t(`healthcheck.type.${healthcheck.type}`),
-      description: t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`),
-      buttonLabel: t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`),
-      status: healthcheck.status,
-    })),
-    ...logicWarnings.map(warning => ({
-      id: `logic-warning-${warning.eventId}-${warning.field}`,
-      type: LOGIC_WARNING_TYPE,
-      title: t('Warning'),
-      description: `${t('Event')} "${warning.eventName}" ${t('references field:')} ${formatConditionKeyLabel(warning.field)} ${t('which is')} ${t('not provisioned by any action.')}`,
-      buttonLabel: t('Add Compatible Action'),
-      status: 'WARNING' as const,
-    })),
-  ];
-  // One unified list drives both the badge count and the popover rows to keep them consistent.
+  const warningRows = ordered.map((healthcheck, index) => ({
+    id: `healthcheck-${healthcheck.type}-${index}`,
+    type: healthcheck.type!,
+    title: t(`healthcheck.type.${healthcheck.type}`),
+    description: t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`),
+    buttonLabel: t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`),
+    status: healthcheck.status,
+  }));
 
   return (
     <>

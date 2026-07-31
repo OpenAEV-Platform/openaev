@@ -44,7 +44,6 @@ import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import { getScopeAwareHealthchecks, isScopeMissingForChaining } from '../../common/healthchecks/scopeHealthcheckUtils';
-import useUnprovisionedLogicWarnings from '../../common/healthchecks/useUnprovisionedLogicWarnings';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
@@ -295,12 +294,10 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     isChaining: isSimulationChaining,
     isScopeMissing,
   });
-  // Chaining header shows only scope backend warnings; classic simulations keep all healthchecks.
+  // Chaining header shows only scope and logic warnings; classic simulations keep all healthchecks.
   const healthchecksForIndicator = isSimulationChaining
-    ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => healthcheck.type === 'SCOPE_DEFINITION')
+    ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => ['SCOPE_DEFINITION', 'LOGIC_DEFINITION'].includes(healthcheck.type))
     : scopeAwareHealthchecks;
-  // Logic warnings ("event field has no provider action") are computed separately and merged in the indicator.
-  const logicWarnings = useUnprovisionedLogicWarnings(isSimulationChaining ? exerciseWorkflowId : undefined);
 
   useEffect(() => {
     searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
@@ -409,7 +406,6 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
               {permissions.canManage && (
                 <HealthcheckIndicator
                   healthchecks={healthchecksForIndicator}
-                  logicWarnings={logicWarnings}
                   exerciseId={exerciseId}
                 />
               )}

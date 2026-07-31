@@ -65,7 +65,6 @@ import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import { getScopeAwareHealthchecks, isScopeMissingForChaining } from '../../common/healthchecks/scopeHealthcheckUtils';
-import useUnprovisionedLogicWarnings from '../../common/healthchecks/useUnprovisionedLogicWarnings';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
@@ -160,13 +159,11 @@ const ScenarioHeader = ({
       isChaining: isScenarioChaining,
       isScopeMissing,
     });
-    // Chaining header shows only scope backend warnings; classic scenarios keep all healthchecks.
+    // Chaining header shows only scope and logic warnings; classic scenarios keep all healthchecks.
     return isScenarioChaining
-      ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => healthcheck.type === 'SCOPE_DEFINITION')
+      ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => ['SCOPE_DEFINITION', 'LOGIC_DEFINITION'].includes(healthcheck.type))
       : scopeAwareHealthchecks;
   }, [healthchecks, isScenarioChaining, isScopeMissing]);
-  // Logic warnings ("event field has no provider action") are computed separately and merged in the indicator.
-  const logicWarnings = useUnprovisionedLogicWarnings(isScenarioChaining ? scenarioWorkflowId : undefined);
 
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
@@ -302,7 +299,6 @@ const ScenarioHeader = ({
               {canManage && (
                 <HealthcheckIndicator
                   healthchecks={healthchecksForIndicator}
-                  logicWarnings={logicWarnings}
                   scenarioId={scenarioId}
                 />
               )}
