@@ -1,0 +1,17 @@
+io/openaev/api/detection_remediation/**/*Test.java
+io/openaev/api/threat_arsenal/**/*Test.java
+io/openaev/config/tls/**/*Test.java
+io/openaev/diagnostics/**/*Test.java
+io/openaev/injectors/**/*Test.java
+io/openaev/integration/**/*Test.java
+io/openaev/rest/asset/**/*Test.java
+io/openaev/rest/domain/**/*Test.java
+io/openaev/rest/inject/**/*Test.java
+io/openaev/rest/inject_expectation/**/*Test.java
+io/openaev/rest/lessons_template/**/*Test.java
+io/openaev/rest/scenario/**/*Test.java
+io/openaev/rest/url_access_token/**/*Test.java
+io/openaev/service/stix/**/*Test.java
+io/openaev/service/tenants/**/*Test.java
+io/openaev/telemetry/**/*Test.java
+io/openaev/validator/**/*Test.java

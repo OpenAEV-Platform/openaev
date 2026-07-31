@@ -106,35 +106,6 @@ jobs:
       matrix:
         include: ${{ fromJSON(inputs.api-matrix) }}
     env:
-      # Every pattern claimed by an explicit shard. The "catchall" shard runs the
-      # complement, so any package added here must belong to a shard below.
-      EXPLICITLY_SHARDED_TESTS: |-
-        io/openaev/api/**/*Test.java
-        io/openaev/integration/**/*Test.java
-        io/openaev/injects/**/*Test.java
-        io/openaev/opencti/**/*Test.java
-        io/openaev/service/**/*Test.java
-        io/openaev/rest/**/*Test.java
-        io/openaev/config/**/*Test.java
-        io/openaev/database/**/*Test.java
-        io/openaev/scheduler/**/*Test.java
-        io/openaev/datapack/**/*Test.java
-        io/openaev/debug/**/*Test.java
-        io/openaev/output_processor/**/*Test.java
-        io/openaev/executors/**/*Test.java
-        io/openaev/engine/**/*Test.java
-        io/openaev/context/**/*Test.java
-        io/openaev/processor/**/*Test.java
-        io/openaev/injector_contract/**/*Test.java
-        io/openaev/helper/**/*Test.java
-        io/openaev/runner/**/*Test.java
-        io/openaev/healthcheck/**/*Test.java
-        io/openaev/telemetry/**/*Test.java
-        io/openaev/aop/**/*Test.java
-        io/openaev/architecture/**/*Test.java
-        io/openaev/utils/**/*Test.java
-        io/openaev/utilstest/**/*Test.java
-        io/openaev/notification/**/*Test.java
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev

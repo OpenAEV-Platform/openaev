@@ -1,0 +1,16 @@
+io/openaev/api/attackpath/**/*Test.java
+io/openaev/api/notification_trigger/**/*Test.java
+io/openaev/api/stix_process/**/*Test.java
+io/openaev/engine/**/*Test.java
+io/openaev/importer/**/*Test.java
+io/openaev/rest/*Test.java
+io/openaev/rest/attack_pattern/**/*Test.java
+io/openaev/rest/finding/**/*Test.java
+io/openaev/rest/payload/**/*Test.java
+io/openaev/rest/rbac/**/*Test.java
+io/openaev/rest/reporting/**/*Test.java
+io/openaev/runner/**/*Test.java
+io/openaev/scheduler/**/*Test.java
+io/openaev/service/user_event/**/*Test.java
+io/openaev/utils/**/*Test.java
+io/openaev/xtmone/**/*Test.java

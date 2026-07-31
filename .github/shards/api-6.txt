@@ -1,0 +1,16 @@
+io/openaev/api/payload/**/*Test.java
+io/openaev/datapack/**/*Test.java
+io/openaev/debug/**/*Test.java
+io/openaev/export/**/*Test.java
+io/openaev/notification/**/*Test.java
+io/openaev/opencti/**/*Test.java
+io/openaev/output_processor/**/*Test.java
+io/openaev/rest/asset_group/**/*Test.java
+io/openaev/rest/expectation/**/*Test.java
+io/openaev/rest/helper/**/*Test.java
+io/openaev/rest/mapper/**/*Test.java
+io/openaev/rest/mitigation/**/*Test.java
+io/openaev/rest/tag_rule/**/*Test.java
+io/openaev/service/connector_instances/**/*Test.java
+io/openaev/service/utils/**/*Test.java
+io/openaev/xtmhub/**/*Test.java

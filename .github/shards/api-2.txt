@@ -1,0 +1,16 @@
+io/openaev/api/asset/**/*Test.java
+io/openaev/api/custom_dashboard/**/*Test.java
+io/openaev/api/expectations/**/*Test.java
+io/openaev/api/notifier/**/*Test.java
+io/openaev/config/*Test.java
+io/openaev/driver/**/*Test.java
+io/openaev/helper/**/*Test.java
+io/openaev/injects/**/*Test.java
+io/openaev/rest/collector/**/*Test.java
+io/openaev/rest/dashboard/**/*Test.java
+io/openaev/rest/exercise/**/*Test.java
+io/openaev/rest/role/**/*Test.java
+io/openaev/rest/vulnerability/**/*Test.java
+io/openaev/security/**/*Test.java
+io/openaev/service/expectation/**/*Test.java
+io/openaev/utilstest/**/*Test.java

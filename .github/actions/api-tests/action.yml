@@ -2,21 +2,23 @@ name: API Tests
 description: >
   Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
   download pre-compiled artifacts, and run API tests for a single shard.
-  Requires job-level env vars: EXPLICITLY_SHARDED_TESTS,
+  Requires job-level env vars:
   SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME,
   SPRING_DATASOURCE_PASSWORD, MINIO_ENDPOINT, MINIO_PORT, ENGINE_URL,
   OPENBAS_RABBITMQ_HOSTNAME, GH_TOKEN.
 
 inputs:
   includes:
-    description: 'Surefire test include patterns (multi-line) or "catchall"'
+    description: >
+      "shardfile" to read .github/shards/api-<shard>.txt, "catchall" to run
+      everything no shard file claims, or literal multi-line Surefire patterns.
     required: true
   excludes:
     description: "Surefire test exclude patterns (multi-line, optional)"
     required: false
     default: ""
   shard:
-    description: Shard number (used for artifact naming)
+    description: Shard number (selects the shard file and names artifacts)
     required: true
   shard-name:
     description: Shard display name
@@ -227,12 +229,29 @@ runs:
       env:
         SHARD_INCLUDES: ${{ inputs.includes }}
         SHARD_EXCLUDES: ${{ inputs.excludes }}
+        SHARD: ${{ inputs.shard }}
       run: |
+        set -euo pipefail
+        SHARD_DIR=.github/shards
+
         if [ "$SHARD_INCLUDES" = "catchall" ]; then
-          echo "$EXPLICITLY_SHARDED_TESTS" > /tmp/surefire-excludes.txt
+          # Excludes are derived from the shard files, so they can never drift
+          # out of sync and silently drop a package from the run.
+          cat "$SHARD_DIR"/api-*.txt > /tmp/surefire-excludes.txt
           echo "surefire_arg=-Dsurefire.excludesFile=/tmp/surefire-excludes.txt" >> "$GITHUB_OUTPUT"
-          echo "🔄 Catch-all shard: running all tests NOT assigned to shards 1–3"
+          echo "🔄 Catch-all shard: everything not claimed by $SHARD_DIR/api-*.txt"
           cat /tmp/surefire-excludes.txt
+        elif [ "$SHARD_INCLUDES" = "shardfile" ]; then
+          SHARD_FILE="$SHARD_DIR/api-${SHARD}.txt"
+          if [ ! -f "$SHARD_FILE" ]; then
+            echo "❌ Shard file not found: $SHARD_FILE"
+            ls -la "$SHARD_DIR" 2>/dev/null || echo "  $SHARD_DIR does not exist"
+            exit 1
+          fi
+          cp "$SHARD_FILE" /tmp/surefire-includes.txt
+          echo "surefire_arg=-Dsurefire.includesFile=/tmp/surefire-includes.txt" >> "$GITHUB_OUTPUT"
+          echo "📋 Shard $SHARD include patterns (from $SHARD_FILE):"
+          cat /tmp/surefire-includes.txt
         else
           echo "$SHARD_INCLUDES" > /tmp/surefire-includes.txt
           ARGS="-Dsurefire.includesFile=/tmp/surefire-includes.txt"

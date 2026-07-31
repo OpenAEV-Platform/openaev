@@ -1,0 +1,17 @@
+io/openaev/aop/**/*Test.java
+io/openaev/api/attack_pattern/**/*Test.java
+io/openaev/api/url_access_token/**/*Test.java
+io/openaev/api/xtm_composer/**/*Test.java
+io/openaev/architecture/**/*Test.java
+io/openaev/config/cache/**/*Test.java
+io/openaev/database/**/*Test.java
+io/openaev/injector_contract/**/*Test.java
+io/openaev/killChainPhase/**/*Test.java
+io/openaev/processor/**/*Test.java
+io/openaev/rest/custom_dashboard/**/*Test.java
+io/openaev/rest/search/**/*Test.java
+io/openaev/service/account/**/*Test.java
+io/openaev/service/attackpath/**/*Test.java
+io/openaev/service/chaining/**/*Test.java
+io/openaev/service/detection_remediation/**/*Test.java
+io/openaev/sso/**/*Test.java
