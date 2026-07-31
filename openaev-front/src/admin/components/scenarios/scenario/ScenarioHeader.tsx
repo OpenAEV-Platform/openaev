@@ -159,9 +159,9 @@ const ScenarioHeader = ({
       isChaining: isScenarioChaining,
       isScopeMissing,
     });
-    // Chaining header shows only scope and logic warnings; classic scenarios keep all healthchecks.
+    // Chaining header shows only scope backend warnings; classic scenarios keep all healthchecks.
     return isScenarioChaining
-      ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => ['SCOPE_DEFINITION', 'LOGIC_DEFINITION'].includes(healthcheck.type))
+      ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => healthcheck.type === 'SCOPE_DEFINITION')
       : scopeAwareHealthchecks;
   }, [healthchecks, isScenarioChaining, isScopeMissing]);
 

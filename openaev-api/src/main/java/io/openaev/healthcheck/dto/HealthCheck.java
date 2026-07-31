@@ -41,7 +41,6 @@ public class HealthCheck {
     OPTIONAL_ARGS("optional_args"),
     MESSAGE("message"),
     SCOPE_DEFINITION("scope_definition"),
-    LOGIC_DEFINITION("logic_definition"),
     UNKNOWN("unknown");
 
     private final String value;

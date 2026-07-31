@@ -63,7 +63,6 @@ import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
-import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -155,7 +154,6 @@ public class ScenarioService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ScenarioMapper scenarioMapper;
-  private final ConditionService conditionService;
   private final WorkflowService workflowService;
   private final WorkflowExportInitializer workflowExportInitializer;
   private final BulkDeleteExecutor bulkDeleteExecutor;
@@ -1273,13 +1271,7 @@ public class ScenarioService {
       workflowService
           .findWorkflowTemplateByScenarioId(scenarioId)
           .ifPresent(
-              workflow -> {
-                healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow));
-                healthChecks.addAll(
-                    healthCheckUtils.runLogicDefinitionChecks(
-                        workflow,
-                        conditionService.findAllNonMapperConditionsByWorkflowId(workflow.getId())));
-              });
+              workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
     } catch (ChainingException e) {
       log.debug("Skipping scope definition check: {}", e.getMessage());
     }

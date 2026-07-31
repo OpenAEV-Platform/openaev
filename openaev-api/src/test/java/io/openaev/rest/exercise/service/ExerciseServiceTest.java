@@ -16,7 +16,6 @@ import io.openaev.service.*;
 import io.openaev.service.FileService;
 import io.openaev.service.LessonsService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
-import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -87,7 +86,6 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private WorkflowService workflowService;
-  @Mock private ConditionService conditionService;
   @Mock private GrantService grantService;
   @Mock private ExerciseTeamUserService exerciseTeamUserService;
   @Mock private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
@@ -144,7 +142,6 @@ class ExerciseServiceTest extends IntegrationTest {
             pauseExerciseService,
             fileService,
             stepService,
-            conditionService,
             healthCheckUtils,
             eventPublisher,
             attackPathExecutionService);

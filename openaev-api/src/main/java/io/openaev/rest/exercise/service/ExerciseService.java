@@ -56,7 +56,6 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
-import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -155,7 +154,6 @@ public class ExerciseService {
   private final FileService fileService;
 
   private final StepService stepService;
-  private final ConditionService conditionService;
 
   private final HealthCheckUtils healthCheckUtils;
 
@@ -1345,13 +1343,7 @@ public class ExerciseService {
     workflowService
         .findWorkflowTemplateBySimulationId(exerciseId)
         .ifPresent(
-            workflow -> {
-              healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow));
-              healthChecks.addAll(
-                  healthCheckUtils.runLogicDefinitionChecks(
-                      workflow,
-                      conditionService.findAllNonMapperConditionsByWorkflowId(workflow.getId())));
-            });
+            workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
 
     return healthChecks;
   }

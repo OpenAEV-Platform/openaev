@@ -68,9 +68,6 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
       case 'SCOPE_DEFINITION':
         navigate(exerciseId ? `/admin/simulations/${exerciseId}/scope` : `/admin/scenarios/${scenarioId}/scope`);
         break;
-      case 'LOGIC_DEFINITION':
-        navigate(exerciseId ? `/admin/simulations/${exerciseId}/logic` : `/admin/scenarios/${scenarioId}/logic`);
-        break;
       default:
     }
   };

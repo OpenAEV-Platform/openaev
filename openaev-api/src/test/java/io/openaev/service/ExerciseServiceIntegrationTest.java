@@ -20,7 +20,6 @@ import io.openaev.rest.exercise.service.PauseExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
-import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -90,9 +89,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private FileService fileService;
   @Autowired private PauseExerciseService pauseExerciseService;
   @Autowired private UrlAccessTokenService urlAccessTokenService;
-
   @Autowired private WorkflowService workflowService;
-  @Autowired private ConditionService conditionService;
+  @Autowired private WorkflowService workflowService;
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
@@ -148,7 +146,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             pauseExerciseService,
             fileService,
             stepService,
-            conditionService,
             healthCheckUtils,
             eventPublisher,
             attackPathExecutionService);

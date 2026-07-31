@@ -294,9 +294,9 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     isChaining: isSimulationChaining,
     isScopeMissing,
   });
-  // Chaining header shows only scope and logic warnings; classic simulations keep all healthchecks.
+  // Chaining header shows only scope backend warnings; classic simulations keep all healthchecks.
   const healthchecksForIndicator = isSimulationChaining
-    ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => ['SCOPE_DEFINITION', 'LOGIC_DEFINITION'].includes(healthcheck.type))
+    ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => healthcheck.type === 'SCOPE_DEFINITION')
     : scopeAwareHealthchecks;
 
   useEffect(() => {

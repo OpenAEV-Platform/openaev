@@ -29,13 +29,6 @@ import org.springframework.stereotype.Component;
 public class HealthCheckUtils {
 
   private final ExecutorUtils executorUtils;
-  private static final Map<String, ContractOutputType> CONTRACT_OUTPUT_TYPE_BY_LABEL =
-      Arrays.stream(ContractOutputType.values())
-          .collect(
-              Collectors.toMap(
-                  type -> type.getLabel().toLowerCase(Locale.ROOT),
-                  type -> type,
-                  (left, right) -> left));
 
   /**
    * Run all mail service checks for one inject
@@ -501,44 +494,6 @@ public class HealthCheckUtils {
     return result;
   }
 
-  /**
-   * Run logic definition checks for a workflow template. Returns a warning when at least one event
-   * field (consumer) has no provider action output in the workflow.
-   *
-   * @param workflow the workflow template to check
-   * @param conditions non-MAPPER conditions linked to this workflow
-   * @return found healthchecks
-   */
-  public List<HealthCheck> runLogicDefinitionChecks(
-      @NotNull final Workflow workflow, @NotNull final List<Condition> conditions) {
-    if (conditions.isEmpty()) {
-      return Collections.emptyList();
-    }
-
-    Set<String> providedOutputTypes =
-        extractProvidedOutputTypes(workflow).stream()
-            .map(value -> value.toLowerCase(Locale.ROOT))
-            .collect(Collectors.toSet());
-
-    boolean hasUnprovisionedField =
-        conditions.stream()
-            .filter(this::isNonLogicalCondition)
-            .map(this::extractConditionField)
-            .flatMap(Optional::stream)
-            .map(field -> field.toLowerCase(Locale.ROOT))
-            .anyMatch(field -> !providedOutputTypes.contains(field));
-
-    if (!hasUnprovisionedField) {
-      return Collections.emptyList();
-    }
-
-    return List.of(
-        new HealthCheck(
-            HealthCheck.Type.LOGIC_DEFINITION,
-            HealthCheck.Detail.NOT_READY,
-            HealthCheck.Status.WARNING,
-            now()));
-  }
 
   /**
    * Remove all duplicates healthchecks
@@ -573,94 +528,4 @@ public class HealthCheckUtils {
     return first;
   }
 
-  private boolean isNonLogicalCondition(Condition condition) {
-    ConditionType type = condition.getType();
-    return type != null && type != ConditionType.AND && type != ConditionType.OR;
-  }
-
-  private Optional<String> extractConditionField(Condition condition) {
-    List<PrimitiveType> keyTypes = condition.getKeyTypes();
-    if (keyTypes == null || keyTypes.isEmpty() || keyTypes.get(0) == null) {
-      return Optional.empty();
-    }
-    return Optional.ofNullable(keyTypes.get(0).label);
-  }
-
-  private Set<String> extractProvidedOutputTypes(Workflow workflow) {
-    if (workflow.getSteps() == null || workflow.getSteps().isEmpty()) {
-      return Collections.emptySet();
-    }
-
-    return workflow.getSteps().stream()
-        .map(Step::getData)
-        .filter(Objects::nonNull)
-        .flatMap(data -> extractOutputTypesFromStepData(data).stream())
-        .collect(Collectors.toCollection(LinkedHashSet::new));
-  }
-
-  private List<String> extractOutputTypesFromStepData(String stepData) {
-    try {
-      JsonNode dataNode = new ObjectMapper().readTree(stepData);
-      JsonNode contract = dataNode.path("inject_injector_contract");
-      if (contract.isMissingNode()) {
-        return List.of();
-      }
-
-      JsonNode providing = contract.path("injector_contract_providing");
-      if (providing.isArray() && !providing.isEmpty()) {
-        List<String> result = new ArrayList<>();
-        for (JsonNode type : providing) {
-          String value = type.asText(null);
-          if (value != null && !value.isBlank()) {
-            result.add(value);
-          }
-        }
-        return expandToPrimitiveLabels(result);
-      }
-
-      JsonNode parsers = contract.path("injector_contract_payload").path("payload_output_parsers");
-      if (!parsers.isArray()) {
-        return List.of();
-      }
-
-      List<String> result = new ArrayList<>();
-      for (JsonNode parser : parsers) {
-        JsonNode elements = parser.path("output_parser_contract_output_elements");
-        if (!elements.isArray()) {
-          continue;
-        }
-        for (JsonNode element : elements) {
-          String type = element.path("contract_output_element_type").asText(null);
-          if (type != null && !type.isBlank()) {
-            result.add(type);
-          }
-        }
-      }
-      return expandToPrimitiveLabels(result);
-    } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Unable to parse step data as JSON", e);
-    }
-  }
-
-  private List<String> expandToPrimitiveLabels(List<String> outputTypes) {
-    LinkedHashSet<String> primitiveLabels = new LinkedHashSet<>();
-    for (String outputType : outputTypes) {
-      Optional<PrimitiveType> primitiveType = PrimitiveType.fromLabelOptional(outputType);
-      if (primitiveType.isPresent()) {
-        primitiveLabels.add(primitiveType.get().label);
-        continue;
-      }
-
-      ContractOutputType contractOutputType =
-          CONTRACT_OUTPUT_TYPE_BY_LABEL.get(outputType.toLowerCase(Locale.ROOT));
-      if (contractOutputType == null) {
-        continue;
-      }
-
-      ChainingTypeRegistry.getPrimitiveTypesForContractOutputType(contractOutputType).stream()
-          .map(type -> type.label)
-          .forEach(primitiveLabels::add);
-    }
-    return List.copyOf(primitiveLabels);
-  }
 }
