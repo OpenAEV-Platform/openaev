@@ -5,7 +5,6 @@ import {
   buildActionMetas,
   buildEventData,
   buildOutputProvidersMap,
-  enrichActionMetasWithContracts,
 } from '../../chaining/logic/logic-flow-helpers';
 import {
   findUnprovisionedLogicWarningItems,
@@ -29,8 +28,7 @@ const useUnprovisionedLogicWarnings = (workflowId: string | undefined): Unprovis
           fetchConditions(workflowId),
         ]);
         const actionMetas = buildActionMetas(stepsRes.data ?? []);
-        const enrichedActionMetas = await enrichActionMetasWithContracts(actionMetas);
-        const providers = buildOutputProvidersMap(enrichedActionMetas);
+        const providers = buildOutputProvidersMap(actionMetas);
         const { eventMetas } = buildEventData(conditionsRes.data ?? []);
         if (!stale) {
           setWarnings(findUnprovisionedLogicWarningItems(eventMetas, providers));
@@ -43,8 +41,12 @@ const useUnprovisionedLogicWarnings = (workflowId: string | undefined): Unprovis
     };
 
     void loadWarnings();
+    const intervalId = window.setInterval(() => {
+      void loadWarnings();
+    }, 5000);
     return () => {
       stale = true;
+      window.clearInterval(intervalId);
     };
   }, [workflowId]);
 
