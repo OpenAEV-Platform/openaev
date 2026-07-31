@@ -81,9 +81,13 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
         const catalogMatch = connector.catalog?.catalog_connector_id
           ? catalogById.get(connector.catalog.catalog_connector_id)
           : undefined;
-        // Same clickability rule as the legacy per-type pages: collectors and
-        // executors without a catalog entry have no detail page.
-        const clickable = !(connector.catalog == null && type !== 'INJECTOR');
+        // Every registered connector gets a detail page, even without a catalog
+        // entry: the detail page is the only place offering the delete action, so
+        // gating it on the catalog stranded custom or renamed-slug connectors
+        // (no way to delete or manage them at all). Only pending, instance-only
+        // entries keep the legacy rule.
+        const clickable = connector.isExisting === true
+          || !(connector.catalog == null && type !== 'INJECTOR');
         let logoSrc: string | undefined;
         if (connector.isExisting) {
           logoSrc = config.logoUrl(connector.type);
@@ -143,6 +147,9 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     const catalogConnector = catalogConnectors.find(
       connector => connector.catalog_connector_id === deployed.connector.catalog?.catalog_connector_id,
     );
+    // Without a catalog entry the drawer would post an empty catalog id and fail
+    // with a silently-swallowed 404, looking like a dead button.
+    if (!catalogConnector) return;
     setSelectedCatalogConnector(catalogConnector);
     setMigrationSource(deployed.connector.id);
     setOpenMigrateDrawer(true);
@@ -155,7 +162,10 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     const deployed = metaById.get(item.id);
     if (!deployed) return null;
     const { connector } = deployed;
-    const canMigrate = connector.isExternal && connector.connectorInstance == null && isXtmComposerUp;
+    // A catalog entry is required to migrate: the drawer needs the catalog id and
+    // configuration schema to build the managed instance.
+    const canMigrate = connector.isExternal && connector.connectorInstance == null
+      && isXtmComposerUp && connector.catalog != null;
     const { started, lastSeen, healthy, builtIn } = computeConnectorLiveliness(connector);
     const diskColor = healthy ? theme.palette.success.main : theme.palette.error.main;
     let diskTooltip: string;

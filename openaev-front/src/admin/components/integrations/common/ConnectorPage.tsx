@@ -107,7 +107,10 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   };
 
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
-  const showMigrateButton = connector?.isExternal === true && !instance && isXtmComposerUp && canManage;
+  // A catalog entry is required to migrate: the drawer posts the catalog id and
+  // needs its configuration schema, so without one the request can only fail.
+  const showMigrateButton = connector?.isExternal === true && !instance && isXtmComposerUp
+    && canManage && !!catalogConnector;
   const disabledUpdateButtons = !isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported === true);
   // A connector with no managed instance (registered directly / manually, not
   // deployed through the Integration Manager) has no instance popover, so it

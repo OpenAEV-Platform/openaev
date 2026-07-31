@@ -114,9 +114,17 @@ public class ConnectorOrchestrationService {
     return connectorInstanceService.updateRequestedStatus(instance, requestedStatus);
   }
 
+  /**
+   * Validates that the connector referenced by a migration input actually exists.
+   *
+   * <p>Failures are client errors (400 with the real message), NOT {@link
+   * DataIntegrityViolationException}: that exception maps to HTTP 409, which the frontend renders
+   * as a blanket "The element already exists" - utterly misleading when the actual problem is a
+   * missing id or a connector that is not visible in the current tenant.
+   */
   private void throwIfConnectorIdDoesNotExist(
       CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
-      throws DataIntegrityViolationException {
+      throws BadRequestException {
     String connectorId =
         collectorInput.getConfigurations().stream()
             .filter(
@@ -125,7 +133,9 @@ public class ConnectorOrchestrationService {
             .findFirst()
             .map(CreateConnectorInstanceInput.ConfigurationInput::getValue)
             .orElseThrow(
-                () -> new DataIntegrityViolationException("Connector ID is required for migration"))
+                () ->
+                    new BadRequestException(
+                        "A connector id is required to migrate an existing connector"))
             .asText();
     try {
       if (catalogConnector.getContainerType().equals(ConnectorType.COLLECTOR)) {
@@ -137,8 +147,12 @@ public class ConnectorOrchestrationService {
       }
     } catch (ElementNotFoundException e) {
       log.warn(e.getMessage());
-      throw new DataIntegrityViolationException(
-          "Connector with id " + connectorId + " does not exist");
+      throw new BadRequestException(
+          "Cannot migrate: no "
+              + catalogConnector.getContainerType().name().toLowerCase()
+              + " with id "
+              + connectorId
+              + " is visible in the current tenant");
     }
   }
 
