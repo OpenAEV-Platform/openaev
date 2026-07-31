@@ -156,6 +156,12 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
     
     
 
+Tuning parameters applicable to both engines:
+
+| Parameter                            | Environment variable                 | Default value | Description                                                                                                                                                                                                                                                            |
+|:-------------------------------------|:-------------------------------------|:--------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| engine.indexing-grace-window-seconds | ENGINE_INDEXING_GRACE_WINDOW_SECONDS | 60            | Indexing cursor grace window in seconds. The cursor persisted after each indexing round never gets closer to wall-clock than this window, so rows committed late by long write transactions are still indexed. Must exceed the longest expected write transaction. |
+
 If you switch your engine selector, you'll need to delete the `indexing_status` table in PostgreSQL to trigger a full
 reindex.
 

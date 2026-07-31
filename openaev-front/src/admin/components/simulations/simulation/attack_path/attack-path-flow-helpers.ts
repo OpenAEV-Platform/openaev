@@ -475,7 +475,16 @@ export const buildClusteredAttackPathFlow = (
   for (const e of execEdges) {
     const src = e.edgeSourceId;
     const tgt = e.edgeTargetId;
+    // A sourceless edge is malformed and ignored entirely (as before this guard was split).
     if (!src || !tgt || !assetById.has(tgt)) {
+      continue;
+    }
+    // The endpoint is a reached node even for endpoint-local actions.
+    if (!reachedOrder.includes(tgt)) {
+      reachedOrder.push(tgt);
+    }
+    // Endpoint-local action (source === target): not reached "by" an injector — no self arrow.
+    if (src === tgt) {
       continue;
     }
     const injs = injectorsByEndpoint.get(tgt) ?? [];
@@ -483,9 +492,6 @@ export const buildClusteredAttackPathFlow = (
       injs.push(src);
     }
     injectorsByEndpoint.set(tgt, injs);
-    if (!reachedOrder.includes(tgt)) {
-      reachedOrder.push(tgt);
-    }
   }
 
   // Reveal the most-exposed endpoints first (most findings = highest chokepoint score), so expanding
@@ -724,6 +730,10 @@ export const pivotEndpointIds = (
     if (e.type !== EDGE_EXECUTIONS) {
       continue;
     }
+    // A self-loop (endpoint-local action) is not a pivot.
+    if (e.edgeSourceId === e.edgeTargetId) {
+      continue;
+    }
     if (e.edgeSourceId) {
       sources.add(e.edgeSourceId);
     }
@@ -804,7 +814,8 @@ export const buildFindingPathFlow = (
   // The injector(s) that reached this endpoint (execution edges into it).
   const injectorIds = new Set<string>();
   for (const e of dto.attackPathEdges ?? []) {
-    if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === endpointId && e.edgeSourceId) {
+    if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === endpointId && e.edgeSourceId
+      && e.edgeSourceId !== e.edgeTargetId) {
       injectorIds.add(e.edgeSourceId);
     }
   }
@@ -1654,7 +1665,10 @@ export const buildCausalChainFlow = (
     let cursorY = PADDING;
     const injectorPlaced = new Set<string>();
     for (const epId of assetOrder) {
-      const injectors = assetInjectors.get(epId) as string[];
+      // Endpoint-local action: the "injector" is this very endpoint (self-loop). Drop it BEFORE the
+      // layout so no injector node, no self arrow, and no empty injector slot is reserved for it —
+      // the endpoint node and its findings still render.
+      const injectors = (assetInjectors.get(epId) as string[]).filter(injId => injId !== epId);
       const findingIds = assetFindings.get(epId) as string[];
       // Group the endpoint's findings by type; a type with more than the cap collapses into ONE "+N"
       // cluster row (unless the user expanded it), so a heavy endpoint stays a handful of rows tall.
@@ -1851,6 +1865,11 @@ export const buildCausalChainFlow = (
   const drawnCausalEdges = new Set<string>();
   const labelledCausal = new Set<string>();
   for (const [injId, s] of steps) {
+    // An endpoint-local step (self-loop) has no injector node in the graph, so there is nothing to
+    // anchor a causal edge on — emitting one would target a node React Flow cannot resolve.
+    if (!nodeById.has(injId)) {
+      continue;
+    }
     let matched = false;
     const injY = nodeById.get(injId)?.position.y ?? 0;
     for (const key of s.consumed) {
@@ -1906,7 +1925,8 @@ export const buildCausalChainFlow = (
     }
     if (!matched) {
       for (const dep of s.deps) {
-        if (steps.has(dep)) {
+        // The depended step's node may itself be an unplaced endpoint-local step — same guard.
+        if (steps.has(dep) && nodeById.has(dep)) {
           edges.push({
             id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-depend-${dep}-${injId}`,
             source: dep,
