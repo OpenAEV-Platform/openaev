@@ -1,4 +1,4 @@
-import { AccountTreeOutlined, AutoAwesome, DownloadOutlined, ErrorOutline, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
+import { AccountTreeOutlined, AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, ScheduleOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
@@ -8,7 +8,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { fetchAutonomousTimeline } from '../../../actions/autonomous/autonomous-actions';
 import { type AutonomousEvent, type AutonomousRun, type AutonomousRunStatus } from '../../../actions/autonomous/autonomous-types';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../actions/exercises/exercise-action';
-import { SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
+import { HeroStat, HeroStats, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
 import PostureGauges from '../../../components/common/detail/PostureGauges';
 import SAMPLE_POSTURE from '../../../components/common/detail/samplePosture';
 import { useFormatter } from '../../../components/i18n';
@@ -173,6 +173,47 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
     URL.revokeObjectURL(url);
   };
 
+  // Illustrative fallbacks so the outcome lists are never a blank box while the run is still warming
+  // up (mirrors the greyed sample the posture gauges show). Rendered greyed + "Sample"-tagged via
+  // SamplePreview and replaced the instant the orchestrator records a real gap / proof.
+  const gapsAreSample = capabilityGaps.length === 0;
+  const gapChips = gapsAreSample
+    ? [
+        t('Kerberoasting payload not in arsenal'),
+        t('SMB relay capability unavailable'),
+        t('Cloud IAM enumeration collector missing'),
+      ].map((label, index) => ({
+        id: `sample-gap-${index}`,
+        label,
+      }))
+    : capabilityGaps.map(gap => ({
+        id: gap.autonomous_event_id,
+        label: gap.autonomous_event_title ?? t('Capability gap'),
+      }));
+
+  const proofsAreSample = proofEvents.length === 0;
+  const proofItems = proofsAreSample
+    ? [
+        {
+          id: 'sample-proof-0',
+          title: t('Remote code execution on a web server'),
+          content: t('Chained an unauthenticated file upload into a shell on the target host.'),
+          createdAt: undefined as string | undefined,
+        },
+        {
+          id: 'sample-proof-1',
+          title: t('Cloud credential theft via SSRF'),
+          content: t('Abused a server-side request forgery to read the metadata endpoint and exfiltrate cloud keys.'),
+          createdAt: undefined as string | undefined,
+        },
+      ]
+    : proofEvents.map(proof => ({
+        id: proof.autonomous_event_id,
+        title: proof.autonomous_event_title ?? t('Proof'),
+        content: proof.autonomous_event_content,
+        createdAt: proof.autonomous_event_created_at,
+      }));
+
   return (
     <Stack sx={{ gap: 2 }}>
       {/* Mission card. */}
@@ -217,32 +258,35 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
             {run.autonomous_run_last_error}
           </Alert>
         )}
-        <Stack sx={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: 3,
-          marginTop: 2,
-        }}
-        >
-          {run.autonomous_run_created_at && (
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{t('Started')}</Typography>
-              <Typography variant="body2">{nsdt(run.autonomous_run_created_at)}</Typography>
-            </Box>
-          )}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{t('Decisions')}</Typography>
-            <Typography variant="body2">{events.length}</Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{t('Proofs')}</Typography>
-            <Typography variant="body2">{proofEvents.length}</Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{t('Capability gaps')}</Typography>
-            <Typography variant="body2">{capabilityGaps.length}</Typography>
-          </Box>
-        </Stack>
+        <Box sx={{ marginTop: 2 }}>
+          <HeroStats>
+            {run.autonomous_run_created_at && (
+              <HeroStat
+                icon={ScheduleOutlined}
+                label={t('Started')}
+                value={nsdt(run.autonomous_run_created_at)}
+              />
+            )}
+            <HeroStat
+              icon={BoltOutlined}
+              label={t('Decisions')}
+              value={events.length}
+              color={accent}
+            />
+            <HeroStat
+              icon={VerifiedOutlined}
+              label={t('Proofs')}
+              value={proofEvents.length}
+              color={theme.palette.success.main}
+            />
+            <HeroStat
+              icon={WarningAmberOutlined}
+              label={t('Capability gaps')}
+              value={capabilityGaps.length}
+              color={theme.palette.warning.main}
+            />
+          </HeroStats>
+        </Box>
       </Paper>
 
       {/* Run posture: the single simulation's prevention / detection / vulnerability / human-response
@@ -287,35 +331,42 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
         </SectionBlock>
       )}
 
-      {/* Capability gaps. */}
-      {capabilityGaps.length > 0 && (
-        <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderColor: theme.palette.warning.main,
-          }}
+      {/* Capability gaps: the arsenal shortfalls the orchestrator hit. Always shown - a greyed
+          illustrative sample stands in until the run records a real gap (like the posture gauges),
+          so the outcome read is never a blank box. */}
+      <Paper
+        variant="outlined"
+        sx={{
+          padding: 2,
+          borderRadius: 1,
+          borderColor: theme.palette.warning.main,
+        }}
+      >
+        <Stack sx={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 1,
+          marginBottom: 1,
+        }}
         >
-          <Stack sx={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 1,
-            marginBottom: 1,
-          }}
-          >
-            <WarningAmberOutlined color="warning" fontSize="small" />
-            <Typography variant="subtitle2" sx={{ margin: 0 }}>{t('Capability gaps')}</Typography>
-          </Stack>
+          <WarningAmberOutlined color="warning" fontSize="small" />
+          <Typography variant="subtitle2" sx={{ margin: 0 }}>{t('Capability gaps')}</Typography>
+          {!gapsAreSample && (
+            <Chip size="small" label={capabilityGaps.length} color="warning" variant="outlined" sx={{ borderRadius: 1 }} />
+          )}
+        </Stack>
+        <SamplePreview active={gapsAreSample} variant="subtle">
           <Stack sx={{
             flexDirection: 'row',
             flexWrap: 'wrap',
             gap: 1,
           }}
           >
-            {capabilityGaps.map(gap => (
+            {gapChips.map(gap => (
               <Chip
-                key={gap.autonomous_event_id}
-                label={gap.autonomous_event_title ?? t('Capability gap')}
+                key={gap.id}
+                icon={<WarningAmberOutlined />}
+                label={gap.label}
                 color="warning"
                 variant="outlined"
                 size="small"
@@ -323,44 +374,51 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
               />
             ))}
           </Stack>
-        </Paper>
-      )}
+        </SamplePreview>
+      </Paper>
 
-      {/* Proof of exploitation. */}
-      {proofEvents.length > 0 && (
-        <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderColor: theme.palette.success.main,
-          }}
+      {/* Proof of exploitation: the case file the run produced. Always shown - a greyed illustrative
+          sample stands in until the run records a real proof, so the operator can see what the
+          evidence card will look like. The Markdown export only appears once there is real evidence. */}
+      <Paper
+        variant="outlined"
+        sx={{
+          padding: 2,
+          borderRadius: 1,
+          borderColor: theme.palette.success.main,
+        }}
+      >
+        <Stack sx={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1,
+          marginBottom: 1,
+        }}
         >
           <Stack sx={{
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'space-between',
             gap: 1,
-            marginBottom: 1,
           }}
           >
-            <Stack sx={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 1,
-            }}
-            >
-              <VerifiedOutlined color="success" fontSize="small" />
-              <Typography variant="subtitle2" sx={{ margin: 0 }}>{t('Proof of exploitation')}</Typography>
+            <VerifiedOutlined color="success" fontSize="small" />
+            <Typography variant="subtitle2" sx={{ margin: 0 }}>{t('Proof of exploitation')}</Typography>
+            {!proofsAreSample && (
               <Chip size="small" label={proofEvents.length} color="success" variant="outlined" sx={{ borderRadius: 1 }} />
-            </Stack>
+            )}
+          </Stack>
+          {!proofsAreSample && (
             <Button onClick={handleExportReport} startIcon={<DownloadOutlined />} size="small" variant="outlined">
               {t('Export report')}
             </Button>
-          </Stack>
+          )}
+        </Stack>
+        <SamplePreview active={proofsAreSample} variant="subtle">
           <Stack sx={{ gap: 1 }}>
-            {proofEvents.map(proof => (
+            {proofItems.map(proof => (
               <Box
-                key={proof.autonomous_event_id}
+                key={proof.id}
                 sx={{
                   paddingInlineStart: 1.5,
                   borderInlineStart: `2px solid ${theme.palette.success.main}`,
@@ -373,24 +431,24 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
                 }}
                 >
                   <Typography variant="subtitle2" sx={{ margin: 0 }}>
-                    {proof.autonomous_event_title ?? t('Proof')}
+                    {proof.title}
                   </Typography>
-                  {proof.autonomous_event_created_at && (
+                  {proof.createdAt && (
                     <Typography variant="caption" color="text.secondary">
-                      {nsdt(proof.autonomous_event_created_at)}
+                      {nsdt(proof.createdAt)}
                     </Typography>
                   )}
                 </Stack>
-                {proof.autonomous_event_content && (
+                {proof.content && (
                   <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
-                    {proof.autonomous_event_content}
+                    {proof.content}
                   </Typography>
                 )}
               </Box>
             ))}
           </Stack>
-        </Paper>
-      )}
+        </SamplePreview>
+      </Paper>
     </Stack>
   );
 };
