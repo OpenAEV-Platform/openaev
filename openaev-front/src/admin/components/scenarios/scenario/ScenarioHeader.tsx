@@ -165,7 +165,7 @@ const ScenarioHeader = ({
       ) ?? {
         creation_date: '',
         detail: 'EMPTY',
-        status: 'ERROR',
+        status: 'WARNING',
         type: 'SCOPE_DEFINITION',
       };
       return [...withoutScopeDefinition, scopeDefinitionHealthcheck];

@@ -6,6 +6,7 @@ import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect,
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AgentHelper } from '../../../../actions/agents/agent-helper';
+import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
@@ -41,6 +42,7 @@ import {
   type Scenario as ScenarioType,
   type SearchPaginationInput,
   type SortField,
+  type WorkflowScopeRuleOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -84,9 +86,21 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+  const { workflowConfiguration } = useHelper((helper: WorkflowConfigurationHelper) => ({
+    workflowConfiguration: scenarioWorkflowId
+      ? helper.getWorkflowConfiguration(scenarioWorkflowId)
+      : undefined,
+  }));
 
+  const hasAllowlistScope = (workflowConfiguration?.workflow_scope_rules ?? []).some((rule: WorkflowScopeRuleOutput) =>
+    rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
+    && !!rule.workflow_scope_rule_value?.trim(),
+  );
   const isScopeMissing = isScenarioChaining
-    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+    && (
+      !hasAllowlistScope
+      || healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY')
+    );
 
   const agentsActive = useMemo(() => {
     const injectAssetIds: string[] = injects.flatMap((inject: Inject) => inject.inject_assets);
@@ -110,6 +124,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
     injects,
     collectors.length,
     agentsActive,
+    workflowConfiguration,
   ]);
 
   // Exercises
