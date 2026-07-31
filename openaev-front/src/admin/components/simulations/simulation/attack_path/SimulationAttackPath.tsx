@@ -328,6 +328,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // Finding-cluster drill-down: which finding clusters are expanded, their fetched (deduped) findings,
   // and how many are revealed (batched), keyed by the finding-cluster node id.
   const [expandedFindingClusters, setExpandedFindingClusters] = useState<Set<string>>(new Set());
+  // Causal-chain view: per-depth "+N endpoints" overflow cluster id -> how many hidden endpoints the
+  // user revealed beyond the always-shown cap, batched by ENDPOINT_BATCH_SIZE per click.
+  const [endpointClusterBatch, setEndpointClusterBatch] = useState<Map<string, number>>(new Map());
   const [findingsByCluster, setFindingsByCluster] = useState<Map<string, AttackPathNodeDTO[]>>(new Map());
   const [findingBatch, setFindingBatch] = useState<Map<string, number>>(new Map());
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -464,6 +467,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     endpointSeq.current += 1;
     setEndpointBatch(new Map());
     setExpandedFindingClusters(new Set());
+    setEndpointClusterBatch(new Map());
     setFindingsByCluster(new Map());
     setFindingBatch(new Map());
     setSelectedNodeId(null);
@@ -717,6 +721,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       setFitNonce(n => n + 1);
     }
   }, [endpointBatch]);
+
+  // Causal-chain view: reveal another ENDPOINT_BATCH_SIZE of a depth's hidden endpoints per click — never
+  // the whole overflow at once, so drilling into a heavy step doesn't dump the user back into a wall of
+  // nodes. Keeps the current view (no refit): the newly revealed hosts appear near where the user clicked.
+  const onEndpointClusterClick = useCallback((clusterId: string) => {
+    setEndpointClusterBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + ENDPOINT_BATCH_SIZE));
+  }, []);
 
   // injector id -> refs of the endpoints it reached (asset ref or id), for the bounded finding fetch.
   const injectorEndpointRefs = useMemo(() => {
@@ -1211,7 +1222,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           batch: findingBatch,
         });
       } else if (chainMode && fullDto) {
-        raw = buildCausalChainFlow(fullDto, t, expandedFindingClusters);
+        raw = buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch);
       } else {
         raw = buildClusteredAttackPathFlow(dto, endpointBatch, t, {
           expanded: expandedFindingClusters,
@@ -1238,7 +1249,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     },
     [
       dto, chainMode, fullDto, pathFinding, pathContractLabelByInjector, endpointBatch,
-      expandedFindingClusters, findingsByCluster, findingBatch, chokepointRankById, pivotNodeIds, t,
+      expandedFindingClusters, endpointClusterBatch, findingsByCluster, findingBatch, chokepointRankById, pivotNodeIds, t,
     ],
   );
 
@@ -2767,6 +2778,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                     edges={graphEdges}
                     onEndpointClick={onEndpointClick}
                     onClusterClick={onClusterClick}
+                    onEndpointClusterClick={onEndpointClusterClick}
                     onFindingClusterClick={onFindingClusterClick}
                     onFindingSelect={onFindingSelect}
                     onInjectorSelect={onInjectorSelect}
