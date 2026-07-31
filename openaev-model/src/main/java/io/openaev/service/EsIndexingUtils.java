@@ -97,12 +97,13 @@ public final class EsIndexingUtils {
    *
    * @param cursor the cursor computed from the processed batch (see {@link #computeNewCursor})
    * @param now the current wall-clock instant
-   * @param graceWindowSeconds the grace window in seconds
-   * @return the capped cursor: {@code min(cursor, now - graceWindowSeconds)}
+   * @param graceWindowSeconds the grace window in seconds; negative values are treated as zero so a
+   *     misconfiguration can never push the cap into the future and re-enable the race
+   * @return the capped cursor: {@code min(cursor, now - max(0, graceWindowSeconds))}
    */
   public static Instant capCursorToGraceWindow(
       Instant cursor, Instant now, long graceWindowSeconds) {
-    Instant maxSafeCursor = now.minusSeconds(graceWindowSeconds);
+    Instant maxSafeCursor = now.minusSeconds(Math.max(0, graceWindowSeconds));
     return cursor.isAfter(maxSafeCursor) ? maxSafeCursor : cursor;
   }
 }

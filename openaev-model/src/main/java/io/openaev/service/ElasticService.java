@@ -454,11 +454,15 @@ public class ElasticService implements EngineService {
                               newCursor,
                               Instant.now(),
                               engineConfig.getIndexingGraceWindowSeconds());
-                      if (fetchInstant != null && !persistedCursor.isAfter(fetchInstant)) {
-                        // Everything fetched is still inside the grace window: keep the current
-                        // cursor and re-process those rows next round.
+                      if (persistedCursor.equals(fetchInstant)) {
+                        // The cap lands exactly on the current cursor: persisting would be a
+                        // no-op, keep it and re-process those rows next round.
                         return null;
                       }
+                      // persistedCursor may be BEHIND fetchInstant when the stored cursor is
+                      // closer to wall-clock than the grace window allows (e.g. persisted before
+                      // the window existed): saving it deliberately moves the cursor backwards so
+                      // rows committing late inside the window are fetched again.
                       if (indexingStatus.isPresent()) {
                         IndexingStatus status = indexingStatus.get();
                         status.setLastIndexing(persistedCursor);

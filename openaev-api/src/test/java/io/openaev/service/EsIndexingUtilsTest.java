@@ -169,5 +169,16 @@ class EsIndexingUtilsTest {
 
       assertThat(capped).isEqualTo(ts(999));
     }
+
+    @Test
+    @DisplayName("Negative grace window is clamped to zero and never caps into the future")
+    void given_negativeGraceWindow_should_clampToZero() {
+      // A misconfigured negative window must not push the cap past now, which would silently
+      // re-enable the commit-visibility race.
+      Instant now = ts(1000);
+
+      assertThat(EsIndexingUtils.capCursorToGraceWindow(ts(999), now, -30)).isEqualTo(ts(999));
+      assertThat(EsIndexingUtils.capCursorToGraceWindow(ts(1030), now, -30)).isEqualTo(now);
+    }
   }
 }
