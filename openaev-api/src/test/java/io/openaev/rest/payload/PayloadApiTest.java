@@ -474,7 +474,8 @@ class PayloadApiTest extends IntegrationTest {
     void given_payloadArgumentTypes_should_propagate_to_injectorContract_fields() throws Exception {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
       input.setArguments(
           List.of(
               PayloadFixture.createPayloadArgument("arg_text", PrimitiveType.Text, "hello", null),
@@ -522,11 +523,13 @@ class PayloadApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Given missing payload argument type, should default to text in payload and contract")
+    @DisplayName(
+        "Given missing payload argument type, should default to text in payload and contract")
     void given_missingPayloadArgumentType_should_default_to_text() throws Exception {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
       PayloadArgument argumentWithoutType = new PayloadArgument();
       argumentWithoutType.setKey("arg_without_type");
       argumentWithoutType.setDefaultValue("value");

@@ -327,9 +327,9 @@ public class InjectorApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName(
-        "Should register external injector and default missing argumentType to text")
-    void shouldRegisterExternalInjectorWithoutPayloadArgumentTypeInContractContent() throws Exception {
+    @DisplayName("Should register external injector and default missing argumentType to text")
+    void shouldRegisterExternalInjectorWithoutPayloadArgumentTypeInContractContent()
+        throws Exception {
       String injectorId = "ext-injector-without-argument-type";
       String injectorType = "openaev_ext_no_argument_type";
       String contractId = "ext-contract-no-argument-type";

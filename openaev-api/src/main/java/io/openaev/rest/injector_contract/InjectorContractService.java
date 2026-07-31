@@ -1044,8 +1044,7 @@ public class InjectorContractService implements DependenciesManager {
         JsonNode legacyPayloadArgumentTypeNode =
             fieldNode.get(LEGACY_CONTRACT_FIELD_PAYLOAD_ARGUMENT_TYPE);
 
-        boolean isMissingOrNull =
-            argumentTypeNode == null || argumentTypeNode.isNull();
+        boolean isMissingOrNull = argumentTypeNode == null || argumentTypeNode.isNull();
         boolean isBlankString =
             argumentTypeNode != null
                 && argumentTypeNode.isTextual()

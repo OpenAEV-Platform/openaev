@@ -217,7 +217,9 @@ public class PayloadService {
           .forEach(
               payloadArgument -> {
                 PrimitiveType argumentType =
-                    payloadArgument.getType() != null ? payloadArgument.getType() : PrimitiveType.Text;
+                    payloadArgument.getType() != null
+                        ? payloadArgument.getType()
+                        : PrimitiveType.Text;
                 if (PrimitiveType.TargetedAsset == argumentType) {
                   List<ContractElement> targetedAssetsFields =
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
