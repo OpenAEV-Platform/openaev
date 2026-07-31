@@ -43,7 +43,6 @@ import useSimulationPermissions from '../../../../utils/permissions/useSimulatio
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
-import { getScopeAwareHealthchecks, isScopeMissingForChaining } from '../../common/healthchecks/scopeHealthcheckUtils';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
@@ -233,6 +232,20 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
 }) => {
+  const isScopeDefinitionEmptyHealthcheck = (healthcheck: HealthCheck): boolean =>
+    healthcheck.type === 'SCOPE_DEFINITION' && healthcheck.detail === 'EMPTY';
+  const hasAllowlistEntry = (workflowScopeRules: Array<{ workflow_scope_rule_selected_mode?: string; workflow_scope_rule_value?: string }> = []): boolean =>
+    workflowScopeRules.some(rule =>
+      rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
+      && !!rule.workflow_scope_rule_value?.trim(),
+    );
+  const SCOPE_DEFINITION_EMPTY_WARNING: HealthCheck = {
+    creation_date: '',
+    detail: 'EMPTY',
+    status: 'WARNING',
+    type: 'SCOPE_DEFINITION',
+  };
+
   // Standard hooks
   const theme = useTheme();
   const { t, fldt } = useFormatter();
@@ -283,21 +296,22 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
 
   // Launch is blocked for chaining until at least one allowlist scope rule exists
   // (denylist alone is only a filter), with healthcheck as fallback.
-  const isScopeMissing = isScopeMissingForChaining({
-    isChaining: isSimulationChaining,
-    workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],
-    healthchecks,
-  });
-  // Normalize scope healthchecks so the banner/button stay aligned to the same rule.
-  const scopeAwareHealthchecks = getScopeAwareHealthchecks({
-    healthchecks,
-    isChaining: isSimulationChaining,
-    isScopeMissing,
-  });
+  const isScopeMissing = isSimulationChaining
+    && (
+      !hasAllowlistEntry(workflowConfiguration?.workflow_scope_rules ?? [])
+      || healthchecks.some(isScopeDefinitionEmptyHealthcheck)
+    );
   // Chaining header shows only scope backend warnings; classic simulations keep all healthchecks.
   const healthchecksForIndicator = isSimulationChaining
-    ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => healthcheck.type === 'SCOPE_DEFINITION')
-    : scopeAwareHealthchecks;
+    ? (() => {
+      const withoutScopeDefinition = healthchecks.filter((healthcheck: HealthCheck) => healthcheck.type !== 'SCOPE_DEFINITION');
+      if (!isScopeMissing) {
+        return withoutScopeDefinition;
+      }
+      const scopeDefinitionHealthcheck = healthchecks.find(isScopeDefinitionEmptyHealthcheck) ?? SCOPE_DEFINITION_EMPTY_WARNING;
+      return [...withoutScopeDefinition, scopeDefinitionHealthcheck];
+    })()
+    : healthchecks;
 
   useEffect(() => {
     searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));

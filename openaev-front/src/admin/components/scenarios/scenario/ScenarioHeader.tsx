@@ -54,6 +54,7 @@ import {
   type Inject,
   type Scenario,
   type Team,
+  type WorkflowScopeRuleOutput,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -64,7 +65,6 @@ import useScenarioPermissions from '../../../../utils/permissions/useScenarioPer
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
-import { getScopeAwareHealthchecks, isScopeMissingForChaining } from '../../common/healthchecks/scopeHealthcheckUtils';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
@@ -83,6 +83,20 @@ const ScenarioHeader = ({
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
 }: ScenarioHeaderProps) => {
+  const isScopeDefinitionEmptyHealthcheck = (healthcheck: HealthCheck): boolean =>
+    healthcheck.type === 'SCOPE_DEFINITION' && healthcheck.detail === 'EMPTY';
+  const hasAllowlistEntry = (workflowScopeRules: WorkflowScopeRuleOutput[] = []): boolean =>
+    workflowScopeRules.some((rule: WorkflowScopeRuleOutput) =>
+      rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
+      && !!rule.workflow_scope_rule_value?.trim(),
+    );
+  const SCOPE_DEFINITION_EMPTY_WARNING: HealthCheck = {
+    creation_date: '',
+    detail: 'EMPTY',
+    status: 'WARNING',
+    type: 'SCOPE_DEFINITION',
+  };
+
   // Standard hooks
   const { t, locale, fld } = useFormatter();
   const dispatch = useAppDispatch();
@@ -147,22 +161,21 @@ const ScenarioHeader = ({
   }));
   // Launch is blocked for chaining until at least one allowlist scope rule exists
   // (denylist alone is only a filter), with healthcheck as fallback.
-  const isScopeMissing = isScopeMissingForChaining({
-    isChaining: isScenarioChaining,
-    workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],
-    healthchecks,
-  });
+  const isScopeMissing = isScenarioChaining
+    && (
+      !hasAllowlistEntry(workflowConfiguration?.workflow_scope_rules ?? [])
+      || healthchecks.some(isScopeDefinitionEmptyHealthcheck)
+    );
   const healthchecksForIndicator = useMemo(() => {
-    // Normalize scope healthchecks so the banner/button stay aligned to the same rule.
-    const scopeAwareHealthchecks = getScopeAwareHealthchecks({
-      healthchecks,
-      isChaining: isScenarioChaining,
-      isScopeMissing,
-    });
-    // Chaining header shows only scope backend warnings; classic scenarios keep all healthchecks.
-    return isScenarioChaining
-      ? scopeAwareHealthchecks.filter((healthcheck: HealthCheck) => healthcheck.type === 'SCOPE_DEFINITION')
-      : scopeAwareHealthchecks;
+    if (!isScenarioChaining) {
+      return healthchecks;
+    }
+    const withoutScopeDefinition = healthchecks.filter((healthcheck: HealthCheck) => healthcheck.type !== 'SCOPE_DEFINITION');
+    if (!isScopeMissing) {
+      return withoutScopeDefinition;
+    }
+    const scopeDefinitionHealthcheck = healthchecks.find(isScopeDefinitionEmptyHealthcheck) ?? SCOPE_DEFINITION_EMPTY_WARNING;
+    return [...withoutScopeDefinition, scopeDefinitionHealthcheck];
   }, [healthchecks, isScenarioChaining, isScopeMissing]);
 
   // Local
