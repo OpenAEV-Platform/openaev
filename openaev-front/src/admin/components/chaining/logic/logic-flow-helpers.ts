@@ -678,13 +678,9 @@ interface FeedingChain {
  * Resolve the line of nodes that come before `eventId` (exclusive), walking backward via
  * type production and trigger edges until an event-less start action.
  *
- * <p>Producer links are not stored at authoring time, and when several actions emit the type an
- * event checks the real producer is genuinely ambiguous (e.g. a workflow where every action outputs
- * {@code text}). Rather than guess an ordering, we take the <strong>first producer that completes a
- * link back to an event-less start</strong>: candidate producers are explored depth-first in their
- * natural order, and the first branch reaching a start wins. Cycle guards ({@code visited*}) make a
- * producer that would re-enter the current line ineligible — which is exactly what keeps a clicked
- * event from pulling in its own downstream siblings.
+ * Rather than guess an ordering, we take the first producer that completes a
+ * link back to an event-less start: candidate producers are explored depth-first in their
+ * natural order, and the first branch reaching a start wins.
  *
  * @param eventId the event whose producer line we resolve
  * @param ctx shared lookups
@@ -790,20 +786,18 @@ export interface EventFlow {
 }
 
 /**
- * Compute the full data-flow line for the selected event by expanding everything that happens
- * before it. Starting from the clicked event, we walk backward — producer action → its trigger
+ * Compute the full data-flow line for the selected node by expanding everything that happens
+ * before it. Starting from the clicked node, we walk backward — producer action → its trigger
  * event → that event's producer → … — until we reach an event-less action (the start), forming a
- * single line. The line is then numbered forward so badge 1 is the event-less start action, the
- * clicked event sits near the end, and every action it triggers ("the last part") shares the final
- * index.
+ * single line.
  *
- * @param selectedEventId the currently selected event id (or null → empty flow)
+ * @param selectedId the currently selected node id — an event or an action (or null → empty flow)
  * @param eventMetas all events keyed by id
  * @param actionMetas all steps keyed by id
  * @param arrowColor the informational arrow stroke/marker color (resolved from the theme)
  */
 export const buildEventFlow = (
-  selectedEventId: string | null,
+  selectedId: string | null,
   eventMetas: Record<string, EventMeta>,
   actionMetas: Record<string, ActionMeta>,
   arrowColor: string,
@@ -815,27 +809,61 @@ export const buildEventFlow = (
     triggerEdgeKeys: new Set<string>(),
     informationalEdges: [],
   };
-  if (!selectedEventId || !eventMetas[selectedEventId]) return empty;
+  if (!selectedId) return empty;
 
   const ctx: FlowContext = {
     eventMetas,
     actionMetas,
   };
 
-  // 1. Trace the single backward line up to the producer feeding the clicked event.
-  const backward: FlowNode[] = buildBackwardChain(selectedEventId, ctx).nodes;
+  const isEvent = !!eventMetas[selectedId];
+  const isAction = !isEvent && !!actionMetas[selectedId];
+  if (!isEvent && !isAction) return empty;
 
-  // 2. The spine is the backward line followed by the clicked event itself.
-  const spine: FlowNode[] = [
-    ...backward,
-    {
-      kind: 'event',
-      id: selectedEventId,
-    },
-  ];
+  // 1-3. Build the spine and, for an event click, the consumer actions it triggers.
+  let spine: FlowNode[];
+  let consumers: string[];
 
-  // 3. Consumers: every action directly triggered by the clicked event ("the last part").
-  const consumers = consumersOf(selectedEventId, ctx);
+  if (isEvent) {
+    const backward: FlowNode[] = buildBackwardChain(selectedId, ctx).nodes;
+    spine = [
+      ...backward,
+      {
+        kind: 'event',
+        id: selectedId,
+      },
+    ];
+    consumers = consumersOf(selectedId, ctx);
+  } else {
+    // Action click: expand everything before it, ending at the action itself. Reuse the backward
+    // walk from the event that triggers the action; an event-less start action highlights alone.
+    const trigger = triggerEventOf(selectedId, ctx);
+    if (trigger) {
+      const backward: FlowNode[] = chainBeforeEvent(
+        trigger,
+        ctx,
+        new Set<string>([trigger]),
+        new Set<string>([selectedId]),
+      ).nodes;
+      spine = [
+        ...backward,
+        {
+          kind: 'event',
+          id: trigger,
+        },
+        {
+          kind: 'action',
+          id: selectedId,
+        },
+      ];
+    } else {
+      spine = [{
+        kind: 'action',
+        id: selectedId,
+      }];
+    }
+    consumers = [];
+  }
 
   // 4. Number the spine forward (1 = event-less start); all consumers share the final index.
   const pathIndex: Record<string, number> = {};
@@ -872,7 +900,7 @@ export const buildEventFlow = (
     }
   }
   for (const consumerId of consumers) {
-    triggerEdgeKeys.add(`${selectedEventId}->${consumerId}`);
+    triggerEdgeKeys.add(`${selectedId}->${consumerId}`);
   }
 
   return {
