@@ -196,6 +196,7 @@ const LogicFlow = ({
     const positionedEventNodes = positionEventNodes(eventNodes, eventToGroupX);
     const edgesData = buildEdges(enrichedActionMetas, eventMetas);
     const providersMap = buildOutputProvidersMap(enrichedActionMetas);
+    // Recompute logic warnings from the same fresh graph snapshot we render.
     const logicWarnings = findUnprovisionedLogicWarningItems(eventMetas, providersMap);
 
     setActionMetas(enrichedActionMetas);
@@ -205,6 +206,7 @@ const LogicFlow = ({
     setNodes([...groupNodes, ...positionedEventNodes, ...actionNodes]);
     setEdges(edgesData);
     setLoading(false);
+    // Notify headers so "to configure" is refreshed immediately after logic edits.
     emitChainingUpdated(workflowId, logicWarnings);
   }, [workflowId, t, setNodes, setEdges, setContextProviders]);
 

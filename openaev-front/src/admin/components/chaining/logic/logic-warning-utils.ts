@@ -8,6 +8,7 @@ export interface UnprovisionedLogicWarningItem {
   field: string;
 }
 
+// Finds every event field used in conditions that no action currently provides.
 export const findUnprovisionedLogicWarningItems = (
   eventMetas: Record<string, EventMeta>,
   providers: OutputProvidersMap,

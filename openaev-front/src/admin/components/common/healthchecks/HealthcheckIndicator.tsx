@@ -98,6 +98,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
       status: 'WARNING' as const,
     })),
   ];
+  // One unified list drives both the count badge and the popover rows.
 
   return (
     <>

@@ -1,5 +1,6 @@
 import type { UnprovisionedLogicWarningItem } from './logic-warning-utils';
 
+// Cross-component signal used to refresh header notifications after logic changes.
 export const CHAINING_UPDATED_EVENT = 'openaev:chaining-updated';
 
 export interface ChainingUpdatedDetail {

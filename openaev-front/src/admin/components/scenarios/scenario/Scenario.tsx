@@ -92,6 +92,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       : undefined,
   }));
 
+  // Overview launch CTA follows the same allowlist-required rule as header/scope pages.
   const isScopeMissing = isScopeMissingForChaining({
     isChaining: isScenarioChaining,
     workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],

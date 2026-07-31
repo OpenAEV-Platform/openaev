@@ -12,6 +12,7 @@ import {
   type UnprovisionedLogicWarningItem,
 } from '../../chaining/logic/logic-warning-utils';
 
+// Keeps the header "to configure" counter in sync with Logic tab event/action mismatches.
 const useUnprovisionedLogicWarnings = (workflowId: string | undefined): UnprovisionedLogicWarningItem[] => {
   const [warnings, setWarnings] = useState<UnprovisionedLogicWarningItem[]>([]);
 
@@ -43,6 +44,7 @@ const useUnprovisionedLogicWarnings = (workflowId: string | undefined): Unprovis
     const onChainingUpdated = (event: Event) => {
       const customEvent = event as CustomEvent<ChainingUpdatedDetail>;
       if (customEvent.detail?.workflowId === workflowId) {
+        // Reuse the fresh warnings emitted by LogicFlow to avoid an extra API round-trip.
         if (customEvent.detail.logicWarnings) {
           setWarnings(customEvent.detail.logicWarnings);
         } else {

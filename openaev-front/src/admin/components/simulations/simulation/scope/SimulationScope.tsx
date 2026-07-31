@@ -24,6 +24,7 @@ const SimulationScope = () => {
 
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const isSimulationChaining = !!exercise?.exercise_workflow_id;
+  // Scope page is chaining-only; keep state explicit so helpers stay readable.
   const isScopeMissing = isScopeMissingForChaining({
     isChaining: isSimulationChaining,
     workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],

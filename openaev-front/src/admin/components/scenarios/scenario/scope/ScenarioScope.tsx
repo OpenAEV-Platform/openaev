@@ -24,6 +24,7 @@ const ScenarioScope = () => {
 
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const isScenarioChaining = !!scenario?.scenario_workflow_id;
+  // Scope page is chaining-only; keep state explicit so helpers stay readable.
   const isScopeMissing = isScopeMissingForChaining({
     isChaining: isScenarioChaining,
     workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],

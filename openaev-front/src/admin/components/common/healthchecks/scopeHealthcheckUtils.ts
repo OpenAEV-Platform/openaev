@@ -10,6 +10,7 @@ const SCOPE_DEFINITION_EMPTY_WARNING: HealthCheck = {
 const isScopeDefinitionEmptyHealthcheck = (healthcheck: HealthCheck): boolean =>
   healthcheck.type === 'SCOPE_DEFINITION' && healthcheck.detail === 'EMPTY';
 
+// Launch/scope is valid only when at least one allowlist rule has a non-empty value.
 export const hasAllowlistEntry = (workflowScopeRules: WorkflowScopeRuleOutput[] = []): boolean =>
   workflowScopeRules.some((rule: WorkflowScopeRuleOutput) =>
     rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
@@ -31,6 +32,7 @@ export const isScopeMissingForChaining = ({
     || healthchecks.some(isScopeDefinitionEmptyHealthcheck)
   );
 
+// In chaining mode, show only scope-related backend warnings in header/scope banners.
 export const getScopeAwareHealthchecks = ({
   healthchecks,
   isChaining,
