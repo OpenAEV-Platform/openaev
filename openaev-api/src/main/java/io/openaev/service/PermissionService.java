@@ -5,6 +5,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.finding.FindingCommentService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.chaining.ConditionService;
@@ -61,7 +62,8 @@ public class PermissionService {
           ResourceType.EVALUATION,
           ResourceType.WORKFLOW,
           ResourceType.STEP,
-          ResourceType.CONDITION);
+          ResourceType.CONDITION,
+          ResourceType.FINDING_COMMENT);
 
   private final GrantService grantService;
   private final InjectService injectService;
@@ -71,6 +73,7 @@ public class PermissionService {
   private final WorkflowService workflowService;
   private final StepService stepService;
   private final ConditionService conditionService;
+  private final FindingCommentService findingCommentService;
 
   @Transactional
   public boolean hasPermission(
@@ -279,6 +282,15 @@ public class PermissionService {
       Workflow workflow = workflowService.findById(condition.getWorkflowId());
       Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
       return resolveWorkflowTarget(workflow, parentAction);
+    } else if (resourceType == ResourceType.FINDING_COMMENT) {
+      FindingComment comment = findingCommentService.findById(resourceId);
+      // Deliberate divergence from the "collapse non-READ to WRITE" rule used by every other
+      // resource above: those resources' parents (Scenario/Simulation/ThreatArsenal) only ever
+      // distinguish READ vs WRITE grants, so collapsing is safe there. Finding's own capability
+      // ladder (ACCESS_FINDINGS -> MANAGE_FINDINGS -> DELETE_FINDINGS) already distinguishes
+      // WRITE from DELETE, and comment deletion must require DELETE_FINDINGS specifically (not
+      // just MANAGE_FINDINGS/WRITE) - so the action is passed through to the parent unchanged.
+      return new Target(comment.getFinding().getId(), ResourceType.FINDING, action);
     }
     return new Target(resourceId, resourceType, action);
   }
