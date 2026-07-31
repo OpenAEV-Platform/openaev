@@ -22,13 +22,18 @@ import org.springframework.web.bind.annotation.*;
 public class SchemaApi extends RestBehavior {
 
   /**
-   * Historical entity names still used by clients (and persisted filter configurations) whose
-   * backing class was renamed. The JPA-inheritance refactor renamed {@code InjectExpectation} to
-   * {@code BaseInjectExpectation} (with per-type subclasses); the public schema API keeps answering
-   * to the original name so existing callers do not break with a ClassNotFoundException.
+   * Public schema aliases used by clients and persisted filters.
+   *
+   * <ul>
+   *   <li>{@code InjectExpectation} keeps backward compatibility after class rename.
+   *   <li>{@code Credential} exposes credential_* fields (DTO contract) instead of
+   *       secret_reference_* storage details.
+   * </ul>
    */
-  private static final Map<String, String> RENAMED_ENTITIES =
-      Map.of("InjectExpectation", "BaseInjectExpectation");
+  private static final Map<String, String> ENTITY_CLASS_ALIASES =
+      Map.of(
+          "InjectExpectation", "io.openaev.database.model.BaseInjectExpectation",
+          "Credential", "io.openaev.api.credentials.form.CredentialOutput");
 
   private final EngineContext engineContext;
 
@@ -47,7 +52,7 @@ public class SchemaApi extends RestBehavior {
       throw new IllegalArgumentException("Class not allowed : " + className);
     }
     String completeClassName =
-        basePackage + "." + RENAMED_ENTITIES.getOrDefault(className, className);
+        ENTITY_CLASS_ALIASES.getOrDefault(className, basePackage + "." + className);
 
     Class<?> clazz = Class.forName(completeClassName);
 

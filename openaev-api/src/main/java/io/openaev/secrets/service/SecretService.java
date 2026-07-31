@@ -14,13 +14,12 @@ public class SecretService {
   private final SecretsRepository secretsRepository;
 
   /**
-   * Finds an existing secret by identifier.
+   * Finds an existing secret by identifier and tenant.
    *
    * @param secretId the identifier of the secret to retrieve
-   * @return the existing secret
-   * @throws IllegalArgumentException if no secret exists for the given id
+   * @return the existing tenant-scoped secret
+   * @throws IllegalArgumentException if no secret exists for the given id and tenant
    */
-  @Transactional(readOnly = true)
   public Secret findByIdOrThrow(String secretId) {
     String id = Objects.requireNonNull(secretId, "secretId must not be null");
     return secretsRepository

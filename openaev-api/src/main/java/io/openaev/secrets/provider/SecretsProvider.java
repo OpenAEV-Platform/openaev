@@ -12,8 +12,6 @@ public abstract class SecretsProvider extends BaseConnectorEntity implements Ten
 
   public static final String SERVICE_NAME = "secrets-provider";
 
-  public static final String SERVICE_NAME = "secrets-provider";
-
   @JsonProperty("secrets_provider_id")
   @Getter
   @Setter
@@ -40,6 +38,13 @@ public abstract class SecretsProvider extends BaseConnectorEntity implements Ten
 
   // -- SecretProvider default implementations  --
 
+  @Override
+  public SecretMetadata getSecretMetada(SecretReference secretReference) {
+    throw new UnsupportedOperationException(
+        "Retrieve secret main information is not supported for this provider");
+  }
+
+  @Override
   public SecretReference store(SecretReference secretReference, SecretStoreRequest request) {
     throw new UnsupportedOperationException(
         "This secret backend does not support storing secrets.");
