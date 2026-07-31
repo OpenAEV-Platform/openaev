@@ -62,14 +62,6 @@ public class ExecutionExecutorService {
     agents.removeAll(agentsWithoutExecutor);
     Set<Agent> overloadedAgents = executorUtils.findOverloadedAgents(agents);
     agents.removeAll(overloadedAgents);
-    log.debug(
-        "launchExecutorContext inject={} inactiveAgents={} agentsWithoutExecutor={}"
-            + " overloadedAgents={} remainingAgents={}",
-        inject.getId(),
-        inactiveAgents.stream().map(Agent::getId).toList(),
-        agentsWithoutExecutor.stream().map(Agent::getId).toList(),
-        overloadedAgents.stream().map(Agent::getId).toList(),
-        agents.stream().map(Agent::getId).toList());
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);
     // Manage inactive agents
