@@ -634,6 +634,14 @@ class InjectApiTest extends IntegrationTest {
   @KeepRabbit
   class RetrievingExecutablePayloadInject {
 
+    /**
+     * Commands are Base64-encoded for transport to the implant only: decode to assert on the real
+     * command that would be executed on the endpoint.
+     */
+    private String decodeCommand(String encodedCommand) {
+      return new String(Base64.getDecoder().decode(encodedCommand), StandardCharsets.UTF_8);
+    }
+
     @DisplayName("Get encoded command payload with arguments")
     @Test
     void getExecutablePayloadInjectWithArguments() throws Exception {
@@ -691,15 +699,17 @@ class InjectApiTest extends IntegrationTest {
           Base64.getEncoder().encodeToString(payloadCommand.getCleanupCommand().getBytes());
       assertEquals(expectedCleanupCmdEncoded, JsonPath.read(response, "$.payload_cleanup_command"));
 
-      // Verify command
-      String cmdToExecute = payloadCommand.getContent().replace("#{arg_value}", argValue);
-      String expectedCmdEncoded = Base64.getEncoder().encodeToString(cmdToExecute.getBytes());
-      assertEquals(expectedCmdEncoded, JsonPath.read(response, "$.command_content"));
+      // Verify command: the argument value is no longer substituted verbatim, it is bound to a
+      // shell variable declared before the command (see CommandArgumentBinder).
+      String decodedCommand = decodeCommand(JsonPath.read(response, "$.command_content"));
+      assertEquals(
+          "OAEV_ARG_ARG_VALUE='Hello world'\necho command name \"$OAEV_ARG_ARG_VALUE\"",
+          decodedCommand);
     }
 
-    @DisplayName("Should reject executable payload when argument contains shell metacharacters")
+    @DisplayName("Should neutralize shell metacharacters carried by an inject argument")
     @Test
-    void given_argumentWithShellMetacharacters_should_rejectExecutablePayload() throws Exception {
+    void given_argumentWithShellMetacharacters_should_neutralizeThem() throws Exception {
       // -- PREPARE --
       PayloadPrerequisite prerequisite = new PayloadPrerequisite();
       prerequisite.setGetCommand("cd ./src");
@@ -723,22 +733,28 @@ class InjectApiTest extends IntegrationTest {
               .persist()
               .get();
 
+      doNothing()
+          .when(injectStatusService)
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+
       // -- EXECUTE --
       String response =
           mvc.perform(
                   get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
-              .andExpect(status().isBadRequest())
+              .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
               .getContentAsString();
 
       // -- ASSERT --
-      assertThatJson(response).when(Option.IGNORING_VALUES).node("message").isEqualTo("ignored");
-      assertTrue(
-          response.contains("unsupported characters"),
-          "The API should explicitly reject shell metacharacters in inject arguments");
+      // The value stays a single-quoted literal in the declaration and never reaches the command
+      // line itself, so `; whoami` can no longer become a separate statement.
+      String decodedCommand = decodeCommand(JsonPath.read(response, "$.command_content"));
+      assertEquals(
+          "OAEV_ARG_ARG_VALUE='hello; whoami'\necho command name \"$OAEV_ARG_ARG_VALUE\"",
+          decodedCommand);
     }
 
     @DisplayName("Should replace by asset IDs given Targeted asset argument")
@@ -823,13 +839,15 @@ class InjectApiTest extends IntegrationTest {
       // -- ASSERT --
       assertNotNull(response);
 
-      // Verify command
-      String cmdToExecute =
-          command
-              .replace("#{asset-separate-by-space}", "233.152.15.205 253.110.186.71")
-              .replace("#{asset-separate-by-comma}", "seen-ip-endpoint2,seen-ip-endpoint1");
-      String expectedCmdEncoded = Base64.getEncoder().encodeToString(cmdToExecute.getBytes());
-      assertEquals(expectedCmdEncoded, JsonPath.read(response, "$.command_content"));
+      // Verify command: each targeted asset argument is bound to its own shell variable, declared
+      // in order of appearance in the template.
+      String decodedCommand = decodeCommand(JsonPath.read(response, "$.command_content"));
+      assertEquals(
+          """
+          OAEV_ARG_ASSET_SEPARATE_BY_SPACE='233.152.15.205 253.110.186.71'
+          OAEV_ARG_ASSET_SEPARATE_BY_COMMA='seen-ip-endpoint2,seen-ip-endpoint1'
+          echo separatebyspace : "$OAEV_ARG_ASSET_SEPARATE_BY_SPACE" separatebycoma : "$OAEV_ARG_ASSET_SEPARATE_BY_COMMA\"""",
+          decodedCommand);
     }
 
     @DisplayName("Should set start date signature when calling RetrievingExecutablePayload")
