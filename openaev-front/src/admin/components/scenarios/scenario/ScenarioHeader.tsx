@@ -54,6 +54,7 @@ import {
   type Inject,
   type Scenario,
   type Team,
+  type WorkflowScopeRuleOutput,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -144,8 +145,33 @@ const ScenarioHeader = ({
       ? helper.getWorkflowConfiguration(scenarioWorkflowId)
       : undefined,
   }));
+  const hasAllowlistScope = (workflowConfiguration?.workflow_scope_rules ?? []).some((rule: WorkflowScopeRuleOutput) =>
+    rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
+    && !!rule.workflow_scope_rule_value?.trim(),
+  );
   const isScopeMissing = isScenarioChaining
-    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+    && (
+      !hasAllowlistScope
+      || healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY')
+    );
+  const healthchecksForIndicator = useMemo(() => {
+    if (!isScenarioChaining) {
+      return healthchecks;
+    }
+    const withoutScopeDefinition = healthchecks.filter((hc: HealthCheck) => hc.type !== 'SCOPE_DEFINITION');
+    if (isScopeMissing) {
+      const scopeDefinitionHealthcheck = healthchecks.find((hc: HealthCheck) =>
+        hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY',
+      ) ?? {
+        creation_date: '',
+        detail: 'EMPTY',
+        status: 'ERROR',
+        type: 'SCOPE_DEFINITION',
+      };
+      return [...withoutScopeDefinition, scopeDefinitionHealthcheck];
+    }
+    return withoutScopeDefinition;
+  }, [healthchecks, isScenarioChaining, isScopeMissing]);
 
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
@@ -279,7 +305,7 @@ const ScenarioHeader = ({
             <>
               {/* Contextual configuration alert - self-hides when healthy. */}
               {canManage && (
-                <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
+                <HealthcheckIndicator healthchecks={healthchecksForIndicator} scenarioId={scenarioId} />
               )}
               {/* Expectation drift warning - self-hides when aligned or dismissed. */}
               {canManage && (

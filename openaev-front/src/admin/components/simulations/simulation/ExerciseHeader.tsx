@@ -16,7 +16,7 @@ import {
 } from '@mui/icons-material';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
@@ -36,7 +36,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import { useHelper } from '../../../../store';
-import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team } from '../../../../utils/api-types';
+import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team, type WorkflowScopeRuleOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
@@ -280,8 +280,33 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openDateDialog, setOpenDateDialog] = useState(false);
 
+  const hasAllowlistScope = (workflowConfiguration?.workflow_scope_rules ?? []).some((rule: WorkflowScopeRuleOutput) =>
+    rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
+    && !!rule.workflow_scope_rule_value?.trim(),
+  );
   const isScopeMissing = isSimulationChaining
-    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+    && (
+      !hasAllowlistScope
+      || healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY')
+    );
+  const healthchecksForIndicator = useMemo(() => {
+    if (!isSimulationChaining) {
+      return healthchecks;
+    }
+    const withoutScopeDefinition = healthchecks.filter((hc: HealthCheck) => hc.type !== 'SCOPE_DEFINITION');
+    if (isScopeMissing) {
+      const scopeDefinitionHealthcheck = healthchecks.find((hc: HealthCheck) =>
+        hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY',
+      ) ?? {
+        creation_date: '',
+        detail: 'EMPTY',
+        status: 'ERROR',
+        type: 'SCOPE_DEFINITION',
+      };
+      return [...withoutScopeDefinition, scopeDefinitionHealthcheck];
+    }
+    return withoutScopeDefinition;
+  }, [healthchecks, isSimulationChaining, isScopeMissing]);
 
   useEffect(() => {
     searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
@@ -388,7 +413,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
             <>
               {/* Contextual configuration alert - self-hides when healthy. */}
               {permissions.canManage && (
-                <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
+                <HealthcheckIndicator healthchecks={healthchecksForIndicator} exerciseId={exerciseId} />
               )}
               {/* Expectation drift warning - self-hides when aligned or dismissed. */}
               {permissions.canManage && (
