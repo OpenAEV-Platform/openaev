@@ -1342,7 +1342,7 @@ public class InjectExpectationService {
                   .forEach(
                       r ->
                           bySource.merge(
-                              r.getSourceId() == null ? r.getSourceName() : r.getSourceId(),
+                              mergeSourceKey(r),
                               r,
                               (existing, candidate) ->
                                   // Prefer an answered result over a pending one for the same
@@ -1378,6 +1378,14 @@ public class InjectExpectationService {
               return clone;
             })
         .toList();
+  }
+
+  private static String mergeSourceKey(InjectExpectationResult result) {
+    if (result.getSourceId() != null && !result.getSourceId().isBlank()) {
+      return result.getSourceId();
+    }
+    // Legacy-read compatibility only: old rows may miss sourceId.
+    return result.getSourceName();
   }
 
   /**

@@ -12,11 +12,13 @@ import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
+import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.service.attackpath.dto.ConsumedFindingKeyDTO;
+import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
 import io.openaev.utils.fixtures.ConditionFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.StepFixture;
@@ -28,6 +30,7 @@ import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +47,8 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   private static final String SIM = "SIM-KILLCHAIN";
 
   @Autowired private AttackPathGraphService graphService;
+  @Autowired private AttackPathDeltaService deltaService;
+  @Autowired private AttackPathVersionService versionService;
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
   @Autowired private ConditionComposer conditionComposer;
@@ -247,6 +252,67 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
         .containsExactly(AttackPathIds.findingNode("portscan", "10.0.0.1:445 (microsoft-ds)"));
   }
 
+  @Test
+  @DisplayName("a delta's consuming execution carries the ids its key matched in earlier bumps")
+  void deltaConsumerCarriesMatchedFindingIdsFromEarlierBumps() {
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-delta"));
+
+    // Bump 1: the nmap scan and the portscan finding it produced.
+    long v1 = versionService.bump(SIM, tenant.getId());
+    AttackPathExecution producer =
+        stamp(
+            saveExecution(tenant, "nmap", "portscan-prod-d", Instant.parse("2026-06-18T08:00:00Z")),
+            v1);
+    saveFinding(tenant, "portscan", "10.0.0.1:445 (microsoft-ds)", producer.getId(), v1);
+    entityManager.flush();
+
+    // Bump 2: the consumer runs. Its own row is the ONLY thing a delta from v1 can see — the
+    // finding
+    // it consumes was written a bump earlier, so an in-memory match over the batch finds nothing.
+    StepComposer.Composer consumer = consumerStep(PrimitiveType.Port, ConditionType.EQ, "445");
+    long v2 = versionService.bump(SIM, tenant.getId());
+    stamp(
+        saveExecution(
+            tenant, "netexec", consumer.get().getId(), Instant.parse("2026-06-18T08:05:00Z")),
+        v2);
+    entityManager.flush();
+
+    AttackPathNodeDTO consumerNode =
+        deltaService.buildDelta(SIM, v1, List.of(tenant.getId())).attackPathExecutions().stream()
+            .filter(n -> consumer.get().getId().equals(n.getStepTemplateId()))
+            .findFirst()
+            .orElseThrow();
+
+    // The front anchors the causal finding→action edge on these ids instead of re-matching, so an
+    // empty list here is a graph that only draws the link after a page reload.
+    assertThat(consumerNode.getConsumedFindingKeys().get(0).matchedFindingIds())
+        .containsExactly(AttackPathIds.findingNode("portscan", "10.0.0.1:445 (microsoft-ds)"));
+    assertThat(consumerNode.getDependsOn()).contains("portscan-prod-d");
+  }
+
+  @Test
+  @DisplayName("a delta with no consuming step pays no candidate read")
+  void deltaWithoutAConsumerResolvesNothing() {
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-delta-none"));
+    long v1 = versionService.bump(SIM, tenant.getId());
+    stamp(saveExecution(tenant, "nmap", "no-consumer", Instant.parse("2026-06-18T08:00:00Z")), v1);
+    entityManager.flush();
+
+    // A step with no consumed key must come back exactly as the rebuild pass left it: the closure
+    // is
+    // gated on the batch actually carrying a consumer, not run on every tick.
+    AttackPathNodeDTO node =
+        deltaService.buildDelta(SIM, 0, List.of(tenant.getId())).attackPathExecutions().stream()
+            .findFirst()
+            .orElseThrow();
+    assertThat(node.getConsumedFindingKeys()).isNullOrEmpty();
+  }
+
+  private AttackPathExecution stamp(AttackPathExecution execution, long version) {
+    execution.setRowVersion(version);
+    return executionRepository.save(execution);
+  }
+
   private AttackPathExecution saveExecution(
       Tenant tenant, String injector, String stepTemplateId, Instant executedAt) {
     AttackPathExecution e = new AttackPathExecution();
@@ -264,6 +330,11 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   }
 
   private void saveFinding(Tenant tenant, String type, String value, String executionId) {
+    saveFinding(tenant, type, value, executionId, 0L);
+  }
+
+  private void saveFinding(
+      Tenant tenant, String type, String value, String executionId, long version) {
     AttackPathFinding f = new AttackPathFinding();
     f.setTenant(tenant);
     f.setSimulationId(SIM);
@@ -271,6 +342,7 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
     f.setValue(value);
     f.setEndpointId("host-x");
     f.setEndpointKey("host-x");
+    f.setRowVersion(version);
     String findingId = findingRepository.save(f).getId();
     AttackPathExecutionFinding link = new AttackPathExecutionFinding();
     link.setExecutionId(executionId);

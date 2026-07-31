@@ -977,7 +977,22 @@ export interface AttackPathDTO {
   attackPathExecutions?: AttackPathNodeDTO[];
   attackPathNodes?: AttackPathNodeDTO[];
   counters?: AttackPathCounters;
+  /** @format int64 */
+  graphVersion?: number;
   mode?: string;
+  staticAttackPathFindings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathDeltaDTO {
+  attackPathEdges?: AttackPathEdges[];
+  attackPathExecutions?: AttackPathNodeDTO[];
+  attackPathNodes?: AttackPathNodeDTO[];
+  counters?: AttackPathCounters;
+  /** @format int64 */
+  newVersion?: number;
+  resyncRequired?: boolean;
+  /** @format int64 */
+  sinceVersion?: number;
   staticAttackPathFindings?: AttackPathNodeDTO[];
 }
 
@@ -995,6 +1010,8 @@ export interface AttackPathEdges {
 export interface AttackPathEndpointRelationsDTO {
   edges?: AttackPathEdges[];
   executions?: AttackPathNodeDTO[];
+  /** @format int64 */
+  totalExecutions?: number;
 }
 
 export interface AttackPathExecutionDetailDTO {
@@ -1088,10 +1105,17 @@ export interface AttackPathNodeDTO {
 
 export interface AttackPathSecurityPlatformDTO {
   alerts?: AttackPathAlertDTO[];
+  /** @format int32 */
+  alertsCount?: number;
   bucket?: string;
   detectedAt?: string;
   platformName?: string;
   platformType?: string;
+  resultLabel?: string;
+  /** @format double */
+  score?: number;
+  sourceAssetId?: string;
+  sourceId?: string;
   status?: string;
 }
 
@@ -5751,6 +5775,7 @@ export interface Injector {
   /** @minLength 1 */
   injector_name: string;
   injector_payloads?: boolean;
+  injector_security_platform?: string;
   /** @minLength 1 */
   injector_type: string;
   /** @format date-time */
@@ -9737,6 +9762,7 @@ export interface SecurityPlatform {
   asset_url?: string;
   listened?: boolean;
   security_platform_collectors?: string[];
+  security_platform_injectors?: string[];
   security_platform_logo_dark?: string;
   security_platform_logo_light?: string;
   security_platform_traces?: InjectExpectationTrace[];

@@ -1,7 +1,8 @@
-import { useTheme } from '@mui/material/styles';
+import { styled, useTheme } from '@mui/material/styles';
 import {
   addEdge,
   type Connection,
+  Controls,
   type Edge,
   MarkerType,
   MiniMap,
@@ -31,6 +32,7 @@ import {
   buildEdges,
   buildEventData,
   buildEventPath,
+  buildEventToGroupX,
   buildInformationalEdges,
   buildOutputProvidersMap,
   buildTacticForStep,
@@ -48,6 +50,8 @@ interface LogicFlowProps {
   reloadTrigger?: number;
   onEditStep?: (stepId: string, meta: ActionMeta) => void;
   onEditEvent?: (eventId: string, meta: EventMeta) => void;
+  /** Open the action drawer to add an action linked to the given event. */
+  onAddActionToEvent?: (eventId: string) => void;
   /** Called after each graph refresh so the parent can drive the warning banner. */
   onEventMetasChange?: (metas: Record<string, EventMeta>) => void;
 }
@@ -57,6 +61,20 @@ const proOptions = {
   hideAttribution: true,
 };
 
+/** Zoom / fit-view controls themed to match the app (primary-colored buttons). */
+const StyledControls = styled(Controls)(({ theme }) => ({
+  'background': theme.palette.background.paper,
+  'border': `1px solid ${theme.palette.divider}`,
+  'borderRadius': theme.spacing(1),
+  'boxShadow': theme.shadows[3],
+  '& .react-flow__controls-button': {
+    'background': theme.palette.background.paper,
+    'borderBottom': `1px solid ${theme.palette.divider}`,
+    '&:hover': { background: theme.palette.action.hover },
+  },
+  '& .react-flow__controls-button svg': { fill: theme.palette.primary.main },
+}));
+
 /** Opacity applied to nodes/edges outside the selected event's flow (spotlight backdrop). */
 const DIMMED_OPACITY = 0.24;
 
@@ -65,7 +83,14 @@ const DIMMED_OPACITY = 0.24;
  * grouped into MITRE tactic columns. Supports connecting events to actions, editing,
  * deleting nodes, and adding new components.
  */
-const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEventMetasChange }: LogicFlowProps) => {
+const LogicFlow = ({
+  workflowId,
+  reloadTrigger,
+  onEditStep,
+  onEditEvent,
+  onAddActionToEvent,
+  onEventMetasChange,
+}: LogicFlowProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { setProviders: setContextProviders } = useOutputProviders();
@@ -165,7 +190,8 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
       enrichedActionMetas,
       currentKillChainPhasesMap,
     );
-    const positionedEventNodes = positionEventNodes(eventNodes);
+    const eventToGroupX = buildEventToGroupX(enrichedActionMetas, groupNodes, actionNodes);
+    const positionedEventNodes = positionEventNodes(eventNodes, eventToGroupX);
     const edgesData = buildEdges(enrichedActionMetas, eventMetas);
 
     setActionMetas(enrichedActionMetas);
@@ -383,6 +409,7 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
             ? {
                 isSelected: node.id === selectedEventId,
                 pathIndex: node.id === selectedEventId ? eventPathIndex : undefined,
+                onAddAction: onAddActionToEvent,
               }
             : {}),
           ...(node.type === 'action'
@@ -394,7 +421,7 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
         },
       };
     }),
-    [nodes, editNode, requestDeleteNode, selectedEventId, highlightedStepIds, stepPathIndex, eventPathIndex],
+    [nodes, editNode, requestDeleteNode, onAddActionToEvent, selectedEventId, highlightedStepIds, stepPathIndex, eventPathIndex],
   );
 
   /**
@@ -450,42 +477,49 @@ const LogicFlow = ({ workflowId, reloadTrigger, onEditStep, onEditEvent, onEvent
     <>
       {loading && <Loader variant="inElement" />}
       {!loading && (
-        <>
-          <ReactFlow
-            nodes={nodesWithCallbacks}
-            edges={allEdges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onEdgesDelete={onEdgesDelete}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onPaneClick={onPaneClick}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            proOptions={proOptions}
-            fitView
-            style={{ background: 'transparent' }}
-            defaultEdgeOptions={{
-              type: 'deletable',
-              markerEnd: { type: MarkerType.ArrowClosed },
-              data: { onDelete: onDeleteEdgeClick },
+        <ReactFlow
+          nodes={nodesWithCallbacks}
+          edges={allEdges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onEdgesDelete={onEdgesDelete}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          proOptions={proOptions}
+          fitView
+          style={{ background: 'transparent' }}
+          defaultEdgeOptions={{
+            type: 'deletable',
+            markerEnd: { type: MarkerType.ArrowClosed },
+            data: { onDelete: onDeleteEdgeClick },
+          }}
+        >
+          <StyledControls
+            position="bottom-left"
+            showInteractive={false}
+            style={{
+              background: theme.palette.background.paper,
+              border: 'none',
             }}
-          >
-            <MiniMap
-              position="bottom-right"
-              pannable
-              zoomable
-              style={{
-                background: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 4,
-                boxShadow: theme.shadows[3],
-              }}
-              maskColor={`${theme.palette.background.default}80`}
-              nodeColor={theme.palette.primary.main}
-            />
-          </ReactFlow>
-        </>
+          />
+          <MiniMap
+            position="bottom-right"
+            pannable
+            zoomable
+            style={{
+              background: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 4,
+              boxShadow: theme.shadows[3],
+              marginRight: theme.spacing(1),
+            }}
+            maskColor={`${theme.palette.background.default}80`}
+            nodeColor={theme.palette.primary.main}
+          />
+        </ReactFlow>
       )}
       <DialogDelete
         open={pendingDeleteNodeId !== null}

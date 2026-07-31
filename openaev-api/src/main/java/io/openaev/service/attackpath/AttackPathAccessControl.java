@@ -50,7 +50,18 @@ public class AttackPathAccessControl {
     return rows.stream().filter(row -> canRead(user, row.simulationId())).toList();
   }
 
-  private boolean canRead(User user, String simulationId) {
+  /**
+   * The single definition of "this user can read this simulation's attack path": {@code SIMULATION
+   * READ}, with seed ids always allowed.
+   *
+   * <p>Public because the real-time nudge must gate on the very same predicate as the read it
+   * announces (#6647, spec 003, FR3). A copy in the stream listener would drift, and a bare {@code
+   * hasPermission} would never deliver a nudge on a seeded simulation whose delta read returns 200
+   * — realtime would silently die on the POC path. Takes the {@link User} explicitly so an
+   * off-request caller (the stream's async broadcast, where {@link UserService#currentUser()} does
+   * not work) can pass the consumer's resolved user.
+   */
+  public boolean canRead(User user, String simulationId) {
     return AttackPathIds.isSeedId(simulationId)
         || permissionService.hasPermission(
             user, Optional.empty(), simulationId, ResourceType.SIMULATION, Action.READ);

@@ -299,6 +299,15 @@ public class PayloadMapper {
     }
   }
 
+  public List<DetectionRemediationOutput> applyDetectionRemediationLicenseGate(
+      List<DetectionRemediationOutput> detectionRemediations) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+      return detectionRemediations;
+    }
+    log.debug("Enterprise Edition license inactive - omitting remediation information");
+    return emptyList();
+  }
+
   public static DetectionRemediationOutput toDetectionRemediationOutput(
       DetectionRemediation detectionRemediation) {
     return DetectionRemediationOutput.builder()

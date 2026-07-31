@@ -506,6 +506,98 @@ class StepServiceTest {
         verify(queueChainingService, never()).readyStep(any(), any());
       }
     }
+
+    @Nested
+    class PayloadStepMultiAssetExpansion {
+
+      /**
+       * Regression test for a bug where a payload-based step with no condition mapper (e.g. a root
+       * step, or a step gated only by a non-mapper condition such as DEPEND_ON) would only ever
+       * execute once — for a single scope asset — and be silently skipped for every other in-scope
+       * asset on subsequent scheduling cycles. Injector-contract steps (hasPayload() == false) were
+       * unaffected, which is exactly what was reported: contract steps correctly expanded per asset
+       * while sibling payload steps did not.
+       *
+       * <p>Per-target deduplication is owned by expandTargetBatches/getCommittedHashes further down
+       * in createReadySteps, so the fact that this step template already produced a READY step for
+       * one asset must not prevent it from being expanded again for the remaining, not-yet-executed
+       * assets.
+       */
+      @Test
+      void given_payloadStepAlreadyExecutedOnce_should_stillCreateReadySteps_forRemainingAssets()
+          throws Exception {
+        // Arrange
+        Step nextStepTemplateToExecute = mock(Step.class);
+        Step persistedTemplate = mock(Step.class);
+        Workflow workflowRun = mock(Workflow.class);
+        ActionStep localActionStep = mock(ActionStep.class);
+
+        String input = "{\"x\":1}";
+        String stepId = UUID.randomUUID().toString();
+        String workflowId = UUID.randomUUID().toString();
+
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(persistedTemplate.getId()).thenReturn(stepId);
+        when(persistedTemplate.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+        lenient().when(workflowRun.getId()).thenReturn(workflowId);
+        when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepId))
+            .thenReturn(localActionStep);
+        when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
+            .thenReturn(Optional.of(persistedTemplate));
+
+        // NOTE: this step is a payload step with no condition mapper that has already produced a
+        // READY step for a previous asset in an earlier scheduling cycle (i.e. exactly the
+        // combination that used to be permanently short-circuited by the removed
+        // "!hasConditionMapper && isStepAlreadyExecutedOnce && hasPayload" guard). These are
+        // stubbed leniently because the fixed createReadySteps no longer consults them at all —
+        // reverting the fix would make this test start invoking them (and start failing, since the
+        // old guard would then return an empty list instead of expanding the remaining assets).
+        lenient().when(conditionService.hasConditionMapper(persistedTemplate)).thenReturn(false);
+        lenient().when(injectExecutionStep.hasPayload(persistedTemplate)).thenReturn(true);
+        lenient()
+            .when(stepRepository.existsByStepTemplateIdAndWorkflowId(stepId, workflowId))
+            .thenReturn(true);
+
+        when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
+            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, List.of(), null)));
+
+        // expandTargetBatches fans the single combo out to the two remaining, not-yet-executed
+        // assets in scope.
+        ConditionService.ExecutionBatch assetTwoBatch =
+            new ConditionService.ExecutionBatch(input, List.of(), "combo:asset-2");
+        ConditionService.ExecutionBatch assetThreeBatch =
+            new ConditionService.ExecutionBatch(input, List.of(), "combo:asset-3");
+        when(injectExecutionStep.expandTargetBatches(any(), eq(workflowRun), eq(persistedTemplate)))
+            .thenReturn(List.of(assetTwoBatch, assetThreeBatch));
+        when(conditionService.getCommittedHashes(persistedTemplate, workflowRun))
+            .thenReturn(Set.of());
+
+        Step stepReadyTwo = mock(Step.class);
+        Step stepReadyThree = mock(Step.class);
+        when(localActionStep.ready(persistedTemplate, input, workflowRun))
+            .thenReturn(Optional.of(stepReadyTwo), Optional.of(stepReadyThree));
+        when(stepRepository.save(stepReadyTwo)).thenReturn(stepReadyTwo);
+        when(stepRepository.save(stepReadyThree)).thenReturn(stepReadyThree);
+
+        // Act
+        List<Step> result =
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+
+        // Assert: the step must not be silently skipped — the remaining assets still get a READY
+        // step each.
+        assertEquals(2, result.size());
+        assertTrue(result.containsAll(List.of(stepReadyTwo, stepReadyThree)));
+
+        verify(conditionService).checkCondition(persistedTemplate, workflowRun, input);
+        verify(injectExecutionStep)
+            .expandTargetBatches(any(), eq(workflowRun), eq(persistedTemplate));
+        verify(conditionService)
+            .commitHashes(
+                eq(persistedTemplate),
+                eq(workflowRun),
+                eq(Set.of("combo:asset-2", "combo:asset-3")));
+      }
+    }
   }
 
   /* ============================================================
@@ -1135,7 +1227,7 @@ class StepServiceTest {
               });
 
       // Act
-      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
       // Assert — root condition fields
       assertEquals(2, savedConditions.size());
@@ -1199,7 +1291,7 @@ class StepServiceTest {
               });
 
       // Act
-      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
       // Assert
       ArgumentCaptor<Condition> captor = ArgumentCaptor.forClass(Condition.class);
@@ -1262,7 +1354,7 @@ class StepServiceTest {
               });
 
       // WHEN copyStepConditionTemplate copies the step into the simulation workflow
-      stepService.copyStepConditionTemplate(sourceStep, stepCopied);
+      stepService.copyStepConditionTemplate(sourceStep, stepCopied, new HashMap<>());
 
       // THEN the copied root condition has:
       assertEquals(2, savedConditions.size());
@@ -1337,7 +1429,7 @@ class StepServiceTest {
               });
 
       // WHEN copyStepConditionTemplate copies the step into the simulation workflow
-      stepService.copyStepConditionTemplate(sourceStep, stepCopied);
+      stepService.copyStepConditionTemplate(sourceStep, stepCopied, new HashMap<>());
 
       // THEN the copied root exposes its child in memory (inverse side populated)
       assertEquals(2, savedConditions.size());
@@ -1409,7 +1501,7 @@ class StepServiceTest {
               });
 
       // Act
-      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
       // Assert — both root and child are copied
       assertEquals(2, savedConditions.size());
@@ -1483,7 +1575,7 @@ class StepServiceTest {
               });
 
       // Act
-      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
       // Assert — all 3 levels copied
       assertEquals(3, savedConditions.size());
@@ -1564,7 +1656,7 @@ class StepServiceTest {
                 return c;
               });
 
-      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
       // event root + mapper root + event leaf
       assertEquals(3, savedConditions.size());

@@ -259,17 +259,21 @@ const ConnectorInstanceForm = ({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100%',
           gap: theme.spacing(2),
         }}
         id="connectorInstanceForm"
         onSubmit={handleSubmitWithoutDefault}
       >
+        {/* The display name is a regular catalog configuration (COLLECTOR_NAME /
+            INJECTOR_NAME / EXECUTOR_NAME): the update endpoint merges it like any
+            other config and the Integration Manager redeploys the container with
+            the new name, so it is editable - it was only ever disabled by
+            accident in the original composer feature. */}
         <TextFieldController
           name={`connector_instance_configurations.${nameFieldIndex}.configuration_value`}
           label={t('Display name')}
           required
-          disabled={disabled || isEditing}
+          disabled={disabled}
         />
         <TextField id="catalog-connector-slug" label={t('Instance name')} disabled defaultValue={catalogConnectorSlug} />
         {requiredFields.map(({ index, field, definition }) => (
@@ -341,11 +345,13 @@ const ConnectorInstanceForm = ({
           </>
         )}
 
+        {/* In-flow action buttons right after the form content, like every
+            other drawer form in the app (no bottom-pinned footer). */}
         <div style={{
-          marginTop: 'auto',
           display: 'flex',
           justifyContent: 'flex-end',
           gap: theme.spacing(1),
+          marginTop: theme.spacing(1),
         }}
         >
           <Button

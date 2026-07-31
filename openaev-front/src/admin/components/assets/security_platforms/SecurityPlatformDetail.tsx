@@ -47,7 +47,7 @@ import PostureScore from '../PostureScore';
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
-import isCollectorManaged from './securityPlatformUtils';
+import isConnectorManaged from './securityPlatformUtils';
 
 const PLATFORM_FILTER_KEY = 'base_security_platforms_side';
 
@@ -343,7 +343,7 @@ const SecurityPlatformDetail: FunctionComponent = () => {
             }}
             onUpdate={result => setPlatform(result)}
             onDelete={() => navigate(SECURITY_PLATFORM_BASE_URL)}
-            disabled={isCollectorManaged(platform)}
+            disabled={isConnectorManaged(platform)}
           />
         )}
         stats={(

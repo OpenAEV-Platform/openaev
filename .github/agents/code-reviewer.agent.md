@@ -48,6 +48,7 @@ Then:
 | **Naming** | PascalCase entities, camelCase methods, `snake_case` DB columns? |
 | **DTO pattern** | API never exposes JPA entities — always through Output records + Mapper |
 | **Service pattern** | Business logic in `@Service`, `@Transactional` on each method, `readOnly = true` on reads |
+| **No writes in read paths** | GET/list code never calls setters on managed entities (`readOnly = true` does NOT prevent the OSIV flush at response commit) — display-only values go into the output DTO via mapper parameters |
 | **Error handling** | Uses `ElementNotFoundException`? Returns proper HTTP status codes? |
 | **Logging** | Uses `@Slf4j`? No `System.out.println`? No sensitive data in logs? |
 

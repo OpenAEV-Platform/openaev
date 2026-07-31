@@ -9,18 +9,6 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/**
- * Normalises existing endpoint hostnames through {@link DomainSanitiser} (issue 0229).
- *
- * <p>KEPT FOR RELEASE COMPATIBILITY - this migration shipped in release 3.260729.0, so it must stay
- * in the resolved set (databases on that release have it applied, and the Migrations Guard enforces
- * that the released block is never altered). However, it was merged AFTER the 6.20260729120000000+
- * block was already applied on rolling (main-build) databases, so on those databases it is
- * permanently out of order: the default {@code ignore-migration-patterns=*:missing,*:ignored} lets
- * validation pass and Flyway skips it. The re-dated copy {@link
- * V6_20260730150000000__normalise_endpoint_hostnames} performs the same normalisation at the end of
- * the block on every database (re-running is a no-op).
- */
 @Component
 public class V6_20260729093849995__normalise_endpoint_hostnames extends BaseJavaMigration {
 

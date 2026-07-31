@@ -9,10 +9,15 @@ import java.util.List;
  * appear once per bucket: it may both prevent and detect.
  */
 public record AttackPathSecurityPlatformDTO(
+    String sourceId,
+    String sourceAssetId,
     String
         platformType, // EDR | XDR | SIEM (SecurityPlatform.SECURITY_PLATFORM_TYPE), null if unknown
     String platformName,
     String bucket, // "prevention" | "detection"
     String status, // SUCCESS | FAILED | PARTIAL | PENDING | UNKNOWN
     String detectedAt, // ISO instant, the expectation result date
+    String resultLabel, // snapshot label as produced by the collector/expectation result
+    Double score,
+    Integer alertsCount,
     List<AttackPathAlertDTO> alerts) {}

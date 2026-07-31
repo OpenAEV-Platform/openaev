@@ -10,7 +10,7 @@
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>3.260729.0</version>
+    <version>3.260731.1</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -195,7 +195,7 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.8.0</version>
+                <version>3.9.0</version>
                 <configuration>
                     <java>
                         <includes>

@@ -1,9 +1,10 @@
-import { BoltOutlined, MoreVert } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Add, BoltOutlined, MoreVert } from '@mui/icons-material';
+import { Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo, type MouseEvent, useState } from 'react';
 
+import { useFormatter } from '../../../../../../components/i18n';
 import NodePopover from './NodePopover';
 
 export type EventNodeData = Node<{
@@ -15,10 +16,13 @@ export type EventNodeData = Node<{
   pathIndex?: number;
   onEdit?: (id: string, type: string) => void;
   onDelete?: (id: string) => void;
+  /** Open the action drawer to add an action linked to this event. */
+  onAddAction?: (id: string) => void;
 }>;
 
 const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
   const theme = useTheme();
+  const { t } = useFormatter();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const handleMenuOpen = (e: MouseEvent<HTMLElement>) => {
@@ -27,6 +31,11 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
   };
 
   const handleMenuClose = () => setAnchorEl(null);
+
+  const handleAddAction = (e: MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    data.onAddAction?.(id);
+  };
 
   const handleEdit = () => {
     handleMenuClose();
@@ -144,6 +153,30 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
             border: 'none',
           }}
         />
+      </Box>
+
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        marginTop: 1,
+      }}
+      >
+        <Tooltip title={t('Add an action')}>
+          <Button
+            color="primary"
+            variant="contained"
+            onClick={handleAddAction}
+            sx={{
+              minWidth: 0,
+              width: 24,
+              height: 24,
+              padding: 0,
+            }}
+          >
+            <Add sx={{ fontSize: 16 }} />
+          </Button>
+
+        </Tooltip>
       </Box>
 
       <NodePopover
