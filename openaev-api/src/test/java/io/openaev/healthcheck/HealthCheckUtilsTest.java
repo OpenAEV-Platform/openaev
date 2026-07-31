@@ -558,7 +558,6 @@ public class HealthCheckUtilsTest {
       // -- ASSERT --
       assertFalse(isReady);
     }
-
   }
 
   @Nested
@@ -585,7 +584,8 @@ public class HealthCheckUtilsTest {
     void given_only_denylist_scope_rules_should_return_scope_definition_empty_warning() {
       // -- PREPARE --
       Workflow workflow = new Workflow();
-      workflow.setWorkflowScopeRules(List.of(buildScopeRule(ScopeRuleSelectedMode.DENYLIST, "asset-1")));
+      workflow.setWorkflowScopeRules(
+          List.of(buildScopeRule(ScopeRuleSelectedMode.DENYLIST, "asset-1")));
 
       // -- EXECUTE --
       List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
@@ -603,7 +603,8 @@ public class HealthCheckUtilsTest {
     void given_allowlist_scope_rule_with_value_should_not_return_scope_definition_empty_warning() {
       // -- PREPARE --
       Workflow workflow = new Workflow();
-      workflow.setWorkflowScopeRules(List.of(buildScopeRule(ScopeRuleSelectedMode.ALLOWLIST, "asset-1")));
+      workflow.setWorkflowScopeRules(
+          List.of(buildScopeRule(ScopeRuleSelectedMode.ALLOWLIST, "asset-1")));
 
       // -- EXECUTE --
       List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
