@@ -120,6 +120,25 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   }
 
   /**
+   * Deletes a collector. A started collector can never be deleted (OpenCTI parity): a managed one
+   * must have a stop requested or effective on its owning instance, an unmanaged one must have
+   * stopped pinging (see {@link #throwIfConnectorRunning}). When the collector was deployed through
+   * the Integration Manager, the owning instance is torn down with it - deleting the row alone
+   * would leave the container running and the entity would reappear on its next registration
+   * heartbeat.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteCollector(String collectorId, String tenantId) throws ConnectorStatusException {
+    Collector collector = collector(collectorId, tenantId);
+    if (collector.isExternal()) {
+      throwIfConnectorRunning(collector, collector.getUpdatedAt());
+    }
+    if (!deleteOwningConnectorInstance(collectorId)) {
+      collectorRepository.deleteByCollectorId(collectorId);
+    }
+  }
+
+  /**
    * Retrieve all collectors
    *
    * @return List of collectors

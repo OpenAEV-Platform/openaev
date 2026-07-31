@@ -120,7 +120,13 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   // are protected: gating on "runs in-process" instead used to strand legacy
   // rows whose implementation was dropped from the code (Caldera), leaving them
   // undeletable forever.
-  const canDeleteConnector = canManage && !instance && !!connector?.id && !isPlatformConnector(connector?.type);
+  // OpenCTI parity: a started connector can never be deleted - stop it first.
+  // For an unmanaged connector the kebab only ever contains Delete, so while
+  // the connector is running (fresh heartbeat) the kebab disappears entirely;
+  // the backend enforces the same rule.
+  const canDeleteConnector = canManage && !instance && !!connector?.id
+    && !isPlatformConnector(connector?.type)
+    && !(connector?.isExternal === true && liveliness?.started === true);
 
   const handleDeleteConnector = () => {
     if (!connector?.id) return;

@@ -3,17 +3,28 @@ package io.openaev.service.connectors;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public abstract class AbstractConnectorService<
     T extends BaseConnectorEntity & TenantIdBase, Output> {
+
+  /**
+   * An external connector that pinged within this window is considered running. Mirrors the
+   * frontend liveliness threshold (LIVELINESS_THRESHOLD_MS): external connectors re-register every
+   * ~40s, so two minutes without a heartbeat means the process is down.
+   */
+  public static final Duration ACTIVE_HEARTBEAT_WINDOW = Duration.ofMinutes(2);
+
   protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   protected final CatalogConnectorService catalogConnectorService;
@@ -271,6 +282,47 @@ public abstract class AbstractConnectorService<
    * @param connectorId the collector / injector / executor id being deleted
    * @return true when an instance was found and deleted, so the connector row is already gone
    */
+  /**
+   * Rejects the deletion of a connector that is still running (OpenCTI parity: a started connector
+   * can never be deleted, it must be stopped first).
+   *
+   * <p>Two cases, mirroring the frontend gating:
+   *
+   * <ul>
+   *   <li>deployed through the Integration Manager: the owning instance decides - deletion is only
+   *       allowed once a stop has been requested ({@code requestedStatus == stopping}) or is
+   *       effective ({@code currentStatus == stopped});
+   *   <li>unmanaged external connector: the registration heartbeat decides - a ping within {@link
+   *       #ACTIVE_HEARTBEAT_WINDOW} means the container is alive and must be stopped (externally)
+   *       before the row can be removed. Deleting an active row is futile anyway: the connector
+   *       re-registers on its next heartbeat.
+   * </ul>
+   *
+   * @param connector the connector entity being deleted
+   * @param lastHeartbeat the connector's last registration heartbeat ({@code updatedAt})
+   */
+  protected void throwIfConnectorRunning(T connector, Instant lastHeartbeat)
+      throws BadRequestException {
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            this.connectorType.getIdKeyName(), connector.getId(), connector.getTenantId());
+    if (relatedIds != null && relatedIds.getConnectorInstanceId() != null) {
+      connectorInstanceService.throwIfInstanceRunning(relatedIds.getConnectorInstanceId());
+      return;
+    }
+    if (lastHeartbeat != null
+        && lastHeartbeat.isAfter(Instant.now().minus(ACTIVE_HEARTBEAT_WINDOW))) {
+      throw new BadRequestException(
+          "The "
+              + this.connectorType.name().toLowerCase()
+              + " "
+              + connector.getName()
+              + " is still running (last heartbeat "
+              + lastHeartbeat
+              + "): stop it before deleting it");
+    }
+  }
+
   protected boolean deleteOwningConnectorInstance(String connectorId)
       throws ConnectorStatusException {
     T connector = getConnectorById(connectorId);

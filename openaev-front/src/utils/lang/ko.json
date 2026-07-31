@@ -2926,6 +2926,7 @@
   "Steps & Events": "단계 및 이벤트",
   "Stop": "중지",
   "Stop generating": "생성 중지",
+  "Stop the connector before deleting it": "삭제하기 전에 커넥터를 중지하세요",
   "stopped": "차단됨",
   "Stopped": "중지됨",
   "Storage": "Storage",
