@@ -23,6 +23,7 @@ public enum ResourceType {
   DOCUMENT,
   CHANNEL,
   FINDING,
+  FINDING_COMMENT,
   DASHBOARD,
   REPORT,
   PLATFORM_SETTING,

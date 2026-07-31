@@ -12,6 +12,7 @@ public enum Action {
   SEARCH,
   CREATE,
   DUPLICATE,
+  TRIAGE,
 
   // Special actions for specific use cases
   SKIP_RBAC, // Used to skip RBAC checks in specific cases
