@@ -511,14 +511,33 @@ public class OpenSearchService implements EngineService {
                             fetchInstant,
                             newCursor);
                       }
+                      // Rows flushed by a still-open transaction commit later with an already-past
+                      // updated_at: persisting a cursor beyond those timestamps would skip them
+                      // forever (the fetch is strictly greater-than). Keep the cursor at least the
+                      // grace window behind wall-clock; recent rows are re-fetched and re-upserted
+                      // (idempotent) on every round until they age past the window.
+                      Instant persistedCursor =
+                          EsIndexingUtils.capCursorToGraceWindow(
+                              newCursor,
+                              Instant.now(),
+                              engineConfig.getIndexingGraceWindowSeconds());
+                      if (persistedCursor.equals(fetchInstant)) {
+                        // The cap lands exactly on the current cursor: persisting would be a
+                        // no-op, keep it and re-process those rows next round.
+                        return null;
+                      }
+                      // persistedCursor may be BEHIND fetchInstant when the stored cursor is
+                      // closer to wall-clock than the grace window allows (e.g. persisted before
+                      // the window existed): saving it deliberately moves the cursor backwards so
+                      // rows committing late inside the window are fetched again.
                       if (indexingStatus.isPresent()) {
                         IndexingStatus status = indexingStatus.get();
-                        status.setLastIndexing(newCursor);
+                        status.setLastIndexing(persistedCursor);
                         return status;
                       } else {
                         IndexingStatus status = new IndexingStatus();
                         status.setType(model.getName());
-                        status.setLastIndexing(newCursor);
+                        status.setLastIndexing(persistedCursor);
                         return status;
                       }
                     } catch (IOException e) {
