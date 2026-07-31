@@ -15,6 +15,7 @@ import RemediationInfoTab from '../settings/vulnerabilities/RemediationInfoTab';
 import TabLabelWithEE from '../settings/vulnerabilities/TabLabelWithEE';
 import { type VulnerabilityStatus } from '../settings/vulnerabilities/VulnerabilityDetail';
 import VulnerabilityTabPanel from '../settings/vulnerabilities/VulnerabilityTabPanel';
+import FindingComments from './FindingComments';
 
 interface Props {
   searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
@@ -73,10 +74,16 @@ const FindingDetail = ({
       }, {
         key: 'Remediation',
         label: <TabLabelWithEE label={t('Remediation')} />,
+      }, {
+        key: 'Comments',
+        label: t('Comments'),
       }]
     : [{
         key: 'Related Injects',
         label: t('Related Injects'),
+      }, {
+        key: 'Comments',
+        label: t('Comments'),
       }];
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
@@ -106,6 +113,8 @@ const FindingDetail = ({
               </VulnerabilityTabPanel>
             )
           : null;
+      case 'Comments':
+        return <FindingComments findingId={selectedFinding.finding_id} />;
       default:
         return null;
     }
