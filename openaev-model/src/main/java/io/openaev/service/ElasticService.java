@@ -444,14 +444,29 @@ public class ElasticService implements EngineService {
                             fetchInstant,
                             newCursor);
                       }
+                      // Rows flushed by a still-open transaction commit later with an already-past
+                      // updated_at: persisting a cursor beyond those timestamps would skip them
+                      // forever (the fetch is strictly greater-than). Keep the cursor at least the
+                      // grace window behind wall-clock; recent rows are re-fetched and re-upserted
+                      // (idempotent) on every round until they age past the window.
+                      Instant persistedCursor =
+                          EsIndexingUtils.capCursorToGraceWindow(
+                              newCursor,
+                              Instant.now(),
+                              engineConfig.getIndexingGraceWindowSeconds());
+                      if (fetchInstant != null && !persistedCursor.isAfter(fetchInstant)) {
+                        // Everything fetched is still inside the grace window: keep the current
+                        // cursor and re-process those rows next round.
+                        return null;
+                      }
                       if (indexingStatus.isPresent()) {
                         IndexingStatus status = indexingStatus.get();
-                        status.setLastIndexing(newCursor);
+                        status.setLastIndexing(persistedCursor);
                         return status;
                       } else {
                         IndexingStatus status = new IndexingStatus();
                         status.setType(model.getName());
-                        status.setLastIndexing(newCursor);
+                        status.setLastIndexing(persistedCursor);
                         return status;
                       }
                     } catch (IOException e) {

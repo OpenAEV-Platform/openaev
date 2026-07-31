@@ -123,4 +123,51 @@ class EsIndexingUtilsTest {
       assertThat(cursor).isEqualTo(ts(7));
     }
   }
+
+  @Nested
+  @DisplayName("capCursorToGraceWindow")
+  class CapCursorToGraceWindow {
+
+    @Test
+    @DisplayName("Cursor inside the grace window is capped to now minus the window")
+    void given_cursorInsideGraceWindow_should_capToNowMinusWindow() {
+      // A row updated 10s ago must not move the cursor past now-60s: a transaction that flushed
+      // its timestamps earlier but has not committed yet could still surface behind it.
+      Instant now = ts(1000);
+
+      Instant capped = EsIndexingUtils.capCursorToGraceWindow(ts(990), now, 60);
+
+      assertThat(capped).isEqualTo(ts(940));
+    }
+
+    @Test
+    @DisplayName("Cursor older than the grace window is kept as-is")
+    void given_cursorOlderThanGraceWindow_should_keepCursor() {
+      Instant now = ts(1000);
+
+      Instant capped = EsIndexingUtils.capCursorToGraceWindow(ts(900), now, 60);
+
+      assertThat(capped).isEqualTo(ts(900));
+    }
+
+    @Test
+    @DisplayName("Cursor exactly at the window boundary is kept as-is")
+    void given_cursorExactlyAtBoundary_should_keepCursor() {
+      Instant now = ts(1000);
+
+      Instant capped = EsIndexingUtils.capCursorToGraceWindow(ts(940), now, 60);
+
+      assertThat(capped).isEqualTo(ts(940));
+    }
+
+    @Test
+    @DisplayName("Zero grace window disables the cap for timestamps up to now")
+    void given_zeroGraceWindow_should_notCapPastTimestamps() {
+      Instant now = ts(1000);
+
+      Instant capped = EsIndexingUtils.capCursorToGraceWindow(ts(999), now, 0);
+
+      assertThat(capped).isEqualTo(ts(999));
+    }
+  }
 }

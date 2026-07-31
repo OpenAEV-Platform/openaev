@@ -105,6 +105,18 @@ public class EngineConfig {
      * per-route limit is the effective cap).
      */
     public static final int MAX_CONNECTIONS = 40;
+
+    /**
+     * Default indexing cursor grace window, in seconds. {@code @UpdateTimestamp} values are
+     * assigned when Hibernate flushes, but the rows only become visible to the indexing fetch at
+     * commit: a long transaction can therefore commit rows whose {@code updated_at} is already
+     * behind a cursor advanced by a concurrent sync round, and a strictly-greater-than fetch would
+     * never see them again. The persisted cursor is kept at least this far behind wall-clock, so
+     * recent rows are re-fetched (and idempotently re-upserted) on every round until they age past
+     * the window; any writer committing within the window is guaranteed to be indexed. Must exceed
+     * the longest expected write transaction (plus inter-node clock skew).
+     */
+    public static final long INDEXING_GRACE_WINDOW_SECONDS = 60;
   }
 
   private String engineSelector = Defaults.ENGINE_SELECTOR;
@@ -150,6 +162,8 @@ public class EngineConfig {
   private int socketTimeoutMs = Defaults.SOCKET_TIMEOUT_MS;
 
   private int maxConnections = Defaults.MAX_CONNECTIONS;
+
+  private long indexingGraceWindowSeconds = Defaults.INDEXING_GRACE_WINDOW_SECONDS;
 
   /**
    * Wildcard pattern matching all indices of this platform and only them.
