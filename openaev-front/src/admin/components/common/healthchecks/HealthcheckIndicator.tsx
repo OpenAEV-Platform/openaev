@@ -17,6 +17,7 @@ interface Props {
 }
 
 const DOCUMENTATION_ROOT_URL = 'https://docs.openaev.io';
+// UI-only warning kind used to route Logic tab issues through the same action switch as healthchecks.
 const LOGIC_WARNING_TYPE = 'LOGIC_WARNING';
 
 /**
@@ -36,6 +37,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
+  // Chaining headers aggregate backend healthchecks + frontend logic warnings in one counter.
   const totalWarnings = healthchecks.length + logicWarnings.length;
   if (totalWarnings === 0) {
     return null;
@@ -74,6 +76,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
         navigate(exerciseId ? `/admin/simulations/${exerciseId}/scope` : `/admin/scenarios/${scenarioId}/scope`);
         break;
       case LOGIC_WARNING_TYPE:
+        // Logic warning rows are resolved in the Logic tab (event field has no provider action).
         navigate(exerciseId ? `/admin/simulations/${exerciseId}/logic` : `/admin/scenarios/${scenarioId}/logic`);
         break;
       default:
@@ -98,7 +101,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
       status: 'WARNING' as const,
     })),
   ];
-  // One unified list drives both the count badge and the popover rows.
+  // One unified list drives both the badge count and the popover rows to keep them consistent.
 
   return (
     <>
