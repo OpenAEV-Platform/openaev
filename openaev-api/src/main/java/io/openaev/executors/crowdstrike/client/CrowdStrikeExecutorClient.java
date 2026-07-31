@@ -7,9 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.*;
-import io.openaev.executors.crowdstrike.model.Authentication;
-import io.openaev.executors.crowdstrike.model.ResourcesHosts;
-import io.openaev.executors.crowdstrike.model.ResourcesSession;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.service.EndpointService;
 import jakarta.validation.constraints.NotBlank;
@@ -20,7 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ClientProtocolException;
@@ -152,7 +152,7 @@ public class CrowdStrikeExecutorClient {
       Map<String, Object> bodySession = new HashMap<>();
       bodySession.put("device_id", deviceId);
       bodySession.put("queue_offline", false);
-      String jsonSessionResponse = this.postSync(SESSION_URI, bodySession);
+      String jsonSessionResponse = this.postSync(SESSION_URI, bodySession, deviceId);
       ResourcesSession sessions =
           this.objectMapper.readValue(jsonSessionResponse, new TypeReference<>() {});
       CrowdStrikeSession session = sessions.getResources().getFirst();
@@ -172,7 +172,7 @@ public class CrowdStrikeExecutorClient {
               + "\"  -CommandLine=```'{\"command\":\""
               + command
               + "\"}'```");
-      this.postAsync(REAL_TIME_RESPONSE_URI, bodyCommand);
+      this.postAsync(REAL_TIME_RESPONSE_URI, bodyCommand, deviceId);
     } catch (IOException e) {
       throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
     }
@@ -194,7 +194,8 @@ public class CrowdStrikeExecutorClient {
     }
   }
 
-  private String post(@NotBlank final String uri, @NotNull final Map<String, Object> body)
+  private String post(
+      @NotBlank final String uri, @NotNull final Map<String, Object> body, String deviceId)
       throws IOException {
     if (this.lastAuthentication.isBefore(Instant.now().minusSeconds(AUTH_TIMEOUT))) {
       this.authenticate();
@@ -207,21 +208,36 @@ public class CrowdStrikeExecutorClient {
       // Body
       StringEntity entity = new StringEntity(this.objectMapper.writeValueAsString(body));
       httpPost.setEntity(entity);
-      return httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
+      String responseEntity =
+          httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
+      ResourcesGroups resourcesGroups =
+          this.objectMapper.readValue(responseEntity, new TypeReference<>() {});
+      throwIfCrowdStrikeErrors(
+          "POST " + uri,
+          "deviceId=" + deviceId,
+          resourcesGroups.getErrors(),
+          resourcesGroups.getMeta() != null ? resourcesGroups.getMeta().getTraceId() : null);
+      return responseEntity;
     } catch (IOException e) {
-      throw new ClientProtocolException("Unexpected response", e);
+      throw new ClientProtocolException(
+          "Unexpected response for request on: " + uri + " (deviceId=" + deviceId + ")", e);
+    } catch (ExecutorException e) {
+      log.error("Error occurred during Crowdstrike post API request. Error: {}", e.getMessage(), e);
+      throw e;
     }
   }
 
-  private String postSync(@NotBlank final String uri, @NotNull final Map<String, Object> body)
+  private String postSync(
+      @NotBlank final String uri, @NotNull final Map<String, Object> body, final String deviceId)
       throws IOException {
-    return post(uri, body);
+    return post(uri, body, deviceId);
   }
 
   @Async
-  protected void postAsync(@NotBlank final String uri, @NotNull final Map<String, Object> body)
+  protected void postAsync(
+      @NotBlank final String uri, @NotNull final Map<String, Object> body, final String deviceId)
       throws IOException {
-    post(uri, body);
+    post(uri, body, deviceId);
   }
 
   private void authenticate() throws IOException {
