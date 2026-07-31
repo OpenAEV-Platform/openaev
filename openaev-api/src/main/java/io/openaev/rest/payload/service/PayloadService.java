@@ -159,7 +159,7 @@ public class PayloadService {
 
   private List<ContractElement> targetedAssetFields(String key, PayloadArgument payloadArgument) {
     ContractElement targetedAssetField = new ContractTargetedAsset(key, key);
-    targetedAssetField.setPayloadArgumentType(payloadArgument.getType());
+    targetedAssetField.setArgumentType(payloadArgument.getType());
 
     Map<String, String> targetPropertySelectorMap = new HashMap<>();
     for (ContractTargetedProperty property : ContractTargetedProperty.values()) {
@@ -224,7 +224,7 @@ public class PayloadService {
                           payloadArgument.getKey(),
                           payloadArgument.getKey(),
                           payloadArgument.getDefaultValue());
-                  textField.setPayloadArgumentType(payloadArgument.getType());
+                  textField.setArgumentType(payloadArgument.getType());
                   builder.mandatory(textField);
                 }
               });
