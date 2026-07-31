@@ -12,18 +12,22 @@ import {
   Public,
   Shield,
   Storage,
+  type SvgIconComponent,
   TrackChanges,
 } from '@mui/icons-material';
-import { Alert, Box, Button, Card, CardActionArea, Stack, type SvgIconTypeMap, TextField, Typography } from '@mui/material';
-import { type OverridableComponent } from '@mui/material/OverridableComponent';
+import { Alert, Autocomplete, Box, Button, Card, CardActionArea, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { searchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { createAutonomousRun, fetchObjectiveTemplates, startAutonomousRun } from '../../../actions/autonomous/autonomous-actions';
 import { type AutonomousObjectiveTemplate } from '../../../actions/autonomous/autonomous-types';
 import Drawer from '../../../components/common/Drawer';
+import { type Page } from '../../../components/common/queryable/Page';
+import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../components/i18n';
+import { type AssetGroup } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { isFeatureEnabled } from '../../../utils/utils';
@@ -32,8 +36,7 @@ import EEChip from '../common/entreprise_edition/EEChip';
 // Maps the objective-template icon tokens seeded server-side (kebab-case, see
 // AutonomousObjectiveTemplateService) to MUI icons. Unknown/empty tokens fall
 // back to a generic "objective" target icon.
-type MuiIcon = OverridableComponent<SvgIconTypeMap>;
-const OBJECTIVE_ICONS: Record<string, MuiIcon> = {
+const OBJECTIVE_ICONS: Record<string, SvgIconComponent> = {
   'domain': Dns,
   'database': Storage,
   'shield': Shield,
@@ -48,15 +51,34 @@ const OBJECTIVE_ICONS: Record<string, MuiIcon> = {
   'user-check': HowToReg,
 };
 
+export interface AutonomousAttackCreationProps {
+  /** Pre-select an asset group as the run scope (used by entity "Autonomous attack" entries). */
+  presetScopeAssetGroupId?: string;
+  /** Display name for the preset scope, so the picker shows it before the list loads. */
+  presetScopeAssetGroupName?: string;
+  /**
+   * Trigger rendering: the full contained CTA button (default, used on list pages) or a
+   * compact hero icon button with a tooltip (used on entity detail heroes, next to Reports).
+   */
+  variant?: 'button' | 'icon';
+}
+
 /**
  * Dedicated, deeply-integrated entry point for the Autonomous (AI-driven) attack path. Rendered as a
- * visible top-right action (scenarios list, and reusable elsewhere), gated behind the
- * {@code AUTONOMOUS_ATTACK_PATH} preview feature and the Enterprise Edition license (every AI feature
+ * visible action - a contained CTA on list pages ({@code variant="button"}, the default) or a compact
+ * AI-purple icon button on entity detail heroes ({@code variant="icon"}, next to Reports). Gated behind
+ * the {@code AUTONOMOUS_ATTACK_PATH} preview feature and the Enterprise Edition license (every AI feature
  * is EE-only). The drawer is intentionally minimal - pick an objective (template or free text),
  * optionally label the run, then launch. There is nothing to build by hand: the attack-path
  * substrate is auto-provisioned server-side and the AI orchestrator builds and executes the path.
+ *
+ * On the asset-group hero it pre-selects the group as the run scope via {@code presetScopeAssetGroupId}.
  */
-const AutonomousAttackCreation: FunctionComponent = () => {
+const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps> = ({
+  presetScopeAssetGroupId,
+  presetScopeAssetGroupName,
+  variant = 'button',
+}) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -74,6 +96,8 @@ const AutonomousAttackCreation: FunctionComponent = () => {
   const [objective, setObjective] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [assetGroups, setAssetGroups] = useState<AssetGroup[]>([]);
+  const [scopeAssetGroupId, setScopeAssetGroupId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +108,17 @@ const AutonomousAttackCreation: FunctionComponent = () => {
     fetchObjectiveTemplates()
       .then(res => setTemplates(res.data ?? []))
       .catch(() => setTemplates([]));
+    searchAssetGroups(buildSearchPagination({ size: 100 }))
+      .then((result: { data: Page<AssetGroup> }) => setAssetGroups(result.data.content ?? []))
+      .catch(() => setAssetGroups([]));
   }, [open]);
+
+  // Apply the preset scope (e.g. an asset group's "Autonomous attack") whenever the drawer opens.
+  useEffect(() => {
+    if (open && presetScopeAssetGroupId) {
+      setScopeAssetGroupId(presetScopeAssetGroupId);
+    }
+  }, [open, presetScopeAssetGroupId]);
 
   const handleOpen = () => {
     if (!isEnterpriseEdition) {
@@ -101,6 +135,7 @@ const AutonomousAttackCreation: FunctionComponent = () => {
     setObjective('');
     setName('');
     setDescription('');
+    setScopeAssetGroupId(null);
     setError(null);
   };
 
@@ -110,6 +145,26 @@ const AutonomousAttackCreation: FunctionComponent = () => {
   };
 
   const canLaunch = objective.trim().length > 0 && !submitting;
+
+  // Target-dependent objectives (e.g. web-app exploitation, crown-jewel) need a specific target.
+  // Pre-selecting a scope here is always optional - if left empty, the orchestrator resolves the
+  // scope on its first cycle and parks to ask you one precise question when the target is ambiguous.
+  const selectedTemplate = templates.find(
+    template => template.autonomous_objective_template_key === selectedTemplateKey,
+  );
+  const isTargetDependent = selectedTemplate?.autonomous_objective_template_scope_mode === 'target';
+
+  // Ensure a preset scope renders in the picker even before the asset-group list loads.
+  const assetGroupOptions
+    = presetScopeAssetGroupId && !assetGroups.some(group => group.asset_group_id === presetScopeAssetGroupId)
+      ? [
+          {
+            asset_group_id: presetScopeAssetGroupId,
+            asset_group_name: presetScopeAssetGroupName ?? presetScopeAssetGroupId,
+          } as unknown as AssetGroup,
+          ...assetGroups,
+        ]
+      : assetGroups;
 
   const handleLaunch = () => {
     if (objective.trim().length === 0) {
@@ -122,6 +177,7 @@ const AutonomousAttackCreation: FunctionComponent = () => {
       objective_template_key: selectedTemplateKey ?? undefined,
       name: name.trim() || undefined,
       description: description.trim() || undefined,
+      scope_asset_group_id: scopeAssetGroupId ?? undefined,
     })
       .then((res) => {
         const runId = res.data.autonomous_run_id;
@@ -137,34 +193,59 @@ const AutonomousAttackCreation: FunctionComponent = () => {
   // The autonomous run is driven by the XTM One orchestrator (the AI brain), so
   // the entry point is meaningless without a configured XTM One - hide it exactly
   // like the CTEM Command Center shortcut does, and when agentic AI is disabled.
-  const xtmOneReady =
-    settings.platform_xtm_one_configured === true
-    && settings.filigran_chatbot_ai_cgu_status !== 'disabled';
+  const xtmOneReady
+    = settings.platform_xtm_one_configured === true
+      && settings.filigran_chatbot_ai_cgu_status !== 'disabled';
   if (!featureEnabled || !xtmOneReady) {
     return null;
   }
 
   return (
     <>
-      <Button
-        onClick={handleOpen}
-        variant="contained"
-        size="small"
-        data-testid="button-autonomous-attack"
-        startIcon={<AutoAwesome />}
-        sx={{
-          'whiteSpace': 'nowrap',
-          'flexShrink': 0,
-          // AI purple: this is an XTM One (agentic AI) action, like the CTEM and
-          // Ask Ariane buttons - not a generic primary CTA.
-          'backgroundColor': theme.palette.ai.main,
-          'color': theme.palette.ai.contrastText,
-          '&:hover': { backgroundColor: theme.palette.ai.dark },
-        }}
-      >
-        {t('Autonomous attack')}
-        {!isEnterpriseEdition && <EEChip />}
-      </Button>
+      {variant === 'icon'
+        ? (
+            // Compact hero action, styled like the Reports icon button next to it but in AI
+            // purple. EE is enforced on click (handleOpen), so non-EE users still see it and
+            // get the standard EE upsell dialog - matching the CTA button's behaviour.
+            <Tooltip title={t('Autonomous attack')}>
+              <IconButton
+                onClick={handleOpen}
+                size="small"
+                aria-label={t('Autonomous attack')}
+                data-testid="button-autonomous-attack"
+                sx={{
+                  'color': theme.palette.ai.main,
+                  '&:hover': {
+                    color: theme.palette.ai.dark,
+                    backgroundColor: alpha(theme.palette.ai.main, 0.08),
+                  },
+                }}
+              >
+                <AutoAwesome fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )
+        : (
+            <Button
+              onClick={handleOpen}
+              variant="contained"
+              size="small"
+              data-testid="button-autonomous-attack"
+              startIcon={<AutoAwesome />}
+              sx={{
+                'whiteSpace': 'nowrap',
+                'flexShrink': 0,
+                // AI purple: this is an XTM One (agentic AI) action, like the CTEM and
+                // Ask Ariane buttons - not a generic primary CTA.
+                'backgroundColor': theme.palette.ai.main,
+                'color': theme.palette.ai.contrastText,
+                '&:hover': { backgroundColor: theme.palette.ai.dark },
+              }}
+            >
+              {t('Autonomous attack')}
+              {!isEnterpriseEdition && <EEChip />}
+            </Button>
+          )}
       <Drawer open={open} handleClose={handleClose} title={t('Launch an autonomous attack')}>
         {() => (
           <Stack sx={{ gap: theme.spacing(3) }}>
@@ -209,7 +290,10 @@ const AutonomousAttackCreation: FunctionComponent = () => {
                     >
                       <CardActionArea
                         onClick={() => handleSelectTemplate(template)}
-                        sx={{ padding: theme.spacing(1.5), height: '100%' }}
+                        sx={{
+                          padding: theme.spacing(1.5),
+                          height: '100%',
+                        }}
                       >
                         <Stack direction="row" spacing={1.5} alignItems="flex-start">
                           <ObjectiveIcon
@@ -252,6 +336,39 @@ const AutonomousAttackCreation: FunctionComponent = () => {
 
             <Box>
               <Typography variant="h2" gutterBottom>
+                {t('Scope (optional)')}
+              </Typography>
+              <Autocomplete
+                options={assetGroupOptions}
+                value={assetGroupOptions.find(group => group.asset_group_id === scopeAssetGroupId) ?? null}
+                onChange={(_, value) => setScopeAssetGroupId(value?.asset_group_id ?? null)}
+                getOptionLabel={group => group.asset_group_name}
+                isOptionEqualToValue={(option, value) => option.asset_group_id === value.asset_group_id}
+                renderInput={params => (
+                  <TextField
+                    {...params}
+                    label={t('Restrict to an asset group')}
+                    placeholder={t('Leave empty to let the AI resolve the scope')}
+                  />
+                )}
+                fullWidth
+              />
+              <Typography
+                variant="caption"
+                color={isTargetDependent ? 'warning.main' : 'text.secondary'}
+                sx={{
+                  display: 'block',
+                  marginTop: theme.spacing(1),
+                }}
+              >
+                {isTargetDependent
+                  ? t('This objective targets specific assets. Pick an asset group to focus the attack, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.')
+                  : t('Optional. This objective runs across the whole authorized environment; set an asset group only to narrow the blast radius.')}
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography variant="h2" gutterBottom>
                 {t('Label (optional)')}
               </Typography>
               <Stack sx={{ gap: theme.spacing(2) }}>
@@ -276,7 +393,12 @@ const AutonomousAttackCreation: FunctionComponent = () => {
 
             {error && <Alert severity="error">{error}</Alert>}
 
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: theme.spacing(1) }}>
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: theme.spacing(1),
+            }}
+            >
               <Button onClick={handleClose} disabled={submitting}>
                 {t('Cancel')}
               </Button>

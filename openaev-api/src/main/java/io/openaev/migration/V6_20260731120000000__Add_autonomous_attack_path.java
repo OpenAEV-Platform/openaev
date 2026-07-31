@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  * <p>Purely additive and idempotent ({@code IF NOT EXISTS} throughout), so re-running is a no-op.
  */
 @Component
-public class V6_20260731100000000__Add_autonomous_attack_path extends BaseJavaMigration {
+public class V6_20260731120000000__Add_autonomous_attack_path extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -114,6 +114,7 @@ public class V6_20260731100000000__Add_autonomous_attack_path extends BaseJavaMi
               autonomous_objective_template_icon            varchar(255),
               autonomous_objective_template_prompt          text NOT NULL,
               autonomous_objective_template_kill_chain_focus varchar(255),
+              autonomous_objective_template_scope_mode      varchar(255) NOT NULL DEFAULT 'environment',
               autonomous_objective_template_builtin         boolean NOT NULL DEFAULT false,
               autonomous_objective_template_enabled         boolean NOT NULL DEFAULT true,
               autonomous_objective_template_order           integer NOT NULL DEFAULT 0,
@@ -121,6 +122,14 @@ public class V6_20260731100000000__Add_autonomous_attack_path extends BaseJavaMi
               autonomous_objective_template_updated_at      timestamp NOT NULL DEFAULT now()
           );
           """);
+      // Self-heal dev/staging databases that applied an earlier stamp of this migration which
+      // created the table WITHOUT scope_mode: CREATE TABLE IF NOT EXISTS no-ops on the existing
+      // table, so add the column idempotently. Constant-default ADD COLUMN is metadata-only on
+      // PG 11+, and this is a no-op on fresh installs where CREATE TABLE already added it.
+      statement.execute(
+          "ALTER TABLE autonomous_objective_templates "
+              + "ADD COLUMN IF NOT EXISTS autonomous_objective_template_scope_mode "
+              + "varchar(255) NOT NULL DEFAULT 'environment';");
       statement.execute(
           "CREATE UNIQUE INDEX IF NOT EXISTS idx_autonomous_obj_tpl_tenant_key "
               + "ON autonomous_objective_templates (tenant_id, "

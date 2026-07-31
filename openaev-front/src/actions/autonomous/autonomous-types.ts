@@ -3,23 +3,26 @@
 // than in the generated api-types.d.ts) until `yarn generate-types-from-api` is run against a built
 // backend carrying the new endpoints; once regenerated, switch the imports to api-types.
 
-export type AutonomousRunStatus =
-  | 'CREATED'
-  | 'RUNNING'
-  | 'PAUSED'
-  | 'WAITING_INPUT'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'CANCELED';
+export type AutonomousRunStatus
+  = | 'CREATED'
+    | 'RUNNING'
+    | 'PAUSED'
+    | 'WAITING_INPUT'
+    | 'COMPLETED'
+    | 'FAILED'
+    | 'CANCELED';
 
-export type AutonomousEventType =
-  | 'STATUS'
-  | 'NARRATION'
-  | 'DECISION'
-  | 'TOOL_ACTION'
-  | 'CAPABILITY_GAP'
-  | 'PROOF'
-  | 'DIRECTIVE';
+// Mirrors io.openaev.database.model.autonomous.AutonomousEventType.
+export type AutonomousEventType
+  = | 'NARRATION'
+    | 'DECISION'
+    | 'TOOL_ACTION'
+    | 'HANDOVER'
+    | 'GAP'
+    | 'STATUS'
+    | 'DIRECTIVE'
+    | 'QUESTION'
+    | 'PROOF';
 
 export type AutonomousDirectiveStatus = 'PENDING' | 'CONSUMED';
 
@@ -66,6 +69,9 @@ export interface AutonomousObjectiveTemplate {
   autonomous_objective_template_icon?: string | null;
   autonomous_objective_template_prompt: string;
   autonomous_objective_template_kill_chain_focus?: string | null;
+  // 'environment' = whole authorized scope, no target choice needed; 'target' = needs a specific
+  // target the operator picks up front (optional scope selector) or the orchestrator asks for.
+  autonomous_objective_template_scope_mode?: string | null;
   autonomous_objective_template_builtin?: boolean;
 }
 

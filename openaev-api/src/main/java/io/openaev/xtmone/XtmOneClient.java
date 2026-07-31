@@ -400,6 +400,7 @@ public class XtmOneClient {
       String openaevRunId,
       String simulationId,
       String scopeAssetGroupId,
+      String scopeMode,
       String callbackBaseUrl) {
     if (!config.isConfigured()) {
       return null;
@@ -412,6 +413,7 @@ public class XtmOneClient {
       body.put("openaev_run_id", openaevRunId);
       body.put("simulation_id", simulationId);
       if (scopeAssetGroupId != null) body.put("scope_asset_group_id", scopeAssetGroupId);
+      if (scopeMode != null) body.put("scope_mode", scopeMode);
       body.put("callback_base_url", callbackBaseUrl);
       String json = objectMapper.writeValueAsString(body);
 
@@ -432,6 +434,40 @@ public class XtmOneClient {
       log.warn("[XTM One] Start autonomous run error, agent={}.", agentSlug, e);
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Failed to start autonomous run", e);
+    }
+  }
+
+  /**
+   * Best-effort wake for a parked autonomous run. When the operator queues a steering directive (or
+   * answers a waiting-input question), the orchestrator may be parked between decision cycles - this
+   * re-arms it so it resumes immediately instead of only at its scheduled re-check. Fire-and-forget:
+   * a failure never breaks queuing the directive, because the deadline sweep is the backstop.
+   */
+  public void wakeAutonomousRun(String openaevRunId, String reason) {
+    if (!config.isConfigured() || openaevRunId == null) {
+      return;
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      Map<String, Object> body = new HashMap<>();
+      if (reason != null) body.put("reason", reason);
+      String json = objectMapper.writeValueAsString(body);
+      String encodedRunId = URLEncoder.encode(openaevRunId, StandardCharsets.UTF_8);
+      HttpPost httpPost =
+          chatPostBuilder(
+              "/api/v1/platform/autonomous/runs/" + encodedRunId + "/wake", jwt, json);
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(20)).build());
+      httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getEntity() != null) {
+              EntityUtils.consume(response.getEntity());
+            }
+            return null;
+          });
+    } catch (Exception e) {
+      // Non-fatal: the scheduled resume / deadline sweep re-checks the run anyway.
+      log.warn("[XTM One] Wake autonomous run error, run={}.", openaevRunId, e);
     }
   }
 

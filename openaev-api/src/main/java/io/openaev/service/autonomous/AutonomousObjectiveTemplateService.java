@@ -30,7 +30,14 @@ public class AutonomousObjectiveTemplateService {
       String description,
       String icon,
       String killChainFocus,
+      String scopeMode,
       String prompt) {}
+
+  /** Objective operates over the whole authorized environment; no target choice needed. */
+  private static final String SCOPE_ENVIRONMENT = "environment";
+
+  /** Objective is meaningless without a specific target the operator picks (or the AI asks for). */
+  private static final String SCOPE_TARGET = "target";
 
   private static final List<Builtin> BUILTINS =
       List.of(
@@ -41,6 +48,7 @@ public class AutonomousObjectiveTemplateService {
                   + " privileged access.",
               "domain",
               "lateral-movement",
+              SCOPE_ENVIRONMENT,
               "Starting from the in-scope perimeter, perform reconnaissance, find and exploit a"
                   + " foothold, escalate privileges, and move laterally until you reach and prove"
                   + " administrative access on a domain controller. Prefer the shortest credible"
@@ -51,6 +59,7 @@ public class AutonomousObjectiveTemplateService {
               "Reach sensitive data stores and demonstrate a non-destructive exfiltration path.",
               "database",
               "exfiltration",
+              SCOPE_ENVIRONMENT,
               "Identify sensitive data repositories inside the scope, obtain access to them, and"
                   + " demonstrate a viable exfiltration channel with a benign marker file. Do not"
                   + " destroy or alter real data; the goal is to prove the path end to end."),
@@ -60,6 +69,7 @@ public class AutonomousObjectiveTemplateService {
               "Exercise a broad set of techniques to measure which are detected and prevented.",
               "shield",
               null,
+              SCOPE_ENVIRONMENT,
               "Run a representative spread of ATT&CK techniques across the kill chain against the"
                   + " in-scope assets and report, per technique, whether it was prevented,"
                   + " detected, or missed by the security stack. Optimise for coverage of the"
@@ -70,6 +80,7 @@ public class AutonomousObjectiveTemplateService {
               "Find and exploit an exposed service or credential to establish a first foothold.",
               "door-open",
               "initial-access",
+              SCOPE_ENVIRONMENT,
               "Enumerate the externally or internally exposed surface of the scope, identify the"
                   + " weakest exploitable entry point (vulnerable service, default or leaked"
                   + " credential, misconfiguration) and establish an initial foothold. Stop once a"
@@ -80,6 +91,7 @@ public class AutonomousObjectiveTemplateService {
               "From an existing foothold, escalate to local or domain administrator.",
               "arrow-up",
               "privilege-escalation",
+              SCOPE_ENVIRONMENT,
               "Assume a low-privilege foothold on an in-scope host and escalate to the highest"
                   + " privilege reachable on that host and in the domain. Chain misconfigurations,"
                   + " vulnerable services, and harvested credentials as needed."),
@@ -89,6 +101,7 @@ public class AutonomousObjectiveTemplateService {
               "Collect valid credentials via phishing, dumping, or scanning to enable movement.",
               "key",
               "credential-access",
+              SCOPE_ENVIRONMENT,
               "Obtain valid credentials for in-scope identities using the available capabilities"
                   + " (credential dumping, phishing, brute force against exposed services, secret"
                   + " scanning). Report each credential with how it was obtained and what it"
@@ -99,6 +112,7 @@ public class AutonomousObjectiveTemplateService {
               "Run a credential-harvesting phishing campaign and pivot the captured access.",
               "mail",
               "initial-access",
+              SCOPE_ENVIRONMENT,
               "Design and launch a phishing campaign against the in-scope audience to capture"
                   + " credentials or execution, then use the captured access as a foothold and"
                   + " continue toward broader access. Keep payloads benign and clearly marked."),
@@ -108,6 +122,7 @@ public class AutonomousObjectiveTemplateService {
               "From one compromised host, spread as widely as possible across the scope.",
               "network",
               "lateral-movement",
+              SCOPE_ENVIRONMENT,
               "Starting from a single compromised host, enumerate reachable systems and move"
                   + " laterally to compromise as many in-scope hosts as possible, reusing"
                   + " harvested credentials and trust relationships. Map the blast radius."),
@@ -117,6 +132,7 @@ public class AutonomousObjectiveTemplateService {
               "Emulate a ransomware operator end to end with non-destructive proof actions.",
               "lock",
               "impact",
+              SCOPE_ENVIRONMENT,
               "Emulate a full ransomware operator kill chain (initial access, discovery,"
                   + " credential access, lateral movement, staging) and, at the impact stage, use"
                   + " only benign proof actions (drop a marker file, list what would be encrypted)."
@@ -127,6 +143,7 @@ public class AutonomousObjectiveTemplateService {
               "Target a specified business-critical asset and prove whether it can be reached.",
               "gem",
               null,
+              SCOPE_TARGET,
               "Treat the operator-named asset (see the objective detail) as the crown jewel. Find"
                   + " and prove the most credible attack path to compromise it, or conclude with"
                   + " evidence that it is not reachable from the current scope."),
@@ -136,6 +153,7 @@ public class AutonomousObjectiveTemplateService {
               "Focus on in-scope web applications and chain web vulns into deeper access.",
               "globe",
               "initial-access",
+              SCOPE_TARGET,
               "Concentrate on the in-scope web applications: enumerate endpoints, find and exploit"
                   + " web vulnerabilities (injection, auth bypass, SSRF, file upload) and chain"
                   + " them into server or credential access. Report each exploited vulnerability."),
@@ -145,6 +163,7 @@ public class AutonomousObjectiveTemplateService {
               "Start from a given foothold and measure how far an attacker gets from there.",
               "user-check",
               null,
+              SCOPE_ENVIRONMENT,
               "Assume the attacker already has the foothold described in the objective detail."
                   + " From there, pursue maximum impact: privilege escalation, lateral movement,"
                   + " and access to sensitive assets, quantifying how far a breach of that entry"
@@ -179,6 +198,7 @@ public class AutonomousObjectiveTemplateService {
       template.setIcon(b.icon());
       template.setPrompt(b.prompt());
       template.setKillChainFocus(b.killChainFocus());
+      template.setScopeMode(b.scopeMode());
       template.setBuiltin(true);
       template.setEnabled(true);
       template.setOrder(order);

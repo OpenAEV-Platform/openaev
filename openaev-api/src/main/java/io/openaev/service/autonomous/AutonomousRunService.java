@@ -22,7 +22,6 @@ import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
@@ -38,6 +37,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -161,6 +162,7 @@ public class AutonomousRunService {
             run.getId(),
             run.getSimulationId(),
             run.getScopeAssetGroupId(),
+            resolveScopeMode(run.getObjectiveTemplateKey()),
             openAEVConfig.getBaseUrl());
     if (handle != null) {
       run.setXtmSessionId(asString(handle.get("session_id")));
@@ -314,7 +316,30 @@ public class AutonomousRunService {
         "Operator directive queued",
         content,
         null);
+    // Re-arm the orchestrator so it picks up the directive now, not only at its next scheduled
+    // re-check - crucial when the run is parked in WAITING_INPUT after asking the operator a
+    // question. Fired after commit so the orchestrator can never consume before the row is visible.
+    wakeOrchestratorAfterCommit(runId, "operator directive queued");
     return saved;
+  }
+
+  /**
+   * Registers a best-effort, after-commit wake to the XTM One orchestrator for {@code runId}. Runs
+   * only once the surrounding transaction commits (so the directive is visible to the orchestrator's
+   * consume-directives read); a synchronous fallback is used when there is no active transaction.
+   */
+  private void wakeOrchestratorAfterCommit(String runId, String reason) {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              xtmOneClient.wakeAutonomousRun(runId, reason);
+            }
+          });
+    } else {
+      xtmOneClient.wakeAutonomousRun(runId, reason);
+    }
   }
 
   /**
@@ -409,6 +434,20 @@ public class AutonomousRunService {
 
   private String defaultScenarioDescription(String objective) {
     return "Auto-provisioned for an autonomous AI attack-path run.\n\nObjective:\n" + objective;
+  }
+
+  /**
+   * Resolves the objective's scope mode ({@code environment} vs {@code target}) from its template so
+   * the orchestrator can deterministically decide, on its first cycle, whether it must resolve a
+   * specific target (and ask the operator when ambiguous). Free-text runs have no template, so
+   * {@code null} is returned and the orchestrator classifies the objective itself.
+   */
+  private String resolveScopeMode(String objectiveTemplateKey) {
+    if (!hasText(objectiveTemplateKey)) {
+      return null;
+    }
+    AutonomousObjectiveTemplate template = templateService.findByKeyOrNull(objectiveTemplateKey);
+    return template != null ? template.getScopeMode() : null;
   }
 
   private String resolveObjective(AutonomousRunCreateInput input) {

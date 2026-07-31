@@ -72,6 +72,17 @@ public class AutonomousObjectiveTemplate implements TenantBase {
   @Schema(description = "Optional kill-chain phase focus hint")
   private String killChainFocus;
 
+  @NotNull
+  @Column(name = "autonomous_objective_template_scope_mode", nullable = false)
+  @JsonProperty("autonomous_objective_template_scope_mode")
+  @Schema(
+      description =
+          "Whether the objective is environment-wide (operates over the whole authorized scope, no"
+              + " target choice needed) or target-dependent (needs a specific target/asset the"
+              + " operator picks up front or the orchestrator asks for). One of: environment,"
+              + " target.")
+  private String scopeMode = "environment";
+
   @Column(name = "autonomous_objective_template_builtin", nullable = false)
   @JsonProperty("autonomous_objective_template_builtin")
   @Schema(description = "Whether this is a seeded built-in template")

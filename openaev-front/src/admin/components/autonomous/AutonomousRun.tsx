@@ -1,8 +1,8 @@
-import { AccountTreeOutlined, AutoAwesome, BoltOutlined, CancelOutlined, CheckCircleOutline, ErrorOutline, ExtensionOutlined, PauseCircleOutline, PlayCircleOutline, SendOutlined, WarningAmberOutlined } from '@mui/icons-material';
+import { AccountTreeOutlined, AutoAwesome, BoltOutlined, CancelOutlined, CheckCircleOutline, DownloadOutlined, ErrorOutline, ExtensionOutlined, HelpOutline, PauseCircleOutline, PlayCircleOutline, SendOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, CircularProgress, Divider, IconButton, Paper, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 
 import {
   addAutonomousDirective,
@@ -49,12 +49,16 @@ const eventIcon = (type: AutonomousEventType): ReactNode => {
       return <BoltOutlined fontSize="small" color="primary" />;
     case 'TOOL_ACTION':
       return <ExtensionOutlined fontSize="small" color="info" />;
-    case 'CAPABILITY_GAP':
+    case 'GAP':
       return <WarningAmberOutlined fontSize="small" color="warning" />;
+    case 'QUESTION':
+      return <HelpOutline fontSize="small" color="warning" />;
     case 'PROOF':
       return <CheckCircleOutline fontSize="small" color="success" />;
     case 'DIRECTIVE':
       return <SendOutlined fontSize="small" color="secondary" />;
+    case 'HANDOVER':
+      return <AccountTreeOutlined fontSize="small" color="info" />;
     case 'NARRATION':
       return <AutoAwesome fontSize="small" color="primary" />;
     default:
@@ -72,7 +76,6 @@ const AutonomousRun: FunctionComponent = () => {
   const { runId } = useParams<{ runId: string }>();
   const { t, nsdt } = useFormatter();
   const theme = useTheme();
-  const navigate = useNavigate();
 
   const [run, setRun] = useState<AutonomousRunModel | null>(null);
   const [events, setEvents] = useState<AutonomousEvent[]>([]);
@@ -151,22 +154,118 @@ const AutonomousRun: FunctionComponent = () => {
 
   const status = run.autonomous_run_status;
   const isActive = ACTIVE_STATUSES.includes(status);
-  const capabilityGaps = events.filter(e => e.autonomous_event_type === 'CAPABILITY_GAP');
+  const capabilityGaps = events.filter(e => e.autonomous_event_type === 'GAP');
+  // Proof-of-exploitation case file: every PROOF event is a piece of evidence that an objective
+  // (or a key milestone) was achieved. Aggregated here into an operator-facing report.
+  const proofEvents = events.filter(e => e.autonomous_event_type === 'PROOF');
+
+  // Assemble a self-contained Markdown proof-of-exploitation report from the run and its timeline.
+  const buildProofReport = (): string => {
+    const lines: string[] = [];
+    lines.push('# Autonomous attack path - proof of exploitation report');
+    lines.push('');
+    lines.push(`- Status: ${status}`);
+    lines.push(`- Run id: ${run.autonomous_run_id}`);
+    if (run.autonomous_run_created_at) {
+      lines.push(`- Started: ${nsdt(run.autonomous_run_created_at)}`);
+    }
+    lines.push('');
+    lines.push('## Objective');
+    lines.push('');
+    lines.push(run.autonomous_run_objective);
+    lines.push('');
+    lines.push(`## Evidence (${proofEvents.length})`);
+    lines.push('');
+    if (proofEvents.length === 0) {
+      lines.push('_No proof-of-exploitation evidence was recorded._');
+    } else {
+      proofEvents.forEach((event, index) => {
+        lines.push(`### ${index + 1}. ${event.autonomous_event_title ?? t('Proof')}`);
+        if (event.autonomous_event_created_at) {
+          lines.push(`_${nsdt(event.autonomous_event_created_at)}_`);
+        }
+        lines.push('');
+        if (event.autonomous_event_content) {
+          lines.push(event.autonomous_event_content);
+          lines.push('');
+        }
+        if (event.autonomous_event_data) {
+          lines.push('```json');
+          lines.push(event.autonomous_event_data);
+          lines.push('```');
+          lines.push('');
+        }
+      });
+    }
+    if (capabilityGaps.length > 0) {
+      lines.push(`## Capability gaps (${capabilityGaps.length})`);
+      lines.push('');
+      capabilityGaps.forEach((gap) => {
+        lines.push(`- ${gap.autonomous_event_title ?? t('Capability gap')}`
+          + (gap.autonomous_event_content ? `: ${gap.autonomous_event_content}` : ''));
+      });
+      lines.push('');
+    }
+    return lines.join('\n');
+  };
+
+  const handleExportReport = () => {
+    const report = buildProofReport();
+    const blob = new Blob([report], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `autonomous-attack-${run.autonomous_run_id}-proof-report.md`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  };
+  // When the orchestrator parks in WAITING_INPUT it raises a QUESTION event; surface the latest
+  // one prominently so the operator knows exactly what to answer (e.g. which assets are in scope).
+  const isWaitingInput = status === 'WAITING_INPUT';
+  const pendingQuestion = isWaitingInput
+    ? [...events].reverse().find(e => e.autonomous_event_type === 'QUESTION')
+    : undefined;
 
   return (
     <>
       <Breadcrumbs
         variant="object"
         elements={[
-          { label: t('Scenarios'), link: '/admin/scenarios' },
-          { label: t('Autonomous attack'), current: true },
+          {
+            label: t('Scenarios'),
+            link: '/admin/scenarios',
+          },
+          {
+            label: t('Autonomous attack'),
+            current: true,
+          },
         ]}
       />
 
-      <Paper variant="outlined" sx={{ padding: theme.spacing(2), marginBottom: theme.spacing(2) }}>
-        <Stack sx={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: theme.spacing(2) }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          padding: theme.spacing(2),
+          marginBottom: theme.spacing(2),
+        }}
+      >
+        <Stack sx={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: theme.spacing(2),
+        }}
+        >
           <Box sx={{ flex: 1 }}>
-            <Stack sx={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing(1), marginBottom: theme.spacing(1) }}>
+            <Stack sx={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing(1),
+              marginBottom: theme.spacing(1),
+            }}
+            >
               <AutoAwesome color="primary" />
               <Typography variant="h6" sx={{ margin: 0 }}>{t('Autonomous attack path')}</Typography>
               <Chip size="small" label={t(status)} color={statusColor(status)} variant="outlined" />
@@ -180,7 +279,12 @@ const AutonomousRun: FunctionComponent = () => {
               </Alert>
             )}
           </Box>
-          <Stack sx={{ flexDirection: 'row', gap: theme.spacing(1), alignItems: 'center' }}>
+          <Stack sx={{
+            flexDirection: 'row',
+            gap: theme.spacing(1),
+            alignItems: 'center',
+          }}
+          >
             {run.autonomous_run_simulation_id && (
               <Button
                 component={Link}
@@ -226,12 +330,30 @@ const AutonomousRun: FunctionComponent = () => {
       </Paper>
 
       {capabilityGaps.length > 0 && (
-        <Paper variant="outlined" sx={{ padding: theme.spacing(2), marginBottom: theme.spacing(2), borderColor: theme.palette.warning.main }}>
-          <Stack sx={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing(1), marginBottom: theme.spacing(1) }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            padding: theme.spacing(2),
+            marginBottom: theme.spacing(2),
+            borderColor: theme.palette.warning.main,
+          }}
+        >
+          <Stack sx={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing(1),
+            marginBottom: theme.spacing(1),
+          }}
+          >
             <WarningAmberOutlined color="warning" fontSize="small" />
             <Typography variant="subtitle2" sx={{ margin: 0 }}>{t('Capability gaps')}</Typography>
           </Stack>
-          <Stack sx={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing(1) }}>
+          <Stack sx={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: theme.spacing(1),
+          }}
+          >
             {capabilityGaps.map(gap => (
               <Chip
                 key={gap.autonomous_event_id}
@@ -245,9 +367,133 @@ const AutonomousRun: FunctionComponent = () => {
         </Paper>
       )}
 
-      {/* Steering bar: inject a directive into the live run without stopping it. */}
-      <Paper variant="outlined" sx={{ padding: theme.spacing(1.5), marginBottom: theme.spacing(2) }}>
-        <Stack sx={{ flexDirection: 'row', gap: theme.spacing(1), alignItems: 'center' }}>
+      {/* Proof-of-exploitation case file: the run's deliverable. */}
+      {proofEvents.length > 0 && (
+        <Paper
+          variant="outlined"
+          sx={{
+            padding: theme.spacing(2),
+            marginBottom: theme.spacing(2),
+            borderColor: theme.palette.success.main,
+          }}
+        >
+          <Stack sx={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: theme.spacing(1),
+            marginBottom: theme.spacing(1),
+          }}
+          >
+            <Stack sx={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing(1),
+            }}
+            >
+              <VerifiedOutlined color="success" fontSize="small" />
+              <Typography variant="subtitle2" sx={{ margin: 0 }}>
+                {t('Proof of exploitation')}
+              </Typography>
+              <Chip size="small" label={proofEvents.length} color="success" variant="outlined" />
+            </Stack>
+            <Button
+              onClick={handleExportReport}
+              startIcon={<DownloadOutlined />}
+              size="small"
+              variant="outlined"
+            >
+              {t('Export report')}
+            </Button>
+          </Stack>
+          <Stack sx={{ gap: theme.spacing(1) }}>
+            {proofEvents.map(proof => (
+              <Box
+                key={proof.autonomous_event_id}
+                sx={{
+                  paddingInlineStart: theme.spacing(1.5),
+                  borderInlineStart: `2px solid ${theme.palette.success.main}`,
+                }}
+              >
+                <Stack sx={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  gap: theme.spacing(1),
+                }}
+                >
+                  <Typography variant="subtitle2" sx={{ margin: 0 }}>
+                    {proof.autonomous_event_title ?? t('Proof')}
+                  </Typography>
+                  {proof.autonomous_event_created_at && (
+                    <Typography variant="caption" color="text.secondary">
+                      {nsdt(proof.autonomous_event_created_at)}
+                    </Typography>
+                  )}
+                </Stack>
+                {proof.autonomous_event_content && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ whiteSpace: 'pre-wrap' }}
+                  >
+                    {proof.autonomous_event_content}
+                  </Typography>
+                )}
+              </Box>
+            ))}
+          </Stack>
+        </Paper>
+      )}
+
+      {/* The AI is blocked and needs the operator (e.g. which assets are in scope). */}
+      {isWaitingInput && (
+        <Alert
+          severity="warning"
+          icon={<HelpOutline />}
+          sx={{ marginBottom: theme.spacing(2) }}
+        >
+          <Typography variant="subtitle2" sx={{ margin: 0 }}>
+            {pendingQuestion?.autonomous_event_title ?? t('The AI needs your input to continue')}
+          </Typography>
+          {pendingQuestion?.autonomous_event_content && (
+            <Typography
+              variant="body2"
+              sx={{
+                whiteSpace: 'pre-wrap',
+                marginTop: theme.spacing(0.5),
+              }}
+            >
+              {pendingQuestion.autonomous_event_content}
+            </Typography>
+          )}
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              display: 'block',
+              marginTop: theme.spacing(0.5),
+            }}
+          >
+            {t('Answer below - your reply is sent to the orchestrator, which resumes and adapts the attack path.')}
+          </Typography>
+        </Alert>
+      )}
+
+      {/* Steering bar: inject a directive into the live run without stopping it. Doubles as the
+          answer box when the run is waiting on the operator. */}
+      <Paper
+        variant="outlined"
+        sx={{
+          padding: theme.spacing(1.5),
+          marginBottom: theme.spacing(2),
+        }}
+      >
+        <Stack sx={{
+          flexDirection: 'row',
+          gap: theme.spacing(1),
+          alignItems: 'center',
+        }}
+        >
           <TextField
             value={directive}
             onChange={event => setDirective(event.target.value)}
@@ -257,7 +503,9 @@ const AutonomousRun: FunctionComponent = () => {
                 handleSendDirective();
               }
             }}
-            placeholder={t('Steer the AI in real time (e.g. focus on the finance subnet, avoid host X, try Kerberoasting)')}
+            placeholder={isWaitingInput
+              ? t('Answer the question above (e.g. the web apps in scope are app-prod-01 and app-prod-02)')
+              : t('Steer the AI in real time (e.g. focus on the finance subnet, avoid host X, try Kerberoasting)')}
             size="small"
             fullWidth
             disabled={!isActive}
@@ -268,7 +516,7 @@ const AutonomousRun: FunctionComponent = () => {
             startIcon={<SendOutlined />}
             disabled={!isActive || directive.trim().length === 0}
           >
-            {t('Steer')}
+            {isWaitingInput ? t('Answer') : t('Steer')}
           </Button>
         </Stack>
         {!isActive && (
@@ -280,7 +528,13 @@ const AutonomousRun: FunctionComponent = () => {
 
       {/* AI decision timeline. */}
       <Paper variant="outlined" sx={{ padding: theme.spacing(2) }}>
-        <Stack sx={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing(1), marginBottom: theme.spacing(1) }}>
+        <Stack sx={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing(1),
+          marginBottom: theme.spacing(1),
+        }}
+        >
           <Typography variant="subtitle2" sx={{ margin: 0 }}>{t('AI decision timeline')}</Typography>
           {isActive && <CircularProgress size={14} />}
         </Stack>
@@ -294,10 +548,20 @@ const AutonomousRun: FunctionComponent = () => {
               <Stack sx={{ gap: 0 }}>
                 {events.map((event, index) => (
                   <Box key={event.autonomous_event_id}>
-                    <Stack sx={{ flexDirection: 'row', gap: theme.spacing(1.5), paddingBlock: theme.spacing(1) }}>
+                    <Stack sx={{
+                      flexDirection: 'row',
+                      gap: theme.spacing(1.5),
+                      paddingBlock: theme.spacing(1),
+                    }}
+                    >
                       <Box sx={{ marginTop: '2px' }}>{eventIcon(event.autonomous_event_type)}</Box>
                       <Box sx={{ flex: 1 }}>
-                        <Stack sx={{ flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing(1) }}>
+                        <Stack sx={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          gap: theme.spacing(1),
+                        }}
+                        >
                           <Typography variant="subtitle2" sx={{ margin: 0 }}>
                             {event.autonomous_event_title ?? t(event.autonomous_event_type)}
                           </Typography>
