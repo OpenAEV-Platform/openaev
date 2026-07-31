@@ -275,17 +275,17 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(feedRow);
     await waitFor(() => expect(mocks.fetchExecutionDetail).toHaveBeenCalledWith('sim-1', 'exec-1'));
 
-    // Header (agent · privilege) + both tabs render; the Result tab shows the prevented/detected-by
+    // Header (agent · privilege) + both tabs render; the Result tab shows the prevention/detection
     // rows, each carrying the expectation's own verdict and the platforms the run actually recorded
     // (detection by CrowdStrike here; prevention has no platform, so it says so instead of inventing
     // one).
     expect(await screen.findByText('agent-x · user')).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Result' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Terminal view' })).toBeTruthy();
-    expect(screen.getByText('Prevented by')).toBeTruthy();
-    expect(screen.getByText('Detected by')).toBeTruthy();
+    expect(screen.getByText('Prevention')).toBeTruthy();
+    expect(screen.getByText('Detection')).toBeTruthy();
     expect(screen.getByText('CrowdStrike')).toBeTruthy();
-    expect(screen.getByText('No platform attribution available')).toBeTruthy();
+    expect(screen.getByText('Not Prevented')).toBeTruthy();
 
     // The Terminal tab shows the masked command and output via the shared Terminal.
     fireEvent.click(screen.getByRole('tab', { name: 'Terminal view' }));
@@ -320,11 +320,11 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     await waitFor(() => expect(mocks.fetchExecutionDetail).toHaveBeenCalled());
 
     // Assert: the Enterprise affordance for the section, and never the plain "none" wording.
-    expect(await screen.findByText('Prevented by')).toBeTruthy();
+    expect(await screen.findByText('Prevention')).toBeTruthy();
     // A non-admin cannot act on the licence dialog, so the chip must be informational only.
     expect(screen.getByTestId('ee-chip').getAttribute('data-clickable')).toBe('false');
     expect(screen.getAllByText('Platform attribution requires Enterprise Edition').length).toBe(2);
-    expect(screen.queryByText('No platform attribution available')).toBeNull();
+    expect(screen.queryByText('Not Detected')).toBeNull();
     // The verdicts themselves still come from the run — the licence gates attribution, not results.
     expect(screen.getByText('DETECTED')).toBeTruthy();
   });

@@ -1105,10 +1105,17 @@ export interface AttackPathNodeDTO {
 
 export interface AttackPathSecurityPlatformDTO {
   alerts?: AttackPathAlertDTO[];
+  /** @format int32 */
+  alertsCount?: number;
   bucket?: string;
   detectedAt?: string;
   platformName?: string;
   platformType?: string;
+  resultLabel?: string;
+  /** @format double */
+  score?: number;
+  sourceAssetId?: string;
+  sourceId?: string;
   status?: string;
 }
 

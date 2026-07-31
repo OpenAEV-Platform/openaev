@@ -1,5 +1,5 @@
 import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
-import { Button, IconButton, Paper, Popover, Typography } from '@mui/material';
+import { Button, IconButton, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
@@ -13,17 +13,22 @@ import useTabs from '../../../../../components/common/tabs/useTabs';
 import Terminal, { type TerminalLine } from '../../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathExecutionDetailDTO, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
+import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { getStatusColor } from '../../../../../utils/statusUtils';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
+import StatusPill from '../../../atomic_testings/atomic_testing/target_result/StatusPill';
 import EEChip from '../../../common/entreprise_edition/EEChip';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import FindingList from '../../../findings/FindingList';
+import ExpectationPlatformsTable, {
+  type ExpectationPlatformAlert,
+  type ExpectationPlatformRow,
+} from './ExpectationPlatformsTable';
 import ImageWithFallback from './ImageWithFallback';
 
 interface Props {
@@ -45,41 +50,143 @@ const TERMINAL_TAB = 'terminal';
 const FINDINGS_TAB = 'findings';
 const REMEDIATION_TAB = 'remediation';
 
-interface PlatformAlert {
-  id: string;
-  title: string;
-  date?: string | null;
-}
-interface SecurityPlatform {
-  /** The platform's collector type, when known — drives its catalog logo. */
+interface SecurityPlatformRow {
+  key: string;
   type?: string;
   label: string;
-}
-/** A platform that acted on the execution, with the alerts it raised. */
-interface SecurityPlatformWithAlerts {
-  platform: SecurityPlatform;
-  alerts: PlatformAlert[];
+  status?: string;
+  detectedAt?: string;
+  alerts: ExpectationPlatformAlert[];
+  sourceId?: string;
+  sourceAssetId?: string;
 }
 
-// The platform's catalog logo (collectors brick) with a graceful fallback: on dev, a platform that
-// isn't installed 404s its image, so we swap in a generic shield icon instead of a broken image.
-const PlatformLogo = ({ type, label }: {
-  type: string;
-  label: string;
-}) => {
-  const size = {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-  };
-  return (
-    <ImageWithFallback
-      src={buildTenantApiPath(`/api/collectors/${type}/image`)}
-      alt={label}
-      fallback={<ShieldOutlined style={size} />}
-      style={size}
-    />
-  );
+const isGenericSecurityPlatformType = (value?: string) => {
+  const normalized = (value ?? '').trim().toLowerCase();
+  return normalized === 'securityplatform'
+    || normalized === 'security_platform_type'
+    || normalized === 'security_platform';
+};
+
+const isCollectorSlugType = (value?: string) => {
+  const normalized = (value ?? '').trim().toLowerCase();
+  return normalized.startsWith('openaev_');
+};
+
+type LegacyAttackPathDetail = AttackPathExecutionDetailDTO & {
+  security_platforms?: AttackPathSecurityPlatformDTO[];
+  platforms?: AttackPathSecurityPlatformDTO[];
+  preventionPlatforms?: AttackPathSecurityPlatformDTO[];
+  detectionPlatforms?: AttackPathSecurityPlatformDTO[];
+  vulnerabilityPlatforms?: AttackPathSecurityPlatformDTO[];
+  preventedBy?: AttackPathSecurityPlatformDTO[];
+  detectedBy?: AttackPathSecurityPlatformDTO[];
+  vulnerabilityBy?: AttackPathSecurityPlatformDTO[];
+};
+
+const withBucket = (
+  list: AttackPathSecurityPlatformDTO[] | undefined,
+  bucket: 'prevention' | 'detection' | 'vulnerability',
+): AttackPathSecurityPlatformDTO[] => (list ?? []).map(platform => ({
+  ...platform,
+  bucket: platform.bucket ?? bucket,
+}));
+
+// Keep this shared component compatible with both new and legacy backend payload shapes.
+const getSecurityPlatforms = (detail: AttackPathExecutionDetailDTO | null): AttackPathSecurityPlatformDTO[] => {
+  if (!detail) {
+    return [];
+  }
+  if ((detail.securityPlatforms ?? []).length > 0) {
+    return detail.securityPlatforms ?? [];
+  }
+
+  const legacy = detail as LegacyAttackPathDetail;
+  const directLegacy = legacy.security_platforms ?? legacy.platforms;
+  if ((directLegacy ?? []).length > 0) {
+    return directLegacy ?? [];
+  }
+
+  return [
+    ...withBucket(legacy.preventionPlatforms ?? legacy.preventedBy, 'prevention'),
+    ...withBucket(legacy.detectionPlatforms ?? legacy.detectedBy, 'detection'),
+    ...withBucket(legacy.vulnerabilityPlatforms ?? legacy.vulnerabilityBy, 'vulnerability'),
+  ];
+};
+
+const toDisplayStatus = (status?: string) => {
+  switch ((status ?? '').toUpperCase()) {
+    case 'UNKNOWN':
+    case 'EXPIRED':
+      return 'Expired';
+    case 'SUCCESS':
+      return 'Success';
+    case 'PARTIAL':
+      return 'Partial';
+    case 'PENDING':
+      return 'Pending';
+    case 'FAILED':
+      return 'Failed';
+    default:
+      return status ?? '-';
+  }
+};
+
+const toPlatformRows = (
+  list: AttackPathSecurityPlatformDTO[] | undefined,
+  bucket: 'prevention' | 'detection' | 'vulnerability',
+): SecurityPlatformRow[] => {
+  if (!list) {
+    return [];
+  }
+  return list
+    .filter(platform => (platform.bucket ?? '').toLowerCase() === bucket)
+    .map((platform, index) => {
+      const platformWithAsset = platform as AttackPathSecurityPlatformDTO & {
+        sourceId?: string;
+        source_id?: string;
+        sourceAssetId?: string;
+        source_asset_id?: string;
+        sourceType?: string;
+        source_type?: string;
+        sourcePlatform?: string;
+        source_platform?: string;
+        platform?: string;
+        platform_type?: string;
+        type?: string;
+      };
+      const explicitType = platform.platformType?.trim();
+      const aliasedType = [
+        platformWithAsset.sourceType,
+        platformWithAsset.source_type,
+        platformWithAsset.sourcePlatform,
+        platformWithAsset.source_platform,
+        platformWithAsset.platform,
+        platformWithAsset.platform_type,
+        platformWithAsset.type,
+      ]
+        .map(value => value?.trim())
+        .find(Boolean);
+      const resolvedType = isGenericSecurityPlatformType(explicitType) && aliasedType
+        ? aliasedType
+        : explicitType;
+      const normalizedType
+        = isCollectorSlugType(resolvedType) ? 'collector' : resolvedType;
+      return {
+        key: `${bucket}-${platform.platformName ?? 'unknown'}-${platform.platformType ?? 'unknown'}-${index}`,
+        type: normalizedType || undefined,
+        label: platform.platformName ?? 'Unknown platform',
+        status: platform.status,
+        detectedAt: platform.detectedAt,
+        sourceId: platformWithAsset.sourceId ?? platformWithAsset.source_id ?? undefined,
+        sourceAssetId: platformWithAsset.sourceAssetId ?? platformWithAsset.source_asset_id ?? undefined,
+        alerts: (platform.alerts ?? []).map((a, i) => ({
+          id: a.id ?? `${bucket}-alert-${index}-${i}`,
+          title: a.title ?? 'Alert',
+          date: a.date,
+        })),
+      };
+    });
 };
 
 // A security platform asset logo (by asset id + theme mode) with the same graceful fallback.
@@ -103,88 +210,56 @@ const SecurityPlatformAssetLogo = ({ platformId, label, mode }: {
   );
 };
 
-// One security platform that acted on the execution, with its linked alerts revealed in a popover on
-// click. The icon is the platform's catalog logo (collectors brick), same source as everywhere else.
-const SecurityPlatformItem = ({ platform, alerts }: {
-  platform: SecurityPlatform;
-  alerts: PlatformAlert[];
+const COLLECTOR_TYPE_BY_LABEL: Record<string, string> = {
+  'expectations expiration manager': 'openaev_fake_detector',
+  'expectations vulnerability manager': 'openaev_expectations_vulnerability_manager',
+};
+
+const toCollectorTypeFromLabel = (label: string) => {
+  const normalizedLabel = label.trim().toLowerCase();
+  if (COLLECTOR_TYPE_BY_LABEL[normalizedLabel]) {
+    return COLLECTOR_TYPE_BY_LABEL[normalizedLabel];
+  }
+  return normalizedLabel
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
+
+const PlatformLogo = ({ collectorType, label }: {
+  collectorType: string;
+  label: string;
 }) => {
-  const theme = useTheme();
-  const { t, fldt } = useFormatter();
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const alertCount = alerts.length;
-  const alertLabel = `${alertCount} ${alertCount === 1 ? t('alert') : t('alerts')}`;
+  const size = {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+  };
   return (
-    <>
-      <div
-        role="button"
-        tabIndex={0}
-        title={t('Show alerts')}
-        onClick={e => setAnchor(e.currentTarget)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setAnchor(e.currentTarget);
-          }
-        }}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          cursor: 'pointer',
-          padding: '2px 8px',
-          borderRadius: 4,
-          border: `1px solid ${theme.palette.divider}`,
-        }}
-      >
-        <PlatformLogo type={platform.type ?? ''} label={platform.label} />
-        <Typography variant="body2">{platform.label}</Typography>
-        {/* Blue, link-styled CTA showing how many alerts the platform raised; opens the same popover. */}
-        <Typography
-          component="span"
-          variant="body2"
-          style={{
-            color: theme.palette.primary.main,
-            textDecoration: 'underline',
-            fontWeight: 500,
-          }}
-        >
-          {alertLabel}
-        </Typography>
-      </div>
-      <Popover
-        open={Boolean(anchor)}
-        anchorEl={anchor}
-        onClose={() => setAnchor(null)}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-      >
-        <div style={{
-          padding: theme.spacing(1.5),
-          minWidth: 240,
-        }}
-        >
-          <Typography variant="subtitle2" gutterBottom>{`${t('Alerts')} (${alerts.length})`}</Typography>
-          {alerts.length === 0 && (
-            <Typography variant="caption" color="text.secondary">{t('No alert linked')}</Typography>
-          )}
-          {alerts.map(a => (
-            <div
-              key={a.id}
-              style={{
-                padding: '4px 0',
-                borderBottom: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Typography variant="body2">{a.title}</Typography>
-              {a.date && <Typography variant="caption" color="text.secondary">{fldt(a.date)}</Typography>}
-            </div>
-          ))}
-        </div>
-      </Popover>
-    </>
+    <ImageWithFallback
+      src={buildTenantApiPath(`/api/collectors/${collectorType}/image`)}
+      alt={label}
+      fallback={<ShieldOutlined style={size} />}
+      style={size}
+    />
+  );
+};
+
+const CollectorByIdLogo = ({ collectorId, label }: {
+  collectorId: string;
+  label: string;
+}) => {
+  const size = {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+  };
+  return (
+    <ImageWithFallback
+      src={buildTenantApiPath(`/api/collectors/id/${collectorId}/image`)}
+      alt={label}
+      fallback={<ShieldOutlined style={size} />}
+      style={size}
+    />
   );
 };
 
@@ -319,25 +394,16 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
     });
   });
 
-  // The platforms that actually acted on this execution, resolved by the backend from the inject's
-  // expectations with their linked alerts (`securityPlatforms`, one entry per platform per bucket).
-  // Nothing is fabricated here: an execution no platform evaluated shows no platform.
-  const platformsByBucket = (bucket: 'prevention' | 'detection'): SecurityPlatformWithAlerts[] =>
-    (detail?.securityPlatforms ?? [])
-      .filter(p => p.bucket === bucket)
-      .map(p => ({
-        platform: {
-          type: p.platformType ?? undefined,
-          label: p.platformName ?? t('Unknown platform'),
-        },
-        alerts: (p.alerts ?? []).map(a => ({
-          id: a.id ?? `${p.platformName}-${a.title}`,
-          title: a.title ?? '',
-          date: a.date ?? p.detectedAt,
-        })),
-      }));
-  const preventedBy = platformsByBucket('prevention');
-  const detectedBy = platformsByBucket('detection');
+  // The platform rows come from the backend's execution-level collector snapshot (`securityPlatforms`,
+  // one entry per source per bucket). Nothing is fabricated here: an execution no platform evaluated
+  // shows no platform row.
+  const platforms = getSecurityPlatforms(detail);
+  const preventedBy = toPlatformRows(platforms, 'prevention');
+  const detectedBy = toPlatformRows(platforms, 'detection');
+  const vulnerabilityBy = toPlatformRows(platforms, 'vulnerability');
+  const showPrevention = preventedBy.length > 0 || Boolean(detail?.preventionStatus);
+  const showDetection = detectedBy.length > 0 || Boolean(detail?.detectionStatus);
+  const showVulnerability = vulnerabilityBy.length > 0 || Boolean(detail?.vulnerabilityStatus);
   // Platform attribution is Enterprise-gated: the resolver returns nothing without an active licence,
   // which must never read as "no platform prevented this". Same treatment, minus the Enterprise
   // wording, for any other reason attribution can be absent (a run not yet committed, a target with
@@ -345,57 +411,168 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   const attributionUnavailable = !isValidated;
 
   const renderExpectationRow = (
-    expectationType: 'prevention' | 'detection',
+    expectationType: 'prevention' | 'detection' | 'vulnerability',
     heading: string,
-    status: string | null | undefined,
-    platforms: SecurityPlatformWithAlerts[],
+    // Raw i18n key, translated once at render time (never pre-translated by the caller).
+    emptyLabel: string,
+    // The expectation's own verdict from the run projection: the fallback when no platform row
+    // exists (e.g. attribution is Enterprise-gated), so an absent attribution never reads as a
+    // negative result — the licence gates attribution, not results.
+    expectationStatus: string | null | undefined,
+    platformRows: SecurityPlatformRow[],
   ) => {
-    // The verdict comes from the expectation status, never from "did any platform answer": a pending
-    // expectation reads pending (grey), an expiration-stamped one is a real negative (red), and an
-    // undeclared expectation says so. Colours come from the shared status vocabulary, which already
-    // maps the expectation display labels this projection stores.
-    const hasExpectation = !!status && status.trim().length > 0;
-    const statusColor = hasExpectation ? getStatusColor(theme, status) : theme.palette.text.disabled;
-    const statusLabel = hasExpectation
-      ? t(status)
-      : t('No expectation for {type}', { type: t(expectationType === 'prevention' ? 'Prevention' : 'Detection') });
+    const hasRows = platformRows.length > 0;
+    const hasStatus = !!expectationStatus && expectationStatus.trim().length > 0;
+    // Colour the verdict from actual platform rows when we have them, from the run's own
+    // expectation status otherwise.
+    const succeeded = platformRows.some(p => (p.status ?? '').toUpperCase() === 'SUCCESS');
+    let iconColor = theme.palette.error.main;
+    if (hasRows) {
+      if (succeeded) {
+        iconColor = expectationType === 'detection' ? theme.palette.warning.main : theme.palette.success.main;
+      }
+    } else if (hasStatus) {
+      iconColor = getStatusColor(theme, expectationStatus);
+    }
+    let summaryLabel = emptyLabel;
+    let summaryTone = succeeded ? 'SUCCESS' : 'FAILED';
+    if (hasRows) {
+      if (succeeded) {
+        if (expectationType === 'prevention') {
+          summaryLabel = 'Prevented';
+        } else if (expectationType === 'detection') {
+          summaryLabel = 'Detected';
+        } else {
+          summaryLabel = 'Not vulnerable';
+        }
+      } else if (expectationType === 'vulnerability') {
+        summaryLabel = 'Vulnerable';
+      }
+    } else if (hasStatus) {
+      summaryLabel = expectationStatus;
+      summaryTone = expectationStatus;
+    }
+    const alertsTotal = platformRows.reduce((sum, row) => sum + row.alerts.length, 0);
+    // Attribution can be absent for a licence reason (Enterprise-gated resolver) or simply because
+    // no platform answered; only the latter is a real negative worth the red wording.
+    const emptyState = attributionUnavailable
+      ? (
+          <Typography variant="caption" sx={{ color: theme.palette.text.disabled }}>
+            {t('Platform attribution requires Enterprise Edition')}
+          </Typography>
+        )
+      : <Typography variant="caption" style={{ color: theme.palette.error.main }}>{t(emptyLabel)}</Typography>;
+
+    const tableRows: ExpectationPlatformRow[] = platformRows.map((row) => {
+      const normalizedType = row.type?.trim();
+      const resolvedType = isGenericSecurityPlatformType(normalizedType)
+        ? undefined
+        : normalizedType;
+
+      let icon;
+      if (row.sourceAssetId) {
+        icon = (
+          <SecurityPlatformAssetLogo
+            platformId={row.sourceAssetId}
+            label={row.label}
+            mode={theme.palette.mode}
+          />
+        );
+      } else if (row.sourceId) {
+        icon = <CollectorByIdLogo collectorId={row.sourceId} label={row.label} />;
+      } else {
+        icon = (
+          <PlatformLogo
+            collectorType={toCollectorTypeFromLabel(row.label)}
+            label={row.label}
+          />
+        );
+      }
+
+      return {
+        key: row.key,
+        name: row.label,
+        type: resolvedType,
+        status: row.status,
+        statusLabel: toDisplayStatus(row.status),
+        statusTone: row.status,
+        detectedAt: row.detectedAt,
+        alerts: row.alerts,
+        icon: icon,
+      };
+    });
+
     return (
       <div>
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          marginBottom: 6,
+          gap: theme.spacing(1.5),
+          marginBottom: theme.spacing(1),
         }}
         >
-          {expectationIconByType(expectationType, { color: statusColor })}
-          <Typography variant="subtitle2">{heading}</Typography>
-          <Typography variant="caption" sx={{ color: statusColor }}>{statusLabel}</Typography>
-        </div>
-        {platforms.length === 0
-          ? (
-              <Typography variant="caption" sx={{ color: theme.palette.text.disabled }}>
-                {attributionUnavailable
-                  ? t('Platform attribution requires Enterprise Edition')
-                  : t('No platform attribution available')}
-              </Typography>
-            )
-          : (
-              <div style={{
-                display: 'flex',
-                gap: 8,
-                flexWrap: 'wrap',
+          <div
+            aria-hidden
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: `${iconColor}1F`,
+              color: iconColor,
+              flexShrink: 0,
+            }}
+          >
+            {expectationIconByType(expectationType, { color: iconColor })}
+          </div>
+          <div style={{
+            minWidth: 0,
+            flex: 1,
+          }}
+          >
+            <Typography variant="subtitle2">{heading}</Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color: 'text.secondary',
               }}
-              >
-                {platforms.map((p, index) => (
-                  <SecurityPlatformItem
-                    key={`${p.platform.type ?? 'unknown'}-${p.platform.label}-${index}`}
-                    platform={p.platform}
-                    alerts={p.alerts}
-                  />
-                ))}
-              </div>
-            )}
+            >
+              {expectationType.toUpperCase()}
+            </Typography>
+          </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing(1),
+          }}
+          >
+            <StatusPill label={t(summaryLabel)} status={summaryTone} />
+            <span
+              style={{
+                minWidth: 34,
+                height: 22,
+                borderRadius: 4,
+                padding: theme.spacing(0, 0.75),
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: `${iconColor}1F`,
+                color: iconColor,
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              {alertsTotal}
+            </span>
+          </div>
+        </div>
+        {platformRows.length === 0
+          ? emptyState
+          : <ExpectationPlatformsTable rows={tableRows} />}
       </div>
     );
   };
@@ -445,7 +622,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
             {[detail?.agentName, detail?.agentPrivilege].filter(Boolean).join(' · ')}
           </Typography>
           {/* MITRE ATT&CK technique(s) this action maps to, resolved server-side from the
-              execution's injector contract (AttackPathExecutionDetailDTO.attackPatterns). */}
+               execution's injector contract (AttackPathExecutionDetailDTO.attackPatterns). */}
           {(detail?.attackPatterns?.length ?? 0) > 0 && (
             <div style={{
               display: 'flex',
@@ -538,7 +715,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               >
                 <div>
                   {/* The friendly endpoint name (kingslanding), not the raw endpoint key/UUID, to stay
-                      consistent with the graph node; fall back to the IP only when no name is known. */}
+                       consistent with the graph node; fall back to the IP only when no name is known. */}
                   <Typography variant="subtitle2">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Typography>
                 </div>
                 {/* Enterprise gate on the attribution itself, not on the verdicts: one chip for the
@@ -552,8 +729,9 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                     featureDetectedInfo={t('Security platform attribution')}
                   />
                 )}
-                {renderExpectationRow('prevention', t('Prevented by'), detail?.preventionStatus, preventedBy)}
-                {renderExpectationRow('detection', t('Detected by'), detail?.detectionStatus, detectedBy)}
+                {showPrevention && renderExpectationRow('prevention', t('Prevention'), 'Not Prevented', detail?.preventionStatus, preventedBy)}
+                {showDetection && renderExpectationRow('detection', t('Detection'), 'Not Detected', detail?.detectionStatus, detectedBy)}
+                {showVulnerability && renderExpectationRow('vulnerability', t('Vulnerability'), 'Not vulnerable', detail?.vulnerabilityStatus, vulnerabilityBy)}
                 {/* Jump to the originating inject for the full action definition (pending backend id). */}
                 {onOpenInject && (
                   <Button
