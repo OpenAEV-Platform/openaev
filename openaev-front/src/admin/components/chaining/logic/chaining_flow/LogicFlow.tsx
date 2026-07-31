@@ -27,6 +27,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
 import type { ConditionCreateInput, KillChainPhase } from '../../../../../utils/api-types';
+import { emitChainingUpdated } from '../chaining-refresh-events';
 import {
   buildActionMetas,
   buildEdges,
@@ -201,6 +202,7 @@ const LogicFlow = ({
     setNodes([...groupNodes, ...positionedEventNodes, ...actionNodes]);
     setEdges(edgesData);
     setLoading(false);
+    emitChainingUpdated(workflowId);
   }, [workflowId, t, setNodes, setEdges, setContextProviders]);
 
   useEffect(() => {

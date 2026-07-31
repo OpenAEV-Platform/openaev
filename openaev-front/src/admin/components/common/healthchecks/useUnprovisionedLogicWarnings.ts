@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { fetchConditions, fetchSteps } from '../../../../actions/chaining/chaining-actions';
+import { CHAINING_UPDATED_EVENT, type ChainingUpdatedDetail } from '../../chaining/logic/chaining-refresh-events';
 import {
   buildActionMetas,
   buildEventData,
@@ -41,11 +42,19 @@ const useUnprovisionedLogicWarnings = (workflowId: string | undefined): Unprovis
     };
 
     void loadWarnings();
+    const onChainingUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<ChainingUpdatedDetail>;
+      if (customEvent.detail?.workflowId === workflowId) {
+        void loadWarnings();
+      }
+    };
+    window.addEventListener(CHAINING_UPDATED_EVENT, onChainingUpdated as EventListener);
     const intervalId = window.setInterval(() => {
       void loadWarnings();
     }, 5000);
     return () => {
       stale = true;
+      window.removeEventListener(CHAINING_UPDATED_EVENT, onChainingUpdated as EventListener);
       window.clearInterval(intervalId);
     };
   }, [workflowId]);
