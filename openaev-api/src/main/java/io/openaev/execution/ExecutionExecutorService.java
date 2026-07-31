@@ -47,11 +47,6 @@ public class ExecutionExecutorService {
         this.injectService.getAgentsAndAgentlessAssetsByInject(inject);
     Set<Agent> agents = agentsAndAssetsAgentless.agents();
     Set<Asset> assetsAgentless = agentsAndAssetsAgentless.assetsAgentless();
-    log.debug(
-        "launchExecutorContext inject={} resolved agents={} agentlessAssets={}",
-        inject.getId(),
-        agents.stream().map(Agent::getId).toList(),
-        assetsAgentless.stream().map(Asset::getId).toList());
     // Persist the number of agents resolved at launch so the COMPLETE callback path can decide
     // completion without re-resolving the full asset/agent graph on every callback
     injectStatus.setExpectedAgentCount(agents.size());
