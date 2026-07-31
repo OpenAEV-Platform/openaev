@@ -31,9 +31,8 @@ import {
   buildActionMetas,
   buildEdges,
   buildEventData,
-  buildEventPath,
+  buildEventFlow,
   buildEventToGroupX,
-  buildInformationalEdges,
   buildOutputProvidersMap,
   buildTacticForStep,
   buildTacticNodes,
@@ -361,22 +360,11 @@ const LogicFlow = ({
     }
   }, [actionMetas, eventMetas, onEditStep, onEditEvent]);
 
-  /**
-     * Invert action metas into an "output type → provider actions" map so we can
-     * resolve which actions feed a given event condition field.
-     */
-  const outputProviders = useMemo(() => buildOutputProvidersMap(actionMetas), [actionMetas]);
-
-  // Read-only dotted arrows from provider actions into the selected event (see helper).
-  const informationalEdges = useMemo<Edge[]>(
-    () => buildInformationalEdges(selectedEventId, eventMetas, outputProviders, theme.palette.warning.main),
-    [selectedEventId, eventMetas, outputProviders, theme.palette.warning.main],
-  );
-
-  // Numbered path (provider = 1, event = 2, consumer = 3) + highlighted steps
-  const { highlightedStepIds, stepPathIndex, eventPathIndex } = useMemo(
-    () => buildEventPath(selectedEventId, informationalEdges, actionMetas),
-    [selectedEventId, informationalEdges, actionMetas],
+  // Full backward data-flow line for the selected event: highlighted nodes, per-node badge index,
+  // real trigger edges belonging to the flow, and the dotted "produces" informational arrows.
+  const { highlightedStepIds, highlightedEventIds, pathIndex, triggerEdgeKeys, informationalEdges } = useMemo(
+    () => buildEventFlow(selectedEventId, eventMetas, actionMetas, theme.palette.warning.main),
+    [selectedEventId, eventMetas, actionMetas, theme.palette.warning.main],
   );
 
   /**
@@ -385,11 +373,11 @@ const LogicFlow = ({
      */
   const nodesWithCallbacks = useMemo(
     () => nodes.map((node) => {
-      // When an event is selected, everything outside its data-flow is dimmed
+      // When an event is selected, everything outside its data-flow line is dimmed
       // to create a spotlight ("backdrop") effect on the highlighted flow.
       let inFlow = false;
       if (node.type === 'event') {
-        inFlow = node.id === selectedEventId;
+        inFlow = highlightedEventIds.has(node.id);
       } else if (node.type === 'action') {
         inFlow = highlightedStepIds.has(node.id);
       }
@@ -408,20 +396,20 @@ const LogicFlow = ({
           ...(node.type === 'event'
             ? {
                 isSelected: node.id === selectedEventId,
-                pathIndex: node.id === selectedEventId ? eventPathIndex : undefined,
+                pathIndex: pathIndex[node.id],
                 onAddAction: onAddActionToEvent,
               }
             : {}),
           ...(node.type === 'action'
             ? {
                 isHighlighted: highlightedStepIds.has(node.id),
-                pathIndex: stepPathIndex[node.id],
+                pathIndex: pathIndex[node.id],
               }
             : {}),
         },
       };
     }),
-    [nodes, editNode, requestDeleteNode, onAddActionToEvent, selectedEventId, highlightedStepIds, stepPathIndex, eventPathIndex],
+    [nodes, editNode, requestDeleteNode, onAddActionToEvent, selectedEventId, highlightedStepIds, highlightedEventIds, pathIndex],
   );
 
   /**
@@ -430,22 +418,22 @@ const LogicFlow = ({
      */
   const edgesWithCallbacks = useMemo(
     () => edges.map((edge) => {
-      // Real event → step link belonging to the selected event's flow.
-      const inFlow = !!selectedEventId && edge.source === selectedEventId;
+      // Real event → step link belonging to the selected event's flow line.
+      const inFlow = triggerEdgeKeys.has(`${edge.source}->${edge.target}`);
       const dimmed = !!selectedEventId && !inFlow;
       return {
         ...edge,
         data: {
           ...edge.data,
           onDelete: onDeleteEdgeClick,
-          // Real event → step links are emphasized in blue while their event is selected.
+          // Real event → step links along the flow are emphasized in blue while its event is selected.
           isHighlighted: inFlow,
           // Faded out when outside the selected event's flow (spotlight backdrop).
           dimmed,
         },
       };
     }),
-    [edges, onDeleteEdgeClick, selectedEventId],
+    [edges, onDeleteEdgeClick, selectedEventId, triggerEdgeKeys],
   );
 
   const allEdges = useMemo(
