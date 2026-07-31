@@ -36,6 +36,8 @@ import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnector
 interface DeployedMeta {
   connector: ConnectorOutput;
   type: ConnectorItemType;
+  /** The resolved catalog entry, when the connector's catalog ref matches one. */
+  catalogConnector?: CatalogConnectorOutput;
 }
 
 interface Props {
@@ -81,9 +83,13 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
         const catalogMatch = connector.catalog?.catalog_connector_id
           ? catalogById.get(connector.catalog.catalog_connector_id)
           : undefined;
-        // Same clickability rule as the legacy per-type pages: collectors and
-        // executors without a catalog entry have no detail page.
-        const clickable = !(connector.catalog == null && type !== 'INJECTOR');
+        // Every registered connector gets a detail page, even without a catalog
+        // entry: the detail page is the only place offering the delete action, so
+        // gating it on the catalog stranded custom or renamed-slug connectors
+        // (no way to delete or manage them at all). Only pending, instance-only
+        // entries keep the legacy rule.
+        const clickable = connector.isExisting === true
+          || !(connector.catalog == null && type !== 'INJECTOR');
         let logoSrc: string | undefined;
         if (connector.isExisting) {
           logoSrc = config.logoUrl(connector.type);
@@ -115,6 +121,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
         meta.set(connector.id, {
           connector,
           type,
+          catalogConnector: catalogMatch,
         });
       });
     };
@@ -140,10 +147,10 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const onMigrateBtnClick = (e: SyntheticEvent, deployed: DeployedMeta) => {
     e.preventDefault();
     e.stopPropagation();
-    const catalogConnector = catalogConnectors.find(
-      connector => connector.catalog_connector_id === deployed.connector.catalog?.catalog_connector_id,
-    );
-    setSelectedCatalogConnector(catalogConnector);
+    // The resolved catalog entry gates the button's visibility (canMigrate), so a
+    // rendered button always has one - the guard only narrows the type.
+    if (!deployed.catalogConnector) return;
+    setSelectedCatalogConnector(deployed.catalogConnector);
     setMigrationSource(deployed.connector.id);
     setOpenMigrateDrawer(true);
   };
@@ -155,7 +162,13 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     const deployed = metaById.get(item.id);
     if (!deployed) return null;
     const { connector } = deployed;
-    const canMigrate = connector.isExternal && connector.connectorInstance == null && isXtmComposerUp;
+    // A resolvable catalog entry is required to migrate: the drawer needs the
+    // catalog id and configuration schema to build the managed instance. Key the
+    // visibility on the entry actually resolved from the catalog list (not just
+    // the connector's embedded catalog ref) so a rendered button can never be a
+    // no-op click.
+    const canMigrate = connector.isExternal && connector.connectorInstance == null
+      && isXtmComposerUp && deployed.catalogConnector != null;
     const { started, lastSeen, healthy, builtIn } = computeConnectorLiveliness(connector);
     const diskColor = healthy ? theme.palette.success.main : theme.palette.error.main;
     let diskTooltip: string;

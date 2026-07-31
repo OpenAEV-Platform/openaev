@@ -1,5 +1,6 @@
 package io.openaev.service.connectors;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -17,13 +18,13 @@ import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -114,9 +115,17 @@ public class ConnectorOrchestrationService {
     return connectorInstanceService.updateRequestedStatus(instance, requestedStatus);
   }
 
+  /**
+   * Validates that the connector referenced by a migration input actually exists.
+   *
+   * <p>Failures are client errors (400 with the real message), NOT {@link
+   * org.springframework.dao.DataIntegrityViolationException}: that exception maps to HTTP 409,
+   * which the frontend renders as a blanket "The element already exists" - utterly misleading when
+   * the actual problem is a missing id or a connector that is not visible in the current tenant.
+   */
   private void throwIfConnectorIdDoesNotExist(
       CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
-      throws DataIntegrityViolationException {
+      throws BadRequestException {
     String connectorId =
         collectorInput.getConfigurations().stream()
             .filter(
@@ -124,9 +133,15 @@ public class ConnectorOrchestrationService {
                     configurationInput.getKey().equals(catalogConnector.getContainerType() + "_ID"))
             .findFirst()
             .map(CreateConnectorInstanceInput.ConfigurationInput::getValue)
+            // A JSON null or blank value carries no id: treat it like a missing
+            // configuration so the failure stays a 400, never a NullPointerException.
+            .filter(value -> !value.isNull())
+            .map(JsonNode::asText)
+            .filter(text -> !text.isBlank())
             .orElseThrow(
-                () -> new DataIntegrityViolationException("Connector ID is required for migration"))
-            .asText();
+                () ->
+                    new BadRequestException(
+                        "A connector id is required to migrate an existing connector"));
     try {
       if (catalogConnector.getContainerType().equals(ConnectorType.COLLECTOR)) {
         collectorService.collector(connectorId);
@@ -136,9 +151,15 @@ public class ConnectorOrchestrationService {
         executorService.executor(connectorId);
       }
     } catch (ElementNotFoundException e) {
-      log.warn(e.getMessage());
-      throw new DataIntegrityViolationException(
-          "Connector with id " + connectorId + " does not exist");
+      // User-triggered 400 (bad connector id / not visible in tenant): DEBUG keeps prod
+      // logs quiet, mirroring RestBehavior's BadRequestException handling.
+      log.debug(e.getMessage(), e);
+      throw new BadRequestException(
+          "Cannot migrate: no "
+              + catalogConnector.getContainerType().name().toLowerCase(Locale.ROOT)
+              + " with id "
+              + connectorId
+              + " is visible in the current tenant");
     }
   }
 
