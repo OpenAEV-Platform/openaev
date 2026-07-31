@@ -243,78 +243,82 @@ public class InjectsExecutionJob implements Job {
   }
 
   private void logScheduledLaunch(Exercise exercise) {
-    Map<String, Object> contextData = new LinkedHashMap<>();
-    contextData.put("simulation_id", exercise.getId());
-    contextData.put("simulation_name", exercise.getName());
-    contextData.put("scheduled_start", exercise.getStart().map(Instant::toString).orElse(null));
-    contextData.put("initiator", "scheduler");
-    if (exercise.getScenario() != null) {
-      String scenarioId = exercise.getScenario().getId();
-      contextData.put("scenario_id", scenarioId);
-      scenarioRepository
-          .findNameById(scenarioId)
-          .ifPresent(scenarioName -> contextData.put("scenario_name", scenarioName));
-    }
-
     auditLogger.ifPresent(
-        logger ->
-            logger.logEvent(
-                AuditEvent.builder()
-                    .eventType(EventType.SYSTEM)
-                    .eventScope(AuditEventScope.SCHEDULED_LAUNCH)
-                    .eventStatus(EventStatus.SUCCESS)
-                    .resourceType(ResourceType.SIMULATION)
-                    .resourceId(exercise.getId())
-                    .message(
-                        "Simulation '%s' started (scheduled start reached)"
-                            .formatted(exercise.getName()))
-                    .contextData(contextData)
-                    .origin(SYSTEM)
-                    .build()));
+        logger -> {
+          Map<String, Object> contextData = new LinkedHashMap<>();
+          contextData.put("simulation_id", exercise.getId());
+          contextData.put("simulation_name", exercise.getName());
+          contextData.put(
+              "scheduled_start", exercise.getStart().map(Instant::toString).orElse(null));
+          contextData.put("initiator", "scheduler");
+          if (exercise.getScenario() != null) {
+            String scenarioId = exercise.getScenario().getId();
+            contextData.put("scenario_id", scenarioId);
+            scenarioRepository
+                .findNameById(scenarioId)
+                .ifPresent(scenarioName -> contextData.put("scenario_name", scenarioName));
+          }
+          logger.logEvent(
+              AuditEvent.builder()
+                  .eventType(EventType.SYSTEM)
+                  .eventScope(AuditEventScope.SCHEDULED_LAUNCH)
+                  .eventStatus(EventStatus.SUCCESS)
+                  .resourceType(ResourceType.SIMULATION)
+                  .resourceId(exercise.getId())
+                  .message(
+                      "Simulation '%s' started (scheduled start reached)"
+                          .formatted(exercise.getName()))
+                  .contextData(contextData)
+                  .origin(SYSTEM)
+                  .build());
+        });
   }
 
   private void logTargetResolution(
       Inject inject,
       ExecutableInject executableInject,
       List<Map<String, Object>> endpointResolutions) {
-    Map<String, Object> contextData = new LinkedHashMap<>();
-    contextData.put("inject_id", inject.getId());
-    contextData.put("inject_name", inject.getTitle());
-    contextData.put(
-        "asset_group_ids",
-        executableInject.getAssetGroups().stream()
-            .map(AssetGroup::getId)
-            .filter(Objects::nonNull)
-            .toList());
-    contextData.put(
-        "team_ids",
-        executableInject.getTeams().stream().map(Team::getId).filter(Objects::nonNull).toList());
-    contextData.put(
-        "player_ids",
-        executableInject.getUsers().stream()
-            .map(ExecutionContext::getUser)
-            .filter(Objects::nonNull)
-            .map(ProtectUser::getId)
-            .filter(Objects::nonNull)
-            .toList());
-    contextData.put("total_endpoints", endpointResolutions.size());
-    contextData.put("endpoints", endpointResolutions);
-
     auditLogger.ifPresent(
-        logger ->
-            logger.logEvent(
-                AuditEvent.builder()
-                    .eventType(EventType.EXECUTION)
-                    .eventScope(AuditEventScope.TARGET_RESOLUTION)
-                    .eventStatus(EventStatus.SUCCESS)
-                    .resourceType(ResourceType.INJECT)
-                    .resourceId(inject.getId())
-                    .message(
-                        "Resolved %d endpoints for inject '%s'"
-                            .formatted(endpointResolutions.size(), inject.getTitle()))
-                    .contextData(contextData)
-                    .origin(SYSTEM)
-                    .build()));
+        logger -> {
+          Map<String, Object> contextData = new LinkedHashMap<>();
+          contextData.put("inject_id", inject.getId());
+          contextData.put("inject_name", inject.getTitle());
+          contextData.put(
+              "asset_group_ids",
+              executableInject.getAssetGroups().stream()
+                  .map(AssetGroup::getId)
+                  .filter(Objects::nonNull)
+                  .toList());
+          contextData.put(
+              "team_ids",
+              executableInject.getTeams().stream()
+                  .map(Team::getId)
+                  .filter(Objects::nonNull)
+                  .toList());
+          contextData.put(
+              "player_ids",
+              executableInject.getUsers().stream()
+                  .map(ExecutionContext::getUser)
+                  .filter(Objects::nonNull)
+                  .map(ProtectUser::getId)
+                  .filter(Objects::nonNull)
+                  .toList());
+          contextData.put("total_endpoints", endpointResolutions.size());
+          contextData.put("endpoints", endpointResolutions);
+          logger.logEvent(
+              AuditEvent.builder()
+                  .eventType(EventType.EXECUTION)
+                  .eventScope(AuditEventScope.TARGET_RESOLUTION)
+                  .eventStatus(EventStatus.SUCCESS)
+                  .resourceType(ResourceType.INJECT)
+                  .resourceId(inject.getId())
+                  .message(
+                      "Resolved %d endpoints for inject '%s'"
+                          .formatted(endpointResolutions.size(), inject.getTitle()))
+                  .contextData(contextData)
+                  .origin(SYSTEM)
+                  .build());
+        });
   }
 
   private List<Map<String, Object>> buildEndpointResolutions(List<AssetToExecute> resolvedAssets) {
