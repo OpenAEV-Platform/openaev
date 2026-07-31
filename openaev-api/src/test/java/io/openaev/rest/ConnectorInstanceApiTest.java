@@ -384,15 +384,14 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isBadRequest())
+          // The frontend renders the JSON body message: assert the response body (the
+          // contract), not the resolved exception.
           .andExpect(
-              result -> {
-                String errorMessage = result.getResolvedException().getMessage();
-                assertTrue(
-                    errorMessage.contains(
-                        "no collector with id "
-                            + fakeCollectorId
-                            + " is visible in the current tenant"));
-              });
+              jsonPath("$.message")
+                  .value(
+                      "Cannot migrate: no collector with id "
+                          + fakeCollectorId
+                          + " is visible in the current tenant"));
 
       List<ConnectorInstancePersisted> instanceDb =
           connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());

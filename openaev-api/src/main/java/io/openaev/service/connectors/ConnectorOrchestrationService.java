@@ -146,7 +146,9 @@ public class ConnectorOrchestrationService {
         executorService.executor(connectorId);
       }
     } catch (ElementNotFoundException e) {
-      log.warn(e.getMessage());
+      // User-triggered 400 (bad connector id / not visible in tenant): DEBUG keeps prod
+      // logs quiet, mirroring RestBehavior's BadRequestException handling.
+      log.debug(e.getMessage(), e);
       throw new BadRequestException(
           "Cannot migrate: no "
               + catalogConnector.getContainerType().name().toLowerCase(Locale.ROOT)
