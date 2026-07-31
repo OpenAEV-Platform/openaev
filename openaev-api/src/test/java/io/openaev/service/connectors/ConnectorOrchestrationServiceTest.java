@@ -133,8 +133,8 @@ class ConnectorOrchestrationServiceTest {
 
   @Test
   @DisplayName(
-      "Migrating with an absent (Java null) connector id value fails with a 400 asking for an id:"
-          + " Optional.map wraps the null so the isNull/asText chain is never reached")
+      "Migrating with an absent (Java null) connector id value fails with a 400 asking for an id,"
+          + " not an NPE")
   void given_migrationWithAbsentConnectorIdValue_should_failWithBadRequest() {
     CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
     CreateConnectorInstanceInput.ConfigurationInput idConfig =
