@@ -50,9 +50,9 @@ const ScenarioScope = () => {
 
   return (
     <div>
-      {!!healthchecksForBanner?.length && (
+      {!!healthchecks?.length && (
         <Healthchecks
-          healthchecks={healthchecksForBanner}
+          healthchecks={healthchecks}
           scenarioId={scenarioId}
         />
       )}
