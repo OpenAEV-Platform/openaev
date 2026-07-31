@@ -225,8 +225,7 @@ public class PayloadService {
                           payloadArgument.getKey(),
                           payloadArgument.getDefaultValue());
                   textField.setPayloadArgumentType(payloadArgument.getType());
-                  builder.mandatory(
-                      textField);
+                  builder.mandatory(textField);
                 }
               });
     }
