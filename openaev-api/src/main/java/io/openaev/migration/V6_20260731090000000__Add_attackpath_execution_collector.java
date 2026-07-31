@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * Additive and idempotent.
  */
 @Component
-public class V6_20260730230000000__Add_attackpath_execution_collector extends BaseJavaMigration {
+public class V6_20260731090000000__Add_attackpath_execution_collector extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
