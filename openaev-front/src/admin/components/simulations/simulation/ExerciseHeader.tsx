@@ -304,13 +304,13 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   // Chaining header shows only scope backend warnings; classic simulations keep all healthchecks.
   const healthchecksForIndicator = isSimulationChaining
     ? (() => {
-      const withoutScopeDefinition = healthchecks.filter((healthcheck: HealthCheck) => healthcheck.type !== 'SCOPE_DEFINITION');
-      if (!isScopeMissing) {
-        return withoutScopeDefinition;
-      }
-      const scopeDefinitionHealthcheck = healthchecks.find(isScopeDefinitionEmptyHealthcheck) ?? SCOPE_DEFINITION_EMPTY_WARNING;
-      return [...withoutScopeDefinition, scopeDefinitionHealthcheck];
-    })()
+        const withoutScopeDefinition = healthchecks.filter((healthcheck: HealthCheck) => healthcheck.type !== 'SCOPE_DEFINITION');
+        if (!isScopeMissing) {
+          return withoutScopeDefinition;
+        }
+        const scopeDefinitionHealthcheck = healthchecks.find(isScopeDefinitionEmptyHealthcheck) ?? SCOPE_DEFINITION_EMPTY_WARNING;
+        return [...withoutScopeDefinition, scopeDefinitionHealthcheck];
+      })()
     : healthchecks;
 
   useEffect(() => {

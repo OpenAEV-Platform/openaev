@@ -21,18 +21,13 @@ const DOCUMENTATION_ROOT_URL = 'https://docs.openaev.io';
  * clean popover listing each one with its remediation action. Renders nothing
  * when everything is healthy.
  */
-const HealthcheckIndicator: FunctionComponent<Props> = ({
-  healthchecks,
-  scenarioId,
-  exerciseId,
-}) => {
+const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenarioId, exerciseId }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { t } = useFormatter();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
-  const totalWarnings = healthchecks.length;
-  if (totalWarnings === 0) {
+  if (!healthchecks?.length) {
     return null;
   }
 
@@ -72,15 +67,6 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
     }
   };
 
-  const warningRows = ordered.map((healthcheck, index) => ({
-    id: `healthcheck-${healthcheck.type}-${index}`,
-    type: healthcheck.type!,
-    title: t(`healthcheck.type.${healthcheck.type}`),
-    description: t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`),
-    buttonLabel: t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`),
-    status: healthcheck.status,
-  }));
-
   return (
     <>
       <Button
@@ -99,9 +85,9 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
           },
         }}
       >
-        {totalWarnings === 1
+        {healthchecks.length === 1
           ? t('1 to configure')
-          : t('{count} to configure', { count: totalWarnings })}
+          : t('{count} to configure', { count: healthchecks.length })}
       </Button>
       <Popover
         open={!!anchorEl}
@@ -146,11 +132,11 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
           gap: 1,
         }}
         >
-          {warningRows.map((warning) => {
-            const dotColor = warning.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main;
+          {ordered.map((healthcheck, index) => {
+            const dotColor = healthcheck.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main;
             return (
               <Box
-                key={warning.id}
+                key={`healthcheck-${healthcheck.type}-${index}`}
                 sx={{
                   display: 'flex',
                   alignItems: 'flex-start',
@@ -181,19 +167,19 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
                     fontWeight: 600,
                   }}
                   >
-                    {warning.title}
+                    {t(`healthcheck.type.${healthcheck.type}`)}
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {warning.description}
+                    {t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}
                   </Typography>
                 </Box>
                 <Button
                   color="primary"
                   size="small"
                   sx={{ flexShrink: 0 }}
-                  onClick={() => goToHealthcheckAction(warning.type)}
+                  onClick={() => goToHealthcheckAction(healthcheck.type!)}
                 >
-                  {warning.buttonLabel}
+                  {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
                 </Button>
               </Box>
             );
