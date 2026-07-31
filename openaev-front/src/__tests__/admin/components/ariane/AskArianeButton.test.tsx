@@ -101,5 +101,15 @@ describe('AskArianeButton', () => {
       const { container } = renderButton({ platform_xtm_one_configured: undefined });
       expect(container.firstChild).toBeNull();
     });
+
+    it('renders nothing when the XTM One URL is missing', () => {
+      const { container } = renderButton({ platform_xtm_one_url: undefined });
+      expect(container.firstChild).toBeNull();
+    });
+
+    it('renders nothing when the XTM One URL is not an http(s) URL', () => {
+      const { container } = renderButton({ platform_xtm_one_url: 'javascript:alert(1)' });
+      expect(container.firstChild).toBeNull();
+    });
   });
 });

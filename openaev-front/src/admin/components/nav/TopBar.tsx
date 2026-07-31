@@ -16,6 +16,7 @@ import AskArianeButton from '../ariane/AskArianeButton';
 import AskArianePanel from '../ariane/AskArianePanel';
 import CtemCommandCenterButton from '../ariane/CtemCommandCenterButton';
 import { useChatbot } from '../ariane/useChatbotHooks';
+import isXtmOneAvailable from '../ariane/xtmOneAvailability';
 import BulkOperationsIndicator from './BulkOperationsIndicator';
 import TopBarNotifications from './TopBarNotifications';
 
@@ -151,12 +152,11 @@ const TopBar: FunctionComponent = () => {
           </Stack>
           <div>
             <Stack direction="row" gap={1} alignItems="center">
-              {/* XTM One (agentic AI) block: only when XTM One is configured
-                  and the chatbot has not been explicitly disabled — the same
-                  gating the buttons apply themselves, repeated here so the
+              {/* XTM One (agentic AI) block: only when XTM One is available
+                  (configured, valid URL, AI not disabled) - the exact same
+                  predicate the buttons apply themselves, shared so the
                   divider never renders as an orphan. */}
-              {settings.filigran_chatbot_ai_cgu_status !== 'disabled'
-                && settings.platform_xtm_one_configured === true && (
+              {isXtmOneAvailable(settings) && (
                 <>
                   <AskArianeButton />
                   <CtemCommandCenterButton />
@@ -221,7 +221,7 @@ const TopBar: FunctionComponent = () => {
           </div>
         </Toolbar>
       </AppBar>
-      {settings.platform_xtm_one_configured && isArianeChatOpen && (
+      {isXtmOneAvailable(settings) && isArianeChatOpen && (
         <AskArianePanel
           mode={arianeChatMode}
           onClose={closeChat}
