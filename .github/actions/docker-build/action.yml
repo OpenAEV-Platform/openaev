@@ -88,6 +88,18 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
 
+    - name: Resolve CI registry
+      id: registry
+      uses: ./.github/actions/ci-registry
+
+    - name: Log in to GHCR
+      if: ${{ steps.registry.outputs.available == 'true' }}
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
     - name: Record build start time
       id: build-timer
       run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
@@ -96,6 +108,10 @@ runs:
     # Only main writes the layer cache: a mode=max export costs ~6 min and blocks every
     # E2E job, while a PR-scoped cache is unreadable from any other PR. PRs read main's
     # cache through cache-from for free.
+    #
+    # Two exporters run in the same build: the OCI archive still becomes the reviewable
+    # artifact, while the registry copy lets consumers start as soon as the build ends
+    # instead of waiting for gzip + validate + upload.
     - name: Build image (single-platform OCI archive)
       id: docker-build
       uses: docker/build-push-action@v7
@@ -107,7 +123,9 @@ runs:
         platforms: ${{ inputs.platform }}
         push: false
         pull: true
-        outputs: type=oci,dest=${{ steps.names.outputs.artifact_name }}.tar
+        outputs: |
+          type=oci,dest=${{ steps.names.outputs.artifact_name }}.tar
+          ${{ steps.registry.outputs.available == 'true' && format('type=image,name={0}:{1}-{2},push=true', steps.registry.outputs.repository, steps.registry.outputs.tag-prefix, steps.names.outputs.artifact_name) || '' }}
         tags: ${{ inputs.tags }}
         labels: ${{ inputs.labels }}
         cache-from: type=gha,scope=${{ steps.names.outputs.cache_scope }}

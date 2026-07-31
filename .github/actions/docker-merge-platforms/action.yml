@@ -17,12 +17,60 @@ inputs:
 outputs:
   digest:
     description: Manifest list digest
-    value: ${{ steps.merge.outputs.digest }}
+    value: ${{ steps.merge-registry.outputs.digest || steps.merge.outputs.digest }}
 
 runs:
   using: composite
   steps:
+    - name: Resolve CI registry
+      id: registry
+      uses: ./.github/actions/ci-registry
+
+    - name: Log in to GHCR
+      if: ${{ steps.registry.outputs.available == 'true' }}
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    # Registry path: the index is assembled server-side from manifests that already
+    # exist, so no ~1.9 GB of archives are moved just to staple them together.
+    - name: Merge platforms via registry
+      id: merge-registry
+      if: ${{ steps.registry.outputs.available == 'true' }}
+      shell: bash
+      env:
+        REPO: ${{ steps.registry.outputs.repository }}
+        PREFIX: ${{ steps.registry.outputs.tag-prefix }}
+        ARTIFACT: ${{ inputs.artifact-name }}
+        PLATFORMS: ${{ inputs.platforms }}
+      run: |
+        set -euo pipefail
+        SRC=""
+        IFS=',' read -ra PLATS <<< "$PLATFORMS"
+        for plat in "${PLATS[@]}"; do
+          plat=$(echo "$plat" | xargs)
+          SRC="$SRC ${REPO}:${PREFIX}-${ARTIFACT}-${plat#*/}"
+        done
+
+        echo "── Creating multi-arch index from: $SRC ──"
+        docker buildx imagetools create -t "${REPO}:${PREFIX}-${ARTIFACT}" $SRC
+
+        DIGEST=$(docker buildx imagetools inspect "${REPO}:${PREFIX}-${ARTIFACT}" \
+          --format '{{json .Manifest.Digest}}' | tr -d '"')
+        echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+        echo "  ✅ Multi-arch manifest digest: ${DIGEST}"
+
+        # The reviewable artifact is still produced, just pulled from the index
+        echo "── Exporting multi-arch OCI archive ──"
+        skopeo copy --all \
+          "docker://${REPO}:${PREFIX}-${ARTIFACT}" \
+          "oci-archive:${ARTIFACT}.tar"
+        gzip "${ARTIFACT}.tar"
+
     - name: Install crane
+      if: ${{ steps.registry.outputs.available != 'true' }}
       shell: bash
       run: |
         CRANE_VERSION="0.20.3"
@@ -31,6 +79,7 @@ runs:
         crane version
 
     - name: Download per-platform artifacts
+      if: ${{ steps.registry.outputs.available != 'true' }}
       uses: actions/download-artifact@v8
       with:
         pattern: ${{ inputs.artifact-name }}-*
@@ -39,6 +88,7 @@ runs:
 
     - name: Merge into multi-arch OCI archive
       id: merge
+      if: ${{ steps.registry.outputs.available != 'true' }}
       shell: bash
       run: |
         set -euo pipefail

@@ -165,7 +165,51 @@ runs:
       shell: bash
       working-directory: openaev-front
 
+    - name: Resolve CI registry
+      id: registry
+      uses: ./.github/actions/ci-registry
+
+    - name: Log in to GHCR
+      if: ${{ steps.registry.outputs.available == 'true' }}
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Pull image from registry
+      if: ${{ steps.registry.outputs.available == 'true' }}
+      shell: bash
+      env:
+        IMAGE_REF: ${{ steps.registry.outputs.repository }}:${{ steps.registry.outputs.tag-prefix }}-${{ inputs.docker-image }}
+      run: |
+        set -euo pipefail
+        echo "⏳ Waiting for $IMAGE_REF (services booting in parallel)..."
+        ARCH="${{ inputs.docker-image }}"
+        ARCH="${ARCH##*-}"
+        for i in $(seq 1 180); do
+          if docker buildx imagetools inspect "$IMAGE_REF" >/dev/null 2>&1; then
+            echo "✅ Image published (after ~$((i * 5))s)"
+            break
+          fi
+          BUILD_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq "[.jobs[] | select(.name | test(\"Docker Build.*$ARCH\")) | .conclusion] | first // \"\"" 2>/dev/null || echo "")
+          if [ "$BUILD_CONCLUSION" = "failure" ] || [ "$BUILD_CONCLUSION" = "cancelled" ]; then
+            echo "❌ Docker Build ($ARCH) $BUILD_CONCLUSION — aborting"
+            exit 1
+          fi
+          if [ "$i" -eq 180 ]; then
+            echo "❌ Timed out waiting for $IMAGE_REF (15 min)"
+            exit 1
+          fi
+          sleep 5
+        done
+        docker pull "$IMAGE_REF"
+        docker tag "$IMAGE_REF" openaev:ci
+        echo "✅ Loaded as openaev:ci"
+
     - name: Wait for Docker image artifact
+      if: ${{ steps.registry.outputs.available != 'true' }}
       shell: bash
       run: |
         echo "⏳ Waiting for Docker image artifact (services booting in parallel)..."
@@ -206,12 +250,14 @@ runs:
         done
 
     - name: Download Docker image artifact
+      if: ${{ steps.registry.outputs.available != 'true' }}
       uses: actions/download-artifact@v8
       with:
         name: ${{ inputs.docker-image }}
         path: /tmp/openaev-image
 
     - name: Load Docker image
+      if: ${{ steps.registry.outputs.available != 'true' }}
       shell: bash
       run: |
         cd /tmp/openaev-image
