@@ -259,7 +259,6 @@ const ConnectorInstanceForm = ({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100%',
           gap: theme.spacing(2),
         }}
         id="connectorInstanceForm"
@@ -346,11 +345,13 @@ const ConnectorInstanceForm = ({
           </>
         )}
 
+        {/* In-flow action buttons right after the form content, like every
+            other drawer form in the app (no bottom-pinned footer). */}
         <div style={{
-          marginTop: 'auto',
           display: 'flex',
           justifyContent: 'flex-end',
           gap: theme.spacing(1),
+          marginTop: theme.spacing(1),
         }}
         >
           <Button
