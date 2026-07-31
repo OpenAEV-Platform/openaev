@@ -265,11 +265,16 @@ const ConnectorInstanceForm = ({
         id="connectorInstanceForm"
         onSubmit={handleSubmitWithoutDefault}
       >
+        {/* The display name is a regular catalog configuration (COLLECTOR_NAME /
+            INJECTOR_NAME / EXECUTOR_NAME): the update endpoint merges it like any
+            other config and the Integration Manager redeploys the container with
+            the new name, so it is editable - it was only ever disabled by
+            accident in the original composer feature. */}
         <TextFieldController
           name={`connector_instance_configurations.${nameFieldIndex}.configuration_value`}
           label={t('Display name')}
           required
-          disabled={disabled || isEditing}
+          disabled={disabled}
         />
         <TextField id="catalog-connector-slug" label={t('Instance name')} disabled defaultValue={catalogConnectorSlug} />
         {requiredFields.map(({ index, field, definition }) => (
