@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260730150000000__Add_finding_triage extends BaseJavaMigration {
+public class V6_20260731130000000__Add_finding_triage extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
