@@ -161,7 +161,7 @@ public class PayloadService {
     ContractElement targetedAssetField = new ContractTargetedAsset(key, key);
     PrimitiveType argumentType =
         payloadArgument.getType() != null ? payloadArgument.getType() : PrimitiveType.Text;
-    targetedAssetField.setPayloadArgumentType(argumentType);
+    targetedAssetField.setArgumentType(argumentType);
 
     Map<String, String> targetPropertySelectorMap = new HashMap<>();
     for (ContractTargetedProperty property : ContractTargetedProperty.values()) {
@@ -228,7 +228,7 @@ public class PayloadService {
                           payloadArgument.getKey(),
                           payloadArgument.getKey(),
                           payloadArgument.getDefaultValue());
-                  textField.setPayloadArgumentType(argumentType);
+                  textField.setArgumentType(argumentType);
                   builder.mandatory(textField);
                 }
               });

@@ -328,7 +328,7 @@ public class InjectorApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Should register external injector and default missing payloadArgumentType to text")
+        "Should register external injector and default missing argumentType to text")
     void shouldRegisterExternalInjectorWithoutPayloadArgumentTypeInContractContent() throws Exception {
       String injectorId = "ext-injector-without-argument-type";
       String injectorType = "openaev_ext_no_argument_type";
@@ -336,7 +336,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       InjectorContractInput contract = new InjectorContractInput();
       contract.setId(contractId);
-      contract.setLabels(Map.of("en", "Contract without payloadArgumentType"));
+      contract.setLabels(Map.of("en", "Contract without argumentType"));
       contract.setContent(
           """
           {
@@ -377,13 +377,13 @@ public class InjectorApiTest extends IntegrationTest {
       assertThat(contracts).hasSize(1);
       assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].key"))
           .isEqualTo("target");
-      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].payloadArgumentType"))
+      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].argumentType"))
           .isEqualTo("text");
     }
 
     @Test
     @DisplayName(
-        "Should default payloadArgumentType to text when external contract sends null or empty values")
+        "Should default argumentType to text when external contract sends null or empty values")
     void shouldDefaultPayloadArgumentTypeToTextWhenNullOrEmpty() throws Exception {
       String injectorId = "ext-injector-null-empty-argument-type";
       String injectorType = "openaev_ext_null_empty_argument_type";
@@ -391,7 +391,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       InjectorContractInput contract = new InjectorContractInput();
       contract.setId(contractId);
-      contract.setLabels(Map.of("en", "Contract with null and empty payloadArgumentType"));
+      contract.setLabels(Map.of("en", "Contract with null and empty argumentType"));
       contract.setContent(
           """
           {
@@ -409,7 +409,7 @@ public class InjectorApiTest extends IntegrationTest {
                 "type": "text",
                 "mandatory": true,
                 "defaultValue": "value-2",
-                "payloadArgumentType": null
+                "argumentType": null
               },
               {
                 "key": "empty_type",
@@ -417,7 +417,7 @@ public class InjectorApiTest extends IntegrationTest {
                 "type": "text",
                 "mandatory": true,
                 "defaultValue": "value-3",
-                "payloadArgumentType": ""
+                "argumentType": ""
               }
             ]
           }
@@ -446,11 +446,11 @@ public class InjectorApiTest extends IntegrationTest {
       List<InjectorContract> contracts =
           injectorContractRepository.findByInjectorsContaining(persisted.get());
       assertThat(contracts).hasSize(1);
-      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].payloadArgumentType"))
+      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].argumentType"))
           .isEqualTo("text");
-      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[1].payloadArgumentType"))
+      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[1].argumentType"))
           .isEqualTo("text");
-      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[2].payloadArgumentType"))
+      assertThat(JsonPath.read(contracts.getFirst().getContent(), "$.fields[2].argumentType"))
           .isEqualTo("text");
     }
 

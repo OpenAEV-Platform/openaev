@@ -347,7 +347,7 @@ class PayloadApiTest extends IntegrationTest {
 
             if ("URL".equals(key)) {
               assertEquals("targeted-asset", type);
-              assertEquals("targeted-asset", f.get("payloadArgumentType").asText());
+              assertEquals("targeted-asset", f.get("argumentType").asText());
               fieldsForTargetedAsset.add(f);
             } else if ((CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY + "-URL").equals(key)) {
               assertEquals("select", type);
@@ -448,7 +448,7 @@ class PayloadApiTest extends IntegrationTest {
             String key = f.get("key").asText();
             if (argumentKeys.contains(key)) {
               keyToContractType.put(key, f.get("type").asText());
-              keyToPayloadArgumentType.put(key, f.get("payloadArgumentType").asText());
+              keyToPayloadArgumentType.put(key, f.get("argumentType").asText());
             }
           });
 
@@ -513,8 +513,8 @@ class PayloadApiTest extends IntegrationTest {
       contractFields.forEach(
           f -> {
             String key = f.get("key").asText();
-            if (expectedPayloadArgumentTypes.containsKey(key) && f.has("payloadArgumentType")) {
-              actualPayloadArgumentTypes.put(key, f.get("payloadArgumentType").asText());
+            if (expectedPayloadArgumentTypes.containsKey(key) && f.has("argumentType")) {
+              actualPayloadArgumentTypes.put(key, f.get("argumentType").asText());
             }
           });
 
@@ -560,7 +560,7 @@ class PayloadApiTest extends IntegrationTest {
       }
       assertNotNull(fieldForArgument, "Contract must contain a field for 'arg_without_type'");
       assertEquals("text", fieldForArgument.get("type").asText());
-      assertEquals("text", fieldForArgument.get("payloadArgumentType").asText());
+      assertEquals("text", fieldForArgument.get("argumentType").asText());
     }
 
     /** Primitive argument types are persisted and returned in the payload response. */
@@ -646,7 +646,7 @@ class PayloadApiTest extends IntegrationTest {
       assertNotNull(scanField, "Contract must contain a field for 'scan_result'");
       assertEquals("text", scanField.get("type").asText());
       assertEquals("srv-01", scanField.get("defaultValue").asText());
-      assertEquals("host", scanField.get("payloadArgumentType").asText());
+      assertEquals("host", scanField.get("argumentType").asText());
     }
   }
 

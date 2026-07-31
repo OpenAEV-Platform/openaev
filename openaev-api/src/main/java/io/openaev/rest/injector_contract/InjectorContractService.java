@@ -93,8 +93,8 @@ import org.springframework.util.StringUtils;
 @Slf4j
 public class InjectorContractService implements DependenciesManager {
   private static final String CONTRACT_CONTENT_FIELDS_NODE = "fields";
-  private static final String CONTRACT_FIELD_PAYLOAD_ARGUMENT_TYPE = "payloadArgumentType";
-  private static final String LEGACY_CONTRACT_FIELD_ARGUMENT_TYPE = "argumentType";
+  private static final String CONTRACT_FIELD_ARGUMENT_TYPE = "argumentType";
+  private static final String LEGACY_CONTRACT_FIELD_PAYLOAD_ARGUMENT_TYPE = "payloadArgumentType";
   private static final String DEFAULT_PAYLOAD_ARGUMENT_TYPE_LABEL = PrimitiveType.Text.label;
 
   @PersistenceContext private EntityManager entityManager;
@@ -1013,13 +1013,13 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
-   * Normalizes contract field payload argument types in raw contract JSON.
+   * Normalizes contract field argument types in raw contract JSON.
    *
-   * <p>For externally pushed injector contracts, {@code payloadArgumentType} may be omitted, null,
-   * or an empty string. In such cases, this method sets it to {@code text} to keep contract content
-   * consistent with payload-generated contracts.
+   * <p>For externally pushed injector contracts, {@code argumentType} may be omitted, null, or an
+   * empty string. In such cases, this method sets it to {@code text} to keep contract content
+   * consistent.
    *
-   * <p>Legacy {@code argumentType} values are copied to {@code payloadArgumentType}.
+   * <p>Legacy {@code payloadArgumentType} values are copied to {@code argumentType}.
    */
   public String normalizePayloadArgumentTypeInContractContent(String rawContent) {
     if (!StringUtils.hasText(rawContent)) {
@@ -1040,24 +1040,25 @@ public class InjectorContractService implements DependenciesManager {
         if (!fieldNode.isObject()) {
           continue;
         }
-        JsonNode payloadArgumentTypeNode = fieldNode.get(CONTRACT_FIELD_PAYLOAD_ARGUMENT_TYPE);
-        JsonNode legacyArgumentTypeNode = fieldNode.get(LEGACY_CONTRACT_FIELD_ARGUMENT_TYPE);
+        JsonNode argumentTypeNode = fieldNode.get(CONTRACT_FIELD_ARGUMENT_TYPE);
+        JsonNode legacyPayloadArgumentTypeNode =
+            fieldNode.get(LEGACY_CONTRACT_FIELD_PAYLOAD_ARGUMENT_TYPE);
 
         boolean isMissingOrNull =
-            payloadArgumentTypeNode == null || payloadArgumentTypeNode.isNull();
+            argumentTypeNode == null || argumentTypeNode.isNull();
         boolean isBlankString =
-            payloadArgumentTypeNode != null
-                && payloadArgumentTypeNode.isTextual()
-                && !StringUtils.hasText(payloadArgumentTypeNode.asText());
+            argumentTypeNode != null
+                && argumentTypeNode.isTextual()
+                && !StringUtils.hasText(argumentTypeNode.asText());
 
         if (isMissingOrNull || isBlankString) {
           String normalizedValue = DEFAULT_PAYLOAD_ARGUMENT_TYPE_LABEL;
-          if (legacyArgumentTypeNode != null
-              && legacyArgumentTypeNode.isTextual()
-              && StringUtils.hasText(legacyArgumentTypeNode.asText())) {
-            normalizedValue = legacyArgumentTypeNode.asText();
+          if (legacyPayloadArgumentTypeNode != null
+              && legacyPayloadArgumentTypeNode.isTextual()
+              && StringUtils.hasText(legacyPayloadArgumentTypeNode.asText())) {
+            normalizedValue = legacyPayloadArgumentTypeNode.asText();
           }
-          ((ObjectNode) fieldNode).put(CONTRACT_FIELD_PAYLOAD_ARGUMENT_TYPE, normalizedValue);
+          ((ObjectNode) fieldNode).put(CONTRACT_FIELD_ARGUMENT_TYPE, normalizedValue);
           changed = true;
         }
       }
