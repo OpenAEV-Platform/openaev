@@ -1,5 +1,6 @@
 package io.openaev.service.connectors;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -132,11 +133,15 @@ public class ConnectorOrchestrationService {
                     configurationInput.getKey().equals(catalogConnector.getContainerType() + "_ID"))
             .findFirst()
             .map(CreateConnectorInstanceInput.ConfigurationInput::getValue)
+            // A JSON null or blank value carries no id: treat it like a missing
+            // configuration so the failure stays a 400, never a NullPointerException.
+            .filter(value -> !value.isNull())
+            .map(JsonNode::asText)
+            .filter(text -> !text.isBlank())
             .orElseThrow(
                 () ->
                     new BadRequestException(
-                        "A connector id is required to migrate an existing connector"))
-            .asText();
+                        "A connector id is required to migrate an existing connector"));
     try {
       if (catalogConnector.getContainerType().equals(ConnectorType.COLLECTOR)) {
         collectorService.collector(connectorId);

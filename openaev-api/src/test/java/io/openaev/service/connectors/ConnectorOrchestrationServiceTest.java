@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
@@ -112,6 +113,22 @@ class ConnectorOrchestrationServiceTest {
     service.createConnectorInstance(catalog, input, TENANT_ID);
 
     verify(connectorInstanceService).createConnectorInstance(catalog, input, TENANT_ID);
+  }
+
+  @Test
+  @DisplayName(
+      "Migrating with a JSON null connector id fails with a 400 asking for an id, not a 500")
+  void given_migrationWithNullConnectorId_should_failWithBadRequest() {
+    CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
+    CreateConnectorInstanceInput.ConfigurationInput idConfig =
+        new CreateConnectorInstanceInput.ConfigurationInput();
+    idConfig.setKey("COLLECTOR_ID");
+    idConfig.setValue(NullNode.getInstance());
+    input.setConfigurations(List.of(idConfig));
+
+    assertThatThrownBy(() -> service.createConnectorInstance(collectorCatalog(), input, TENANT_ID))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("A connector id is required");
   }
 
   @Test
