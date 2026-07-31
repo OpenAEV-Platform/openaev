@@ -18,8 +18,7 @@ public interface AutonomousEventRepository extends JpaRepository<AutonomousEvent
       String runId, long sequence);
 
   /** Highest sequence written for a run, 0 when the run has no events yet. */
-  @Query(
-      "SELECT COALESCE(MAX(e.sequence), 0) FROM AutonomousEvent e WHERE e.runId = :runId")
+  @Query("SELECT COALESCE(MAX(e.sequence), 0) FROM AutonomousEvent e WHERE e.runId = :runId")
   long findMaxSequence(@Param("runId") String runId);
 
   /** Bulk-purges a run's timeline when the run (and its scenario/simulation) is deleted. */

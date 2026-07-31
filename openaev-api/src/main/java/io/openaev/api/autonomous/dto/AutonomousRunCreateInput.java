@@ -25,7 +25,8 @@ public class AutonomousRunCreateInput {
   private String objectiveTemplateKey;
 
   @JsonProperty("name")
-  @Schema(description = "Optional label for the auto-provisioned run. Defaults to a generated name.")
+  @Schema(
+      description = "Optional label for the auto-provisioned run. Defaults to a generated name.")
   private String name;
 
   @JsonProperty("description")

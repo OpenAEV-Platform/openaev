@@ -11,8 +11,7 @@ import org.springframework.stereotype.Repository;
 
 /** Store for operator steering directives injected into a live autonomous run. */
 @Repository
-public interface AutonomousDirectiveRepository
-    extends JpaRepository<AutonomousDirective, String> {
+public interface AutonomousDirectiveRepository extends JpaRepository<AutonomousDirective, String> {
 
   List<AutonomousDirective> findByRunIdAndStatusOrderByCreatedAtAsc(
       String runId, AutonomousDirectiveStatus status);

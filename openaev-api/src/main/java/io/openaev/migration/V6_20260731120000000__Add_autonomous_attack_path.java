@@ -10,7 +10,8 @@ import org.springframework.stereotype.Component;
  * feature gated by the {@code AUTONOMOUS_ATTACK_PATH} preview flag:
  *
  * <ul>
- *   <li>{@code autonomous_runs} - one AI-driven run bound to a chained simulation + XTM One session.
+ *   <li>{@code autonomous_runs} - one AI-driven run bound to a chained simulation + XTM One
+ *       session.
  *   <li>{@code autonomous_events} - append-only, per-run-sequenced AI decision timeline.
  *   <li>{@code autonomous_directives} - operator steering directives injected into a live run.
  *   <li>{@code autonomous_objective_templates} - reusable objective gallery (built-ins + custom).

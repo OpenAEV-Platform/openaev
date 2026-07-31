@@ -376,8 +376,8 @@ public class XtmOneClient {
   }
 
   /**
-   * Kicks off a durable, autonomous attack-path orchestration run in XTM One. The orchestrator
-   * (the "brain") then drives OpenAEV back through the platform MCP tools and the run callback
+   * Kicks off a durable, autonomous attack-path orchestration run in XTM One. The orchestrator (the
+   * "brain") then drives OpenAEV back through the platform MCP tools and the run callback
    * endpoints, so this call is a short, fire-and-forget enqueue rather than a long stream.
    *
    * <p>Authenticated with a per-user JWT so every action XTM One takes is attributed to the real
@@ -439,9 +439,10 @@ public class XtmOneClient {
 
   /**
    * Best-effort wake for a parked autonomous run. When the operator queues a steering directive (or
-   * answers a waiting-input question), the orchestrator may be parked between decision cycles - this
-   * re-arms it so it resumes immediately instead of only at its scheduled re-check. Fire-and-forget:
-   * a failure never breaks queuing the directive, because the deadline sweep is the backstop.
+   * answers a waiting-input question), the orchestrator may be parked between decision cycles -
+   * this re-arms it so it resumes immediately instead of only at its scheduled re-check.
+   * Fire-and-forget: a failure never breaks queuing the directive, because the deadline sweep is
+   * the backstop.
    */
   public void wakeAutonomousRun(String openaevRunId, String reason) {
     if (!config.isConfigured() || openaevRunId == null) {
@@ -454,8 +455,7 @@ public class XtmOneClient {
       String json = objectMapper.writeValueAsString(body);
       String encodedRunId = URLEncoder.encode(openaevRunId, StandardCharsets.UTF_8);
       HttpPost httpPost =
-          chatPostBuilder(
-              "/api/v1/platform/autonomous/runs/" + encodedRunId + "/wake", jwt, json);
+          chatPostBuilder("/api/v1/platform/autonomous/runs/" + encodedRunId + "/wake", jwt, json);
       httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(20)).build());
       httpClient.execute(
           httpPost,

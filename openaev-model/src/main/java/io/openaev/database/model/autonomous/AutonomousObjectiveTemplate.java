@@ -16,9 +16,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 /**
- * A reusable objective template for autonomous runs (e.g. "Reach the domain controller",
- * "Prove data exfiltration", "Validate EDR detections"). Built-ins are seeded per tenant and
- * admins can add their own. The gallery in the run-creation UI reads these.
+ * A reusable objective template for autonomous runs (e.g. "Reach the domain controller", "Prove
+ * data exfiltration", "Validate EDR detections"). Built-ins are seeded per tenant and admins can
+ * add their own. The gallery in the run-creation UI reads these.
  */
 @Getter
 @Setter
@@ -62,7 +62,10 @@ public class AutonomousObjectiveTemplate implements TenantBase {
   private String icon;
 
   @NotNull
-  @Column(name = "autonomous_objective_template_prompt", nullable = false, columnDefinition = "text")
+  @Column(
+      name = "autonomous_objective_template_prompt",
+      nullable = false,
+      columnDefinition = "text")
   @JsonProperty("autonomous_objective_template_prompt")
   @Schema(description = "Objective prompt handed to the orchestrator")
   private String prompt;

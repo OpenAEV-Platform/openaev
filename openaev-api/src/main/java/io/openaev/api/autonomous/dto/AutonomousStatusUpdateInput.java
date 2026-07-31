@@ -7,7 +7,10 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-/** A run-status transition pushed by the XTM One orchestrator (running, waiting-input, completed, failed...). */
+/**
+ * A run-status transition pushed by the XTM One orchestrator (running, waiting-input, completed,
+ * failed...).
+ */
 @Getter
 @Setter
 @Schema(description = "Run status update pushed by the orchestrator")

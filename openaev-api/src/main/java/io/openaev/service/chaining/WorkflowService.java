@@ -170,9 +170,9 @@ public class WorkflowService {
    *
    * <p>This is the substrate for autonomous-run live steering: the chaining engine reads the
    * denylist from the RUN workflow on every subsequent step evaluation (see {@code
-   * PrimitiveValidationContextBuilder} / {@code ScopeService}), so a denylist entry added here walls
-   * off the matching assets on the next decision cycle. Only meaningful for autonomous / chained
-   * runs; for a normal run there is at most one RUN workflow.
+   * PrimitiveValidationContextBuilder} / {@code ScopeService}), so a denylist entry added here
+   * walls off the matching assets on the next decision cycle. Only meaningful for autonomous /
+   * chained runs; for a normal run there is at most one RUN workflow.
    *
    * @param simulationId the simulation whose RUN workflow(s) should be edited
    * @param input the new scope / rate-limit configuration

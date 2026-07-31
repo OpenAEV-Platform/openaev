@@ -48,8 +48,8 @@ import org.springframework.web.server.ResponseStatusException;
  * decision timeline, and real-time steering surface back to the UI.
  *
  * <p>The orchestrator streams its progress back through {@link #recordEvent} / {@link
- * #updateStatus} and reads operator steering through {@link #consumePendingDirectives}, so a run can
- * be followed and re-steered without ever stopping it. Every mutation is gated behind {@link
+ * #updateStatus} and reads operator steering through {@link #consumePendingDirectives}, so a run
+ * can be followed and re-steered without ever stopping it. Every mutation is gated behind {@link
  * PreviewFeatureService#isAutonomousAttackPathEnabled()}.
  */
 @Service
@@ -78,7 +78,8 @@ public class AutonomousRunService {
   private AutonomousRun require(String runId) {
     return runRepository
         .findById(runId)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Autonomous run not found"));
+        .orElseThrow(
+            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Autonomous run not found"));
   }
 
   // region lifecycle
@@ -86,10 +87,10 @@ public class AutonomousRunService {
   /**
    * Creates a run: resolves the objective (free text or template), auto-provisions the attack-path
    * (chaining) substrate, spins up its running simulation, and persists the durable run handle in
-   * {@code CREATED}. The run is fully autonomous - the operator never authors an attack path; the AI
-   * orchestrator builds and executes it. An existing chaining scenario may still be passed
-   * explicitly (advanced), otherwise a fresh one is provisioned from the objective. The orchestrator
-   * is engaged separately by {@link #start} so creation stays fast and idempotent.
+   * {@code CREATED}. The run is fully autonomous - the operator never authors an attack path; the
+   * AI orchestrator builds and executes it. An existing chaining scenario may still be passed
+   * explicitly (advanced), otherwise a fresh one is provisioned from the objective. The
+   * orchestrator is engaged separately by {@link #start} so creation stays fast and idempotent.
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun create(AutonomousRunCreateInput input) {
@@ -114,7 +115,8 @@ public class AutonomousRunService {
     }
 
     Exercise simulation =
-        scenarioToExerciseService.toExercise(scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+        scenarioToExerciseService.toExercise(
+            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
     try {
       workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
     } catch (ChainingException e) {
@@ -143,8 +145,9 @@ public class AutonomousRunService {
   }
 
   /**
-   * Engages the XTM One orchestrator for a created run. The call is a short fire-and-forget enqueue;
-   * the orchestrator then drives OpenAEV back through the platform MCP tools and these callbacks.
+   * Engages the XTM One orchestrator for a created run. The call is a short fire-and-forget
+   * enqueue; the orchestrator then drives OpenAEV back through the platform MCP tools and these
+   * callbacks.
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun start(String runId) {
@@ -249,14 +252,13 @@ public class AutonomousRunService {
     // Fresh simulation from the SAME scenario - no new scenario is ever provisioned on restart.
     Scenario scenario = scenarioService.scenario(run.getScenarioId());
     Exercise simulation =
-        scenarioToExerciseService.toExercise(scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+        scenarioToExerciseService.toExercise(
+            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
     try {
       workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation);
     } catch (ChainingException e) {
       throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST,
-          "Failed to start the restarted simulation: " + e.getMessage(),
-          e);
+          HttpStatus.BAD_REQUEST, "Failed to start the restarted simulation: " + e.getMessage(), e);
     }
     // Full reset of the run's decision history + steering so the cockpit starts clean.
     directiveRepository.deleteByRunId(runId);
@@ -280,8 +282,8 @@ public class AutonomousRunService {
   /**
    * Tears down the autonomous run owning {@code scenarioId} together with its single underlying
    * simulation (attack-path rows included) and its timeline/directives. An autonomous scenario and
-   * its simulation are one unit, so deleting the scenario must delete the simulation too - otherwise
-   * an orphan run keeps driving a simulation whose scenario is gone.
+   * its simulation are one unit, so deleting the scenario must delete the simulation too -
+   * otherwise an orphan run keeps driving a simulation whose scenario is gone.
    *
    * <p>Deliberately a best-effort no-op for manual scenarios (and when the preview feature is off),
    * so the generic scenario-delete endpoint can call it unconditionally. A still-active run
@@ -326,14 +328,13 @@ public class AutonomousRunService {
     return eventService.append(runId, run.getSimulationId(), type, title, content, data);
   }
 
-  /** Applies a run-status transition pushed by the orchestrator (waiting-input, completed, failed...). */
+  /**
+   * Applies a run-status transition pushed by the orchestrator (waiting-input, completed,
+   * failed...).
+   */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun updateStatus(
-      String runId,
-      AutonomousRunStatus status,
-      String lastError,
-      String title,
-      String content) {
+      String runId, AutonomousRunStatus status, String lastError, String title, String content) {
     requireFeature();
     AutonomousRun run = require(runId);
     run.setStatus(status);
@@ -415,8 +416,9 @@ public class AutonomousRunService {
 
   /**
    * Registers a best-effort, after-commit wake to the XTM One orchestrator for {@code runId}. Runs
-   * only once the surrounding transaction commits (so the directive is visible to the orchestrator's
-   * consume-directives read); a synchronous fallback is used when there is no active transaction.
+   * only once the surrounding transaction commits (so the directive is visible to the
+   * orchestrator's consume-directives read); a synchronous fallback is used when there is no active
+   * transaction.
    */
   private void wakeOrchestratorAfterCommit(String runId, String reason) {
     if (TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -433,15 +435,16 @@ public class AutonomousRunService {
   }
 
   /**
-   * Applies a live scope / rate-limit / safe-mode edit to the run's RUN workflow(s) without stopping
-   * it. The chaining engine reads the updated scope on its next decision cycle, so a denylist entry
-   * added here walls off the matching assets immediately.
+   * Applies a live scope / rate-limit / safe-mode edit to the run's RUN workflow(s) without
+   * stopping it. The chaining engine reads the updated scope on its next decision cycle, so a
+   * denylist entry added here walls off the matching assets immediately.
    */
   @Transactional(rollbackFor = Exception.class)
   public List<Workflow> applyLiveConfiguration(String runId, WorkflowConfigurationInput input) {
     requireFeature();
     AutonomousRun run = require(runId);
-    List<Workflow> updated = workflowService.updateRunWorkflowConfiguration(run.getSimulationId(), input);
+    List<Workflow> updated =
+        workflowService.updateRunWorkflowConfiguration(run.getSimulationId(), input);
     eventService.append(
         runId,
         run.getSimulationId(),
@@ -469,9 +472,10 @@ public class AutonomousRunService {
   }
 
   /**
-   * Returns the run driving a given simulation, if any. Used by the simulation detail page to decide
-   * whether to render the autonomous (AI-driven) cockpit instead of the manual chaining editor. 404
-   * when the simulation is not autonomous, so the caller can treat the absence as "manual".
+   * Returns the run driving a given simulation, if any. Used by the simulation detail page to
+   * decide whether to render the autonomous (AI-driven) cockpit instead of the manual chaining
+   * editor. 404 when the simulation is not autonomous, so the caller can treat the absence as
+   * "manual".
    */
   @Transactional(readOnly = true)
   public AutonomousRun getBySimulation(String simulationId) {
@@ -560,8 +564,8 @@ public class AutonomousRunService {
   }
 
   /**
-   * Resolves the objective's scope mode ({@code environment} vs {@code target}) from its template so
-   * the orchestrator can deterministically decide, on its first cycle, whether it must resolve a
+   * Resolves the objective's scope mode ({@code environment} vs {@code target}) from its template
+   * so the orchestrator can deterministically decide, on its first cycle, whether it must resolve a
    * specific target (and ask the operator when ambiguous). Free-text runs have no template, so
    * {@code null} is returned and the orchestrator classifies the objective itself.
    */

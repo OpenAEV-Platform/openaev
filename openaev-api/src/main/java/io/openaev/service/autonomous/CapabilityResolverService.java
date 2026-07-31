@@ -33,9 +33,9 @@ import org.springframework.web.server.ResponseStatusException;
  * Answers "can this platform do X, and if not, what should be installed?" for the autonomous
  * attack-path feature. It maps a requested technique (MITRE ATT&amp;CK external id) or desired
  * output/primitive type ({@link ContractOutputType}) onto the installed injector contracts that
- * satisfy it - {@code attackPatterns} for techniques, {@code getProviding()} for output types - and,
- * when nothing satisfies it, suggests marketplace connectors ({@link CatalogConnector}) an operator
- * could install to close the gap.
+ * satisfy it - {@code attackPatterns} for techniques, {@code getProviding()} for output types -
+ * and, when nothing satisfies it, suggests marketplace connectors ({@link CatalogConnector}) an
+ * operator could install to close the gap.
  *
  * <p>This is the substrate for two things: the operator UI's capability-gap strip on the run
  * creation / live view, and the orchestrator's {@code openaev_capability_gaps} MCP tool - so the AI
@@ -62,8 +62,7 @@ public class CapabilityResolverService {
    */
   private static final Map<String, List<String>> CAPABILITY_KEYWORDS =
       Map.ofEntries(
-          Map.entry(
-              "credentials", List.of("credential", "password", "phishing", "dump", "secret")),
+          Map.entry("credentials", List.of("credential", "password", "phishing", "dump", "secret")),
           Map.entry("admin_username", List.of("credential", "privilege", "admin")),
           Map.entry("username", List.of("credential", "account", "enumeration")),
           Map.entry("port", List.of("scan", "port", "nmap", "discovery")),
@@ -91,8 +90,8 @@ public class CapabilityResolverService {
   /**
    * Resolves every technique and output type in the query against the installed threat arsenal.
    * Loads the tenant's contracts once and builds in-memory indexes; this is an on-demand advisory
-   * call (run creation, capability-gap check), never a per-step hot path, so a single enumeration is
-   * acceptable.
+   * call (run creation, capability-gap check), never a per-step hot path, so a single enumeration
+   * is acceptable.
    */
   @Transactional(readOnly = true)
   public CapabilityReport resolve(CapabilityQueryInput input) {
@@ -138,13 +137,9 @@ public class CapabilityResolverService {
   }
 
   private CapabilityResolution finalize(
-      CapabilityResolution.Kind kind,
-      String token,
-      String label,
-      List<ResolvedContract> matches) {
+      CapabilityResolution.Kind kind, String token, String label, List<ResolvedContract> matches) {
     boolean satisfied = !matches.isEmpty();
-    List<SuggestedConnector> suggestions =
-        satisfied ? List.of() : suggestConnectors(token, label);
+    List<SuggestedConnector> suggestions = satisfied ? List.of() : suggestConnectors(token, label);
     return new CapabilityResolution(kind, token, label, satisfied, matches, suggestions);
   }
 
@@ -161,7 +156,8 @@ public class CapabilityResolverService {
         }
         String key = extId.toUpperCase(Locale.ROOT);
         index.byTechnique.computeIfAbsent(key, k -> new ArrayList<>()).add(resolved);
-        index.techniqueNames.putIfAbsent(key, pattern.getName() != null ? pattern.getName() : extId);
+        index.techniqueNames.putIfAbsent(
+            key, pattern.getName() != null ? pattern.getName() : extId);
       }
       for (ContractOutputType type : contract.getProviding()) {
         index
@@ -183,7 +179,11 @@ public class CapabilityResolverService {
                 .collect(Collectors.toList());
     String label =
         contract.getLabels() != null
-            ? contract.getLabels().getOrDefault("en", contract.getLabels().values().stream().findFirst().orElse(contract.getId()))
+            ? contract
+                .getLabels()
+                .getOrDefault(
+                    "en",
+                    contract.getLabels().values().stream().findFirst().orElse(contract.getId()))
             : contract.getId();
     return new ResolvedContract(contract.getId(), label, contract.getInjectorType(), platforms);
   }
@@ -277,8 +277,7 @@ public class CapabilityResolverService {
     if (platformFilter.isEmpty()) {
       return contracts;
     }
-    Set<String> wanted =
-        platformFilter.stream().map(Enum::name).collect(Collectors.toSet());
+    Set<String> wanted = platformFilter.stream().map(Enum::name).collect(Collectors.toSet());
     return contracts.stream()
         .filter(
             c ->

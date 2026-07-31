@@ -43,8 +43,7 @@ class AutonomousObjectiveTemplateServiceTest {
     when(repository.findByEnabledTrueOrderByOrderAsc()).thenReturn(saved);
 
     List<AutonomousObjectiveTemplate> result = service.listForCurrentTenant();
-    return result.stream()
-        .collect(Collectors.toMap(AutonomousObjectiveTemplate::getKey, t -> t));
+    return result.stream().collect(Collectors.toMap(AutonomousObjectiveTemplate::getKey, t -> t));
   }
 
   @Test
