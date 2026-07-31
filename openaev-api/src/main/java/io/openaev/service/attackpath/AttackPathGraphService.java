@@ -2,6 +2,7 @@ package io.openaev.service.attackpath;
 
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.model.attackpath.AttackPathExecutionRemediation;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingVerdictRow;
@@ -17,9 +18,9 @@ import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.StepConditionRow;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
@@ -101,8 +102,8 @@ public class AttackPathGraphService {
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
+  private final AttackPathExecutionRemediationRepository executionRemediationRepository;
   private final InjectorContractRepository injectorContractRepository;
-  private final PayloadRepository payloadRepository;
   private final StepRepository stepRepository;
   private final PayloadMapper payloadMapper;
   private final AttackPathSecurityPlatformResolver securityPlatformResolver;
@@ -260,17 +261,13 @@ public class AttackPathGraphService {
                                   new AttackPathAttackPatternDTO(
                                       pattern.getExternalId(), pattern.getName()))));
     }
-    // Detection remediations of the payload that actually ran (the frozen payload id, not the
-    // inject's current one). The mapper carries the EE gate: an inactive licence yields an empty
-    // list, which is exactly what the drawer already renders.
+    // Detection remediations snapshot frozen at step-run time (never from the live payload).
+    // The mapper still carries the EE gate: an inactive licence yields an empty list.
     List<DetectionRemediationOutput> detectionRemediations =
-        e.getPayloadId() == null
+        e.getStepId() == null
             ? List.of()
-            : payloadMapper.toDetectionRemediationOutputs(
-                payloadRepository
-                    .findById(e.getPayloadId())
-                    .map(p -> p.getDetectionRemediations())
-                    .orElse(List.of()));
+            : payloadMapper.applyDetectionRemediationLicenseGate(
+                toDetectionRemediationOutputsFromSnapshot(e.getStepId(), e.getPayloadId()));
     // "Action details" opens the run's inject. The frozen row no longer stores the injectId (it is
     // a
     // live ref), so resolve it from the durable step the row is keyed by: the engine writes
@@ -395,6 +392,41 @@ public class AttackPathGraphService {
       return value.substring(0, separator + 1) + CREDENTIAL_MASK;
     }
     return CREDENTIAL_MASK;
+  }
+
+  private List<DetectionRemediationOutput> toDetectionRemediationOutputsFromSnapshot(
+      String stepId, String payloadId) {
+    List<AttackPathExecutionRemediation> snapshots =
+        executionRemediationRepository.findByStepId(stepId);
+    if (snapshots.isEmpty()) {
+      return List.of();
+    }
+
+    Set<String> platformIds =
+        snapshots.stream()
+            .map(AttackPathExecutionRemediation::getSecurityPlatformId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    Map<String, String> platformNamesById = new HashMap<>();
+    if (!platformIds.isEmpty()) {
+      assetRepository
+          .findAllById(platformIds)
+          .forEach(asset -> platformNamesById.put(asset.getId(), asset.getName()));
+    }
+
+    return snapshots.stream()
+        .map(
+            snapshot ->
+                DetectionRemediationOutput.builder()
+                    .id(snapshot.getId())
+                    .payloadId(payloadId)
+                    .securityPlatformId(snapshot.getSecurityPlatformId())
+                    .securityPlatformName(
+                        platformNamesById.getOrDefault(snapshot.getSecurityPlatformId(), null))
+                    .values(snapshot.getValues())
+                    .authorRule(snapshot.getAuthorRule())
+                    .build())
+        .toList();
   }
 
   @Transactional(readOnly = true)

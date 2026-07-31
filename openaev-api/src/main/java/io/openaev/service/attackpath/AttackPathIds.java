@@ -105,6 +105,20 @@ public final class AttackPathIds {
     return encode("EDGE_FINDINGS_TYPE_FINDING", type, endpointKey, value);
   }
 
+  /**
+   * {@code EXECUTION_REMEDIATION_ROW}: one remediation snapshot attached to a step execution.
+   *
+   * <p>The collector type is normalized to {@code "0"} when null/blank to keep a deterministic id
+   * even for remediation rows that no longer carry a collector key.
+   */
+  public static String executionRemediationRow(
+      String stepExecutionId, String collectorType, String securityPlatformId) {
+    String normalizedCollectorType =
+        collectorType == null || collectorType.isBlank() ? "0" : collectorType;
+    return encode(
+        "EXECUTION_REMEDIATION_ROW", stepExecutionId, normalizedCollectorType, securityPlatformId);
+  }
+
   private static String encode(String kind, String... parts) {
     StringBuilder builder = new StringBuilder(kind);
     for (String part : parts) {

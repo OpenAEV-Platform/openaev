@@ -6,6 +6,9 @@ import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.model.attackpath.AttackPathExecutionRemediation;
+import io.openaev.database.repository.DetectionRemediationRepository;
+import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
 import io.openaev.database.model.attackpath.AttackPathExecutionCollector;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionCollectorRepository;
@@ -42,6 +45,8 @@ public class AttackPathExecutionIngestionService {
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathExecutionCollectorRepository executionCollectorRepository;
   private final AttackPathFindingRepository findingRepository;
+  private final AttackPathExecutionRemediationRepository executionRemediationRepository;
+  private final DetectionRemediationRepository detectionRemediationRepository;
   private final AttackPathSourceTargetResolver resolver;
   private final InjectService injectService;
   private final EndpointService endpointService;
@@ -69,6 +74,7 @@ public class AttackPathExecutionIngestionService {
     executeTenantScoped(
         tenantId,
         () -> {
+          executionRemediationRepository.deleteAllBySimulationId(simulationId);
           executionCollectorRepository.deleteAllBySimulationId(simulationId, tenantId);
           executionRepository.deleteAllBySimulationId(simulationId);
           findingRepository.deleteAllBySimulationId(simulationId);
@@ -214,6 +220,10 @@ public class AttackPathExecutionIngestionService {
     tenantTx.executeNew(
         TxCtx.forTenant(tenantId),
         () -> {
+          // The remediation snapshot rides the same transaction but never bumps the graph
+          // version: it only writes to the separate snapshot table, which the delta contract
+          // does not observe (#6647, spec 002).
+          persistExecutionRemediations(inject, step);
           List<AttackPathExecution> rows = getAttackPathExecution(inject, step, command);
           if (rows.isEmpty()) {
             return; // nothing written, so nothing to version: never bump on an empty write
@@ -226,6 +236,37 @@ public class AttackPathExecutionIngestionService {
           // New rows always change the graph, so this one always nudges.
           versionService.publishChanged(simulationId, tenantId, version);
         });
+  }
+
+  private void persistExecutionRemediations(Inject inject, Step step) {
+    if (step.getId() == null || inject.getPayload().isEmpty()) {
+      return;
+    }
+
+    List<DetectionRemediationRepository.SnapshotRow> remediationRows =
+        detectionRemediationRepository.findSnapshotRowsByPayloadId(
+            inject.getPayload().get().getId());
+    if (remediationRows.isEmpty()) {
+      return;
+    }
+
+    List<AttackPathExecutionRemediation> snapshots =
+        remediationRows.stream().map(row -> toExecutionRemediation(step.getId(), row)).toList();
+    executionRemediationRepository.saveAll(snapshots);
+  }
+
+  private static AttackPathExecutionRemediation toExecutionRemediation(
+      String stepId, DetectionRemediationRepository.SnapshotRow row) {
+    AttackPathExecutionRemediation remediation = new AttackPathExecutionRemediation();
+    remediation.setId(
+        AttackPathIds.executionRemediationRow(
+            stepId, row.getCollectorType(), row.getSecurityPlatformId()));
+    remediation.setStepId(stepId);
+    remediation.setValues(row.getValues());
+    remediation.setAuthorRule(row.getAuthorRule());
+    remediation.setCollectorType(row.getCollectorType());
+    remediation.setSecurityPlatformId(row.getSecurityPlatformId());
+    return remediation;
   }
 
   public void persistExecution(List<AttackPathExecution> attackPathExecutions) {
