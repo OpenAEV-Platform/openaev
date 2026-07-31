@@ -52,6 +52,7 @@ const INJECTOR_HIDDEN_KEYS = new Set([
   'target_property_selector', // targeted asset property
   'targets', // manual targets
 ]);
+const AUTO_LINK_DISABLED_FIELDS_CONTENT_KEY = '__openaev_auto_link_disabled_fields';
 
 interface FormValues { inject_title: string }
 
@@ -92,15 +93,26 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
 
   // Output links per field (field key → FieldLink)
   const [fieldLinks, setFieldLinks] = useState<Record<string, FieldLink>>({});
+  const [autoLinkDisabledFields, setAutoLinkDisabledFields] = useState<Set<string>>(new Set());
 
   // Reset state when action changes
   useEffect(() => {
     if (action) {
       const label = initialData?.inject_title
         ?? (action.action_labels ? tPick(action.action_labels) : '');
+      const disabledAutoLinks = initialData?.inject_content?.[AUTO_LINK_DISABLED_FIELDS_CONTENT_KEY];
+      const disabledKeys = Array.isArray(disabledAutoLinks)
+        ? new Set(
+          disabledAutoLinks
+            .filter((value): value is string => typeof value === 'string')
+            .map(value => value.trim())
+            .filter(value => value.length > 0),
+        )
+        : new Set<string>();
       reset({ inject_title: label });
       setFieldValues(initialData?.inject_content ?? {});
       setFieldLinks(normalizeFieldLinks(initialData?.inject_field_links));
+      setAutoLinkDisabledFields(disabledKeys);
       setContractFields(initialData?.contract_fields ?? []);
 
       // Fetch injector contract content
@@ -135,9 +147,14 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   // Auto-link action input fields with their default primitive type when available.
   // Example: field argumentType "ipv4" -> outputTypes ["ipv4"].
   useEffect(() => {
-    if (contractFields.length === 0 || initialData) return;
-    setFieldLinks(prev => applyAutoLinks(contractFields, prev, argumentWithDefaultValueTypes));
-  }, [contractFields, argumentWithDefaultValueTypes, initialData]);
+    if (contractFields.length === 0) return;
+    setFieldLinks(prev => applyAutoLinks(
+      contractFields,
+      prev,
+      argumentWithDefaultValueTypes,
+      autoLinkDisabledFields,
+    ));
+  }, [contractFields, argumentWithDefaultValueTypes, autoLinkDisabledFields]);
 
   // Resets all input argument fields to contract defaults.
   // Expectations are explicitly restored from current state because they are not part of this reset.
@@ -159,6 +176,12 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
 
   // Links a field to a workflow scope variable.
   const handleLinkField = (fieldKey: string, link: FieldLink) => {
+    setAutoLinkDisabledFields((prev) => {
+      if (!prev.has(fieldKey)) return prev;
+      const next = new Set(prev);
+      next.delete(fieldKey);
+      return next;
+    });
     setFieldLinks(prev => ({
       ...prev,
       [fieldKey]: link,
@@ -167,6 +190,11 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
 
   // Removes the scope variable link from a field, reverting it to a plain value.
   const handleUnlinkField = (fieldKey: string) => {
+    setAutoLinkDisabledFields((prev) => {
+      const next = new Set(prev);
+      next.add(fieldKey);
+      return next;
+    });
     setFieldLinks((prev) => {
       const next = { ...prev };
       delete next[fieldKey];
@@ -187,11 +215,18 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
 
   const onSubmit = (formData: FormValues) => {
     if (!action) return;
+    const contentWithExpectations = applyPredefinedExpectations(fieldValues, contractFields);
+    const injectContent = { ...contentWithExpectations } as Record<string, unknown>;
+    if (autoLinkDisabledFields.size > 0) {
+      injectContent[AUTO_LINK_DISABLED_FIELDS_CONTENT_KEY] = Array.from(autoLinkDisabledFields);
+    } else {
+      delete injectContent[AUTO_LINK_DISABLED_FIELDS_CONTENT_KEY];
+    }
     onSave({
       inject_title: formData.inject_title.trim(),
       inject_injector_contract: action.injector_contract_id,
       inject_assets: validAssets.map(a => a.asset_id).filter((id): id is string => !!id),
-      inject_content: applyPredefinedExpectations(fieldValues, contractFields),
+      inject_content: injectContent,
       inject_field_links: fieldLinks,
       contract_fields: contractFields,
     });
