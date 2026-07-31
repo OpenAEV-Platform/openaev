@@ -12,14 +12,15 @@ import io.openaev.database.model.*;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.rest.document.DocumentService;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.utils.command.CommandArgumentBinder;
 import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,14 +48,14 @@ public class ExecutableInjectService {
   private static final Set<String> RESERVED_PLACEHOLDERS = Set.of("location", "payload_location");
   private static final Pattern argumentsRegex = Pattern.compile("#\\{([^#{}]+)}");
   private static final Pattern cmdVariablesRegex = Pattern.compile("%(\\w+)%");
-  private static final Pattern unixLikeForbiddenCharsRegex = Pattern.compile("[;&|`$<>\\r\\n]");
-  private static final Pattern windowsCmdForbiddenCharsRegex = Pattern.compile("[&|<>^%\\r\\n]");
-  private static final Pattern windowsPowerShellForbiddenCharsRegex =
-      Pattern.compile("[;&|`$<>\\r\\n]");
 
-  private List<String> getArgumentsFromCommandLines(String command) {
+  /**
+   * Extracts the argument keys referenced by a command template, in order of appearance and without
+   * duplicates — a key referenced twice must only be declared once.
+   */
+  private Set<String> getArgumentsFromCommandLines(String command) {
     Matcher matcher = argumentsRegex.matcher(command);
-    List<String> commandParameters = new ArrayList<>();
+    Set<String> commandParameters = new LinkedHashSet<>();
 
     while (matcher.find()) {
       commandParameters.add(matcher.group(1));
@@ -89,86 +90,76 @@ public class ExecutableInjectService {
   }
 
   /**
-   * Resolves every {@code #{argumentKey}} placeholder in a command template to its actual value:
-   * the inject's own content when set, otherwise the payload argument's default value. Shared by
-   * the real execution path ({@link #processAndEncodeCommand}, before obfuscation/encoding) and by
-   * read-only display of a payload's command (e.g. the terminal view), so both stay in sync with a
-   * single resolution rule.
+   * Renders a command template by binding every referenced argument to a shell variable instead of
+   * substituting its value verbatim.
+   *
+   * <p>The value is declared once, quoted/escaped by {@link CommandArgumentBinder}, and the
+   * template only ever holds a variable reference — so shell metacharacters carried by an argument
+   * can no longer alter the structure of the executed command.
+   *
+   * @param command the command template authored on the payload
+   * @param binder the binding strategy matching the target executor
+   * @return the command, prefixed with the variable declarations
    */
-  public String replaceArgumentsByValue(
+  private String replaceArgumentsByValue(
       String command,
-      String executor,
+      CommandArgumentBinder binder,
       List<PayloadArgument> defaultPayloadArguments,
       List<ObjectNode> injectorContractContentFields,
       ObjectNode injectContent) {
 
-    List<String> argumentKeys = getArgumentsFromCommandLines(command);
+    Set<String> argumentKeys = getArgumentsFromCommandLines(command);
 
     for (String argumentKey : argumentKeys) {
       if (RESERVED_PLACEHOLDERS.contains(argumentKey)) {
         continue;
       }
 
-      String value;
       PayloadArgument defaultPayloadArgument =
           defaultPayloadArguments.stream()
               .filter(a -> a.getKey().equals(argumentKey))
               .findFirst()
               .orElse(null);
-
-      // If the argument is a targeted asset, we need to fetch the asset details
-      if (defaultPayloadArgument != null
-          && PrimitiveType.TargetedAsset == defaultPayloadArgument.getType()) {
-        value =
-            getTargetedAssetArgumentValue(
-                argumentKey, injectContent, defaultPayloadArgument, injectorContractContentFields);
-
-      } else {
-        value =
-            getArgumentValueOrDefault(
-                argumentKey,
-                injectContent,
-                defaultPayloadArgument != null ? defaultPayloadArgument.getDefaultValue() : "");
-        // If arg is a doc, specific handling
-        // We need to resolve the doc name and add special prefix #{location} that will be resolved
-        // by the implant
-        boolean isDocArg =
-            defaultPayloadArgument != null
-                && (PrimitiveType.Document == defaultPayloadArgument.getType());
-        if (isDocArg && !value.isEmpty()) {
-          try {
-            Document doc = documentService.document(value);
-            value = "#{location}/" + doc.getName();
-          } catch (ElementNotFoundException e) {
-            log.error("Payload argument target unexisting document", e);
-          }
-        }
-      }
-
-      validateArgumentValue(argumentKey, value, executor);
-
-      command = command.replace("#{" + argumentKey + "}", value);
+      binder.bind(
+          argumentKey,
+          resolveArgumentValue(
+              argumentKey, defaultPayloadArgument, injectorContractContentFields, injectContent));
     }
-    return command;
+    return binder.render(command);
   }
 
-  private void validateArgumentValue(String argumentKey, String value, String executor) {
-    if (!hasText(value) || !hasText(executor)) {
-      return;
+  /** Resolves the effective value of a single argument, before any shell escaping. */
+  private String resolveArgumentValue(
+      String argumentKey,
+      PayloadArgument defaultPayloadArgument,
+      List<ObjectNode> injectorContractContentFields,
+      ObjectNode injectContent) {
+    PrimitiveType type = defaultPayloadArgument != null ? defaultPayloadArgument.getType() : null;
+
+    // If the argument is a targeted asset, we need to fetch the asset details
+    if (PrimitiveType.TargetedAsset == type) {
+      return getTargetedAssetArgumentValue(
+          argumentKey, injectContent, defaultPayloadArgument, injectorContractContentFields);
     }
-    Pattern forbiddenPattern =
-        switch (executor.toLowerCase()) {
-          case "bash", "sh", "zsh" -> unixLikeForbiddenCharsRegex;
-          case "cmd" -> windowsCmdForbiddenCharsRegex;
-          case "psh", "pwsh", "powershell" -> windowsPowerShellForbiddenCharsRegex;
-          default -> null;
-        };
-    if (forbiddenPattern != null && forbiddenPattern.matcher(value).find()) {
-      String message =
-          "Inject argument '" + argumentKey + "' with value '" + value + "'man '" + executor + "'.";
-      log.warn(message);
-      throw new BadRequestException(message);
+
+    String value =
+        getArgumentValueOrDefault(
+            argumentKey,
+            injectContent,
+            defaultPayloadArgument != null ? defaultPayloadArgument.getDefaultValue() : "");
+
+    // If arg is a doc, specific handling
+    // We need to resolve the doc name and add special prefix #{location} that will be resolved
+    // by the implant
+    if (PrimitiveType.Document == type && !value.isEmpty()) {
+      try {
+        Document doc = documentService.document(value);
+        return "#{location}/" + doc.getName();
+      } catch (ElementNotFoundException e) {
+        log.error("Payload argument target unexisting document", e);
+      }
     }
+    return value;
   }
 
   public static String replaceCmdVariables(String cmd) {
@@ -218,18 +209,22 @@ public class ExecutableInjectService {
       List<ObjectNode> injectorContractContentFields,
       String obfuscator) {
     OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
-    String computedCommand =
-        replaceArgumentsByValue(
-            command,
-            executor,
-            defaultPayloadArguments,
-            injectorContractContentFields,
-            injectContent);
 
+    String computedCommand = command;
+    // cmd-specific rewrites are applied to the TEMPLATE only: running them after substitution would
+    // let an argument value smuggle a %VAR% / newline through them.
     if (CMD.equals(executor)) {
       computedCommand = replaceCmdVariables(computedCommand);
       computedCommand = formatMultilineCommand(computedCommand);
     }
+
+    computedCommand =
+        replaceArgumentsByValue(
+            computedCommand,
+            CommandArgumentBinder.forExecutor(executor),
+            defaultPayloadArguments,
+            injectorContractContentFields,
+            injectContent);
 
     computedCommand = obfuscationMap.executeObfuscation(obfuscator, computedCommand, executor);
 
@@ -401,10 +396,12 @@ public class ExecutableInjectService {
 
   private Payload processDnsResolutionPayload(Payload payloadToExecute, Inject inject) {
     DnsResolution dnsResolution = (DnsResolution) payloadToExecute;
+    // A hostname is resolved by the implant, not run through a shell: no variable binding applies,
+    // the binder only strips control characters.
     dnsResolution.setHostname(
         replaceArgumentsByValue(
             dnsResolution.getHostname(),
-            null,
+            CommandArgumentBinder.literal(),
             dnsResolution.getArguments(),
             null,
             inject.getContent()));
