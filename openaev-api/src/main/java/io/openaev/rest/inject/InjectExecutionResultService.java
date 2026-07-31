@@ -54,8 +54,7 @@ public class InjectExecutionResultService {
             .orElse(new ArrayList<>());
     InjectResultPayloadExecutionOutputBuilder output =
         InjectResultPayloadExecutionOutput.builder()
-            .payloadCommandBlocks(
-                resolveArgumentPlaceholders(injectId, payloadCommandBlocks));
+            .payloadCommandBlocks(resolveArgumentPlaceholders(injectId, payloadCommandBlocks));
 
     // Group execution traces per target key. Agent-based executions are keyed by agent id;
     // agentless
@@ -90,9 +89,9 @@ public class InjectExecutionResultService {
   /**
    * Resolves every {@code #{argumentKey}} placeholder in the payload's command/cleanup templates
    * (e.g. {@code echo #{host}:#{port}}) to its actual value, mirroring what is actually sent for
-   * execution ({@link ExecutableInjectService#replaceArgumentsByValue}) instead of the raw
-   * template — so the terminal view shows {@code echo localhost:22} rather than the unresolved
-   * placeholders. Falls back to the raw blocks if the inject has no payload to resolve against.
+   * execution ({@link ExecutableInjectService#replaceArgumentsByValue}) instead of the raw template
+   * — so the terminal view shows {@code echo localhost:22} rather than the unresolved placeholders.
+   * Falls back to the raw blocks if the inject has no payload to resolve against.
    */
   private List<PayloadCommandBlock> resolveArgumentPlaceholders(
       final String injectId, final List<PayloadCommandBlock> payloadCommandBlocks) {
