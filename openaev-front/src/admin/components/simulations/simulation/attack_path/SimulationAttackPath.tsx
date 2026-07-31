@@ -1796,6 +1796,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           }
         }
       }
+    } else if (selectedNodeId && chainMode) {
+      // Chain view: same unrestricted backward walk as the injector/finding branches above — an
+      // endpoint click previously fell through to the clustered branch below, which compares
+      // against `dto`'s (collapsed-view) node ids and never matches the chain graph's own
+      // (`chain-ep|depth|id`-style) ids, so it found nothing to light past the endpoint itself.
+      pathSet.add(selectedNodeId);
+      for (let pass = 0; pass < 8; pass += 1) {
+        for (const e of baseFlow.edges) {
+          if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            pathSet.add(e.source);
+          }
+        }
+      }
     } else if (selectedNodeId) {
       // Clustered endpoint click: injectors converge on the shared hub, so walking the rendered edges up
       // would light EVERY injector. Instead resolve the injectors that actually target this endpoint from
