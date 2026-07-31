@@ -36,7 +36,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import { useHelper } from '../../../../store';
-import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team, type WorkflowScopeRuleOutput } from '../../../../utils/api-types';
+import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
@@ -232,15 +232,6 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
 }) => {
-  const isScopeDefinitionEmptyHealthcheck = (healthcheck: HealthCheck): boolean =>
-    healthcheck.type === 'SCOPE_DEFINITION' && healthcheck.detail === 'EMPTY';
-  const SCOPE_DEFINITION_EMPTY_WARNING: HealthCheck = {
-    creation_date: '',
-    detail: 'EMPTY',
-    status: 'WARNING',
-    type: 'SCOPE_DEFINITION',
-  };
-
   // Standard hooks
   const theme = useTheme();
   const { t, fldt } = useFormatter();
@@ -289,22 +280,8 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openDateDialog, setOpenDateDialog] = useState(false);
 
-  const hasAllowlistEntry = (workflowConfiguration?.workflow_scope_rules ?? []).some(
-    (rule: WorkflowScopeRuleOutput) =>
-      rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
-      && !!rule.workflow_scope_rule_value?.trim(),
-  );
-
-  // Launch is blocked until a chaining allowlist defines at least one target.
   const isScopeMissing = isSimulationChaining
-    && (
-      !hasAllowlistEntry
-      || healthchecks.some(isScopeDefinitionEmptyHealthcheck)
-    );
-  const hasScopeDefinitionWarning = healthchecks.some(isScopeDefinitionEmptyHealthcheck);
-  const healthchecksForIndicator = isScopeMissing && !hasScopeDefinitionWarning
-    ? [...healthchecks, SCOPE_DEFINITION_EMPTY_WARNING]
-    : healthchecks;
+    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
   useEffect(() => {
     searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
@@ -411,10 +388,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
             <>
               {/* Contextual configuration alert - self-hides when healthy. */}
               {permissions.canManage && (
-                <HealthcheckIndicator
-                  healthchecks={healthchecksForIndicator}
-                  exerciseId={exerciseId}
-                />
+                <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
               )}
               {/* Expectation drift warning - self-hides when aligned or dismissed. */}
               {permissions.canManage && (
