@@ -1,9 +1,9 @@
-import { AccountTreeOutlined, AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, ScheduleOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
+import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, ScheduleOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent, useCallback, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 
 import { fetchAutonomousTimeline } from '../../../actions/autonomous/autonomous-actions';
 import { type AutonomousEvent, type AutonomousRun, type AutonomousRunStatus } from '../../../actions/autonomous/autonomous-types';
@@ -13,7 +13,6 @@ import PostureGauges from '../../../components/common/detail/PostureGauges';
 import SAMPLE_POSTURE from '../../../components/common/detail/samplePosture';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
-import { SCENARIO_BASE_URL } from '../../../constants/BaseUrls';
 import { type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../utils/api-types';
 import MitreCoverageMatrix from '../common/matrix/MitreCoverageMatrix';
 import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../workspaces/custom_dashboards/results/contextualWidgets';
@@ -177,18 +176,28 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
   // up (mirrors the greyed sample the posture gauges show). Rendered greyed + "Sample"-tagged via
   // SamplePreview and replaced the instant the orchestrator records a real gap / proof.
   const gapsAreSample = capabilityGaps.length === 0;
-  const gapChips = gapsAreSample
+  const gapItems = gapsAreSample
     ? [
-        t('Kerberoasting payload not in arsenal'),
-        t('SMB relay capability unavailable'),
-        t('Cloud IAM enumeration collector missing'),
-      ].map((label, index) => ({
-        id: `sample-gap-${index}`,
-        label,
-      }))
+        {
+          id: 'sample-gap-0',
+          title: t('Kerberoasting payload not in arsenal'),
+          description: t('No installed injector can request and crack service tickets - add a Kerberoasting connector to close it.'),
+        },
+        {
+          id: 'sample-gap-1',
+          title: t('SMB relay capability unavailable'),
+          description: t('Lateral movement via NTLM relay needs a relay injector that is not deployed in this environment.'),
+        },
+        {
+          id: 'sample-gap-2',
+          title: t('Cloud IAM enumeration collector missing'),
+          description: t('Enumerating cloud identities requires a cloud IAM collector - install one to map the cloud attack surface.'),
+        },
+      ]
     : capabilityGaps.map(gap => ({
         id: gap.autonomous_event_id,
-        label: gap.autonomous_event_title ?? t('Capability gap'),
+        title: gap.autonomous_event_title ?? t('Capability gap'),
+        description: gap.autonomous_event_content ?? undefined,
       }));
 
   const proofsAreSample = proofEvents.length === 0;
@@ -233,22 +242,10 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
         }}
         >
           <AutoAwesome fontSize="small" sx={{ color: accent }} />
-          {/* Run status lives in the hero (single control surface); not repeated here. */}
+          {/* Run status lives in the hero (single control surface); not repeated here. The live
+              attack map is one click away in this view's own "Attack path" tab, so no button is
+              duplicated at the top of the mission card. */}
           <Typography variant="h6" sx={{ margin: 0 }}>{t('Mission')}</Typography>
-          <Box sx={{ flex: 1 }} />
-          {/* Stay in the scenario cockpit: open the scenario's own Attack path tab (its picker is
-              scoped to this scenario's live simulation), not the standalone simulation page. */}
-          {run.autonomous_run_scenario_id && (
-            <Button
-              component={Link}
-              to={`${SCENARIO_BASE_URL}/${run.autonomous_run_scenario_id}/attack-path`}
-              startIcon={<AccountTreeOutlined />}
-              size="small"
-              variant="outlined"
-            >
-              {t('Open live attack map')}
-            </Button>
-          )}
         </Stack>
         <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
           {run.autonomous_run_objective}
@@ -331,124 +328,152 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
         </SectionBlock>
       )}
 
-      {/* Capability gaps: the arsenal shortfalls the orchestrator hit. Always shown - a greyed
-          illustrative sample stands in until the run records a real gap (like the posture gauges),
-          so the outcome read is never a blank box. */}
-      <Paper
-        variant="outlined"
-        sx={{
-          padding: 2,
-          borderRadius: 1,
-          borderColor: theme.palette.warning.main,
-        }}
-      >
-        <Stack sx={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 1,
-          marginBottom: 1,
-        }}
-        >
-          <WarningAmberOutlined color="warning" fontSize="small" />
-          <Typography variant="subtitle2" sx={{ margin: 0 }}>{t('Capability gaps')}</Typography>
-          {!gapsAreSample && (
-            <Chip size="small" label={capabilityGaps.length} color="warning" variant="outlined" sx={{ borderRadius: 1 }} />
-          )}
-        </Stack>
-        <SamplePreview active={gapsAreSample} variant="subtle">
-          <Stack sx={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            gap: 1,
-          }}
-          >
-            {gapChips.map(gap => (
-              <Chip
-                key={gap.id}
-                icon={<WarningAmberOutlined />}
-                label={gap.label}
-                color="warning"
-                variant="outlined"
-                size="small"
-                sx={{ borderRadius: 1 }}
-              />
-            ))}
-          </Stack>
-        </SamplePreview>
-      </Paper>
-
-      {/* Proof of exploitation: the case file the run produced. Always shown - a greyed illustrative
-          sample stands in until the run records a real proof, so the operator can see what the
-          evidence card will look like. The Markdown export only appears once there is real evidence. */}
-      <Paper
-        variant="outlined"
-        sx={{
-          padding: 2,
-          borderRadius: 1,
-          borderColor: theme.palette.success.main,
-        }}
-      >
-        <Stack sx={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1,
-          marginBottom: 1,
-        }}
-        >
-          <Stack sx={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 1,
-          }}
-          >
-            <VerifiedOutlined color="success" fontSize="small" />
-            <Typography variant="subtitle2" sx={{ margin: 0 }}>{t('Proof of exploitation')}</Typography>
-            {!proofsAreSample && (
-              <Chip size="small" label={proofEvents.length} color="success" variant="outlined" sx={{ borderRadius: 1 }} />
+      {/* Capability gaps: the arsenal shortfalls the orchestrator hit. Wrapped in the shared
+          SectionBlock so it reads like the Run posture / Kill chain papers. Always shown - a greyed
+          illustrative sample stands in until the run records a real gap, so the outcome read is
+          never a blank box. */}
+      <SectionBlock
+        title={t('Capability gaps')}
+        action={gapsAreSample
+          ? null
+          : (
+              <Chip size="small" label={capabilityGaps.length} color="warning" variant="outlined" sx={{ borderRadius: 1 }} />
             )}
-          </Stack>
-          {!proofsAreSample && (
-            <Button onClick={handleExportReport} startIcon={<DownloadOutlined />} size="small" variant="outlined">
-              {t('Export report')}
-            </Button>
-          )}
-        </Stack>
-        <SamplePreview active={proofsAreSample} variant="subtle">
+      >
+        <SamplePreview active={gapsAreSample} variant="subtle">
           <Stack sx={{ gap: 1 }}>
-            {proofItems.map(proof => (
-              <Box
-                key={proof.id}
+            {gapItems.map(gap => (
+              <Stack
+                key={gap.id}
                 sx={{
-                  paddingInlineStart: 1.5,
-                  borderInlineStart: `2px solid ${theme.palette.success.main}`,
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 1.25,
+                  padding: 1.25,
+                  borderRadius: 1,
+                  border: `1px solid ${alpha(theme.palette.warning.main, 0.35)}`,
+                  backgroundColor: alpha(theme.palette.warning.main, 0.06),
                 }}
               >
-                <Stack sx={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  gap: 1,
-                }}
-                >
+                <WarningAmberOutlined color="warning" fontSize="small" sx={{ marginTop: '2px' }} />
+                <Box sx={{ minWidth: 0 }}>
                   <Typography variant="subtitle2" sx={{ margin: 0 }}>
-                    {proof.title}
+                    {gap.title}
                   </Typography>
-                  {proof.createdAt && (
-                    <Typography variant="caption" color="text.secondary">
-                      {nsdt(proof.createdAt)}
+                  {gap.description && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        display: 'block',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {gap.description}
                     </Typography>
                   )}
-                </Stack>
-                {proof.content && (
-                  <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
-                    {proof.content}
-                  </Typography>
-                )}
-              </Box>
+                </Box>
+              </Stack>
             ))}
           </Stack>
         </SamplePreview>
-      </Paper>
+      </SectionBlock>
+
+      {/* Proof of exploitation: the case file the run produced. Wrapped in the shared SectionBlock,
+          with the Markdown export as its header action (only once there is real evidence). Always
+          shown - a greyed illustrative sample stands in until the run records a real proof, so the
+          operator can preview what the evidence card will look like. */}
+      <SectionBlock
+        title={t('Proof of exploitation')}
+        action={proofsAreSample
+          ? null
+          : (
+              <Stack sx={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 1,
+              }}
+              >
+                <Chip size="small" label={proofEvents.length} color="success" variant="outlined" sx={{ borderRadius: 1 }} />
+                <Button onClick={handleExportReport} startIcon={<DownloadOutlined />} size="small" variant="outlined">
+                  {t('Export report')}
+                </Button>
+              </Stack>
+            )}
+      >
+        <SamplePreview active={proofsAreSample} variant="subtle">
+          <Stack sx={{ gap: 1 }}>
+            {proofItems.map((proof, index) => (
+              <Stack
+                key={proof.id}
+                sx={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 1.25,
+                  padding: 1.25,
+                  borderRadius: 1,
+                  border: `1px solid ${alpha(theme.palette.success.main, 0.35)}`,
+                  backgroundColor: alpha(theme.palette.success.main, 0.06),
+                }}
+              >
+                <Box
+                  sx={{
+                    flex: '0 0 auto',
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: theme.palette.success.main,
+                    backgroundColor: alpha(theme.palette.success.main, 0.15),
+                  }}
+                >
+                  {index + 1}
+                </Box>
+                <Box sx={{
+                  minWidth: 0,
+                  flex: 1,
+                }}
+                >
+                  <Stack sx={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                  >
+                    <Stack sx={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 0.75,
+                      minWidth: 0,
+                    }}
+                    >
+                      <VerifiedOutlined color="success" fontSize="small" />
+                      <Typography variant="subtitle2" sx={{ margin: 0 }}>
+                        {proof.title}
+                      </Typography>
+                    </Stack>
+                    {proof.createdAt && (
+                      <Typography variant="caption" color="text.secondary" sx={{ flex: '0 0 auto' }}>
+                        {nsdt(proof.createdAt)}
+                      </Typography>
+                    )}
+                  </Stack>
+                  {proof.content && (
+                    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
+                      {proof.content}
+                    </Typography>
+                  )}
+                </Box>
+              </Stack>
+            ))}
+          </Stack>
+        </SamplePreview>
+      </SectionBlock>
     </Stack>
   );
 };

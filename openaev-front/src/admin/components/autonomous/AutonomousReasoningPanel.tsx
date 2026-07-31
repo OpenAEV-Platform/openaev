@@ -125,6 +125,101 @@ const eventIcon = (event: AutonomousEvent): ReactNode => {
   }
 };
 
+// Live "thinking" window shown at the tail of the stream while the run is active: three pulsing
+// dots plus the orchestrator's most recent reasoning line, faintly shimmering, so the panel feels
+// alive between decision cycles (mirrors the XTM One scrolling thinking window) instead of parking
+// on a static spinner.
+const ThinkingBubble: FunctionComponent<{
+  accent: string;
+  theme: Theme;
+  latest?: string;
+  label: string;
+}> = ({
+  accent,
+  theme,
+  latest,
+  label,
+}) => (
+  <Box
+    sx={{
+      'marginTop': 0.5,
+      'paddingLeft': 2,
+      'position': 'relative',
+      '@keyframes aevThinkingShimmer': {
+        '0%': { opacity: 0.35 },
+        '50%': { opacity: 0.9 },
+        '100%': { opacity: 0.35 },
+      },
+      '@keyframes aevThinkingDot': {
+        '0%, 80%, 100%': {
+          transform: 'scale(0.6)',
+          opacity: 0.3,
+        },
+        '40%': {
+          transform: 'scale(1)',
+          opacity: 1,
+        },
+      },
+    }}
+  >
+    <Stack sx={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 0.75,
+    }}
+    >
+      <Stack sx={{
+        flexDirection: 'row',
+        gap: 0.4,
+        alignItems: 'center',
+      }}
+      >
+        {[0, 1, 2].map(i => (
+          <Box
+            key={i}
+            sx={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              backgroundColor: accent,
+              animation: 'aevThinkingDot 1.4s infinite ease-in-out both',
+              animationDelay: `${i * 0.16}s`,
+            }}
+          />
+        ))}
+      </Stack>
+      <Typography
+        variant="caption"
+        sx={{
+          color: accent,
+          fontWeight: 600,
+          letterSpacing: '0.02em',
+        }}
+      >
+        {label}
+      </Typography>
+    </Stack>
+    {latest && (
+      <Typography
+        variant="caption"
+        sx={{
+          display: '-webkit-box',
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          marginTop: 0.5,
+          fontStyle: 'italic',
+          color: alpha(theme.palette.text.secondary, 0.9),
+          whiteSpace: 'pre-wrap',
+          animation: 'aevThinkingShimmer 2.4s ease-in-out infinite',
+        }}
+      >
+        {latest}
+      </Typography>
+    )}
+  </Box>
+);
+
 interface AutonomousReasoningPanelProps {
   run: AutonomousRun;
   /** Lift status transitions up so the hero + tab set stay in sync without a second poll loop. */
@@ -259,7 +354,18 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   const pendingQuestion = isWaitingInput
     ? [...events].reverse().find(e => e.autonomous_event_type === 'QUESTION')
     : undefined;
-  const capabilityGaps = events.filter(e => e.autonomous_event_type === 'GAP');
+
+  // Echo the orchestrator's most recent reasoning line in the live thinking window so operators read
+  // its current train of thought, not just a spinner. Prefer narration/decision/tool prose.
+  const lastThought = [...events].reverse().find(
+    e => (['NARRATION', 'DECISION', 'TOOL_ACTION'] as const).includes(
+      e.autonomous_event_type as 'NARRATION' | 'DECISION' | 'TOOL_ACTION',
+    ),
+  );
+  const thinkingText = lastThought?.autonomous_event_content ?? lastThought?.autonomous_event_title ?? undefined;
+  const thinkingLabel = isWaitingInput
+    ? t('Waiting for your input')
+    : t('Thinking through the next move');
 
   return (
     <Box
@@ -327,27 +433,6 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           </Typography>
           {isActive && <CircularProgress size={14} sx={{ color: accent }} />}
         </Stack>
-        {capabilityGaps.length > 0 && (
-          <Stack sx={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            gap: 0.5,
-            marginTop: 1,
-          }}
-          >
-            {capabilityGaps.map(gap => (
-              <Chip
-                key={gap.autonomous_event_id}
-                icon={<WarningAmberOutlined />}
-                label={gap.autonomous_event_title ?? t('Capability gap')}
-                color="warning"
-                variant="outlined"
-                size="small"
-                sx={{ borderRadius: 1 }}
-              />
-            ))}
-          </Stack>
-        )}
       </Box>
 
       {/* Reasoning stream. */}
@@ -359,7 +444,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           padding: theme.spacing(1, 2),
         }}
       >
-        {events.length === 0
+        {events.length === 0 && !isActive
           ? (
               <Stack sx={{
                 alignItems: 'center',
@@ -375,7 +460,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 }}
                 />
                 <Typography variant="body2" color="text.secondary">
-                  {t('No decisions yet. The orchestrator is warming up.')}
+                  {t('No decisions recorded for this run.')}
                 </Typography>
               </Stack>
             )
@@ -466,6 +551,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     </Box>
                   );
                 })}
+                {isActive && (
+                  <ThinkingBubble
+                    accent={accent}
+                    theme={theme}
+                    latest={thinkingText}
+                    label={thinkingLabel}
+                  />
+                )}
               </Stack>
             )}
       </Box>
