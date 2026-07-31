@@ -58,10 +58,10 @@ public class BatchQueueService<T extends Queueable> {
   private final List<Channel> consumerChannels = new CopyOnWriteArrayList<>();
   // ConcurrentHashMap for the same reason as `queue` above: computeIfAbsent on a plain HashMap is
   // not atomic for concurrent callers on a new key, so the AMQP delivery thread's immediate-trigger
-  // path (deliverCallback -> processBufferedBatch) racing the scheduler's periodic call for the same
-  // brand-new workerId can hand two different callers two different AtomicBoolean instances for what
-  // should be one shared guard — desyncing it permanently stuck at true for that worker, with no
-  // exception thrown (compareAndSet just silently keeps returning false).
+  // path (deliverCallback -> processBufferedBatch) racing the scheduler's periodic call for the
+  // same brand-new workerId can hand two different callers two different AtomicBoolean instances
+  // for what should be one shared guard — desyncing it permanently stuck at true for that worker,
+  // with no exception thrown (compareAndSet just silently keeps returning false).
   private final Map<Integer, AtomicBoolean> insertInProgress = new ConcurrentHashMap<>();
   private final ExecutorService executor;
 
