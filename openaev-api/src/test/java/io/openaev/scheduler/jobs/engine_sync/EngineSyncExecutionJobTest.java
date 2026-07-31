@@ -10,16 +10,20 @@ import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.model.EsBase;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.Scheduler;
+import org.quartz.Trigger;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("EngineSyncExecutionJob Unit Tests")
@@ -100,6 +104,67 @@ class EngineSyncExecutionJobTest {
 
     pass.execute(jobExecutionContext);
     verify(engineService, times(1)).bulkProcessing(any());
+  }
+
+  @Test
+  @DisplayName("Registers one job per model once all singletons are instantiated")
+  void given_models_should_registerOneJobPerModelAfterContextStartup() throws Exception {
+    List<EsModel<EsBase>> models =
+        IntStream.range(0, 13)
+            .mapToObj(
+                i -> {
+                  @SuppressWarnings("unchecked")
+                  EsModel<EsBase> mdl = mock(EsModel.class);
+                  when(mdl.getName()).thenReturn("model-" + i);
+                  return mdl;
+                })
+            .toList();
+    when(engineContext.getModels()).thenReturn(models);
+    EngineSyncExecutionJob job = buildJob();
+
+    // Registration must not happen at construction time: the model list is a live bean lookup
+    // that is only guaranteed complete once the whole context is up.
+    verify(scheduler, never()).scheduleJob(any(JobDetail.class), any(Trigger.class));
+
+    job.afterSingletonsInstantiated();
+
+    ArgumentCaptor<JobDetail> jobCaptor = ArgumentCaptor.forClass(JobDetail.class);
+    verify(scheduler, times(13)).scheduleJob(jobCaptor.capture(), any(Trigger.class));
+    assertEquals(
+        models.stream().map(m -> "EngineSyncExecutionJob_forModel_" + m.getName()).toList(),
+        jobCaptor.getAllValues().stream().map(jd -> jd.getKey().getName()).toList());
+  }
+
+  @Test
+  @DisplayName("Staggers trigger phases so the concurrency cap cannot starve the same models")
+  void given_models_should_staggerTriggerStartTimes() throws Exception {
+    List<EsModel<EsBase>> models =
+        IntStream.range(0, 5)
+            .mapToObj(
+                i -> {
+                  @SuppressWarnings("unchecked")
+                  EsModel<EsBase> mdl = mock(EsModel.class);
+                  when(mdl.getName()).thenReturn("model-" + i);
+                  return mdl;
+                })
+            .toList();
+    when(engineContext.getModels()).thenReturn(models);
+    EngineSyncExecutionJob job = buildJob();
+
+    job.afterSingletonsInstantiated();
+
+    ArgumentCaptor<Trigger> triggerCaptor = ArgumentCaptor.forClass(Trigger.class);
+    verify(scheduler, times(5)).scheduleJob(any(JobDetail.class), triggerCaptor.capture());
+    List<Trigger> triggers = triggerCaptor.getAllValues();
+    long baseStart = triggers.get(0).getStartTime().getTime();
+    for (int i = 1; i < triggers.size(); i++) {
+      long offsetMs = triggers.get(i).getStartTime().getTime() - baseStart;
+      // Each trigger is shifted by (index % interval) seconds; allow scheduling-time jitter.
+      assertTrue(
+          Math.abs(offsetMs - i * 1000L) < 500,
+          "Trigger %d should start ~%ds after the first but was offset by %dms"
+              .formatted(i, i, offsetMs));
+    }
   }
 
   @Test
