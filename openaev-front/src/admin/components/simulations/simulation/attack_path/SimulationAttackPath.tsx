@@ -291,6 +291,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     fullEligible,
     terminal: runTerminal,
   });
+  // Render the causal execution-chain layout whenever the size-gated full graph is available and carries
+  // executions (small runs). Large runs never fetch it (fullDto stays null) and keep the aggregated view.
+  // Declared early (not next to its other consumers below) because click handlers defined above those
+  // need it in their dependency arrays, evaluated at render time.
+  const chainMode = !!fullDto && (fullDto.attackPathExecutions?.length ?? 0) > 0;
   // Per-injector kill-chain metadata (dependsOn / consumedFindingKeys) for the causal overlay, derived
   // from the full projection. It describes the graph's SHAPE, so it is rebuilt only when the shape
   // moved: `structuralNonce` bumps on a seed and on any delta that introduced an id, never on an
@@ -877,6 +882,40 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     [expandedFindingClusters, findingsByCluster, fetchClusterFindings, simulationId, pathFinding, fullDto],
   );
 
+  // Auto-expand the focused finding's own type cluster (fetching its individual findings if not
+  // already loaded) whenever the non-chain path-focus view targets a new endpoint/type: without this,
+  // the cluster's children never render at all, so the downstream highlight pass above always had
+  // nothing to light past the type cluster itself, regardless of which finding the user picked.
+  useEffect(() => {
+    if (!pathFinding?.type || !pathFinding?.endpointKey) {
+      return;
+    }
+    const clusterId = `path-cl-type|${pathFinding.type}|${pathFinding.endpointKey}`;
+    if (!expandedFindingClusters.has(clusterId)) {
+      setExpandedFindingClusters(prev => new Set(prev).add(clusterId));
+      setFindingBatch(prev => new Map(prev).set(clusterId, FINDING_BATCH_SIZE));
+    }
+    if (!findingsByCluster.has(clusterId)) {
+      fetchEndpointFindings(simulationId, pathFinding.endpointKey)
+        .then((r) => {
+          const seen = new Set<string>();
+          const deduped: AttackPathNodeDTO[] = [];
+          for (const f of r.data.findings ?? []) {
+            if ((f.typeFindings ?? '') !== pathFinding.type) {
+              continue;
+            }
+            const key = `${f.typeFindings ?? ''}|${f.value ?? f.id ?? ''}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              deduped.push(f);
+            }
+          }
+          setFindingsByCluster(prev => new Map(prev).set(clusterId, deduped));
+        })
+        .catch(() => undefined);
+    }
+  }, [pathFinding?.type, pathFinding?.endpointKey, expandedFindingClusters, findingsByCluster, simulationId]);
+
   // Open the findings drawer for a summary category and load the whole category once (bounded); the
   // drawer then searches/paginates client-side. Values are masked server-side for credentials.
   const openFindingsDrawer = useCallback((category: string, label: string) => {
@@ -932,23 +971,46 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       }
       setDrawerCategory(null);
       setActiveCard(null);
-      setSelectedFindingId(null);
       setSelectedInjectorId(null);
       setFocusRequest(null);
-      setPathFinding({
-        endpointNodeId: item.endpointNodeId,
-        endpointKey: item.endpointKey,
-        type: item.type ?? '',
-        value: item.value ?? '',
-      });
-      setFitNonce(n => n + 1);
       // Use the endpoint's friendly label (hostname) for the panel title, like a direct node click.
       const node = (dto?.attackPathNodes ?? []).find(n => n.id === item.endpointNodeId);
       const label = node?.hostname || node?.label || item.endpointKey;
+      // The finding's canonical (backend) node id — needed so the highlight reaches the exact finding,
+      // not just its type cluster (the backend escapes `\`/`|`, so a share value never matches a
+      // rebuilt `NODE_FINDING|type|value`, hence matching on typeFindings+value like highlightGraphFinding).
+      const canonicalId = (fullDto?.attackPathNodes ?? [])
+        .find(n => n.type === 'FINDING' && (n.typeFindings ?? '') === (item.type ?? '') && (n.value ?? n.label) === (item.value ?? ''))?.id;
+      if (chainMode) {
+        // The chain graph is built straight from backend node/edge ids (no `path-cl-type|...` synthetic
+        // clusters), so it's highlighted the same way a direct graph click on this finding is
+        // (openFindingFromGraph's chainMode branch): via selectedFindingId, not pathFinding.
+        setPathFinding(null);
+        setSelectedFindingId(canonicalId ?? null);
+      } else {
+        // Non-chain path-focus view: the finding's own node only exists once its type cluster is
+        // expanded (see the auto-expand effect below), so leave selectedFindingId null here — the
+        // highlight memo's defaultId fallback (the type cluster) covers it until then.
+        setSelectedFindingId(null);
+        setPathFinding({
+          endpointNodeId: item.endpointNodeId,
+          endpointKey: item.endpointKey,
+          type: item.type ?? '',
+          value: item.value ?? '',
+        });
+        setFitNonce(n => n + 1);
+      }
       onEndpointClick(item.endpointNodeId, item.endpointKey, label);
+      // Re-set after onEndpointClick, which clears it — surfaces the finding panel instead of the
+      // endpoint panel (matches openFindingFromGraph's direct-graph-click behaviour).
+      setFindingDetail({
+        type: item.type ?? '',
+        value: item.value ?? '',
+        endpointNodeId: item.endpointNodeId,
+      });
       setHighlightedExecutionIds(new Set(item.executionIds ?? []));
     },
-    [onEndpointClick, dto?.attackPathNodes],
+    [onEndpointClick, dto?.attackPathNodes, fullDto?.attackPathNodes, chainMode],
   );
 
   // Producing contract labels per injector for the focused finding path, so each injector->endpoint
@@ -1109,9 +1171,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // Base clustered flow — recomputed when the graph data, endpoint expansion, or finding drill-down
   // changes (positions are deterministic, so it stays off the pure selection/focus path). Top-
   // chokepoint endpoints are decorated with their rank so the node can badge them.
-  // Render the causal execution-chain layout whenever the size-gated full graph is available and carries
-  // executions (small runs). Large runs never fetch it (fullDto stays null) and keep the aggregated view.
-  const chainMode = !!fullDto && (fullDto.attackPathExecutions?.length ?? 0) > 0;
 
   // A run that HAS executions will render the causal chain, so while its full projection is still being
   // merged show a loader instead of the aggregated view (which reads as "no links yet"). `fullPending` is
@@ -1566,6 +1625,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
       );
       const pathSet = new Set<string>();
+      // Tracks the finding-focus "active" node (its own leaf if selected, else its type cluster) across
+      // both branches below, so the downstream pass after them can re-key off it instead of
+      // selectedFindingId directly (see that pass's comment for why selectedFindingId alone missed the
+      // type-cluster's own default focus).
+      let activeId: string | null = null;
       if (selectedInjectorId && injectorIds.has(selectedInjectorId)) {
         // Reverse focus: walk DOWNSTREAM from the clicked injector (injector -> endpoint -> the
         // findings it reached), the mirror of the finding walk-up below.
@@ -1581,7 +1645,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         // The focused finding is highlighted inside its own type cluster (no extracted node), so the
         // default active node is that type's cluster. A leaf finding clicked in place overrides it.
         const defaultId = `path-cl-type|${pathFinding.type}|${pathFinding.endpointKey}`;
-        const activeId = selectedFindingId ?? defaultId;
+        activeId = selectedFindingId ?? defaultId;
         // Only the injector(s) that actually produced the focused finding light up — not every injector
         // that merely reached the endpoint — so the highlighted path stays scoped to the finding the
         // analyst opened, even after expanding its cluster.
@@ -1600,9 +1664,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       }
       // A selected finding CLUSTER sits upstream of its expanded children (cluster → finding). The up-walk
       // above never reaches them, so they'd render dimmed once expanded. Add a scoped DOWNSTREAM pass from
-      // the selection so its own expanded findings (and their edges) stay lit.
-      if (selectedFindingId && pathSet.has(selectedFindingId)) {
-        const down = new Set<string>([selectedFindingId]);
+      // the selection so its own expanded findings (and their edges) stay lit. Keyed off activeId (not
+      // selectedFindingId) so the type cluster's OWN default focus also lights its expanded children —
+      // previously only an explicitly clicked leaf/cluster id (selectedFindingId truthy) did, so the last
+      // hop (type cluster -> the specific finding) stayed dimmed on the initial/default focus.
+      if (activeId && pathSet.has(activeId)) {
+        const down = new Set<string>([activeId]);
         for (let pass = 0; pass < 3; pass += 1) {
           for (const e of baseFlow.edges) {
             if (e.source && e.target && down.has(e.source) && !down.has(e.target)) {
