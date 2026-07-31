@@ -90,7 +90,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private PauseExerciseService pauseExerciseService;
   @Autowired private UrlAccessTokenService urlAccessTokenService;
   @Autowired private WorkflowService workflowService;
-  @Autowired private WorkflowService workflowService;
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
