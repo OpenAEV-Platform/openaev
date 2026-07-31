@@ -1266,7 +1266,8 @@ public class AttackPathGraphService {
     if (assetNodesByRef.isEmpty()) {
       return;
     }
-    for (Object[] row : assetRepository.findCriticalityByIds(assetNodesByRef.keySet())) {
+    for (Object[] row :
+        assetRepository.findCriticalityNameAndSeenIpByIds(assetNodesByRef.keySet())) {
       String assetId = (String) row[0];
       Object criticality = row[1];
       String name = (String) row[2];

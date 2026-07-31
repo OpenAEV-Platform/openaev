@@ -3,11 +3,14 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.AssetCriticality;
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.dto.AttackPathAttackPatternDTO;
@@ -16,6 +19,7 @@ import io.openaev.service.attackpath.dto.AttackPathEdges;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
+import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
@@ -46,6 +50,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   @Autowired private AttackPathGraphService service;
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
+  @Autowired private AssetRepository assetRepository;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
 
@@ -233,6 +238,45 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     assertThat(sourceNode.getIp()).isEqualTo("10.0.9.2");
     assertThat(sourceNode.getPlatform()).isEqualTo("Windows");
     assertThat(sourceNode.getLabel()).isEqualTo("GATEWAY-02");
+  }
+
+  @Test
+  @DisplayName("An endpoint node is enriched with its asset's criticality, name and seen IP")
+  void endpoint_node_carries_asset_criticality_name_and_seen_ip() {
+    // A real backing asset: the enrichment pass resolves criticality, name and seen IP live from
+    // it (one batched read), so the map node shows a single relevant IP instead of the frozen list.
+    Endpoint asset = EndpointFixture.createEndpoint("DC Primary");
+    asset.setCriticality(AssetCriticality.VERY_HIGH);
+    asset.setSeenIp("203.0.113.7");
+    String assetId = assetRepository.save(asset).getId();
+    injectorExecution(
+        "NMAP", assetId, "CORP-DC-01", "Prevented", "Not Detected", "Nmap Scan", at(50));
+    entityManager.flush();
+
+    AttackPathNodeDTO node = nodeById(service.buildGraph(SIM), AttackPathIds.endpointNode(assetId));
+    assertThat(node.getSeenIp())
+        .as("the node carries the asset's seen (primary) IP, resolved live")
+        .isEqualTo("203.0.113.7");
+    assertThat(node.getCriticality()).isEqualTo("VERY_HIGH");
+    assertThat(node.getLabel())
+        .as("the asset's friendly name wins over the raw id fallback")
+        .isEqualTo("DC Primary");
+  }
+
+  @Test
+  @DisplayName("An asset with a blank seen IP leaves seenIp null (front falls back to the ip list)")
+  void endpoint_node_with_blank_seen_ip_stays_null() {
+    Endpoint asset = EndpointFixture.createEndpoint("Blank seen IP");
+    asset.setSeenIp("");
+    String assetId = assetRepository.save(asset).getId();
+    injectorExecution(
+        "NMAP", assetId, "CORP-APP-02", "Prevented", "Not Detected", "Nmap Scan", at(51));
+    entityManager.flush();
+
+    AttackPathNodeDTO node = nodeById(service.buildGraph(SIM), AttackPathIds.endpointNode(assetId));
+    assertThat(node.getSeenIp())
+        .as("a blank seen IP is omitted from the DTO so the front falls back to the frozen list")
+        .isNull();
   }
 
   @Test

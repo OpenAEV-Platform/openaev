@@ -153,7 +153,7 @@ public interface AssetRepository
    * tenant filter still applies.
    */
   @Query("SELECT a.id, a.criticality, a.name, a.seenIp FROM Asset a WHERE a.id IN :ids")
-  List<Object[]> findCriticalityByIds(Set<String> ids);
+  List<Object[]> findCriticalityNameAndSeenIpByIds(Set<String> ids);
 
   /**
    * Name-based option search over EVERY asset type except security platforms (endpoints - agent

@@ -6,26 +6,9 @@ import { memo, useContext } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
 import attackPathStatusColor, { attackPathChokepointColor, attackPathStatusLabel } from '../attack-path-colors';
-import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
+import { type AttackPathFlowNode, displayIp } from '../attack-path-flow-helpers';
 import EndpointActionContext from '../attack-path-node-context';
 import { AP_ENDPOINT_SIZE } from './node-sizes';
-
-// An endpoint can carry several IPs (comma-separated). The map node shows only the relevant one to
-// stay readable: the asset's seen IP when known, otherwise the first IPv4, otherwise the first
-// entry. The full list stays in the tooltip.
-const displayIp = (seenIp?: string, ip?: string): string | undefined => {
-  if (seenIp && seenIp.trim()) {
-    return seenIp.trim();
-  }
-  if (!ip) {
-    return undefined;
-  }
-  const ips = ip.split(',').map(s => s.trim()).filter(Boolean);
-  if (ips.length === 0) {
-    return undefined;
-  }
-  return ips.find(candidate => /^\d{1,3}(\.\d{1,3}){3}$/.test(candidate)) ?? ips[0];
-};
 
 // The endpoint (target) node: a circle whose ring is the prevention/detection colour. An endpoint
 // with no findings is a faint dashed grey circle; one with findings carries a coloured "+N" badge of

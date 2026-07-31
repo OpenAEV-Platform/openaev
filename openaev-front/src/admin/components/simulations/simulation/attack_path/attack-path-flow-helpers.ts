@@ -116,6 +116,23 @@ export interface AttackPathFlowEdgeData {
 export type AttackPathFlowNode = Node<AttackPathFlowNodeData>;
 export type AttackPathFlowEdge = Edge<AttackPathFlowEdgeData>;
 
+// An endpoint can carry several IPs (comma-separated). The map node shows only the relevant one to
+// stay readable: the asset's seen IP when known, otherwise the first IPv4, otherwise the first
+// entry. The full list stays in the node tooltip.
+export const displayIp = (seenIp?: string, ip?: string): string | undefined => {
+  if (seenIp && seenIp.trim()) {
+    return seenIp.trim();
+  }
+  if (!ip) {
+    return undefined;
+  }
+  const ips = ip.split(',').map(s => s.trim()).filter(Boolean);
+  if (ips.length === 0) {
+    return undefined;
+  }
+  return ips.find(candidate => /^\d{1,3}(\.\d{1,3}){3}$/.test(candidate)) ?? ips[0];
+};
+
 const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   label: n.label,
   status: n.status,
