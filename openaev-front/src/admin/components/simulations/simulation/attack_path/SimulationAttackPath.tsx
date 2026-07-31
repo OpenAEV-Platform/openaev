@@ -981,17 +981,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       // rebuilt `NODE_FINDING|type|value`, hence matching on typeFindings+value like highlightGraphFinding).
       const canonicalId = (fullDto?.attackPathNodes ?? [])
         .find(n => n.type === 'FINDING' && (n.typeFindings ?? '') === (item.type ?? '') && (n.value ?? n.label) === (item.value ?? ''))?.id;
-      if (chainMode) {
-        // The chain graph is built straight from backend node/edge ids (no `path-cl-type|...` synthetic
-        // clusters), so it's highlighted the same way a direct graph click on this finding is
-        // (openFindingFromGraph's chainMode branch): via selectedFindingId, not pathFinding.
-        setPathFinding(null);
-        setSelectedFindingId(canonicalId ?? null);
-      } else {
+      if (!chainMode) {
         // Non-chain path-focus view: the finding's own node only exists once its type cluster is
         // expanded (see the auto-expand effect below), so leave selectedFindingId null here — the
         // highlight memo's defaultId fallback (the type cluster) covers it until then.
-        setSelectedFindingId(null);
         setPathFinding({
           endpointNodeId: item.endpointNodeId,
           endpointKey: item.endpointKey,
@@ -999,10 +992,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           value: item.value ?? '',
         });
         setFitNonce(n => n + 1);
+      } else {
+        // The chain graph is built straight from backend node/edge ids (no `path-cl-type|...` synthetic
+        // clusters), so it's highlighted the same way a direct graph click on this finding is
+        // (openFindingFromGraph's chainMode branch): via selectedFindingId, not pathFinding.
+        setPathFinding(null);
       }
+      // onEndpointClick itself unconditionally clears selectedFindingId/findingDetail, so both must be
+      // re-set AFTER it (matches openFindingFromGraph's ordering) — setting them before it here was
+      // the bug: onEndpointClick silently clobbered the canonical id back to null on every click.
       onEndpointClick(item.endpointNodeId, item.endpointKey, label);
-      // Re-set after onEndpointClick, which clears it — surfaces the finding panel instead of the
-      // endpoint panel (matches openFindingFromGraph's direct-graph-click behaviour).
+      if (chainMode) {
+        setSelectedFindingId(canonicalId ?? null);
+      }
       setFindingDetail({
         type: item.type ?? '',
         value: item.value ?? '',
