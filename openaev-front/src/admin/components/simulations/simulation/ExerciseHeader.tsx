@@ -44,6 +44,7 @@ import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import { getScopeAwareHealthchecks, isScopeMissingForChaining } from '../../common/healthchecks/scopeHealthcheckUtils';
+import useUnprovisionedLogicWarnings from '../../common/healthchecks/useUnprovisionedLogicWarnings';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
@@ -291,6 +292,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     isChaining: isSimulationChaining,
     isScopeMissing,
   });
+  const logicWarnings = useUnprovisionedLogicWarnings(isSimulationChaining ? exerciseWorkflowId : undefined);
 
   useEffect(() => {
     searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
@@ -397,7 +399,11 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
             <>
               {/* Contextual configuration alert - self-hides when healthy. */}
               {permissions.canManage && (
-                <HealthcheckIndicator healthchecks={healthchecksForIndicator} exerciseId={exerciseId} />
+                <HealthcheckIndicator
+                  healthchecks={healthchecksForIndicator}
+                  logicWarnings={logicWarnings}
+                  exerciseId={exerciseId}
+                />
               )}
               {/* Expectation drift warning - self-hides when aligned or dismissed. */}
               {permissions.canManage && (

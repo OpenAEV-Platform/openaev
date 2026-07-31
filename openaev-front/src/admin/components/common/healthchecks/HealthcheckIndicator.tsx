@@ -6,9 +6,12 @@ import { useNavigate } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import type { HealthCheck } from '../../../../utils/api-types';
+import { formatConditionKeyLabel } from '../../chaining/logic/events/event-types';
+import type { UnprovisionedLogicWarningItem } from '../../chaining/logic/logic-warning-utils';
 
 interface Props {
   healthchecks: HealthCheck[];
+  logicWarnings?: UnprovisionedLogicWarningItem[];
   scenarioId?: string;
   exerciseId?: string;
 }
@@ -21,13 +24,19 @@ const DOCUMENTATION_ROOT_URL = 'https://docs.openaev.io';
  * clean popover listing each one with its remediation action. Renders nothing
  * when everything is healthy.
  */
-const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenarioId, exerciseId }) => {
+const HealthcheckIndicator: FunctionComponent<Props> = ({
+  healthchecks,
+  logicWarnings = [],
+  scenarioId,
+  exerciseId,
+}) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { t } = useFormatter();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
-  if (!healthchecks?.length) {
+  const totalWarnings = healthchecks.length + logicWarnings.length;
+  if (totalWarnings === 0) {
     return null;
   }
 
@@ -66,6 +75,29 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
       default:
     }
   };
+  const goToLogicAction = () => {
+    setAnchorEl(null);
+    navigate(exerciseId ? `/admin/simulations/${exerciseId}/logic` : `/admin/scenarios/${scenarioId}/logic`);
+  };
+
+  const warningRows = [
+    ...ordered.map((healthcheck, index) => ({
+      id: `healthcheck-${healthcheck.type}-${index}`,
+      title: t(`healthcheck.type.${healthcheck.type}`),
+      description: t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`),
+      buttonLabel: t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`),
+      onClick: () => goToHealthcheckAction(healthcheck.type!),
+      status: healthcheck.status,
+    })),
+    ...logicWarnings.map(warning => ({
+      id: `logic-warning-${warning.eventId}-${warning.field}`,
+      title: t('Warning'),
+      description: `${t('Event')} "${warning.eventName}" ${t('references field:')} ${formatConditionKeyLabel(warning.field)} ${t('which is')} ${t('not provisioned by any action.')}`,
+      buttonLabel: t('Add Compatible Action'),
+      onClick: goToLogicAction,
+      status: 'WARNING' as const,
+    })),
+  ];
 
   return (
     <>
@@ -85,9 +117,9 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
           },
         }}
       >
-        {healthchecks.length === 1
+        {totalWarnings === 1
           ? t('1 to configure')
-          : t('{count} to configure', { count: healthchecks.length })}
+          : t('{count} to configure', { count: totalWarnings })}
       </Button>
       <Popover
         open={!!anchorEl}
@@ -132,11 +164,11 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
           gap: 1,
         }}
         >
-          {ordered.map((healthcheck, index) => {
-            const dotColor = healthcheck.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main;
+          {warningRows.map((warning) => {
+            const dotColor = warning.status === 'ERROR' ? theme.palette.error.main : theme.palette.warning.main;
             return (
               <Box
-                key={`healthcheck-${healthcheck.type}-${index}`}
+                key={warning.id}
                 sx={{
                   display: 'flex',
                   alignItems: 'flex-start',
@@ -167,19 +199,19 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
                     fontWeight: 600,
                   }}
                   >
-                    {t(`healthcheck.type.${healthcheck.type}`)}
+                    {warning.title}
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}
+                    {warning.description}
                   </Typography>
                 </Box>
                 <Button
                   color="primary"
                   size="small"
                   sx={{ flexShrink: 0 }}
-                  onClick={() => goToHealthcheckAction(healthcheck.type!)}
+                  onClick={warning.onClick}
                 >
-                  {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
+                  {warning.buttonLabel}
                 </Button>
               </Box>
             );

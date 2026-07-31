@@ -5,7 +5,8 @@ import { type FunctionComponent, useMemo } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import AlertBanner from '../../common/AlertBanner';
-import { type ConditionGroup, formatConditionKeyLabel } from './events/event-types';
+import { formatConditionKeyLabel } from './events/event-types';
+import { findUnprovisionedLogicWarningItems } from './logic-warning-utils';
 import type { EventMeta } from './types';
 import { useOutputProviders } from './useOutputProviders';
 
@@ -13,12 +14,6 @@ interface Props {
   eventMetas: Record<string, EventMeta>;
   onAddCompatibleAction: (field: string) => void;
 }
-
-/** Recursively collect all leaf-condition field values from a ConditionGroup tree. */
-const collectFields = (group: ConditionGroup): string[] => [
-  ...group.conditions.map(c => c.field),
-  ...group.subGroups.flatMap(sg => collectFields(sg)),
-];
 
 /**
  * Displays a collapsible warning banner listing every
@@ -30,38 +25,10 @@ const LogicWarningBanner: FunctionComponent<Props> = ({ eventMetas, onAddCompati
   const theme = useTheme();
   const { providers } = useOutputProviders();
 
-  const unprovisionedItems = useMemo(() => {
-    const items: Array<{
-      eventId: string;
-      eventName: string;
-      field: string;
-    }> = [];
-
-    for (const meta of Object.values(eventMetas)) {
-      // Flatten all condition fields across every condition group (including subgroups).
-      const allFields = meta.formData.conditionGroups.flatMap(collectFields);
-
-      // Deduplicate (eventId, field) pairs so the same missing field is reported only once per event.
-      const reportedKeys = new Set<string>();
-
-      for (const field of allFields) {
-        if (!field) continue;
-
-        const key = `${meta.eventId}::${field}`;
-
-        // Report only if the field has no provider on the current canvas and hasn't been reported yet.
-        if (!providers[field] && !reportedKeys.has(key)) {
-          reportedKeys.add(key);
-          items.push({
-            eventId: meta.eventId,
-            eventName: meta.formData.name,
-            field,
-          });
-        }
-      }
-    }
-    return items;
-  }, [eventMetas, providers]);
+  const unprovisionedItems = useMemo(
+    () => findUnprovisionedLogicWarningItems(eventMetas, providers),
+    [eventMetas, providers],
+  );
 
   if (unprovisionedItems.length === 0) return null;
 

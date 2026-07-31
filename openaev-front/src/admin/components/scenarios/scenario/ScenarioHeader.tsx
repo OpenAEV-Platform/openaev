@@ -65,6 +65,7 @@ import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import { getScopeAwareHealthchecks, isScopeMissingForChaining } from '../../common/healthchecks/scopeHealthcheckUtils';
+import useUnprovisionedLogicWarnings from '../../common/healthchecks/useUnprovisionedLogicWarnings';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
@@ -157,6 +158,7 @@ const ScenarioHeader = ({
       isScopeMissing,
     });
   }, [healthchecks, isScenarioChaining, isScopeMissing]);
+  const logicWarnings = useUnprovisionedLogicWarnings(isScenarioChaining ? scenarioWorkflowId : undefined);
 
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
@@ -290,7 +292,11 @@ const ScenarioHeader = ({
             <>
               {/* Contextual configuration alert - self-hides when healthy. */}
               {canManage && (
-                <HealthcheckIndicator healthchecks={healthchecksForIndicator} scenarioId={scenarioId} />
+                <HealthcheckIndicator
+                  healthchecks={healthchecksForIndicator}
+                  logicWarnings={logicWarnings}
+                  scenarioId={scenarioId}
+                />
               )}
               {/* Expectation drift warning - self-hides when aligned or dismissed. */}
               {canManage && (
