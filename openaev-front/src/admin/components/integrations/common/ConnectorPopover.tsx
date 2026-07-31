@@ -75,7 +75,8 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
       action: handleDelete,
       userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TENANT_SETTINGS),
       disabled: !canDeleteInstance,
-      disabledMessage: t('Stop the connector before deleting it'),
+      // Raw i18n key: ButtonPopover translates disabledMessage itself (like label).
+      disabledMessage: 'Stop the connector before deleting it',
     }];
 
   return (

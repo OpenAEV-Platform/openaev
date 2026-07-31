@@ -93,7 +93,7 @@ class CollectorServiceDeleteTest {
     assertThatThrownBy(() -> service.deleteCollector(COLLECTOR_ID, TENANT_ID))
         .isInstanceOf(BadRequestException.class)
         .hasMessageContaining("stop it before deleting it");
-    verify(collectorRepository, never()).deleteByCollectorId(any());
+    verify(collectorRepository, never()).delete(any(Collector.class));
   }
 
   @Test
@@ -108,7 +108,9 @@ class CollectorServiceDeleteTest {
 
     assertThatCode(() -> service.deleteCollector(COLLECTOR_ID, TENANT_ID))
         .doesNotThrowAnyException();
-    verify(collectorRepository).deleteByCollectorId(COLLECTOR_ID);
+    // Tenant-exact delete of the entity resolved on the composite PK, never the id-only DELETE.
+    verify(collectorRepository).delete(stale);
+    verify(collectorRepository, never()).deleteByCollectorId(any());
   }
 
   @Test
@@ -125,7 +127,7 @@ class CollectorServiceDeleteTest {
 
     assertThatThrownBy(() -> service.deleteCollector(COLLECTOR_ID, TENANT_ID))
         .isInstanceOf(BadRequestException.class);
-    verify(collectorRepository, never()).deleteByCollectorId(any());
+    verify(collectorRepository, never()).delete(any(Collector.class));
   }
 
   @Test
@@ -143,6 +145,6 @@ class CollectorServiceDeleteTest {
         .doesNotThrowAnyException();
     // The instance delete removes the collector row too: no direct row delete.
     verify(connectorInstanceService).deleteById(INSTANCE_ID);
-    verify(collectorRepository, never()).deleteByCollectorId(any());
+    verify(collectorRepository, never()).delete(any(Collector.class));
   }
 }

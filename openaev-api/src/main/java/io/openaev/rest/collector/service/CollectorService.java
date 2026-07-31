@@ -133,7 +133,10 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       throwIfConnectorRunning(collector, collector.getUpdatedAt());
     }
     if (!deleteOwningConnectorInstance(collectorId)) {
-      collectorRepository.deleteByCollectorId(collectorId);
+      // Tenant-exact delete on the composite PK (collector_id, tenant_id): the entity was
+      // resolved with the explicit tenantId above, so the delete must not rely on the tenant
+      // rewriting of the id-only DELETE.
+      collectorRepository.delete(collector);
     }
   }
 
