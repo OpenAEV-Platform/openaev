@@ -26,6 +26,8 @@ import { AbilityContext, Can } from '../../../utils/permissions/permissionsConte
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import AutonomousAttackCreation from '../autonomous/AutonomousAttackCreation';
+import { isAutonomousRunActive } from '../autonomous/autonomousStatus';
+import useAutonomousRunsIndex from '../autonomous/useAutonomousRunsIndex';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ToolBar from '../common/ToolBar';
 import ImportUploaderScenario from './ImportUploaderScenario';
@@ -55,6 +57,9 @@ const Scenarios = () => {
   const { t, nsdt } = useFormatter();
   const { isXTMHubAccessible } = useAuth();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  // Index of the tenant's autonomous runs so each row's popover can mirror the scenario cockpit's
+  // delete guard: an AI-driven scenario cannot be deleted while its run is still live.
+  const autonomousRuns = useAutonomousRunsIndex();
 
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -284,6 +289,19 @@ const Scenarios = () => {
           loading
             ? <PaginatedListLoader Icon={RouteOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
             : scenarios.map((scenario: Scenario) => {
+                const autonomousRun = autonomousRuns.byScenario(scenario.scenario_id);
+                const isAutonomous = !!autonomousRun;
+                const autonomousActive = isAutonomousRunActive(autonomousRun);
+                const isScenarioChaining = isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id;
+                // Match the scenario cockpit: an AI-driven scenario is never duplicated by hand
+                // (the AI owns its attack-path logic) but its metadata stays editable, and its Delete
+                // is gated on the run being terminal.
+                let scenarioActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Export', 'Delete'];
+                if (isAutonomous) {
+                  scenarioActions = ['Update', 'Export', 'Delete'];
+                } else if (isScenarioChaining) {
+                  scenarioActions = ['Export', 'Delete'];
+                }
                 return (
                   <ListItem
                     key={scenario.scenario_id}
@@ -291,11 +309,11 @@ const Scenarios = () => {
                     secondaryAction={(
                       <ScenarioPopover
                         scenario={scenario}
-                        actions={
-                          isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id
-                            ? ['Export', 'Delete']
-                            : ['Duplicate', 'Export', 'Delete']
-                        }
+                        actions={scenarioActions}
+                        deleteDisabled={autonomousActive}
+                        deleteDisabledMessage={autonomousActive
+                          ? t('Stop the autonomous run before deleting its scenario.')
+                          : undefined}
                         onDelete={(result) => {
                           setScenarios(scenarios.filter(e => (e.scenario_id !== result)));
                           setSearchPaginationInput(prev => ({

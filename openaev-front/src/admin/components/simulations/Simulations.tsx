@@ -14,6 +14,7 @@ import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
+import useAutonomousRunsIndex from '../autonomous/useAutonomousRunsIndex';
 import ToolBar from '../common/ToolBar';
 import ImportUploaderExercise from './ImportUploaderExercise';
 import ExerciseCreation from './simulation/ExerciseCreation';
@@ -27,6 +28,10 @@ const Simulations = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [exercises, setExercises] = useState<ExerciseSimple[]>([]);
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  // Index of the tenant's autonomous runs so each row's popover can mirror the simulation cockpit:
+  // an AI-driven simulation is observe-only, so its overflow exposes only a read-only Export
+  // (deletion tears the run down and is a parent-scenario control).
+  const autonomousRuns = useAutonomousRunsIndex();
 
   // Filters
   const availableFilterNames = [
@@ -61,16 +66,20 @@ const Simulations = () => {
 
   const secondaryAction = (exercise: ExerciseSimple) => {
     const isChaining = isChainingFeatureEnabled && !!(exercise as unknown as Record<string, unknown>).exercise_workflow_id;
+    const isAutonomous = !!autonomousRuns.bySimulation(exercise.exercise_id);
+
+    let exerciseActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Export', 'Delete'];
+    if (isAutonomous) {
+      exerciseActions = ['Export'];
+    } else if (isChaining) {
+      exerciseActions = ['Export', 'Delete'];
+    }
 
     return (
       <ExercisePopover
         // @ts-expect-error: should pass Exercise model IF we have update as action
         exercise={exercise}
-        actions={
-          isChaining
-            ? ['Export', 'Delete']
-            : ['Duplicate', 'Export', 'Delete']
-        }
+        actions={exerciseActions}
         onDelete={result => setExercises(exercises.filter(e => (e.exercise_id !== result)))}
         inList
       />

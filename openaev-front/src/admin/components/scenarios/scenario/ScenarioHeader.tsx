@@ -65,7 +65,7 @@ import useScenarioPermissions from '../../../../utils/permissions/useScenarioPer
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import AutonomousRunControls from '../../autonomous/AutonomousRunControls';
-import autonomousRunStatusColor from '../../autonomous/autonomousStatus';
+import autonomousRunStatusColor, { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -159,11 +159,7 @@ const ScenarioHeader = ({
   // The run drives its single simulation: deleting the scenario tears both down, so it is only
   // allowed once the run has stopped (terminal). While it is still live (created / running /
   // paused / waiting for input) the Delete entry stays visible but disabled with a tooltip.
-  const isAutonomousActive = isAutonomous
-    && (autonomousStatus === 'CREATED'
-      || autonomousStatus === 'RUNNING'
-      || autonomousStatus === 'PAUSED'
-      || autonomousStatus === 'WAITING_INPUT');
+  const isAutonomousActive = isAutonomousRunActive(autonomousRun);
   // Overflow CRUD entries: an autonomous scenario is never duplicated by hand (the AI owns its
   // attack-path logic), but its metadata - name, description, tags, severity, category - stays
   // freely editable, so Update / Delete / Export are offered.
