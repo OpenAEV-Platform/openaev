@@ -17,6 +17,7 @@ interface Props {
 }
 
 const DOCUMENTATION_ROOT_URL = 'https://docs.openaev.io';
+const LOGIC_WARNING_TYPE = 'LOGIC_WARNING';
 
 /**
  * Discrete, hero-friendly replacement for the bulky Healthchecks accordion:
@@ -72,29 +73,28 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
       case 'SCOPE_DEFINITION':
         navigate(exerciseId ? `/admin/simulations/${exerciseId}/scope` : `/admin/scenarios/${scenarioId}/scope`);
         break;
+      case LOGIC_WARNING_TYPE:
+        navigate(exerciseId ? `/admin/simulations/${exerciseId}/logic` : `/admin/scenarios/${scenarioId}/logic`);
+        break;
       default:
     }
-  };
-  const goToLogicAction = () => {
-    setAnchorEl(null);
-    navigate(exerciseId ? `/admin/simulations/${exerciseId}/logic` : `/admin/scenarios/${scenarioId}/logic`);
   };
 
   const warningRows = [
     ...ordered.map((healthcheck, index) => ({
       id: `healthcheck-${healthcheck.type}-${index}`,
+      type: healthcheck.type!,
       title: t(`healthcheck.type.${healthcheck.type}`),
       description: t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`),
       buttonLabel: t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`),
-      onClick: () => goToHealthcheckAction(healthcheck.type!),
       status: healthcheck.status,
     })),
     ...logicWarnings.map(warning => ({
       id: `logic-warning-${warning.eventId}-${warning.field}`,
+      type: LOGIC_WARNING_TYPE,
       title: t('Warning'),
       description: `${t('Event')} "${warning.eventName}" ${t('references field:')} ${formatConditionKeyLabel(warning.field)} ${t('which is')} ${t('not provisioned by any action.')}`,
       buttonLabel: t('Add Compatible Action'),
-      onClick: goToLogicAction,
       status: 'WARNING' as const,
     })),
   ];
@@ -210,7 +210,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({
                   color="primary"
                   size="small"
                   sx={{ flexShrink: 0 }}
-                  onClick={warning.onClick}
+                  onClick={() => goToHealthcheckAction(warning.type)}
                 >
                   {warning.buttonLabel}
                 </Button>
