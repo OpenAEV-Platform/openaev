@@ -52,6 +52,11 @@ const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
     nodeShadow = `0 0 0 4px ${alpha(color, 0.45)}`;
   }
   const agents = data.agents ?? [];
+  // The single relevant IP shown on the node: seen IP if known, else derived from the frozen list.
+  // Gate the IP lines on this computed value (not on data.ip), so a seen IP still shows when the
+  // frozen list is missing/empty. The tooltip shows the full list when present, else the seen IP.
+  const ipToShow = displayIp(data.seenIp, data.ip);
+  const tooltipIp = data.ip || data.seenIp;
   const tooltipTitle = (
     <div style={{
       display: 'flex',
@@ -62,12 +67,12 @@ const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
     }}
     >
       <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{data.hostname || data.label}</Typography>
-      {data.ip && (
+      {tooltipIp && (
         <Typography variant="caption" color="text.secondary">
           {t('IP')}
           :
           {' '}
-          {data.ip}
+          {tooltipIp}
         </Typography>
       )}
       {data.platform && (
@@ -170,9 +175,9 @@ const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
           >
             {data.label}
           </Typography>
-          {data.ip && (
+          {ipToShow && (
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
-              {displayIp(data.seenIp, data.ip)}
+              {ipToShow}
             </Typography>
           )}
         </div>
