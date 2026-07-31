@@ -15,11 +15,16 @@ import type {
   ScopeAssetOutput,
   ThreatArsenalAction,
 } from '../../../../../utils/api-types';
-import type { ContractElement } from '../../../../../utils/api-types-custom';
 import { MESSAGING$ } from '../../../../../utils/Environment';
+import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import AddActionList from '../drawer/AddActionList';
 import AddComponentDrawer from '../drawer/AddComponentDrawer';
 import ConfigureActionDetail from '../drawer/ConfigureActionDetail';
+import {
+  buildAutoLinkFieldLinks,
+  mapFieldLinksToStepConditions,
+  parseContractFields,
+} from '../drawer/ConfigureActionDetail.utils';
 import ConfigureEventDetail from '../events/ConfigureEventDetail';
 import {
   conditionGroupsToApi,
@@ -76,6 +81,7 @@ const ChainingFlowConfiguration = ({
   linkToEventId,
 }: ChainingFlowConfigurationProps) => {
   const { t } = useFormatter();
+  const { argumentWithDefaultValueTypes } = useArgumentTypes();
 
   // -- Action-specific state --
   const [selectedAction, setSelectedAction] = useState<ThreatArsenalAction | null>(null);
@@ -150,41 +156,21 @@ const ChainingFlowConfiguration = ({
   const handleBackToChoose = () => onDrawerViewChange('choose');
 
   // -- Actions --
-  // Build the same default links as the action form: one GLOBAL mapper per field argumentType.
+  // Reuse form auto-link rules so direct add and configure flow stay consistent.
   const buildAutoLinkStepConditions = useCallback(
     async (injectorContractId: string): Promise<ConditionCreateInput[]> => {
       try {
         const response = await directFetchInjectorContract(injectorContractId) as { data?: { injector_contract_content?: string } };
-        const content = response.data?.injector_contract_content;
-        if (!content) {
-          return [];
-        }
-        const parsed = JSON.parse(content) as { fields?: ContractElement[] };
-        const fields = Array.isArray(parsed.fields) ? parsed.fields : [];
-        const seen = new Set<string>();
-        const conditions: ConditionCreateInput[] = [];
-        for (const field of fields) {
-          const key = typeof field.key === 'string' ? field.key.trim() : '';
-          const argumentType = typeof field.argumentType === 'string' ? field.argumentType.trim() : '';
-          // Skip invalid or duplicate keys to avoid creating duplicate mappers.
-          if (!key || !argumentType || seen.has(key)) {
-            continue;
-          }
-          seen.add(key);
-          conditions.push({
-            condition_temporary_id: String(conditions.length),
-            condition_type: 'MAPPER',
-            condition_key: key,
-            condition_key_types: [argumentType] as ConditionCreateInput['condition_key_types'],
-            condition_mapping_type: 'GLOBAL',
-          });
-        }
-        return conditions;
+        // Keep direct-add behavior identical to form auto-link behavior.
+        const fields = parseContractFields(response.data?.injector_contract_content);
+        const links = buildAutoLinkFieldLinks(fields, argumentWithDefaultValueTypes);
+        return mapFieldLinksToStepConditions(links);
       } catch {
+        // Do not block action creation if contract fetch/parse fails.
         return [];
       }
     },
-    [],
+    [argumentWithDefaultValueTypes],
   );
 
   const handleAddActions = async (selectedActions: ThreatArsenalAction[]) => {
@@ -244,19 +230,7 @@ const ChainingFlowConfiguration = ({
   const handleSaveActionDetail = async (data: ActionDetailData) => {
     if (!workflowId) return;
 
-    const stepConditions: ConditionCreateInput[] = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => {
-      let keyTypes = link.outputTypes ?? [];
-      if (keyTypes.length === 0) {
-        keyTypes = ['text'];
-      }
-      return {
-        condition_temporary_id: String(i),
-        condition_type: 'MAPPER' as const,
-        condition_key_types: keyTypes as ConditionCreateInput['condition_key_types'],
-        condition_key: fieldKey,
-        condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as ConditionCreateInput['condition_mapping_type'],
-      };
-    });
+    const stepConditions = mapFieldLinksToStepConditions(data.inject_field_links);
 
     const stepPayload = {
       step_workflow_id: workflowId,

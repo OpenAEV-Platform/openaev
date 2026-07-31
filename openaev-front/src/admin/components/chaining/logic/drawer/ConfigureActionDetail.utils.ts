@@ -1,9 +1,11 @@
+import type { ConditionCreateInput } from '../../../../../utils/api-types';
 import type { ContractElement, ContractType } from '../../../../../utils/api-types-custom';
 import type { ExpectationInput } from '../../../common/injects/expectations/Expectation';
 import type { FieldLink } from './InjectDataFieldItem';
 
 export const EXPECTATION_FIELD_TYPE = 'expectation';
 export const EXPECTATIONS_CONTENT_KEY = 'expectations';
+const FRONTEND_CONTENT_KEY_PREFIX = '__openaev_';
 
 /**
  * Maps contract field types to their auto-link output primitive type (PrimitiveType label).
@@ -58,6 +60,53 @@ export const applyAutoLinks = (
         ...updates,
       }
     : existingLinks;
+};
+
+/** Builds default auto-link map for a fresh action with no existing links. */
+export const buildAutoLinkFieldLinks = (
+  contractFields: ContractElement[],
+  argumentWithDefaultValueTypes: Set<string>,
+): Record<string, FieldLink> => applyAutoLinks(contractFields, {}, argumentWithDefaultValueTypes);
+
+/** Converts linked fields to step mapper conditions. */
+export const mapFieldLinksToStepConditions = (
+  fieldLinks: Record<string, FieldLink>,
+): ConditionCreateInput[] => {
+  return Object.entries(fieldLinks).map(([fieldKey, link], index) => {
+    const outputTypes = link.outputTypes ?? [];
+    const keyTypes = outputTypes.length > 0 ? outputTypes : ['text'];
+    return {
+      condition_temporary_id: String(index),
+      condition_type: 'MAPPER',
+      condition_key_types: keyTypes as ConditionCreateInput['condition_key_types'],
+      condition_key: fieldKey,
+      condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as ConditionCreateInput['condition_mapping_type'],
+    };
+  });
+};
+
+/** Parses contract fields from injector contract content JSON string. */
+export const parseContractFields = (injectorContractContent?: string): ContractElement[] => {
+  if (!injectorContractContent) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(injectorContractContent) as { fields?: ContractElement[] };
+    return Array.isArray(parsed.fields) ? parsed.fields : [];
+  } catch {
+    return [];
+  }
+};
+
+/** Removes frontend-only metadata keys before sending inject_content to backend. */
+export const stripFrontendMetadataKeys = (
+  content: Record<string, unknown>,
+): Record<string, unknown> => {
+  return Object.fromEntries(
+    Object.entries(content).filter(
+      ([key]) => !key.startsWith(FRONTEND_CONTENT_KEY_PREFIX),
+    ),
+  );
 };
 
 /** Returns the set of field keys that are auto-linked (and therefore read-only). */
