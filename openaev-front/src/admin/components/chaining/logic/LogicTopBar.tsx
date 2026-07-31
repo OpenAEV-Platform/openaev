@@ -44,7 +44,7 @@ const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent }: Logi
         startIcon={<Add />}
         variant="contained"
         onClick={onAddComponent}
-        style={{ alignSelf: 'flex-end' }}
+        sx={{ alignSelf: 'flex-end' }}
       >
         {t('Add component')}
       </Button>
