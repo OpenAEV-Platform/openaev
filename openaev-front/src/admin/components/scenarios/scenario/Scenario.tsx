@@ -42,13 +42,13 @@ import {
   type Scenario as ScenarioType,
   type SearchPaginationInput,
   type SortField,
-  type WorkflowScopeRuleOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
+import { isScopeMissingForChaining } from '../../common/healthchecks/scopeHealthcheckUtils';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
@@ -92,15 +92,11 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       : undefined,
   }));
 
-  const hasAllowlistScope = (workflowConfiguration?.workflow_scope_rules ?? []).some((rule: WorkflowScopeRuleOutput) =>
-    rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
-    && !!rule.workflow_scope_rule_value?.trim(),
-  );
-  const isScopeMissing = isScenarioChaining
-    && (
-      !hasAllowlistScope
-      || healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY')
-    );
+  const isScopeMissing = isScopeMissingForChaining({
+    isChaining: isScenarioChaining,
+    workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],
+    healthchecks,
+  });
 
   const agentsActive = useMemo(() => {
     const injectAssetIds: string[] = injects.flatMap((inject: Inject) => inject.inject_assets);

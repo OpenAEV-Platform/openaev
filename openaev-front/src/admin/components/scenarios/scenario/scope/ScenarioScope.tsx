@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 
 import type { WorkflowConfigurationHelper } from '../../../../../actions/chaining/workflow-helper';
 import { searchScenarioHealthcheks } from '../../../../../actions/scenarios/scenario-actions';
 import type { ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
 import { useHelper } from '../../../../../store';
-import { type HealthCheck, type Scenario, type WorkflowScopeRuleOutput } from '../../../../../utils/api-types';
+import { type HealthCheck, type Scenario } from '../../../../../utils/api-types';
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
+import { getScopeAwareHealthchecks, isScopeMissingForChaining } from '../../../common/healthchecks/scopeHealthcheckUtils';
 
 const ScenarioScope = () => {
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
@@ -22,25 +23,16 @@ const ScenarioScope = () => {
   );
 
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
-  const hasAllowlistScope = (workflowConfiguration?.workflow_scope_rules ?? []).some((rule: WorkflowScopeRuleOutput) =>
-    rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
-    && !!rule.workflow_scope_rule_value?.trim(),
-  );
-  const healthchecksForBanner = useMemo(() => {
-    const withoutScopeDefinition = healthchecks.filter((hc: HealthCheck) => hc.type !== 'SCOPE_DEFINITION');
-    if (!hasAllowlistScope) {
-      const scopeDefinitionHealthcheck = healthchecks.find((hc: HealthCheck) =>
-        hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY',
-      ) ?? {
-        creation_date: '',
-        detail: 'EMPTY',
-        status: 'WARNING',
-        type: 'SCOPE_DEFINITION',
-      };
-      return [...withoutScopeDefinition, scopeDefinitionHealthcheck];
-    }
-    return withoutScopeDefinition;
-  }, [hasAllowlistScope, healthchecks]);
+  const isScopeMissing = isScopeMissingForChaining({
+    isChaining: true,
+    workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],
+    healthchecks,
+  });
+  const healthchecksForBanner = getScopeAwareHealthchecks({
+    healthchecks,
+    isChaining: true,
+    isScopeMissing,
+  });
 
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
@@ -50,9 +42,9 @@ const ScenarioScope = () => {
 
   return (
     <div>
-      {!!healthchecks?.length && (
+      {!!healthchecksForBanner?.length && (
         <Healthchecks
-          healthchecks={healthchecks}
+          healthchecks={healthchecksForBanner}
           scenarioId={scenarioId}
         />
       )}

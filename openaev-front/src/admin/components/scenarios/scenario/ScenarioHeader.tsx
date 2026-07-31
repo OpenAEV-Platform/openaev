@@ -19,12 +19,12 @@ import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
+import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
 import { fetchScenarioArticles } from '../../../../actions/channels/article-action';
 import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
-import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import {
   createRunningExerciseFromScenario,
   dismissScenarioExpectationsDrift,
@@ -54,7 +54,6 @@ import {
   type Inject,
   type Scenario,
   type Team,
-  type WorkflowScopeRuleOutput,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -65,6 +64,7 @@ import useScenarioPermissions from '../../../../utils/permissions/useScenarioPer
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import { getScopeAwareHealthchecks, isScopeMissingForChaining } from '../../common/healthchecks/scopeHealthcheckUtils';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
@@ -145,32 +145,17 @@ const ScenarioHeader = ({
       ? helper.getWorkflowConfiguration(scenarioWorkflowId)
       : undefined,
   }));
-  const hasAllowlistScope = (workflowConfiguration?.workflow_scope_rules ?? []).some((rule: WorkflowScopeRuleOutput) =>
-    rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
-    && !!rule.workflow_scope_rule_value?.trim(),
-  );
-  const isScopeMissing = isScenarioChaining
-    && (
-      !hasAllowlistScope
-      || healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY')
-    );
+  const isScopeMissing = isScopeMissingForChaining({
+    isChaining: isScenarioChaining,
+    workflowScopeRules: workflowConfiguration?.workflow_scope_rules ?? [],
+    healthchecks,
+  });
   const healthchecksForIndicator = useMemo(() => {
-    if (!isScenarioChaining) {
-      return healthchecks;
-    }
-    const withoutScopeDefinition = healthchecks.filter((hc: HealthCheck) => hc.type !== 'SCOPE_DEFINITION');
-    if (isScopeMissing) {
-      const scopeDefinitionHealthcheck = healthchecks.find((hc: HealthCheck) =>
-        hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY',
-      ) ?? {
-        creation_date: '',
-        detail: 'EMPTY',
-        status: 'WARNING',
-        type: 'SCOPE_DEFINITION',
-      };
-      return [...withoutScopeDefinition, scopeDefinitionHealthcheck];
-    }
-    return withoutScopeDefinition;
+    return getScopeAwareHealthchecks({
+      healthchecks,
+      isChaining: isScenarioChaining,
+      isScopeMissing,
+    });
   }, [healthchecks, isScenarioChaining, isScopeMissing]);
 
   // Local
