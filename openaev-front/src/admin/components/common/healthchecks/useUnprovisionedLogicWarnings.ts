@@ -49,13 +49,9 @@ const useUnprovisionedLogicWarnings = (workflowId: string | undefined): Unprovis
       }
     };
     window.addEventListener(CHAINING_UPDATED_EVENT, onChainingUpdated as EventListener);
-    const intervalId = window.setInterval(() => {
-      void loadWarnings();
-    }, 5000);
     return () => {
       stale = true;
       window.removeEventListener(CHAINING_UPDATED_EVENT, onChainingUpdated as EventListener);
-      window.clearInterval(intervalId);
     };
   }, [workflowId]);
 
