@@ -1862,6 +1862,9 @@ export const buildCausalChainFlow = (
     // to whichever injector(s) reached them. Its own findings stay hidden until expanded — mirrors the
     // per-type finding cluster above (collapse hides detail behind a click, not just a count).
     if (hiddenAssetIds.length > 0) {
+      // Route the hidden endpoints' findings through the cluster too, so a downstream causal edge whose
+      // producer got collapsed still resolves to a placed node instead of a fid that was never rendered.
+      hiddenAssetIds.forEach(epId => (assetFindings.get(epId) ?? []).forEach(fid => causalSourceByFinding.set(fid, epClusterId)));
       const clusterInjectors = [...new Set(hiddenAssetIds.flatMap(epId => assetInjectors.get(epId) ?? []))];
       const hCluster = Math.max(CHAIN_EP_BLOCK_MIN, clusterInjectors.length * CHAIN_INJECTOR_ROW);
       const blockTop = cursorY;
