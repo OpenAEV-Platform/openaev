@@ -241,6 +241,32 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
+   * Pushes the step's expectation verdicts onto the attack-path projection: flag-gated and
+   * non-fatal, like the two ingestion hooks around it. The write opens its own tenant-scoped
+   * REQUIRES_NEW transaction, so a failure here is caught and logged and can never roll the step
+   * update back. Runs on every execution event; the updates are guarded, so replaying the same
+   * results matches zero rows — and a write that touched nothing publishes no nudge.
+   *
+   * <p>The flag gate matters beyond the write: the version bump this triggers publishes the
+   * real-time nudge, so an environment with {@code ATTACK_PATH} off must not emit attack-path
+   * events at all (spec 003, FR3).
+   */
+  private void syncAttackPathVerdicts(Inject inject, List<BaseInjectExpectation> expectations) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
+      return;
+    }
+    try {
+      Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
+          expectationResults =
+              attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
+      attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
+      attackPathIngestion.upsertExecutionCollectors(inject, expectations);
+    } catch (Exception e) {
+      log.warn("Attack-path verdict sync skipped for inject {} (non-fatal)", inject.getId(), e);
+    }
+  }
+
+  /**
    * Copies the inject's findings onto the attack-path snapshot: flag-gated and non-fatal. The copy
    * opens its own tenant-scoped REQUIRES_NEW transaction, so a failure here is caught and logged
    * and can never roll the step update back. Runs on every execution event; the copy is idempotent.
@@ -314,7 +340,11 @@ public class InjectExecutionStep implements ActionStep {
     }
 
     // FORMAT EXPECTATION TO OUTPUT STEP
-    formatExpectationToOutput(injectId, output);
+    List<BaseInjectExpectation> expectations = formatExpectationToOutput(inject, output);
+
+    // SYNC the same verdicts onto the attack-path projection, keyed by execution row: per event,
+    // guarded (a replay writes nothing) and version-stamped so the change reaches the delta read.
+    syncAttackPathVerdicts(inject, expectations);
 
     // UPDATE step output
     if (!output.isEmpty()) {
@@ -1190,25 +1220,33 @@ public class InjectExecutionStep implements ActionStep {
    * entries returned without an agent_id and only with an asset_id. These entries do not correspond
    * to real executions; they are duplicated information.
    *
-   * @param injectId Inject id
+   * @param inject the inject already loaded by the caller
    * @param output the output list to populate
+   * @return the inject's expectations, so the caller can sync the same verdicts elsewhere without a
+   *     second read
    */
-  private void formatExpectationToOutput(String injectId, List<Map<String, JsonElement>> output) {
-    List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
-    Inject inject = injectService.inject(injectId);
-
+  private List<BaseInjectExpectation> formatExpectationToOutput(
+      Inject inject, List<Map<String, JsonElement>> output) {
+    List<BaseInjectExpectation> expectations =
+        injectExpectationService.findAllByInjectId(inject.getId());
     for (BaseInjectExpectation expectation : expectations) {
       for (InjectExpectationResult result : expectation.getResults()) {
+        if (isTechnicalExpectation(expectation)
+            && (result.getResult() == null || result.getResult().isBlank())) {
+          continue;
+        }
         Map<String, JsonElement> map = getExpectationOutput(expectation, result);
         addEndpointContext(inject, expectation, map);
         output.add(map);
       }
     }
+    return expectations;
+  }
 
-    Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
-        expectationResults =
-            attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
-    attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
+  private static boolean isTechnicalExpectation(BaseInjectExpectation expectation) {
+    return expectation instanceof PreventionInjectExpectation
+        || expectation instanceof DetectionInjectExpectation
+        || expectation instanceof VulnerabilityInjectExpectation;
   }
 
   /**

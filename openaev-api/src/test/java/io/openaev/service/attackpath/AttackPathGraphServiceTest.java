@@ -29,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -515,20 +516,50 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Endpoint relations returns the targeting executions and grouped edge in one query")
+  @DisplayName("Endpoint relations returns the targeting executions and grouped edge")
   void relations_returns_executions_and_grouped_edge() {
     Statistics stats =
         entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
     stats.setStatisticsEnabled(true);
     stats.clear();
-    AttackPathEndpointRelationsDTO dto = service.endpointRelations(SIM, "dc-01");
-    assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
+    AttackPathEndpointRelationsDTO dto =
+        service.endpointRelations(SIM, "dc-01", PageRequest.of(0, 50));
+    // A bounded, constant number of statements whatever the endpoint's size: the edge set, the feed
+    // page and its total. Not one any more (#6647, spec 003: the feed is paged), but still not a
+    // function of the row count.
+    assertThat(stats.getPrepareStatementCount()).isEqualTo(3);
 
     assertThat(dto.executions()).hasSize(2);
+    assertThat(dto.totalExecutions()).isEqualTo(2);
     assertThat(dto.edges()).hasSize(1);
     AttackPathEdges edge = dto.edges().get(0);
     assertThat(edge.getCount()).isEqualTo(2);
     assertThat(edge.getExecutionIds()).containsExactlyInAnyOrder(exec1Id, exec2Id);
+  }
+
+  @Test
+  @DisplayName("Endpoint relations page the feed but keep the edges whole")
+  void relations_page_the_feed_and_keep_edges_whole() {
+    // One execution per page, so the second one is only reachable through page 1 — while the edge
+    // must still carry BOTH, because the front correlates edges against executions it may not have
+    // fetched yet.
+    AttackPathEndpointRelationsDTO first =
+        service.endpointRelations(SIM, "dc-01", PageRequest.of(0, 1));
+    assertThat(first.executions()).hasSize(1);
+    assertThat(first.totalExecutions())
+        .as("the client learns there is more without a second read")
+        .isEqualTo(2);
+    assertThat(first.edges().get(0).getExecutionIds())
+        .as("edges are whole: bounded by the endpoint's in-degree, not by the page")
+        .containsExactlyInAnyOrder(exec1Id, exec2Id);
+
+    AttackPathEndpointRelationsDTO second =
+        service.endpointRelations(SIM, "dc-01", PageRequest.of(1, 1));
+    assertThat(second.executions()).hasSize(1);
+    // Stable ordering (executedAt, id): the two pages are disjoint, so nothing is shown twice or
+    // skipped between them.
+    assertThat(second.executions().get(0).getRef())
+        .isNotEqualTo(first.executions().get(0).getRef());
   }
 
   @Test
@@ -542,7 +573,8 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     entityManager.flush();
 
     String expectedSource = AttackPathIds.injectorNode("WINRM", "C-REL");
-    AttackPathEndpointRelationsDTO relations = service.endpointRelations(SIM, "ep-rel");
+    AttackPathEndpointRelationsDTO relations =
+        service.endpointRelations(SIM, "ep-rel", PageRequest.of(0, 50));
     assertThat(relations.edges())
         .singleElement()
         .satisfies(e -> assertThat(e.getEdgeSourceId()).isEqualTo(expectedSource));
@@ -573,7 +605,8 @@ class AttackPathGraphServiceTest extends IntegrationTest {
         .extracting(AttackPathNodeDTO::getValue)
         .containsExactly("CVE-2024-9");
 
-    AttackPathEndpointRelationsDTO relations = service.endpointRelations(SIM, raw);
+    AttackPathEndpointRelationsDTO relations =
+        service.endpointRelations(SIM, raw, PageRequest.of(0, 50));
     assertThat(relations.executions()).hasSize(1);
     assertThat(relations.edges()).hasSize(1);
   }

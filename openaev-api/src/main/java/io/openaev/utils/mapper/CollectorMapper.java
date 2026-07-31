@@ -19,12 +19,13 @@ public class CollectorMapper {
 
   public CollectorOutput toCollectorOutput(
       Collector collector,
+      String displayName,
       @Nullable CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,
       boolean existingCollector) {
     return CollectorOutput.builder()
         .id(collector.getId())
-        .name(collector.getName())
+        .name(displayName)
         .type(collector.getType())
         .external(collector.isExternal())
         .lastExecution(collector.getUpdatedAt())

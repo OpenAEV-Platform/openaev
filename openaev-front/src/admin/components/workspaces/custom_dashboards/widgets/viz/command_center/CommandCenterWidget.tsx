@@ -20,26 +20,59 @@ interface Props {
   series: EsSeries[];
 }
 
+interface SeriesIndexes {
+  success: number;
+  failed: number;
+  pending: number;
+}
+
+/**
+ * Resolves which series carries which outcome, by label with a fall back to the
+ * declaration order used by `attemptedSeries` in defaultHomeWidgets.
+ *
+ * The numbers and the drill-downs both read this single resolution. A command-center
+ * widget can also be built by hand (WidgetForm exposes the type) with its series in
+ * any order, so matching labels to render the tile while addressing series
+ * positionally to drill it would recreate exactly the drift this fixes. `-1` means
+ * the widget declares no such series.
+ */
+const resolveSeriesIndexes = (series: EsSeries[]): SeriesIndexes => {
+  const byLabel = (needle: string, fallback: number) => {
+    const found = series.findIndex(s => (s.label ?? '').toUpperCase().includes(needle));
+    if (found >= 0) return found;
+    return fallback < series.length ? fallback : -1;
+  };
+  return {
+    success: byLabel('SUCCESS', 0),
+    failed: byLabel('FAIL', 1),
+    pending: byLabel('PENDING', 2),
+  };
+};
+
 interface DomainScore {
   key: string;
   success: number;
   failed: number;
+  pending: number;
   resilience: number;
 }
 
-const computeDomainScores = (series: EsSeries[]): DomainScore[] => {
-  const successSeries = series.find(s => (s.label ?? '').toUpperCase().includes('SUCCESS')) ?? series[0];
-  const failedSeries = series.find(s => (s.label ?? '').toUpperCase().includes('FAIL')) ?? series[1];
+const computeDomainScores = (series: EsSeries[], indexes: SeriesIndexes): DomainScore[] => {
+  const successSeries = series[indexes.success];
+  const failedSeries = series[indexes.failed];
+  const pendingSeries = series[indexes.pending];
   const byKey = new Map<string, {
     success: number;
     failed: number;
+    pending: number;
   }>();
-  const accumulate = (data: EsSeries['data'], field: 'success' | 'failed') => {
+  const accumulate = (data: EsSeries['data'], field: 'success' | 'failed' | 'pending') => {
     (data ?? []).forEach((d) => {
       if (!d.label) return;
       const entry = byKey.get(d.label) ?? {
         success: 0,
         failed: 0,
+        pending: 0,
       };
       entry[field] += d.value ?? 0;
       byKey.set(d.label, entry);
@@ -47,10 +80,14 @@ const computeDomainScores = (series: EsSeries[]): DomainScore[] => {
   };
   accumulate(successSeries?.data, 'success');
   accumulate(failedSeries?.data, 'failed');
+  accumulate(pendingSeries?.data, 'pending');
   return [...byKey.entries()].map(([key, v]) => ({
     key,
     success: v.success,
     failed: v.failed,
+    pending: v.pending,
+    // Resilience only ever weighs resolved outcomes: a pending expectation has no
+    // verdict to score, and counting it would drag every gate rate towards zero.
     resilience: v.success + v.failed > 0 ? Math.round((v.success / (v.success + v.failed)) * 100) : 0,
   }));
 };
@@ -74,7 +111,12 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
   const isSample = isSeriesEmpty(series);
   const displaySeries = isSample ? sampleExposureSeries : series;
 
-  const domains = useMemo(() => computeDomainScores(displaySeries), [displaySeries]);
+  // Rendering may fall back to sample data, but a drill-down always queries the real
+  // widget - so the indexes it sends must be resolved against the real series.
+  const displayIndexes = useMemo(() => resolveSeriesIndexes(displaySeries), [displaySeries]);
+  const drillIndexes = useMemo(() => resolveSeriesIndexes(series), [series]);
+
+  const domains = useMemo(() => computeDomainScores(displaySeries, displayIndexes), [displaySeries, displayIndexes]);
 
   // Every expectation type present in the data becomes a defense gate, in
   // attack-lifecycle order (exploit the vulnerability, then prevention blocks,
@@ -91,6 +133,7 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
         key: d.key,
         success: d.success,
         failed: d.failed,
+        pending: d.pending,
       }));
   }, [domains]);
 
@@ -98,10 +141,12 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
     (acc, d) => ({
       success: acc.success + d.success,
       failed: acc.failed + d.failed,
+      pending: acc.pending + d.pending,
     }),
     {
       success: 0,
       failed: 0,
+      pending: 0,
     },
   ), [domains]);
 
@@ -157,29 +202,31 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
     ];
   }, [securityPlatforms, theme.palette.mode]);
 
+  // Every drill-down names the series it aggregated instead of restating their
+  // filters: the list is then the widget's own definition of the number, so the
+  // two cannot drift when the series change (#7079).
   const onInvestigate = (typeKey: string) => {
+    const declared = (...indexes: number[]) => indexes.filter(index => index >= 0);
     // breached assets: every failed validation, regardless of type
     if (typeKey === 'breach') {
       openWidgetResults({
         widgetId,
-        filter_values_map: { inject_expectation_type: layers.map(l => l.key.toUpperCase()) },
-        series_index: 1,
+        series_indexes: declared(drillIndexes.failed),
       });
       return;
     }
-    // adversary: every attempted validation (statuses override the series filter)
+    // adversary: every attempted validation, resolved or still pending
     if (typeKey === 'all') {
       openWidgetResults({
         widgetId,
-        filter_values_map: { inject_expectation_status: ['SUCCESS', 'FAILED', 'PENDING'] },
-        series_index: 0,
+        series_indexes: declared(drillIndexes.success, drillIndexes.failed, drillIndexes.pending),
       });
       return;
     }
     openWidgetResults({
       widgetId,
       filter_values_map: { inject_expectation_type: [typeKey.toUpperCase()] },
-      series_index: 0,
+      series_indexes: declared(drillIndexes.success),
     });
   };
 

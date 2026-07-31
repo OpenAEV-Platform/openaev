@@ -1,5 +1,5 @@
 import { simpleCall, simplePostCall } from '../../utils/Action';
-import type { AttackPathDTO, AttackPathEndpointRelationsDTO, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../utils/api-types';
+import type { AttackPathDeltaDTO, AttackPathDTO, AttackPathEndpointRelationsDTO, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../utils/api-types';
 
 // Attack-path execution-store POC (issue 6647), gated by the ATTACK_PATH preview feature.
 // The tenant prefix is added centrally by Action.buildUri, so these use the plain /api paths.
@@ -21,12 +21,23 @@ export const fetchSimulationsMetaById = (simulationIds: string[]): Promise<{ dat
   simplePostCall('/api/exercises/search-by-id', { exercise_ids: simulationIds }, undefined, false);
 
 // Rebuild the whole graph. Without a mode the backend auto-selects full or collapsed on size;
-// passing 'full' or 'collapsed' forces it.
+// passing 'full' or 'collapsed' forces it. The response carries the graph version it reflects, which
+// seeds the delta poll's cursor.
 export const fetchAttackPathGraph = (
   simulationId: string,
   mode?: 'full' | 'collapsed',
 ): Promise<{ data: AttackPathDTO }> =>
   simpleCall(`${simulationUri(simulationId)}/graph${mode ? `?mode=${mode}` : ''}`, undefined, false);
+
+// Everything that changed in the graph since a given version: upserted nodes/edges/executions, the
+// changed finding rows and the recomputed counters, plus the new version to poll from next. An
+// unanswerable cursor (run reset, or too far behind) comes back as resyncRequired, and the caller
+// re-reads the full graph instead of patching.
+export const fetchAttackPathGraphDelta = (
+  simulationId: string,
+  since: number,
+): Promise<{ data: AttackPathDeltaDTO }> =>
+  simpleCall(`${simulationUri(simulationId)}/graph/delta?since=${since}`, undefined, false);
 
 // Expand one endpoint into its finding-type and finding nodes (single indexed read).
 export const fetchEndpointFindings = (
@@ -35,12 +46,15 @@ export const fetchEndpointFindings = (
 ): Promise<{ data: AttackPathExpandDTO }> =>
   simpleCall(`${simulationUri(simulationId)}/endpoint/findings?ref=${encodeURIComponent(ref)}`, undefined, false);
 
-// An endpoint's relations: the executions targeting it and the grouped edges into it.
+// An endpoint's relations: one page of the executions targeting it (with the total), plus the
+// grouped edges into it, whole — the edges reference execution ids across page boundaries.
 export const fetchEndpointRelations = (
   simulationId: string,
   ref: string,
+  page = 0,
+  size = 50,
 ): Promise<{ data: AttackPathEndpointRelationsDTO }> =>
-  simpleCall(`${simulationUri(simulationId)}/endpoint/relations?ref=${encodeURIComponent(ref)}`, undefined, false);
+  simpleCall(`${simulationUri(simulationId)}/endpoint/relations?ref=${encodeURIComponent(ref)}&page=${page}&size=${size}`, undefined, false);
 
 // A page of a widget category's findings for the drawer (issue 5048).
 // category is one of credentials | users | files | cves; the value is masked server-side for credentials.

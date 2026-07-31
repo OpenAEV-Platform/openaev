@@ -1,6 +1,6 @@
 import { Autocomplete, Box, Checkbox, TextField, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent, type HTMLAttributes, type ReactNode, useMemo } from 'react';
+import { type CSSProperties, type FunctionComponent, type HTMLAttributes, type Key, type ReactNode, useMemo } from 'react';
 
 import { type GroupOption, type Option } from '../../utils/Option';
 import { useFormatter } from '../i18n';
@@ -12,6 +12,7 @@ interface BaseProps {
   options: AutocompleteOption[];
   onInputChange: (search: string) => void;
   disableCloseOnSelect?: boolean;
+  disableOptionTooltip?: boolean;
   open?: boolean;
   required?: boolean;
   error?: boolean;
@@ -25,6 +26,7 @@ interface BaseProps {
   ) => ReactNode;
   openOnFocus?: boolean;
   selectOnFocus?: boolean;
+  autoFocus?: boolean;
 }
 
 interface SingleProps extends BaseProps {
@@ -53,6 +55,8 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
     disabled,
     openOnFocus = true,
     selectOnFocus = true,
+    disableOptionTooltip = false,
+    autoFocus = false,
   } = props;
 
   const multiple = props.multiple === true;
@@ -85,41 +89,55 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
   };
 
   const defaultRenderOption = (
-    props: HTMLAttributes<HTMLLIElement>,
+    liProps: HTMLAttributes<HTMLLIElement> & { key?: Key },
     option: AutocompleteOption,
   ) => {
     const checked = multiple
       ? value?.includes(option.id)
       : value === option.id;
 
-    return (
-      <Tooltip key={option.id} title={option.label}>
+    // React ignores a `key` arriving through a props spread, so extract it and
+    // set it explicitly on the outermost element of the returned node.
+    const { key, ...itemProps } = liProps;
+    const optionKey = key ?? option.id;
+
+    const listItem = (itemKey?: Key) => (
+      <Box
+        component="li"
+        key={itemKey}
+        {...itemProps}
+        sx={{
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          padding: 0,
+          margin: 0,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        {multiple && <Checkbox checked={checked} />}
+
         <Box
-          component="li"
-          {...props}
           sx={{
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            padding: 0,
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
+            display: 'inline-block',
+            flexGrow: 1,
+            marginLeft: multiple ? theme.spacing(1) : 0,
+            fontStyle: option.italic ? 'italic' : 'normal',
           }}
         >
-          {multiple && <Checkbox checked={checked} />}
-
-          <Box
-            sx={{
-              display: 'inline-block',
-              flexGrow: 1,
-              marginLeft: multiple ? theme.spacing(1) : 0,
-              fontStyle: option.italic ? 'italic' : 'normal',
-            }}
-          >
-            {option.label}
-          </Box>
+          {option.label}
         </Box>
+      </Box>
+    );
+
+    if (disableOptionTooltip) {
+      return listItem(optionKey);
+    }
+
+    return (
+      <Tooltip key={optionKey} title={option.label}>
+        {listItem()}
       </Tooltip>
     );
   };
@@ -156,6 +174,9 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
           size="small"
           required={required}
           error={error}
+          // autoFocus must live on the TextField: on the Autocomplete root it
+          // would land on a plain div and never focus the input.
+          autoFocus={autoFocus}
         />
       )}
       renderOption={(liProps, option) => {

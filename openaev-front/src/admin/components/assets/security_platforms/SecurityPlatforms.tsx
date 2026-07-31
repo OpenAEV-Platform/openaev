@@ -24,7 +24,7 @@ import { buildTenantApiPath } from '../../../../utils/url-helper';
 import SecurityPlatformCard from './SecurityPlatformCard';
 import SecurityPlatformCreation from './SecurityPlatformCreation';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
-import isCollectorManaged from './securityPlatformUtils';
+import isConnectorManaged from './securityPlatformUtils';
 
 type ViewMode = 'cards' | 'list';
 const VIEW_MODE_STORAGE_KEY = 'security-platforms:view-mode';
@@ -247,7 +247,7 @@ const SecurityPlatforms = () => {
                         onUpdate={result => setSecurityPlatforms(securityPlatforms.map(e => (e.asset_id !== result.asset_id ? e : result)))}
                         onDelete={result => setSecurityPlatforms(securityPlatforms.filter(e => (e.asset_id !== result)))}
                         openEditOnInit={securityPlatform.asset_id === searchId}
-                        disabled={isCollectorManaged(securityPlatform)}
+                        disabled={isConnectorManaged(securityPlatform)}
                       />
                     )}
                   >

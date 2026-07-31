@@ -10,15 +10,20 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.attackpath.AttackPathAccessControl;
+import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathSeedService;
+import io.openaev.service.attackpath.AttackPathTenantScope;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
+import io.openaev.service.attackpath.dto.AttackPathDeltaDTO;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExecutionDetailDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathSeedInput;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
+import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -56,6 +61,8 @@ public class AttackPathApi extends RestBehavior {
   private static final int MAX_FINDINGS_PAGE_SIZE = 200;
 
   private final AttackPathGraphService graphService;
+  private final AttackPathDeltaService deltaService;
+  private final AttackPathVersionService versionService;
   private final AttackPathSeedService seedService;
   private final PreviewFeatureService previewFeatureService;
   private final AttackPathAccessControl attackPathAccessControl;
@@ -75,6 +82,11 @@ public class AttackPathApi extends RestBehavior {
    * AttackPathAccessControl#assertCanReadSimulation}, which lets synthetic seed ids through (they
    * are not real {@code exercises}). Every per-simulation read below does the same. Tenant
    * isolation is still enforced by the statement inspector.
+   *
+   * <p>The snapshot is labelled with the simulation's current attack-path version, which the client
+   * then polls {@link #graphDelta} with. The version is read here, before the rows and in the same
+   * read-only transaction: reading it after them would let a write commit in the gap and never
+   * reach the client, whereas a version that lags the rows only costs one redundant first delta.
    */
   @GetMapping("/simulations/{simulationId}/graph")
   @Transactional(readOnly = true)
@@ -83,7 +95,33 @@ public class AttackPathApi extends RestBehavior {
       TxCtx ctx, @PathVariable String simulationId, @RequestParam(required = false) String mode) {
     requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
-    return graphService.buildGraph(simulationId, mode);
+    long graphVersion =
+        versionService.current(simulationId, AttackPathTenantScope.tenantIds(ctx)).orElse(0L);
+    return graphService.buildGraph(simulationId, mode, graphVersion);
+  }
+
+  /**
+   * What changed in the simulation's attack path since the client's version (#6647, spec 002), so a
+   * running run can be followed without re-downloading the whole graph every few seconds.
+   *
+   * <p>Same guards as {@link #graph}, evaluated on every poll: the feature gate, {@code
+   * assertCanReadSimulation}, and the {@link TxCtx} that scopes the reads to the caller's tenant.
+   * Because authorization is per request, a permission lost between two polls takes effect on the
+   * next one — there is no long-lived channel to carry a stale decision.
+   *
+   * <p>{@code since} is the version the client already holds ({@code graphVersion} of the snapshot
+   * it loaded); 0 means "I have just loaded a snapshot with no version". A negative cursor is
+   * rejected as a bad request rather than silently reinterpreted. A cursor the server cannot answer
+   * comes back as {@code resyncRequired}, never as a partial graph.
+   */
+  @GetMapping("/simulations/{simulationId}/graph/delta")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true)
+  public AttackPathDeltaDTO graphDelta(
+      TxCtx ctx, @PathVariable String simulationId, @RequestParam @Min(0) long since) {
+    requireAttackPathFeature();
+    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    return deltaService.buildDelta(simulationId, since, AttackPathTenantScope.tenantIds(ctx));
   }
 
   /**
@@ -117,17 +155,25 @@ public class AttackPathApi extends RestBehavior {
   }
 
   /**
-   * An endpoint's relations: its executions and the grouped edges into it, from a single indexed
-   * read. {@code ref} is the endpoint key (asset id or raw value), URL-encoded.
+   * An endpoint's relations: one page of the executions targeting it plus the grouped edges into
+   * it, whole. {@code ref} is the endpoint key (asset id or raw value), URL-encoded. The page is
+   * size-capped ({@value #MAX_FINDINGS_PAGE_SIZE}) and clamped rather than rejected, like the
+   * findings read next to it, so an over-sized request from an older client still answers.
    */
   @GetMapping("/simulations/{simulationId}/endpoint/relations")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   public AttackPathEndpointRelationsDTO relations(
-      TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
+      TxCtx ctx,
+      @PathVariable String simulationId,
+      @RequestParam String ref,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "50") int size) {
     requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
-    return graphService.endpointRelations(simulationId, ref);
+    int safePage = Math.max(page, 0);
+    int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
+    return graphService.endpointRelations(simulationId, ref, PageRequest.of(safePage, safeSize));
   }
 
   /**

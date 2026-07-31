@@ -35,6 +35,8 @@ export interface AdHocWidgetToEntitiesInput {
    * @format int32
    */
   series_index?: number;
+  /** The indexes of every series that produced the clicked number, ORed together. Takes precedence over series_index; use it whenever a widget displays a total spanning several series, so the drilled list resolves to exactly the documents that were counted */
+  series_indexes?: number[];
   widget_config:
     | AverageConfiguration
     | DateHistogramWidget
@@ -199,6 +201,7 @@ export interface AggregatedFindingOutput {
    */
   finding_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -974,7 +977,22 @@ export interface AttackPathDTO {
   attackPathExecutions?: AttackPathNodeDTO[];
   attackPathNodes?: AttackPathNodeDTO[];
   counters?: AttackPathCounters;
+  /** @format int64 */
+  graphVersion?: number;
   mode?: string;
+  staticAttackPathFindings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathDeltaDTO {
+  attackPathEdges?: AttackPathEdges[];
+  attackPathExecutions?: AttackPathNodeDTO[];
+  attackPathNodes?: AttackPathNodeDTO[];
+  counters?: AttackPathCounters;
+  /** @format int64 */
+  newVersion?: number;
+  resyncRequired?: boolean;
+  /** @format int64 */
+  sinceVersion?: number;
   staticAttackPathFindings?: AttackPathNodeDTO[];
 }
 
@@ -992,6 +1010,8 @@ export interface AttackPathEdges {
 export interface AttackPathEndpointRelationsDTO {
   edges?: AttackPathEdges[];
   executions?: AttackPathNodeDTO[];
+  /** @format int64 */
+  totalExecutions?: number;
 }
 
 export interface AttackPathExecutionDetailDTO {
@@ -1085,10 +1105,17 @@ export interface AttackPathNodeDTO {
 
 export interface AttackPathSecurityPlatformDTO {
   alerts?: AttackPathAlertDTO[];
+  /** @format int32 */
+  alertsCount?: number;
   bucket?: string;
   detectedAt?: string;
   platformName?: string;
   platformType?: string;
+  resultLabel?: string;
+  /** @format double */
+  score?: number;
+  sourceAssetId?: string;
+  sourceId?: string;
   status?: string;
 }
 
@@ -2021,6 +2048,7 @@ export interface ConditionCreateInput {
   /** Paths to values in the output of the step from */
   condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -2089,6 +2117,7 @@ export interface ConditionOutput {
   condition_key?: string;
   condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -2261,6 +2290,7 @@ export interface ContractOutputElement {
   contract_output_element_tags?: string[];
   contract_output_element_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -2313,9 +2343,10 @@ export interface ContractOutputElementInput {
   contract_output_element_rule: string;
   /** List of tags */
   contract_output_element_tags?: string[];
-  /** Contract Output element type, can be: text, number, port, IPV6, IPV4, portscan, credentials */
+  /** Contract Output element type, can be: text, action_output, number, port, IPV6, IPV4, portscan, credentials */
   contract_output_element_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -2363,10 +2394,11 @@ export interface ContractOutputElementSimple {
   contract_output_element_tags?: string[];
   /**
    * Represents the data type being extracted.
-   * @example "text, number, port, portscan, ipv4, ipv6, credentials"
+   * @example "text, action_output, number, port, portscan, ipv4, ipv6, credentials"
    */
   contract_output_element_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -4741,6 +4773,7 @@ export interface Finding {
   finding_teams?: string[];
   finding_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -4777,6 +4810,7 @@ export interface FindingInput {
   finding_labels?: string[];
   finding_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -5741,6 +5775,7 @@ export interface Injector {
   /** @minLength 1 */
   injector_name: string;
   injector_payloads?: boolean;
+  injector_security_platform?: string;
   /** @minLength 1 */
   injector_type: string;
   /** @format date-time */
@@ -5789,6 +5824,7 @@ export interface InjectorContract {
   )[];
   injector_contract_providing?: (
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -6522,6 +6558,7 @@ export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -7870,6 +7907,7 @@ export interface PayloadArgument {
   separator?: string | null;
   type:
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -8858,6 +8896,7 @@ export interface RelatedFindingOutput {
    */
   finding_type:
     | "text"
+    | "action_output"
     | "number"
     | "port"
     | "portscan"
@@ -9461,6 +9500,7 @@ export interface ScopeVariableInput {
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type:
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -9512,6 +9552,7 @@ export interface ScopeVariableOutput {
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type?:
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -9721,6 +9762,7 @@ export interface SecurityPlatform {
   asset_url?: string;
   listened?: boolean;
   security_platform_collectors?: string[];
+  security_platform_injectors?: string[];
   security_platform_logo_dark?: string;
   security_platform_logo_light?: string;
   security_platform_traces?: InjectExpectationTrace[];
@@ -10017,6 +10059,7 @@ export interface StepOutput {
   step_condition_ids?: string[];
   step_condition_key_types?: (
     | "account_with_password_not_required"
+    | "action_output"
     | "admin_username"
     | "asreproastable_account"
     | "asset_group_id"
@@ -11401,6 +11444,8 @@ export interface WidgetToEntitiesInput {
    * @format int32
    */
   series_index?: number;
+  /** The indexes of every series that produced the clicked number, ORed together. Takes precedence over series_index; use it whenever a widget displays a total spanning several series, so the drilled list resolves to exactly the documents that were counted */
+  series_indexes?: number[];
 }
 
 export interface WidgetToEntitiesOutput {

@@ -163,6 +163,11 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     'failed': theme.palette.error.main,
     'undetected': theme.palette.error.main,
     'unprevented': theme.palette.error.main,
+    // The labels ExpectationType actually stores for a failed expectation (what the expiration
+    // manager stamps). They used to land on the catch-all below, so the colour was right by accident
+    // and indistinguishable from an unrecognised status.
+    'not prevented': theme.palette.error.main,
+    'not detected': theme.palette.error.main,
     'vulnerable': theme.palette.error.main,
     '0': theme.palette.error.main,
 

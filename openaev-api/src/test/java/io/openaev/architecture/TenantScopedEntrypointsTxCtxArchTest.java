@@ -73,6 +73,17 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.mitigation.MitigationApi#updateMitigation",
           "io.openaev.rest.mitigation.MitigationApi#upsertMitigation",
           "io.openaev.rest.mitigation.MitigationApi#deleteMitigation",
+          // attackpath_execution / attackpath_finding (v2): every read of the projection, including
+          // the delta cursor added with the real-time updates (#6647, spec 002). Losing the TxCtx
+          // on
+          // one of these would not fail loudly — the reads would simply return zero rows.
+          "io.openaev.api.attackpath.AttackPathApi#graph",
+          "io.openaev.api.attackpath.AttackPathApi#graphDelta",
+          "io.openaev.api.attackpath.AttackPathApi#simulations",
+          "io.openaev.api.attackpath.AttackPathApi#expandEndpointFindings",
+          "io.openaev.api.attackpath.AttackPathApi#relations",
+          "io.openaev.api.attackpath.AttackPathApi#findings",
+          "io.openaev.api.attackpath.AttackPathApi#executionDetail",
           // collectors: all read/write endpoints wired with TxCtx
           "io.openaev.rest.collector.CollectorApi#collectors",
           "io.openaev.rest.collector.CollectorApi#getCollector",

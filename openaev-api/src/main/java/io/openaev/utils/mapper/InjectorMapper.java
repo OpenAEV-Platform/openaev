@@ -18,12 +18,13 @@ public class InjectorMapper {
 
   public InjectorOutput toInjectorOutput(
       Injector injector,
+      String displayName,
       @Nullable CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,
       boolean existingInjector) {
     return InjectorOutput.builder()
         .id(injector.getId())
-        .name(injector.getName())
+        .name(displayName)
         .type(injector.getType())
         .external(injector.isExternal())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))

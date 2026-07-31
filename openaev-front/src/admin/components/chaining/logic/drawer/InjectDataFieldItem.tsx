@@ -15,7 +15,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 
 import AutocompleteField from '../../../../../components/fields/AutocompleteField';
 import { useFormatter } from '../../../../../components/i18n';
@@ -61,8 +61,19 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const { argumentTypes } = useArgumentTypes();
 
+  // Stable anchor that persists across the "Link an Output" <-> "Edit links" transition:
+  // those are two different DOM elements (mounted conditionally on `link`), so anchoring
+  // the Popper directly to the clicked button leaves it pointing at a now-detached node
+  // once the link state changes (e.g. right after the first selection), causing the
+  // Popper to collapse to the top-left corner of the screen.
+  const containerRef = useRef<HTMLDivElement>(null);
   const [typeSelectorAnchorEl, setTypeSelectorAnchorEl] = useState<HTMLElement | null>(null);
   const isTypeSelectorOpen = Boolean(typeSelectorAnchorEl);
+  // Mounting the inner Autocomplete (and its autoFocus) in the same tick as the outer
+  // Popper would make it compute its position before the outer Popper has settled,
+  // making the listbox jump to the top-left corner on first open. Delaying its mount
+  // by a couple of frames lets the outer Popper finish positioning first.
+  const [selectorReady, setSelectorReady] = useState(false);
 
   const menuItems = useMemo(
     () => (argumentTypes.length > 0 ? argumentTypes : ['text']),
@@ -74,12 +85,11 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
     return link.outputTypes ?? [];
   }, [link]);
 
-  const openTypeSelector = (anchor: HTMLElement) => setTypeSelectorAnchorEl(anchor);
+  const openTypeSelector = () => setTypeSelectorAnchorEl(containerRef.current);
   const closeTypeSelector = () => setTypeSelectorAnchorEl(null);
 
   const handleOutputTypesChange = (nextOutputTypes: string[]) => {
     if (nextOutputTypes.length === 0) {
-      closeTypeSelector();
       onUnlink(fieldKey);
       return;
     }
@@ -96,8 +106,24 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
     }
   }, [panelOpen]);
 
+  useEffect(() => {
+    if (!isTypeSelectorOpen) {
+      setSelectorReady(false);
+      return undefined;
+    }
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setSelectorReady(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [isTypeSelectorOpen]);
+
   return (
     <Box
+      ref={containerRef}
       sx={{
         backgroundColor: 'background.paper',
         borderRadius: 1,
@@ -157,7 +183,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                   variant="text"
                   color="primary"
                   endIcon={<KeyboardArrowDown />}
-                  onClick={event => openTypeSelector(event.currentTarget)}
+                  onClick={openTypeSelector}
                 >
                   {t('Edit links')}
                 </Button>
@@ -220,7 +246,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
               variant="text"
               color="primary"
               endIcon={<KeyboardArrowDown />}
-              onClick={event => openTypeSelector(event.currentTarget)}
+              onClick={openTypeSelector}
               sx={{
                 whiteSpace: 'nowrap',
                 textTransform: 'none',
@@ -243,28 +269,30 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
         }}
       >
         <ClickAwayListener onClickAway={closeTypeSelector}>
-          <Paper elevation={4} sx={{ p: 1.5 }}>
-            <AutocompleteField
-              open={isTypeSelectorOpen}
-              label={t('Primitive types')}
-              variant="standard"
-              multiple
-              options={menuItems.map(type => ({
-                id: type,
-                label: t(formatPrimitiveTypeLabel(type)),
-              }))}
-              value={normalizedLinkOutputTypes.filter(type => menuItems.includes(type))}
-              onInputChange={() => {}}
-              onChange={(nextOutputTypes) => {
-                if (nextOutputTypes.length === 0) {
-                  closeTypeSelector();
-                  onUnlink(fieldKey);
-                  return;
-                }
-                handleOutputTypesChange(nextOutputTypes);
-                closeTypeSelector();
-              }}
-            />
+          <Paper
+            elevation={4}
+            sx={{
+              p: 1.5,
+              minHeight: 56,
+            }}
+          >
+            {selectorReady && (
+              <AutocompleteField
+                autoFocus
+                label={t('Primitive types')}
+                variant="standard"
+                multiple
+                disableCloseOnSelect
+                disableOptionTooltip
+                options={menuItems.map(type => ({
+                  id: type,
+                  label: t(formatPrimitiveTypeLabel(type)),
+                }))}
+                value={normalizedLinkOutputTypes.filter(type => menuItems.includes(type))}
+                onInputChange={() => {}}
+                onChange={handleOutputTypesChange}
+              />
+            )}
           </Paper>
         </ClickAwayListener>
       </Popper>

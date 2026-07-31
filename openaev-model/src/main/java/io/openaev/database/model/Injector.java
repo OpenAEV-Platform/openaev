@@ -4,12 +4,15 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantIdBaseListener;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.helper.MonoIdSerializer;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -92,6 +95,18 @@ public class Injector extends BaseConnectorEntity implements TenantIdBase {
   @Column(name = "injector_dependencies", columnDefinition = "text[]")
   @JsonProperty("injector_dependencies")
   private ExternalServiceDependency[] dependencies;
+
+  // Security platform this injector registered at startup (e.g. Nuclei declaring itself as a
+  // VULNERABILITY_SCANNER). Mirrors Collector#securityPlatform: the FK is ON DELETE SET NULL, so
+  // deleting the injector from the catalog releases the platform for manual cleanup (#7063).
+  // Serialized as a bare id: embedding the full platform would pull its lazy collectors
+  // association (a v2 tenant-active table) into every injector serialization context.
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "injector_security_platform")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("injector_security_platform")
+  @Schema(implementation = String.class)
+  private SecurityPlatform securityPlatform;
 
   @OneToMany(mappedBy = "injector", fetch = FetchType.LAZY)
   @JsonIgnore

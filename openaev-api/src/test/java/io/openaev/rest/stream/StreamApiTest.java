@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
@@ -15,6 +16,8 @@ import io.openaev.database.model.*;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
+import io.openaev.service.attackpath.AttackPathAccessControl;
+import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -22,6 +25,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,6 +58,8 @@ public class StreamApiTest {
   @Mock private UserService userService;
 
   @Mock private ObjectMapper mapper;
+
+  @Mock private AttackPathAccessControl attackPathAccessControl;
 
   @InjectMocks private StreamApi streamApi;
 
@@ -241,5 +248,119 @@ public class StreamApiTest {
 
     // Assert
     assertTrue(visible);
+  }
+
+  // -- Attack-path version nudge (#6647, spec 003) --
+  //
+  // The nudge announces that a simulation's attack-path version moved. It carries no graph data, so
+  // what these tests pin is who receives it: the audience of the delta read it announces, in the
+  // owning tenant, and nobody else.
+
+  private static final String SIMULATION_ID = "simulation-1";
+  private static final String SEED_SIMULATION_ID = "ap-seed-demo";
+
+  /** Replaces the default (tenant-less) consumer with one scoped to the given tenant. */
+  private FluxSink<Object> registerTenantConsumer(String tenantId) throws Exception {
+    OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
+    when(principal.getId()).thenReturn(USER_ID);
+    FluxSink<Object> sink = mock(FluxSink.class);
+    Field consumersField = StreamApi.class.getDeclaredField("consumers");
+    consumersField.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> consumers = (Map<String, Object>) consumersField.get(streamApi);
+    consumers.clear();
+    consumers.put(SESSION_ID, buildStreamConsumer(principal, tenantId, sink));
+    return sink;
+  }
+
+  @Test
+  public void
+      given_attackPathNudge_when_consumerCanReadTheSimulation_should_receiveTheNotificationOnly()
+          throws Exception {
+    // Arrange: a non-admin consumer whose only right is READ on this simulation — the case that
+    // proves the gate consults grants instead of falling back to "admins only".
+    FluxSink<Object> sink = registerTenantConsumer(TENANT_ID);
+    when(attackPathAccessControl.canRead(mockUser, SIMULATION_ID)).thenReturn(true);
+
+    // Act
+    streamApi.listenAttackPathVersion(new AttackPathVersionEvent(SIMULATION_ID, TENANT_ID, 42L));
+
+    // Assert: one event, of the attack-path type, carrying the notification and nothing else.
+    ArgumentCaptor<ServerSentEvent> captor = ArgumentCaptor.forClass(ServerSentEvent.class);
+    verify(sink).next(captor.capture());
+    ServerSentEvent<?> sent = captor.getValue();
+    assertEquals(StreamApi.EVENT_TYPE_ATTACK_PATH_VERSION, sent.event());
+    AttackPathVersionEvent payload = (AttackPathVersionEvent) sent.data();
+    assertEquals(SIMULATION_ID, payload.simulationId());
+    assertEquals(42L, payload.version());
+
+    // And on the wire: exactly the two notification fields. Asserted on the serialized form, not on
+    // the record's accessors, because the invariant that matters is that the routing tenant never
+    // leaves the server — a check the accessors cannot make.
+    JsonNode wire = new ObjectMapper().valueToTree(payload);
+    assertEquals(
+        Set.of("simulation_id", "version"),
+        wire.properties().stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
+    assertEquals(SIMULATION_ID, wire.get("simulation_id").asText());
+    assertEquals(42L, wire.get("version").asLong());
+  }
+
+  @Test
+  public void given_attackPathNudge_when_consumerCannotReadTheSimulation_should_receiveNothing()
+      throws Exception {
+    // Arrange: no READ on the simulation. The point is silence — never the DATA_DELETE masking
+    // event the generic path sends, which would evict the simulation from the client's store.
+    FluxSink<Object> sink = registerTenantConsumer(TENANT_ID);
+    when(attackPathAccessControl.canRead(mockUser, SIMULATION_ID)).thenReturn(false);
+
+    // Act
+    streamApi.listenAttackPathVersion(new AttackPathVersionEvent(SIMULATION_ID, TENANT_ID, 7L));
+
+    // Assert
+    verify(sink, never()).next(any());
+  }
+
+  @Test
+  public void given_attackPathNudge_when_consumerIsInAnotherTenant_should_receiveNothing()
+      throws Exception {
+    // Arrange: authorized on paper, but connected under another tenant.
+    FluxSink<Object> sink = registerTenantConsumer(OTHER_TENANT_ID);
+    when(attackPathAccessControl.canRead(mockUser, SIMULATION_ID)).thenReturn(true);
+
+    // Act
+    streamApi.listenAttackPathVersion(new AttackPathVersionEvent(SIMULATION_ID, TENANT_ID, 3L));
+
+    // Assert: tenant equality runs before the permission check, so nothing is delivered — and the
+    // check is never even consulted.
+    verify(sink, never()).next(any());
+    verify(attackPathAccessControl, never()).canRead(any(), any());
+  }
+
+  @Test
+  public void given_attackPathNudge_when_eventCarriesNoTenant_should_receiveNothing()
+      throws Exception {
+    // Arrange: a routing tenant we cannot match must fail closed, not broadcast to everyone.
+    FluxSink<Object> sink = registerTenantConsumer(TENANT_ID);
+
+    // Act
+    streamApi.listenAttackPathVersion(new AttackPathVersionEvent(SIMULATION_ID, null, 1L));
+
+    // Assert
+    verify(sink, never()).next(any());
+  }
+
+  @Test
+  public void given_attackPathNudge_when_simulationIsSeeded_should_beDelivered() throws Exception {
+    // Arrange: a seeded simulation is not a real exercise, so a bare grant check would refuse it
+    // while the delta read serves it — the nudge must follow the read, hence the shared predicate.
+    FluxSink<Object> sink = registerTenantConsumer(TENANT_ID);
+    when(attackPathAccessControl.canRead(mockUser, SEED_SIMULATION_ID)).thenReturn(true);
+
+    // Act
+    streamApi.listenAttackPathVersion(
+        new AttackPathVersionEvent(SEED_SIMULATION_ID, TENANT_ID, 5L));
+
+    // Assert
+    verify(sink).next(any());
   }
 }

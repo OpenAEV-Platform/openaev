@@ -14,10 +14,19 @@ import io.openaev.database.model.Command;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectExpectationResult;
+import io.openaev.database.model.InjectExpectationTrace;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.PreventionInjectExpectation;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.VulnerabilityInjectExpectation;
+import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationTraceRepository;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.attackpath.AttackPathIds;
@@ -27,6 +36,8 @@ import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.InjectExpectationFixture;
+import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
@@ -90,6 +101,10 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private InjectRepository injectRepository;
+  @Autowired private InjectExpectationRepository injectExpectationRepository;
+  @Autowired private InjectExpectationTraceRepository injectExpectationTraceRepository;
+  @Autowired private SecurityPlatformRepository securityPlatformRepository;
 
   private JdbcTemplate jdbc;
   private Tenant tenant;
@@ -124,6 +139,227 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     assertThat(rawTenantOf(rowId))
         .as("the run's row must exist and carry the inject's tenant, with no ambient scope set")
         .isEqualTo(tenant.getId());
+  }
+
+  @Test
+  @DisplayName("given_resultsWithoutSourceId_should_persistCollectorRowsUsingSourceNameFallback")
+  void given_resultsWithoutSourceId_should_persistCollectorRowsUsingSourceNameFallback() {
+    // Arrange
+    Target target = persistTarget();
+    Inject inject = injectFor(target.endpoint());
+    runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
+
+    PreventionInjectExpectation prevention = new PreventionInjectExpectation();
+    prevention.setAgent(target.agent());
+    InjectExpectationResult first = new InjectExpectationResult();
+    first.setSourceName("Defender");
+    first.setResult("Prevented");
+    first.setDate("2026-07-28T10:00:00Z");
+    InjectExpectationResult second = new InjectExpectationResult();
+    second.setSourceName("Defender");
+    second.setResult("Partially Prevented");
+    second.setDate("2026-07-28T10:01:00Z");
+    prevention.setResults(List.of(first, second));
+
+    // Act
+    runAsTheExecutorWould(
+        () -> ingestionService.upsertExecutionCollectors(inject, List.of(prevention)));
+
+    // Assert
+    String executionId =
+        AttackPathIds.executionNode(INJECT_ID, target.endpoint().getId(), target.agent().getId());
+    Integer rowCount =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM attackpath_execution_collector "
+                + "WHERE attackpath_execution_collector_simulation_id = ? "
+                + "AND attackpath_execution_id = ? AND tenant_id = ?",
+            Integer.class,
+            SIM,
+            executionId,
+            tenant.getId());
+
+    assertThat(rowCount)
+        .as(
+            "source-less rows are kept with sourceName fallback, so expected buckets remain visible")
+        .isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("given_vulnerabilityCollectorResult_should_persistVulnerabilityCollectorRow")
+  void given_vulnerabilityCollectorResult_should_persistVulnerabilityCollectorRow() {
+    // Arrange
+    Target target = persistTarget();
+    Inject inject = injectFor(target.endpoint());
+    runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
+
+    TenantContext.setCurrentTenant(tenant.getId());
+    Inject persistedInject = InjectFixture.getDefaultInject();
+    persistedInject.setTenant(tenant);
+    persistedInject = injectRepository.save(persistedInject);
+    VulnerabilityInjectExpectation vulnerability =
+        InjectExpectationFixture.createVulnerabilityInjectExpectation(
+            persistedInject, target.agent());
+    InjectExpectationResult result = new InjectExpectationResult();
+    result.setSourceId("collector-vuln-1");
+    result.setSourceName("Defender");
+    result.setSourceType("EDR");
+    result.setResult("Vulnerable");
+    result.setDate("2026-07-29T10:00:00Z");
+    vulnerability.setResults(List.of(result));
+    VulnerabilityInjectExpectation savedExpectation =
+        injectExpectationRepository.save(vulnerability);
+    TenantContext.clearCurrentTenant();
+
+    // Act
+    runAsTheExecutorWould(
+        () -> ingestionService.upsertExecutionCollectors(inject, List.of(savedExpectation)));
+
+    // Assert
+    String executionId =
+        AttackPathIds.executionNode(INJECT_ID, target.endpoint().getId(), target.agent().getId());
+    Integer rowCount =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM attackpath_execution_collector "
+                + "WHERE attackpath_execution_collector_simulation_id = ? "
+                + "AND attackpath_execution_id = ? AND tenant_id = ? "
+                + "AND attackpath_execution_collector_expectation_type = 'VULNERABILITY'",
+            Integer.class,
+            SIM,
+            executionId,
+            tenant.getId());
+
+    assertThat(rowCount).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("given_traceForSourceId_should_persistCollectorAlertsJson")
+  void given_traceForSourceId_should_persistCollectorAlertsJson() {
+    // Arrange
+    Target target = persistTarget();
+    Inject inject = injectFor(target.endpoint());
+    runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
+
+    SecurityPlatform platform = new SecurityPlatform();
+    platform.setExternalReference("platform-trace-1");
+    platform.setName("Trace platform");
+    platform.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+    TenantContext.setCurrentTenant(tenant.getId());
+    platform = securityPlatformRepository.save(platform);
+    Inject persistedInject = InjectFixture.getDefaultInject();
+    persistedInject.setTenant(tenant);
+    persistedInject = injectRepository.save(persistedInject);
+
+    PreventionInjectExpectation prevention =
+        InjectExpectationFixture.createPreventionInjectExpectation(persistedInject, target.agent());
+    InjectExpectationResult result = new InjectExpectationResult();
+    result.setSourceId(platform.getId());
+    result.setSourceName("Trace platform");
+    result.setSourceType("EDR");
+    result.setResult("Prevented");
+    result.setDate("2026-07-31T10:00:00Z");
+    prevention.setResults(List.of(result));
+    PreventionInjectExpectation savedExpectation = injectExpectationRepository.save(prevention);
+
+    InjectExpectationTrace trace = new InjectExpectationTrace();
+    trace.setInjectExpectation(savedExpectation);
+    trace.setSecurityPlatform(platform);
+    trace.setAlertName("Trace Alert A");
+    trace.setAlertLink("https://security.microsoft.com/alerts/trace-a");
+    trace.setAlertDate(java.time.Instant.parse("2026-07-31T10:00:00Z"));
+    injectExpectationTraceRepository.save(trace);
+    TenantContext.clearCurrentTenant();
+
+    // Act
+    runAsTheExecutorWould(
+        () -> ingestionService.upsertExecutionCollectors(inject, List.of(savedExpectation)));
+
+    // Assert
+    String executionId =
+        AttackPathIds.executionNode(INJECT_ID, target.endpoint().getId(), target.agent().getId());
+    String alertsJson =
+        jdbc.queryForObject(
+            "SELECT attackpath_execution_collector_alerts FROM attackpath_execution_collector "
+                + "WHERE attackpath_execution_collector_simulation_id = ? "
+                + "AND attackpath_execution_id = ? AND tenant_id = ? "
+                + "AND attackpath_execution_collector_expectation_type = 'PREVENTION'",
+            String.class,
+            SIM,
+            executionId,
+            tenant.getId());
+    assertThat(alertsJson).contains("Trace Alert A").contains("trace-a");
+    // Guard against double-encoding: the column must hold a real jsonb array, not a jsonb
+    // string wrapping the serialized alerts payload.
+    String alertsJsonbType =
+        jdbc.queryForObject(
+            "SELECT jsonb_typeof(attackpath_execution_collector_alerts) "
+                + "FROM attackpath_execution_collector "
+                + "WHERE attackpath_execution_collector_simulation_id = ? "
+                + "AND attackpath_execution_id = ? AND tenant_id = ? "
+                + "AND attackpath_execution_collector_expectation_type = 'PREVENTION'",
+            String.class,
+            SIM,
+            executionId,
+            tenant.getId());
+    assertThat(alertsJsonbType).isEqualTo("array");
+  }
+
+  @Test
+  @DisplayName("given_collectorSourceId_should_resolveTraceViaSecurityPlatformExternalReference")
+  void given_collectorSourceId_should_resolveTraceViaSecurityPlatformExternalReference() {
+    // Arrange
+    Target target = persistTarget();
+    Inject inject = injectFor(target.endpoint());
+    runAsTheExecutorWould(() -> ingestionService.onRun(inject, step(), ""));
+
+    String collectorExternalReference = "collector-ext-ref-1";
+    SecurityPlatform platform = new SecurityPlatform();
+    platform.setExternalReference(collectorExternalReference);
+    platform.setName("Ext-ref platform");
+    platform.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM);
+    TenantContext.setCurrentTenant(tenant.getId());
+    platform = securityPlatformRepository.save(platform);
+    Inject persistedInject = InjectFixture.getDefaultInject();
+    persistedInject.setTenant(tenant);
+    persistedInject = injectRepository.save(persistedInject);
+
+    PreventionInjectExpectation prevention =
+        InjectExpectationFixture.createPreventionInjectExpectation(persistedInject, target.agent());
+    InjectExpectationResult result = new InjectExpectationResult();
+    result.setSourceId(collectorExternalReference);
+    result.setSourceName("Collector source");
+    result.setSourceType("SIEM");
+    result.setResult("Prevented");
+    result.setDate("2026-08-01T11:00:00Z");
+    prevention.setResults(List.of(result));
+    PreventionInjectExpectation savedExpectation = injectExpectationRepository.save(prevention);
+
+    InjectExpectationTrace trace = new InjectExpectationTrace();
+    trace.setInjectExpectation(savedExpectation);
+    trace.setSecurityPlatform(platform);
+    trace.setAlertName("External reference alert");
+    trace.setAlertLink("https://security.microsoft.com/alerts/ext-ref");
+    trace.setAlertDate(java.time.Instant.parse("2026-08-01T11:00:00Z"));
+    injectExpectationTraceRepository.save(trace);
+    TenantContext.clearCurrentTenant();
+
+    // Act
+    runAsTheExecutorWould(
+        () -> ingestionService.upsertExecutionCollectors(inject, List.of(savedExpectation)));
+
+    // Assert
+    String executionId =
+        AttackPathIds.executionNode(INJECT_ID, target.endpoint().getId(), target.agent().getId());
+    String alertsJson =
+        jdbc.queryForObject(
+            "SELECT attackpath_execution_collector_alerts FROM attackpath_execution_collector "
+                + "WHERE attackpath_execution_collector_simulation_id = ? "
+                + "AND attackpath_execution_id = ? AND tenant_id = ? "
+                + "AND attackpath_execution_collector_expectation_type = 'PREVENTION'",
+            String.class,
+            SIM,
+            executionId,
+            tenant.getId());
+    assertThat(alertsJson).contains("External reference alert").contains("ext-ref");
   }
 
   @Test
@@ -378,12 +614,16 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
 
       assertThat(rawExecCount(tenant.getId())).as("own executions deleted").isZero();
       assertThat(rawFindingCount(tenant.getId())).as("own findings deleted").isZero();
+      assertThat(rawCollectorCount(tenant.getId())).as("own collectors deleted").isZero();
       assertThat(rawLinkCount("exec-own")).as("own link cascade-cleared").isZero();
       assertThat(rawExecCount(other.getId()))
           .as("other tenant's executions untouched")
           .isEqualTo(1);
       assertThat(rawFindingCount(other.getId()))
           .as("other tenant's findings untouched")
+          .isEqualTo(1);
+      assertThat(rawCollectorCount(other.getId()))
+          .as("other tenant's collectors untouched")
           .isEqualTo(1);
       assertThat(rawLinkCount("exec-other")).as("other tenant's link untouched").isEqualTo(1);
     } finally {
@@ -500,6 +740,15 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         "INSERT INTO attackpath_execution_finding (execution_id, finding_id) VALUES (?, ?)",
         execId,
         findId);
+    jdbc.update(
+        "INSERT INTO attackpath_execution_collector ("
+            + "attackpath_execution_collector_id, tenant_id, attackpath_execution_collector_simulation_id,"
+            + "attackpath_execution_id, attackpath_execution_collector_expectation_type,"
+            + "attackpath_execution_collector_result_status_label) VALUES (?, ?, ?, ?, 'DETECTION', 'Detected')",
+        "col-" + execId,
+        tenantId,
+        SIM,
+        execId);
   }
 
   private Integer rawExecCount(String tenantId) {
@@ -525,6 +774,15 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         "SELECT count(*) FROM attackpath_execution_finding WHERE execution_id = ?",
         Integer.class,
         executionId);
+  }
+
+  private Integer rawCollectorCount(String tenantId) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM attackpath_execution_collector"
+            + " WHERE attackpath_execution_collector_simulation_id = ? AND tenant_id = ?",
+        Integer.class,
+        SIM,
+        tenantId);
   }
 
   private record Target(Endpoint endpoint, Agent agent) {}

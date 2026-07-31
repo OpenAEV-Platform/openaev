@@ -16,6 +16,7 @@ import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollecto
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
+import io.openaev.utils.PrimitiveValueMaskingUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -364,17 +365,35 @@ public class WorkflowService {
   }
 
   private boolean hasVariableChanged(ScopeVariable existing, ScopeVariableInput input) {
+    String resolvedValue = resolveScopeVariableValueForPersistence(existing, input);
     return !Objects.equals(existing.getKey(), input.getKey())
         || !Objects.equals(existing.getType(), input.getType())
-        || !Objects.equals(existing.getValue(), input.getValue())
+        || !Objects.equals(existing.getValue(), resolvedValue)
         || !Objects.equals(existing.getDescription(), input.getDescription());
   }
 
   private void updateScopeVariable(ScopeVariable existing, ScopeVariableInput input) {
+    String resolvedValue = resolveScopeVariableValueForPersistence(existing, input);
     existing.setKey(input.getKey());
     existing.setType(input.getType());
-    existing.setValue(input.getValue());
+    existing.setValue(resolvedValue);
     existing.setDescription(input.getDescription());
+  }
+
+  /**
+   * Resolves the scope variable value that should be persisted from an update payload.
+   *
+   * <p>When a sensitive value is masked in API responses, the frontend may send this masked
+   * representation back unchanged. In that case we must preserve the existing raw value rather than
+   * overwrite it with the masked string.
+   */
+  private String resolveScopeVariableValueForPersistence(
+      ScopeVariable existing, ScopeVariableInput input) {
+    if (PrimitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
+        existing.getType(), existing.getValue(), input.getValue())) {
+      return existing.getValue();
+    }
+    return input.getValue();
   }
 
   private ScopeVariable buildScopeVariable(ScopeVariableInput input, Workflow workflow) {

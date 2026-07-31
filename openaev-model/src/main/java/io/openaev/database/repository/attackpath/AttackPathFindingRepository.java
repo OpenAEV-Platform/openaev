@@ -32,6 +32,71 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
   List<AttackPathFindingRow> findGraphRows(@Param("simulationId") String simulationId);
 
   /**
+   * Delta read (#6647, spec 002): the same projection as {@link #findGraphRows}, restricted to the
+   * findings written since {@code since}. Backed by {@code idx_ap_finding_sim_rowversion}. A
+   * finding whose value was re-discovered is re-stamped by the copy's conflict branch, so it comes
+   * back here with its (possibly new) links; one left untouched keeps its original version and is
+   * correctly absent.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingRow("
+          + "f.id, f.type, f.value, f.endpointId, f.endpointRaw, f.endpointKey, ef.executionId) "
+          + "FROM AttackPathFinding f "
+          + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
+          + "WHERE f.simulationId = :simulationId AND f.rowVersion > :since")
+  List<AttackPathFindingRow> findGraphRowsSince(
+      @Param("simulationId") String simulationId, @Param("since") long since);
+
+  /**
+   * The same projection as {@link #findGraphRows}, restricted to a set of finding types.
+   *
+   * <p>This is the candidate set a delta needs to resolve one consuming step's event dependencies:
+   * the findings a consumed key can match were produced by an EARLIER bump, so they are never in
+   * the batch, and which findings a key matched is resolved by the backend rather than by the
+   * client. Scoped by type because a consumed key can only ever match its own reconciled type or a
+   * complex type carrying it as a sub-field (see {@code
+   * AttackPathKeyMatcher#candidateFindingTypes}), and only read on the ticks where a consuming
+   * execution actually lands.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingRow("
+          + "f.id, f.type, f.value, f.endpointId, f.endpointRaw, f.endpointKey, ef.executionId) "
+          + "FROM AttackPathFinding f "
+          + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
+          + "WHERE f.simulationId = :simulationId AND f.type IN :types")
+  List<AttackPathFindingRow> findGraphRowsByTypes(
+      @Param("simulationId") String simulationId, @Param("types") Collection<String> types);
+
+  /**
+   * How many rows {@link #findGraphRowsSince} would return, for the delta's resync threshold.
+   * Counted over the SAME link join, not over the findings alone: a finding produced by several
+   * executions yields one row per producer, so counting bare findings would under-report the
+   * payload this guard exists to bound. Counted rather than fetched, so the guard stays cheaper
+   * than the work it avoids.
+   */
+  @Query(
+      "SELECT count(ef) FROM AttackPathFinding f "
+          + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
+          + "WHERE f.simulationId = :simulationId AND f.rowVersion > :since")
+  long countChangedSince(@Param("simulationId") String simulationId, @Param("since") long since);
+
+  /**
+   * Delta read: {@link #findEndpointTypeCounts} restricted to the endpoints a delta actually
+   * touched, so each affected endpoint node ships its full recomputed per-type finding counts (FR1:
+   * aggregates whole, never as increments) at O(changed endpoints).
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow("
+          + "f.endpointKey, f.type, count(distinct f.value)) "
+          + "FROM AttackPathFinding f WHERE f.simulationId = :simulationId "
+          + "AND f.endpointKey IN :endpointKeys "
+          + "AND EXISTS (SELECT ef FROM AttackPathExecutionFinding ef WHERE ef.findingId = f.id) "
+          + "GROUP BY f.endpointKey, f.type")
+  List<AttackPathEndpointTypeCountRow> findEndpointTypeCountsByEndpointKeys(
+      @Param("simulationId") String simulationId,
+      @Param("endpointKeys") Collection<String> endpointKeys);
+
+  /**
    * Expand one endpoint: its findings' (type, value) joined to their producing executions' three
    * status columns, so the read can carry a per-finding verdict. The inner join to {@code
    * AttackPathExecutionFinding} is the graph invariant (a finding is in the graph iff an execution

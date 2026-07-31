@@ -101,6 +101,10 @@ class AttackPathApiRbacTest extends IntegrationTest {
     return get(BASE + simId + "/graph");
   }
 
+  private MockHttpServletRequestBuilder graphDelta(String simId) {
+    return get(BASE + simId + "/graph/delta").param("since", "0");
+  }
+
   private MockHttpServletRequestBuilder endpointFindings(String simId) {
     return get(BASE + simId + "/endpoint/findings").param("ref", "any");
   }
@@ -117,10 +121,12 @@ class AttackPathApiRbacTest extends IntegrationTest {
     return get(BASE + simId + "/execution").param("ref", "any");
   }
 
-  // The 5 per-simulation reads, all guarded by the same assertCanReadSimulation.
+  // The per-simulation reads, all guarded by the same assertCanReadSimulation. The delta cursor is
+  // one of them: it is polled every few seconds, so an unguarded one would be the widest hole here.
   private List<MockHttpServletRequestBuilder> reads(String simId) {
     return List.of(
         graph(simId),
+        graphDelta(simId),
         endpointFindings(simId),
         endpointRelations(simId),
         findings(simId),

@@ -2,6 +2,7 @@ package io.openaev.service.attackpath;
 
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.model.attackpath.AttackPathExecutionRemediation;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingVerdictRow;
@@ -17,9 +18,9 @@ import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.StepConditionRow;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
@@ -101,8 +102,8 @@ public class AttackPathGraphService {
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
+  private final AttackPathExecutionRemediationRepository executionRemediationRepository;
   private final InjectorContractRepository injectorContractRepository;
-  private final PayloadRepository payloadRepository;
   private final StepRepository stepRepository;
   private final PayloadMapper payloadMapper;
   private final AttackPathSecurityPlatformResolver securityPlatformResolver;
@@ -122,14 +123,28 @@ public class AttackPathGraphService {
    * Graph for a simulation, choosing the mode: {@code full} or {@code collapsed} forces it,
    * otherwise a large simulation (more executions than the collapse threshold) is served collapsed.
    * A cheap indexed {@code COUNT} decides; it costs a fraction of the collapsed rebuild.
+   *
+   * <p>{@code graphVersion} is the cursor the snapshot is labelled with, read by the caller BEFORE
+   * this call so it can only ever lag the rows, never lead them (see {@link AttackPathDTO}).
    */
   @Transactional(readOnly = true)
-  public AttackPathDTO buildGraph(String simulationId, String requestedMode) {
+  public AttackPathDTO buildGraph(String simulationId, String requestedMode, long graphVersion) {
     // Both branches call the private bodies, never the public transactional twins: an intra-class
     // call bypasses the Spring proxy, so the inner annotation would be silently inert.
     return resolveCollapsed(simulationId, requestedMode)
-        ? collapsedGraph(simulationId)
-        : fullGraph(simulationId);
+        ? collapsedGraph(simulationId, graphVersion)
+        : fullGraph(simulationId, graphVersion);
+  }
+
+  /**
+   * The same graph for callers that do not follow a cursor (unit tests, the benchmark): the DTO's
+   * {@code graphVersion} is 0, which a client reads as "no cursor, poll from the start".
+   */
+  @Transactional(readOnly = true)
+  public AttackPathDTO buildGraph(String simulationId, String requestedMode) {
+    return resolveCollapsed(simulationId, requestedMode)
+        ? collapsedGraph(simulationId, 0)
+        : fullGraph(simulationId, 0);
   }
 
   private boolean resolveCollapsed(String simulationId, String requestedMode) {
@@ -246,17 +261,13 @@ public class AttackPathGraphService {
                                   new AttackPathAttackPatternDTO(
                                       pattern.getExternalId(), pattern.getName()))));
     }
-    // Detection remediations of the payload that actually ran (the frozen payload id, not the
-    // inject's current one). The mapper carries the EE gate: an inactive licence yields an empty
-    // list, which is exactly what the drawer already renders.
+    // Detection remediations snapshot frozen at step-run time (never from the live payload).
+    // The mapper still carries the EE gate: an inactive licence yields an empty list.
     List<DetectionRemediationOutput> detectionRemediations =
-        e.getPayloadId() == null
+        e.getStepId() == null
             ? List.of()
-            : payloadMapper.toDetectionRemediationOutputs(
-                payloadRepository
-                    .findById(e.getPayloadId())
-                    .map(p -> p.getDetectionRemediations())
-                    .orElse(List.of()));
+            : payloadMapper.applyDetectionRemediationLicenseGate(
+                toDetectionRemediationOutputsFromSnapshot(e.getStepId(), e.getPayloadId()));
     // "Action details" opens the run's inject. The frozen row no longer stores the injectId (it is
     // a
     // live ref), so resolve it from the durable step the row is keyed by: the engine writes
@@ -284,7 +295,7 @@ public class AttackPathGraphService {
         e.getVulnerabilityStatus(),
         e.getExecutedAt() == null ? null : e.getExecutedAt().toString(),
         findings,
-        securityPlatformResolver.resolve(injectId, e.getAgentId(), e.getTargetAssetId()),
+        securityPlatformResolver.resolve(e.getId(), e.getTenant().getId()),
         maskSecrets(e.getCommand(), secrets),
         maskSecrets(e.getTerminalOutput(), secrets));
   }
@@ -383,15 +394,50 @@ public class AttackPathGraphService {
     return CREDENTIAL_MASK;
   }
 
-  @Transactional(readOnly = true)
-  public AttackPathDTO buildGraph(String simulationId) {
-    return fullGraph(simulationId);
+  private List<DetectionRemediationOutput> toDetectionRemediationOutputsFromSnapshot(
+      String stepId, String payloadId) {
+    List<AttackPathExecutionRemediation> snapshots =
+        executionRemediationRepository.findByStepId(stepId);
+    if (snapshots.isEmpty()) {
+      return List.of();
+    }
+
+    Set<String> platformIds =
+        snapshots.stream()
+            .map(AttackPathExecutionRemediation::getSecurityPlatformId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    Map<String, String> platformNamesById = new HashMap<>();
+    if (!platformIds.isEmpty()) {
+      assetRepository
+          .findAllById(platformIds)
+          .forEach(asset -> platformNamesById.put(asset.getId(), asset.getName()));
+    }
+
+    return snapshots.stream()
+        .map(
+            snapshot ->
+                DetectionRemediationOutput.builder()
+                    .id(snapshot.getId())
+                    .payloadId(payloadId)
+                    .securityPlatformId(snapshot.getSecurityPlatformId())
+                    .securityPlatformName(
+                        platformNamesById.getOrDefault(snapshot.getSecurityPlatformId(), null))
+                    .values(snapshot.getValues())
+                    .authorRule(snapshot.getAuthorRule())
+                    .build())
+        .toList();
   }
 
-  private AttackPathDTO fullGraph(String simulationId) {
+  @Transactional(readOnly = true)
+  public AttackPathDTO buildGraph(String simulationId) {
+    return fullGraph(simulationId, 0);
+  }
+
+  private AttackPathDTO fullGraph(String simulationId, long graphVersion) {
     List<AttackPathExecutionRow> executions = executionRepository.findGraphRows(simulationId);
     List<AttackPathFindingRow> findings = findingRepository.findGraphRows(simulationId);
-    return assemble(executions, findings);
+    return assemble(executions, findings, graphVersion);
   }
 
   /**
@@ -432,28 +478,52 @@ public class AttackPathGraphService {
    * it, from a single indexed read. {@code targetKey} is the asset id or the raw value.
    */
   @Transactional(readOnly = true)
-  public AttackPathEndpointRelationsDTO endpointRelations(String simulationId, String targetKey) {
-    List<AttackPathExecutionRow> executions =
+  public AttackPathEndpointRelationsDTO endpointRelations(
+      String simulationId, String targetKey, Pageable pageable) {
+    // The edges come from every execution, the feed from one page of them: an endpoint's in-degree
+    // is small and its edges reference execution ids across page boundaries, so paging them would
+    // hand the client edges pointing at rows it has not fetched.
+    List<AttackPathExecutionRow> allExecutions =
         executionRepository.findByTarget(simulationId, targetKey);
     String targetNodeId = AttackPathIds.endpointNode(targetKey);
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
-    Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
-    for (AttackPathExecutionRow e : executions) {
+    for (AttackPathExecutionRow e : allExecutions) {
       String sourceNodeId = sourceNodeId(e);
       String edgeId = AttackPathIds.executionsEdge(sourceNodeId, targetNodeId);
       AttackPathEdges edge =
           edges.computeIfAbsent(edgeId, id -> executionEdge(id, sourceNodeId, targetNodeId));
       edge.setCount(edge.getCount() + 1);
       edge.getExecutionIds().add(e.id());
+    }
+
+    List<AttackPathExecutionRow> page =
+        executionRepository.findPageByTarget(simulationId, targetKey, pageable);
+    Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
+    for (AttackPathExecutionRow e : page) {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
-    applyContractNames(executions, feedByExecutionId);
+    applyContractNames(page, feedByExecutionId);
     return new AttackPathEndpointRelationsDTO(
-        new ArrayList<>(feedByExecutionId.values()), new ArrayList<>(edges.values()));
+        new ArrayList<>(feedByExecutionId.values()),
+        new ArrayList<>(edges.values()),
+        executionRepository.countByTarget(simulationId, targetKey));
   }
 
-  private AttackPathDTO assemble(
-      List<AttackPathExecutionRow> executions, List<AttackPathFindingRow> findings) {
+  /**
+   * The full-mode rebuild pass, over whatever rows it is handed. Package-private rather than
+   * private because {@link AttackPathDeltaService} runs it over the rows that CHANGED, which is
+   * what makes "snapshot(v) + delta(v→w) ≡ snapshot(w)" hold by construction: the delta cannot
+   * drift from the snapshot's node shapes, ids or field set, because it is the same code. The
+   * aggregates a subset of rows cannot compute (endpoint colour, edge counts, counters) are the
+   * delta service's job to recompute over the whole affected endpoints.
+   *
+   * <p>{@code graphVersion} labels a snapshot; a delta passes 0, because it carries its own cursor
+   * in {@code AttackPathDeltaDTO#newVersion} and never ships this record to a client.
+   */
+  AttackPathDTO assemble(
+      List<AttackPathExecutionRow> executions,
+      List<AttackPathFindingRow> findings,
+      long graphVersion) {
     Map<String, AttackPathNodeDTO> nodes = new LinkedHashMap<>();
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
     Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
@@ -599,7 +669,8 @@ public class AttackPathGraphService {
         new ArrayList<>(nodes.values()),
         new ArrayList<>(edges.values()),
         counters,
-        "full");
+        "full",
+        graphVersion);
   }
 
   /**
@@ -677,10 +748,10 @@ public class AttackPathGraphService {
    */
   @Transactional(readOnly = true)
   public AttackPathDTO buildCollapsedGraph(String simulationId) {
-    return collapsedGraph(simulationId);
+    return collapsedGraph(simulationId, 0);
   }
 
-  private AttackPathDTO collapsedGraph(String simulationId) {
+  private AttackPathDTO collapsedGraph(String simulationId, long graphVersion) {
     List<AttackPathEndpointGroupRow> endpoints =
         executionRepository.findEndpointGroups(simulationId);
     List<AttackPathEdgeGroupRow> edges = executionRepository.findEdgeGroups(simulationId);
@@ -738,11 +809,11 @@ public class AttackPathGraphService {
         new ArrayList<>(nodes.values()),
         collapsedEdges,
         collapsedCounters(endpoints.size(), typeCounts),
-        "collapsed");
+        "collapsed",
+        graphVersion);
   }
 
-  private AttackPathCounters collapsedCounters(
-      int endpoints, List<AttackPathTypeCountRow> typeCounts) {
+  AttackPathCounters collapsedCounters(long endpoints, List<AttackPathTypeCountRow> typeCounts) {
     long credentials = 0;
     long users = 0;
     long cves = 0;
@@ -766,7 +837,7 @@ public class AttackPathGraphService {
   }
 
   /** Worst-case severity of an endpoint's executions from the aggregated red/orange counts. */
-  private String collapsedColour(long redCount, long orangeCount) {
+  String collapsedColour(long redCount, long orangeCount) {
     if (redCount > 0) {
       return RED;
     }
@@ -776,7 +847,7 @@ public class AttackPathGraphService {
     return GREEN;
   }
 
-  private String collapsedSourceNodeId(AttackPathEdgeGroupRow g) {
+  String collapsedSourceNodeId(AttackPathEdgeGroupRow g) {
     return SOURCE_INJECTOR.equals(g.sourceKind())
         ? AttackPathIds.injectorNode(g.sourceInjector(), g.contractExternalId())
         : AttackPathIds.endpointNode(g.sourceAssetId());
@@ -857,11 +928,15 @@ public class AttackPathGraphService {
         representative.targetHostname() != null && !representative.targetHostname().isBlank()
             ? representative.targetHostname()
             : targetKey);
+    // Sorted rather than left in row order: the rebuild reads its rows without an ORDER BY, so row
+    // order is not a stable property of the graph, and the delta recomputes this same list from its
+    // own grouped read (see AttackPathDeltaService#recomputeAggregates).
     node.setAgents(
         executions.stream()
             .map(AttackPathExecutionRow::agentName)
             .filter(Objects::nonNull)
             .distinct()
+            .sorted()
             .toList());
     node.setStatus(endpointColour(executions));
     return node;
@@ -1028,6 +1103,69 @@ public class AttackPathGraphService {
         node.setDependsOn(dependsOn);
       }
     }
+  }
+
+  /**
+   * Re-resolves the event dependencies of a DELTA's consumer executions against every finding their
+   * keys could match, instead of only the ones in the batch.
+   *
+   * <p>{@link #applyEventDependencies} is an in-memory match over the rows of one pass, which is
+   * exact for a snapshot (it holds the whole graph) and structurally wrong for a delta: a consumed
+   * key matches findings produced by an EARLIER bump, so a batch carrying a new consuming execution
+   * carries none of them. The keys came back with no {@code matchedFindingIds} at all, and since
+   * the front anchors its causal edges on that field (#7038) rather than re-matching, the
+   * finding→action link only appeared after a reload — the same class of gap as an endpoint's
+   * colour, and fixed the same way this service fixes those: recompute what a subset cannot know,
+   * over the rows that actually determine it.
+   *
+   * <p>Two reads, and only on the ticks where a consuming execution lands: the findings of the
+   * candidate types, then their producers. The producers are needed for the ordering rule (a
+   * producer counts only if it ran before the consumer) but deliberately do NOT join the delta's
+   * node set — they are handed to the matcher alone, so the entities shipped stay exactly what
+   * changed.
+   */
+  void recomputeEventDependencies(
+      String simulationId,
+      List<AttackPathExecutionRow> batchExecutions,
+      List<AttackPathNodeDTO> feedNodes) {
+    Set<String> candidateTypes = new LinkedHashSet<>();
+    // The matcher indexes consumers by raw execution id, which the feed node carries on `ref` (its
+    // own id is the map node id).
+    Map<String, AttackPathNodeDTO> byExecutionId = new LinkedHashMap<>();
+    for (AttackPathNodeDTO node : feedNodes) {
+      if (node.getConsumedFindingKeys() == null
+          || node.getConsumedFindingKeys().isEmpty()
+          || node.getRef() == null) {
+        continue;
+      }
+      byExecutionId.put(node.getRef(), node);
+      node.getConsumedFindingKeys()
+          .forEach(
+              key ->
+                  candidateTypes.addAll(AttackPathKeyMatcher.candidateFindingTypes(key.keyType())));
+    }
+    if (candidateTypes.isEmpty()) {
+      return; // no consuming step in this batch: nothing to resolve, and no read paid for it
+    }
+    List<AttackPathFindingRow> candidates =
+        findingRepository.findGraphRowsByTypes(simulationId, candidateTypes);
+    if (candidates.isEmpty()) {
+      return;
+    }
+    Set<String> present = new HashSet<>();
+    batchExecutions.forEach(e -> present.add(e.id()));
+    Set<String> producerIds = new LinkedHashSet<>();
+    candidates.forEach(
+        f -> {
+          if (f.executionId() != null && !present.contains(f.executionId())) {
+            producerIds.add(f.executionId());
+          }
+        });
+    List<AttackPathExecutionRow> forMatching = new ArrayList<>(batchExecutions);
+    if (!producerIds.isEmpty()) {
+      forMatching.addAll(executionRepository.findGraphRowsByIds(simulationId, producerIds));
+    }
+    applyEventDependencies(forMatching, candidates, byExecutionId);
   }
 
   /**

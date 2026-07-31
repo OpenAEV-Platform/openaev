@@ -10,6 +10,8 @@ export interface DefenseLayer {
   key: string;
   success: number;
   failed: number;
+  /** Attempted but not yet scored: counted by the adversary, by no gate. */
+  pending: number;
 }
 
 interface Props {
@@ -120,7 +122,12 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
   const attackColor = theme.palette.error.main;
   const assetsColor = theme.palette.text.secondary;
 
-  const totalAttacks = layers.reduce((acc, l) => acc + l.success + l.failed, 0);
+  // The adversary fired everything, including what no gate has scored yet, so the
+  // node counts pending too. Gates and the breach node stay on resolved outcomes:
+  // the readout below therefore does not sum back to the adversary while a run is
+  // in flight, which is why the tooltip spells the split out.
+  const totalAttacks = layers.reduce((acc, l) => acc + l.success + l.failed + l.pending, 0);
+  const totalPending = layers.reduce((acc, l) => acc + l.pending, 0);
   const total = Math.max(totalAttacks, 1);
 
   const n = Math.max(layers.length, 1);
@@ -364,7 +371,11 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
               fontWeight: 600,
             }}
           >
-            <title>{totalAttacks.toLocaleString()}</title>
+            <title>
+              {totalPending > 0
+                ? `${totalAttacks.toLocaleString()} - ${t('Pending')}: ${totalPending.toLocaleString()}`
+                : totalAttacks.toLocaleString()}
+            </title>
             {compactNumber(totalAttacks)}
           </text>
           {/* click-through: every attempted validation */}
