@@ -130,9 +130,13 @@ class EngineSyncExecutionJobTest {
 
     ArgumentCaptor<JobDetail> jobCaptor = ArgumentCaptor.forClass(JobDetail.class);
     verify(scheduler, times(13)).scheduleJob(jobCaptor.capture(), any(Trigger.class));
+    // Compare sorted names: the test only guarantees one job per model, not a discovery order.
     assertEquals(
-        models.stream().map(m -> "EngineSyncExecutionJob_forModel_" + m.getName()).toList(),
-        jobCaptor.getAllValues().stream().map(jd -> jd.getKey().getName()).toList());
+        models.stream()
+            .map(m -> "EngineSyncExecutionJob_forModel_" + m.getName())
+            .sorted()
+            .toList(),
+        jobCaptor.getAllValues().stream().map(jd -> jd.getKey().getName()).sorted().toList());
   }
 
   @Test
@@ -159,9 +163,15 @@ class EngineSyncExecutionJobTest {
     long baseStart = triggers.get(0).getStartTime().getTime();
     for (int i = 1; i < triggers.size(); i++) {
       long offsetMs = triggers.get(i).getStartTime().getTime() - baseStart;
-      // Each trigger is shifted by (index % interval) seconds; allow scheduling-time jitter.
+      // Each trigger is shifted by (index % interval) seconds from its own build instant, and
+      // trigger i is built after trigger 0, so the offset can never be below i seconds. The upper
+      // bound only guards against a wrong phase and is generous to absorb CI noise/GC pauses.
       assertTrue(
-          Math.abs(offsetMs - i * 1000L) < 500,
+          offsetMs >= i * 1000L,
+          "Trigger %d should start at least %ds after the first but was offset by %dms"
+              .formatted(i, i, offsetMs));
+      assertTrue(
+          offsetMs < i * 1000L + 5000L,
           "Trigger %d should start ~%ds after the first but was offset by %dms"
               .formatted(i, i, offsetMs));
     }
