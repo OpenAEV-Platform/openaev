@@ -16,6 +16,8 @@ public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, St
 
   Optional<AutonomousRun> findBySimulationId(String simulationId);
 
+  Optional<AutonomousRun> findByScenarioId(String scenarioId);
+
   boolean existsBySimulationId(String simulationId);
 
   List<AutonomousRun> findAllByOrderByCreatedAtDesc();

@@ -19,6 +19,7 @@ import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
+import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
 import { fetchScenarioArticles } from '../../../../actions/channels/article-action';
@@ -63,6 +64,8 @@ import handle from '../../../../utils/period/Period';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import AutonomousRunControls from '../../autonomous/AutonomousRunControls';
+import autonomousRunStatusColor from '../../autonomous/autonomousStatus';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -76,11 +79,18 @@ import ScenarioPopover from './ScenarioPopover';
 interface ScenarioHeaderProps {
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
   openInstantiateSimulationAndStart: boolean;
+  // Present when this scenario is an autonomous (AI-driven) run: the manual launch / scheduling /
+  // scope controls are hidden and replaced with autonomous pause / resume / stop controls that act
+  // on the run and its single underlying simulation.
+  autonomousRun?: AutonomousRun | null;
+  onAutonomousRunUpdate?: (run: AutonomousRun) => void;
 }
 
 const ScenarioHeader = ({
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
+  autonomousRun = null,
+  onAutonomousRunUpdate,
 }: ScenarioHeaderProps) => {
   // Standard hooks
   const { t, locale, fld } = useFormatter();
@@ -144,6 +154,25 @@ const ScenarioHeader = ({
       ? helper.getWorkflowConfiguration(scenarioWorkflowId)
       : undefined,
   }));
+  const isAutonomous = !!autonomousRun;
+  const autonomousStatus = autonomousRun?.autonomous_run_status;
+  // The run drives its single simulation: deleting the scenario tears both down, so it is only
+  // allowed once the run has stopped (terminal). While it is still live (created / running /
+  // paused / waiting for input) the Delete entry stays visible but disabled with a tooltip.
+  const isAutonomousActive = isAutonomous
+    && (autonomousStatus === 'CREATED'
+      || autonomousStatus === 'RUNNING'
+      || autonomousStatus === 'PAUSED'
+      || autonomousStatus === 'WAITING_INPUT');
+  // Overflow CRUD entries: an autonomous scenario is never duplicated by hand (the AI owns its
+  // attack-path logic), but its metadata - name, description, tags, severity, category - stays
+  // freely editable, so Update / Delete / Export are offered.
+  let scenarioPopoverActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Update', 'Delete', 'Export'];
+  if (isAutonomous) {
+    scenarioPopoverActions = ['Update', 'Delete', 'Export'];
+  } else if (isScenarioChaining) {
+    scenarioPopoverActions = ['Update', 'Delete', 'Export'];
+  }
   const isScopeMissing = isScenarioChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
@@ -257,6 +286,22 @@ const ScenarioHeader = ({
           title={truncate(scenario.scenario_name, 80) ?? ''}
           chips={(
             <>
+              {/* Autonomous run status sits first (left), same coloured outlined chip a simulation
+                  shows for its ExerciseStatus - the single source of truth for the run state, so it
+                  is not duplicated in the hero actions or the reasoning panel. */}
+              {isAutonomous && autonomousStatus && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color={autonomousRunStatusColor(autonomousStatus)}
+                  label={t(autonomousStatus)}
+                  sx={{
+                    borderRadius: 1,
+                    height: 22,
+                    fontSize: 11,
+                  }}
+                />
+              )}
               <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
               <ItemCategory category={scenario.scenario_category ?? 'Unknown'} label={t(scenario.scenario_category ?? 'Unknown')} size="small" />
               <Tooltip title={scheduleLabel ?? ''}>
@@ -277,12 +322,13 @@ const ScenarioHeader = ({
           )}
           action={(
             <>
-              {/* Contextual configuration alert - self-hides when healthy. */}
-              {canManage && (
+              {/* Contextual configuration alert - self-hides when healthy. Autonomous runs are
+                  scoped and driven by the AI, so the "configure scope" nudge never applies. */}
+              {canManage && !isAutonomous && (
                 <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
               )}
               {/* Expectation drift warning - self-hides when aligned or dismissed. */}
-              {canManage && (
+              {canManage && !isAutonomous && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
                   variant="scenario"
@@ -310,7 +356,7 @@ const ScenarioHeader = ({
               )}
               {/* Dismissed drift downgraded to a discreet icon after Configuration -
                   the drift is acknowledged but still reviewable. */}
-              {canManage && (
+              {canManage && !isAutonomous && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
                   variant="scenario"
@@ -343,6 +389,9 @@ const ScenarioHeader = ({
                 contextId={scenarioId}
                 entityName={scenario.scenario_name}
               />
+              {/* Scheduling stays available for autonomous scenarios too - an autonomous run can be
+                  scheduled to recur exactly like any other scenario. Only the hand-authoring
+                  assistant is withheld (the AI owns the attack-path logic). */}
               {canManage && (
                 <>
                   <TriggerSubscribeButton
@@ -371,8 +420,13 @@ const ScenarioHeader = ({
                   )}
                 </>
               )}
-              {/* The single prominent CTA. */}
-              {canLaunch && isScheduled && !ended
+              {/* Autonomous lifecycle: pause / resume / stop the run and its single simulation,
+                  without leaving the scenario and without ever exposing a manual launch. */}
+              {autonomousRun && (
+                <AutonomousRunControls run={autonomousRun} onRunUpdate={onAutonomousRunUpdate} />
+              )}
+              {/* The single prominent CTA - never a manual launch on an autonomous run. */}
+              {!isAutonomous && (canLaunch && isScheduled && !ended
                 ? (
                     <>
                       <Button
@@ -416,12 +470,17 @@ const ScenarioHeader = ({
                       </Button>
                     </span>
                   </Tooltip>
-                )}
-              {/* Everything else - analyze, setup, and CRUD - in one overflow menu. */}
+                ))}
+              {/* Everything else - analyze, setup, and CRUD - in one overflow menu. Deleting an
+                  autonomous scenario tears down its single simulation and stops the run. */}
               <ScenarioPopover
                 scenario={scenario}
-                actions={isScenarioChaining ? ['Update', 'Delete', 'Export'] : ['Duplicate', 'Update', 'Delete', 'Export']}
+                actions={scenarioPopoverActions}
                 onDelete={() => navigate('/admin/scenarios')}
+                deleteDisabled={isAutonomousActive}
+                deleteDisabledMessage={isAutonomousActive
+                  ? t('Stop the autonomous run before deleting its scenario.')
+                  : undefined}
               />
             </>
           )}

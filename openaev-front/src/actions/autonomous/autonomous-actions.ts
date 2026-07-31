@@ -1,4 +1,5 @@
 import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
+import type { WorkflowConfigurationInput } from '../../utils/api-types';
 import type {
   AutonomousDirective,
   AutonomousEvent,
@@ -8,7 +9,6 @@ import type {
   CapabilityQueryInput,
   CapabilityReport,
 } from './autonomous-types';
-import type { WorkflowConfigurationInput } from '../../utils/api-types';
 
 // Autonomous (AI-driven) attack-path run client, gated by the AUTONOMOUS_ATTACK_PATH preview
 // feature. The tenant prefix is added centrally by Action.buildUri, so these use the plain /api
@@ -38,6 +38,21 @@ export const fetchAutonomousRuns = (): Promise<{ data: AutonomousRun[] }> =>
 export const fetchAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
   simpleCall(`${AUTONOMOUS_URI}/${runId}`, undefined, false);
 
+// Detect whether a simulation is AI-driven: returns the run when autonomous, 404 (rejected promise)
+// otherwise. Reads pass defaultNotifyErrorBehavior=false so the expected 404/403 on manual or non-EE
+// simulations never raises a toast.
+export const fetchAutonomousRunBySimulation = (
+  simulationId: string,
+): Promise<{ data: AutonomousRun }> =>
+  simpleCall(`${AUTONOMOUS_URI}/by-simulation/${simulationId}`, undefined, false);
+
+// Scenario-side twin of the above: an autonomous run owns exactly one scenario, so this detects an
+// AI-driven scenario. 404 (rejected promise) on a manual scenario; toast suppressed.
+export const fetchAutonomousRunByScenario = (
+  scenarioId: string,
+): Promise<{ data: AutonomousRun }> =>
+  simpleCall(`${AUTONOMOUS_URI}/by-scenario/${scenarioId}`, undefined, false);
+
 export const startAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
   simplePostCall(`${AUTONOMOUS_URI}/${runId}/start`);
 
@@ -49,6 +64,12 @@ export const resumeAutonomousRun = (runId: string): Promise<{ data: AutonomousRu
 
 export const cancelAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
   simplePostCall(`${AUTONOMOUS_URI}/${runId}/cancel`);
+
+// Restart a terminal run in place: reuses the same scenario, tears the old simulation down and
+// provisions a fresh one, resetting the run to CREATED. Pair with startAutonomousRun to re-engage
+// the orchestrator - no new scenario is created.
+export const restartAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
+  simplePostCall(`${AUTONOMOUS_URI}/${runId}/restart`);
 
 // -- live view: decision timeline + steering --
 

@@ -2,6 +2,7 @@ import { Box, Tab, Tabs } from '@mui/material';
 import { type FunctionComponent, type ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 
+import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import { searchInjectTests } from '../../../../actions/inject_test/simulation-inject-test-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
@@ -18,12 +19,17 @@ import ExerciseHeader from './ExerciseHeader';
 const SimulationShell: FunctionComponent<{
   exercise: SimulationDetails;
   children: ReactNode;
-}> = ({ exercise, children }) => {
+  /** Present when this simulation is an autonomous (AI-driven) run: swaps the manual chaining tabs
+   *  (Scope, Logic) for the AI cockpit and turns the hero observe-only (control lives on the parent
+   *  scenario). */
+  autonomousRun?: AutonomousRun | null;
+}> = ({ exercise, children, autonomousRun = null }) => {
   const { t } = useFormatter();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
+  const isAutonomous = !!autonomousRun;
   const base = `/admin/simulations/${exercise.exercise_id}`;
   // The Tests tab only exists for email/SMS injects that have actually been
   // tested; hide it entirely otherwise.
@@ -38,8 +44,23 @@ const SimulationShell: FunctionComponent<{
     tabValue = `${base}/tests`;
   }
 
-  const tabs: [string, string][] = isChainingFeatureEnabled && exercise.exercise_workflow_id
-    ? [
+  // Tab set depends on the simulation flavour:
+  // - autonomous (AI-driven): the AI provisions and drives the attack path, so the manual Scope and
+  //   Logic tabs are dropped entirely and the operator steers from the always-open reasoning panel;
+  // - chained (workflow-backed): Overview / Scope / Logic / Execution / Attack path / Findings / Statistics;
+  // - time-based: Overview / Injects / Tests / Execution / Lessons / Findings / Statistics.
+  const buildTabs = (): [string, string][] => {
+    if (isAutonomous) {
+      return [
+        ['', t('Overview')],
+        ...(isAttackPathEnabled ? [['/attack-path', t('Attack path')] as [string, string]] : []),
+        ['/execution', t('Execution')],
+        ['/findings', t('Findings')],
+        ['/statistics', t('Statistics')],
+      ];
+    }
+    if (isChainingFeatureEnabled && exercise.exercise_workflow_id) {
+      return [
         ['', t('Overview')],
         ['/scope', t('Scope')],
         ['/logic', t('Logic')],
@@ -47,19 +68,20 @@ const SimulationShell: FunctionComponent<{
         ...(isAttackPathEnabled ? [['/attack-path', t('Attack path')] as [string, string]] : []),
         ['/findings', t('Findings')],
         ['/statistics', t('Statistics')],
-      ]
-    : [
-        // Attack path is a chained-simulation concept (workflow executions):
-        // time-based simulations never get the tab.
-        ['', t('Overview')],
-        ['/injects', t('Injects')],
-        ...(hasInjectTests ? [['/tests', t('Tests')] as [string, string]] : []),
-        ['/execution', t('Execution')],
-        // The lessons learned module is opt-in (simulation configuration).
-        ...(exercise.exercise_lessons_enabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
-        ['/findings', t('Findings')],
-        ['/statistics', t('Statistics')],
       ];
+    }
+    return [
+      ['', t('Overview')],
+      ['/injects', t('Injects')],
+      ...(hasInjectTests ? [['/tests', t('Tests')] as [string, string]] : []),
+      ['/execution', t('Execution')],
+      // The lessons learned module is opt-in (simulation configuration).
+      ...(exercise.exercise_lessons_enabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
+      ['/findings', t('Findings')],
+      ['/statistics', t('Statistics')],
+    ];
+  };
+  const tabs: [string, string][] = buildTabs();
 
   // MUI Tabs requires the value to match one of the rendered tabs; screens
   // without a dedicated tab (e.g. dashboard) deselect all tabs instead.
@@ -80,7 +102,11 @@ const SimulationShell: FunctionComponent<{
           },
         ]}
       />
-      <ExerciseHeader onLoading={setIsLoading} isLoading={isLoading} />
+      <ExerciseHeader
+        onLoading={setIsLoading}
+        isLoading={isLoading}
+        autonomousRun={autonomousRun}
+      />
       {isLoading
         ? <Loader />
         : (

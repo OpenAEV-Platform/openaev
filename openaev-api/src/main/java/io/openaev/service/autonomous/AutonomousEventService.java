@@ -71,4 +71,10 @@ public class AutonomousEventService {
     return eventRepository.findByRunIdAndSequenceGreaterThanOrderBySequenceAsc(
         runId, sinceSequence);
   }
+
+  /** Purges a run's entire decision timeline (used when the run itself is deleted). */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteByRun(String runId) {
+    eventRepository.deleteByRunId(runId);
+  }
 }

@@ -238,35 +238,15 @@ interface SimulationAttackPathProps {
   scenarioExerciseIds?: string[];
   /** Scenario context: the scenario id, used by the empty-state "Launch a simulation" CTA. */
   scenarioId?: string;
+  /**
+   * Autonomous scenario context: an autonomous run owns exactly one simulation and is never launched
+   * by hand (the AI drives it; the operator restarts from the hero), so the empty-state "Launch a
+   * simulation" CTA is suppressed and the message points at the live run instead.
+   */
+  hideLaunchCta?: boolean;
 }
 
-// Resolves the attack-path node backing a finding detail across the candidate node pools: prefer a
-// direct id match (selectedFindingId), else match by (type, value); return the first node the caller
-// accepts. Shared by the verdicts and is-finding lookups, which only differ by their accept test.
-const findFindingNode = (
-  pools: (AttackPathNodeDTO[] | undefined)[],
-  selectedFindingId: string | undefined,
-  type?: string | null,
-  value?: string | null,
-  accept: (n: AttackPathNodeDTO) => boolean = () => true,
-): AttackPathNodeDTO | undefined => {
-  const matchByTypeValue = (n: AttackPathNodeDTO) => n.type === 'FINDING'
-    && n.typeFindings === type
-    && (n.value ?? n.label) === value;
-  for (const pool of pools) {
-    if (!pool) {
-      continue;
-    }
-    const node = (selectedFindingId ? pool.find(n => n.id === selectedFindingId) : undefined)
-      ?? pool.find(matchByTypeValue);
-    if (node && accept(node)) {
-      return node;
-    }
-  }
-  return undefined;
-};
-
-const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAttackPathProps) => {
+const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta = false }: SimulationAttackPathProps) => {
   const { exerciseId } = useParams() as { exerciseId?: string };
   // Scenario context lists several runs to pick from; simulation context is locked to its own run.
   const showPicker = scenarioExerciseIds !== undefined;
@@ -376,9 +356,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     // `focusedEndpoint` to fall back on, so we carry the origin endpoint here to resolve the panel's
     // "Discovered on" label (else it degraded to the literal word "Endpoint").
     endpointNodeId?: string;
-    // false when the node is an output-only value (a chaining output not persisted as a Finding,
-    // ADR-004): the panel renders in degraded mode. Absent/true for a real finding.
-    isFinding?: boolean;
   } | null>(null);
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
   // The clicked injector's own executions (its contracts across every endpoint it reached), listed in
@@ -2042,13 +2019,20 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     if (!findingDetail) {
       return undefined;
     }
-    const node = findFindingNode(
-      [fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes],
-      selectedFindingId ?? undefined,
-      findingDetail.type,
-      findingDetail.value,
-      n => !!n.verdicts,
-    );
+    const matchByTypeValue = (n: AttackPathNodeDTO) => n.type === 'FINDING'
+      && n.typeFindings === findingDetail.type
+      && (n.value ?? n.label) === findingDetail.value;
+    let node: AttackPathNodeDTO | undefined;
+    for (const pool of [fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]) {
+      if (!pool) {
+        continue;
+      }
+      node = (selectedFindingId ? pool.find(n => n.id === selectedFindingId) : undefined)
+        ?? pool.find(matchByTypeValue);
+      if (node?.verdicts) {
+        break;
+      }
+    }
     const norm = (s?: string): ExpectationVerdict => (s === 'success' || s === 'failed' ? s : 'unknown');
     const v = node?.verdicts;
     return {
@@ -2056,23 +2040,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       detection: norm(v?.detection),
       vulnerability: norm(v?.vulnerability),
     };
-  }, [findingDetail, selectedFindingId, fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]);
-
-  // Whether the selected finding node is a real finding or an output-only value (a chaining output
-  // not persisted as a Finding, ADR-004): read from the same node pools as the verdicts, so the panel
-  // can render its degraded mode. Defaults to true (real finding) when no node resolves.
-  const findingIsFinding = useMemo((): boolean => {
-    if (!findingDetail) {
-      return true;
-    }
-    const node = findFindingNode(
-      [fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes],
-      selectedFindingId ?? undefined,
-      findingDetail.type,
-      findingDetail.value,
-      n => n.isFinding !== undefined,
-    );
-    return node?.isFinding ?? true;
   }, [findingDetail, selectedFindingId, fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]);
 
   // The clicked endpoint's findings grouped by type for the side panel; secrets (credentials) masked.
@@ -2387,7 +2354,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   const runInProgress = selectedRunStatus === 'RUNNING' || selectedRunStatus === 'PAUSED';
   const emptyStateMessage = (() => {
     if (scenarioHasNoSims) {
-      return t('This scenario has no simulation with attack-path data yet. Launch one to reveal its attack path.');
+      return hideLaunchCta
+        ? t('The autonomous run has not produced attack-path data yet. It appears live here as the AI executes.')
+        : t('This scenario has no simulation with attack-path data yet. Launch one to reveal its attack path.');
     }
     if (runInProgress) {
       return t('Simulation running — waiting for the first inject executions…');
@@ -2865,7 +2834,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                   >
                     {emptyStateMessage}
                   </Typography>
-                  {scenarioHasNoSims && scenarioId && (
+                  {scenarioHasNoSims && scenarioId && !hideLaunchCta && (
                     <Button
                       variant="contained"
                       startIcon={<PlayArrowOutlined />}
@@ -2939,7 +2908,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                       expectations={findingExpectations}
                       actions={producingActions}
                       activeRef={detailExecutionId}
-                      isFinding={findingIsFinding}
                       onSelect={openExecutionDetail}
                       onClose={() => {
                         // Clicking a finding in the clustered view also selects its endpoint (to load the

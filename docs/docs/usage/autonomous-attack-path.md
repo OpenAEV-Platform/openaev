@@ -90,6 +90,11 @@ A run moves through these states:
 4. Confirm the **scope**, **rate limits**, and **safe mode** for the run.
 5. Launch. The run starts in **Created**, then moves to **Running** as the orchestrator engages.
 
+Once launched, you land on the run's **Scenario** - the home of an autonomous attack path. It shows the AI
+overview, the live attack map, and an always-open reasoning panel on the right, with pause / resume / stop controls
+in the header. An autonomous run owns exactly one Simulation; opening that Simulation directly gives the same
+cockpit. Manual configuration (scope, logic, manual launch) is never exposed for an autonomous run - the AI owns it.
+
 ### Objectives and scope modes
 
 Every objective has a **scope mode** that tells the AI whether it needs a specific target:

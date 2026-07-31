@@ -223,6 +223,96 @@ public class AutonomousRunService {
     return saved;
   }
 
+  /**
+   * Restarts a terminal run <b>in place</b>: reuses the SAME scenario, tears down the previous
+   * simulation (attack-path rows included) and the run's decision timeline + steering directives,
+   * provisions a fresh simulation from that scenario, and resets the run to {@code CREATED}. The
+   * caller then {@link #start}s it again. This keeps the invariant "one scenario == one run == one
+   * live simulation" instead of spawning a brand-new scenario on every restart, and gives the
+   * cockpit (overview, attack-path graph, reasoning panel) a clean slate to animate from scratch.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public AutonomousRun restart(String runId) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    if (run.getStatus() != AutonomousRunStatus.COMPLETED
+        && run.getStatus() != AutonomousRunStatus.FAILED
+        && run.getStatus() != AutonomousRunStatus.CANCELED) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Run can only be restarted once it has stopped");
+    }
+    // Tear the previous simulation down (attack-path executions + findings included) so the graph
+    // and posture reset to empty rather than lingering from the previous run.
+    if (hasText(run.getSimulationId())) {
+      exerciseService.deleteById(run.getSimulationId());
+    }
+    // Fresh simulation from the SAME scenario - no new scenario is ever provisioned on restart.
+    Scenario scenario = scenarioService.scenario(run.getScenarioId());
+    Exercise simulation =
+        scenarioToExerciseService.toExercise(scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+    try {
+      workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation);
+    } catch (ChainingException e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Failed to start the restarted simulation: " + e.getMessage(),
+          e);
+    }
+    // Full reset of the run's decision history + steering so the cockpit starts clean.
+    directiveRepository.deleteByRunId(runId);
+    eventService.deleteByRun(runId);
+    run.setSimulationId(simulation.getId());
+    run.setStatus(AutonomousRunStatus.CREATED);
+    run.setLastError(null);
+    run.setXtmSessionId(null);
+    AutonomousRun saved = runRepository.save(run);
+    eventService.append(
+        saved.getId(),
+        simulation.getId(),
+        AutonomousEventType.STATUS,
+        "Run restarted",
+        "Autonomous attack-path run restarted; a fresh simulation was provisioned from the same "
+            + "scenario.",
+        null);
+    return saved;
+  }
+
+  /**
+   * Tears down the autonomous run owning {@code scenarioId} together with its single underlying
+   * simulation (attack-path rows included) and its timeline/directives. An autonomous scenario and
+   * its simulation are one unit, so deleting the scenario must delete the simulation too - otherwise
+   * an orphan run keeps driving a simulation whose scenario is gone.
+   *
+   * <p>Deliberately a best-effort no-op for manual scenarios (and when the preview feature is off),
+   * so the generic scenario-delete endpoint can call it unconditionally. A still-active run
+   * (created / running / paused / waiting-input) is refused with 409: the operator must stop it
+   * first, mirroring the UI's disabled Delete entry.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteForScenario(String scenarioId) {
+    if (!previewFeatureService.isAutonomousAttackPathEnabled()) {
+      return;
+    }
+    AutonomousRun run = runRepository.findByScenarioId(scenarioId).orElse(null);
+    if (run == null) {
+      return;
+    }
+    AutonomousRunStatus status = run.getStatus();
+    if (status == AutonomousRunStatus.CREATED
+        || status == AutonomousRunStatus.RUNNING
+        || status == AutonomousRunStatus.PAUSED
+        || status == AutonomousRunStatus.WAITING_INPUT) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Stop the autonomous run before deleting its scenario");
+    }
+    if (hasText(run.getSimulationId())) {
+      exerciseService.deleteById(run.getSimulationId());
+    }
+    directiveRepository.deleteByRunId(run.getId());
+    eventService.deleteByRun(run.getId());
+    runRepository.delete(run);
+  }
+
   // endregion
 
   // region orchestrator callbacks
@@ -376,6 +466,39 @@ public class AutonomousRunService {
   public List<AutonomousRun> list() {
     requireFeature();
     return runRepository.findAllByOrderByCreatedAtDesc();
+  }
+
+  /**
+   * Returns the run driving a given simulation, if any. Used by the simulation detail page to decide
+   * whether to render the autonomous (AI-driven) cockpit instead of the manual chaining editor. 404
+   * when the simulation is not autonomous, so the caller can treat the absence as "manual".
+   */
+  @Transactional(readOnly = true)
+  public AutonomousRun getBySimulation(String simulationId) {
+    requireFeature();
+    return runRepository
+        .findBySimulationId(simulationId)
+        .orElseThrow(
+            () ->
+                new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "No autonomous run drives this simulation"));
+  }
+
+  /**
+   * Returns the run driving a given scenario, if any. An autonomous run owns exactly one scenario
+   * (and its single simulation), so this is the scenario-side twin of {@link #getBySimulation}: it
+   * lets the scenario detail page render the same AI-driven cockpit and steer the underlying
+   * simulation. 404 when the scenario is not autonomous.
+   */
+  @Transactional(readOnly = true)
+  public AutonomousRun getByScenario(String scenarioId) {
+    requireFeature();
+    return runRepository
+        .findByScenarioId(scenarioId)
+        .orElseThrow(
+            () ->
+                new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "No autonomous run drives this scenario"));
   }
 
   @Transactional(readOnly = true)

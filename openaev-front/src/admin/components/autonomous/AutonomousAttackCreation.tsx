@@ -27,6 +27,7 @@ import Drawer from '../../../components/common/Drawer';
 import { type Page } from '../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../components/i18n';
+import { SCENARIO_BASE_URL, SIMULATION_BASE_URL } from '../../../constants/BaseUrls';
 import { type AssetGroup } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
@@ -181,9 +182,20 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
     })
       .then((res) => {
         const runId = res.data.autonomous_run_id;
+        const scenarioId = res.data.autonomous_run_scenario_id;
+        const simulationId = res.data.autonomous_run_simulation_id;
         return startAutonomousRun(runId).then(() => {
           handleClose();
-          navigate(`/admin/autonomous/${runId}`);
+          // Land on the run's scenario - that is the autonomous cockpit (AI overview, live attack
+          // map, always-open reasoning panel, run controls). The scenario is the home of an
+          // autonomous run; its single simulation offers the same experience if opened directly.
+          if (scenarioId) {
+            navigate(`${SCENARIO_BASE_URL}/${scenarioId}`);
+          } else if (simulationId) {
+            navigate(`${SIMULATION_BASE_URL}/${simulationId}`);
+          } else {
+            navigate(`/admin/autonomous/${runId}`);
+          }
         });
       })
       .catch(() => setError(t('Failed to launch the autonomous run')))

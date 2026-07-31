@@ -2,6 +2,7 @@ import { Alert, AlertTitle } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
+import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import { fetchExercise } from '../../../../actions/Exercise';
 import { fetchScenarioFromSimulation } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
@@ -16,6 +17,10 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import AutonomousOverview from '../../autonomous/AutonomousOverview';
+import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
+import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
+import useAutonomousRunForSimulation from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import injectContextForExercise from './ExerciseContext';
 import SimulationShell from './SimulationShell';
@@ -43,9 +48,16 @@ const AnimationToExecutionRedirect = () => {
   return <Navigate to={location.pathname.replace('/animation', '/execution')} replace />;
 };
 
-const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ exercise }) => {
+const IndexComponent: FunctionComponent<{
+  exercise: SimulationDetails;
+  autonomousRun: AutonomousRun | null;
+  onAutonomousRunUpdate: (run: AutonomousRun) => void;
+}> = ({ exercise, autonomousRun, onAutonomousRunUpdate }) => {
   const location = useLocation();
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
+  const isAutonomous = !!autonomousRun;
+  // Resizable reasoning-panel width, shared with the content padding so the two stay in lockstep.
+  const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
   // Attack path only exists for chained simulations (workflow-backed), never
   // for time-based ones: gate the route like the tab in SimulationShell.
   const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
@@ -70,14 +82,24 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
     }),
   }), [exercise?.exercise_id, exercise?.exercise_name]);
 
+  // Autonomous runs reserve the right column for the always-open reasoning panel; otherwise keep
+  // the legacy right rail only on the Execution timeline.
+  let contentPaddingRight = 0;
+  if (isAutonomous) {
+    contentPaddingRight = panelWidth;
+  } else if (location.pathname.includes('/execution')) {
+    contentPaddingRight = 200;
+  }
+
   return (
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
-        <div style={{ paddingRight: location.pathname.includes('/execution') ? 200 : 0 }}>
-          <SimulationShell exercise={exercise}>
+        <div style={{ paddingRight: contentPaddingRight }}>
+          <SimulationShell exercise={exercise} autonomousRun={autonomousRun}>
             <Suspense fallback={<Loader />}>
               <Routes>
-                <Route path="" element={errorWrapper(Simulation)()} />
+                {/* Overview swaps to the AI cockpit for autonomous runs. */}
+                <Route path="" element={isAutonomous ? <AutonomousOverview run={autonomousRun} /> : errorWrapper(Simulation)()} />
                 {/* Definition merged into the Injects authoring tab; redirect old links. */}
                 <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
                 <Route path="injects" element={errorWrapper(Injects)()} />
@@ -100,14 +122,25 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                     Analysis tab; keep redirects for old links. */}
                 <Route path="dashboard" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
                 <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
-                <Route path="scope" element={errorWrapper(SimulationScope)()} />
-                <Route path="logic" element={errorWrapper(SimulationLogic)()} />
+                {/* Manual scope / logic editors are never available on an autonomous run: the AI
+                    provisions and drives the attack path, so bounce old deep links to the cockpit. */}
+                <Route path="scope" element={isAutonomous ? <Navigate to={`/admin/simulations/${exercise.exercise_id}`} replace /> : errorWrapper(SimulationScope)()} />
+                <Route path="logic" element={isAutonomous ? <Navigate to={`/admin/simulations/${exercise.exercise_id}`} replace /> : errorWrapper(SimulationLogic)()} />
                 {/* Not found */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
           </SimulationShell>
         </div>
+        {isAutonomous && (
+          <AutonomousReasoningPanel
+            run={autonomousRun}
+            onRunUpdate={onAutonomousRunUpdate}
+            width={panelWidth}
+            onWidthChange={setPanelWidth}
+            readOnly
+          />
+        )}
       </DocumentContext.Provider>
     </PermissionsContext.Provider>
   );
@@ -122,6 +155,9 @@ const Index = () => {
   // Fetching data
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
+  // Detect whether this simulation is an autonomous (AI-driven) run, so we can render the AI
+  // cockpit (reasoning panel + gated tabs) instead of the manual chaining editor.
+  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForSimulation(exerciseId);
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchExercise(exerciseId)).finally(() => {
@@ -153,7 +189,7 @@ const Index = () => {
   const exerciseInjectContext = injectContextForExercise(exercise);
 
   // avoid to show loader if something trigger useDataLoader
-  if (pristine && loading) {
+  if ((pristine && loading) || !autonomousResolved) {
     return <Loader />;
   }
   if (!loading && !exercise) {
@@ -166,7 +202,11 @@ const Index = () => {
   }
   return (
     <InjectContext.Provider value={exerciseInjectContext}>
-      <IndexComponent exercise={exercise} />
+      <IndexComponent
+        exercise={exercise}
+        autonomousRun={autonomousRun}
+        onAutonomousRunUpdate={setAutonomousRun}
+      />
     </InjectContext.Provider>
   );
 };

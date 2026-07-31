@@ -3163,6 +3163,8 @@
   "This sample will be stored encrypted as a password-protected archive and decrypted on the fly by the implant at detonation time.": "This sample will be stored encrypted as a password-protected archive and decrypted on the fly by the implant at detonation time.",
   "This scenario has never run, schedule or run it now!": "This scenario has never run, schedule or run it now!",
   "This scenario has no simulation with attack-path data yet. Launch one to reveal its attack path.": "This scenario has no simulation with attack-path data yet. Launch one to reveal its attack path.",
+  "The autonomous run has not produced attack-path data yet. It appears live here as the AI executes.": "The autonomous run has not produced attack-path data yet. It appears live here as the AI executes.",
+  "Stop the autonomous run before deleting its scenario.": "Stop the autonomous run before deleting its scenario.",
   "This scenario has not run yet": "This scenario has not run yet",
   "This scenario is scheduled to run, results will appear soon.": "This scenario is scheduled to run, results will appear soon.",
   "This section could not be loaded. The rest of the report is unaffected.": "This section could not be loaded. The rest of the report is unaffected.",

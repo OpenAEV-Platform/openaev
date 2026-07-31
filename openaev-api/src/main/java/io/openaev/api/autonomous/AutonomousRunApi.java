@@ -113,6 +113,30 @@ public class AutonomousRunApi extends RestBehavior {
     return autonomousRunService.get(runId);
   }
 
+  @Operation(
+      summary = "Get the autonomous run driving a given simulation, if any",
+      description =
+          "Lets the simulation detail page detect an AI-driven run and render the autonomous "
+              + "cockpit instead of the manual chaining editor. 404 when the simulation is manual.")
+  @GetMapping("/by-simulation/{simulationId}")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRun getBySimulation(@PathVariable String simulationId) {
+    return autonomousRunService.getBySimulation(simulationId);
+  }
+
+  @Operation(
+      summary = "Get the autonomous run driving a given scenario, if any",
+      description =
+          "Scenario-side twin of by-simulation: lets the scenario detail page render the AI-driven "
+              + "cockpit and steer the single underlying simulation. 404 when the scenario is manual.")
+  @GetMapping("/by-scenario/{scenarioId}")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRun getByScenario(@PathVariable String scenarioId) {
+    return autonomousRunService.getByScenario(scenarioId);
+  }
+
   @Operation(summary = "Engage the orchestrator for a created run")
   @PostMapping("/{runId}/start")
   @Transactional
@@ -143,6 +167,19 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRun cancel(@PathVariable String runId) {
     return autonomousRunService.cancel(runId);
+  }
+
+  @Operation(
+      summary = "Restart a terminal run in place",
+      description =
+          "Reuses the same scenario: tears the old simulation down, provisions a fresh one, resets "
+              + "the run's timeline / directives to CREATED. The caller then starts it again. No new "
+              + "scenario is ever created on restart.")
+  @PostMapping("/{runId}/restart")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRun restart(@PathVariable String runId) {
+    return autonomousRunService.restart(runId);
   }
 
   @Operation(summary = "Run decision timeline, optionally since a sequence cursor")

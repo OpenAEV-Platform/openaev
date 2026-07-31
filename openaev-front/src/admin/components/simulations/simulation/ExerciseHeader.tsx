@@ -10,6 +10,7 @@ import {
   PlayArrowOutlined,
   PlayCircleOutlineOutlined,
   RestartAltOutlined,
+  RouteOutlined,
   TrackChangesOutlined,
   TuneOutlined,
   UpdateOutlined,
@@ -19,6 +20,7 @@ import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
+import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
 import { fetchExerciseArticles } from '../../../../actions/channels/article-action';
@@ -35,6 +37,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
+import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -228,10 +231,16 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
   );
 };
 
-const ExerciseHeader = ({ onLoading, isLoading }: {
+const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
+  // Present when this simulation is an autonomous (AI-driven) run. The simulation view is then
+  // observe-only: all manual scope / scheduling / configuration controls AND the run lifecycle
+  // controls are hidden. Full control (pause / resume / stop / restart / steer) lives on the parent
+  // scenario, reached via the "Parent scenario" button; here operators only follow the run live.
+  autonomousRun?: AutonomousRun | null;
 }) => {
+  const isAutonomous = !!autonomousRun;
   // Standard hooks
   const theme = useTheme();
   const { t, fldt } = useFormatter();
@@ -318,9 +327,14 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     setExpectationsDrift(result.data);
   };
 
-  const actions: ExerciseActionPopover[] = isSimulationChaining
-    ? ['Update', 'Export', 'Delete']
-    : ['Update', 'Duplicate', 'Export', 'Delete'];
+  let actions: ExerciseActionPopover[] = ['Update', 'Duplicate', 'Export', 'Delete'];
+  if (isAutonomous) {
+    // Observe-only: no manual edit / duplicate, and deletion (which tears down the run) is a
+    // parent-scenario control, so the simulation overflow offers only a read-only Export.
+    actions = ['Export'];
+  } else if (isSimulationChaining) {
+    actions = ['Update', 'Export', 'Delete'];
+  }
 
   // Headline stats surfaced right in the hero so they are visible on every
   // tab. The hero adapts to how the simulation is actually built: injects are
@@ -386,12 +400,13 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
           )}
           action={(
             <>
-              {/* Contextual configuration alert - self-hides when healthy. */}
-              {permissions.canManage && (
+              {/* Contextual configuration alert - self-hides when healthy. Autonomous runs are
+                  scoped and driven by the AI, so the "configure scope" nudge never applies. */}
+              {permissions.canManage && !isAutonomous && (
                 <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
               )}
               {/* Expectation drift warning - self-hides when aligned or dismissed. */}
-              {permissions.canManage && (
+              {permissions.canManage && !isAutonomous && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
                   variant="simulation"
@@ -418,7 +433,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
               )}
               {/* Dismissed drift downgraded to a discreet icon after Configuration -
                   the drift is acknowledged but still reviewable. */}
-              {permissions.canManage && (
+              {permissions.canManage && !isAutonomous && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
                   variant="simulation"
@@ -453,7 +468,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                 contextId={exercise.exercise_id}
                 entityName={exercise.exercise_name}
               />
-              {permissions.canManage && (
+              {permissions.canManage && !isAutonomous && (
                 <>
                   <Tooltip title={t('Modify the scheduling')}>
                     <span style={{ display: 'inline-flex' }}>
@@ -469,15 +484,33 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                   </Tooltip>
                 </>
               )}
-              {/* Lifecycle CTAs (start / pause / resume / stop / reset). */}
-              <Buttons
-                exerciseId={exercise.exercise_id}
-                exerciseStatus={exercise.exercise_status}
-                exerciseName={exercise.exercise_name}
-                onLoading={onLoading}
-                isLoading={isLoading}
-                isScopeMissing={isScopeMissing}
-              />
+              {/* Lifecycle CTAs (start / pause / resume / stop / reset) for a manual simulation. An
+                  autonomous run exposes none of them here: the simulation is observe-only and all
+                  control lives on the parent scenario. */}
+              {!isAutonomous && (
+                <Buttons
+                  exerciseId={exercise.exercise_id}
+                  exerciseStatus={exercise.exercise_status}
+                  exerciseName={exercise.exercise_name}
+                  onLoading={onLoading}
+                  isLoading={isLoading}
+                  isScopeMissing={isScopeMissing}
+                />
+              )}
+              {/* Autonomous run: the only hero action is jumping to the parent scenario, where the
+                  full control surface (pause / resume / stop / restart / steer) lives. */}
+              {isAutonomous && autonomousRun?.autonomous_run_scenario_id && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  startIcon={<RouteOutlined />}
+                  component={Link}
+                  to={`${SCENARIO_BASE_URL}/${autonomousRun.autonomous_run_scenario_id}`}
+                >
+                  {t('Parent scenario')}
+                </Button>
+              )}
               {/* CRUD actions in one overflow menu. */}
               <ExercisePopover
                 exercise={exercise}

@@ -3,6 +3,7 @@ package io.openaev.database.repository.autonomous;
 import io.openaev.database.model.autonomous.AutonomousEvent;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -20,4 +21,9 @@ public interface AutonomousEventRepository extends JpaRepository<AutonomousEvent
   @Query(
       "SELECT COALESCE(MAX(e.sequence), 0) FROM AutonomousEvent e WHERE e.runId = :runId")
   long findMaxSequence(@Param("runId") String runId);
+
+  /** Bulk-purges a run's timeline when the run (and its scenario/simulation) is deleted. */
+  @Modifying
+  @Query("DELETE FROM AutonomousEvent e WHERE e.runId = :runId")
+  void deleteByRunId(@Param("runId") String runId);
 }
