@@ -132,12 +132,12 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     }
   }, [action, initialData]);
 
-  // Auto-link payload input fields with their default primitive type when available.
-  // Example: field type "port" -> outputTypes ["port"].
+  // Auto-link action input fields with their default primitive type when available.
+  // Example: field argumentType "ipv4" -> outputTypes ["ipv4"].
   useEffect(() => {
-    if (!isPayload || contractFields.length === 0 || initialData) return;
+    if (contractFields.length === 0 || initialData) return;
     setFieldLinks(prev => applyAutoLinks(contractFields, prev, argumentWithDefaultValueTypes));
-  }, [isPayload, contractFields, argumentWithDefaultValueTypes, initialData]);
+  }, [contractFields, argumentWithDefaultValueTypes, initialData]);
 
   // Resets all input argument fields to contract defaults.
   // Expectations are explicitly restored from current state because they are not part of this reset.

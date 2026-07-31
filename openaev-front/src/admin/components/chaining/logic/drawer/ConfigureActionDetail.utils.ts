@@ -16,6 +16,10 @@ const resolveDefaultOutputType = (
   field: ContractElement,
   argumentWithDefaultValueTypes: Set<string>,
 ): string | undefined => {
+  const argumentType = typeof field.argumentType === 'string' ? field.argumentType.trim() : '';
+  if (argumentType.length > 0) {
+    return argumentType;
+  }
   const strictAutoType = AUTO_LINK_BY_FIELD_TYPE[field.type];
   if (strictAutoType) {
     return strictAutoType;
@@ -27,8 +31,8 @@ const resolveDefaultOutputType = (
 };
 
 /**
- * Returns an updated fieldLinks record with auto-links applied for fields whose type
- * has a known primitive type mapping. Existing links are never overwritten.
+ * Returns an updated fieldLinks record with auto-links applied for fields whose argumentType
+ * or fallback field type has a known primitive type mapping. Existing links are never overwritten.
  */
 export const applyAutoLinks = (
   contractFields: ContractElement[],

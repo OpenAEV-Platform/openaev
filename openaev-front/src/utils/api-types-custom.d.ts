@@ -80,6 +80,7 @@ export interface ContractElement {
   key: string;
   mandatory: boolean;
   type: ContractType;
+  argumentType?: string;
   label: string;
   readOnly: boolean;
   mandatoryGroups?: string[];
