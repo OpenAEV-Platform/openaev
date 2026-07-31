@@ -201,7 +201,7 @@ java -jar openaev-api.jar
 
 ## Community contributions
 
-### Helm Charts
+### Helm charts
 
 <div class="grid cards" markdown>
 

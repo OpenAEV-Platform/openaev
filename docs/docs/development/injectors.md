@@ -2,7 +2,7 @@
 
 !!! question "What are injectors?"
 
-    For a functional overview of the role of Injectors within the OpenAEV ecosystem, please refer to [the User Guide section on Injectors](../usage/injectors.md).
+    For a functional overview of the role of Injectors within the OpenAEV ecosystem, please refer to [the User Guide section on Injectors](../usage/build/injectors.md).
 
 ### Introduction
 

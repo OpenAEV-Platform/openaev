@@ -1,4 +1,4 @@
-# XTM Suite: automated enrichment of Security Coverage
+# XTM Suite: automated enrichment of security coverage
 
 OpenAEV enables other products from the XTM Suite to benefit from a comprehensive Security Coverage enrichment for a given Adversarial Exposure scenario.
 This means that OpenAEV can be triggered via an XTM Suite product to execute a scenario based on a desired threat profile, and results from the scenario execution — such as Detection rate, Prevention rate — are returned to the triggering product for ingestion.
@@ -87,6 +87,6 @@ Once the connector appears in OpenCTI, you can trigger it to run security covera
 
 ## What's next?
 
-- [Scenario Generation from OpenCTI Security Coverage](scenario/security-coverage.md) — Automatically create OpenAEV scenarios from OpenCTI Security Coverage objects.
+- [Scenario Generation from OpenCTI Security Coverage](build/scenario/security-coverage.md) — Automatically create OpenAEV scenarios from OpenCTI Security Coverage objects.
 - [Configuration reference](../deployment/configuration.md#xtm-suite-opencti) — Full list of configuration parameters.
-- [Scenarios and Simulations](scenarios-and-simulations.md) — Understand how scenarios and simulations work in OpenAEV.
+- [Scenarios and Simulations](foundations/scenarios-and-simulations.md) — Understand how scenarios and simulations work in OpenAEV.

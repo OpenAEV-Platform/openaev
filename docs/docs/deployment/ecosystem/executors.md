@@ -25,7 +25,6 @@ threat arsenal actions on endpoints.
 
 [Learn More](../../usage/openaev-agent.md)
 
----
 <a id="tanium-agent"></a>
 
 ## Tanium Agent
@@ -34,7 +33,7 @@ The Tanium agent can be leveraged to execute implants as detached processes that
 actions, according
 to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
-### Configure the Tanium Platform
+### Configure the Tanium platform
 
 We
 provide [two Tanium packages](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-tanium-packages.json)
@@ -54,14 +53,16 @@ to be imported into the Tanium platform.
     If your environment uses **Tanium Threat Response (TTR)** together with the Tanium agent, you should rely on the **dedicated TTR package**.  
     This package technically works in all cases, but it is **only recommended** when OpenAEV runs on endpoints with TTR enabled.  
     Reason: this package performs more extensive operations on the machine and can generate **more noise and alerts**.  
-    → If you do **not** use Tanium Threat Response, prefer the **standard Tanium package**.  
+    If you do **not** use Tanium Threat Response, prefer the **standard Tanium package**.
 
-    📦 Packages to import:  
-    - [OpenAEV Tanium Windows & Unix package (TTR)](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-tanium-packages-TTR.json)  
+    **Packages to import:**
 
-    📜 Scripts to attach in the package configuration into files section:   
-    - [Windows TTR script](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.ps1)  
-    - [Linux & macOS TTR script](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.sh)  
+    - [OpenAEV Tanium Windows & Unix package (TTR)](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-tanium-packages-TTR.json)
+
+    **Scripts to attach in the package configuration into files section:**
+
+    - [Windows TTR script](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.ps1)
+    - [Linux & macOS TTR script](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.sh)
 
 | Package type                | Recommended use case                  | Characteristics                                            |
 |-----------------------------|---------------------------------------|------------------------------------------------------------|
@@ -71,12 +72,12 @@ to be imported into the Tanium platform.
 Once configured and imported, retrieve the package IDs from the URL:  
 `ui/console/packages/XXXXX/preview`.
 
-> ℹ️ Common group IDs in Tanium:
->
-> - **Computer Group ID**: identifies which endpoints will be queried.
-> - **Action Group ID**: identifies where actions (like package execution) are allowed.
+!!! note "Common group IDs in Tanium"
 
-### Configure the OpenAEV Platform
+    - **Computer Group ID**: identifies which endpoints will be queried.
+    - **Action Group ID**: identifies where actions (like package execution) are allowed.
+
+### Configure the OpenAEV platform
 
 To configure the Tanium executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the Tanium integration settings directly from the UI.
 
@@ -90,8 +91,6 @@ To configure the Tanium executor, navigate to the **Integrations > Executors** s
 
     If you previously configured this executor using environment variables or platform properties, these values have been **automatically migrated** to the database on first startup. After migration, changes to environment variables or properties are no longer taken into account — all configuration is now managed through the UI.
 
----
-
 ### Checks
 
 Once enabled, you should see **Tanium** available in the `Install agents` section:
@@ -104,14 +103,13 @@ Endpoints from the selected computer groups should now appear in the **OpenAEV E
 
 !!! note "Agent uniqueness"
 
-    An endpoint can only have **one Tanium agent** registered due to MAC address uniqueness.  
+    An endpoint can only have **one Tanium agent** registered due to MAC (Media Access Control) address uniqueness.
     Installing a new agent will overwrite the existing one, and you will always see a single endpoint in the OpenAEV console.
 
 !!! success "Installation done"
 
     You are now ready to leverage your Tanium platform to run OpenAEV threat arsenal actions!
 
----
 <a id="crowdstrike-falcon-agent"></a>
 
 ## CrowdStrike Falcon Agent
@@ -120,7 +118,7 @@ The CrowdStrike Falcon agent can be leveraged to execute implants as detached pr
 arsenal actions
 according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
-### Configure the CrowdStrike Platform
+### Configure the CrowdStrike platform
 
 #### Upload OpenAEV scripts
 
@@ -136,7 +134,7 @@ of the scripts can be changed if necessary, they will be put in the OpenAEV conf
 |:----------------------|:-----------------------------------------------------------------|
 | name                  | OpenAEV Subprocessor (Unix)                                      |
 | shell type            | bash                                                             |
-| script access         | Users with the role of RTR Administrator or RTR Active Responder |
+| script access         | Users with the role of RTR (Real Time Response) Administrator or RTR Active Responder |
 | shared with workflows | yes                                                              |
 
 Put the following script:
@@ -210,7 +208,7 @@ Once created, your RTR scripts should have something like this:
 
 To create a host group, go to `Host setup and management` > `Host groups`.
 
-#### Create/Update response policies for your targeted platforms
+#### Create/update response policies for your targeted platforms
 
 As OpenAEV will ask CrowdStrike to create implants in order to execute threat arsenal actions as scripts, you need to
 allow the
@@ -267,7 +265,6 @@ Endpoint on the OpenAEV endpoint page.
 
     You are now ready to leverage your CrowdStrike platform to run OpenAEV threat arsenal actions!
 
----
 <a id="paloaltocortex-agent"></a>
 
 ## Palo Alto Cortex Agent
@@ -279,7 +276,7 @@ according to the [OpenAEV architecture](https://docs.openaev.io/latest/deploymen
 On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the
 process that will execute the threat arsenal actions.
 
-### Configure the Palo Alto Cortex Platform
+### Configure the Palo Alto Cortex platform
 
 #### Upload OpenAEV scripts
 
@@ -321,7 +318,7 @@ To create a group, go to `Inventory` > `Endpoints` > `Groups`.
 
 !!! warning "Palo Alto Cortex API Key"
 
-    Please note that the Palo Alto Cortex API key created in "Settings/Configurations/API Keys" should have the following minimum role: "Instance Administrator" and security level: "Standard".
+    Please note that the Palo Alto Cortex API key created in **Settings > Configurations > API Keys** should have the following minimum role: "Instance Administrator" and security level: "Standard".
 
 To configure the Palo Alto Cortex executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the Palo Alto Cortex integration settings directly from the UI.
 
@@ -346,7 +343,6 @@ Endpoint on the OpenAEV endpoint page.
 
     You are now ready to leverage your Palo Alto Cortex platform to run OpenAEV threat arsenal actions!
 
----
 <a id="sentinelone-agent"></a>
 
 ## SentinelOne Agent
@@ -357,9 +353,9 @@ according to the [OpenAEV architecture](https://docs.openaev.io/latest/deploymen
 
 !!! warning "SentinelOne"
 
-    Please note that the SentinelOne license with add-on "remote script orchestration" is required to launch SentinelOne scripts with OpenAEV → see in SentinelOne/Settings/Configuration/Add-ons
+    Please note that the SentinelOne license with add-on "remote script orchestration" is required to launch SentinelOne scripts with OpenAEV. See **SentinelOne > Settings > Configuration > Add-ons**.
 
-### Configure the SentinelOne Platform
+### Configure the SentinelOne platform
 
 #### Upload OpenAEV scripts
 
@@ -403,7 +399,7 @@ To create a wrapper (account/site/group), go to `Settings` > `Accounts/Sites`.
 
 !!! warning "SentinelOne API Key"
 
-    Please note that the SentinelOne API key created in "Settings/Users/Service Users" should have the following minimum role: "IR Team". The API key and the scripts must be created for and with the same user and the required account/site.
+    Please note that the SentinelOne API key created in **Settings > Users > Service Users** should have the following minimum role: "IR Team". The API key and the scripts must be created for and with the same user and the required account/site.
 
 To configure the SentinelOne executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the SentinelOne integration settings directly from the UI.
 
@@ -431,7 +427,6 @@ Endpoint on the OpenAEV endpoint page.
 
     You are now ready to leverage your SentinelOne platform to run OpenAEV threat arsenal actions!
 
----
 <a id="mde-agent"></a>
 
 ## Microsoft Defender for Endpoint (MDE) Agent
@@ -456,7 +451,7 @@ Library, which downloads and starts the OpenAEV implant.
     (`OpenAEV-Inject-<inject>-Agent-<agent>`). This task **self-deletes** right after the implant finishes — you should
     not see leftover tasks in Task Scheduler.
 
-### Configure the Microsoft Defender Platform
+### Configure the Microsoft Defender platform
 
 #### 1. Register an Azure (Entra ID) application
 
@@ -488,7 +483,7 @@ OpenAEV authenticates to the MDE API with the OAuth2 **client credentials** flow
 
 #### 2. Enable Live Response in Microsoft Defender
 
-In the **Microsoft Defender portal** → **Settings > Endpoints > Advanced features**, enable:
+In the **Microsoft Defender portal > Settings > Endpoints > Advanced features**, enable:
 
 - **Live Response** (required)
 - **Live Response for servers** (only if you target Windows Server / Linux server endpoints)
@@ -629,7 +624,7 @@ after the first sync (up to the register interval).
 
     - **Assets > Devices > *device* > Timeline** and the device **Live response** session log
     - **Action center > History**, filtered on *Action type = Live response* / *Source = API*
-    - **Advanced hunting** (KQL on `DeviceProcessEvents`) to see the scheduled task, the implant and the payload commands
+    - **Advanced hunting** (KQL (Kusto Query Language) on `DeviceProcessEvents`) to see the scheduled task, the implant and the payload commands
 
 !!! success "Installation done"
 
@@ -678,8 +673,6 @@ after the first sync (up to the register interval).
     MDE constraint (one Live Response session per machine, no execution while offline), not an OpenAEV
     error. Stale Pending actions are cancelled automatically before the next dispatch so they never
     block future injects.
-
----
 
 ## Caldera Agent
 
@@ -758,7 +751,7 @@ OpenAEV has built-in instruction if you want command line examples to deploy the
 
 ![Caldera deploy agents](../assets/caldera-deploy-agent.png)
 
-!!! warning "Caldera AV detection"
+!!! warning "Caldera AV (antivirus) detection"
 
     By default, the Caldera agent "Sandcat" is detected and blocked by antivirus. Here, we are using Caldera as a neutral executor that will execute implants that will execute threat arsenal actions, so you need to add the proper AV exclusions as instructed in the OpenAEV screen.
 
@@ -778,10 +771,10 @@ Run the following commands with an administrator Powershell in order to uninstal
 `Stop-Process -Name oaev-agent-caldera`<br/>
 `rm -force -Recurse "C:\Program Files (x86)\Filigran\OAEV Caldera"`
 
-## Implant Directories and Cleanup
+## Implant directories and cleanup
 For all executors (except Caldera and OpenAEV Agent) :
 
-### Implant Directories
+### Implant directories
 Implants are downloaded into a `runtimes/implant-XXXXX` subdirectory relative to the agent's installation directory, where `XXXXX` is a unique UUID generated for each inject execution.
 
 Each implant directory is unique per inject.
@@ -795,12 +788,10 @@ Old implant directories are periodically cleaned up by the platform. At the inte
 
     The OpenAEV Agent has its own built-in garbage collector with different thresholds. See the [OpenAEV Agent documentation](../../usage/openaev-agent.md) for details.
 
----
-
 ## Troubleshooting
 
 When an inject fails to execute on an endpoint, follow this 5-step diagnostic process.
-This procedure applies to all EDR-based executors (CrowdStrike, Palo Alto Cortex, etc.).
+This procedure applies to all EDR (Endpoint Detection and Response)-based executors (CrowdStrike, Palo Alto Cortex, etc.).
 
 ### Step 1 — Run the inject from OpenAEV
 

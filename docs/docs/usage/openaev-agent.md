@@ -10,8 +10,6 @@ solutions and ensure the full execution of simulations.
 
 The OpenAEV Agent is compatible with multiple operating systems (Windows, Linux, macOS) and is developed in **Rust**.
 
----
-
 ## Installation
 
 Depending on the operating system, several installation modes are available.
@@ -37,9 +35,7 @@ You can access them from OpenAEV by clicking the blue icon in the top-right corn
     Exclusions must apply **only** to the `runtimes` subfolder.  
     threat arsenal actions are intentionally stored elsewhere so that detection and blocking remain possible when relevant.
 
----
-
-### Quick Compatibility Check
+### Quick compatibility check
 
 Before installing the OpenAEV Agent, ensure that **all** the following conditions are met:
 
@@ -60,7 +56,7 @@ Before installing the OpenAEV Agent, ensure that **all** the following condition
 
 If any of these requirements are not met, installation **will fail or behave unpredictably**.
 
-#### Best Effort Support
+#### Best effort support
 
 “Best effort” support means that the OpenAEV Agent **may work**, but:
 
@@ -115,7 +111,7 @@ If any of these requirements are not met, installation **will fail or behave unp
 
 * Antivirus exclusions are mandatory and must apply **only** to the `runtimes` directory
 
-#### Installation Mode
+#### Installation mode
 
 *[UserSanitized] in the table below means username without special character like "\", "/",...*
 
@@ -209,15 +205,11 @@ If any of these requirements are not met, installation **will fail or behave unp
     To allow command threat arsenal action execution without sudo password prompts, see:  
     [this tutorial](https://gcore.com/learning/how-to-disable-password-for-sudo-command/)
 
----
-
-## Agent Installation Flow
+## Agent installation flow
 
 ![img.png](../administration/assets/agent_installation_flow_diagram.png)
 
----
-
-## Network Traffic
+## Network traffic
 
 The installation creates two firewall rules:
 
@@ -227,9 +219,7 @@ The installation creates two firewall rules:
 **Outbound rule**
 ![Outbound rule](../administration/assets/outbound-rule.png)
 
----
-
-## Proxy Configuration
+## Proxy configuration
 
 To use a proxy with the OpenAEV Agent, define both `HTTP_PROXY` and `HTTPS_PROXY` **before running the installer**.
 
@@ -240,8 +230,6 @@ You can configure them in either of the following ways:
 If the agent is installed as a service, make sure these variables are also available to the service account.
 
 Verify that your proxy is correctly configured and communicate well with your OpenAEV Agent installed.
-
----
 
 ## Features
 
@@ -256,8 +244,7 @@ The main features of the OpenAEV Agent include:
     * Directories matching `runtimes/executed-*` and `payloads/executed-*` older than **10 minutes** are permanently deleted.
 * Health checks (heartbeat every 2 minutes)
 
----
-### Cleanup Configuration
+### Cleanup configuration
 
 The garbage collector thresholds can be customized in the agent's `openaev-agent-config.toml` file:
 
@@ -276,17 +263,13 @@ directory_max_time_minutes = 10
 cleanup_interval_seconds = 180
 ```
 
----
-
 ## Security
 
-### Agent Token Scope and Privilege Isolation
+### Agent token scope and privilege isolation
 
 OpenAEV enforces strict **segregation of duties** for agent token authentication.
 
 The agent token has a deliberately narrow scope: it is only permitted to **retrieve jobs to execute**, **retrieve documents**, and **send back results**. It cannot be used to perform any administrative action or access any resource outside of that execution flow.
-
----
 
 ## Troubleshooting
 

@@ -26,7 +26,7 @@ Example: `manager.logger.level` becomes `MANAGER__LOGGER__LEVEL`
 | manager:name                       | MANAGER__NAME                           | Filigran integration manager  | Human-readable name for the manager                                                                                                                     |
 | manager:execute_schedule           | MANAGER__EXECUTE_SCHEDULE               | 10                            | Interval in seconds between execution cycles                                                                                                            |
 | manager:ping_alive_schedule        | MANAGER__PING_ALIVE_SCHEDULE            | 60                            | Interval in seconds between alive ping messages                                                                                                         |
-| manager:credentials_key            | MANAGER__CREDENTIALS_KEY                |                               | RSA private key content (4096-bit recommended). Use for direct key embedding. One of `credentials_key` or `credentials_key_filepath` is required        |
+| manager:credentials_key            | MANAGER__CREDENTIALS_KEY                |                               | RSA (Rivest-Shamir-Adleman) private key content (4096-bit recommended). Use for direct key embedding. One of `credentials_key` or `credentials_key_filepath` is required        |
 | manager:credentials_key_filepath   | MANAGER__CREDENTIALS_KEY_FILEPATH       |                               | Path to RSA private key file. Takes priority over `credentials_key` if both are set. One of `credentials_key` or `credentials_key_filepath` is required |
 
 #### Logging

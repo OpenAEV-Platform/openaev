@@ -22,7 +22,7 @@ Here are the configuration keys, for both containers (environment variables) and
 
 ## Platform
 
-### API & Frontend
+### API & frontend
 
 #### Basic parameters
 
@@ -74,7 +74,7 @@ Here are the configuration keys, for both containers (environment variables) and
 | logging.logback.rollingpolicy.max-file-size | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-FILE-SIZE | 10MB               | Rolling max file size                         |
 | logging.logback.rollingpolicy.max-history   | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-HISTORY   | 7                  | Rolling max days                              |
 
-#### Audit Logging
+#### Audit logging
 
 Audit logging will allow you to have a trace of the actions performed using API calls.
 
@@ -219,7 +219,7 @@ To know more about other available executors, please refer to the [executors doc
 
 #### Mail services
 
-For the associated mailbox, for the moment the platform only relies on IMAP / SMTP protocols, we are actively developing
+For the associated mailbox, for the moment the platform only relies on IMAP (Internet Message Access Protocol) / SMTP (Simple Mail Transfer Protocol) protocols, we are actively developing
 integrations with APIs such as O365 and Google Apps.
 
 ##### General
@@ -302,7 +302,7 @@ available (mandatory) regardless of which mail transport (SMTP/IMAP) is configur
 
     If you are using two-factor authentication on your Gmail account, an app-specific password is required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
 
-#### AI Service
+#### AI service
 
 !!! note "AI deployment and cloud services"
 
