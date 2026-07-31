@@ -84,11 +84,12 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   @Override
   protected CollectorOutput mapToOutput(
       Collector collector,
+      String displayName,
       CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,
       boolean existingCollector) {
     return collectorMapper.toCollectorOutput(
-        collector, catalogConnector, connectorInstance, existingCollector);
+        collector, displayName, catalogConnector, connectorInstance, existingCollector);
   }
 
   @Override

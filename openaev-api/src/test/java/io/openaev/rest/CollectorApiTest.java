@@ -26,6 +26,7 @@ import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -56,6 +57,7 @@ public class CollectorApiTest extends IntegrationTest {
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private CollectorTypeComposer collectorTypeComposer;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private EntityManager entityManager;
 
   private MockMultipartFile buildInputPart(CollectorCreateInput input) {
     return new MockMultipartFile(
@@ -133,6 +135,54 @@ public class CollectorApiTest extends IntegrationTest {
           .containsExactly(connectorInstanceLinkToCreatedCollector.getCatalogConnector().getId());
 
       assertThatJson(response).inPath(path + ".is_verified").isArray().containsExactly(true);
+    }
+
+    @Test
+    @DisplayName(
+        "Given an instance-configured name, should expose it in the output without dirtying the collector entity")
+    void givenInstanceConfiguredName_shouldNotDirtyCollectorEntity() throws Exception {
+      Collector collector = getCollector("Registered name");
+      connectorInstanceComposer
+          .forConnectorInstance(createDefaultConnectorInstance())
+          .withCatalogConnector(
+              catalogConnectorComposer.forCatalogConnector(
+                  createDefaultCatalogConnectorManagedByXtmComposer("Configured collector")))
+          .withConnectorInstanceConfiguration(
+              connectorInstanceConfigurationComposer.forConnectorInstanceConfiguration(
+                  createConnectorInstanceConfiguration("COLLECTOR_ID", collector.getId())))
+          .withConnectorInstanceConfiguration(
+              connectorInstanceConfigurationComposer.forConnectorInstanceConfiguration(
+                  createConnectorInstanceConfiguration("COLLECTOR_NAME", "Configured name")))
+          .persist();
+
+      String response =
+          mvc.perform(
+                  get(COLLECTOR_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String path = "$[?(@.collector_id == '" + collector.getId() + "')]";
+      assertThatJson(response)
+          .inPath(path + ".collector_name")
+          .isArray()
+          .containsExactly("Configured name");
+
+      // A read path that dirties the managed entity would flush the configured name to the DB
+      // here and silently overwrite the registered name (issue #7092: in prod the flush happens
+      // at response commit and turns the GET into a 500 when the row is gone).
+      entityManager.flush();
+      entityManager.clear();
+      Collector reloaded =
+          fromIterable(collectorRepository.findAll()).stream()
+              .filter(c -> collector.getId().equals(c.getId()))
+              .findFirst()
+              .orElseThrow();
+      assertThat(reloaded.getName()).isEqualTo("Registered name");
     }
 
     @Test
