@@ -161,6 +161,9 @@ public class ExerciseService {
 
   private final AttackPathExecutionIngestionService attackPathExecutionService;
 
+  private final io.openaev.database.repository.autonomous.AutonomousRunRepository
+      autonomousRunRepository;
+
   // region properties
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -741,8 +744,12 @@ public class ExerciseService {
     // we log the pause date to be able to recompute inject dates.
     if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
+      // Pause/resume of a chained simulation is still blocked in general, but autonomous
+      // (AI-driven) runs need first-class steering, so we lift the block for them: the
+      // orchestrator relies on being able to pause and resume the underlying chained simulation.
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())) {
+          && workflowService.isSimulationChaining(exercise.getId())
+          && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
         throw new ChainingException(
             "Pausing a chained simulation is not allowed yet, please contact support");
       }
@@ -758,7 +765,8 @@ public class ExerciseService {
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())) {
+          && workflowService.isSimulationChaining(exercise.getId())
+          && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
         throw new ChainingException(
             "Pausing a chained simulation is not allowed yet, please contact support");
       }

@@ -25,6 +25,7 @@ import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
+import AutonomousAttackCreation from '../autonomous/AutonomousAttackCreation';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ToolBar from '../common/ToolBar';
 import ImportUploaderScenario from './ImportUploaderScenario';
@@ -219,6 +220,9 @@ const Scenarios = () => {
                 <ImportUploaderScenario />
               </Can>
             </ToggleButtonGroup>
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+              <AutonomousAttackCreation />
+            </Can>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <ScenarioCreation />
             </Can>

@@ -375,6 +375,66 @@ public class XtmOneClient {
     }
   }
 
+  /**
+   * Kicks off a durable, autonomous attack-path orchestration run in XTM One. The orchestrator
+   * (the "brain") then drives OpenAEV back through the platform MCP tools and the run callback
+   * endpoints, so this call is a short, fire-and-forget enqueue rather than a long stream.
+   *
+   * <p>Authenticated with a per-user JWT so every action XTM One takes is attributed to the real
+   * operator. Returns the upstream handle ({@code {"session_id": ..., "agent_slug": ...}}) so the
+   * caller can persist it for reconnection, or {@code null} when XTM One is not configured / the
+   * enqueue failed.
+   *
+   * @param agentSlug the orchestrator agent slug (from the {@code aev.attack_path_orchestrator}
+   *     intent catalog)
+   * @param objective the resolved objective prompt
+   * @param openaevRunId the OpenAEV autonomous run id to call back
+   * @param simulationId the chained simulation id the run drives
+   * @param scopeAssetGroupId optional in-scope asset group id
+   * @param callbackBaseUrl the OpenAEV base URL XTM One should call back
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> startAutonomousRun(
+      String agentSlug,
+      String objective,
+      String openaevRunId,
+      String simulationId,
+      String scopeAssetGroupId,
+      String callbackBaseUrl) {
+    if (!config.isConfigured()) {
+      return null;
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      Map<String, Object> body = new HashMap<>();
+      if (agentSlug != null) body.put("agent_slug", agentSlug);
+      body.put("objective", objective);
+      body.put("openaev_run_id", openaevRunId);
+      body.put("simulation_id", simulationId);
+      if (scopeAssetGroupId != null) body.put("scope_asset_group_id", scopeAssetGroupId);
+      body.put("callback_base_url", callbackBaseUrl);
+      String json = objectMapper.writeValueAsString(body);
+
+      HttpPost httpPost = chatPostBuilder("/api/v1/platform/autonomous/runs", jwt, json);
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(20)).build());
+
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() == 200 || response.getCode() == 201) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            throw mapUpstreamError(response);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      log.warn("[XTM One] Start autonomous run error, agent={}.", agentSlug, e);
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Failed to start autonomous run", e);
+    }
+  }
+
   @SuppressWarnings("unchecked")
   public String uploadChatFile(String conversationId, MultipartFile file) {
     if (!config.isConfigured()) {

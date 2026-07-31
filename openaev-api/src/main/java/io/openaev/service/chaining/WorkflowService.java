@@ -165,6 +165,32 @@ public class WorkflowService {
   }
 
   /**
+   * Applies a configuration update directly to the RUN workflow(s) of a simulation, so scope
+   * (allow/deny) and rate-limit edits take effect on a live simulation without stopping it.
+   *
+   * <p>This is the substrate for autonomous-run live steering: the chaining engine reads the
+   * denylist from the RUN workflow on every subsequent step evaluation (see {@code
+   * PrimitiveValidationContextBuilder} / {@code ScopeService}), so a denylist entry added here walls
+   * off the matching assets on the next decision cycle. Only meaningful for autonomous / chained
+   * runs; for a normal run there is at most one RUN workflow.
+   *
+   * @param simulationId the simulation whose RUN workflow(s) should be edited
+   * @param input the new scope / rate-limit configuration
+   * @return the updated RUN workflows
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public List<Workflow> updateRunWorkflowConfiguration(
+      @NotBlank String simulationId, WorkflowConfigurationInput input) {
+    List<Workflow> runs = findWorkflowRunBySimulationId(simulationId);
+    for (Workflow run : runs) {
+      if (applyConfigurationInput(input, run)) {
+        workflowRepository.save(run);
+      }
+    }
+    return runs;
+  }
+
+  /**
    * Saves a workflow run to the repository.
    *
    * @param workflowRun the workflow run to save
