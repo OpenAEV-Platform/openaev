@@ -490,38 +490,37 @@ public class InjectStatusService {
   }
 
   private void logAgentTraceStep(InjectStatus injectStatus, ExecutionTrace executionTrace) {
-    Agent traceAgent = executionTrace.getAgent();
-    String endpointId =
-        traceAgent != null && traceAgent.getAsset() != null
-            ? traceAgent.getAsset().getId()
-            : "unknown";
-
     auditLogger.ifPresent(
-        logger ->
-            logger.logEvent(
-                AuditEvent.builder()
-                    .eventType(EventType.EXECUTION)
-                    .eventScope(AuditEventScope.AGENT_TRACE_STEP)
-                    .eventStatus(
-                        executionTrace.getStatus().isSuccess()
-                            ? EventStatus.SUCCESS
-                            : EventStatus.ERROR)
-                    .resourceType(ResourceType.INJECT)
-                    .resourceId(injectStatus.getInject().getId())
-                    .message(
-                        "Agent step '%s' completed with status '%s'"
-                            .formatted(
-                                executionTrace.getAction().name(),
-                                executionTrace.getStatus().name()))
-                    .contextData(
-                        Map.of(
-                            "inject_id", injectStatus.getInject().getId(),
-                            "agent_id", traceAgent != null ? traceAgent.getId() : "unknown",
-                            "endpoint_id", endpointId,
-                            "step_name", executionTrace.getAction().name(),
-                            "trace_status", executionTrace.getStatus().name(),
-                            "trace_id", executionTrace.getId()))
-                    .origin(AuditEventOrigin.SYSTEM)
-                    .build()));
+        logger -> {
+          Agent traceAgent = executionTrace.getAgent();
+          String endpointId =
+              traceAgent != null && traceAgent.getAsset() != null
+                  ? traceAgent.getAsset().getId()
+                  : "unknown";
+          logger.logEvent(
+              AuditEvent.builder()
+                  .eventType(EventType.EXECUTION)
+                  .eventScope(AuditEventScope.AGENT_TRACE_STEP)
+                  .eventStatus(
+                      executionTrace.getStatus().isSuccess()
+                          ? EventStatus.SUCCESS
+                          : EventStatus.ERROR)
+                  .resourceType(ResourceType.INJECT)
+                  .resourceId(injectStatus.getInject().getId())
+                  .message(
+                      "Agent step '%s' completed with status '%s'"
+                          .formatted(
+                              executionTrace.getAction().name(), executionTrace.getStatus().name()))
+                  .contextData(
+                      Map.of(
+                          "inject_id", injectStatus.getInject().getId(),
+                          "agent_id", traceAgent != null ? traceAgent.getId() : "unknown",
+                          "endpoint_id", endpointId,
+                          "step_name", executionTrace.getAction().name(),
+                          "trace_status", executionTrace.getStatus().name(),
+                          "trace_id", executionTrace.getId()))
+                  .origin(AuditEventOrigin.SYSTEM)
+                  .build());
+        });
   }
 }
