@@ -1270,6 +1270,7 @@ public class AttackPathGraphService {
       String assetId = (String) row[0];
       Object criticality = row[1];
       String name = (String) row[2];
+      String seenIp = (String) row[3];
       AttackPathNodeDTO node = assetNodesByRef.get(assetId);
       if (node == null) {
         continue;
@@ -1282,6 +1283,11 @@ public class AttackPathGraphService {
       // otherwise reads as its uuid on the map and in the chokepoint list).
       if (name != null && !name.isBlank()) {
         node.setLabel(name);
+      }
+      // The seen (primary) IP, so the map node shows a single relevant IP rather than the frozen
+      // full IP list. Null/blank leaves the node to fall back to its ip list on the front.
+      if (seenIp != null && !seenIp.isBlank()) {
+        node.setSeenIp(seenIp);
       }
     }
   }

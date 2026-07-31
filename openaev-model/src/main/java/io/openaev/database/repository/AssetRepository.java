@@ -146,12 +146,13 @@ public interface AssetRepository
   List<Asset> findByTenantId(String tenantId);
 
   /**
-   * Business criticality and display name for a set of asset ids, as {@code [assetId,
-   * AssetCriticality, name]} rows. Used by the attack-path chokepoint score (findings weighted by
-   * criticality) and to label an endpoint node with its asset name. JPQL (not native) so the tenant
-   * filter still applies.
+   * Business criticality, display name and seen IP for a set of asset ids, as {@code [assetId,
+   * AssetCriticality, name, seenIp]} rows. Used by the attack-path chokepoint score (findings
+   * weighted by criticality), to label an endpoint node with its asset name, and to show the
+   * endpoint's seen (primary) IP on the map instead of its full IP list. JPQL (not native) so the
+   * tenant filter still applies.
    */
-  @Query("SELECT a.id, a.criticality, a.name FROM Asset a WHERE a.id IN :ids")
+  @Query("SELECT a.id, a.criticality, a.name, a.seenIp FROM Asset a WHERE a.id IN :ids")
   List<Object[]> findCriticalityByIds(Set<String> ids);
 
   /**

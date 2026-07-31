@@ -61,6 +61,7 @@ export interface AttackPathFlowNodeData {
   findingCounts?: Record<string, number>;
   hostname?: string;
   ip?: string;
+  seenIp?: string;
   platform?: string;
   agents?: string[];
   // For an injector/execution node: the id of the step template it ran. Carried so the kill-chain
@@ -123,6 +124,7 @@ const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   findingCounts: n.findingCounts,
   hostname: n.hostname,
   ip: n.ip,
+  seenIp: n.seenIp,
   platform: n.platform,
   agents: n.agents,
   stepTemplateId: n.stepTemplateId,
