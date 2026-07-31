@@ -234,11 +234,6 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
 }) => {
   const isScopeDefinitionEmptyHealthcheck = (healthcheck: HealthCheck): boolean =>
     healthcheck.type === 'SCOPE_DEFINITION' && healthcheck.detail === 'EMPTY';
-  const hasAllowlistEntry = (workflowScopeRules: WorkflowScopeRuleOutput[] = []): boolean =>
-    workflowScopeRules.some((rule: WorkflowScopeRuleOutput) =>
-      rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
-      && !!rule.workflow_scope_rule_value?.trim(),
-    );
   const SCOPE_DEFINITION_EMPTY_WARNING: HealthCheck = {
     creation_date: '',
     detail: 'EMPTY',
@@ -294,23 +289,21 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openDateDialog, setOpenDateDialog] = useState(false);
 
-  // Launch is blocked for chaining until at least one allowlist scope rule exists
-  // (denylist alone is only a filter), with healthcheck as fallback.
+  const hasAllowlistEntry = (workflowConfiguration?.workflow_scope_rules ?? []).some(
+    (rule: WorkflowScopeRuleOutput) =>
+      rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
+      && !!rule.workflow_scope_rule_value?.trim(),
+  );
+
+  // Launch is blocked until a chaining allowlist defines at least one target.
   const isScopeMissing = isSimulationChaining
     && (
-      !hasAllowlistEntry(workflowConfiguration?.workflow_scope_rules ?? [])
+      !hasAllowlistEntry
       || healthchecks.some(isScopeDefinitionEmptyHealthcheck)
     );
-  // Chaining header shows only scope backend warnings; classic simulations keep all healthchecks.
-  const healthchecksForIndicator = isSimulationChaining
-    ? (() => {
-        const withoutScopeDefinition = healthchecks.filter((healthcheck: HealthCheck) => healthcheck.type !== 'SCOPE_DEFINITION');
-        if (!isScopeMissing) {
-          return withoutScopeDefinition;
-        }
-        const scopeDefinitionHealthcheck = healthchecks.find(isScopeDefinitionEmptyHealthcheck) ?? SCOPE_DEFINITION_EMPTY_WARNING;
-        return [...withoutScopeDefinition, scopeDefinitionHealthcheck];
-      })()
+  const hasScopeDefinitionWarning = healthchecks.some(isScopeDefinitionEmptyHealthcheck);
+  const healthchecksForIndicator = isScopeMissing && !hasScopeDefinitionWarning
+    ? [...healthchecks, SCOPE_DEFINITION_EMPTY_WARNING]
     : healthchecks;
 
   useEffect(() => {

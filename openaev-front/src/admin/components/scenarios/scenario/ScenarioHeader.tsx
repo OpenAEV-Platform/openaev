@@ -85,11 +85,6 @@ const ScenarioHeader = ({
 }: ScenarioHeaderProps) => {
   const isScopeDefinitionEmptyHealthcheck = (healthcheck: HealthCheck): boolean =>
     healthcheck.type === 'SCOPE_DEFINITION' && healthcheck.detail === 'EMPTY';
-  const hasAllowlistEntry = (workflowScopeRules: WorkflowScopeRuleOutput[] = []): boolean =>
-    workflowScopeRules.some((rule: WorkflowScopeRuleOutput) =>
-      rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
-      && !!rule.workflow_scope_rule_value?.trim(),
-    );
   const SCOPE_DEFINITION_EMPTY_WARNING: HealthCheck = {
     creation_date: '',
     detail: 'EMPTY',
@@ -159,24 +154,25 @@ const ScenarioHeader = ({
       ? helper.getWorkflowConfiguration(scenarioWorkflowId)
       : undefined,
   }));
+  const hasAllowlistEntry = (workflowConfiguration?.workflow_scope_rules ?? []).some(
+    (rule: WorkflowScopeRuleOutput) =>
+      rule.workflow_scope_rule_selected_mode === 'ALLOWLIST'
+      && !!rule.workflow_scope_rule_value?.trim(),
+  );
   // Launch is blocked for chaining until at least one allowlist scope rule exists
   // (denylist alone is only a filter), with healthcheck as fallback.
   const isScopeMissing = isScenarioChaining
     && (
-      !hasAllowlistEntry(workflowConfiguration?.workflow_scope_rules ?? [])
+      !hasAllowlistEntry
       || healthchecks.some(isScopeDefinitionEmptyHealthcheck)
     );
-  const healthchecksForIndicator = useMemo(() => {
-    if (!isScenarioChaining) {
-      return healthchecks;
-    }
-    const withoutScopeDefinition = healthchecks.filter((healthcheck: HealthCheck) => healthcheck.type !== 'SCOPE_DEFINITION');
-    if (!isScopeMissing) {
-      return withoutScopeDefinition;
-    }
-    const scopeDefinitionHealthcheck = healthchecks.find(isScopeDefinitionEmptyHealthcheck) ?? SCOPE_DEFINITION_EMPTY_WARNING;
-    return [...withoutScopeDefinition, scopeDefinitionHealthcheck];
-  }, [healthchecks, isScenarioChaining, isScopeMissing]);
+  const hasScopeDefinitionWarning = healthchecks.some(isScopeDefinitionEmptyHealthcheck);
+  const healthchecksForIndicator = useMemo(
+    () => (isScopeMissing && !hasScopeDefinitionWarning
+      ? [...healthchecks, SCOPE_DEFINITION_EMPTY_WARNING]
+      : healthchecks),
+    [healthchecks, isScopeMissing, hasScopeDefinitionWarning],
+  );
 
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
