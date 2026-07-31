@@ -33,6 +33,9 @@ interface AttackPathFlowProps {
   edges: AttackPathFlowEdge[];
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
   onClusterClick?: (injectorId: string, kind: 'header' | 'overflow') => void;
+  // The causal-chain view's per-depth "+N endpoints" overflow cluster (distinct from onClusterClick's
+  // per-injector progressive batch reveal): a plain expand/collapse toggle keyed by the cluster's own id.
+  onEndpointClusterClick?: (clusterId: string) => void;
   onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => void;
   onFindingSelect?: (nodeId: string, type?: string, value?: string, assetNodeId?: string) => void;
   onInjectorSelect?: (injectorId: string, label?: string) => void;
@@ -51,6 +54,7 @@ const AttackPathFlow = ({
   edges,
   onEndpointClick,
   onClusterClick,
+  onEndpointClusterClick,
   onFindingClusterClick,
   onFindingSelect,
   onInjectorSelect,
@@ -107,6 +111,8 @@ const AttackPathFlow = ({
             onEndpointClick?.(node.id, data.ref, data.label);
           } else if (node.type === AP_FLOW_NODE_TYPE.endpointCluster && data.injectorId) {
             onClusterClick?.(data.injectorId, data.clusterKind === 'overflow' ? 'overflow' : 'header');
+          } else if (node.type === AP_FLOW_NODE_TYPE.endpointCluster && data.clusterId) {
+            onEndpointClusterClick?.(data.clusterId);
           } else if (node.type === AP_FLOW_NODE_TYPE.findingCluster && data.clusterId) {
             onFindingClusterClick?.(data.clusterId, data.typeFindings, data.injectorId, data.endpointRef, data.clusterKind === 'overflow' ? 'overflow' : 'header');
           } else if (node.type === AP_FLOW_NODE_TYPE.finding) {
