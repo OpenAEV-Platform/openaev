@@ -383,13 +383,15 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
-          .andExpect(status().is4xxClientError())
+          .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
                 String errorMessage = result.getResolvedException().getMessage();
                 assertTrue(
                     errorMessage.contains(
-                        "Connector with id " + fakeCollectorId + " does not exist"));
+                        "no collector with id "
+                            + fakeCollectorId
+                            + " is visible in the current tenant"));
               });
 
       List<ConnectorInstancePersisted> instanceDb =
