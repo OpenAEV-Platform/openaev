@@ -555,5 +555,4 @@ public class HealthCheckUtilsTest {
       assertFalse(isReady);
     }
   }
-
 }

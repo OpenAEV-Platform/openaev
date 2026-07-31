@@ -494,7 +494,6 @@ public class HealthCheckUtils {
     return result;
   }
 
-
   /**
    * Remove all duplicates healthchecks
    *
@@ -527,5 +526,4 @@ public class HealthCheckUtils {
     }
     return first;
   }
-
 }
