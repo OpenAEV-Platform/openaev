@@ -1220,6 +1220,210 @@ export interface AttackPatternUpsertInput {
   ignore_dependencies?: boolean;
 }
 
+export interface AutonomousDirective {
+  /**
+   * When the orchestrator consumed the directive
+   * @format date-time
+   */
+  autonomous_directive_consumed_at?: string;
+  /** Free-text steering instruction */
+  autonomous_directive_content: string;
+  /**
+   * Creation date
+   * @format date-time
+   */
+  autonomous_directive_created_at?: string;
+  /** ID of the directive */
+  autonomous_directive_id?: string;
+  /** Autonomous run this directive steers */
+  autonomous_directive_run_id?: string;
+  /** Whether the orchestrator has consumed the directive */
+  autonomous_directive_status: "PENDING" | "CONSUMED";
+  listened?: boolean;
+}
+
+/** Operator steering directive for a live autonomous run */
+export interface AutonomousDirectiveInput {
+  /**
+   * Free-text steering instruction (focus, avoid host, change tactic...)
+   * @minLength 1
+   */
+  content: string;
+}
+
+export interface AutonomousEvent {
+  /** Human-readable body / narration */
+  autonomous_event_content?: string;
+  /**
+   * Creation date
+   * @format date-time
+   */
+  autonomous_event_created_at?: string;
+  /** Structured payload (tool i/o, gap suggestions, proof metadata) */
+  autonomous_event_data?: string;
+  /** ID of the event */
+  autonomous_event_id?: string;
+  /** Autonomous run this event belongs to */
+  autonomous_event_run_id?: string;
+  /**
+   * Monotonic per-run ordering cursor
+   * @format int64
+   */
+  autonomous_event_sequence?: number;
+  /** Short human title */
+  autonomous_event_title?: string;
+  /** Kind of timeline entry */
+  autonomous_event_type:
+    | "NARRATION"
+    | "DECISION"
+    | "TOOL_ACTION"
+    | "HANDOVER"
+    | "GAP"
+    | "STATUS"
+    | "DIRECTIVE"
+    | "QUESTION"
+    | "PROOF";
+  listened?: boolean;
+}
+
+/** Timeline event appended by the orchestrator */
+export interface AutonomousEventInput {
+  /** Human-readable narration / body */
+  content?: string;
+  /** Structured JSON payload (tool i/o, gap suggestions, proof metadata) */
+  data?: string;
+  /** Short human title */
+  title?: string;
+  /** Kind of timeline entry */
+  type:
+    | "NARRATION"
+    | "DECISION"
+    | "TOOL_ACTION"
+    | "HANDOVER"
+    | "GAP"
+    | "STATUS"
+    | "DIRECTIVE"
+    | "QUESTION"
+    | "PROOF";
+}
+
+export interface AutonomousObjectiveTemplate {
+  /** Whether this is a seeded built-in template */
+  autonomous_objective_template_builtin?: boolean;
+  /**
+   * Creation date
+   * @format date-time
+   */
+  autonomous_objective_template_created_at?: string;
+  /** Short description of what the objective does */
+  autonomous_objective_template_description?: string;
+  /** Whether the template is offered in the gallery */
+  autonomous_objective_template_enabled?: boolean;
+  /** Icon key used by the frontend gallery card */
+  autonomous_objective_template_icon?: string;
+  /** ID of the objective template */
+  autonomous_objective_template_id?: string;
+  /** Stable key (unique per tenant) for built-in identification */
+  autonomous_objective_template_key: string;
+  /** Optional kill-chain phase focus hint */
+  autonomous_objective_template_kill_chain_focus?: string;
+  /** Human label shown in the gallery */
+  autonomous_objective_template_label: string;
+  /**
+   * Display order in the gallery
+   * @format int32
+   */
+  autonomous_objective_template_order?: number;
+  /** Objective prompt handed to the orchestrator */
+  autonomous_objective_template_prompt: string;
+  /** Whether the objective is environment-wide (operates over the whole authorized scope, no target choice needed) or target-dependent (needs a specific target/asset the operator picks up front or the orchestrator asks for). One of: environment, target. */
+  autonomous_objective_template_scope_mode: string;
+  /**
+   * Update date
+   * @format date-time
+   */
+  autonomous_objective_template_updated_at?: string;
+  listened?: boolean;
+}
+
+export interface AutonomousRun {
+  /**
+   * Creation date
+   * @format date-time
+   */
+  autonomous_run_created_at?: string;
+  /** ID of the autonomous run */
+  autonomous_run_id?: string;
+  /** Last error message when the run failed */
+  autonomous_run_last_error?: string;
+  /** Free-text or template-derived objective for the run */
+  autonomous_run_objective: string;
+  /** Key of the objective template the run was seeded from, if any */
+  autonomous_run_objective_template_key?: string;
+  /** Scenario the simulation was created from, if any */
+  autonomous_run_scenario_id?: string;
+  /** Asset group defining the initial in-scope perimeter */
+  autonomous_run_scope_asset_group_id?: string;
+  /** Chained simulation (Exercise) this run drives */
+  autonomous_run_simulation_id?: string;
+  /** Lifecycle status of the run */
+  autonomous_run_status:
+    | "CREATED"
+    | "RUNNING"
+    | "PAUSED"
+    | "WAITING_INPUT"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELED";
+  /**
+   * Update date
+   * @format date-time
+   */
+  autonomous_run_updated_at?: string;
+  /** XTM One orchestrator agent slug */
+  autonomous_run_xtm_agent_slug?: string;
+  /** XTM One orchestrator session id for streaming reconnection */
+  autonomous_run_xtm_session_id?: string;
+  listened?: boolean;
+}
+
+/** Input to create an autonomous attack-path run */
+export interface AutonomousRunCreateInput {
+  /** Optional orchestrator agent slug override */
+  agent_slug?: string;
+  /** Optional description for the auto-provisioned run. */
+  description?: string;
+  /** Optional label for the auto-provisioned run. Defaults to a generated name. */
+  name?: string;
+  /** Free-text objective. Optional when an objective template key is provided. */
+  objective?: string;
+  /** Key of an objective template to seed the objective from */
+  objective_template_key?: string;
+  /** Advanced/optional: seed from an existing chaining scenario instead of auto-provisioning. Leave empty for a fully autonomous run. */
+  scenario_id?: string;
+  /** Optional asset group defining the initial in-scope perimeter */
+  scope_asset_group_id?: string;
+}
+
+/** Run status update pushed by the orchestrator */
+export interface AutonomousStatusUpdateInput {
+  /** Optional narration for the status timeline entry */
+  content?: string;
+  /** Error message when the run failed */
+  last_error?: string;
+  /** New lifecycle status */
+  status:
+    | "CREATED"
+    | "RUNNING"
+    | "PAUSED"
+    | "WAITING_INPUT"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELED";
+  /** Optional short title for the status timeline entry */
+  title?: string;
+}
+
 export type AverageConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
   "widget_configuration_type" | "time_range" | "date_attribute"
@@ -1524,6 +1728,44 @@ export interface CapabilityOutput {
    * @minLength 1
    */
   capability_value: string;
+}
+
+/** Capability resolution query (techniques / desired outputs / platforms) */
+export interface CapabilityQueryInput {
+  /** Optional objective template key; its kill-chain focus seeds the resolution when no explicit techniques/output types are given */
+  objective_template_key?: string;
+  /** Desired output/primitive types the AI needs produced (ContractOutputType labels: credentials, cve, port, share, kerberoastable_account...) */
+  output_types?: string[];
+  /** Optional platform filter (Windows, Linux, MacOS) applied to matches */
+  platforms?: string[];
+  /** MITRE ATT&CK technique external ids to resolve (e.g. T1110, T1566) */
+  techniques?: string[];
+}
+
+/** Capability resolution report */
+export interface CapabilityReport {
+  /** True when every queried token has at least one installed contract */
+  fully_satisfied?: boolean;
+  /** Convenience subset: only the unsatisfied resolutions */
+  gaps?: CapabilityResolution[];
+  /** One resolution per queried capability token */
+  resolutions?: CapabilityResolution[];
+}
+
+/** Resolution of one capability token against installed contracts */
+export interface CapabilityResolution {
+  /** Installed contracts that satisfy the token (empty when unsatisfied) */
+  contracts?: ResolvedContract[];
+  /** Whether this token is a technique, an output/primitive type, or a phase */
+  kind?: "TECHNIQUE" | "OUTPUT_TYPE" | "KILL_CHAIN_PHASE";
+  /** Human-readable label for the token */
+  label?: string;
+  /** True when at least one installed contract satisfies the token */
+  satisfied?: boolean;
+  /** Marketplace connectors to install to close the gap (empty when satisfied) */
+  suggested_connectors?: SuggestedConnector[];
+  /** The resolved token (technique external id, output type label, or phase) */
+  token?: string;
 }
 
 export interface CatalogConnector {
@@ -9090,6 +9332,14 @@ export interface ResetUserInput {
   login: string;
 }
 
+/** An installed injector contract that satisfies the capability */
+export interface ResolvedContract {
+  injector_contract_id?: string;
+  injector_type?: string;
+  label?: string;
+  platforms?: string[];
+}
+
 export interface ResourceObject {
   attributes?: Record<string, any>;
   /** @minLength 1 */
@@ -9489,6 +9739,55 @@ export interface ScopeAssetOutput {
   asset_name?: string;
   /** Type of the asset (Endpoint, SecurityPlatform, …) */
   asset_type?: string;
+}
+
+export interface ScopeVariable {
+  listened?: boolean;
+  /** @format date-time */
+  scope_variable_created_at?: string;
+  scope_variable_description?: string;
+  scope_variable_id: string;
+  scope_variable_key: string;
+  scope_variable_type:
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
+  /** @format date-time */
+  scope_variable_updated_at?: string;
+  scope_variable_value?: string;
+  scope_variable_workflow?: string;
 }
 
 /** Input for a scope variable attached to a workflow. */
@@ -10051,6 +10350,80 @@ export interface StatusPayloadOutput {
   payload_type?: string;
 }
 
+export interface Step {
+  listened?: boolean;
+  /** Action executed by the step */
+  step_action_class: "INJECT_EXECUTION";
+  /** Condition evaluated to determine whether the step is executed */
+  step_condition_executed?: string;
+  step_condition_key_types?: (
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status"
+  )[];
+  step_conditions?: Condition[];
+  /**
+   * Timestamp when the step was created
+   * @format date-time
+   */
+  step_created_at?: string;
+  /** Configuration step data stored as JSON */
+  step_data?: string;
+  /** ID for the step */
+  step_id?: string;
+  /** Inputs provided to the step in JSON format */
+  step_input?: string;
+  /**
+   * Maximum number of times this step can be executed
+   * @format int32
+   * @min 0
+   */
+  step_limit_execution?: number;
+  /** Output produced by the step in JSON format */
+  step_output?: string;
+  /** Output parser configuration in JSON format */
+  step_output_parser?: string;
+  /** Current status of the step */
+  step_status: "TEMPLATE" | "READY" | "RUN" | "END";
+  /**
+   * Timestamp when the step was last updated
+   * @format date-time
+   */
+  step_updated_at?: string;
+}
+
 export interface StepInput {
   step_action: "INJECT_EXECUTION";
   step_condition_ids?: string[];
@@ -10128,6 +10501,17 @@ export type StructuralHistogramWidget = UtilRequiredKeys<
   series: Series[];
   stacked?: boolean;
 };
+
+/** A marketplace connector suggested to close a capability gap */
+export interface SuggestedConnector {
+  connector_id?: string;
+  logo_url?: string;
+  short_description?: string;
+  slug?: string;
+  source_code?: string;
+  subscription_link?: string;
+  title?: string;
+}
 
 export interface Tag {
   listened?: boolean;
@@ -11460,6 +11844,59 @@ export interface WidgetToEntitiesOutput {
   list_configuration?: ListConfiguration;
 }
 
+export interface Workflow {
+  edited?: boolean;
+  listened?: boolean;
+  /**
+   * Creation date
+   * @format date-time
+   */
+  workflow_created_at?: string;
+  /** ID of the workflow */
+  workflow_id?: string;
+  /** Workflow template is edited */
+  workflow_is_edited?: boolean;
+  /**
+   * @format int32
+   * @min 1
+   * @max 99
+   */
+  workflow_max_attempts?: number;
+  /**
+   * @format int64
+   * @min 1
+   * @max 5940
+   */
+  workflow_max_temporal_rate_seconds?: number;
+  workflow_rate_limit_enabled?: boolean;
+  workflow_safe_mode_enabled?: boolean;
+  workflow_scope_rules?: WorkflowScopeRule[];
+  workflow_scope_variables?: ScopeVariable[];
+  workflow_standalone_conditions?: Condition[];
+  /** Status of the workflow (TEMPLATE, RUN, STOP, END) */
+  workflow_status: "TEMPLATE" | "RUN" | "STOP" | "END";
+  /** Steps that belong to this workflow */
+  workflow_steps?: Step[];
+  workflow_timeout_enabled?: boolean;
+  /**
+   * @format int64
+   * @min 0
+   * @max 86400
+   */
+  workflow_timeout_seconds?: number;
+  /**
+   * Update date
+   * @format date-time
+   */
+  workflow_updated_at?: string;
+  /**
+   * Version of the workflow, incremented at each launch if edited
+   * @format int32
+   * @min 0
+   */
+  workflow_version?: number;
+}
+
 /** Input for creating or updating a workflow configuration. */
 export interface WorkflowConfigurationInput {
   /**
@@ -11526,6 +11963,25 @@ export interface WorkflowConfigurationOutput {
   workflow_scope_rules?: WorkflowScopeRuleOutput[];
   /** Custom variables available for template substitution in this workflow. */
   workflow_scope_variables?: ScopeVariableOutput[];
+}
+
+export interface WorkflowScopeRule {
+  listened?: boolean;
+  /** @format date-time */
+  workflow_scope_rule_created_at?: string;
+  /** ID of the workflow scope rule */
+  workflow_scope_rule_id?: string;
+  workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
+  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
+  /** @format date-time */
+  workflow_scope_rule_updated_at?: string;
+  workflow_scope_rule_value?: string;
+  workflow_scope_rule_value_type?:
+    | "IP"
+    | "IP_SUBNET"
+    | "DOMAIN"
+    | "ASSET_ID"
+    | "ASSET_GROUP_ID";
 }
 
 /** Input for a scope rule used in workflow configuration. */
