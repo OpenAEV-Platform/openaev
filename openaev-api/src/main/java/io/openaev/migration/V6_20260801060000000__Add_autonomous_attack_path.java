@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * <p>Purely additive and idempotent ({@code IF NOT EXISTS} throughout), so re-running is a no-op.
  */
 @Component
-public class V6_20260731120000000__Add_autonomous_attack_path extends BaseJavaMigration {
+public class V6_20260801060000000__Add_autonomous_attack_path extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
