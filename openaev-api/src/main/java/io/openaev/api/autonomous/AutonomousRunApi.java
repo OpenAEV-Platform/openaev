@@ -11,6 +11,8 @@ import io.openaev.api.autonomous.dto.AutonomousEventInput;
 import io.openaev.api.autonomous.dto.AutonomousPromotedAssetResult;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.AutonomousStatusUpdateInput;
+import io.openaev.api.autonomous.dto.AutonomousTargetTeamInput;
+import io.openaev.api.autonomous.dto.AutonomousTargetTeamResult;
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
@@ -311,6 +313,24 @@ public class AutonomousRunApi extends RestBehavior {
   public AutonomousPromotedAssetResult promoteFindingToAsset(
       @PathVariable String runId, @PathVariable String findingId) {
     return autonomousRunService.promoteFindingToAsset(runId, findingId);
+  }
+
+  @Operation(
+      summary = "Orchestrator: ensure a targetable team wrapping one or more persons",
+      description =
+          "An inject can only target a TEAM whose players are ENABLED on the simulation, so a "
+              + "human-in-the-loop technique (phishing, smishing, credential harvesting) cannot "
+              + "point at a person directly. This atomically reuses-or-creates a contextual team on "
+              + "the run's simulation, sets its members, and enables those players for delivery, "
+              + "returning a team id the next chained step targets - eliminating the 'Email needs at "
+              + "least one user' failure caused by an unattached or empty wrapper team.")
+  @PostMapping("/{runId}/target-teams")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousTargetTeamResult ensureTargetTeam(
+      @PathVariable String runId, @Valid @RequestBody AutonomousTargetTeamInput input) {
+    return autonomousRunService.ensureTargetTeam(
+        runId, input.getPlayerIds(), input.getName(), input.getTeamId());
   }
 
   // endregion

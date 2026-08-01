@@ -43,6 +43,19 @@ const STATUS_COLOR: Record<AutonomousRunStatus, keyof typeof colorStyles> = {
   CANCELED: 'canceled',
 };
 
+// Clean labels: the raw enum values are SCREAMING_SNAKE_CASE, so t('WAITING_INPUT') renders the
+// untranslated fallback with the underscore intact (then uppercased by CSS to "WAITING_INPUT"). Map
+// to plain English keys the translation layer can localize.
+const STATUS_LABEL: Record<AutonomousRunStatus, string> = {
+  CREATED: 'Created',
+  RUNNING: 'Running',
+  PAUSED: 'Paused',
+  WAITING_INPUT: 'Waiting for input',
+  COMPLETED: 'Completed',
+  FAILED: 'Failed',
+  CANCELED: 'Canceled',
+};
+
 interface Props {
   status: AutonomousRunStatus;
   variant?: 'list';
@@ -56,7 +69,7 @@ const AutonomousRunStatusChip: FunctionComponent<Props> = ({ status, variant }) 
     <Chip
       classes={{ root: style }}
       style={colorStyles[STATUS_COLOR[status] ?? 'blue']}
-      label={t(status)}
+      label={t(STATUS_LABEL[status] ?? status)}
     />
   );
 };

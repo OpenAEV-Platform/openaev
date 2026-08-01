@@ -1,5 +1,5 @@
 import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, ScheduleOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Divider, Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,7 +18,7 @@ import MitreCoverageMatrix from '../common/matrix/MitreCoverageMatrix';
 import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../workspaces/custom_dashboards/results/contextualWidgets';
 import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import AutonomousOutcomeDialog, { type OutcomeKind } from './AutonomousOutcomeDialog';
-import { eventAccent, eventIcon } from './autonomousEventVisuals';
+import { eventAccent, eventIcon, eventTypeLabel, sanitizeEventText } from './autonomousEventVisuals';
 
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 5000;
@@ -726,36 +726,96 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
               {timelineEvents.map((event) => {
                 const color = eventAccent(event, theme);
                 const time = event.autonomous_event_created_at ? vnsdt(event.autonomous_event_created_at) : undefined;
+                const eventTitle = sanitizeEventText(event.autonomous_event_title);
+                const eventContent = sanitizeEventText(event.autonomous_event_content);
+                const { techniques: tipTechniques, cves: tipCves } = extractTags(
+                  eventTitle,
+                  eventContent,
+                );
+                const tipTags = renderTags(tipTechniques, tipCves);
                 return (
                   <Tooltip
                     key={event.autonomous_event_id}
+                    // Render the tooltip as a proper card (matches the panel/dialog surface) rather
+                    // than the cramped default: header with the event-type chip + timestamp, a
+                    // right-sized title, MITRE/CVE tags, then the reasoning body clamped so a long
+                    // prose block stays a readable card instead of a wall of text.
+                    slotProps={{
+                      tooltip: {
+                        sx: {
+                          maxWidth: 360,
+                          padding: theme.spacing(1.25, 1.5),
+                          backgroundColor: theme.palette.background.paper,
+                          color: theme.palette.text.primary,
+                          border: `1px solid ${theme.palette.divider}`,
+                          borderRadius: 1,
+                          boxShadow: theme.shadows[8],
+                        },
+                      },
+                      arrow: { sx: { color: theme.palette.background.paper } },
+                    }}
+                    arrow
                     title={(
                       <Box>
-                        <Typography variant="subtitle2" sx={{ margin: 0 }}>
-                          {event.autonomous_event_title ?? t(event.autonomous_event_type)}
+                        <Stack sx={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 0.75,
+                        }}
+                        >
+                          <Box sx={{
+                            color,
+                            display: 'inline-flex',
+                          }}
+                          >
+                            {eventIcon(event)}
+                          </Box>
+                          <Chip
+                            label={t(eventTypeLabel(event.autonomous_event_type))}
+                            size="small"
+                            sx={{
+                              height: 18,
+                              fontSize: 10,
+                              fontWeight: 700,
+                              letterSpacing: '0.04em',
+                              borderRadius: 0.5,
+                              color,
+                              backgroundColor: alpha(color, 0.12),
+                            }}
+                          />
+                          <Box sx={{ flex: 1 }} />
+                          {time && (
+                            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                              {time}
+                            </Typography>
+                          )}
+                        </Stack>
+                        <Typography
+                          sx={{
+                            marginTop: 0.75,
+                            fontSize: '0.8125rem',
+                            fontWeight: 600,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {eventTitle || t(eventTypeLabel(event.autonomous_event_type))}
                         </Typography>
-                        {event.autonomous_event_content && (
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              display: 'block',
-                              whiteSpace: 'pre-wrap',
-                            }}
-                          >
-                            {event.autonomous_event_content}
-                          </Typography>
-                        )}
-                        {time && (
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              display: 'block',
-                              opacity: 0.7,
-                              marginTop: 0.5,
-                            }}
-                          >
-                            {time}
-                          </Typography>
+                        {tipTags && <Box sx={{ marginTop: 0.5 }}>{tipTags}</Box>}
+                        {eventContent && (
+                          <>
+                            <Divider sx={{ marginBlock: 0.75, borderColor: theme.palette.divider }} />
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                fontSize: 11,
+                                lineHeight: 1.45,
+                                ...clampSx(8),
+                              }}
+                            >
+                              {eventContent}
+                            </Typography>
+                          </>
                         )}
                       </Box>
                     )}
@@ -783,7 +843,7 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
                         {eventIcon(event)}
                       </Box>
                       <Chip
-                        label={t(event.autonomous_event_type)}
+                        label={t(eventTypeLabel(event.autonomous_event_type))}
                         size="small"
                         sx={{
                           height: 16,
@@ -803,7 +863,7 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
                           ...clampSx(2),
                         }}
                       >
-                        {event.autonomous_event_title ?? t(event.autonomous_event_type)}
+                        {eventTitle || t(eventTypeLabel(event.autonomous_event_type))}
                       </Typography>
                       {time && (
                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>

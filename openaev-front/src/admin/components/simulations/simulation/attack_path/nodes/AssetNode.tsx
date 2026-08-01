@@ -1,4 +1,4 @@
-import { LocalFireDepartment, SwapHoriz } from '@mui/icons-material';
+import { Groups, LocalFireDepartment, Person, SwapHoriz, Workspaces } from '@mui/icons-material';
 import { Button, Chip, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
@@ -40,6 +40,15 @@ const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
   // frozen list is missing/empty. The tooltip shows the full list when present, else the seen IP.
   const ipToShow = displayIp(data.seenIp, data.ip);
   const tooltipIp = data.ip || data.seenIp;
+  // A human-in-the-loop target (phishing/credential harvesting) is a TEAM, PERSON or ASSET_GROUP
+  // rather than a machine, so it gets its own icon inside the circle and a kind label in the tooltip.
+  const entityKind = data.entityKind;
+  const KindIcon = entityKind === 'TEAM' ? Groups : entityKind === 'PERSON' ? Person : entityKind === 'ASSET_GROUP' ? Workspaces : null;
+  const kindLabel = entityKind === 'TEAM'
+    ? t('Team')
+    : entityKind === 'PERSON'
+      ? t('Person')
+      : entityKind === 'ASSET_GROUP' ? t('Asset group') : null;
   const tooltipTitle = (
     <div style={{
       display: 'flex',
@@ -50,6 +59,20 @@ const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
     }}
     >
       <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{data.hostname || data.label}</Typography>
+      {kindLabel && (
+        <Typography
+          variant="caption"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+          }}
+          color="text.secondary"
+        >
+          {KindIcon && <KindIcon sx={{ fontSize: 15 }} />}
+          {kindLabel}
+        </Typography>
+      )}
       {tooltipIp && (
         <Typography variant="caption" color="text.secondary">
           {t('IP')}
@@ -144,6 +167,7 @@ const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
             boxSizing: 'border-box',
           }}
         >
+          {KindIcon && <KindIcon sx={{ fontSize: 20, color, marginBottom: '2px' }} />}
           <Typography
             variant="caption"
             fontWeight={700}

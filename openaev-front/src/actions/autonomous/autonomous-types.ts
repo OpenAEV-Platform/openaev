@@ -33,6 +33,8 @@ export interface AutonomousRun {
   autonomous_run_scenario_id?: string | null;
   autonomous_run_simulation_id?: string | null;
   autonomous_run_scope_asset_group_id?: string | null;
+  autonomous_run_scope_team_id?: string | null;
+  autonomous_run_scope?: AutonomousScopeTarget[] | null;
   autonomous_run_status: AutonomousRunStatus;
   autonomous_run_xtm_session_id?: string | null;
   autonomous_run_xtm_agent_slug?: string | null;
@@ -50,6 +52,18 @@ export interface AutonomousEvent {
   autonomous_event_content?: string | null;
   autonomous_event_data?: string | null;
   autonomous_event_created_at?: string;
+}
+
+// Mirrors io.openaev.api.autonomous.dto.AutonomousAttackPathStepState: one step already authored on
+// the run's attack path (its backing simulation inject, live status and traces). The hero counts
+// these for the autonomous inject/step stat so it matches the Execution tab exactly.
+export interface AutonomousAttackPathStepState {
+  inject_id?: string;
+  title?: string | null;
+  type?: string | null;
+  injector_contract_id?: string | null;
+  status?: string | null;
+  traces?: string[] | null;
 }
 
 export interface AutonomousDirective {
@@ -84,7 +98,19 @@ export interface AutonomousRunCreateInput {
   // autonomous run, where the attack-path substrate is auto-provisioned server-side.
   scenario_id?: string;
   scope_asset_group_id?: string;
+  scope_team_id?: string;
+  scope?: AutonomousScopeTarget[];
   agent_slug?: string;
+}
+
+// One entry of an autonomous run's mixed scope. `type` uses the platform target-kind vocabulary;
+// `id` is the entity id of that kind. `name` is a client-side convenience label for the chip UI.
+export type AutonomousScopeTargetType = 'ASSETS' | 'ASSETS_GROUPS' | 'TEAMS' | 'PLAYERS';
+
+export interface AutonomousScopeTarget {
+  type: AutonomousScopeTargetType;
+  id: string;
+  name?: string;
 }
 
 // -- Capability resolution --

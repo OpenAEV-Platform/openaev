@@ -1,4 +1,5 @@
 import {
+  AccountTreeOutlined,
   ComputerOutlined,
   DashboardCustomizeOutlined,
   EmojiEventsOutlined,
@@ -19,7 +20,9 @@ import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
+import { fetchAutonomousAttackPathState } from '../../../../actions/autonomous/autonomous-actions';
 import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
+import { fetchSteps } from '../../../../actions/chaining/chaining-actions';
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
 import { fetchScenarioArticles } from '../../../../actions/channels/article-action';
@@ -107,6 +110,10 @@ const ScenarioHeader = ({
   const [openScheduling, setOpenScheduling] = useState(false);
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
+  // Number of authored attack-path steps on the scenario's chaining workflow. A chained scenario
+  // (manual or autonomous) builds its attack path as workflow step templates, not classic scenario
+  // injects, so this is the meaningful "how big is the attack path" stat for the hero.
+  const [attackPathStepCount, setAttackPathStepCount] = useState<number | null>(null);
 
   // Preserve the deep link that used to open the assistant drawer: it now
   // routes to the dedicated full-page assistant.
@@ -206,6 +213,34 @@ const ScenarioHeader = ({
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
   }, [scenarioId, scenario, workflowConfiguration]);
+
+  // Count the attack-path steps that back the hero stat. An autonomous run authors its injects on
+  // the simulation (not the scenario), so its scenario workflow is empty - the authoritative count
+  // is the run's live attack-path state, which is exactly the set of simulation injects the
+  // Execution tab shows. A manual chained scenario keeps its steps on its own workflow, so it reads
+  // those. Re-fetched as an autonomous run progresses (updated_at changes on every poll) so the
+  // stat stays live while the orchestrator keeps building the path.
+  useEffect(() => {
+    let stale = false;
+    if (autonomousRun?.autonomous_run_id) {
+      fetchAutonomousAttackPathState(autonomousRun.autonomous_run_id)
+        .then((result) => {
+          if (!stale) setAttackPathStepCount(result.data?.length ?? 0);
+        })
+        .catch(() => {});
+    } else if (scenarioWorkflowId) {
+      fetchSteps(scenarioWorkflowId)
+        .then((result) => {
+          if (!stale) setAttackPathStepCount(result.data?.length ?? 0);
+        })
+        .catch(() => {});
+    } else {
+      setAttackPathStepCount(null);
+    }
+    return () => {
+      stale = true;
+    };
+  }, [scenarioWorkflowId, autonomousRun?.autonomous_run_id, autonomousRun?.autonomous_run_updated_at]);
 
   // Expectation drift between the injector contract templates and the inject
   // content - recomputed when the scenario or its inject set changes.
@@ -474,14 +509,38 @@ const ScenarioHeader = ({
           )}
           stats={(
             <>
-              {/* Always-on core stats. */}
-              <HeroStat
-                icon={TrackChangesOutlined}
-                label={t('Injects')}
-                value={injectsCount}
-                color={theme.palette.warning.main}
-                to={`/admin/scenarios/${scenarioId}/injects`}
-              />
+              {/* Always-on core stats. A workflow-backed scenario (chained or autonomous) builds
+                  its attack path as workflow step templates rather than classic scenario injects,
+                  so it surfaces an "Attack path steps" stat and its inject count is read from the
+                  live simulation on the Execution tab - clicking lands there instead of on the
+                  hidden/empty scenario Injects tab. A time-based scenario keeps the plain Injects
+                  stat pointing at its authoring tab. */}
+              {isScenarioChaining || isAutonomous
+                ? (
+                    <HeroStat
+                      icon={AccountTreeOutlined}
+                      label={t('Attack path steps')}
+                      value={attackPathStepCount ?? 0}
+                      color={theme.palette.warning.main}
+                      // Autonomous: land on Execution (the live injects), as the scenario Injects tab
+                      // is hidden for AI runs. Manual chained: the attack-path graph is the natural
+                      // drill-down when available, else Execution.
+                      to={isAutonomous
+                        ? `/admin/scenarios/${scenarioId}/execution`
+                        : isAttackPathEnabled
+                          ? `/admin/scenarios/${scenarioId}/attack-path`
+                          : `/admin/scenarios/${scenarioId}/execution`}
+                    />
+                  )
+                : (
+                    <HeroStat
+                      icon={TrackChangesOutlined}
+                      label={t('Injects')}
+                      value={injectsCount}
+                      color={theme.palette.warning.main}
+                      to={`/admin/scenarios/${scenarioId}/injects`}
+                    />
+                  )}
               <HeroStat
                 icon={HubOutlined}
                 label={t('Simulations')}

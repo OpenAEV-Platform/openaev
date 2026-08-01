@@ -1098,6 +1098,7 @@ export interface AttackPathNodeDTO {
   contractName?: string;
   criticality?: string;
   dependsOn?: string[];
+  entityKind?: string;
   executedAt?: string;
   executionsTraces?: any[];
   expectations?: any[];

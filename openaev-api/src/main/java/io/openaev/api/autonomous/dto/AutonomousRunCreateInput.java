@@ -1,7 +1,9 @@
 package io.openaev.api.autonomous.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.autonomous.AutonomousScopeTarget;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -43,6 +45,21 @@ public class AutonomousRunCreateInput {
   @JsonProperty("scope_asset_group_id")
   @Schema(description = "Optional asset group defining the initial in-scope perimeter")
   private String scopeAssetGroupId;
+
+  @JsonProperty("scope_team_id")
+  @Schema(
+      description =
+          "Optional team defining the in-scope audience for identity-targeted objectives"
+              + " (phishing, human credential harvesting). Legacy single-team shortcut; prefer the"
+              + " mixed 'scope' list.")
+  private String scopeTeamId;
+
+  @JsonProperty("scope")
+  @Schema(
+      description =
+          "Optional mixed scope: a list of targetable entities (assets, asset groups, teams,"
+              + " persons) the run is restricted to. Leave empty to let the AI resolve the scope.")
+  private List<AutonomousScopeTarget> scope;
 
   @JsonProperty("agent_slug")
   @Schema(description = "Optional orchestrator agent slug override")

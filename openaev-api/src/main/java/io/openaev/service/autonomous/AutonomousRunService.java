@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepState;
 import io.openaev.api.autonomous.dto.AutonomousPromotedAssetResult;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
+import io.openaev.api.autonomous.dto.AutonomousTargetTeamResult;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Endpoint;
@@ -18,6 +19,8 @@ import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Team;
+import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousDirectiveStatus;
@@ -26,8 +29,12 @@ import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousObjectiveTemplate;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
+import io.openaev.database.model.autonomous.AutonomousScopeTarget;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
@@ -43,8 +50,12 @@ import io.openaev.xtmone.XtmOneClient;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -85,6 +96,9 @@ public class AutonomousRunService {
   private final InjectRepository injectRepository;
   private final FindingRepository findingRepository;
   private final EndpointService endpointService;
+  private final TeamRepository teamRepository;
+  private final UserRepository userRepository;
+  private final ExerciseRepository exerciseRepository;
 
   // A dedicated bean persists the read-path reconcile in its OWN transaction (REQUIRES_NEW) through
   // its Spring proxy. It must be a separate class: a same-class call would bypass the proxy, keep
@@ -157,7 +171,12 @@ public class AutonomousRunService {
     run.setObjectiveTemplateKey(input.getObjectiveTemplateKey());
     run.setScenarioId(scenarioId);
     run.setSimulationId(simulation.getId());
-    run.setScopeAssetGroupId(input.getScopeAssetGroupId());
+    List<AutonomousScopeTarget> scope = resolveScope(input);
+    run.setScope(scope);
+    // Convenience projections (first of each kind) keep the preset asset-group flow and any legacy
+    // single-scope consumers working while the mixed list stays authoritative.
+    run.setScopeAssetGroupId(firstScopeIdOfType(scope, "ASSETS_GROUPS"));
+    run.setScopeTeamId(firstScopeIdOfType(scope, "TEAMS"));
     run.setXtmAgentSlug(input.getAgentSlug());
     run.setStatus(AutonomousRunStatus.CREATED);
     AutonomousRun saved = runRepository.save(run);
@@ -224,6 +243,9 @@ public class AutonomousRunService {
     final String objective = run.getObjective();
     final String simulationId = run.getSimulationId();
     final String scopeAssetGroupId = run.getScopeAssetGroupId();
+    final String scopeTeamId = run.getScopeTeamId();
+    final List<AutonomousScopeTarget> scope =
+        run.getScope() != null ? new ArrayList<>(run.getScope()) : new ArrayList<>();
     final String scopeMode = resolveScopeMode(run.getObjectiveTemplateKey());
     if (TransactionSynchronizationManager.isSynchronizationActive()) {
       TransactionSynchronizationManager.registerSynchronization(
@@ -231,12 +253,26 @@ public class AutonomousRunService {
             @Override
             public void afterCommit() {
               engageOrchestratorNow(
-                  runId, agentSlug, objective, simulationId, scopeAssetGroupId, scopeMode);
+                  runId,
+                  agentSlug,
+                  objective,
+                  simulationId,
+                  scopeAssetGroupId,
+                  scopeTeamId,
+                  scope,
+                  scopeMode);
             }
           });
     } else {
       engageOrchestratorNow(
-          runId, agentSlug, objective, simulationId, scopeAssetGroupId, scopeMode);
+          runId,
+          agentSlug,
+          objective,
+          simulationId,
+          scopeAssetGroupId,
+          scopeTeamId,
+          scope,
+          scopeMode);
     }
   }
 
@@ -252,6 +288,8 @@ public class AutonomousRunService {
       String objective,
       String simulationId,
       String scopeAssetGroupId,
+      String scopeTeamId,
+      List<AutonomousScopeTarget> scope,
       String scopeMode) {
     try {
       Map<String, Object> handle =
@@ -261,6 +299,8 @@ public class AutonomousRunService {
               runId,
               simulationId,
               scopeAssetGroupId,
+              scopeTeamId,
+              scope,
               scopeMode,
               openAEVConfig.getBaseUrl());
       String sessionId = handle != null ? asString(handle.get("session_id")) : null;
@@ -400,6 +440,14 @@ public class AutonomousRunService {
     }
     // Fresh simulation from the SAME scenario - no new scenario is ever provisioned on restart.
     Scenario scenario = scenarioService.scenario(run.getScenarioId());
+    // Clear the previous run's mirrored scenario steps first: the scenario workflow doubles as the
+    // seed the fresh simulation is copied from, so leaving them would make the restarted simulation
+    // start non-empty and duplicate the attack path. Only the AI-mirrored steps are removed (tracked
+    // in stepMirror), so any caller-authored steps of an advanced scenario are preserved.
+    if (run.getStepMirror() != null && !run.getStepMirror().isEmpty()) {
+      workflowService.deleteScenarioMirrorSteps(run.getStepMirror().values());
+      run.setStepMirror(new HashMap<>());
+    }
     // Re-assert keep-alive on the scenario workflow before relaunching, so the restarted simulation
     // parks empty and awaits the orchestrator exactly like the first launch.
     markWorkflowKeepAlive(run.getScenarioId());
@@ -734,6 +782,16 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to author the attack-path step: " + e.getMessage(), e);
     }
+    // A human-in-the-loop inject (email, SMS, ...) delivers only to the players ENABLED on the
+    // simulation (exercise_teams_users), not merely to team members. The orchestrator can legitimately
+    // target a team directly - an operator-pre-selected audience, or one it built - without routing
+    // through ensure_openaev_target_team, and that team's members are then NOT enabled on this
+    // simulation, so the step ERRORs with "Email needs at least one user". Enable every targeted
+    // team's members here so any team-targeted step is deliverable regardless of how it was wired.
+    enableTargetedTeamMembers(run.getSimulationId(), injectInput.getTeams());
+    // Mirror the step onto the run's SCENARIO so the scenario carries the attack path and can be
+    // exported/reproduced (the executing copy lives on the simulation; this twin never runs).
+    mirrorStepOntoScenario(run, injectInput, parentStepTemplateId, stepTemplateId);
     eventService.append(
         runId,
         run.getSimulationId(),
@@ -743,6 +801,77 @@ public class AutonomousRunService {
             + (hasText(parentStepTemplateId) ? " (depends on a previous step)." : "."),
         null);
     return stepTemplateId;
+  }
+
+  /**
+   * Mirrors a just-authored simulation step onto the run's scenario workflow so the scenario is a
+   * faithful, exportable copy of the attack path (the simulation owns the executing steps; the
+   * scenario twin never runs). The orchestrator only knows simulation step ids, so the run keeps a
+   * sim->scenario step-id map to reattach a step's {@code DEPEND_ON} to the correct scenario parent
+   * and preserve kill-chain ordering. This is best-effort: a mirror failure must never fail the
+   * orchestrator's author call (the executing simulation step already succeeded), so it is logged
+   * and swallowed rather than propagated.
+   */
+  private void mirrorStepOntoScenario(
+      AutonomousRun run, InjectInput injectInput, String parentSimStepId, String simStepId) {
+    String scenarioId = run.getScenarioId();
+    if (!hasText(scenarioId)) {
+      return;
+    }
+    Map<String, String> mirror =
+        run.getStepMirror() == null ? new HashMap<>() : new HashMap<>(run.getStepMirror());
+    String parentScenarioStepId = hasText(parentSimStepId) ? mirror.get(parentSimStepId) : null;
+    try {
+      String scenarioStepId =
+          workflowService.appendChainedStepToScenario(
+              scenarioId, injectInput, parentScenarioStepId);
+      mirror.put(simStepId, scenarioStepId);
+      run.setStepMirror(mirror);
+      runRepository.save(run);
+    } catch (Exception e) {
+      log.warn(
+          "[Autonomous] Failed to mirror attack-path step onto scenario {} for run {}: {}",
+          scenarioId,
+          run.getId(),
+          e.getMessage());
+    }
+  }
+
+  /**
+   * Enables, on the run's simulation, the members of every team a just-authored step targets so a
+   * human-in-the-loop inject (email, SMS, credential harvesting, ...) can actually reach them. The
+   * email/SMS executor resolves recipients from {@code exercise_teams_users} (players ENABLED on the
+   * simulation), not from raw team membership, so targeting a team whose members were never enabled
+   * fails with "Email needs at least one user". This makes any team-targeted step deliverable
+   * regardless of how the orchestrator wired the team (a pre-selected audience, a wrapper it built,
+   * or {@code ensure_openaev_target_team}). Best-effort and idempotent: {@code enablePlayers} skips
+   * already-enabled links, and a team-less (asset-only) step targets nothing here.
+   */
+  private void enableTargetedTeamMembers(String simulationId, List<String> teamIds) {
+    if (teamIds == null || teamIds.isEmpty() || !hasText(simulationId)) {
+      return;
+    }
+    Exercise simulation = exerciseRepository.findById(simulationId).orElse(null);
+    if (simulation == null) {
+      return;
+    }
+    for (String teamId : teamIds.stream().filter(id -> hasText(id)).distinct().toList()) {
+      Team team = teamRepository.findById(teamId).orElse(null);
+      if (team == null) {
+        continue;
+      }
+      List<String> memberIds = team.getUsers().stream().map(User::getId).distinct().toList();
+      if (memberIds.isEmpty()) {
+        continue;
+      }
+      boolean onSimulation =
+          simulation.getTeams().stream().anyMatch(t -> teamId.equals(t.getId()));
+      if (!onSimulation) {
+        team.getExercises().add(simulation);
+        teamRepository.save(team);
+      }
+      exerciseService.enablePlayers(simulationId, team, memberIds);
+    }
   }
 
   /**
@@ -863,6 +992,107 @@ public class AutonomousRunService {
 
   private boolean looksLikeIpAddress(String value) {
     return value != null && value.matches("^\\d{1,3}(\\.\\d{1,3}){3}$");
+  }
+
+  /**
+   * Guarantees a targetable team wrapping the given persons for a human-in-the-loop step (phishing,
+   * smishing, credential harvesting, ...). An OpenAEV inject can only target a TEAM, and an email /
+   * SMS inject only resolves recipients from the players ENABLED on the simulation ({@code
+   * exercise_teams_users}) - not merely from team membership. Doing this in three separate
+   * orchestrator calls (create player, create team, set members) routinely left the team unattached
+   * or its players not enabled, which surfaced as the "Email needs at least one user" execution
+   * error. This does all of it atomically: reuse-or-create a CONTEXTUAL team on the run's
+   * simulation, set its members, and enable those players for delivery, then hand back a team id the
+   * next chained step can target directly.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public AutonomousTargetTeamResult ensureTargetTeam(
+      String runId, List<String> playerIds, String name, String teamId) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    String simulationId = run.getSimulationId();
+    if (!hasText(simulationId)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "The autonomous run has no live simulation to attach a team to");
+    }
+    List<String> requestedPlayerIds =
+        playerIds == null
+            ? List.of()
+            : playerIds.stream().filter(id -> hasText(id)).distinct().toList();
+    if (requestedPlayerIds.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Provide at least one player id to wrap in the team - a team with no members cannot"
+              + " receive a human-targeted inject");
+    }
+    List<User> players = new ArrayList<>();
+    userRepository.findAllById(requestedPlayerIds).forEach(players::add);
+    if (players.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND, "None of the provided player ids resolved to a person");
+    }
+    Exercise simulation =
+        exerciseRepository
+            .findById(simulationId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Simulation not found"));
+
+    final Team team;
+    if (hasText(teamId)) {
+      // Idempotent reuse: augment an existing wrapper with any newly requested members.
+      Team existing =
+          teamRepository
+              .findById(teamId)
+              .orElseThrow(
+                  () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Team not found"));
+      LinkedHashMap<String, User> members = new LinkedHashMap<>();
+      existing.getUsers().forEach(u -> members.put(u.getId(), u));
+      players.forEach(u -> members.put(u.getId(), u));
+      existing.setUsers(new ArrayList<>(members.values()));
+      boolean alreadyOnSimulation =
+          simulation.getTeams().stream().anyMatch(t -> teamId.equals(t.getId()));
+      if (!alreadyOnSimulation) {
+        existing.getExercises().add(simulation);
+      }
+      team = teamRepository.save(existing);
+    } else {
+      Team created = new Team();
+      created.setName(hasText(name) ? name : defaultTargetTeamName(players));
+      created.setContextual(true);
+      created.setUsers(new ArrayList<>(players));
+      created.setExercises(new ArrayList<>(List.of(simulation)));
+      team = teamRepository.save(created);
+    }
+
+    // Enable the players on the simulation so the email/SMS executor resolves them as recipients.
+    exerciseService.enablePlayers(
+        simulationId, team, players.stream().map(User::getId).toList());
+
+    List<String> enabledPlayerIds = team.getUsers().stream().map(User::getId).toList();
+    eventService.append(
+        runId,
+        simulationId,
+        AutonomousEventType.TOOL_ACTION,
+        "Target team ready",
+        "Team '"
+            + team.getName()
+            + "' now wraps "
+            + enabledPlayerIds.size()
+            + " enabled recipient(s) and can be targeted by a human-in-the-loop inject.",
+        null);
+    return new AutonomousTargetTeamResult(team.getId(), team.getName(), enabledPlayerIds);
+  }
+
+  private String defaultTargetTeamName(List<User> players) {
+    String who =
+        players.stream()
+            .limit(3)
+            .map(u -> hasText(u.getEmail()) ? u.getEmail() : u.getId())
+            .collect(Collectors.joining(", "));
+    if (players.size() > 3) {
+      who = who + " +" + (players.size() - 3);
+    }
+    return "AI target " + who;
   }
 
   // endregion
@@ -1006,6 +1236,45 @@ public class AutonomousRunService {
     }
     AutonomousObjectiveTemplate template = templateService.findByKeyOrNull(objectiveTemplateKey);
     return template != null ? template.getScopeMode() : null;
+  }
+
+  /**
+   * Builds the run's authoritative mixed scope from the create input. The new {@code scope} list is
+   * the source of truth; the legacy single {@code scope_asset_group_id} / {@code scope_team_id}
+   * shortcuts (preset flows, older callers) are folded in, de-duplicated by (type,id).
+   */
+  private List<AutonomousScopeTarget> resolveScope(AutonomousRunCreateInput input) {
+    List<AutonomousScopeTarget> scope = new ArrayList<>();
+    if (input.getScope() != null) {
+      for (AutonomousScopeTarget target : input.getScope()) {
+        if (target != null && hasText(target.getType()) && hasText(target.getId())) {
+          addScopeIfAbsent(scope, target.getType().trim(), target.getId().trim());
+        }
+      }
+    }
+    if (hasText(input.getScopeAssetGroupId())) {
+      addScopeIfAbsent(scope, "ASSETS_GROUPS", input.getScopeAssetGroupId());
+    }
+    if (hasText(input.getScopeTeamId())) {
+      addScopeIfAbsent(scope, "TEAMS", input.getScopeTeamId());
+    }
+    return scope;
+  }
+
+  private void addScopeIfAbsent(List<AutonomousScopeTarget> scope, String type, String id) {
+    boolean present =
+        scope.stream().anyMatch(t -> type.equals(t.getType()) && id.equals(t.getId()));
+    if (!present) {
+      scope.add(new AutonomousScopeTarget(type, id));
+    }
+  }
+
+  private String firstScopeIdOfType(List<AutonomousScopeTarget> scope, String type) {
+    return scope.stream()
+        .filter(t -> type.equals(t.getType()))
+        .map(AutonomousScopeTarget::getId)
+        .findFirst()
+        .orElse(null);
   }
 
   private String resolveObjective(AutonomousRunCreateInput input) {

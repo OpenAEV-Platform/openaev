@@ -552,6 +552,33 @@ public class WorkflowService {
   }
 
   /**
+   * Deletes the given scenario step templates (and their conditions), skipping any already gone.
+   *
+   * <p>Used to clear the steps an autonomous run mirrored onto its scenario before a restart: the
+   * scenario workflow doubles as the seed a fresh simulation is copied from, so stale mirrored steps
+   * must be removed or the restarted simulation would not park empty and the scenario would
+   * accumulate a duplicated attack path. Best-effort per id so a missing step never aborts restart.
+   *
+   * @param scenarioStepTemplateIds step template ids previously mirrored onto the scenario
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteScenarioMirrorSteps(java.util.Collection<String> scenarioStepTemplateIds) {
+    if (scenarioStepTemplateIds == null) {
+      return;
+    }
+    for (String stepId : scenarioStepTemplateIds) {
+      if (!hasText(stepId)) {
+        continue;
+      }
+      try {
+        stepService.deleteStepTemplate(stepId);
+      } catch (Exception e) {
+        log.warn("Failed to delete mirrored scenario step {}: {}", stepId, e.getMessage());
+      }
+    }
+  }
+
+  /**
    * Deletes all workflow states associated with workflows of the given simulation.
    *
    * @param simulationId the ID of the simulation whose workflow states should be cleared
@@ -1149,6 +1176,49 @@ public class WorkflowService {
     }
 
     Step created = stepService.createStepTemplate(simulationTemplate, stepInput);
+    return created.getId();
+  }
+
+  /**
+   * Mirrors an authored attack-path step onto a SCENARIO workflow template, so the scenario carries
+   * the same attack path the orchestrator built on the simulation and can be exported/reproduced.
+   *
+   * <p>This is the scenario-side twin of {@link #appendChainedStep}: an autonomous run authors its
+   * steps on the simulation template (the only tree the engine executes), but the run's scenario
+   * template stays empty otherwise, which is why an exported autonomous scenario would carry no
+   * attack path. The mirrored step never executes (nothing runs a scenario TEMPLATE), so this is
+   * purely for export/display. {@code parentScenarioStepTemplateId} is the scenario twin of the
+   * simulation parent (resolved by the caller from its sim->scenario mapping), so the {@code
+   * DEPEND_ON} kill-chain ordering is preserved on the scenario side.
+   *
+   * @param scenarioId the run's scenario
+   * @param injectInput the same inject that was authored on the simulation
+   * @param parentScenarioStepTemplateId optional scenario step id this step depends on (null root)
+   * @return the id of the created scenario step template
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendChainedStepToScenario(
+      String scenarioId, InjectInput injectInput, String parentScenarioStepTemplateId)
+      throws ChainingException {
+    Workflow scenarioTemplate =
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+
+    StepsCreateInput.StepInput stepInput =
+        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    if (hasText(parentScenarioStepTemplateId)) {
+      ConditionCreateInput dependOn =
+          ConditionCreateInput.builder()
+              .type(ConditionType.DEPEND_ON)
+              .value(parentScenarioStepTemplateId)
+              .build();
+      stepInput.setConditions(List.of(dependOn));
+    }
+
+    Step created = stepService.createStepTemplate(scenarioTemplate, stepInput);
     return created.getId();
   }
 }

@@ -8,6 +8,7 @@ import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.User;
+import io.openaev.database.model.autonomous.AutonomousScopeTarget;
 import io.openaev.service.UserService;
 import io.openaev.service.xtm_auth.XtmAuthKeyService;
 import java.io.IOException;
@@ -390,7 +391,9 @@ public class XtmOneClient {
    * @param objective the resolved objective prompt
    * @param openaevRunId the OpenAEV autonomous run id to call back
    * @param simulationId the chained simulation id the run drives
-   * @param scopeAssetGroupId optional in-scope asset group id
+   * @param scopeAssetGroupId optional in-scope asset group id (first-of-kind projection)
+   * @param scopeTeamId optional in-scope team (audience) id (first-of-kind projection)
+   * @param scope the authoritative mixed scope (assets, asset groups, teams, persons)
    * @param callbackBaseUrl the OpenAEV base URL XTM One should call back
    */
   @SuppressWarnings("unchecked")
@@ -400,6 +403,8 @@ public class XtmOneClient {
       String openaevRunId,
       String simulationId,
       String scopeAssetGroupId,
+      String scopeTeamId,
+      List<AutonomousScopeTarget> scope,
       String scopeMode,
       String callbackBaseUrl) {
     if (!config.isConfigured()) {
@@ -413,6 +418,8 @@ public class XtmOneClient {
       body.put("openaev_run_id", openaevRunId);
       body.put("simulation_id", simulationId);
       if (scopeAssetGroupId != null) body.put("scope_asset_group_id", scopeAssetGroupId);
+      if (scopeTeamId != null) body.put("scope_team_id", scopeTeamId);
+      if (scope != null && !scope.isEmpty()) body.put("scope", scope);
       if (scopeMode != null) body.put("scope_mode", scopeMode);
       body.put("callback_base_url", callbackBaseUrl);
       String json = objectMapper.writeValueAsString(body);

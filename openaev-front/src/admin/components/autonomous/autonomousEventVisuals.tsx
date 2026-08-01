@@ -16,7 +16,7 @@ import {
 import type { Theme } from '@mui/material/styles';
 import { type ReactNode } from 'react';
 
-import { type AutonomousEvent } from '../../../actions/autonomous/autonomous-types';
+import { type AutonomousEvent, type AutonomousEventType } from '../../../actions/autonomous/autonomous-types';
 
 // Shared visual language for autonomous timeline events, so every surface that renders the run's
 // event stream (the always-open reasoning panel and the overview decision timeline) uses the exact
@@ -72,6 +72,51 @@ export const eventAccent = (event: AutonomousEvent, theme: Theme): string => {
     default:
       return theme.palette.text.disabled;
   }
+};
+
+// Human-readable label for an event type. The raw enum values are SCREAMING_SNAKE_CASE, so passing
+// them straight to t() renders the untranslated fallback with the underscore intact (e.g.
+// "Tool_action"). Map to clean English keys the translation layer can localize and that read
+// correctly even when a locale has no entry yet.
+export const eventTypeLabel = (type?: AutonomousEventType | string | null): string => {
+  switch (type) {
+    case 'NARRATION':
+      return 'Narration';
+    case 'DECISION':
+      return 'Decision';
+    case 'TOOL_ACTION':
+      return 'Action';
+    case 'HANDOVER':
+      return 'Handover';
+    case 'GAP':
+      return 'Capability gap';
+    case 'STATUS':
+      return 'Status';
+    case 'DIRECTIVE':
+      return 'Directive';
+    case 'QUESTION':
+      return 'Question';
+    case 'PROOF':
+      return 'Proof';
+    default:
+      return 'Event';
+  }
+};
+
+// Defensive display-time cleanup: the orchestrator (an LLM) occasionally leaks its own tool-call
+// framing into an event's title/content - operator prose followed by literal </content>, <invoke ...>,
+// <parameter ...> markup of the next calls. XTM One now strips this at the source, but runs recorded
+// before that fix still carry it, so cut every rendered string at the first such marker as a backstop
+// so raw XML never shows in the reasoning panel or the overview timeline.
+const TOOL_MARKUP_CUTOFF = /<\/?\s*(?:antml:)?(?:invoke|parameter|function_calls|function_result|function|content)\b/i;
+
+export const sanitizeEventText = (text?: string | null): string => {
+  if (!text) {
+    return '';
+  }
+  const match = text.match(TOOL_MARKUP_CUTOFF);
+  const cleaned = match && match.index !== undefined ? text.slice(0, match.index) : text;
+  return cleaned.trim();
 };
 
 export const eventIcon = (event: AutonomousEvent): ReactNode => {

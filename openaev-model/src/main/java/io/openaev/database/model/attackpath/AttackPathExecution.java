@@ -202,4 +202,45 @@ public class AttackPathExecution implements TenantBase {
     this.sourceKind = "INJECTOR";
     this.sourceInjector = injector.getName();
   }
+
+  /**
+   * Source = a targeted team, used to hang its recipients (PERSON targets) under the team node so a
+   * human-in-the-loop step reads as injector -> team -> persons. The team id rides {@code
+   * sourceAssetId} (the same slot an agent/asset source uses) so the graph resolves this node's id
+   * exactly as the team's own TARGET row does, converging both onto one team node.
+   */
+  public void setSourceTeamInformation(String teamId, String teamName) {
+    this.sourceKind = "TEAM";
+    this.sourceAssetId = teamId;
+    this.sourceHostname = teamName;
+  }
+
+  /**
+   * Target = a team. An email/SMS inject can only target a team, so this is how a human-in-the-loop
+   * step lands on the attack path (issue: autonomous phishing rendered an empty graph). The team
+   * name rides {@code targetHostname}, the graph read's label fallback, so the node reads as the
+   * team, not a bare uuid.
+   */
+  public void setTargetTeamInformation(String teamId, String teamName) {
+    this.targetKind = "TEAM";
+    this.targetKey = teamId;
+    this.targetHostname = teamName;
+    this.targetRawValue = "";
+  }
+
+  /** Target = an individual recipient (player) reached through a team. */
+  public void setTargetPersonInformation(String userId, String label) {
+    this.targetKind = "PERSON";
+    this.targetKey = userId;
+    this.targetHostname = label;
+    this.targetRawValue = "";
+  }
+
+  /** Target = an asset group as a whole (its members are separately targeted as ASSET rows). */
+  public void setTargetAssetGroupInformation(String assetGroupId, String name) {
+    this.targetKind = "ASSET_GROUP";
+    this.targetKey = assetGroupId;
+    this.targetHostname = name;
+    this.targetRawValue = "";
+  }
 }

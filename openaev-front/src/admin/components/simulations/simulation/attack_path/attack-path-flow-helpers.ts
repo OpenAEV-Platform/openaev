@@ -63,6 +63,10 @@ export interface AttackPathFlowNodeData {
   ip?: string;
   seenIp?: string;
   platform?: string;
+  // What real entity an ASSET-band node stands for: TEAM / PERSON / ASSET_GROUP for a
+  // human-in-the-loop target (phishing, credential harvesting, ...), else undefined for a plain
+  // endpoint. The AssetNode renderer keys off this to pick the icon.
+  entityKind?: string;
   agents?: string[];
   // For an injector/execution node: the id of the step template it ran. Carried so the kill-chain
   // causal builder can look up execution metadata (dependsOn / consumedFindingKeys) per node. Mirrors
@@ -147,6 +151,7 @@ const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   ip: n.ip,
   seenIp: n.seenIp,
   platform: n.platform,
+  entityKind: n.entityKind,
   agents: n.agents,
   stepTemplateId: n.stepTemplateId,
   injectorType: n.injectorType,

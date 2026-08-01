@@ -1,9 +1,10 @@
 import {
   AutoAwesome,
   HelpOutline,
+  HourglassEmpty,
   SendOutlined,
 } from '@mui/icons-material';
-import { Box, Chip, CircularProgress, IconButton, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useRef, useState } from 'react';
@@ -22,27 +23,94 @@ import { useFormatter } from '../../../components/i18n';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useChatbot, useChatbotContentMargin } from '../ariane/useChatbotHooks';
-import { eventAccent, eventIcon } from './autonomousEventVisuals';
+import { eventAccent, eventIcon, eventTypeLabel, sanitizeEventText } from './autonomousEventVisuals';
 import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 3000;
 
-// Live "thinking" window shown at the tail of the stream while the run is active: three pulsing
-// dots plus the orchestrator's most recent reasoning line, faintly shimmering, so the panel feels
-// alive between decision cycles (mirrors the XTM One scrolling thinking window) instead of parking
-// on a static spinner.
+// Sentinel radio value for "I'll type my own answer" - always offered as the last alternative so a
+// proposed choice never traps the operator into the orchestrator's suggestions.
+const CUSTOM_ANSWER = '__custom__';
+
+interface QuestionChoice {
+  id: string;
+  label: string;
+  /** The text actually sent to the orchestrator when this choice is picked (defaults to label). */
+  value: string;
+}
+
+// A QUESTION event may carry structured choices in its JSON `data` ({"options": [...]}) so the panel
+// can render a beautiful radio selection instead of forcing free text. Options are lenient: a bare
+// string, or an object with any of id/label/value. Anything unparseable yields no choices (the panel
+// then just shows the free-text answer box).
+const parseQuestionChoices = (data?: string | null): QuestionChoice[] => {
+  if (!data) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(data) as { options?: unknown };
+    const options = parsed?.options;
+    if (!Array.isArray(options)) {
+      return [];
+    }
+    return options
+      .map((option, index): QuestionChoice | null => {
+        if (typeof option === 'string') {
+          return { id: `opt-${index}`, label: option, value: option };
+        }
+        if (option && typeof option === 'object') {
+          const candidate = option as { id?: string; label?: string; value?: string };
+          const label = candidate.label ?? candidate.value ?? candidate.id;
+          if (!label) {
+            return null;
+          }
+          return {
+            id: candidate.id ?? `opt-${index}`,
+            label,
+            value: candidate.value ?? candidate.label ?? label,
+          };
+        }
+        return null;
+      })
+      .filter((choice): choice is QuestionChoice => choice !== null);
+  } catch {
+    return [];
+  }
+};
+
+interface ThinkingPhase {
+  key: string;
+  label: string;
+  color: string;
+  // Whether the orchestrator is actively working (mid-cycle) vs. idle/parked (awaiting a
+  // human-timescale event or the operator's answer). Only an ACTIVE phase pulses and streams the
+  // live thought echo; an idle phase settles into a calm, static waiting indicator so a parked run
+  // does not look like it is still computing.
+  active: boolean;
+}
+
+// Tail-of-stream status window. While the orchestrator is actively working (active phase) it shows
+// three pulsing dots plus its most recent reasoning line, faintly shimmering, so the panel feels
+// alive between activity events (mirrors the XTM One scrolling thinking window). When the run is
+// idle - parked on a status awaiting a human-timescale event, or waiting on the operator - it
+// settles into a STATIC hourglass + calm caption with no pulsing and no thought echo, so a parked
+// run stops looking like it is still thinking. The label + colour reflect the CURRENT phase and
+// animate on every phase change.
 const ThinkingBubble: FunctionComponent<{
-  accent: string;
+  phase: ThinkingPhase;
   theme: Theme;
   latest?: string;
-  label: string;
 }> = ({
-  accent,
+  phase,
   theme,
   latest,
-  label,
 }) => {
+  const accent = phase.color;
+  const active = phase.active;
+  // A parked/waiting phase never streams the live thought echo (there is no live thought - the run
+  // is idle), and its dots do not pulse.
+  const showLatest = active && !!latest;
   // Keep the window pinned to the bottom as the reasoning text changes, so it "defiles" like the
   // XTM One chatbot thinking window - the newest lines sit at the bottom and older text scrolls up
   // out of view (rather than clamping to the first lines and looking frozen on long reasoning).
@@ -75,6 +143,16 @@ const ThinkingBubble: FunctionComponent<{
             opacity: 1,
           },
         },
+        '@keyframes aevPhaseIn': {
+          '0%': {
+            opacity: 0,
+            transform: 'translateY(4px)',
+          },
+          '100%': {
+            opacity: 1,
+            transform: 'translateY(0)',
+          },
+        },
       }}
     >
       <Stack sx={{
@@ -83,38 +161,52 @@ const ThinkingBubble: FunctionComponent<{
         gap: 0.75,
       }}
       >
-        <Stack sx={{
-          flexDirection: 'row',
-          gap: 0.4,
-          alignItems: 'center',
-        }}
-        >
-          {[0, 1, 2].map(i => (
-            <Box
-              key={i}
-              sx={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                backgroundColor: accent,
-                animation: 'aevThinkingDot 1.4s infinite ease-in-out both',
-                animationDelay: `${i * 0.16}s`,
-              }}
-            />
-          ))}
-        </Stack>
+        {active ? (
+          <Stack sx={{
+            flexDirection: 'row',
+            gap: 0.4,
+            alignItems: 'center',
+          }}
+          >
+            {[0, 1, 2].map(i => (
+              <Box
+                key={i}
+                sx={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  backgroundColor: accent,
+                  transition: theme.transitions.create('background-color'),
+                  animation: 'aevThinkingDot 1.4s infinite ease-in-out both',
+                  animationDelay: `${i * 0.16}s`,
+                }}
+              />
+            ))}
+          </Stack>
+        ) : (
+          // Idle/parked: a still hourglass, not pulsing dots, so the run reads as waiting - not working.
+          <HourglassEmpty sx={{
+            fontSize: 16,
+            color: accent,
+          }}
+          />
+        )}
+        {/* Key on the phase so a new phase remounts and replays the fade/slide-in transition. */}
         <Typography
+          key={phase.key}
           variant="caption"
           sx={{
             color: accent,
             fontWeight: 600,
             letterSpacing: '0.02em',
+            transition: theme.transitions.create('color'),
+            animation: 'aevPhaseIn 0.35s ease',
           }}
         >
-          {label}
+          {phase.label}
         </Typography>
       </Stack>
-      {latest && (
+      {showLatest && (
         <Box
           ref={textRef}
           sx={{
@@ -189,8 +281,18 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   const [run, setRun] = useState<AutonomousRun>(initialRun);
   const [events, setEvents] = useState<AutonomousEvent[]>([]);
   const [directive, setDirective] = useState('');
+  // Which proposed choice the operator picked (or CUSTOM_ANSWER to type free text).
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  // The question the operator just answered - suppressed immediately (optimistic) so the callout
+  // does not linger and hog space while we wait for the status poll to flip the run to RUNNING.
+  const [answeredQuestionId, setAnsweredQuestionId] = useState<string | null>(null);
   const cursorRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Identity of the run/simulation the stream is currently populated for. The reset-and-reload
+  // effect below keys off this so it fires ONLY on a genuine run or simulation switch (navigation /
+  // restart) - never spuriously on a re-render, which would blank the live stream to empty (and drop
+  // the thinking phase to its "Thinking through the next move" default) before the re-poll repaints.
+  const streamKeyRef = useRef<string | null>(null);
   // Latest run pushed down by the parent, read by the identity-change sync effect below without
   // making the whole object a dependency (which would re-fire on every parent re-render).
   const initialRunRef = useRef(initialRun);
@@ -250,6 +352,12 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     })
     .catch(() => {}), [runId]);
 
+  // Always call the latest pollTimeline without making it a dependency of the reset effect - so that
+  // effect keys purely on the run/simulation identity and cannot be re-triggered by an incidental
+  // pollTimeline re-creation.
+  const pollTimelineRef = useRef(pollTimeline);
+  pollTimelineRef.current = pollTimeline;
+
   // A restart reuses the SAME autonomous run id but provisions a fresh simulation and flips the run
   // back to RUNNING, while wiping the server-side timeline. useState(initialRun) only captures the
   // run at mount, so without re-syncing from the parent the panel would keep showing the torn-down
@@ -259,15 +367,30 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     setRun(initialRunRef.current);
   }, [initialRun.autonomous_run_id, initialRun.autonomous_run_simulation_id]);
 
-  // Reset and reload whenever the run OR its underlying simulation changes: navigating between
-  // simulations reuses the panel, and a restart swaps the simulation under the same run id and
-  // clears the timeline server-side - keying on the simulation id makes the stream drop the stale
-  // events instead of stranding them (which previously required a manual full reload).
+  // Reset and reload ONLY when the run OR its underlying simulation actually changes: navigating
+  // between simulations reuses the panel, and a restart swaps the simulation under the same run id
+  // and clears the timeline server-side - keying on that identity makes the stream drop the stale
+  // events instead of stranding them (which previously required a manual full reload). Guarded by
+  // streamKeyRef so it fires strictly on a real identity change: clearing to [] on any other re-run
+  // blanked the whole reasoning stream for a frame (it fell back to the "Thinking through the next
+  // move" default), then repainted - a jarring, inconsistent flicker on every poll. A transient run
+  // payload that momentarily lost its simulation id is ignored so it never blanks a live stream.
   useEffect(() => {
+    if (!runId) {
+      return;
+    }
+    const nextKey = `${runId}::${simulationId ?? ''}`;
+    if (streamKeyRef.current === nextKey) {
+      return;
+    }
+    if (streamKeyRef.current !== null && !simulationId) {
+      return;
+    }
+    streamKeyRef.current = nextKey;
     cursorRef.current = 0;
     setEvents([]);
-    pollTimeline();
-  }, [runId, simulationId, pollTimeline]);
+    pollTimelineRef.current();
+  }, [runId, simulationId]);
 
   const status = run.autonomous_run_status;
   const isActive = ACTIVE_STATUSES.includes(status);
@@ -291,19 +414,49 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     }
   }, [events.length]);
 
-  const handleSendDirective = () => {
-    const content = directive.trim();
-    if (content.length === 0 || !isActive) {
+  const isWaitingInput = status === 'WAITING_INPUT';
+  const latestQuestion = isWaitingInput
+    ? [...events].reverse().find(e => e.autonomous_event_type === 'QUESTION')
+    : undefined;
+  // Hide the question the moment it is answered, without waiting for the 3s status poll.
+  const pendingQuestion = latestQuestion && latestQuestion.autonomous_event_id !== answeredQuestionId
+    ? latestQuestion
+    : undefined;
+  const questionChoices = pendingQuestion ? parseQuestionChoices(pendingQuestion.autonomous_event_data) : [];
+  const hasChoices = questionChoices.length > 0;
+
+  // Reset the choice selection whenever a new question arrives.
+  useEffect(() => {
+    setSelectedChoice(null);
+    setDirective('');
+  }, [pendingQuestion?.autonomous_event_id]);
+
+  const sendDirective = useCallback((content: string) => {
+    const trimmed = content.trim();
+    if (trimmed.length === 0 || !isActive) {
       return;
     }
     setDirective('');
-    addAutonomousDirective(runId, content).then(() => pollTimeline()).catch(() => {});
-  };
+    setSelectedChoice(null);
+    // Optimistically dismiss the current question so its callout stops occupying space right away.
+    if (pendingQuestion) {
+      setAnsweredQuestionId(pendingQuestion.autonomous_event_id);
+    }
+    addAutonomousDirective(runId, trimmed).then(() => pollTimeline()).catch(() => {});
+  }, [isActive, pendingQuestion, runId, pollTimeline]);
 
-  const isWaitingInput = status === 'WAITING_INPUT';
-  const pendingQuestion = isWaitingInput
-    ? [...events].reverse().find(e => e.autonomous_event_type === 'QUESTION')
-    : undefined;
+  const handleSendDirective = () => sendDirective(directive);
+
+  const handleSubmitChoice = () => {
+    if (selectedChoice === CUSTOM_ANSWER) {
+      sendDirective(directive);
+      return;
+    }
+    const chosen = questionChoices.find(choice => choice.id === selectedChoice);
+    if (chosen) {
+      sendDirective(chosen.value);
+    }
+  };
 
   // Echo the orchestrator's most recent reasoning line in the live thinking window so operators read
   // its current train of thought, not just a spinner. Prefer narration/decision/tool prose.
@@ -312,10 +465,57 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       e.autonomous_event_type as 'NARRATION' | 'DECISION' | 'TOOL_ACTION',
     ),
   );
-  const thinkingText = lastThought?.autonomous_event_content ?? lastThought?.autonomous_event_title ?? undefined;
-  const thinkingLabel = isWaitingInput
-    ? t('Waiting for your input')
-    : t('Thinking through the next move');
+  const thinkingText = sanitizeEventText(lastThought?.autonomous_event_content ?? lastThought?.autonomous_event_title) || undefined;
+
+  // Current orchestrator phase for the thinking window. Derived from status + the latest activity
+  // event rather than the raw run status, so the caption narrates what the run is doing and animates
+  // as it moves (deciding -> acting -> analyzing ...). Crucially, once the operator answers we flip
+  // to "Processing your answer" immediately -- the backend status stays WAITING_INPUT until the next
+  // 3s poll, so keying off status alone would freeze on "Waiting for your input".
+  const lastActivityType = [...events].reverse().find(
+    e => (['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'NARRATION'] as const).includes(
+      e.autonomous_event_type as 'DECISION' | 'TOOL_ACTION' | 'PROOF' | 'GAP' | 'HANDOVER' | 'NARRATION',
+    ),
+  )?.autonomous_event_type;
+  // A STATUS event is the orchestrator's end-of-cycle "settled state" marker (e.g. "Phishing lure
+  // in flight - awaiting human interaction"): the run stays RUNNING but is now PARKED, idle until a
+  // human-timescale event or the next cycle. So when the newest event is a STATUS, the orchestrator
+  // is NOT computing - the thinking window must stop pulsing and settle into a calm wait. As soon
+  // as the next cycle emits an activity event, the newest event is no longer a STATUS and the
+  // window animates again.
+  const newestEvent = events.length > 0 ? events[events.length - 1] : undefined;
+  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS';
+  const thinkingPhase: ThinkingPhase = (() => {
+    if (isWaitingInput && pendingQuestion) {
+      // Genuinely idle on the operator: static wait, not a pulsing "still working" animation.
+      return { key: 'waiting_input', label: t('Waiting for your input'), color: theme.palette.warning.main, active: false };
+    }
+    if (isWaitingInput) {
+      // The operator answered; the backend is still WAITING_INPUT until the next poll flips it, but
+      // the run is genuinely resuming - so animate.
+      return { key: 'resuming', label: t('Processing your answer'), color: accent, active: true };
+    }
+    if (parkedOnStatus) {
+      // Parked between cycles awaiting a human-timescale event: calm, static, no thought echo.
+      return { key: 'parked', label: t('Awaiting the next event'), color: theme.palette.text.secondary, active: false };
+    }
+    switch (lastActivityType) {
+      case 'DECISION':
+        return { key: 'deciding', label: t('Deciding the next move'), color: accent, active: true };
+      case 'TOOL_ACTION':
+        return { key: 'acting', label: t('Running the next action'), color: accent, active: true };
+      case 'PROOF':
+        return { key: 'proving', label: t('Capturing proof of exploitation'), color: theme.palette.success.main, active: true };
+      case 'GAP':
+        return { key: 'gap', label: t('Noting a capability gap'), color: theme.palette.warning.main, active: true };
+      case 'HANDOVER':
+        return { key: 'coordinating', label: t('Coordinating the attack'), color: accent, active: true };
+      case 'NARRATION':
+        return { key: 'analyzing', label: t('Analyzing the results'), color: accent, active: true };
+      default:
+        return { key: 'thinking', label: t('Thinking through the next move'), color: accent, active: true };
+    }
+  })();
 
   return (
     <Box
@@ -381,7 +581,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           >
             {t('Autonomous orchestrator')}
           </Typography>
-          {isActive && <CircularProgress size={14} sx={{ color: accent }} />}
+          {isActive && (thinkingPhase.active
+            ? <CircularProgress size={14} sx={{ color: accent }} />
+            : <HourglassEmpty fontSize="small" sx={{ color: theme.palette.text.secondary }} />)}
         </Stack>
       </Box>
 
@@ -422,6 +624,8 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               >
                 {events.map((event) => {
                   const color = eventAccent(event, theme);
+                  const eventTitle = sanitizeEventText(event.autonomous_event_title);
+                  const eventContent = sanitizeEventText(event.autonomous_event_content);
                   return (
                     <Box
                       key={event.autonomous_event_id}
@@ -455,7 +659,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                           {eventIcon(event)}
                         </Box>
                         <Chip
-                          label={t(event.autonomous_event_type)}
+                          label={t(eventTypeLabel(event.autonomous_event_type))}
                           size="small"
                           sx={{
                             height: 18,
@@ -474,7 +678,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                           </Typography>
                         )}
                       </Stack>
-                      {event.autonomous_event_title && (
+                      {eventTitle && (
                         <Typography
                           variant="body2"
                           sx={{
@@ -483,10 +687,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                             fontSize: '0.8125rem',
                           }}
                         >
-                          {event.autonomous_event_title}
+                          {eventTitle}
                         </Typography>
                       )}
-                      {event.autonomous_event_content && (
+                      {eventContent && (
                         <Typography
                           variant="caption"
                           color="text.secondary"
@@ -495,7 +699,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                             whiteSpace: 'pre-wrap',
                           }}
                         >
-                          {event.autonomous_event_content}
+                          {eventContent}
                         </Typography>
                       )}
                     </Box>
@@ -503,18 +707,18 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 })}
                 {isActive && (
                   <ThinkingBubble
-                    accent={accent}
+                    phase={thinkingPhase}
                     theme={theme}
                     latest={thinkingText}
-                    label={thinkingLabel}
                   />
                 )}
               </Stack>
             )}
       </Box>
 
-      {/* Question callout when the run is parked on the operator. */}
-      {isWaitingInput && pendingQuestion && (
+      {/* Question callout when the run is parked on the operator. Disappears the moment the
+          operator answers (optimistic), so it never lingers and hogs space below. */}
+      {pendingQuestion && (
         <Box
           sx={{
             padding: theme.spacing(1.25, 2),
@@ -562,35 +766,90 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           borderTop: `1px solid ${theme.palette.divider}`,
         }}
         >
-          <Stack sx={{
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            gap: 1,
-          }}
-          >
+          {hasChoices && (
+            <RadioGroup
+              value={selectedChoice ?? ''}
+              onChange={event => setSelectedChoice(event.target.value)}
+              sx={{ gap: 0.75 }}
+            >
+              {[...questionChoices, { id: CUSTOM_ANSWER, label: t('Write a custom answer'), value: '' }].map((choice) => {
+                const isCustom = choice.id === CUSTOM_ANSWER;
+                const isSelected = selectedChoice === choice.id;
+                return (
+                  <FormControlLabel
+                    key={choice.id}
+                    value={choice.id}
+                    control={<Radio size="small" sx={{ color: accent, '&.Mui-checked': { color: accent } }} />}
+                    label={choice.label}
+                    sx={{
+                      'margin': 0,
+                      'alignItems': 'flex-start',
+                      'borderRadius': 1.5,
+                      'border': `1px solid ${isSelected ? accent : theme.palette.divider}`,
+                      'backgroundColor': isSelected ? alpha(accent, 0.08) : 'transparent',
+                      'padding': theme.spacing(0.5, 1, 0.5, 0.5),
+                      'transition': theme.transitions.create(['border-color', 'background-color']),
+                      'fontStyle': isCustom ? 'italic' : 'normal',
+                      '&:hover': { borderColor: alpha(accent, 0.6) },
+                      '& .MuiFormControlLabel-label': {
+                        fontSize: '0.8125rem',
+                        paddingTop: '5px',
+                      },
+                    }}
+                  />
+                );
+              })}
+            </RadioGroup>
+          )}
+
+          {(!hasChoices || selectedChoice === CUSTOM_ANSWER) && (
             <TextField
               value={directive}
               onChange={event => setDirective(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
-                  handleSendDirective();
+                  if (hasChoices) {
+                    handleSubmitChoice();
+                  } else {
+                    handleSendDirective();
+                  }
                 }
               }}
               placeholder={isWaitingInput
                 ? t('Answer the AI (e.g. the web apps in scope are app-prod-01 and app-prod-02)')
                 : t('Steer the AI live (e.g. focus on the finance subnet, avoid host X, try Kerberoasting)')}
-              size="small"
               fullWidth
               multiline
-              maxRows={4}
+              minRows={2}
+              maxRows={6}
               disabled={!isActive}
-            />
-            <IconButton
-              color="primary"
-              disabled={!isActive || directive.trim().length === 0}
-              onClick={handleSendDirective}
+              autoFocus={selectedChoice === CUSTOM_ANSWER}
               sx={{
+                'marginTop': hasChoices ? 1 : 0,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  padding: theme.spacing(1.25, 1.5),
+                  fontSize: '0.875rem',
+                  backgroundColor: alpha(theme.palette.action.hover, 0.4),
+                },
+              }}
+            />
+          )}
+
+          {hasChoices ? (
+            <Button
+              variant="contained"
+              fullWidth
+              disableElevation
+              onClick={handleSubmitChoice}
+              disabled={!isActive
+                || selectedChoice === null
+                || (selectedChoice === CUSTOM_ANSWER && directive.trim().length === 0)}
+              endIcon={<SendOutlined fontSize="small" />}
+              sx={{
+                'marginTop': 1.25,
+                'textTransform': 'none',
                 'backgroundColor': accent,
                 'color': theme.palette.ai?.contrastText ?? theme.palette.primary.contrastText,
                 '&:hover': { backgroundColor: theme.palette.ai?.dark ?? theme.palette.primary.dark },
@@ -600,9 +859,34 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 },
               }}
             >
-              <SendOutlined fontSize="small" />
-            </IconButton>
-          </Stack>
+              {t('Send answer')}
+            </Button>
+          ) : (
+            <Stack sx={{
+              flexDirection: 'row',
+              justifyContent: 'flex-end',
+              marginTop: 1,
+            }}
+            >
+              <IconButton
+                color="primary"
+                disabled={!isActive || directive.trim().length === 0}
+                onClick={handleSendDirective}
+                sx={{
+                  'backgroundColor': accent,
+                  'color': theme.palette.ai?.contrastText ?? theme.palette.primary.contrastText,
+                  '&:hover': { backgroundColor: theme.palette.ai?.dark ?? theme.palette.primary.dark },
+                  '&.Mui-disabled': {
+                    backgroundColor: alpha(accent, 0.3),
+                    color: alpha('#ffffff', 0.5),
+                  },
+                }}
+              >
+                <SendOutlined fontSize="small" />
+              </IconButton>
+            </Stack>
+          )}
+
           {!isActive && (
             <Typography
               variant="caption"

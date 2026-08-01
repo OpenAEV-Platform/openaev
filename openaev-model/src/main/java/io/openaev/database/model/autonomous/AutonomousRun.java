@@ -10,10 +10,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 /**
  * One AI-driven, autonomous attack-path run. The "brain" lives in XTM One; this row is OpenAEV's
@@ -71,6 +77,35 @@ public class AutonomousRun implements TenantBase {
   @JsonProperty("autonomous_run_scope_asset_group_id")
   @Schema(description = "Asset group defining the initial in-scope perimeter")
   private String scopeAssetGroupId;
+
+  @Column(name = "autonomous_run_scope_team_id")
+  @JsonProperty("autonomous_run_scope_team_id")
+  @Schema(
+      description =
+          "First team of the scope, projected for convenience. Authoritative scope is the mixed"
+              + " list in autonomous_run_scope. An inject can only target a team, never a bare"
+              + " person.")
+  private String scopeTeamId;
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "autonomous_run_scope")
+  @JsonProperty("autonomous_run_scope")
+  @Schema(
+      description =
+          "Authoritative run scope: a mixed list of targetable entities (assets, asset groups,"
+              + " teams, persons). The orchestrator attacks within this perimeter.")
+  private List<AutonomousScopeTarget> scope = new ArrayList<>();
+
+  // Internal bookkeeping: maps each step template id authored on the SIMULATION workflow to the
+  // twin step template id mirrored onto the SCENARIO workflow. The orchestrator only ever knows the
+  // simulation step ids (those are what appendChainedStep returns), so when it authors a step that
+  // DEPEND_ONs a simulation parent, this lets us reattach the scenario twin to the scenario parent -
+  // keeping the mirrored attack path's kill-chain ordering intact for export. Never exposed to the
+  // API or the orchestrator.
+  @JsonIgnore
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "autonomous_run_step_mirror")
+  private Map<String, String> stepMirror = new HashMap<>();
 
   @Column(name = "autonomous_run_xtm_session_id")
   @JsonProperty("autonomous_run_xtm_session_id")

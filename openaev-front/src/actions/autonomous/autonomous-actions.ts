@@ -1,6 +1,7 @@
 import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import type { WorkflowConfigurationInput } from '../../utils/api-types';
 import type {
+  AutonomousAttackPathStepState,
   AutonomousDirective,
   AutonomousEvent,
   AutonomousObjectiveTemplate,
@@ -85,6 +86,15 @@ export const fetchAutonomousDirectives = (
   runId: string,
 ): Promise<{ data: AutonomousDirective[] }> =>
   simpleCall(`${AUTONOMOUS_URI}/${runId}/directives`, undefined, false);
+
+// Live snapshot of every step already authored on the run's attack path (each backing simulation
+// inject, its status and traces). The hero counts these so the autonomous inject/step stat matches
+// the Execution tab exactly, since an autonomous run authors its injects on the simulation rather
+// than on the scenario.
+export const fetchAutonomousAttackPathState = (
+  runId: string,
+): Promise<{ data: AutonomousAttackPathStepState[] }> =>
+  simpleCall(`${AUTONOMOUS_URI}/${runId}/attack-path/state`, undefined, false);
 
 // Queue a real-time steering directive; consumed by the orchestrator on its next decision cycle, so
 // it steers the live run without stopping it.

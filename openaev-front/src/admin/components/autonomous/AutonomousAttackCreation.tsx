@@ -15,24 +15,21 @@ import {
   type SvgIconComponent,
   TrackChanges,
 } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Button, Card, CardActionArea, IconButton, Skeleton, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardActionArea, IconButton, Skeleton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { searchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { createAutonomousRun, fetchObjectiveTemplates, startAutonomousRun } from '../../../actions/autonomous/autonomous-actions';
-import { type AutonomousObjectiveTemplate } from '../../../actions/autonomous/autonomous-types';
+import { type AutonomousObjectiveTemplate, type AutonomousScopeTarget } from '../../../actions/autonomous/autonomous-types';
 import Drawer from '../../../components/common/Drawer';
-import { type Page } from '../../../components/common/queryable/Page';
-import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../components/i18n';
 import { SCENARIO_BASE_URL, SIMULATION_BASE_URL } from '../../../constants/BaseUrls';
-import { type AssetGroup } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { isFeatureEnabled } from '../../../utils/utils';
 import EEChip from '../common/entreprise_edition/EEChip';
+import ScopeTargetsField from './ScopeTargetsField';
 
 // Maps the objective-template icon tokens seeded server-side (kebab-case, see
 // AutonomousObjectiveTemplateService) to MUI icons. Unknown/empty tokens fall
@@ -51,6 +48,11 @@ const OBJECTIVE_ICONS: Record<string, SvgIconComponent> = {
   'globe': Public,
   'user-check': HowToReg,
 };
+
+// Objective templates whose target is a human audience (phishing, human credential harvesting).
+// For these the run scope that matters is a TEAM (an inject can only be delivered to a team, never
+// to a bare person), so the drawer spotlights the team picker over the asset-group one.
+const IDENTITY_OBJECTIVE_KEYS = new Set(['phishing-to-access', 'harvest-credentials']);
 
 export interface AutonomousAttackCreationProps {
   /** Pre-select an asset group as the run scope (used by entity "Autonomous attack" entries). */
@@ -98,8 +100,7 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
   const [objective, setObjective] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [assetGroups, setAssetGroups] = useState<AssetGroup[]>([]);
-  const [scopeAssetGroupId, setScopeAssetGroupId] = useState<string | null>(null);
+  const [scope, setScope] = useState<AutonomousScopeTarget[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,17 +113,20 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
       .then(res => setTemplates(res.data ?? []))
       .catch(() => setTemplates([]))
       .finally(() => setLoadingTemplates(false));
-    searchAssetGroups(buildSearchPagination({ size: 100 }))
-      .then((result: { data: Page<AssetGroup> }) => setAssetGroups(result.data.content ?? []))
-      .catch(() => setAssetGroups([]));
   }, [open]);
 
   // Apply the preset scope (e.g. an asset group's "Autonomous attack") whenever the drawer opens.
   useEffect(() => {
     if (open && presetScopeAssetGroupId) {
-      setScopeAssetGroupId(presetScopeAssetGroupId);
+      setScope(current => (current.some(target => target.type === 'ASSETS_GROUPS' && target.id === presetScopeAssetGroupId)
+        ? current
+        : [...current, {
+            type: 'ASSETS_GROUPS',
+            id: presetScopeAssetGroupId,
+            name: presetScopeAssetGroupName ?? presetScopeAssetGroupId,
+          }]));
     }
-  }, [open, presetScopeAssetGroupId]);
+  }, [open, presetScopeAssetGroupId, presetScopeAssetGroupName]);
 
   const handleOpen = () => {
     if (!isEnterpriseEdition) {
@@ -139,7 +143,7 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
     setObjective('');
     setName('');
     setDescription('');
-    setScopeAssetGroupId(null);
+    setScope([]);
     setError(null);
   };
 
@@ -158,17 +162,10 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
   );
   const isTargetDependent = selectedTemplate?.autonomous_objective_template_scope_mode === 'target';
 
-  // Ensure a preset scope renders in the picker even before the asset-group list loads.
-  const assetGroupOptions
-    = presetScopeAssetGroupId && !assetGroups.some(group => group.asset_group_id === presetScopeAssetGroupId)
-      ? [
-          {
-            asset_group_id: presetScopeAssetGroupId,
-            asset_group_name: presetScopeAssetGroupName ?? presetScopeAssetGroupId,
-          } as unknown as AssetGroup,
-          ...assetGroups,
-        ]
-      : assetGroups;
+  // Identity-targeted objectives deliver to PEOPLE, and an inject can only reach a team - so the
+  // meaningful scope for these is an audience (teams / persons). The unified scope picker exposes
+  // all four kinds; this only decides which kind we spotlight first.
+  const isIdentityObjective = IDENTITY_OBJECTIVE_KEYS.has(selectedTemplateKey ?? '');
 
   const handleLaunch = () => {
     if (objective.trim().length === 0) {
@@ -181,7 +178,7 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
       objective_template_key: selectedTemplateKey ?? undefined,
       name: name.trim() || undefined,
       description: description.trim() || undefined,
-      scope_asset_group_id: scopeAssetGroupId ?? undefined,
+      scope: scope.length > 0 ? scope : undefined,
     })
       .then((res) => {
         const runId = res.data.autonomous_run_id;
@@ -366,32 +363,24 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
               <Typography variant="h2" gutterBottom>
                 {t('Scope (optional)')}
               </Typography>
-              <Autocomplete
-                options={assetGroupOptions}
-                value={assetGroupOptions.find(group => group.asset_group_id === scopeAssetGroupId) ?? null}
-                onChange={(_, value) => setScopeAssetGroupId(value?.asset_group_id ?? null)}
-                getOptionLabel={group => group.asset_group_name}
-                isOptionEqualToValue={(option, value) => option.asset_group_id === value.asset_group_id}
-                renderInput={params => (
-                  <TextField
-                    {...params}
-                    label={t('Restrict to an asset group')}
-                    placeholder={t('Leave empty to let the AI resolve the scope')}
-                  />
-                )}
-                fullWidth
+              <ScopeTargetsField
+                value={scope}
+                onChange={setScope}
+                emphasisType={isIdentityObjective ? 'TEAMS' : undefined}
               />
               <Typography
                 variant="caption"
-                color={isTargetDependent ? 'warning.main' : 'text.secondary'}
+                color={(isTargetDependent || isIdentityObjective) ? 'warning.main' : 'text.secondary'}
                 sx={{
                   display: 'block',
                   marginTop: theme.spacing(1),
                 }}
               >
-                {isTargetDependent
-                  ? t('This objective targets specific assets. Pick an asset group to focus the attack, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.')
-                  : t('Optional. This objective runs across the whole authorized environment; set an asset group only to narrow the blast radius.')}
+                {isIdentityObjective
+                  ? t('This objective targets people, so it needs an audience. Add the teams or persons that will receive the campaign (a person is targeted through a team - the AI wraps them for you), or leave it empty and the AI will ask you who is in scope before sending anything.')
+                  : isTargetDependent
+                    ? t('This objective targets a specific perimeter. Add the assets, asset groups, teams or persons to focus on, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.')
+                    : t('Optional. Mix any assets, asset groups, teams and persons to define the perimeter; leave it empty to let the AI resolve the scope. The AI uses whichever targets the technique needs.')}
               </Typography>
             </Box>
 
