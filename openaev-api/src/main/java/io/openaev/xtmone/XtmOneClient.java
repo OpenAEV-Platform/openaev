@@ -482,7 +482,7 @@ public class XtmOneClient {
    * is a no-op upstream, and a transport failure must never block the OpenAEV-side stop/delete (the
    * adapter also self-terminates a run whose OpenAEV row it can no longer reach).
    */
-  public void cancelAutonomousRun(String openaevRunId, String reason) {
+  public void cancelAutonomousRun(String openaevRunId, String reason, boolean purge) {
     if (!config.isConfigured() || openaevRunId == null) {
       return;
     }
@@ -492,9 +492,15 @@ public class XtmOneClient {
       if (reason != null) body.put("reason", reason);
       String json = objectMapper.writeValueAsString(body);
       String encodedRunId = URLEncoder.encode(openaevRunId, StandardCharsets.UTF_8);
-      HttpPost httpPost =
-          chatPostBuilder(
-              "/api/v1/platform/autonomous/runs/" + encodedRunId + "/cancel", jwt, json);
+      // purge=true also drops the run's XTM One coordination state (shared state + work items) so a
+      // later restart starts clean; stop / restart / delete set it, pause does not (resume keeps
+      // it).
+      String path =
+          "/api/v1/platform/autonomous/runs/"
+              + encodedRunId
+              + "/cancel"
+              + (purge ? "?purge=true" : "");
+      HttpPost httpPost = chatPostBuilder(path, jwt, json);
       httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(20)).build());
       httpClient.execute(
           httpPost,

@@ -1,22 +1,12 @@
 import {
-  AccountTreeOutlined,
   AutoAwesome,
-  BoltOutlined,
-  CancelOutlined,
-  CheckCircleOutline,
-  ExtensionOutlined,
-  FiberNewOutlined,
   HelpOutline,
-  InfoOutlined,
-  PauseCircleOutline,
-  PlayCircleOutline,
   SendOutlined,
-  WarningAmberOutlined,
 } from '@mui/icons-material';
 import { Box, Chip, CircularProgress, IconButton, Stack, TextField, Typography } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type FunctionComponent, useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   addAutonomousDirective,
@@ -32,98 +22,11 @@ import { useFormatter } from '../../../components/i18n';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useChatbot, useChatbotContentMargin } from '../ariane/useChatbotHooks';
+import { eventAccent, eventIcon } from './autonomousEventVisuals';
 import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 3000;
-
-// STATUS events all share one type but represent very different lifecycle moments (created, started,
-// paused, canceled, completed...). Classify by the (English, backend-authored) title so each step
-// reads with its own icon + color instead of a wall of identical sparkles.
-type StatusFlavor = 'created' | 'running' | 'paused' | 'ended' | 'completed' | 'default';
-
-const statusFlavor = (title?: string | null): StatusFlavor => {
-  const value = (title ?? '').toLowerCase();
-  if (value.includes('creat')) return 'created';
-  if (value.includes('start') || value.includes('resum') || value.includes('running')) return 'running';
-  if (value.includes('paus')) return 'paused';
-  if (value.includes('cancel') || value.includes('fail') || value.includes('error') || value.includes('stop')) return 'ended';
-  if (value.includes('complet') || value.includes('finish') || value.includes('done')) return 'completed';
-  return 'default';
-};
-
-// Per-event accent so the stream reads at a glance: reasoning is AI-purple, tool actions blue,
-// proofs green, gaps/questions amber, and each STATUS step gets a lifecycle-appropriate tone.
-const eventAccent = (event: AutonomousEvent, theme: Theme): string => {
-  switch (event.autonomous_event_type) {
-    case 'NARRATION':
-      return theme.palette.ai?.main ?? theme.palette.primary.main;
-    case 'DECISION':
-      return theme.palette.primary.main;
-    case 'TOOL_ACTION':
-    case 'HANDOVER':
-      return theme.palette.info.main;
-    case 'GAP':
-    case 'QUESTION':
-      return theme.palette.warning.main;
-    case 'PROOF':
-      return theme.palette.success.main;
-    case 'DIRECTIVE':
-      return theme.palette.secondary.main;
-    case 'STATUS':
-      switch (statusFlavor(event.autonomous_event_title)) {
-        case 'created':
-        case 'running':
-          return theme.palette.info.main;
-        case 'paused':
-          return theme.palette.warning.main;
-        case 'ended':
-          return theme.palette.error.main;
-        case 'completed':
-          return theme.palette.success.main;
-        default:
-          return theme.palette.text.disabled;
-      }
-    default:
-      return theme.palette.text.disabled;
-  }
-};
-
-const eventIcon = (event: AutonomousEvent): ReactNode => {
-  switch (event.autonomous_event_type) {
-    case 'DECISION':
-      return <BoltOutlined fontSize="small" />;
-    case 'TOOL_ACTION':
-      return <ExtensionOutlined fontSize="small" />;
-    case 'GAP':
-      return <WarningAmberOutlined fontSize="small" />;
-    case 'QUESTION':
-      return <HelpOutline fontSize="small" />;
-    case 'PROOF':
-      return <CheckCircleOutline fontSize="small" />;
-    case 'DIRECTIVE':
-      return <SendOutlined fontSize="small" />;
-    case 'HANDOVER':
-      return <AccountTreeOutlined fontSize="small" />;
-    case 'STATUS':
-      switch (statusFlavor(event.autonomous_event_title)) {
-        case 'created':
-          return <FiberNewOutlined fontSize="small" />;
-        case 'running':
-          return <PlayCircleOutline fontSize="small" />;
-        case 'paused':
-          return <PauseCircleOutline fontSize="small" />;
-        case 'ended':
-          return <CancelOutlined fontSize="small" />;
-        case 'completed':
-          return <CheckCircleOutline fontSize="small" />;
-        default:
-          return <InfoOutlined fontSize="small" />;
-      }
-    default:
-      return <AutoAwesome fontSize="small" />;
-  }
-};
 
 // Live "thinking" window shown at the tail of the stream while the run is active: three pulsing
 // dots plus the orchestrator's most recent reasoning line, faintly shimmering, so the panel feels
@@ -139,86 +42,109 @@ const ThinkingBubble: FunctionComponent<{
   theme,
   latest,
   label,
-}) => (
-  <Box
-    sx={{
-      'marginTop': 0.5,
-      'paddingLeft': 2,
-      'position': 'relative',
-      '@keyframes aevThinkingShimmer': {
-        '0%': { opacity: 0.35 },
-        '50%': { opacity: 0.9 },
-        '100%': { opacity: 0.35 },
-      },
-      '@keyframes aevThinkingDot': {
-        '0%, 80%, 100%': {
-          transform: 'scale(0.6)',
-          opacity: 0.3,
+}) => {
+  // Keep the window pinned to the bottom as the reasoning text changes, so it "defiles" like the
+  // XTM One chatbot thinking window - the newest lines sit at the bottom and older text scrolls up
+  // out of view (rather than clamping to the first lines and looking frozen on long reasoning).
+  const textRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const node = textRef.current;
+    if (node) {
+      node.scrollTop = node.scrollHeight;
+    }
+  }, [latest]);
+
+  return (
+    <Box
+      sx={{
+        'marginTop': 0.5,
+        'paddingLeft': 2,
+        'position': 'relative',
+        '@keyframes aevThinkingShimmer': {
+          '0%': { opacity: 0.35 },
+          '50%': { opacity: 0.9 },
+          '100%': { opacity: 0.35 },
         },
-        '40%': {
-          transform: 'scale(1)',
-          opacity: 1,
+        '@keyframes aevThinkingDot': {
+          '0%, 80%, 100%': {
+            transform: 'scale(0.6)',
+            opacity: 0.3,
+          },
+          '40%': {
+            transform: 'scale(1)',
+            opacity: 1,
+          },
         },
-      },
-    }}
-  >
-    <Stack sx={{
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 0.75,
-    }}
+      }}
     >
       <Stack sx={{
         flexDirection: 'row',
-        gap: 0.4,
         alignItems: 'center',
+        gap: 0.75,
       }}
       >
-        {[0, 1, 2].map(i => (
-          <Box
-            key={i}
-            sx={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              backgroundColor: accent,
-              animation: 'aevThinkingDot 1.4s infinite ease-in-out both',
-              animationDelay: `${i * 0.16}s`,
-            }}
-          />
-        ))}
+        <Stack sx={{
+          flexDirection: 'row',
+          gap: 0.4,
+          alignItems: 'center',
+        }}
+        >
+          {[0, 1, 2].map(i => (
+            <Box
+              key={i}
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                backgroundColor: accent,
+                animation: 'aevThinkingDot 1.4s infinite ease-in-out both',
+                animationDelay: `${i * 0.16}s`,
+              }}
+            />
+          ))}
+        </Stack>
+        <Typography
+          variant="caption"
+          sx={{
+            color: accent,
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+          }}
+        >
+          {label}
+        </Typography>
       </Stack>
-      <Typography
-        variant="caption"
-        sx={{
-          color: accent,
-          fontWeight: 600,
-          letterSpacing: '0.02em',
-        }}
-      >
-        {label}
-      </Typography>
-    </Stack>
-    {latest && (
-      <Typography
-        variant="caption"
-        sx={{
-          display: '-webkit-box',
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-          marginTop: 0.5,
-          fontStyle: 'italic',
-          color: alpha(theme.palette.text.secondary, 0.9),
-          whiteSpace: 'pre-wrap',
-          animation: 'aevThinkingShimmer 2.4s ease-in-out infinite',
-        }}
-      >
-        {latest}
-      </Typography>
-    )}
-  </Box>
-);
+      {latest && (
+        <Box
+          ref={textRef}
+          sx={{
+            'maxHeight': 54,
+            'overflowY': 'auto',
+            'marginTop': 0.5,
+            // Fade the top edge so text appears to scroll up out of view; no visible scrollbar.
+            'maskImage': 'linear-gradient(to bottom, transparent 0, black 18px)',
+            'WebkitMaskImage': 'linear-gradient(to bottom, transparent 0, black 18px)',
+            'scrollbarWidth': 'none',
+            '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{
+              display: 'block',
+              fontStyle: 'italic',
+              color: alpha(theme.palette.text.secondary, 0.9),
+              whiteSpace: 'pre-wrap',
+              animation: 'aevThinkingShimmer 2.4s ease-in-out infinite',
+            }}
+          >
+            {latest}
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  );
+};
 
 interface AutonomousReasoningPanelProps {
   run: AutonomousRun;
@@ -265,7 +191,12 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   const [directive, setDirective] = useState('');
   const cursorRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Latest run pushed down by the parent, read by the identity-change sync effect below without
+  // making the whole object a dependency (which would re-fire on every parent re-render).
+  const initialRunRef = useRef(initialRun);
+  initialRunRef.current = initialRun;
   const runId = run.autonomous_run_id;
+  const simulationId = run.autonomous_run_simulation_id;
 
   // Drag the left edge to widen the panel. Deltas are measured from the drag origin so the math is
   // independent of the chatbot offset; the parent hook clamps to [min, 1/3 viewport].
@@ -307,17 +238,36 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       const incoming = res.data ?? [];
       if (incoming.length > 0) {
         cursorRef.current = Math.max(cursorRef.current, ...incoming.map(e => e.autonomous_event_sequence));
-        setEvents(prev => [...prev, ...incoming]);
+        // Dedupe by event id: the mount reset-poll and the interval poll can both fetch from the
+        // same cursor before it advances (and dev StrictMode double-invokes the mount effect), so a
+        // naive append renders every event twice. Only add ids we have not seen yet.
+        setEvents((prev) => {
+          const seen = new Set(prev.map(e => e.autonomous_event_id));
+          const fresh = incoming.filter(e => !seen.has(e.autonomous_event_id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
       }
     })
     .catch(() => {}), [runId]);
 
-  // Reset and reload whenever the run changes (navigating between simulations reuses the panel).
+  // A restart reuses the SAME autonomous run id but provisions a fresh simulation and flips the run
+  // back to RUNNING, while wiping the server-side timeline. useState(initialRun) only captures the
+  // run at mount, so without re-syncing from the parent the panel would keep showing the torn-down
+  // (terminal) run - and, because refreshRun only polls while active, never recover until a full
+  // page reload. Re-sync whenever the parent's run or its underlying simulation changes.
+  useEffect(() => {
+    setRun(initialRunRef.current);
+  }, [initialRun.autonomous_run_id, initialRun.autonomous_run_simulation_id]);
+
+  // Reset and reload whenever the run OR its underlying simulation changes: navigating between
+  // simulations reuses the panel, and a restart swaps the simulation under the same run id and
+  // clears the timeline server-side - keying on the simulation id makes the stream drop the stale
+  // events instead of stranding them (which previously required a manual full reload).
   useEffect(() => {
     cursorRef.current = 0;
     setEvents([]);
     pollTimeline();
-  }, [runId, pollTimeline]);
+  }, [runId, simulationId, pollTimeline]);
 
   const status = run.autonomous_run_status;
   const isActive = ACTIVE_STATUSES.includes(status);

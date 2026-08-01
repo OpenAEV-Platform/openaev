@@ -65,7 +65,8 @@ import useScenarioPermissions from '../../../../utils/permissions/useScenarioPer
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import AutonomousRunControls from '../../autonomous/AutonomousRunControls';
-import autonomousRunStatusColor, { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
+import AutonomousRunStatusChip from '../../autonomous/AutonomousRunStatusChip';
+import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -282,21 +283,12 @@ const ScenarioHeader = ({
           title={truncate(scenario.scenario_name, 80) ?? ''}
           chips={(
             <>
-              {/* Autonomous run status sits first (left), same coloured outlined chip a simulation
-                  shows for its ExerciseStatus - the single source of truth for the run state, so it
-                  is not duplicated in the hero actions or the reasoning panel. */}
+              {/* Autonomous run status sits first (left), rendered with the SAME chip a simulation
+                  shows for its ExerciseStatus (AutonomousRunStatusChip mirrors ExerciseStatus) - the
+                  single source of truth for the run state, so it is not duplicated in the hero
+                  actions or the reasoning panel. */}
               {isAutonomous && autonomousStatus && (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  color={autonomousRunStatusColor(autonomousStatus)}
-                  label={t(autonomousStatus)}
-                  sx={{
-                    borderRadius: 1,
-                    height: 22,
-                    fontSize: 11,
-                  }}
-                />
+                <AutonomousRunStatusChip status={autonomousStatus} variant="list" />
               )}
               <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
               <ItemCategory category={scenario.scenario_category ?? 'Unknown'} label={t(scenario.scenario_category ?? 'Unknown')} size="small" />

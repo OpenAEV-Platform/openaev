@@ -158,7 +158,6 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Run cannot be started from status " + run.getStatus());
     }
-    engageOrchestrator(run);
     run.setStatus(AutonomousRunStatus.RUNNING);
     run.setLastError(null);
     AutonomousRun saved = runRepository.save(run);
@@ -169,34 +168,111 @@ public class AutonomousRunService {
         "Run started",
         "Orchestrator engaged; autonomous execution is now running.",
         null);
+    engageOrchestratorAfterCommit(saved);
     return saved;
   }
 
   /**
-   * Engages (or re-engages) the XTM One orchestrator for {@code run} and captures the returned
-   * session handle. The upstream start endpoint is idempotent AND re-engaging: it resets the run's
-   * existing durable execution to a fresh engagement when one already exists (restart / resume) or
-   * creates one otherwise, so this single call covers first start, resume, and restart. Shared by
-   * {@link #start} and {@link #resume} so both attribute the run to the acting operator's JWT and
-   * refresh {@code xtmSessionId} the same way.
+   * Schedules engagement (or re-engagement) of the XTM One orchestrator for {@code run} once the
+   * surrounding transaction has committed. The upstream start endpoint is idempotent AND
+   * re-engaging: it resets the run's existing durable execution to a fresh engagement when one
+   * already exists (restart / resume) or creates one otherwise, so this single call covers first
+   * start, resume, and restart.
+   *
+   * <p><b>Never call the orchestrator inside the transaction.</b> {@link
+   * XtmOneClient#startAutonomousRun} is a blocking HTTP call; running it before commit parks the
+   * request thread with the run + simulation row locks still held, which is exactly what wedged a
+   * scenario delete behind an {@code idle in transaction} connection. Deferring to {@code
+   * afterCommit} (mirroring the cancel / wake paths) means the locks are already released when the
+   * call runs, so a slow or unreachable XTM One can never block OpenAEV's own read / delete paths.
+   * The returned session handle is persisted in its own short transaction, and an engage failure is
+   * recorded on the run (never rolls the start/resume back).
    */
-  private void engageOrchestrator(AutonomousRun run) {
-    Map<String, Object> handle =
-        xtmOneClient.startAutonomousRun(
-            run.getXtmAgentSlug(),
-            run.getObjective(),
-            run.getId(),
-            run.getSimulationId(),
-            run.getScopeAssetGroupId(),
-            resolveScopeMode(run.getObjectiveTemplateKey()),
-            openAEVConfig.getBaseUrl());
-    if (handle != null) {
-      run.setXtmSessionId(asString(handle.get("session_id")));
-      String slug = asString(handle.get("agent_slug"));
-      if (slug != null) {
-        run.setXtmAgentSlug(slug);
-      }
+  private void engageOrchestratorAfterCommit(AutonomousRun run) {
+    // Snapshot the values the call needs now, while the entity is managed - the callback runs after
+    // this transaction has committed and the entity may be detached.
+    final String runId = run.getId();
+    final String agentSlug = run.getXtmAgentSlug();
+    final String objective = run.getObjective();
+    final String simulationId = run.getSimulationId();
+    final String scopeAssetGroupId = run.getScopeAssetGroupId();
+    final String scopeMode = resolveScopeMode(run.getObjectiveTemplateKey());
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              engageOrchestratorNow(
+                  runId, agentSlug, objective, simulationId, scopeAssetGroupId, scopeMode);
+            }
+          });
+    } else {
+      engageOrchestratorNow(
+          runId, agentSlug, objective, simulationId, scopeAssetGroupId, scopeMode);
     }
+  }
+
+  /**
+   * Performs the actual (transaction-free) orchestrator engagement and persists the returned
+   * session handle. Best-effort: any failure is recorded on the run as {@code lastError} rather
+   * than thrown, because the run is already committed as RUNNING and the durable execution / manual
+   * resume is the backstop.
+   */
+  private void engageOrchestratorNow(
+      String runId,
+      String agentSlug,
+      String objective,
+      String simulationId,
+      String scopeAssetGroupId,
+      String scopeMode) {
+    try {
+      Map<String, Object> handle =
+          xtmOneClient.startAutonomousRun(
+              agentSlug,
+              objective,
+              runId,
+              simulationId,
+              scopeAssetGroupId,
+              scopeMode,
+              openAEVConfig.getBaseUrl());
+      String sessionId = handle != null ? asString(handle.get("session_id")) : null;
+      String resolvedSlug = handle != null ? asString(handle.get("agent_slug")) : null;
+      persistSessionHandle(runId, sessionId, resolvedSlug, null);
+    } catch (Exception e) {
+      log.warn("[Autonomous] Failed to engage orchestrator for run {}", runId, e);
+      persistSessionHandle(
+          runId, null, null, "Failed to engage the XTM One orchestrator: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Persists the orchestrator session handle (and/or an engage error) onto the run in its own short
+   * transaction, after the engage call has already returned. Uses a fresh load so it is safe to run
+   * post-commit on a detached entity.
+   */
+  private void persistSessionHandle(
+      String runId, String sessionId, String agentSlug, String error) {
+    runRepository
+        .findById(runId)
+        .ifPresent(
+            run -> {
+              boolean changed = false;
+              if (sessionId != null) {
+                run.setXtmSessionId(sessionId);
+                changed = true;
+              }
+              if (agentSlug != null) {
+                run.setXtmAgentSlug(agentSlug);
+                changed = true;
+              }
+              if (error != null) {
+                run.setLastError(error);
+                changed = true;
+              }
+              if (changed) {
+                runRepository.save(run);
+              }
+            });
   }
 
   /**
@@ -214,7 +290,9 @@ public class AutonomousRunService {
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId, run.getSimulationId(), AutonomousEventType.STATUS, "Run paused", null, null);
-    cancelOrchestratorAfterCommit(runId, "run paused by operator");
+    // Pause must NOT purge: a resume re-engages the SAME run and should continue from its existing
+    // shared state + open work items, not start over.
+    cancelOrchestratorAfterCommit(runId, "run paused by operator", false);
     return saved;
   }
 
@@ -224,26 +302,42 @@ public class AutonomousRunService {
     requireFeature();
     AutonomousRun run = require(runId);
     transitionSimulation(run, ExerciseStatus.RUNNING);
-    engageOrchestrator(run);
     run.setStatus(AutonomousRunStatus.RUNNING);
     run.setLastError(null);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId, run.getSimulationId(), AutonomousEventType.STATUS, "Run resumed", null, null);
+    engageOrchestratorAfterCommit(saved);
     return saved;
   }
 
-  /** Cancels a run and its chained simulation, halting the XTM One orchestrator. Terminal. */
+  /**
+   * Cancels a run and its chained simulation, halting the XTM One orchestrator. Terminal.
+   *
+   * <p>Deliberately resilient: moving the run to {@code CANCELED} must ALWAYS succeed, even when the
+   * underlying simulation is already terminal (e.g. it was canceled a moment earlier and the
+   * backend died before this run row was saved - the exact "simulation canceled but scenario still
+   * running, now I can't stop or delete it" deadlock). So the simulation transition is best-effort
+   * (never rolls the cancel back) and a run already terminal is an idempotent no-op.
+   */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun cancel(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
-    transitionSimulation(run, ExerciseStatus.CANCELED);
+    if (run.getStatus() == AutonomousRunStatus.CANCELED) {
+      return run;
+    }
+    // Best-effort, not strict: an already-CANCELED/FINISHED simulation must not block the run from
+    // settling to CANCELED, otherwise a mid-cancel crash leaves the operator permanently stuck.
+    transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
     run.setStatus(AutonomousRunStatus.CANCELED);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId, run.getSimulationId(), AutonomousEventType.STATUS, "Run canceled", null, null);
-    cancelOrchestratorAfterCommit(runId, "run canceled by operator");
+    // Stop purges the run's coordination state so a later restart starts clean (re-asks the
+    // operator
+    // for scope instead of re-reading a stale resolved target / open exploitation task).
+    cancelOrchestratorAfterCommit(runId, "run canceled by operator", true);
     return saved;
   }
 
@@ -268,7 +362,9 @@ public class AutonomousRunService {
     // Stop the previous XTM One orchestration before tearing its simulation down, so a lingering
     // decision cycle can't dispatch injects against the simulation we are about to delete. The
     // subsequent start() re-engages the run cleanly (upstream start resets the same execution).
-    cancelOrchestratorAfterCommit(runId, "run restarted by operator");
+    // Restart is a full reset: purge the run's coordination state so the fresh simulation is not
+    // driven by the previous run's assumptions.
+    cancelOrchestratorAfterCommit(runId, "run restarted by operator", true);
     // Tear the previous simulation down (attack-path executions + findings included) so the graph
     // and posture reset to empty rather than lingering from the previous run.
     if (hasText(run.getSimulationId())) {
@@ -324,6 +420,9 @@ public class AutonomousRunService {
     if (run == null) {
       return;
     }
+    // Hard-link first: if the simulation already died (canceled/finished/deleted) the run must be
+    // treated as terminal so a stale "still running" status can't wrongly block the delete.
+    run = reconcileWithSimulation(run);
     AutonomousRunStatus status = run.getStatus();
     if (status == AutonomousRunStatus.CREATED
         || status == AutonomousRunStatus.RUNNING
@@ -332,12 +431,46 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Stop the autonomous run before deleting its scenario");
     }
+    tearDownRun(run);
+  }
+
+  /**
+   * Best-effort teardown of the autonomous run owning {@code scenarioId}, used by the <b>bulk</b>
+   * scenario-delete path (which resolves and deletes many scenarios in independent chunked
+   * transactions and therefore cannot rely on the single-delete endpoint calling {@link
+   * #deleteForScenario}). Unlike {@link #deleteForScenario} it does <b>not</b> refuse an active run
+   * with 409: the operator has already committed to deleting these scenarios, so a still-live run
+   * is force-canceled (orchestrator halted + coordination state purged) rather than left as an
+   * orphan {@code autonomous_runs} row whose XTM One orchestration keeps running against a deleted
+   * simulation. A no-op for manual scenarios and when the preview feature is off, so the bulk path
+   * can call it unconditionally per id.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteForScenarioForce(String scenarioId) {
+    if (!previewFeatureService.isAutonomousAttackPathEnabled()) {
+      return;
+    }
+    AutonomousRun run = runRepository.findByScenarioId(scenarioId).orElse(null);
+    if (run == null) {
+      return;
+    }
+    tearDownRun(run);
+  }
+
+  /**
+   * Tears an autonomous run down together with its underlying simulation, decision timeline, and
+   * steering directives, and halts the XTM One orchestration. Shared by both scenario-delete paths
+   * (single and bulk) so an autonomous run is cleaned up the same way however its scenario is
+   * deleted - never leaving an orphaned run row or a self-resuming durable execution behind.
+   */
+  private void tearDownRun(AutonomousRun run) {
     // Halt the XTM One orchestration first: once the run row is gone OpenAEV can no longer be
     // driven, but a still-live durable execution would keep self-resuming and dispatching injects
     // against the deleted simulation. Fired after commit (the run id is captured now) so the
-    // upstream cancel resolves the same execution by its stable dedup key.
+    // upstream cancel resolves the same execution by its stable dedup key. Purge so no orphaned
+    // shared state / work items linger after the scenario and its simulation are gone.
     String runId = run.getId();
-    cancelOrchestratorAfterCommit(runId, "autonomous scenario deleted");
+    cancelOrchestratorAfterCommit(runId, "autonomous scenario deleted", true);
     if (hasText(run.getSimulationId())) {
       exerciseService.deleteById(run.getSimulationId());
     }
@@ -472,17 +605,17 @@ public class AutonomousRunService {
    * synchronous fallback covers the no-active-transaction case. Best-effort: a transport failure is
    * swallowed by the client and the adapter's own self-guard is the backstop.
    */
-  private void cancelOrchestratorAfterCommit(String runId, String reason) {
+  private void cancelOrchestratorAfterCommit(String runId, String reason, boolean purge) {
     if (TransactionSynchronizationManager.isSynchronizationActive()) {
       TransactionSynchronizationManager.registerSynchronization(
           new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-              xtmOneClient.cancelAutonomousRun(runId, reason);
+              xtmOneClient.cancelAutonomousRun(runId, reason, purge);
             }
           });
     } else {
-      xtmOneClient.cancelAutonomousRun(runId, reason);
+      xtmOneClient.cancelAutonomousRun(runId, reason, purge);
     }
   }
 
@@ -511,10 +644,12 @@ public class AutonomousRunService {
 
   // region reads
 
-  @Transactional(readOnly = true)
+  // Not read-only: reconcileWithSimulation may need to persist a status sync so a run whose
+  // simulation died out-of-band settles itself instead of dangling active forever.
+  @Transactional(rollbackFor = Exception.class)
   public AutonomousRun get(String runId) {
     requireFeature();
-    return require(runId);
+    return reconcileWithSimulation(require(runId));
   }
 
   @Transactional(readOnly = true)
@@ -529,15 +664,16 @@ public class AutonomousRunService {
    * editor. 404 when the simulation is not autonomous, so the caller can treat the absence as
    * "manual".
    */
-  @Transactional(readOnly = true)
+  @Transactional(rollbackFor = Exception.class)
   public AutonomousRun getBySimulation(String simulationId) {
     requireFeature();
-    return runRepository
-        .findBySimulationId(simulationId)
-        .orElseThrow(
-            () ->
-                new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, "No autonomous run drives this simulation"));
+    return reconcileWithSimulation(
+        runRepository
+            .findBySimulationId(simulationId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "No autonomous run drives this simulation")));
   }
 
   /**
@@ -546,15 +682,16 @@ public class AutonomousRunService {
    * lets the scenario detail page render the same AI-driven cockpit and steer the underlying
    * simulation. 404 when the scenario is not autonomous.
    */
-  @Transactional(readOnly = true)
+  @Transactional(rollbackFor = Exception.class)
   public AutonomousRun getByScenario(String scenarioId) {
     requireFeature();
-    return runRepository
-        .findByScenarioId(scenarioId)
-        .orElseThrow(
-            () ->
-                new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, "No autonomous run drives this scenario"));
+    return reconcileWithSimulation(
+        runRepository
+            .findByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "No autonomous run drives this scenario")));
   }
 
   @Transactional(readOnly = true)
@@ -646,6 +783,76 @@ public class AutonomousRunService {
           HttpStatus.BAD_REQUEST, "An objective (free text or template key) is required");
     }
     return objective.trim();
+  }
+
+  /**
+   * Hard-links the run's lifecycle to its simulation. An autonomous scenario, its run, and its
+   * single simulation are one unit, so if the simulation reaches a terminal state out-of-band -
+   * canceled from the simulations list, finished by the chaining engine, timed out, or (the
+   * reported case) canceled by a Stop click whose backend died before the run row was saved - the
+   * run must follow instead of dangling in an active state the operator can neither stop nor
+   * delete. A deleted simulation counts as terminal too (nothing left to drive -> canceled).
+   *
+   * <p>Idempotent: only an ACTIVE run is ever reconciled, and a run already matching its simulation
+   * is left untouched, so this is safe to call on every read (page load / poll). Best-effort on the
+   * orchestrator halt so a transport hiccup never blocks the sync.
+   */
+  private AutonomousRun reconcileWithSimulation(AutonomousRun run) {
+    if (run == null || !hasText(run.getSimulationId())) {
+      return run;
+    }
+    AutonomousRunStatus current = run.getStatus();
+    boolean active =
+        current == AutonomousRunStatus.CREATED
+            || current == AutonomousRunStatus.RUNNING
+            || current == AutonomousRunStatus.PAUSED
+            || current == AutonomousRunStatus.WAITING_INPUT;
+    if (!active) {
+      return run;
+    }
+    ExerciseStatus simStatus = loadSimulationStatusOrNull(run.getSimulationId());
+    AutonomousRunStatus target;
+    if (simStatus == null) {
+      // Simulation deleted out-of-band: there is nothing left to drive, settle the run.
+      target = AutonomousRunStatus.CANCELED;
+    } else if (simStatus == ExerciseStatus.CANCELED) {
+      target = AutonomousRunStatus.CANCELED;
+    } else if (simStatus == ExerciseStatus.FINISHED) {
+      target = AutonomousRunStatus.COMPLETED;
+    } else {
+      // Scheduled / running / paused: the simulation is still live, no desync to fix.
+      return run;
+    }
+    if (target == current) {
+      return run;
+    }
+    run.setStatus(target);
+    AutonomousRun saved = runRepository.save(run);
+    eventService.append(
+        run.getId(),
+        run.getSimulationId(),
+        AutonomousEventType.STATUS,
+        target == AutonomousRunStatus.CANCELED ? "Run canceled" : "Run completed",
+        "Synced from the underlying simulation ("
+            + (simStatus == null ? "deleted" : simStatus.name())
+            + "): an autonomous run and its simulation are always kept in lockstep.",
+        null);
+    // The run is now terminal, so stop the orchestrator loop too (purge on cancel so a later
+    // restart starts clean). Best-effort, after commit.
+    cancelOrchestratorAfterCommit(
+        run.getId(),
+        "run reconciled to " + target + " from simulation status",
+        target == AutonomousRunStatus.CANCELED);
+    return saved;
+  }
+
+  /** Reads the simulation's status, or {@code null} when it no longer exists / is unreadable. */
+  private ExerciseStatus loadSimulationStatusOrNull(String simulationId) {
+    try {
+      return exerciseService.exercise(simulationId).getStatus();
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   /** Transitions the chained simulation, surfacing an invalid transition as a 400. */

@@ -502,11 +502,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     fetchAttackPathSimulations()
       .then((r) => {
         const all = r.data ?? [];
-        // Scenario context: only this scenario's runs that actually have attack-path data. Simulation
-        // context: every run in the tenant (the picker is hidden, so this is just the summary source).
-        const rows = scenarioExerciseIds
-          ? all.filter(s => !!s.simulationId && scenarioExerciseIds.includes(s.simulationId))
-          : all;
+        // Scenario context: this scenario's runs. We must include EVERY scenario simulation as a
+        // selectable option - even one with no attack-path data yet (a fresh / autonomous run starts
+        // with 0 injects and fills the graph in live) - otherwise the picker shows "No options",
+        // auto-select never fires, and the live graph is never mounted so it can never start drawing.
+        // Simulation context: every run in the tenant (picker hidden; this is just the summary source).
+        let rows: AttackPathSimSummaryRow[];
+        if (scenarioExerciseIds) {
+          const withData = all.filter(
+            s => !!s.simulationId && scenarioExerciseIds.includes(s.simulationId),
+          );
+          const haveIds = new Set(withData.map(s => s.simulationId));
+          const withoutData: AttackPathSimSummaryRow[] = scenarioExerciseIds
+            .filter(id => !haveIds.has(id))
+            .map(id => ({ simulationId: id }));
+          rows = [...withData, ...withoutData];
+        } else {
+          rows = all;
+        }
         setSimulations(rows);
         // Scenario context has no route exerciseId, so pick a default run: the most recent by start
         // date once meta resolves, falling back to the first available run if meta is unavailable so

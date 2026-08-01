@@ -2,6 +2,8 @@ package io.openaev.service.autonomous;
 
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
+import io.openaev.api.autonomous.dto.CapabilityReport.ArsenalInventory;
+import io.openaev.api.autonomous.dto.CapabilityReport.InstalledInjector;
 import io.openaev.api.autonomous.dto.CapabilityResolution;
 import io.openaev.api.autonomous.dto.CapabilityResolution.ResolvedContract;
 import io.openaev.api.autonomous.dto.CapabilityResolution.SuggestedConnector;
@@ -9,10 +11,15 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.InjectorRepository;
+import io.openaev.helper.AgentHelper;
 import io.openaev.service.PreviewFeatureService;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -53,7 +60,17 @@ public class CapabilityResolverService {
 
   private final InjectorContractRepository injectorContractRepository;
   private final CatalogConnectorRepository catalogConnectorRepository;
+  private final InjectorRepository injectorRepository;
+  private final AgentRepository agentRepository;
   private final PreviewFeatureService previewFeatureService;
+
+  /**
+   * External injectors must heartbeat (they bump {@code updatedAt} on registration/ping); we treat
+   * one as active if it pinged within this window. Deliberately lenient (6h) so a slow-heartbeat
+   * injector is never reported as "dead" and the orchestrator never tells the operator to restart a
+   * healthy service. Built-in in-process injectors are always active regardless of this window.
+   */
+  private static final long INJECTOR_HEARTBEAT_STALE_MS = 6L * 60L * 60L * 1000L;
 
   /**
    * Keyword hints per capability, so a marketplace suggestion for a gap like "credentials" also
@@ -77,7 +94,19 @@ public class CapabilityResolverService {
           Map.entry("group", List.of("active directory", "ad", "enumeration")),
           Map.entry("sid", List.of("active directory", "ad")),
           Map.entry("file", List.of("file", "exfil", "collection")),
-          Map.entry("delegation", List.of("active directory", "ad", "delegation")));
+          Map.entry("delegation", List.of("active directory", "ad", "delegation")),
+          // Exploitation techniques (keyed by lowercased ATT&CK id) - the "detect -> exploit" gap
+          // the orchestrator hits most. Without these, resolving T1190/T1210/T1505.003 returned "no
+          // connector suggested" and the brain jumped straight to a broad assumption.
+          Map.entry("t1190", List.of("exploit", "web", "http", "rce", "public-facing", "payload")),
+          Map.entry("t1210", List.of("exploit", "remote service", "rce", "lateral", "payload")),
+          Map.entry("t1505.003", List.of("web shell", "webshell", "shell", "backdoor", "http")),
+          Map.entry("t1059", List.of("command", "shell", "execution", "payload")),
+          Map.entry("t1203", List.of("exploit", "client", "payload")),
+          Map.entry("t1211", List.of("exploit", "defense evasion", "payload")),
+          Map.entry("exploit", List.of("exploit", "payload", "rce", "web", "http")),
+          Map.entry("webshell", List.of("web shell", "webshell", "shell", "backdoor")),
+          Map.entry("foothold", List.of("exploit", "web", "shell", "payload", "rce")));
 
   private static final int MAX_SUGGESTIONS = 5;
 
@@ -116,8 +145,86 @@ public class CapabilityResolverService {
 
     List<CapabilityResolution> gaps =
         resolutions.stream().filter(r -> !r.isSatisfied()).collect(Collectors.toList());
-    return new CapabilityReport(resolutions, gaps, gaps.isEmpty() && !resolutions.isEmpty());
+    return new CapabilityReport(
+        resolutions, gaps, gaps.isEmpty() && !resolutions.isEmpty(), buildArsenalInventory());
   }
+
+  // region arsenal / delivery substrate
+
+  /**
+   * Snapshots what the tenant can actually execute right now, so the orchestrator stops guessing
+   * where a crafted payload runs. Two substrates matter for turning a proven web vulnerability into
+   * a foothold: an active HTTP-request injector (raw web exploit payloads run from the platform)
+   * and at least one live agent (Command payloads run on a host). When neither exists, the advice
+   * tells the operator exactly what to enable/add instead of the orchestrator assuming a phantom
+   * host.
+   */
+  private ArsenalInventory buildArsenalInventory() {
+    long now = Instant.now().toEpochMilli();
+    List<InstalledInjector> installed = new ArrayList<>();
+    boolean httpDelivery = false;
+    for (Injector injector : injectorRepository.findAll()) {
+      boolean active = isInjectorActive(injector, now);
+      installed.add(
+          new InstalledInjector(
+              injector.getType(), injector.getName(), active, injector.isPayloads()));
+      if (active && isHttpDelivery(injector)) {
+        httpDelivery = true;
+      }
+    }
+
+    int activeAgents =
+        (int)
+            agentRepository.countByLastSeenAfter(
+                Instant.ofEpochMilli(now - AgentHelper.ACTIVE_THRESHOLD));
+    boolean commandDelivery = activeAgents > 0;
+
+    return new ArsenalInventory(
+        installed,
+        httpDelivery,
+        commandDelivery,
+        activeAgents,
+        buildDeliveryAdvice(httpDelivery, commandDelivery, activeAgents));
+  }
+
+  private boolean isInjectorActive(Injector injector, long now) {
+    // Built-in injectors run in-process (they never heartbeat), so they are always available.
+    if (!injector.isExternal()) {
+      return true;
+    }
+    Instant updated = injector.getUpdatedAt();
+    return updated != null && (now - updated.toEpochMilli()) < INJECTOR_HEARTBEAT_STALE_MS;
+  }
+
+  /** An injector able to forge raw HTTP requests (the substrate for web exploit payloads). */
+  private boolean isHttpDelivery(Injector injector) {
+    String type = injector.getType();
+    return type != null && type.toLowerCase(Locale.ROOT).contains("http");
+  }
+
+  private String buildDeliveryAdvice(boolean http, boolean command, int activeAgents) {
+    if (http && command) {
+      return "Delivery substrate ready: HTTP-request injector for web payloads, and "
+          + activeAgents
+          + " active agent(s) for Command payloads.";
+    }
+    if (http) {
+      return "Web exploit payloads can run via the HTTP-request injector. No active agent, so a"
+          + " Command action has no host - add an in-scope endpoint with an active agent before"
+          + " crafting Command payloads.";
+    }
+    if (command) {
+      return activeAgents
+          + " active agent(s) can run Command payloads. No active HTTP-request injector - enable"
+          + " the HTTP query injector to deliver raw web exploit payloads (SQLi, SSRF, path"
+          + " traversal, auth bypass).";
+    }
+    return "No delivery substrate available: enable the HTTP query injector for web payloads and/or"
+        + " add an in-scope endpoint with an active agent for Command payloads before crafting"
+        + " custom arsenal actions.";
+  }
+
+  // endregion
 
   private CapabilityResolution resolveTechnique(
       String externalId, ContractIndex index, Set<Endpoint.PLATFORM_TYPE> platformFilter) {

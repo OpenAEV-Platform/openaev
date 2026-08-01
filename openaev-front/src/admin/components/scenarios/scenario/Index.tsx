@@ -41,6 +41,7 @@ const ScenarioScope = lazy(() => import('./scope/ScenarioScope'));
 const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
+const ScenarioExecution = lazy(() => import('./execution/ScenarioExecution'));
 
 const IndexScenarioComponent: FunctionComponent<{
   scenario: ScenarioOutput;
@@ -113,6 +114,12 @@ const IndexScenarioComponent: FunctionComponent<{
           )}
           <Tab
             component={Link}
+            to={`/admin/scenarios/${scenario.scenario_id}/execution`}
+            value={`/admin/scenarios/${scenario.scenario_id}/execution`}
+            label={t('Execution')}
+          />
+          <Tab
+            component={Link}
             to={`/admin/scenarios/${scenario.scenario_id}/findings`}
             value={`/admin/scenarios/${scenario.scenario_id}/findings`}
             label={t('Findings')}
@@ -157,6 +164,12 @@ const IndexScenarioComponent: FunctionComponent<{
           )}
           <Tab
             component={Link}
+            to={`/admin/scenarios/${scenario.scenario_id}/execution`}
+            value={`/admin/scenarios/${scenario.scenario_id}/execution`}
+            label={t('Execution')}
+          />
+          <Tab
+            component={Link}
             to={`/admin/scenarios/${scenario.scenario_id}/statistics`}
             value={`/admin/scenarios/${scenario.scenario_id}/statistics`}
             label={t('Statistics')}
@@ -195,6 +208,12 @@ const IndexScenarioComponent: FunctionComponent<{
             label={t('Lessons learned')}
           />
         )}
+        <Tab
+          component={Link}
+          to={`/admin/scenarios/${scenario.scenario_id}/execution`}
+          value={`/admin/scenarios/${scenario.scenario_id}/execution`}
+          label={t('Execution')}
+        />
         <Tab
           component={Link}
           to={`/admin/scenarios/${scenario.scenario_id}/findings`}
@@ -268,6 +287,9 @@ const IndexScenarioComponent: FunctionComponent<{
                 <Route path="lessons" element={errorWrapper(Lessons)()} />
                 <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
                 {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
+                {/* Live execution of the scenario's latest simulation - available for every scenario
+                    type (time-based, chained, autonomous), mirroring the simulation Execution tab. */}
+                <Route path="execution" element={errorWrapper(ScenarioExecution)()} />
                 {/* Scenario-scoped custom dashboard, surfaced as the Statistics tab. */}
                 <Route path="statistics" element={errorWrapper(ScenarioStatistics)()} />
                 {/* Statistics replaced the hero dashboard quick action and the old

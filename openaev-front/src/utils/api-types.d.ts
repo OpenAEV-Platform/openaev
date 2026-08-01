@@ -1744,12 +1744,38 @@ export interface CapabilityQueryInput {
 
 /** Capability resolution report */
 export interface CapabilityReport {
+  /** Installed injectors and the delivery substrate available for custom actions */
+  arsenal?: ArsenalInventory;
   /** True when every queried token has at least one installed contract */
   fully_satisfied?: boolean;
   /** Convenience subset: only the unsatisfied resolutions */
   gaps?: CapabilityResolution[];
   /** One resolution per queried capability token */
   resolutions?: CapabilityResolution[];
+}
+
+/** Installed arsenal + delivery substrate for custom actions */
+export interface ArsenalInventory {
+  /** Number of active agents/implants (last seen within the active window) */
+  active_agent_count?: number;
+  /** Deterministic one-line recommendation on how to obtain a substrate */
+  advice?: string;
+  /** True when at least one agent/implant is active - i.e. a Command payload has a host to execute on */
+  command_delivery_available?: boolean;
+  /** True when an HTTP-request-capable injector is installed and active - i.e. a raw HTTP exploit payload (SQLi, SSRF, path traversal, auth bypass) has somewhere to run */
+  http_delivery_available?: boolean;
+  /** Injectors registered in this tenant's catalog */
+  installed_injectors?: InstalledInjector[];
+}
+
+/** An installed injector and its activity state */
+export interface InstalledInjector {
+  /** Built-in injectors are always active; external ones must heartbeat */
+  active?: boolean;
+  injector_type?: string;
+  name?: string;
+  /** True when the injector can carry custom payloads */
+  payloads?: boolean;
 }
 
 /** Resolution of one capability token against installed contracts */
