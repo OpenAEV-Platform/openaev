@@ -57,10 +57,18 @@ const parseQuestionChoices = (data?: string | null): QuestionChoice[] => {
     return options
       .map((option, index): QuestionChoice | null => {
         if (typeof option === 'string') {
-          return { id: `opt-${index}`, label: option, value: option };
+          return {
+            id: `opt-${index}`,
+            label: option,
+            value: option,
+          };
         }
         if (option && typeof option === 'object') {
-          const candidate = option as { id?: string; label?: string; value?: string };
+          const candidate = option as {
+            id?: string;
+            label?: string;
+            value?: string;
+          };
           const label = candidate.label ?? candidate.value ?? candidate.id;
           if (!label) {
             return null;
@@ -488,32 +496,82 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   const thinkingPhase: ThinkingPhase = (() => {
     if (isWaitingInput && pendingQuestion) {
       // Genuinely idle on the operator: static wait, not a pulsing "still working" animation.
-      return { key: 'waiting_input', label: t('Waiting for your input'), color: theme.palette.warning.main, active: false };
+      return {
+        key: 'waiting_input',
+        label: t('Waiting for your input'),
+        color: theme.palette.warning.main,
+        active: false,
+      };
     }
     if (isWaitingInput) {
       // The operator answered; the backend is still WAITING_INPUT until the next poll flips it, but
       // the run is genuinely resuming - so animate.
-      return { key: 'resuming', label: t('Processing your answer'), color: accent, active: true };
+      return {
+        key: 'resuming',
+        label: t('Processing your answer'),
+        color: accent,
+        active: true,
+      };
     }
     if (parkedOnStatus) {
       // Parked between cycles awaiting a human-timescale event: calm, static, no thought echo.
-      return { key: 'parked', label: t('Awaiting the next event'), color: theme.palette.text.secondary, active: false };
+      return {
+        key: 'parked',
+        label: t('Awaiting the next event'),
+        color: theme.palette.text.secondary,
+        active: false,
+      };
     }
     switch (lastActivityType) {
       case 'DECISION':
-        return { key: 'deciding', label: t('Deciding the next move'), color: accent, active: true };
+        return {
+          key: 'deciding',
+          label: t('Deciding the next move'),
+          color: accent,
+          active: true,
+        };
       case 'TOOL_ACTION':
-        return { key: 'acting', label: t('Running the next action'), color: accent, active: true };
+        return {
+          key: 'acting',
+          label: t('Running the next action'),
+          color: accent,
+          active: true,
+        };
       case 'PROOF':
-        return { key: 'proving', label: t('Capturing proof of exploitation'), color: theme.palette.success.main, active: true };
+        return {
+          key: 'proving',
+          label: t('Capturing proof of exploitation'),
+          color: theme.palette.success.main,
+          active: true,
+        };
       case 'GAP':
-        return { key: 'gap', label: t('Noting a capability gap'), color: theme.palette.warning.main, active: true };
+        return {
+          key: 'gap',
+          label: t('Noting a capability gap'),
+          color: theme.palette.warning.main,
+          active: true,
+        };
       case 'HANDOVER':
-        return { key: 'coordinating', label: t('Coordinating the attack'), color: accent, active: true };
+        return {
+          key: 'coordinating',
+          label: t('Coordinating the attack'),
+          color: accent,
+          active: true,
+        };
       case 'NARRATION':
-        return { key: 'analyzing', label: t('Analyzing the results'), color: accent, active: true };
+        return {
+          key: 'analyzing',
+          label: t('Analyzing the results'),
+          color: accent,
+          active: true,
+        };
       default:
-        return { key: 'thinking', label: t('Thinking through the next move'), color: accent, active: true };
+        return {
+          key: 'thinking',
+          label: t('Thinking through the next move'),
+          color: accent,
+          active: true,
+        };
     }
   })();
 
@@ -772,14 +830,26 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               onChange={event => setSelectedChoice(event.target.value)}
               sx={{ gap: 0.75 }}
             >
-              {[...questionChoices, { id: CUSTOM_ANSWER, label: t('Write a custom answer'), value: '' }].map((choice) => {
+              {[...questionChoices, {
+                id: CUSTOM_ANSWER,
+                label: t('Write a custom answer'),
+                value: '',
+              }].map((choice) => {
                 const isCustom = choice.id === CUSTOM_ANSWER;
                 const isSelected = selectedChoice === choice.id;
                 return (
                   <FormControlLabel
                     key={choice.id}
                     value={choice.id}
-                    control={<Radio size="small" sx={{ color: accent, '&.Mui-checked': { color: accent } }} />}
+                    control={(
+                      <Radio
+                        size="small"
+                        sx={{
+                          'color': accent,
+                          '&.Mui-checked': { color: accent },
+                        }}
+                      />
+                    )}
                     label={choice.label}
                     sx={{
                       'margin': 0,

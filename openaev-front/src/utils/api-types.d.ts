@@ -1251,6 +1251,22 @@ export interface AutonomousAttackPathStepResult {
   step_template_id?: string;
 }
 
+/** Live state of one authored attack-path step */
+export interface AutonomousAttackPathStepState {
+  /** Id of the inject backing this step */
+  inject_id?: string;
+  /** Id of the injector contract the step runs, when resolvable */
+  injector_contract_id?: string;
+  /** Execution status: PENDING when never started, otherwise the live ExecutionStatus (QUEUING, EXECUTING, SUCCESS, ERROR, ...) */
+  status?: string;
+  /** Human-readable step title */
+  title?: string;
+  /** Execution traces (action/status: message) captured while the step ran */
+  traces?: string[];
+  /** Inject type (injector) of the step */
+  type?: string;
+}
+
 export interface AutonomousDirective {
   /**
    * When the orchestrator consumed the directive
@@ -1377,6 +1393,16 @@ export interface AutonomousObjectiveTemplate {
   listened?: boolean;
 }
 
+/** Result of promoting a finding to a targetable asset */
+export interface AutonomousPromotedAssetResult {
+  /** Id of the created (endpoint) asset - use it as an inject target */
+  asset_id?: string;
+  /** Name of the created asset */
+  asset_name?: string;
+  /** Id of the original finding (kept, now linked to the asset) */
+  finding_id?: string;
+}
+
 export interface AutonomousRun {
   /**
    * Creation date
@@ -1393,8 +1419,12 @@ export interface AutonomousRun {
   autonomous_run_objective_template_key?: string;
   /** Scenario the simulation was created from, if any */
   autonomous_run_scenario_id?: string;
+  /** Authoritative run scope: a mixed list of targetable entities (assets, asset groups, teams, persons). The orchestrator attacks within this perimeter. */
+  autonomous_run_scope?: AutonomousScopeTarget[];
   /** Asset group defining the initial in-scope perimeter */
   autonomous_run_scope_asset_group_id?: string;
+  /** First team of the scope, projected for convenience. Authoritative scope is the mixed list in autonomous_run_scope. An inject can only target a team, never a bare person. */
+  autonomous_run_scope_team_id?: string;
   /** Chained simulation (Exercise) this run drives */
   autonomous_run_simulation_id?: string;
   /** Lifecycle status of the run */
@@ -1432,8 +1462,20 @@ export interface AutonomousRunCreateInput {
   objective_template_key?: string;
   /** Advanced/optional: seed from an existing chaining scenario instead of auto-provisioning. Leave empty for a fully autonomous run. */
   scenario_id?: string;
+  /** Optional mixed scope: a list of targetable entities (assets, asset groups, teams, persons) the run is restricted to. Leave empty to let the AI resolve the scope. */
+  scope?: AutonomousScopeTarget[];
   /** Optional asset group defining the initial in-scope perimeter */
   scope_asset_group_id?: string;
+  /** Optional team defining the in-scope audience for identity-targeted objectives (phishing, human credential harvesting). Legacy single-team shortcut; prefer the mixed 'scope' list. */
+  scope_team_id?: string;
+}
+
+/** One targetable entity in an autonomous run's scope */
+export interface AutonomousScopeTarget {
+  /** Entity id of that kind (asset / asset-group / team / user id) */
+  id?: string;
+  /** Target kind: ASSETS, ASSETS_GROUPS, TEAMS or PLAYERS */
+  type?: string;
 }
 
 /** Run status update pushed by the orchestrator */
@@ -1453,6 +1495,29 @@ export interface AutonomousStatusUpdateInput {
     | "CANCELED";
   /** Optional short title for the status timeline entry */
   title?: string;
+}
+
+/** Ensure a targetable team wrapping the given persons */
+export interface AutonomousTargetTeamInput {
+  /** Optional team name; a readable default is derived when omitted */
+  name?: string;
+  /**
+   * Ids of the persons (players) that must be reachable through the team
+   * @minItems 1
+   */
+  player_ids: string[];
+  /** Optional existing team id to augment instead of creating a new one (idempotent reuse) */
+  team_id?: string;
+}
+
+/** A team that is ready to be targeted by a human-in-the-loop inject */
+export interface AutonomousTargetTeamResult {
+  /** Ids of the players now enabled on the simulation through this team */
+  player_ids?: string[];
+  /** Id of the contextual team - pass it as an inject target (team_ids) */
+  team_id?: string;
+  /** Name of the team */
+  team_name?: string;
 }
 
 export type AverageConfiguration = UtilRequiredKeys<

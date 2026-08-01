@@ -7,11 +7,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * One entry of an autonomous run's scope: a single targetable entity, tagged by kind. The scope is a
- * heterogeneous list so an operator can mix hosts and people in one run - exactly the four kinds an
- * OpenAEV inject can target. {@code type} uses the {@code io.openaev.utils.TargetType} vocabulary
- * ({@code ASSETS}, {@code ASSETS_GROUPS}, {@code TEAMS}, {@code PLAYERS}); {@code id} is the entity
- * id of that kind (asset id / asset-group id / team id / user id).
+ * One entry of an autonomous run's scope: a single targetable entity, tagged by kind. The scope is
+ * a heterogeneous list so an operator can mix hosts and people in one run - exactly the four kinds
+ * an OpenAEV inject can target. {@code type} uses the {@code io.openaev.utils.TargetType}
+ * vocabulary ({@code ASSETS}, {@code ASSETS_GROUPS}, {@code TEAMS}, {@code PLAYERS}); {@code id} is
+ * the entity id of that kind (asset id / asset-group id / team id / user id).
  */
 @Getter
 @Setter

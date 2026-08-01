@@ -10,7 +10,6 @@ import type {
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
 import ChainingFlowConfiguration, { type DrawerView } from './chaining_flow/ChainingFlowConfiguration';
 import LogicFlow from './chaining_flow/LogicFlow';
-import LogicReadOnlyBanner from './LogicReadOnlyBanner';
 import LogicTopBar from './LogicTopBar';
 import OutputProvidersProvider from './OutputProvidersContext';
 import type { ActionMeta, EventMeta } from './types';
@@ -18,13 +17,13 @@ import type { ActionMeta, EventMeta } from './types';
 interface LogicProps {
   workflowId: string | undefined;
   context: LogicContext;
-  /** When true, the logic map is frozen (launched simulation) and no mutation is allowed. */
+  /** Read-only inspection mode (autonomous runs): the AI owns the attack path, so the manual
+   *  authoring affordances (top bar, add-component, node edit/delete) are hidden while pan/zoom
+   *  and the event spotlight stay available. */
   readOnly?: boolean;
-  /** Message shown in the read-only banner (varies whether the simulation is linked to a scenario). */
-  readOnlyMessage?: string;
 }
 
-const Logic = ({ workflowId, context, readOnly = false, readOnlyMessage }: LogicProps) => {
+const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
   // Fetch computed valid assets (allowlist minus denylist)
   const [validAssets, setValidAssets] = useState<ScopeAssetOutput[]>([]);
   // Track whether existing steps/events exist
@@ -77,18 +76,6 @@ const Logic = ({ workflowId, context, readOnly = false, readOnlyMessage }: Logic
     });
   }, [workflowId]);
 
-  // If the map becomes read-only while a drawer/edit is open (e.g. the simulation is launched
-  // from another tab), force everything back to a consistent read-only state. See ADR-005.
-  useEffect(() => {
-    if (readOnly) {
-      setDrawerView('closed');
-      setEditingStep(null);
-      setEditingEvent(null);
-      setLinkToEventId(undefined);
-      setCompatibleActionFilter(undefined);
-    }
-  }, [readOnly]);
-
   const handleStepCreated = useCallback(() => {
     setHasExistingData(true);
     setRefreshKey(k => k + 1);
@@ -101,58 +88,45 @@ const Logic = ({ workflowId, context, readOnly = false, readOnlyMessage }: Logic
   }, []);
 
   const handleOpenDrawer = useCallback(() => {
-    if (readOnly) return;
     setCompatibleActionFilter(undefined);
     setLinkToEventId(undefined);
     setDrawerView('choose');
-  }, [readOnly]);
+  }, []);
 
   // Opens the action list directly, optionally pre-filtered by output type
   const handleOpenActionDrawer = useCallback((field?: string) => {
-    if (readOnly) return;
     setCompatibleActionFilter(field);
     setLinkToEventId(undefined);
     setDrawerView('action');
-  }, [readOnly]);
+  }, []);
 
   // Opens the action list from an event node "+", linking created actions to that event
   const handleAddActionToEvent = useCallback((eventId: string) => {
-    if (readOnly) return;
     setCompatibleActionFilter(undefined);
     setLinkToEventId(eventId);
     setDrawerView('action');
-  }, [readOnly]);
+  }, []);
 
   const handleEditStep = useCallback((stepId: string, meta: ActionMeta) => {
-    if (readOnly) return;
     setEditingStep({
       stepId,
       meta,
     });
     setDrawerView('actionDetail');
-  }, [readOnly]);
+  }, []);
 
   const handleEditEvent = useCallback((eventId: string, meta: EventMeta) => {
-    if (readOnly) return;
     setEditingEvent({
       eventId,
       meta,
     });
     setDrawerView('event');
-  }, [readOnly]);
+  }, []);
 
   // Loading state
   if (hasExistingData === null) {
     return null;
   }
-
-  const emptyState = readOnly
-    ? (
-        <div style={{ padding: 16 }}>
-          <LogicReadOnlyBanner message={readOnlyMessage} />
-        </div>
-      )
-    : <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />;
 
   return (
     <OutputProvidersProvider>
@@ -176,17 +150,19 @@ const Logic = ({ workflowId, context, readOnly = false, readOnlyMessage }: Logic
                   onEventMetasChange={setEventMetas}
                   readOnly={readOnly}
                 />
-                <LogicTopBar
-                  eventMetas={eventMetas}
-                  onAddCompatibleAction={handleOpenActionDrawer}
-                  onAddComponent={handleOpenDrawer}
-                  readOnly={readOnly}
-                  readOnlyMessage={readOnlyMessage}
-                />
+                {!readOnly && (
+                  <LogicTopBar
+                    eventMetas={eventMetas}
+                    onAddCompatibleAction={handleOpenActionDrawer}
+                    onAddComponent={handleOpenDrawer}
+                  />
+                )}
               </>
             )
           : (
-              emptyState
+              !readOnly && (
+                <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
+              )
             )}
       </div>
       <ChainingFlowConfiguration

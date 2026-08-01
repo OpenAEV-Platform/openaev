@@ -17,8 +17,8 @@ import { type ExpectationResultsByType, type InjectExpectationResultsByAttackPat
 import MitreCoverageMatrix from '../common/matrix/MitreCoverageMatrix';
 import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../workspaces/custom_dashboards/results/contextualWidgets';
 import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
-import AutonomousOutcomeDialog, { type OutcomeKind } from './AutonomousOutcomeDialog';
 import { eventAccent, eventIcon, eventTypeLabel, sanitizeEventText } from './autonomousEventVisuals';
+import AutonomousOutcomeDialog, { type OutcomeKind } from './AutonomousOutcomeDialog';
 
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 5000;
@@ -132,7 +132,12 @@ const OutcomeCard: FunctionComponent<{
       'backgroundColor': alpha(tone, 0.06),
       'cursor': onClick ? 'pointer' : 'default',
       'transition': 'background-color 120ms, border-color 120ms',
-      '&:hover': onClick ? { backgroundColor: alpha(tone, 0.12), borderColor: alpha(tone, 0.6) } : undefined,
+      '&:hover': onClick
+        ? {
+            backgroundColor: alpha(tone, 0.12),
+            borderColor: alpha(tone, 0.6),
+          }
+        : undefined,
     }}
   >
     {badge !== undefined
@@ -803,7 +808,11 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
                         {tipTags && <Box sx={{ marginTop: 0.5 }}>{tipTags}</Box>}
                         {eventContent && (
                           <>
-                            <Divider sx={{ marginBlock: 0.75, borderColor: theme.palette.divider }} />
+                            <Divider sx={{
+                              marginBlock: 0.75,
+                              borderColor: theme.palette.divider,
+                            }}
+                            />
                             <Typography
                               variant="caption"
                               color="text.secondary"

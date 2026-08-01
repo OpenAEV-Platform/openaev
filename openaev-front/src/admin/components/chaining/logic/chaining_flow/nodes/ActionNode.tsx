@@ -20,6 +20,8 @@ export type ActionNodeData = Node<{
   pathIndex?: number;
   onEdit?: (id: string, type: string) => void;
   onDelete?: (id: string) => void;
+  /** Hide every mutation affordance (edit/delete) — used for autonomous read-only inspection. */
+  readOnly?: boolean;
 }>;
 
 const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
@@ -119,17 +121,18 @@ const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
             -
           </Typography>
         </div>
-        <IconButton
-          size="small"
-          onClick={handleMenuOpen}
-          sx={{ display: (data.onEdit || data.onDelete) ? undefined : 'none' }}
-        >
-          <MoreVert sx={{
-            fontSize: 18,
-            color: theme.palette.primary.main,
-          }}
-          />
-        </IconButton>
+        {!data.readOnly && (
+          <IconButton
+            size="small"
+            onClick={handleMenuOpen}
+          >
+            <MoreVert sx={{
+              fontSize: 18,
+              color: theme.palette.primary.main,
+            }}
+            />
+          </IconButton>
+        )}
       </div>
       <Typography
         variant="body2"
@@ -142,12 +145,14 @@ const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
       >
         {data.label}
       </Typography>
-      <NodePopover
-        anchorEl={anchorEl}
-        onClose={handleMenuClose}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      {!data.readOnly && (
+        <NodePopover
+          anchorEl={anchorEl}
+          onClose={handleMenuClose}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
       <Handle
         type="source"
         position={Position.Right}

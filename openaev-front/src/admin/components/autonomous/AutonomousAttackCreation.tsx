@@ -330,7 +330,13 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
                                 }}
                               />
                               <Box>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '0.8125rem' }}>
+                                <Typography
+                                  variant="subtitle2"
+                                  sx={{
+                                    fontWeight: 'bold',
+                                    fontSize: '0.8125rem',
+                                  }}
+                                >
                                   {t(template.autonomous_objective_template_label)}
                                 </Typography>
                                 {template.autonomous_objective_template_description && (
@@ -376,11 +382,15 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
                   marginTop: theme.spacing(1),
                 }}
               >
-                {isIdentityObjective
-                  ? t('This objective targets people, so it needs an audience. Add the teams or persons that will receive the campaign (a person is targeted through a team - the AI wraps them for you), or leave it empty and the AI will ask you who is in scope before sending anything.')
-                  : isTargetDependent
-                    ? t('This objective targets a specific perimeter. Add the assets, asset groups, teams or persons to focus on, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.')
-                    : t('Optional. Mix any assets, asset groups, teams and persons to define the perimeter; leave it empty to let the AI resolve the scope. The AI uses whichever targets the technique needs.')}
+                {(() => {
+                  if (isIdentityObjective) {
+                    return t('This objective targets people, so it needs an audience. Add the teams or persons that will receive the campaign (a person is targeted through a team - the AI wraps them for you), or leave it empty and the AI will ask you who is in scope before sending anything.');
+                  }
+                  if (isTargetDependent) {
+                    return t('This objective targets a specific perimeter. Add the assets, asset groups, teams or persons to focus on, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.');
+                  }
+                  return t('Optional. Mix any assets, asset groups, teams and persons to define the perimeter; leave it empty to let the AI resolve the scope. The AI uses whichever targets the technique needs.');
+                })()}
               </Typography>
             </Box>
 

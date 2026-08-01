@@ -31,8 +31,9 @@ import {
   buildActionMetas,
   buildEdges,
   buildEventData,
-  buildEventFlow,
+  buildEventPath,
   buildEventToGroupX,
+  buildInformationalEdges,
   buildOutputProvidersMap,
   buildTacticForStep,
   buildTacticNodes,
@@ -53,7 +54,9 @@ interface LogicFlowProps {
   onAddActionToEvent?: (eventId: string) => void;
   /** Called after each graph refresh so the parent can drive the warning banner. */
   onEventMetasChange?: (metas: Record<string, EventMeta>) => void;
-  /** When true, the logic map is frozen (launched simulation): no edit/delete/connect. */
+  /** Read-only inspection mode: keeps pan/zoom and the event spotlight, but disables every
+   *  mutation (connect, drag, delete, edit) and hides the node action affordances. Used for
+   *  autonomous runs where the AI owns the attack path. */
   readOnly?: boolean;
 }
 
@@ -127,7 +130,7 @@ const LogicFlow = ({
   const [pendingDeleteNodeId, setPendingDeleteNodeId] = useState<string | null>(null);
 
   // Event currently selected to reveal its informational (data-flow) arrows.
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   /**
      * Build the step for updateStep API calls.
@@ -359,11 +362,22 @@ const LogicFlow = ({
     }
   }, [actionMetas, eventMetas, onEditStep, onEditEvent]);
 
-  // Full backward data-flow line for the selected event: highlighted nodes, per-node badge index,
-  // real trigger edges belonging to the flow, and the dotted "produces" informational arrows.
-  const { highlightedStepIds, highlightedEventIds, pathIndex, triggerEdgeKeys, informationalEdges } = useMemo(
-    () => buildEventFlow(selectedNodeId, eventMetas, actionMetas, theme.palette.warning.main),
-    [selectedNodeId, eventMetas, actionMetas, theme.palette.warning.main],
+  /**
+     * Invert action metas into an "output type → provider actions" map so we can
+     * resolve which actions feed a given event condition field.
+     */
+  const outputProviders = useMemo(() => buildOutputProvidersMap(actionMetas), [actionMetas]);
+
+  // Read-only dotted arrows from provider actions into the selected event (see helper).
+  const informationalEdges = useMemo<Edge[]>(
+    () => buildInformationalEdges(selectedEventId, eventMetas, outputProviders, theme.palette.warning.main),
+    [selectedEventId, eventMetas, outputProviders, theme.palette.warning.main],
+  );
+
+  // Numbered path (provider = 1, event = 2, consumer = 3) + highlighted steps
+  const { highlightedStepIds, stepPathIndex, eventPathIndex } = useMemo(
+    () => buildEventPath(selectedEventId, informationalEdges, actionMetas),
+    [selectedEventId, informationalEdges, actionMetas],
   );
 
   /**
@@ -372,15 +386,15 @@ const LogicFlow = ({
      */
   const nodesWithCallbacks = useMemo(
     () => nodes.map((node) => {
-      // When an event is selected, everything outside its data-flow line is dimmed
+      // When an event is selected, everything outside its data-flow is dimmed
       // to create a spotlight ("backdrop") effect on the highlighted flow.
       let inFlow = false;
       if (node.type === 'event') {
-        inFlow = highlightedEventIds.has(node.id);
+        inFlow = node.id === selectedEventId;
       } else if (node.type === 'action') {
         inFlow = highlightedStepIds.has(node.id);
       }
-      const dimmed = !!selectedNodeId && !inFlow;
+      const dimmed = !!selectedEventId && !inFlow;
       return {
         ...node,
         style: {
@@ -390,25 +404,26 @@ const LogicFlow = ({
         },
         data: {
           ...node.data,
+          readOnly,
           onEdit: readOnly ? undefined : editNode,
           onDelete: readOnly ? undefined : requestDeleteNode,
           ...(node.type === 'event'
             ? {
-                isSelected: node.id === selectedNodeId,
-                pathIndex: pathIndex[node.id],
+                isSelected: node.id === selectedEventId,
+                pathIndex: node.id === selectedEventId ? eventPathIndex : undefined,
                 onAddAction: readOnly ? undefined : onAddActionToEvent,
               }
             : {}),
           ...(node.type === 'action'
             ? {
                 isHighlighted: highlightedStepIds.has(node.id),
-                pathIndex: pathIndex[node.id],
+                pathIndex: stepPathIndex[node.id],
               }
             : {}),
         },
       };
     }),
-    [nodes, editNode, requestDeleteNode, onAddActionToEvent, selectedNodeId, highlightedStepIds, highlightedEventIds, pathIndex, readOnly],
+    [nodes, editNode, requestDeleteNode, onAddActionToEvent, selectedEventId, highlightedStepIds, stepPathIndex, eventPathIndex, readOnly],
   );
 
   /**
@@ -417,22 +432,22 @@ const LogicFlow = ({
      */
   const edgesWithCallbacks = useMemo(
     () => edges.map((edge) => {
-      // Real event → step link belonging to the selected event's flow line.
-      const inFlow = triggerEdgeKeys.has(`${edge.source}->${edge.target}`);
-      const dimmed = !!selectedNodeId && !inFlow;
+      // Real event → step link belonging to the selected event's flow.
+      const inFlow = !!selectedEventId && edge.source === selectedEventId;
+      const dimmed = !!selectedEventId && !inFlow;
       return {
         ...edge,
         data: {
           ...edge.data,
           onDelete: readOnly ? undefined : onDeleteEdgeClick,
-          // Real event → step links along the flow are emphasized in blue while its event is selected.
+          // Real event → step links are emphasized in blue while their event is selected.
           isHighlighted: inFlow,
           // Faded out when outside the selected event's flow (spotlight backdrop).
           dimmed,
         },
       };
     }),
-    [edges, onDeleteEdgeClick, selectedNodeId, triggerEdgeKeys, readOnly],
+    [edges, onDeleteEdgeClick, selectedEventId, readOnly],
   );
 
   const allEdges = useMemo(
@@ -441,23 +456,23 @@ const LogicFlow = ({
   );
 
   /**
-     * Select an event or an action when clicked (both trigger the flow highlight),
-     * or clear the selection when any other node is clicked.
+     * Select an event when clicked, or clear the
+     * selection when any other node is clicked.
      */
   const onNodeClick = useCallback(
     (_: ReactMouseEvent, node: Node) => {
-      setSelectedNodeId(node.type === 'event' || node.type === 'action' ? node.id : null);
+      setSelectedEventId(node.type === 'event' ? node.id : null);
     },
     [],
   );
 
   /** Dismiss the informational visualization when clicking on the empty canvas. */
-  const onPaneClick = useCallback(() => setSelectedNodeId(null), []);
+  const onPaneClick = useCallback(() => setSelectedEventId(null), []);
 
   // Dismiss the informational visualization when pressing Escape (ReactFlow's key hook).
   const escapePressed = useKeyPress('Escape');
   useEffect(() => {
-    if (escapePressed) setSelectedNodeId(null);
+    if (escapePressed) setSelectedEventId(null);
   }, [escapePressed]);
 
   return (
@@ -473,17 +488,19 @@ const LogicFlow = ({
           onConnect={readOnly ? undefined : onConnect}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
+          edgesReconnectable={!readOnly}
+          deleteKeyCode={readOnly ? null : undefined}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           proOptions={proOptions}
-          nodesConnectable={!readOnly}
-          deleteKeyCode={readOnly ? null : undefined}
           fitView
           style={{ background: 'transparent' }}
           defaultEdgeOptions={{
             type: 'deletable',
             markerEnd: { type: MarkerType.ArrowClosed },
-            data: { onDelete: readOnly ? undefined : onDeleteEdgeClick },
+            data: readOnly ? {} : { onDelete: onDeleteEdgeClick },
           }}
         >
           <StyledControls

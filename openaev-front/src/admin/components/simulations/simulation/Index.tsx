@@ -98,53 +98,53 @@ const IndexComponent: FunctionComponent<{
     <AutonomousContext.Provider value={autonomousContext}>
       <PermissionsContext.Provider value={permissionsContext}>
         <DocumentContext.Provider value={documentContext}>
-        <div style={{ paddingRight: contentPaddingRight }}>
-          <SimulationShell exercise={exercise} autonomousRun={autonomousRun}>
-            <Suspense fallback={<Loader />}>
-              <Routes>
-                {/* Overview swaps to the AI cockpit for autonomous runs. */}
-                <Route path="" element={isAutonomous ? <AutonomousOverview run={autonomousRun} /> : errorWrapper(Simulation)()} />
-                {/* Definition merged into the Injects authoring tab; redirect old links. */}
-                <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
-                <Route path="injects" element={errorWrapper(Injects)()} />
-                <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
-                <Route path="execution" element={<Navigate to="timeline" replace={true} />} />
-                <Route path="execution/timeline" element={errorWrapper(ExecutionOverview)()} />
-                <Route path="execution/mails" element={errorWrapper(Mails)()} />
-                <Route path="execution/mails/:injectId" element={errorWrapper(MailsInject)()} />
-                <Route path="execution/logs" element={errorWrapper(Logs)()} />
-                <Route path="execution/chat" element={errorWrapper(Chat)()} />
-                <Route path="execution/validations" element={errorWrapper(Validations)()} />
-                {/* The Animation area was renamed Execution; keep old deep links working. */}
-                <Route path="animation/*" element={<AnimationToExecutionRedirect />} />
-                <Route path="lessons" element={errorWrapper(Lessons)()} />
-                <Route path="findings" element={errorWrapper(SimulationFindings)()} />
-                {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
-                {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
-                <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
-                {/* Statistics replaced the hero dashboard quick action and the old
+          <div style={{ paddingRight: contentPaddingRight }}>
+            <SimulationShell exercise={exercise} autonomousRun={autonomousRun}>
+              <Suspense fallback={<Loader />}>
+                <Routes>
+                  {/* Overview swaps to the AI cockpit for autonomous runs. */}
+                  <Route path="" element={isAutonomous ? <AutonomousOverview run={autonomousRun} /> : errorWrapper(Simulation)()} />
+                  {/* Definition merged into the Injects authoring tab; redirect old links. */}
+                  <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
+                  <Route path="injects" element={errorWrapper(Injects)()} />
+                  <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
+                  <Route path="execution" element={<Navigate to="timeline" replace={true} />} />
+                  <Route path="execution/timeline" element={errorWrapper(ExecutionOverview)()} />
+                  <Route path="execution/mails" element={errorWrapper(Mails)()} />
+                  <Route path="execution/mails/:injectId" element={errorWrapper(MailsInject)()} />
+                  <Route path="execution/logs" element={errorWrapper(Logs)()} />
+                  <Route path="execution/chat" element={errorWrapper(Chat)()} />
+                  <Route path="execution/validations" element={errorWrapper(Validations)()} />
+                  {/* The Animation area was renamed Execution; keep old deep links working. */}
+                  <Route path="animation/*" element={<AnimationToExecutionRedirect />} />
+                  <Route path="lessons" element={errorWrapper(Lessons)()} />
+                  <Route path="findings" element={errorWrapper(SimulationFindings)()} />
+                  {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
+                  {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
+                  <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
+                  {/* Statistics replaced the hero dashboard quick action and the old
                     Analysis tab; keep redirects for old links. */}
-                <Route path="dashboard" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
-                <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
-                {/* Manual scope / logic editors are never available on an autonomous run: the AI
-                    provisions and drives the attack path, so bounce old deep links to the cockpit. */}
-                <Route path="scope" element={isAutonomous ? <Navigate to={`/admin/simulations/${exercise.exercise_id}`} replace /> : errorWrapper(SimulationScope)()} />
-                <Route path="logic" element={isAutonomous ? <Navigate to={`/admin/simulations/${exercise.exercise_id}`} replace /> : errorWrapper(SimulationLogic)()} />
-                {/* Not found */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </SimulationShell>
-        </div>
-        {isAutonomous && (
-          <AutonomousReasoningPanel
-            run={autonomousRun}
-            onRunUpdate={onAutonomousRunUpdate}
-            width={panelWidth}
-            onWidthChange={setPanelWidth}
-            readOnly
-          />
-        )}
+                  <Route path="dashboard" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
+                  <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
+                  {/* On an autonomous run the AI provisions and drives the attack path, so scope / logic
+                    are exposed read-only for inspection instead of the manual editors. */}
+                  <Route path="scope" element={isAutonomous ? errorWrapper(SimulationScope)({ readOnly: true }) : errorWrapper(SimulationScope)()} />
+                  <Route path="logic" element={isAutonomous ? errorWrapper(SimulationLogic)({ readOnly: true }) : errorWrapper(SimulationLogic)()} />
+                  {/* Not found */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </SimulationShell>
+          </div>
+          {isAutonomous && (
+            <AutonomousReasoningPanel
+              run={autonomousRun}
+              onRunUpdate={onAutonomousRunUpdate}
+              width={panelWidth}
+              onWidthChange={setPanelWidth}
+              readOnly
+            />
+          )}
         </DocumentContext.Provider>
       </PermissionsContext.Provider>
     </AutonomousContext.Provider>

@@ -44,7 +44,10 @@ interface ParsedData {
 // The orchestrator writes free JSON into autonomous_event_data; parse it
 // defensively so a malformed blob degrades to "shown as raw text" instead of
 // blanking the dialog.
-const parseData = (raw?: string | null): { parsed?: ParsedData; rawFallback?: string } => {
+const parseData = (raw?: string | null): {
+  parsed?: ParsedData;
+  rawFallback?: string;
+} => {
   if (!raw) {
     return {};
   }
@@ -222,11 +225,13 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
                             }}
                           />
                         )}
-                        <Typography variant="body2" sx={{
-                          flex: 1,
-                          minWidth: 0,
-                          wordBreak: 'break-word',
-                        }}
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            flex: 1,
+                            minWidth: 0,
+                            wordBreak: 'break-word',
+                          }}
                         >
                           {label}
                         </Typography>
@@ -280,18 +285,24 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
                         gap: 1,
                       }}
                       >
-                        <Typography variant="subtitle2" sx={{
-                          margin: 0,
-                          flex: 1,
-                        }}
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            margin: 0,
+                            flex: 1,
+                          }}
                         >
                           {title}
                         </Typography>
                         {link && (
-                          <Link href={link} target="_blank" rel="noopener noreferrer" sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                          }}
+                          <Link
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                            }}
                           >
                             <LaunchOutlined fontSize="small" />
                           </Link>

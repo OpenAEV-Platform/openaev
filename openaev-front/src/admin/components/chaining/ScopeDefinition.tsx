@@ -19,7 +19,8 @@ import ScopeVariables from './ScopeVariables';
 
 interface ScopeDefinitionProps {
   workflowId: string;
-  /** When true, the scope is frozen (launched simulation) and no mutation is allowed. */
+  /** Read-only inspection mode (autonomous runs): the AI owns the scope, so every control is
+   *  rendered but made non-interactive. */
   readOnly?: boolean;
 }
 
@@ -85,10 +86,19 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
   }, [workflowConfiguration, workflowId, dispatch]);
 
   return (
-    <div style={{
-      display: 'grid',
-      gap: `${theme.spacing(3)} ${theme.spacing(3)}`,
-    }}
+    <div
+      style={{
+        display: 'grid',
+        gap: `${theme.spacing(3)} ${theme.spacing(3)}`,
+        ...(readOnly
+          ? {
+              pointerEvents: 'none',
+              userSelect: 'text',
+            }
+          : {}),
+      }}
+      // Keep the scope visible for inspection but block every mutation on autonomous runs.
+      aria-disabled={readOnly || undefined}
     >
       <div style={{
         display: 'grid',
@@ -96,8 +106,8 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
         gridTemplateColumns: '1fr 1fr',
       }}
       >
-        <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} readOnly={readOnly} />
-        <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} readOnly={readOnly} />
+        <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
+        <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
       </div>
       <div style={{
         display: 'grid',
@@ -108,12 +118,10 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
         <ScopeTimeOut
           workflowConfiguration={workflowConfiguration}
           onUpdate={handleUpdate}
-          readOnly={readOnly}
         />
         <ScopeRateLimit
           workflowConfiguration={workflowConfiguration}
           onUpdate={handleUpdate}
-          readOnly={readOnly}
         />
       </div>
     </div>

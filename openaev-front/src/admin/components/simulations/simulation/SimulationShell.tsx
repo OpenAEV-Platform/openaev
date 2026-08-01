@@ -45,14 +45,17 @@ const SimulationShell: FunctionComponent<{
   }
 
   // Tab set depends on the simulation flavour:
-  // - autonomous (AI-driven): the AI provisions and drives the attack path, so the manual Scope and
-  //   Logic tabs are dropped entirely and the operator steers from the always-open reasoning panel;
+  // - autonomous (AI-driven): the AI provisions and drives the attack path, so Scope and Logic are
+  //   surfaced in read-only mode (inspection only) while the operator steers from the reasoning panel;
   // - chained (workflow-backed): Overview / Scope / Logic / Execution / Attack path / Findings / Statistics;
   // - time-based: Overview / Injects / Tests / Execution / Lessons / Findings / Statistics.
   const buildTabs = (): [string, string][] => {
     if (isAutonomous) {
       return [
         ['', t('Overview')],
+        ...(isChainingFeatureEnabled && exercise.exercise_workflow_id
+          ? [['/scope', t('Scope')] as [string, string], ['/logic', t('Logic')] as [string, string]]
+          : []),
         ...(isAttackPathEnabled ? [['/attack-path', t('Attack path')] as [string, string]] : []),
         ['/execution', t('Execution')],
         ['/findings', t('Findings')],

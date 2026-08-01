@@ -73,8 +73,8 @@ const DeletableEdge = ({
         }}
       />
 
-      <EdgeLabelRenderer>
-        {data?.onDelete && (
+      {data?.onDelete && (
+        <EdgeLabelRenderer>
           <div
             style={{
               position: 'absolute',
@@ -102,8 +102,8 @@ const DeletableEdge = ({
               <CloseOutlined sx={{ fontSize: 12 }} />
             </IconButton>
           </div>
-        )}
-      </EdgeLabelRenderer>
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 };

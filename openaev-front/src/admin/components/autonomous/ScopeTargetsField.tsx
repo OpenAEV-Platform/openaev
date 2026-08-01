@@ -1,5 +1,5 @@
 import { DnsOutlined, GroupsOutlined, HubOutlined, PersonOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, Chip, CircularProgress, List, ListItemButton, ListItemIcon, ListItemText, Stack, Tab, Tabs, TextField, Typography } from '@mui/material';
+import { Box, Checkbox, Chip, CircularProgress, List, ListItemButton, ListItemIcon, ListItemText, Tab, Tabs, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactElement, useCallback, useEffect, useRef, useState } from 'react';
 
@@ -55,9 +55,15 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
       icon: <DnsOutlined fontSize="small" />,
       color: theme.palette.primary.main,
       fetch: query =>
-        searchEndpoints(buildSearchPagination({ size: 25, textSearch: query }))
+        searchEndpoints(buildSearchPagination({
+          size: 25,
+          textSearch: query,
+        }))
           .then((res: { data: Page<EndpointOutput> }) =>
-            (res.data.content ?? []).map(endpoint => ({ id: endpoint.asset_id, name: endpoint.asset_name })))
+            (res.data.content ?? []).map(endpoint => ({
+              id: endpoint.asset_id,
+              name: endpoint.asset_name,
+            })))
           .catch(() => []),
     },
     ASSETS_GROUPS: {
@@ -65,9 +71,15 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
       icon: <HubOutlined fontSize="small" />,
       color: theme.palette.secondary.main,
       fetch: query =>
-        searchAssetGroups(buildSearchPagination({ size: 25, textSearch: query }))
+        searchAssetGroups(buildSearchPagination({
+          size: 25,
+          textSearch: query,
+        }))
           .then((res: { data: Page<AssetGroup> }) =>
-            (res.data.content ?? []).map(group => ({ id: group.asset_group_id, name: group.asset_group_name })))
+            (res.data.content ?? []).map(group => ({
+              id: group.asset_group_id,
+              name: group.asset_group_name,
+            })))
           .catch(() => []),
     },
     TEAMS: {
@@ -75,9 +87,15 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
       icon: <GroupsOutlined fontSize="small" />,
       color: theme.palette.success.main,
       fetch: query =>
-        searchTeams(buildSearchPagination({ size: 25, textSearch: query }))
+        searchTeams(buildSearchPagination({
+          size: 25,
+          textSearch: query,
+        }))
           .then((res: { data: Page<Team> }) =>
-            (res.data.content ?? []).map(team => ({ id: team.team_id, name: team.team_name })))
+            (res.data.content ?? []).map(team => ({
+              id: team.team_id,
+              name: team.team_name,
+            })))
           .catch(() => []),
     },
     PLAYERS: {
@@ -85,9 +103,15 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
       icon: <PersonOutlineOutlined fontSize="small" />,
       color: theme.palette.warning.main,
       fetch: query =>
-        searchPlayers(buildSearchPagination({ size: 25, textSearch: query }))
+        searchPlayers(buildSearchPagination({
+          size: 25,
+          textSearch: query,
+        }))
           .then((res: { data: Page<PlayerOutput> }) =>
-            (res.data.content ?? []).map(player => ({ id: player.user_id, name: playerLabel(player) })))
+            (res.data.content ?? []).map(player => ({
+              id: player.user_id,
+              name: playerLabel(player),
+            })))
           .catch(() => []),
     },
   };
@@ -120,7 +144,6 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
       });
     }, 250);
     return () => clearTimeout(handle);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKind, query]);
 
   const selectedKeys = new Set(value.map(target => scopeKey(target.type, target.id)));
@@ -131,10 +154,13 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
       if (selectedKeys.has(key)) {
         onChange(value.filter(target => scopeKey(target.type, target.id) !== key));
       } else {
-        onChange([...value, { type: activeKind, id: option.id, name: option.name }]);
+        onChange([...value, {
+          type: activeKind,
+          id: option.id,
+          name: option.name,
+        }]);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [activeKind, value],
   );
 
@@ -166,7 +192,7 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
                 onDelete={() => removeTarget(target)}
                 size="small"
                 sx={{
-                  borderColor: alpha(meta.color, 0.5),
+                  'borderColor': alpha(meta.color, 0.5),
                   '& .MuiChip-icon': { color: meta.color },
                 }}
                 variant="outlined"
@@ -198,8 +224,8 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
               icon={KIND_META[kind].icon}
               label={count > 0 ? `${KIND_META[kind].label} (${count})` : KIND_META[kind].label}
               sx={{
-                minHeight: 40,
-                textTransform: 'none',
+                'minHeight': 40,
+                'textTransform': 'none',
                 '& .MuiTab-iconWrapper': {
                   marginBottom: 0,
                   marginRight: theme.spacing(1),

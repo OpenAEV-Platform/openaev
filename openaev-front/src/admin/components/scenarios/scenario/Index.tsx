@@ -92,8 +92,9 @@ const IndexScenarioComponent: FunctionComponent<{
   const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
   const contentPaddingRight = isAutonomous ? `${panelWidth}px` : undefined;
 
-  // Autonomous scenarios expose a reduced, read-only tab set: the AI owns the scope and logic, so
-  // those manual editors are dropped in favour of Overview / Attack path / Findings / Statistics.
+  // Autonomous scenarios expose the same tab set but with Scope and Logic in read-only mode: the AI
+  // owns the scope and logic, yet operators can still inspect them to understand what the
+  // orchestrator is doing and where.
   const renderTabs = () => {
     if (isAutonomous) {
       return (
@@ -104,6 +105,22 @@ const IndexScenarioComponent: FunctionComponent<{
             value={`/admin/scenarios/${scenario.scenario_id}`}
             label={t('Overview')}
           />
+          {isChainingFeatureEnabled && scenario.scenario_workflow_id && (
+            <Tab
+              component={Link}
+              to={`/admin/scenarios/${scenario.scenario_id}/scope`}
+              value={`/admin/scenarios/${scenario.scenario_id}/scope`}
+              label={t('Scope')}
+            />
+          )}
+          {isChainingFeatureEnabled && scenario.scenario_workflow_id && (
+            <Tab
+              component={Link}
+              to={`/admin/scenarios/${scenario.scenario_id}/logic`}
+              value={`/admin/scenarios/${scenario.scenario_id}/logic`}
+              label={t('Logic')}
+            />
+          )}
           {isAttackPathEnabled && (
             <Tab
               component={Link}
@@ -296,18 +313,18 @@ const IndexScenarioComponent: FunctionComponent<{
                     Analysis tab; keep redirects for old links. */}
                 <Route path="dashboard" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/statistics`} replace />} />
                 <Route path="analysis" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/statistics`} replace />} />
-                {/* The AI owns scope and logic on an autonomous run: send the manual editors back
-                    to the overview instead of exposing them. */}
+                {/* The AI owns scope and logic on an autonomous run, so they are exposed in
+                    read-only mode: operators can inspect but never edit them. */}
                 <Route
                   path="scope"
                   element={isAutonomous
-                    ? <Navigate to={`/admin/scenarios/${scenario.scenario_id}`} replace />
+                    ? errorWrapper(ScenarioScope)({ readOnly: true })
                     : errorWrapper(ScenarioScope)()}
                 />
                 <Route
                   path="logic"
                   element={isAutonomous
-                    ? <Navigate to={`/admin/scenarios/${scenario.scenario_id}`} replace />
+                    ? errorWrapper(ScenarioLogic)({ readOnly: true })
                     : errorWrapper(ScenarioLogic)()}
                 />
                 {/* Not found */}

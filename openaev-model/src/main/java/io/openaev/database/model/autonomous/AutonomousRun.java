@@ -97,11 +97,11 @@ public class AutonomousRun implements TenantBase {
   private List<AutonomousScopeTarget> scope = new ArrayList<>();
 
   // Internal bookkeeping: maps each step template id authored on the SIMULATION workflow to the
-  // twin step template id mirrored onto the SCENARIO workflow. The orchestrator only ever knows the
-  // simulation step ids (those are what appendChainedStep returns), so when it authors a step that
-  // DEPEND_ONs a simulation parent, this lets us reattach the scenario twin to the scenario parent -
-  // keeping the mirrored attack path's kill-chain ordering intact for export. Never exposed to the
-  // API or the orchestrator.
+  // twin step template id mirrored onto the SCENARIO workflow. The orchestrator only ever knows
+  // the simulation step ids (those are what appendChainedStep returns), so when it authors a step
+  // that DEPEND_ONs a simulation parent, this lets us reattach the scenario twin to the scenario
+  // parent, keeping the mirrored attack path's kill-chain ordering intact for export. Never
+  // exposed to the API or the orchestrator.
   @JsonIgnore
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "autonomous_run_step_mirror")

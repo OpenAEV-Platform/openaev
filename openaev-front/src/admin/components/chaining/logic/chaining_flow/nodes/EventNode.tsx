@@ -18,6 +18,8 @@ export type EventNodeData = Node<{
   onDelete?: (id: string) => void;
   /** Open the action drawer to add an action linked to this event. */
   onAddAction?: (id: string) => void;
+  /** Hide every mutation affordance (edit/delete/add) — used for autonomous read-only inspection. */
+  readOnly?: boolean;
 }>;
 
 const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
@@ -123,18 +125,19 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
         >
           {data.label}
         </Typography>
-        <IconButton
-          size="small"
-          aria-haspopup="true"
-          onClick={handleMenuOpen}
-          sx={{ display: (data.onEdit || data.onDelete) ? undefined : 'none' }}
-        >
-          <MoreVert sx={{
-            fontSize: 18,
-            color: theme.palette.primary.main,
-          }}
-          />
-        </IconButton>
+        {!data.readOnly && (
+          <IconButton
+            size="small"
+            aria-haspopup="true"
+            onClick={handleMenuOpen}
+          >
+            <MoreVert sx={{
+              fontSize: 18,
+              color: theme.palette.primary.main,
+            }}
+            />
+          </IconButton>
+        )}
         <Handle
           type="source"
           position={Position.Right}
@@ -156,13 +159,13 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
         />
       </Box>
 
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        marginTop: 1,
-      }}
-      >
-        {data.onAddAction && (
+      {!data.readOnly && (
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginTop: 1,
+        }}
+        >
           <Tooltip title={t('Add an action')}>
             <Button
               color="primary"
@@ -177,16 +180,19 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
             >
               <Add sx={{ fontSize: 16 }} />
             </Button>
-          </Tooltip>
-        )}
-      </Box>
 
-      <NodePopover
-        anchorEl={anchorEl}
-        onClose={handleMenuClose}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+          </Tooltip>
+        </Box>
+      )}
+
+      {!data.readOnly && (
+        <NodePopover
+          anchorEl={anchorEl}
+          onClose={handleMenuClose}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
     </Box>
   );
 };

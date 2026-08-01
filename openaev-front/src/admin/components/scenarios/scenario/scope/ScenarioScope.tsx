@@ -6,10 +6,11 @@ import { searchScenarioHealthcheks } from '../../../../../actions/scenarios/scen
 import type { ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
 import { useHelper } from '../../../../../store';
 import { type HealthCheck, type Scenario } from '../../../../../utils/api-types';
+import AutonomousReadOnlyBanner from '../../../chaining/AutonomousReadOnlyBanner';
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
 
-const ScenarioScope = () => {
+const ScenarioScope = ({ readOnly = false }: { readOnly?: boolean }) => {
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
 
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
@@ -31,13 +32,14 @@ const ScenarioScope = () => {
 
   return (
     <div>
+      {readOnly && <AutonomousReadOnlyBanner />}
       {!!healthchecks?.length && (
         <Healthchecks
           healthchecks={healthchecks}
           scenarioId={scenarioId}
         />
       )}
-      <ScopeDefinition workflowId={scenario.scenario_workflow_id} />
+      <ScopeDefinition workflowId={scenario.scenario_workflow_id} readOnly={readOnly} />
     </div>
   );
 };

@@ -43,12 +43,18 @@ const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
   // A human-in-the-loop target (phishing/credential harvesting) is a TEAM, PERSON or ASSET_GROUP
   // rather than a machine, so it gets its own icon inside the circle and a kind label in the tooltip.
   const entityKind = data.entityKind;
-  const KindIcon = entityKind === 'TEAM' ? Groups : entityKind === 'PERSON' ? Person : entityKind === 'ASSET_GROUP' ? Workspaces : null;
-  const kindLabel = entityKind === 'TEAM'
-    ? t('Team')
-    : entityKind === 'PERSON'
-      ? t('Person')
-      : entityKind === 'ASSET_GROUP' ? t('Asset group') : null;
+  const KIND_ICONS: Record<string, typeof Groups> = {
+    TEAM: Groups,
+    PERSON: Person,
+    ASSET_GROUP: Workspaces,
+  };
+  const KIND_LABELS: Record<string, string> = {
+    TEAM: t('Team'),
+    PERSON: t('Person'),
+    ASSET_GROUP: t('Asset group'),
+  };
+  const KindIcon = entityKind ? (KIND_ICONS[entityKind] ?? null) : null;
+  const kindLabel = entityKind ? (KIND_LABELS[entityKind] ?? null) : null;
   const tooltipTitle = (
     <div style={{
       display: 'flex',
@@ -167,7 +173,14 @@ const AssetNode = ({ id, data, selected }: NodeProps<AttackPathFlowNode>) => {
             boxSizing: 'border-box',
           }}
         >
-          {KindIcon && <KindIcon sx={{ fontSize: 20, color, marginBottom: '2px' }} />}
+          {KindIcon && (
+            <KindIcon sx={{
+              fontSize: 20,
+              color,
+              marginBottom: '2px',
+            }}
+            />
+          )}
           <Typography
             variant="caption"
             fontWeight={700}

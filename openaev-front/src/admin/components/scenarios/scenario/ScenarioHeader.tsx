@@ -527,9 +527,7 @@ const ScenarioHeader = ({
                       // drill-down when available, else Execution.
                       to={isAutonomous
                         ? `/admin/scenarios/${scenarioId}/execution`
-                        : isAttackPathEnabled
-                          ? `/admin/scenarios/${scenarioId}/attack-path`
-                          : `/admin/scenarios/${scenarioId}/execution`}
+                        : `/admin/scenarios/${scenarioId}/${isAttackPathEnabled ? 'attack-path' : 'execution'}`}
                     />
                   )
                 : (
