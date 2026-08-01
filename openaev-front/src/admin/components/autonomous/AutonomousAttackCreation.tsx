@@ -15,7 +15,7 @@ import {
   type SvgIconComponent,
   TrackChanges,
 } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Button, Card, CardActionArea, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Alert, Autocomplete, Box, Button, Card, CardActionArea, IconButton, Skeleton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -93,6 +93,7 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
 
   const [open, setOpen] = useState(false);
   const [templates, setTemplates] = useState<AutonomousObjectiveTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string | null>(null);
   const [objective, setObjective] = useState('');
   const [name, setName] = useState('');
@@ -106,9 +107,11 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
     if (!open) {
       return;
     }
+    setLoadingTemplates(true);
     fetchObjectiveTemplates()
       .then(res => setTemplates(res.data ?? []))
-      .catch(() => setTemplates([]));
+      .catch(() => setTemplates([]))
+      .finally(() => setLoadingTemplates(false));
     searchAssetGroups(buildSearchPagination({ size: 100 }))
       .then((result: { data: Page<AssetGroup> }) => setAssetGroups(result.data.content ?? []))
       .catch(() => setAssetGroups([]));
@@ -287,50 +290,63 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
                   marginBottom: theme.spacing(2),
                 }}
               >
-                {templates.map((template) => {
-                  const isSelected = selectedTemplateKey === template.autonomous_objective_template_key;
-                  const ObjectiveIcon = OBJECTIVE_ICONS[template.autonomous_objective_template_icon ?? ''] ?? TrackChanges;
-                  return (
-                    <Card
-                      key={template.autonomous_objective_template_key}
-                      variant="outlined"
-                      sx={{
-                        borderColor: isSelected ? theme.palette.ai.main : undefined,
-                        borderWidth: isSelected ? 2 : 1,
-                        backgroundColor: isSelected ? alpha(theme.palette.ai.main, 0.08) : undefined,
-                      }}
-                    >
-                      <CardActionArea
-                        onClick={() => handleSelectTemplate(template)}
-                        sx={{
-                          padding: theme.spacing(1.5),
-                          height: '100%',
-                        }}
-                      >
-                        <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                          <ObjectiveIcon
-                            fontSize="small"
+                {loadingTemplates && templates.length === 0
+                  ? ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10'].map(skeletonKey => (
+                      <Card key={skeletonKey} variant="outlined">
+                        <Box sx={{ padding: theme.spacing(1.5) }}>
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Skeleton variant="circular" width={20} height={20} sx={{ flexShrink: 0 }} />
+                            <Box sx={{ flex: 1 }}>
+                              <Skeleton variant="text" width="55%" height={18} />
+                              <Skeleton variant="text" width="90%" height={14} />
+                            </Box>
+                          </Stack>
+                        </Box>
+                      </Card>
+                    ))
+                  : templates.map((template) => {
+                      const isSelected = selectedTemplateKey === template.autonomous_objective_template_key;
+                      const ObjectiveIcon = OBJECTIVE_ICONS[template.autonomous_objective_template_icon ?? ''] ?? TrackChanges;
+                      return (
+                        <Card
+                          key={template.autonomous_objective_template_key}
+                          variant="outlined"
+                          sx={{
+                            borderColor: isSelected ? theme.palette.ai.main : undefined,
+                            borderWidth: isSelected ? 2 : 1,
+                            backgroundColor: isSelected ? alpha(theme.palette.ai.main, 0.08) : undefined,
+                          }}
+                        >
+                          <CardActionArea
+                            onClick={() => handleSelectTemplate(template)}
                             sx={{
-                              marginTop: '2px',
-                              flexShrink: 0,
-                              color: isSelected ? theme.palette.ai.main : theme.palette.text.secondary,
+                              padding: theme.spacing(1.5),
+                              height: '100%',
                             }}
-                          />
-                          <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                              {t(template.autonomous_objective_template_label)}
-                            </Typography>
-                            {template.autonomous_objective_template_description && (
-                              <Typography variant="caption" color="text.secondary">
-                                {t(template.autonomous_objective_template_description)}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Stack>
-                      </CardActionArea>
-                    </Card>
-                  );
-                })}
+                          >
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                              <ObjectiveIcon
+                                fontSize="small"
+                                sx={{
+                                  flexShrink: 0,
+                                  color: isSelected ? theme.palette.ai.main : theme.palette.text.secondary,
+                                }}
+                              />
+                              <Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '0.8125rem' }}>
+                                  {t(template.autonomous_objective_template_label)}
+                                </Typography>
+                                {template.autonomous_objective_template_description && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {t(template.autonomous_objective_template_description)}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Stack>
+                          </CardActionArea>
+                        </Card>
+                      );
+                    })}
               </Stack>
               <TextField
                 value={objective}
