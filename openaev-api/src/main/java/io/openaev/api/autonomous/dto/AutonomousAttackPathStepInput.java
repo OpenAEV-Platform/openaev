@@ -24,10 +24,12 @@ import lombok.Setter;
 @Schema(description = "A chained inject step appended to a live autonomous attack path")
 public class AutonomousAttackPathStepInput {
 
+  // No field-level @Schema on purpose: a described $ref is wrapped in allOf by springdoc, which
+  // makes the generated api-types shape non-obvious. The InjectInput type is self-descriptive and
+  // the class-level description already explains the wrapping.
   @NotNull
   @Valid
   @JsonProperty("inject")
-  @Schema(description = "The inject to wrap as a chained INJECT_EXECUTION step")
   private InjectInput inject;
 
   @JsonProperty("parent_step_template_id")

@@ -10,6 +10,7 @@ import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepo
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,7 +33,8 @@ class AutonomousObjectiveTemplateServiceTest {
   /** Seed into an empty tenant and return the persisted templates by key. */
   private Map<String, AutonomousObjectiveTemplate> seedAll() {
     List<AutonomousObjectiveTemplate> saved = new ArrayList<>();
-    when(repository.existsByKey(anyString())).thenReturn(false);
+    // Empty tenant: no built-in exists yet, so every one is materialised.
+    when(repository.findByKey(anyString())).thenReturn(Optional.empty());
     when(repository.save(any(AutonomousObjectiveTemplate.class)))
         .thenAnswer(
             invocation -> {
@@ -82,13 +84,21 @@ class AutonomousObjectiveTemplateServiceTest {
   }
 
   @Test
-  void seeding_is_idempotent_when_a_key_already_exists() {
-    when(repository.existsByKey(anyString())).thenReturn(true);
-    when(repository.findByEnabledTrueOrderByOrderAsc()).thenReturn(List.of());
+  void seeding_is_idempotent_when_builtins_already_match() {
+    // First pass: seed into an empty tenant to capture the canonical built-ins (correct scope
+    // modes and builtin=true), then replay them as the already-persisted state.
+    Map<String, AutonomousObjectiveTemplate> seeded = seedAll();
+    reset(repository);
+
+    // Every key already exists AND already matches the code definition, so the scope-mode sync
+    // finds nothing to change and nothing is saved.
+    when(repository.findByKey(anyString()))
+        .thenAnswer(inv -> Optional.ofNullable(seeded.get(inv.getArgument(0, String.class))));
+    when(repository.findByEnabledTrueOrderByOrderAsc())
+        .thenReturn(new ArrayList<>(seeded.values()));
 
     service.listForCurrentTenant();
 
-    // Nothing is saved when every key already exists for the tenant.
     verify(repository, never()).save(any());
   }
 

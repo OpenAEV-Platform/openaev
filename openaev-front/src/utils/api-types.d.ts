@@ -1220,6 +1220,19 @@ export interface AttackPatternUpsertInput {
   ignore_dependencies?: boolean;
 }
 
+/** A chained inject step appended to a live autonomous attack path */
+export interface AutonomousAttackPathStepInput {
+  inject: InjectInput;
+  /** Optional step template id this step depends on (DEPEND_ON). Null / omitted for a root step that readies immediately. */
+  parent_step_template_id?: string;
+}
+
+/** Result of appending a chained attack-path step */
+export interface AutonomousAttackPathStepResult {
+  /** Id of the created step template */
+  step_template_id?: string;
+}
+
 export interface AutonomousDirective {
   /**
    * When the orchestrator consumed the directive
