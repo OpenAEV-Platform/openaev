@@ -4,11 +4,19 @@ import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.autonomous.dto.AutonomousAttackPathStepState;
+import io.openaev.api.autonomous.dto.AutonomousPromotedAssetResult;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
+import io.openaev.database.model.Finding;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.autonomous.AutonomousDirective;
@@ -18,11 +26,15 @@ import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousObjectiveTemplate;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
+import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
+import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.service.EndpointService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
@@ -69,6 +81,10 @@ public class AutonomousRunService {
   private final PreviewFeatureService previewFeatureService;
   private final XtmOneClient xtmOneClient;
   private final OpenAEVConfig openAEVConfig;
+  private final ObjectMapper objectMapper;
+  private final InjectRepository injectRepository;
+  private final FindingRepository findingRepository;
+  private final EndpointService endpointService;
 
   // A dedicated bean persists the read-path reconcile in its OWN transaction (REQUIRES_NEW) through
   // its Spring proxy. It must be a separate class: a same-class call would bypass the proxy, keep
@@ -504,7 +520,35 @@ public class AutonomousRunService {
       String runId, AutonomousEventType type, String title, String content, String data) {
     requireFeature();
     AutonomousRun run = require(runId);
+    // A proof of exploitation is only valid when it is backed by at least one finding: the
+    // orchestrator must pass the substantiating finding(s) in the event's structured data as a
+    // non-empty "findings" array. This is the platform-side guarantee behind "no proof without a
+    // finding" - the UI then renders those linked findings on the proof card / dialog.
+    if (type == AutonomousEventType.PROOF && !hasLinkedFinding(data)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "A proof of exploitation must reference at least one finding: pass a non-empty "
+              + "\"findings\" array in the event data. There is no valid proof without an "
+              + "associated finding.");
+    }
     return eventService.append(runId, run.getSimulationId(), type, title, content, data);
+  }
+
+  /**
+   * True when {@code data} is a JSON object carrying a non-empty {@code findings} array - the
+   * substantiating findings a {@code PROOF} event must be backed by. Malformed or absent data is
+   * treated as "no linked finding" so a proof without evidence is rejected rather than trusted.
+   */
+  private boolean hasLinkedFinding(String data) {
+    if (!hasText(data)) {
+      return false;
+    }
+    try {
+      JsonNode findings = objectMapper.readTree(data).get("findings");
+      return findings != null && findings.isArray() && !findings.isEmpty();
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   /**
@@ -725,6 +769,100 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to evaluate the attack path: " + e.getMessage(), e);
     }
+  }
+
+  /**
+   * Live snapshot of every step already authored on the run's attack path: each backing inject, its
+   * current execution status, and its execution traces. This is the read path the orchestrator polls
+   * before authoring anything, so it can see what it has ALREADY built (and not duplicate it) and
+   * what each step actually did (its traces) before deciding the next move.
+   */
+  @Transactional(readOnly = true)
+  public List<AutonomousAttackPathStepState> attackPathState(String runId) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    if (!hasText(run.getSimulationId())) {
+      return List.of();
+    }
+    return injectRepository.findByExerciseId(run.getSimulationId()).stream()
+        .map(this::toStepState)
+        .toList();
+  }
+
+  private AutonomousAttackPathStepState toStepState(Inject inject) {
+    String status =
+        inject
+            .getStatus()
+            .map(s -> s.getName() != null ? s.getName().name() : "PENDING")
+            .orElse("PENDING");
+    List<String> traces =
+        inject
+            .getStatus()
+            .map(
+                s ->
+                    s.getTraces().stream()
+                        .map(
+                            t ->
+                                (t.getAction() != null ? t.getAction().name() : "TRACE")
+                                    + "/"
+                                    + (t.getStatus() != null ? t.getStatus().name() : "")
+                                    + ": "
+                                    + t.getMessage())
+                        .toList())
+            .orElseGet(List::of);
+    String contractId = inject.getInjectorContract().map(InjectorContract::getId).orElse(null);
+    return new AutonomousAttackPathStepState(
+        inject.getId(), inject.getTitle(), inject.getType(), contractId, status, traces);
+  }
+
+  /**
+   * Promotes a run finding (a host/IP/hostname discovered during the attack path) into a real,
+   * targetable endpoint asset so the orchestrator can pivot to attacking it. The ORIGINAL finding is
+   * kept - the new asset is simply linked onto it - which is the whole point: the finding remains the
+   * evidence trail while the asset becomes the inject target for the next chained step (lateral
+   * movement).
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public AutonomousPromotedAssetResult promoteFindingToAsset(String runId, String findingId) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    Finding finding =
+        findingRepository
+            .findById(findingId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Finding not found"));
+    String label = hasText(finding.getName()) ? finding.getName() : finding.getValue();
+    EndpointInput input = new EndpointInput();
+    input.setName(label);
+    input.setDescription(
+        "Promoted from autonomous finding " + findingId + " (" + finding.getType() + ")");
+    // A finding value discovered during recon is either an IP or a hostname; feed it to the right
+    // field so the endpoint resolves against the fleet. Platform/arch default to Unknown - the
+    // orchestrator refines them via its normal endpoint tools if it needs to.
+    if (looksLikeIpAddress(finding.getValue())) {
+      input.setIps(new String[] {finding.getValue()});
+    } else {
+      input.setHostname(finding.getValue());
+    }
+    Endpoint endpoint = endpointService.createEndpoint(input);
+    // Keep the original finding; just link the promoted asset onto it (promotion, not replacement).
+    findingRepository.insertFindingAsset(findingId, endpoint.getId());
+    eventService.append(
+        runId,
+        run.getSimulationId(),
+        AutonomousEventType.TOOL_ACTION,
+        "Finding promoted to asset",
+        "Finding '"
+            + label
+            + "' is now a targetable endpoint ("
+            + endpoint.getId()
+            + "). The original finding is kept and linked to the asset.",
+        null);
+    return new AutonomousPromotedAssetResult(endpoint.getId(), label, findingId);
+  }
+
+  private boolean looksLikeIpAddress(String value) {
+    return value != null && value.matches("^\\d{1,3}(\\.\\d{1,3}){3}$");
   }
 
   // endregion

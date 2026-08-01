@@ -792,7 +792,15 @@ public class ExerciseService {
           workflowService.saveAll(run);
           workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
           List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
-          this.injectRepository.deleteAll(injects);
+          // A manual chained simulation is reset on cancel (all injects dropped). An autonomous
+          // (AI-driven) run is different: its executed steps ARE the deliverable, so cancelling
+          // must PRESERVE what already ran - the operator keeps the executed record on the
+          // Execution screen - and only drop the never-started injects the orchestrator had queued
+          // (which are also where the duplicate-inject storms pile up).
+          boolean isAutonomous = autonomousRunRepository.existsBySimulationId(exercise.getId());
+          List<Inject> injectsToDelete =
+              isAutonomous ? injects.stream().filter(Inject::isNotExecuted).toList() : injects;
+          this.injectRepository.deleteAll(injectsToDelete);
         }
       }
     }

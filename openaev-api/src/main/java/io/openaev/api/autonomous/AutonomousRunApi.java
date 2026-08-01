@@ -5,8 +5,10 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepInput;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepResult;
+import io.openaev.api.autonomous.dto.AutonomousAttackPathStepState;
 import io.openaev.api.autonomous.dto.AutonomousDirectiveInput;
 import io.openaev.api.autonomous.dto.AutonomousEventInput;
+import io.openaev.api.autonomous.dto.AutonomousPromotedAssetResult;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.AutonomousStatusUpdateInput;
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
@@ -270,6 +272,20 @@ public class AutonomousRunApi extends RestBehavior {
   }
 
   @Operation(
+      summary = "Orchestrator: read the live attack-path state (authored steps + status + traces)",
+      description =
+          "The dedup + verify read path. Returns every step already authored on the run, each with "
+              + "its backing inject, live execution status, and execution traces. The orchestrator "
+              + "MUST consult this before authoring anything so it never re-authors an existing step "
+              + "and can verify what each step actually did before deciding the next move.")
+  @GetMapping("/{runId}/attack-path/state")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public List<AutonomousAttackPathStepState> attackPathState(@PathVariable String runId) {
+    return autonomousRunService.attackPathState(runId);
+  }
+
+  @Operation(
       summary = "Orchestrator: evaluate the live attack path now",
       description =
           "Re-evaluates the run's workflow so freshly appended steps ready and execute immediately "
@@ -280,6 +296,21 @@ public class AutonomousRunApi extends RestBehavior {
   public AutonomousRun evaluateAttackPath(@PathVariable String runId) {
     autonomousRunService.evaluateAttackPath(runId);
     return autonomousRunService.get(runId);
+  }
+
+  @Operation(
+      summary = "Orchestrator: promote a finding to a targetable asset",
+      description =
+          "Turns a discovered finding (an IP / hostname / asset-type finding) into a real endpoint "
+              + "asset the orchestrator can target with the next chained step - the lateral-movement "
+              + "pivot. The ORIGINAL finding is kept and linked to the new asset. Returns the created "
+              + "asset id to use as the inject target.")
+  @PostMapping("/{runId}/findings/{findingId}/promote-to-asset")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousPromotedAssetResult promoteFindingToAsset(
+      @PathVariable String runId, @PathVariable String findingId) {
+    return autonomousRunService.promoteFindingToAsset(runId, findingId);
   }
 
   // endregion
