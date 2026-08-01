@@ -151,7 +151,8 @@ public class Workflow implements Base {
   // (autonomous provisioning also disables timeoutEnabled). Only ever set on autonomous workflows.
   @Column(name = "workflow_keep_alive", columnDefinition = "boolean")
   @JsonProperty("workflow_keep_alive")
-  @Schema(description = "Keep the workflow alive (parked in RUN) while empty/idle - autonomous runs")
+  @Schema(
+      description = "Keep the workflow alive (parked in RUN) while empty/idle - autonomous runs")
   private boolean keepAlive;
 
   // Rules
