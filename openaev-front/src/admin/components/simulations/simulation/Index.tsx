@@ -17,6 +17,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import { AutonomousContext } from '../../autonomous/AutonomousContext';
 import AutonomousOverview from '../../autonomous/AutonomousOverview';
 import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
@@ -91,9 +92,12 @@ const IndexComponent: FunctionComponent<{
     contentPaddingRight = 200;
   }
 
+  const autonomousContext = useMemo(() => ({ isAutonomous }), [isAutonomous]);
+
   return (
-    <PermissionsContext.Provider value={permissionsContext}>
-      <DocumentContext.Provider value={documentContext}>
+    <AutonomousContext.Provider value={autonomousContext}>
+      <PermissionsContext.Provider value={permissionsContext}>
+        <DocumentContext.Provider value={documentContext}>
         <div style={{ paddingRight: contentPaddingRight }}>
           <SimulationShell exercise={exercise} autonomousRun={autonomousRun}>
             <Suspense fallback={<Loader />}>
@@ -141,8 +145,9 @@ const IndexComponent: FunctionComponent<{
             readOnly
           />
         )}
-      </DocumentContext.Provider>
-    </PermissionsContext.Provider>
+        </DocumentContext.Provider>
+      </PermissionsContext.Provider>
+    </AutonomousContext.Provider>
   );
 };
 

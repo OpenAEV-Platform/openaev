@@ -2,7 +2,7 @@ import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, ScheduleOutl
 import { Alert, Box, Button, Chip, Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { type FunctionComponent, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
 import { fetchAutonomousTimeline } from '../../../actions/autonomous/autonomous-actions';
@@ -17,6 +17,7 @@ import { type ExpectationResultsByType, type InjectExpectationResultsByAttackPat
 import MitreCoverageMatrix from '../common/matrix/MitreCoverageMatrix';
 import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../workspaces/custom_dashboards/results/contextualWidgets';
 import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
+import AutonomousOutcomeDialog, { type OutcomeKind } from './AutonomousOutcomeDialog';
 import { eventAccent, eventIcon } from './autonomousEventVisuals';
 
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['RUNNING', 'WAITING_INPUT'];
@@ -60,6 +61,9 @@ interface GapItem {
   sequence?: number;
   techniques: string[];
   cves: string[];
+  // The backing event for real (non-sample) entries, so the card can open the
+  // full-detail drill-down dialog. Undefined for illustrative sample cards.
+  event?: AutonomousEvent;
 }
 
 interface ProofItem {
@@ -70,6 +74,7 @@ interface ProofItem {
   sequence?: number;
   techniques: string[];
   cves: string[];
+  event?: AutonomousEvent;
 }
 
 // A single tinted count badge chip (MITRE technique / CVE) - dense, uppercase, design-system radius.
@@ -103,16 +108,32 @@ const OutcomeCard: FunctionComponent<{
   createdAtLabel?: string;
   tags?: ReactNode;
   badge?: number;
-}> = ({ tone, icon, title, body, createdAtLabel, tags, badge }) => (
-  <Stack sx={{
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 1.25,
-    padding: 1.25,
-    borderRadius: 1,
-    border: `1px solid ${alpha(tone, 0.35)}`,
-    backgroundColor: alpha(tone, 0.06),
-  }}
+  onClick?: () => void;
+}> = ({ tone, icon, title, body, createdAtLabel, tags, badge, onClick }) => (
+  <Stack
+    onClick={onClick}
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onKeyDown={onClick
+      ? (keyEvent) => {
+          if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+            keyEvent.preventDefault();
+            onClick();
+          }
+        }
+      : undefined}
+    sx={{
+      'flexDirection': 'row',
+      'alignItems': 'flex-start',
+      'gap': 1.25,
+      'padding': 1.25,
+      'borderRadius': 1,
+      'border': `1px solid ${alpha(tone, 0.35)}`,
+      'backgroundColor': alpha(tone, 0.06),
+      'cursor': onClick ? 'pointer' : 'default',
+      'transition': 'background-color 120ms, border-color 120ms',
+      '&:hover': onClick ? { backgroundColor: alpha(tone, 0.12), borderColor: alpha(tone, 0.6) } : undefined,
+    }}
   >
     {badge !== undefined
       ? (
@@ -219,6 +240,19 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
   // multi-run trend (a one-shot has no history to trend).
   const [postureResults, setPostureResults] = useState<ExpectationResultsByType[] | null>(null);
   const [injectResults, setInjectResults] = useState<InjectExpectationResultsByAttackPattern[] | null>(null);
+  // The gap / proof card the operator drilled into, with the tags already
+  // extracted so the dialog does not re-parse them.
+  const [selectedOutcome, setSelectedOutcome] = useState<{
+    kind: OutcomeKind;
+    event: AutonomousEvent;
+    techniques: string[];
+    cves: string[];
+  } | null>(null);
+  // Scroll container of the horizontal decision timeline. New events append on
+  // the right; we tail-follow them unless the operator has scrolled back to
+  // inspect earlier decisions (see the scroll handler + effect below).
+  const timelineScrollRef = useRef<HTMLDivElement | null>(null);
+  const timelinePinnedRef = useRef(true);
 
   const reload = useCallback(() => fetchAutonomousTimeline(runId, 0)
     .then(res => setEvents(res.data ?? []))
@@ -254,6 +288,17 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [isActive, reload, reloadResults]);
+
+  // Keep timelinePinnedRef in sync with how close the operator is to the right
+  // edge, so we only tail-follow when they are already watching the latest.
+  const handleTimelineScroll = useCallback(() => {
+    const node = timelineScrollRef.current;
+    if (!node) {
+      return;
+    }
+    const distanceFromRight = node.scrollWidth - node.clientWidth - node.scrollLeft;
+    timelinePinnedRef.current = distanceFromRight < 48;
+  }, []);
 
   const proofEvents = useMemo(() => events.filter(e => e.autonomous_event_type === 'PROOF'), [events]);
   const capabilityGaps = useMemo(() => events.filter(e => e.autonomous_event_type === 'GAP'), [events]);
@@ -378,6 +423,7 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
         description: gap.autonomous_event_content ?? undefined,
         createdAt: gap.autonomous_event_created_at,
         sequence: gap.autonomous_event_sequence,
+        event: gap,
         ...extractTags(gap.autonomous_event_title, gap.autonomous_event_content),
       }));
 
@@ -405,6 +451,7 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
         content: proof.autonomous_event_content ?? undefined,
         createdAt: proof.autonomous_event_created_at,
         sequence: proof.autonomous_event_sequence,
+        event: proof,
         ...extractTags(proof.autonomous_event_title, proof.autonomous_event_content),
       }));
 
@@ -445,6 +492,16 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
     autonomous_event_title: e.title,
   }))), [t, runId]);
   const timelineEvents = timelineIsSample ? sampleTimeline : events;
+
+  // When new decision-timeline nodes append on the right, follow them to the
+  // tail - but only if the operator has not scrolled back to inspect earlier
+  // decisions (timelinePinnedRef, maintained by handleTimelineScroll).
+  useEffect(() => {
+    const node = timelineScrollRef.current;
+    if (node && timelinePinnedRef.current) {
+      node.scrollLeft = node.scrollWidth;
+    }
+  }, [timelineEvents.length]);
 
   const renderTags = (techniques: string[], cves: string[]): ReactNode => {
     if (techniques.length === 0 && cves.length === 0) {
@@ -487,6 +544,14 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
               body={gap.description}
               createdAtLabel={gap.createdAt ? nsdt(gap.createdAt) : undefined}
               tags={renderTags(gap.techniques, gap.cves)}
+              onClick={gap.event
+                ? () => setSelectedOutcome({
+                    kind: 'GAP',
+                    event: gap.event!,
+                    techniques: gap.techniques,
+                    cves: gap.cves,
+                  })
+                : undefined}
             />
           ))}
         </Stack>
@@ -525,6 +590,14 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
               body={proof.content}
               createdAtLabel={proof.createdAt ? nsdt(proof.createdAt) : undefined}
               tags={renderTags(proof.techniques, proof.cves)}
+              onClick={proof.event
+                ? () => setSelectedOutcome({
+                    kind: 'PROOF',
+                    event: proof.event!,
+                    techniques: proof.techniques,
+                    cves: proof.cves,
+                  })
+                : undefined}
             />
           ))}
         </Stack>
@@ -617,6 +690,8 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
       >
         <SamplePreview active={timelineIsSample} variant="subtle">
           <Box
+            ref={timelineScrollRef}
+            onScroll={handleTimelineScroll}
             sx={{
               'overflowX': 'auto',
               'paddingBottom': 0.5,
@@ -802,6 +877,15 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
           />
         </SectionBlock>
       )}
+
+      <AutonomousOutcomeDialog
+        kind={selectedOutcome?.kind ?? 'GAP'}
+        event={selectedOutcome?.event ?? null}
+        simulationId={simulationId}
+        techniques={selectedOutcome?.techniques ?? []}
+        cves={selectedOutcome?.cves ?? []}
+        onClose={() => setSelectedOutcome(null)}
+      />
     </Stack>
   );
 };
