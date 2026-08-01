@@ -314,8 +314,8 @@ public class AutonomousRunService {
   /**
    * Cancels a run and its chained simulation, halting the XTM One orchestrator. Terminal.
    *
-   * <p>Deliberately resilient: moving the run to {@code CANCELED} must ALWAYS succeed, even when the
-   * underlying simulation is already terminal (e.g. it was canceled a moment earlier and the
+   * <p>Deliberately resilient: moving the run to {@code CANCELED} must ALWAYS succeed, even when
+   * the underlying simulation is already terminal (e.g. it was canceled a moment earlier and the
    * backend died before this run row was saved - the exact "simulation canceled but scenario still
    * running, now I can't stop or delete it" deadlock). So the simulation transition is best-effort
    * (never rolls the cancel back) and a run already terminal is an idempotent no-op.
