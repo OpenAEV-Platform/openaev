@@ -3,6 +3,8 @@ package io.openaev.api.autonomous;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.autonomous.dto.AutonomousAttackPathStepInput;
+import io.openaev.api.autonomous.dto.AutonomousAttackPathStepResult;
 import io.openaev.api.autonomous.dto.AutonomousDirectiveInput;
 import io.openaev.api.autonomous.dto.AutonomousEventInput;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
@@ -247,6 +249,37 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public List<AutonomousDirective> consumeDirectives(@PathVariable String runId) {
     return autonomousRunService.consumePendingDirectives(runId);
+  }
+
+  @Operation(
+      summary = "Orchestrator: append a chained step to the live attack path",
+      description =
+          "The ONLY sanctioned way for the AI to build the attack path. Wraps the inject as a "
+              + "chained INJECT_EXECUTION step on the run's simulation workflow so it executes "
+              + "through the chaining engine and renders in the animated map. Returns the created "
+              + "step template id so the orchestrator can chain the next step (DEPEND_ON) onto it.")
+  @PostMapping("/{runId}/attack-path/steps")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousAttackPathStepResult appendAttackPathStep(
+      @PathVariable String runId, @Valid @RequestBody AutonomousAttackPathStepInput input) {
+    String stepTemplateId =
+        autonomousRunService.appendAttackPathStep(
+            runId, input.getInject(), input.getParentStepTemplateId());
+    return new AutonomousAttackPathStepResult(stepTemplateId);
+  }
+
+  @Operation(
+      summary = "Orchestrator: evaluate the live attack path now",
+      description =
+          "Re-evaluates the run's workflow so freshly appended steps ready and execute immediately "
+              + "instead of waiting for an in-flight step to complete. Called after appending steps.")
+  @PostMapping("/{runId}/attack-path/evaluate")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRun evaluateAttackPath(@PathVariable String runId) {
+    autonomousRunService.evaluateAttackPath(runId);
+    return autonomousRunService.get(runId);
   }
 
   // endregion

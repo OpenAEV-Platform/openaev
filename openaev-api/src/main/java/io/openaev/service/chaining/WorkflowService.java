@@ -1,7 +1,12 @@
 package io.openaev.service.chaining;
 
+import static org.springframework.util.StringUtils.hasText;
+
 import com.google.gson.Gson;
+import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.ScopeVariableInput;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
@@ -10,6 +15,7 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
@@ -262,6 +268,7 @@ public class WorkflowService {
             .timeoutEnabled(workflowTemplateFrom.isTimeoutEnabled())
             .timeoutSeconds(workflowTemplateFrom.getTimeoutSeconds())
             .safeModeEnabled(workflowTemplateFrom.isSafeModeEnabled())
+            .keepAlive(workflowTemplateFrom.isKeepAlive())
             .build();
     copyScopeRules(workflowTemplateFrom, workflowRunTo);
     copyScopeVariables(workflowTemplateFrom, workflowRunTo);
@@ -283,6 +290,7 @@ public class WorkflowService {
             .timeoutEnabled(workflowTemplateScenarioFrom.isTimeoutEnabled())
             .timeoutSeconds(workflowTemplateScenarioFrom.getTimeoutSeconds())
             .safeModeEnabled(workflowTemplateScenarioFrom.isSafeModeEnabled())
+            .keepAlive(workflowTemplateScenarioFrom.isKeepAlive())
             .build();
     copyScopeRules(workflowTemplateScenarioFrom, template);
     copyScopeVariables(workflowTemplateScenarioFrom, template);
@@ -305,6 +313,7 @@ public class WorkflowService {
             .timeoutEnabled(workflowTemplateFrom.isTimeoutEnabled())
             .timeoutSeconds(workflowTemplateFrom.getTimeoutSeconds())
             .safeModeEnabled(workflowTemplateFrom.isSafeModeEnabled())
+            .keepAlive(workflowTemplateFrom.isKeepAlive())
             .build();
     copyScopeRules(workflowTemplateFrom, template);
     copyScopeVariables(workflowTemplateFrom, template);
@@ -1028,6 +1037,18 @@ public class WorkflowService {
     List<Step> stepsTemplate = stepService.findAllStepTemplateByWorkflow(workflowTemplateId);
 
     if (stepsTemplate.isEmpty()) {
+      // Autonomous (keep-alive) runs provision an EMPTY workflow and let the AI orchestrator author
+      // steps incrementally. Ending it here would kill the run at launch, before a single step is
+      // built - the exact "attack path is empty / agent fell back to atomic tests" failure. Park it
+      // in RUN instead; the orchestrator's next attack-path/steps + attack-path/evaluate call will
+      // find it live and ready the new template.
+      if (workflowRun.isKeepAlive()) {
+        log.info(
+            "[Chaining] Autonomous workflow {} has no step template yet; keeping it alive (RUN) "
+                + "awaiting the orchestrator.",
+            workflowRun.getId());
+        return workflowRun;
+      }
       log.info(
           "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
@@ -1050,11 +1071,101 @@ public class WorkflowService {
     }
 
     // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
-    // status END
-    if (!hasActiveSteps && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
+    // status END - unless this is an autonomous keep-alive workflow, which must stay parked in RUN
+    // between decision cycles so the orchestrator can keep appending chained steps to a live run.
+    if (!hasActiveSteps
+        && !workflowRun.isKeepAlive()
+        && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
       workflowRun.setStatus(WorkflowStatus.END);
     }
 
     return workflowRun;
+  }
+
+  // -- Autonomous authoring facade --
+
+  /**
+   * Marks the scenario's TEMPLATE workflow as keep-alive and disables its timeout, so an autonomous
+   * (AI-driven) run built on top of it survives an empty launch and long idle gaps between decision
+   * cycles. The flag propagates to the simulation TEMPLATE and RUN workflows through the standard
+   * copy chain at launch, so this must be called BEFORE {@link
+   * #startWorkflowByScenarioIdAndSimulation}.
+   *
+   * @param scenarioId the autonomous scenario whose workflow should be kept alive
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void markScenarioWorkflowKeepAlive(String scenarioId) throws ChainingException {
+    Workflow template =
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+    if (!template.isKeepAlive() || template.isTimeoutEnabled()) {
+      template.setKeepAlive(true);
+      // A long-lived incremental build must not be force-ended by WorkflowTimeoutJob.
+      template.setTimeoutEnabled(false);
+      workflowRepository.save(template);
+    }
+  }
+
+  /**
+   * Appends a chained inject step to a live autonomous run and (optionally) makes it depend on a
+   * previously authored step, then returns the created step template id so the orchestrator can
+   * chain the next step onto it.
+   *
+   * <p>The step template is created on the simulation-level TEMPLATE workflow that the RUN workflow
+   * links to - the only place the engine re-reads templates from on re-evaluation. When {@code
+   * parentStepTemplateId} is provided, a {@code DEPEND_ON} condition is attached so the new step
+   * only readies once the parent step template has executed at least once in the run, giving the
+   * attack-path map its kill-chain ordering. A root step (no parent) has no condition and readies
+   * immediately against the run's scope on the next evaluation.
+   *
+   * @param simulationId the run's live simulation
+   * @param injectInput the inject to wrap as a chained step
+   * @param parentStepTemplateId optional step template id this step depends on (null for a root)
+   * @return the id of the created step template
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendChainedStep(
+      String simulationId, InjectInput injectInput, String parentStepTemplateId)
+      throws ChainingException {
+    Workflow simulationTemplate =
+        findWorkflowTemplateBySimulationId(simulationId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
+
+    StepsCreateInput.StepInput stepInput =
+        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    if (hasText(parentStepTemplateId)) {
+      ConditionCreateInput dependOn =
+          ConditionCreateInput.builder()
+              .type(ConditionType.DEPEND_ON)
+              .value(parentStepTemplateId)
+              .build();
+      stepInput.setConditions(List.of(dependOn));
+    }
+
+    Step created = stepService.createStepTemplate(simulationTemplate, stepInput);
+    return created.getId();
+  }
+
+  /**
+   * Re-evaluates the RUN workflow(s) of a simulation so newly authored step templates ready and
+   * execute now instead of waiting for an in-flight step to complete. This is the explicit "run the
+   * pending steps" trigger the autonomous orchestrator calls after appending steps; without it a
+   * keep-alive workflow with no active step would never re-scan its templates.
+   *
+   * @param simulationId the run's live simulation
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void triggerEvaluation(String simulationId) throws ChainingException {
+    List<Workflow> runs = findWorkflowRunBySimulationId(simulationId);
+    for (Workflow run : runs) {
+      Workflow evaluated = evaluateWorkflowProgress(run);
+      saveWorkflowRun(evaluated);
+    }
   }
 }

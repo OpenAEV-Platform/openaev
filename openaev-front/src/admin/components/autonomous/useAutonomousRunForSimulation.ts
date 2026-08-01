@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchAutonomousRunByScenario, fetchAutonomousRunBySimulation } from '../../../actions/autonomous/autonomous-actions';
 import { type AutonomousRun } from '../../../actions/autonomous/autonomous-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { isFeatureEnabled } from '../../../utils/utils';
+
+/** How often to re-probe for an autonomous run until we find one (transient error / late creation). */
+const DISCOVERY_POLL_MS = 10000;
 
 interface AutonomousRunDetection {
   /** The run driving this entity, or null when it is a manual (non-AI) scenario/simulation. */
@@ -34,12 +37,29 @@ const useAutonomousRunDetection = (
 
   const [run, setRun] = useState<AutonomousRun | null>(null);
   const [resolved, setResolved] = useState(false);
+  // A run bumps this to force a re-probe (discovery poll below); it is NOT a status poll.
+  const [attempt, setAttempt] = useState(0);
+  // Once we have confirmed this entity is autonomous, it STAYS autonomous for the life of the
+  // mount. An eligibility blip (XTM One health / settings refresh flipping platform_xtm_one_configured)
+  // or a transient lookup error must never collapse a live AI cockpit back into the manual view -
+  // that was the "stopped run becomes a normal scenario and loses Restart" bug.
+  const detectedRef = useRef(false);
 
-  const pushRun = useCallback((next: AutonomousRun) => setRun(next), []);
+  const pushRun = useCallback((next: AutonomousRun) => {
+    detectedRef.current = true;
+    setRun(next);
+  }, []);
 
   useEffect(() => {
-    if (!id || !eligible) {
+    if (!id) {
+      detectedRef.current = false;
       setRun(null);
+      setResolved(true);
+      return () => {};
+    }
+    if (!eligible) {
+      // Do not erase an already-detected autonomous run just because eligibility briefly flipped.
+      if (!detectedRef.current) setRun(null);
       setResolved(true);
       return () => {};
     }
@@ -47,10 +67,20 @@ const useAutonomousRunDetection = (
     setResolved(false);
     fetcher(id)
       .then((res) => {
-        if (!stale) setRun(res.data);
+        if (stale) return;
+        detectedRef.current = true;
+        setRun(res.data);
       })
-      .catch(() => {
-        if (!stale) setRun(null);
+      .catch((err: unknown) => {
+        if (stale) return;
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        // A 404 is the authoritative "this is a manual (non-AI) entity" signal - only then do we
+        // clear. Any other error (403 / 5xx / network / a transient reconcile) must leave a
+        // previously-detected run intact so a blip can't strand the manual UI.
+        if (status === 404) {
+          detectedRef.current = false;
+          setRun(null);
+        }
       })
       .finally(() => {
         if (!stale) setResolved(true);
@@ -58,7 +88,16 @@ const useAutonomousRunDetection = (
     return () => {
       stale = true;
     };
-  }, [id, eligible, fetcher]);
+  }, [id, eligible, fetcher, attempt]);
+
+  // Keep probing until we discover a run, then stop (the header/panel keep it fresh via setRun).
+  // This recovers from a transient first-load failure and picks up a run created while the page is
+  // already open, without adding a permanent poll once the cockpit is live.
+  useEffect(() => {
+    if (!eligible || !id || run) return () => {};
+    const timer = setInterval(() => setAttempt(a => a + 1), DISCOVERY_POLL_MS);
+    return () => clearInterval(timer);
+  }, [eligible, id, run]);
 
   return {
     run,

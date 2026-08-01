@@ -112,10 +112,14 @@ public class AutonomousObjectiveTemplateService {
               "Run a credential-harvesting phishing campaign and pivot the captured access.",
               "mail",
               "initial-access",
-              SCOPE_ENVIRONMENT,
-              "Design and launch a phishing campaign against the in-scope audience to capture"
-                  + " credentials or execution, then use the captured access as a foothold and"
-                  + " continue toward broader access. Keep payloads benign and clearly marked."),
+              // Audience-based: the target IS the audience (which team/players receive the
+              // lure). When the operator pre-selects no audience the orchestrator must ask
+              // instead of picking one, so this objective is target-scoped, not environment-wide.
+              SCOPE_TARGET,
+              "Design and launch a phishing campaign against the selected audience (the team or"
+                  + " players chosen for this run) to capture credentials or execution, then use"
+                  + " the captured access as a foothold and continue toward broader access. Keep"
+                  + " payloads benign and clearly marked."),
           new Builtin(
               "lateral-movement-sweep",
               "Lateral Movement Sweep",
@@ -188,7 +192,23 @@ public class AutonomousObjectiveTemplateService {
     int order = 0;
     for (Builtin b : BUILTINS) {
       order += 10;
-      if (repository.existsByKey(b.key())) {
+      AutonomousObjectiveTemplate existing = repository.findByKey(b.key()).orElse(null);
+      if (existing != null) {
+        // Keep the built-in scope classification authoritative across releases: when an
+        // objective's scope mode is refined later (e.g. phishing became target-scoped so the
+        // orchestrator asks for the audience instead of auto-picking one), the change must
+        // reach already-seeded tenants without a manual reseed. Sync only built-ins and only
+        // the scope mode, so admin edits to label/prompt are preserved.
+        if (existing.isBuiltin()
+            && b.scopeMode() != null
+            && !b.scopeMode().equals(existing.getScopeMode())) {
+          existing.setScopeMode(b.scopeMode());
+          try {
+            repository.save(existing);
+          } catch (Exception e) {
+            log.debug("[Autonomous] Could not sync scope mode for {}", b.key());
+          }
+        }
         continue;
       }
       AutonomousObjectiveTemplate template = new AutonomousObjectiveTemplate();

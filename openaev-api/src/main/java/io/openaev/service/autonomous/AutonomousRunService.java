@@ -22,6 +22,7 @@ import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
@@ -34,8 +35,10 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -68,6 +71,12 @@ public class AutonomousRunService {
   private final PreviewFeatureService previewFeatureService;
   private final XtmOneClient xtmOneClient;
   private final OpenAEVConfig openAEVConfig;
+
+  // Self-reference so the read-path reconcile can persist a status sync in its OWN transaction
+  // (REQUIRES_NEW) through the Spring proxy - a plain in-class call would not honour the new
+  // propagation and would keep writing inside the caller's (read-only) transaction. ObjectProvider
+  // makes the self-injection lazy so it never forms a hard construction cycle.
+  private final ObjectProvider<AutonomousRunService> self;
 
   private void requireFeature() {
     if (!previewFeatureService.isAutonomousAttackPathEnabled()) {
@@ -113,6 +122,12 @@ public class AutonomousRunService {
       scenario = provisionAutonomousScenario(objective, input.getName(), input.getDescription());
       scenarioId = scenario.getId();
     }
+
+    // Keep the chaining workflow alive: an autonomous run launches with an EMPTY workflow and the
+    // orchestrator authors its steps incrementally, so the workflow must not be ended at launch or
+    // between decision cycles (and its 1h timeout must be off). Marked on the scenario template
+    // BEFORE launch so the flag propagates to the simulation template and RUN workflow.
+    markWorkflowKeepAlive(scenarioId);
 
     Exercise simulation =
         scenarioToExerciseService.toExercise(
@@ -372,6 +387,9 @@ public class AutonomousRunService {
     }
     // Fresh simulation from the SAME scenario - no new scenario is ever provisioned on restart.
     Scenario scenario = scenarioService.scenario(run.getScenarioId());
+    // Re-assert keep-alive on the scenario workflow before relaunching, so the restarted simulation
+    // parks empty and awaits the orchestrator exactly like the first launch.
+    markWorkflowKeepAlive(run.getScenarioId());
     Exercise simulation =
         scenarioToExerciseService.toExercise(
             scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
@@ -642,6 +660,71 @@ public class AutonomousRunService {
 
   // endregion
 
+  // region attack-path authoring
+
+  /**
+   * Appends a chained inject step to the run's live attack path and returns the created step
+   * template id so the orchestrator can chain the next step onto it. This is the ONLY sanctioned
+   * way for the AI orchestrator to build the attack path: every technique becomes a workflow step
+   * that executes through the chaining engine and therefore renders in the live attack-path map.
+   * Standalone injects and atomic tests (which run outside the engine and never populate the map)
+   * are denied to the orchestrator on the XTM One side.
+   *
+   * @param runId the autonomous run
+   * @param injectInput the inject to wrap as a chained step
+   * @param parentStepTemplateId optional step template id this step depends on (null for a root)
+   * @return the id of the created step template
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendAttackPathStep(
+      String runId, InjectInput injectInput, String parentStepTemplateId) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    if (!hasText(run.getSimulationId())) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "The autonomous run has no live simulation to build steps on");
+    }
+    String stepTemplateId;
+    try {
+      stepTemplateId =
+          workflowService.appendChainedStep(
+              run.getSimulationId(), injectInput, parentStepTemplateId);
+    } catch (ChainingException e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Failed to author the attack-path step: " + e.getMessage(), e);
+    }
+    eventService.append(
+        runId,
+        run.getSimulationId(),
+        AutonomousEventType.TOOL_ACTION,
+        "Attack-path step authored",
+        "A chained step was added to the live attack path"
+            + (hasText(parentStepTemplateId) ? " (depends on a previous step)." : "."),
+        null);
+    return stepTemplateId;
+  }
+
+  /**
+   * Re-evaluates the run's live workflow so freshly authored steps ready and execute now. The
+   * orchestrator calls this after appending one or more steps in a decision cycle.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void evaluateAttackPath(String runId) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    if (!hasText(run.getSimulationId())) {
+      return;
+    }
+    try {
+      workflowService.triggerEvaluation(run.getSimulationId());
+    } catch (ChainingException e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Failed to evaluate the attack path: " + e.getMessage(), e);
+    }
+  }
+
+  // endregion
+
   // region reads
 
   // Not read-only: reconcileWithSimulation may need to persist a status sync so a run whose
@@ -743,6 +826,23 @@ public class AutonomousRunService {
     }
   }
 
+  /**
+   * Marks the scenario's chaining workflow as keep-alive (and disables its timeout) so an
+   * autonomous run survives an empty launch and long idle gaps between decision cycles. Best-effort
+   * on a missing workflow so an advanced caller-provided scenario without a workflow surfaces the
+   * standard chaining error at launch rather than here.
+   */
+  private void markWorkflowKeepAlive(String scenarioId) {
+    try {
+      workflowService.markScenarioWorkflowKeepAlive(scenarioId);
+    } catch (ChainingException e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Failed to prepare the autonomous attack-path workflow: " + e.getMessage(),
+          e);
+    }
+  }
+
   private String defaultScenarioName() {
     return "Autonomous attack path - "
         + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
@@ -826,6 +926,54 @@ public class AutonomousRunService {
     if (target == current) {
       return run;
     }
+    // Persist the sync in its OWN transaction so a read endpoint (getByScenario / getBySimulation,
+    // which run read-only) never writes inside - and therefore never poisons - its request
+    // transaction. Writing the status flip + STATUS event directly here was the root cause of the
+    // "UnexpectedRollbackException: marked as rollback-only" 500 on Stop: the INSERT into the event
+    // table inside a read-only transaction marked it rollback-only, the outer commit blew up, and
+    // the failed GET made the UI fall back to the manual (non-AI) view. Best-effort: if the
+    // isolated
+    // write fails, we still return the run with the target status applied in-memory so the read is
+    // truthful and never 500s.
+    String detail =
+        "Synced from the underlying simulation ("
+            + (simStatus == null ? "deleted" : simStatus.name())
+            + "): an autonomous run and its simulation are always kept in lockstep.";
+    try {
+      AutonomousRun settled = self.getObject().settleRunStatus(run.getId(), target, detail);
+      if (settled != null) {
+        // The run is now terminal, so stop the orchestrator loop too (purge on cancel so a later
+        // restart starts clean). Best-effort, after commit.
+        cancelOrchestratorAfterCommit(
+            run.getId(),
+            "run reconciled to " + target + " from simulation status",
+            target == AutonomousRunStatus.CANCELED);
+        return settled;
+      }
+    } catch (Exception e) {
+      log.warn(
+          "[Autonomous] Could not persist reconciled status {} for run {}; returning in-memory sync",
+          target,
+          run.getId(),
+          e);
+    }
+    run.setStatus(target);
+    return run;
+  }
+
+  /**
+   * Persists a reconciled run status flip and its STATUS timeline event in a fresh, isolated
+   * transaction. Called only from {@link #reconcileWithSimulation} through the Spring self-proxy so
+   * it runs {@code REQUIRES_NEW} and never writes inside a read-only read-path transaction. Returns
+   * {@code null} when the run vanished in the meantime, so the caller can degrade gracefully.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public AutonomousRun settleRunStatus(
+      String runId, AutonomousRunStatus target, String reasonDetail) {
+    AutonomousRun run = runRepository.findById(runId).orElse(null);
+    if (run == null) {
+      return null;
+    }
     run.setStatus(target);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
@@ -833,16 +981,8 @@ public class AutonomousRunService {
         run.getSimulationId(),
         AutonomousEventType.STATUS,
         target == AutonomousRunStatus.CANCELED ? "Run canceled" : "Run completed",
-        "Synced from the underlying simulation ("
-            + (simStatus == null ? "deleted" : simStatus.name())
-            + "): an autonomous run and its simulation are always kept in lockstep.",
+        reasonDetail,
         null);
-    // The run is now terminal, so stop the orchestrator loop too (purge on cancel so a later
-    // restart starts clean). Best-effort, after commit.
-    cancelOrchestratorAfterCommit(
-        run.getId(),
-        "run reconciled to " + target + " from simulation status",
-        target == AutonomousRunStatus.CANCELED);
     return saved;
   }
 
