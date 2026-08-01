@@ -442,7 +442,8 @@ public class AutonomousRunService {
     Scenario scenario = scenarioService.scenario(run.getScenarioId());
     // Clear the previous run's mirrored scenario steps first: the scenario workflow doubles as the
     // seed the fresh simulation is copied from, so leaving them would make the restarted simulation
-    // start non-empty and duplicate the attack path. Only the AI-mirrored steps are removed (tracked
+    // start non-empty and duplicate the attack path. Only the AI-mirrored steps are removed
+    // (tracked
     // in stepMirror), so any caller-authored steps of an advanced scenario are preserved.
     if (run.getStepMirror() != null && !run.getStepMirror().isEmpty()) {
       workflowService.deleteScenarioMirrorSteps(run.getStepMirror().values());
@@ -783,7 +784,8 @@ public class AutonomousRunService {
           HttpStatus.BAD_REQUEST, "Failed to author the attack-path step: " + e.getMessage(), e);
     }
     // A human-in-the-loop inject (email, SMS, ...) delivers only to the players ENABLED on the
-    // simulation (exercise_teams_users), not merely to team members. The orchestrator can legitimately
+    // simulation (exercise_teams_users), not merely to team members. The orchestrator can
+    // legitimately
     // target a team directly - an operator-pre-selected audience, or one it built - without routing
     // through ensure_openaev_target_team, and that team's members are then NOT enabled on this
     // simulation, so the step ERRORs with "Email needs at least one user". Enable every targeted
@@ -840,12 +842,13 @@ public class AutonomousRunService {
   /**
    * Enables, on the run's simulation, the members of every team a just-authored step targets so a
    * human-in-the-loop inject (email, SMS, credential harvesting, ...) can actually reach them. The
-   * email/SMS executor resolves recipients from {@code exercise_teams_users} (players ENABLED on the
-   * simulation), not from raw team membership, so targeting a team whose members were never enabled
-   * fails with "Email needs at least one user". This makes any team-targeted step deliverable
-   * regardless of how the orchestrator wired the team (a pre-selected audience, a wrapper it built,
-   * or {@code ensure_openaev_target_team}). Best-effort and idempotent: {@code enablePlayers} skips
-   * already-enabled links, and a team-less (asset-only) step targets nothing here.
+   * email/SMS executor resolves recipients from {@code exercise_teams_users} (players ENABLED on
+   * the simulation), not from raw team membership, so targeting a team whose members were never
+   * enabled fails with "Email needs at least one user". This makes any team-targeted step
+   * deliverable regardless of how the orchestrator wired the team (a pre-selected audience, a
+   * wrapper it built, or {@code ensure_openaev_target_team}). Best-effort and idempotent: {@code
+   * enablePlayers} skips already-enabled links, and a team-less (asset-only) step targets nothing
+   * here.
    */
   private void enableTargetedTeamMembers(String simulationId, List<String> teamIds) {
     if (teamIds == null || teamIds.isEmpty() || !hasText(simulationId)) {
@@ -864,8 +867,7 @@ public class AutonomousRunService {
       if (memberIds.isEmpty()) {
         continue;
       }
-      boolean onSimulation =
-          simulation.getTeams().stream().anyMatch(t -> teamId.equals(t.getId()));
+      boolean onSimulation = simulation.getTeams().stream().anyMatch(t -> teamId.equals(t.getId()));
       if (!onSimulation) {
         team.getExercises().add(simulation);
         teamRepository.save(team);
@@ -902,9 +904,9 @@ public class AutonomousRunService {
 
   /**
    * Live snapshot of every step already authored on the run's attack path: each backing inject, its
-   * current execution status, and its execution traces. This is the read path the orchestrator polls
-   * before authoring anything, so it can see what it has ALREADY built (and not duplicate it) and
-   * what each step actually did (its traces) before deciding the next move.
+   * current execution status, and its execution traces. This is the read path the orchestrator
+   * polls before authoring anything, so it can see what it has ALREADY built (and not duplicate it)
+   * and what each step actually did (its traces) before deciding the next move.
    */
   @Transactional(readOnly = true)
   public List<AutonomousAttackPathStepState> attackPathState(String runId) {
@@ -946,10 +948,10 @@ public class AutonomousRunService {
 
   /**
    * Promotes a run finding (a host/IP/hostname discovered during the attack path) into a real,
-   * targetable endpoint asset so the orchestrator can pivot to attacking it. The ORIGINAL finding is
-   * kept - the new asset is simply linked onto it - which is the whole point: the finding remains the
-   * evidence trail while the asset becomes the inject target for the next chained step (lateral
-   * movement).
+   * targetable endpoint asset so the orchestrator can pivot to attacking it. The ORIGINAL finding
+   * is kept - the new asset is simply linked onto it - which is the whole point: the finding
+   * remains the evidence trail while the asset becomes the inject target for the next chained step
+   * (lateral movement).
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousPromotedAssetResult promoteFindingToAsset(String runId, String findingId) {
@@ -1002,8 +1004,8 @@ public class AutonomousRunService {
    * orchestrator calls (create player, create team, set members) routinely left the team unattached
    * or its players not enabled, which surfaced as the "Email needs at least one user" execution
    * error. This does all of it atomically: reuse-or-create a CONTEXTUAL team on the run's
-   * simulation, set its members, and enable those players for delivery, then hand back a team id the
-   * next chained step can target directly.
+   * simulation, set its members, and enable those players for delivery, then hand back a team id
+   * the next chained step can target directly.
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousTargetTeamResult ensureTargetTeam(
@@ -1065,8 +1067,7 @@ public class AutonomousRunService {
     }
 
     // Enable the players on the simulation so the email/SMS executor resolves them as recipients.
-    exerciseService.enablePlayers(
-        simulationId, team, players.stream().map(User::getId).toList());
+    exerciseService.enablePlayers(simulationId, team, players.stream().map(User::getId).toList());
 
     List<String> enabledPlayerIds = team.getUsers().stream().map(User::getId).toList();
     eventService.append(

@@ -416,7 +416,8 @@ public class AttackPathExecutionIngestionService {
    * injector, and one PERSON node per ENABLED recipient hanging off the team (injector -> team ->
    * persons). Recipients are the players enabled on THIS simulation ({@code exercise_teams_users}),
    * not merely team members, mirroring what the email/SMS executor actually delivers to - so the
-   * graph shows exactly who was reached and findings (e.g. harvested credentials) attach per person.
+   * graph shows exactly who was reached and findings (e.g. harvested credentials) attach per
+   * person.
    */
   private List<AttackPathExecution> getTeamTargetExecutions(Inject inject, Step step) {
     List<AttackPathExecution> rows = new ArrayList<>();
@@ -437,7 +438,8 @@ public class AttackPathExecutionIngestionService {
       List<User> recipients =
           team.getExerciseTeamUsers().stream()
               .filter(
-                  etu -> etu.getExercise() != null && simulationId.equals(etu.getExercise().getId()))
+                  etu ->
+                      etu.getExercise() != null && simulationId.equals(etu.getExercise().getId()))
               .map(ExerciseTeamUser::getUser)
               .filter(Objects::nonNull)
               .distinct()

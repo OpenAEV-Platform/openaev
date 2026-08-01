@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
  *
  * <p>A run's scope now has two independent facets: an asset-group perimeter (host-targeted
  * objectives) and a team/audience (identity-targeted objectives - phishing, human credential
- * harvesting, ...). An OpenAEV inject can only be delivered to a TEAM, never to a bare person, so an
- * identity objective needs a team to target; the orchestrator uses whichever facet the objective
+ * harvesting, ...). An OpenAEV inject can only be delivered to a TEAM, never to a bare person, so
+ * an identity objective needs a team to target; the orchestrator uses whichever facet the objective
  * requires. This column carries the optional pre-selected audience alongside the existing {@code
  * autonomous_run_scope_asset_group_id}.
  *

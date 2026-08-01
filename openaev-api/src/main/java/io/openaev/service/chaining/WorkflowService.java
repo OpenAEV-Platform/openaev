@@ -555,8 +555,8 @@ public class WorkflowService {
    * Deletes the given scenario step templates (and their conditions), skipping any already gone.
    *
    * <p>Used to clear the steps an autonomous run mirrored onto its scenario before a restart: the
-   * scenario workflow doubles as the seed a fresh simulation is copied from, so stale mirrored steps
-   * must be removed or the restarted simulation would not park empty and the scenario would
+   * scenario workflow doubles as the seed a fresh simulation is copied from, so stale mirrored
+   * steps must be removed or the restarted simulation would not park empty and the scenario would
    * accumulate a duplicated attack path. Best-effort per id so a missing step never aborts restart.
    *
    * @param scenarioStepTemplateIds step template ids previously mirrored onto the scenario

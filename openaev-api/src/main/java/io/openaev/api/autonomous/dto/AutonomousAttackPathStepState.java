@@ -7,10 +7,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- * A live snapshot of one step already authored on an autonomous attack path: the inject, its current
- * execution status, and its execution traces. The orchestrator reads the full list every decision
- * cycle so it can see what it has ALREADY built (and thus avoid authoring the same inject twice) and
- * what each step actually did (its traces) before deciding the next move.
+ * A live snapshot of one step already authored on an autonomous attack path: the inject, its
+ * current execution status, and its execution traces. The orchestrator reads the full list every
+ * decision cycle so it can see what it has ALREADY built (and thus avoid authoring the same inject
+ * twice) and what each step actually did (its traces) before deciding the next move.
  */
 @Getter
 @AllArgsConstructor

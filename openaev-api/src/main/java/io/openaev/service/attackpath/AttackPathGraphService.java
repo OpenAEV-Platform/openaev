@@ -1055,8 +1055,8 @@ public class AttackPathGraphService {
   /**
    * The real entity an ASSET-typed target node stands for, from its frozen target kind. ASSET /
    * DISCOVERED endpoints stay ENDPOINT (null, the default) so existing graphs are untouched; a TEAM
-   * / PERSON / ASSET_GROUP target (a human-in-the-loop step) carries its kind so the front picks the
-   * right icon and nests a team's persons.
+   * / PERSON / ASSET_GROUP target (a human-in-the-loop step) carries its kind so the front picks
+   * the right icon and nests a team's persons.
    */
   private static String entityKindFor(String targetKind) {
     return switch (targetKind == null ? "" : targetKind) {
