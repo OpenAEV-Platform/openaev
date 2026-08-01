@@ -1,6 +1,7 @@
-import { DnsOutlined, GroupsOutlined, HubOutlined, PersonOutlineOutlined } from '@mui/icons-material';
+import { DnsOutlined, GroupsOutlined, PersonOutlined } from '@mui/icons-material';
 import { Box, Checkbox, Chip, CircularProgress, List, ListItemButton, ListItemIcon, ListItemText, Tab, Tabs, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
+import { SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent, type ReactElement, useCallback, useEffect, useRef, useState } from 'react';
 
 import { searchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
@@ -68,7 +69,7 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
     },
     ASSETS_GROUPS: {
       label: t('Asset groups'),
-      icon: <HubOutlined fontSize="small" />,
+      icon: <SelectGroup fontSize="small" />,
       color: theme.palette.secondary.main,
       fetch: query =>
         searchAssetGroups(buildSearchPagination({
@@ -100,7 +101,7 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
     },
     PLAYERS: {
       label: t('Persons'),
-      icon: <PersonOutlineOutlined fontSize="small" />,
+      icon: <PersonOutlined fontSize="small" />,
       color: theme.palette.warning.main,
       fetch: query =>
         searchPlayers(buildSearchPagination({
@@ -220,16 +221,22 @@ const ScopeTargetsField: FunctionComponent<Props> = ({ value, onChange, emphasis
             <Tab
               key={kind}
               value={kind}
-              iconPosition="start"
-              icon={KIND_META[kind].icon}
-              label={count > 0 ? `${KIND_META[kind].label} (${count})` : KIND_META[kind].label}
+              label={(
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1,
+                  lineHeight: 1,
+                }}
+                >
+                  {KIND_META[kind].icon}
+                  <span>{count > 0 ? `${KIND_META[kind].label} (${count})` : KIND_META[kind].label}</span>
+                </Box>
+              )}
               sx={{
-                'minHeight': 40,
-                'textTransform': 'none',
-                '& .MuiTab-iconWrapper': {
-                  marginBottom: 0,
-                  marginRight: theme.spacing(1),
-                },
+                minHeight: 40,
+                textTransform: 'none',
               }}
             />
           );

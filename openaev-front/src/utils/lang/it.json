@@ -3625,5 +3625,7 @@
   "WAITING_INPUT": "WAITING_INPUT",
   "No match": "No match",
   "Read-only view. This attack path is provisioned and driven by the AI orchestrator; use it to understand what the orchestrator is doing and where.": "Read-only view. This attack path is provisioned and driven by the AI orchestrator; use it to understand what the orchestrator is doing and where.",
-  "Attack path steps": "Attack path steps"
+  "Attack path steps": "Attack path steps",
+  "This objective targets people, so the scope is an audience. Add the teams or persons to attack (a person is targeted through a team - the AI wraps them for you), or select everything to authorize the whole audience. Leave it empty and the AI will ask you to pick the audience before sending anything.": "This objective targets people, so the scope is an audience. Add the teams or persons to attack (a person is targeted through a team - the AI wraps them for you), or select everything to authorize the whole audience. Leave it empty and the AI will ask you to pick the audience before sending anything.",
+  "Define the perimeter to attack: add the assets, asset groups, teams or persons in scope, or select everything to authorize the whole environment. Leave it empty and the AI will ask you to choose targets before it attacks anything.": "Define the perimeter to attack: add the assets, asset groups, teams or persons in scope, or select everything to authorize the whole environment. Leave it empty and the AI will ask you to choose targets before it attacks anything."
 }

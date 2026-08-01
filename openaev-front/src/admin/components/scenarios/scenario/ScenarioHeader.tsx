@@ -522,12 +522,12 @@ const ScenarioHeader = ({
                       label={t('Attack path steps')}
                       value={attackPathStepCount ?? 0}
                       color={theme.palette.warning.main}
-                      // Autonomous: land on Execution (the live injects), as the scenario Injects tab
-                      // is hidden for AI runs. Manual chained: the attack-path graph is the natural
-                      // drill-down when available, else Execution.
-                      to={isAutonomous
-                        ? `/admin/scenarios/${scenarioId}/execution`
-                        : `/admin/scenarios/${scenarioId}/${isAttackPathEnabled ? 'attack-path' : 'execution'}`}
+                      // The attack-path graph is the natural drill-down for an "Attack path steps"
+                      // stat on both autonomous and manual chained scenarios; fall back to Execution
+                      // only when the attack-path tab is not available.
+                      to={isAttackPathEnabled && isScenarioChaining
+                        ? `/admin/scenarios/${scenarioId}/attack-path`
+                        : `/admin/scenarios/${scenarioId}/execution`}
                     />
                   )
                 : (

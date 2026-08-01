@@ -154,13 +154,10 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
 
   const canLaunch = objective.trim().length > 0 && !submitting;
 
-  // Target-dependent objectives (e.g. web-app exploitation, crown-jewel) need a specific target.
-  // Pre-selecting a scope here is always optional - if left empty, the orchestrator resolves the
-  // scope on its first cycle and parks to ask you one precise question when the target is ambiguous.
-  const selectedTemplate = templates.find(
-    template => template.autonomous_objective_template_key === selectedTemplateKey,
-  );
-  const isTargetDependent = selectedTemplate?.autonomous_objective_template_scope_mode === 'target';
+  // Target selection is expected for EVERY run: pick a perimeter, or leave it empty and the AI
+  // opens by asking you which targets are in scope before it attacks anything (there is no longer
+  // an "environment-wide, so no target needed" shortcut). So the scope field carries no
+  // "required vs optional" distinction - it is the same uniform prompt for every objective.
 
   // Identity-targeted objectives deliver to PEOPLE, and an inject can only reach a team - so the
   // meaningful scope for these is an audience (teams / persons). The unified scope picker exposes
@@ -367,7 +364,7 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
 
             <Box>
               <Typography variant="h2" gutterBottom>
-                {t('Scope (optional)')}
+                {t('Scope')}
               </Typography>
               <ScopeTargetsField
                 value={scope}
@@ -376,21 +373,15 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
               />
               <Typography
                 variant="caption"
-                color={(isTargetDependent || isIdentityObjective) ? 'warning.main' : 'text.secondary'}
+                color="text.secondary"
                 sx={{
                   display: 'block',
                   marginTop: theme.spacing(1),
                 }}
               >
-                {(() => {
-                  if (isIdentityObjective) {
-                    return t('This objective targets people, so it needs an audience. Add the teams or persons that will receive the campaign (a person is targeted through a team - the AI wraps them for you), or leave it empty and the AI will ask you who is in scope before sending anything.');
-                  }
-                  if (isTargetDependent) {
-                    return t('This objective targets a specific perimeter. Add the assets, asset groups, teams or persons to focus on, or leave it empty - the AI will enumerate candidates and ask you which are in scope before attacking.');
-                  }
-                  return t('Optional. Mix any assets, asset groups, teams and persons to define the perimeter; leave it empty to let the AI resolve the scope. The AI uses whichever targets the technique needs.');
-                })()}
+                {isIdentityObjective
+                  ? t('This objective targets people, so the scope is an audience. Add the teams or persons to attack (a person is targeted through a team - the AI wraps them for you), or select everything to authorize the whole audience. Leave it empty and the AI will ask you to pick the audience before sending anything.')
+                  : t('Define the perimeter to attack: add the assets, asset groups, teams or persons in scope, or select everything to authorize the whole environment. Leave it empty and the AI will ask you to choose targets before it attacks anything.')}
               </Typography>
             </Box>
 
