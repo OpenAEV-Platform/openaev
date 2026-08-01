@@ -35,10 +35,8 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -72,11 +70,10 @@ public class AutonomousRunService {
   private final XtmOneClient xtmOneClient;
   private final OpenAEVConfig openAEVConfig;
 
-  // Self-reference so the read-path reconcile can persist a status sync in its OWN transaction
-  // (REQUIRES_NEW) through the Spring proxy - a plain in-class call would not honour the new
-  // propagation and would keep writing inside the caller's (read-only) transaction. ObjectProvider
-  // makes the self-injection lazy so it never forms a hard construction cycle.
-  private final ObjectProvider<AutonomousRunService> self;
+  // A dedicated bean persists the read-path reconcile in its OWN transaction (REQUIRES_NEW) through
+  // its Spring proxy. It must be a separate class: a same-class call would bypass the proxy, keep
+  // writing inside the caller's (read-only) transaction, and mark it rollback-only.
+  private final AutonomousRunReconciliationWriter reconciliationWriter;
 
   private void requireFeature() {
     if (!previewFeatureService.isAutonomousAttackPathEnabled()) {
@@ -715,8 +712,15 @@ public class AutonomousRunService {
     if (!hasText(run.getSimulationId())) {
       return;
     }
+    // Re-evaluate the run's live workflow(s) so freshly authored step templates ready and execute
+    // now instead of waiting for an in-flight step. Done here (cross-bean to WorkflowService)
+    // rather
+    // than through a WorkflowService helper so we never self-invoke its @Transactional evaluator.
     try {
-      workflowService.triggerEvaluation(run.getSimulationId());
+      for (Workflow runWorkflow :
+          workflowService.findWorkflowRunBySimulationId(run.getSimulationId())) {
+        workflowService.saveWorkflowRun(workflowService.evaluateWorkflowProgress(runWorkflow));
+      }
     } catch (ChainingException e) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to evaluate the attack path: " + e.getMessage(), e);
@@ -940,7 +944,7 @@ public class AutonomousRunService {
             + (simStatus == null ? "deleted" : simStatus.name())
             + "): an autonomous run and its simulation are always kept in lockstep.";
     try {
-      AutonomousRun settled = self.getObject().settleRunStatus(run.getId(), target, detail);
+      AutonomousRun settled = reconciliationWriter.settleRunStatus(run.getId(), target, detail);
       if (settled != null) {
         // The run is now terminal, so stop the orchestrator loop too (purge on cancel so a later
         // restart starts clean). Best-effort, after commit.
@@ -959,31 +963,6 @@ public class AutonomousRunService {
     }
     run.setStatus(target);
     return run;
-  }
-
-  /**
-   * Persists a reconciled run status flip and its STATUS timeline event in a fresh, isolated
-   * transaction. Called only from {@link #reconcileWithSimulation} through the Spring self-proxy so
-   * it runs {@code REQUIRES_NEW} and never writes inside a read-only read-path transaction. Returns
-   * {@code null} when the run vanished in the meantime, so the caller can degrade gracefully.
-   */
-  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-  public AutonomousRun settleRunStatus(
-      String runId, AutonomousRunStatus target, String reasonDetail) {
-    AutonomousRun run = runRepository.findById(runId).orElse(null);
-    if (run == null) {
-      return null;
-    }
-    run.setStatus(target);
-    AutonomousRun saved = runRepository.save(run);
-    eventService.append(
-        run.getId(),
-        run.getSimulationId(),
-        AutonomousEventType.STATUS,
-        target == AutonomousRunStatus.CANCELED ? "Run canceled" : "Run completed",
-        reasonDetail,
-        null);
-    return saved;
   }
 
   /** Reads the simulation's status, or {@code null} when it no longer exists / is unreadable. */

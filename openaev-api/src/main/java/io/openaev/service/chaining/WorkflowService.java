@@ -1151,21 +1151,4 @@ public class WorkflowService {
     Step created = stepService.createStepTemplate(simulationTemplate, stepInput);
     return created.getId();
   }
-
-  /**
-   * Re-evaluates the RUN workflow(s) of a simulation so newly authored step templates ready and
-   * execute now instead of waiting for an in-flight step to complete. This is the explicit "run the
-   * pending steps" trigger the autonomous orchestrator calls after appending steps; without it a
-   * keep-alive workflow with no active step would never re-scan its templates.
-   *
-   * @param simulationId the run's live simulation
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void triggerEvaluation(String simulationId) throws ChainingException {
-    List<Workflow> runs = findWorkflowRunBySimulationId(simulationId);
-    for (Workflow run : runs) {
-      Workflow evaluated = evaluateWorkflowProgress(run);
-      saveWorkflowRun(evaluated);
-    }
-  }
 }
