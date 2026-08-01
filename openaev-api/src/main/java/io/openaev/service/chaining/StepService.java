@@ -70,6 +70,88 @@ public class StepService {
   }
 
   /**
+   * Creates an INJECT_EXECUTION step template idempotently, reusing an existing twin instead of
+   * minting a duplicate.
+   *
+   * <p>Autonomous (AI-driven) runs author their attack path by calling this repeatedly. The
+   * orchestrator - or a retried/replayed tool call, or a re-run decision cycle - can legitimately
+   * request the <b>same</b> inject step many times. Left unguarded, every call minted a new
+   * template and the next workflow evaluation turned each into its own inject, producing the
+   * observed duplicate storm (hundreds of identical injects materialising in seconds). The chaining
+   * engine's per-target dedup cannot catch this: each template carries its own committed-hash local
+   * state, so N templates for the same inject are N distinct, individually-valid executions.
+   *
+   * <p>Idempotency key = the baked inject {@code data} (identical for an identical {@link
+   * io.openaev.rest.inject.form.InjectInput} within a run) plus the kill-chain parent (the {@code
+   * DEPEND_ON} step template id, {@code null} for a root). A match is reused ONLY while it is still
+   * <b>pending</b> - it has not yet spawned a run step - because that is the signature of the storm:
+   * a burst of identical author calls before the workflow first evaluates them. Once a twin has
+   * executed, a fresh author of the same inject is a deliberate <b>re-run</b> (e.g. the agent tried
+   * a step, saw no finding, edited the payload/injector contract in place - leaving the inject data
+   * byte-identical - and wants to fire it again) and MUST mint a new template so it actually runs
+   * again. This is the boundary that lets the guard kill the duplicate storm without ever blocking
+   * the normal try -> tweak -> re-fire loop. On a miss a new template is created exactly as {@link
+   * #createStepTemplate}; the candidate is built once via the action step's {@code create} (needed
+   * to compute {@code data}) and only persisted on a miss, so a hit performs no writes.
+   *
+   * @param workflow the workflow template to author on
+   * @param stepInput the inject step input (its {@code conditions} carry the DEPEND_ON on a miss)
+   * @param dependOnParentTemplateId the kill-chain parent step template id, or {@code null} for
+   *     root
+   * @return the existing pending twin on a hit, or the newly created template on a miss
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Step createInjectStepTemplateIdempotent(
+      Workflow workflow, StepsCreateInput.StepInput stepInput, String dependOnParentTemplateId)
+      throws ChainingException {
+    ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
+    Step candidate =
+        actionStep
+            .create(stepInput, workflow)
+            .orElseThrow(() -> new ChainingException("Failed to create step (TEMPLATE)"));
+
+    String candidateData = candidate.getData();
+    String normalizedParent = normalizeDependOnParent(dependOnParentTemplateId);
+    Optional<Step> existing =
+        findAllStepTemplateByWorkflow(workflow.getId()).stream()
+            .filter(s -> StepActionClass.INJECT_EXECUTION.equals(s.getStepAction()))
+            .filter(s -> Objects.equals(s.getData(), candidateData))
+            .filter(
+                s -> Objects.equals(normalizeDependOnParent(dependOnParentOf(s)), normalizedParent))
+            // Collapse a duplicate ONLY while the twin is still pending (no run step yet). A twin
+            // that already executed means this author is a deliberate re-run and must create a new
+            // template - never block the try -> tweak -> re-fire loop.
+            .filter(s -> !stepRepository.existsByStepTemplateId(s.getId()))
+            .findFirst();
+    if (existing.isPresent()) {
+      log.info(
+          "[Chaining] Idempotent author: reusing pending inject step template {} on workflow {} "
+              + "instead of creating a duplicate (storm guard).",
+          existing.get().getId(),
+          workflow.getId());
+      return existing.get();
+    }
+
+    Step step = saveStep(candidate);
+    stepConditionTemplate(stepInput.getConditions(), workflow.getId(), step);
+    conditionService.linkExistingConditionsToStep(step, stepInput.getConditionIds());
+    return step;
+  }
+
+  private static String normalizeDependOnParent(String parentTemplateId) {
+    return (parentTemplateId != null && !parentTemplateId.isBlank()) ? parentTemplateId : null;
+  }
+
+  private String dependOnParentOf(Step template) {
+    return conditionService.findAllConditionsByStepId(template.getId()).stream()
+        .filter(c -> c.getType() == ConditionType.DEPEND_ON)
+        .map(Condition::getValue)
+        .filter(v -> v != null && !v.isBlank())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
    * Create step templates.
    *
    * @param workflow workflow linked to the step templates

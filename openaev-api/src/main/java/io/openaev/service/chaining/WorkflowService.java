@@ -1175,7 +1175,12 @@ public class WorkflowService {
       stepInput.setConditions(List.of(dependOn));
     }
 
-    Step created = stepService.createStepTemplate(simulationTemplate, stepInput);
+    // Idempotent authoring: a retried/replayed orchestrator call for the SAME inject + same parent
+    // reuses the existing template instead of minting a duplicate that would materialise as yet
+    // another inject on the next evaluation (root cause of the duplicate-inject storm).
+    Step created =
+        stepService.createInjectStepTemplateIdempotent(
+            simulationTemplate, stepInput, parentStepTemplateId);
     return created.getId();
   }
 
@@ -1218,7 +1223,11 @@ public class WorkflowService {
       stepInput.setConditions(List.of(dependOn));
     }
 
-    Step created = stepService.createStepTemplate(scenarioTemplate, stepInput);
+    // Idempotent mirror: keep the scenario twin in lock-step with the (now idempotent) simulation
+    // side so a replayed author call never doubles the exported attack path either.
+    Step created =
+        stepService.createInjectStepTemplateIdempotent(
+            scenarioTemplate, stepInput, parentScenarioStepTemplateId);
     return created.getId();
   }
 }
