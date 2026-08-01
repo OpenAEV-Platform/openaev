@@ -421,6 +421,23 @@ export interface AiTargetTarget {
     | "SUCCESS";
 }
 
+/** Installed arsenal + delivery substrate for custom actions */
+export interface ArsenalInventory {
+  /**
+   * Number of active agents/implants (last seen within the active window)
+   * @format int32
+   */
+  active_agent_count?: number;
+  /** Deterministic one-line recommendation on how to obtain a substrate */
+  advice?: string;
+  /** True when at least one agent/implant is active - i.e. a Command payload has a host to execute on */
+  command_delivery_available?: boolean;
+  /** True when an HTTP-request-capable injector is installed and active - i.e. a raw HTTP exploit payload (SQLi, SSRF, path traversal, auth bypass) has somewhere to run */
+  http_delivery_available?: boolean;
+  /** Injectors registered in this tenant's catalog */
+  installed_injectors?: InstalledInjector[];
+}
+
 export interface Article {
   article_author?: string;
   article_channel: string;
@@ -1765,30 +1782,6 @@ export interface CapabilityReport {
   gaps?: CapabilityResolution[];
   /** One resolution per queried capability token */
   resolutions?: CapabilityResolution[];
-}
-
-/** Installed arsenal + delivery substrate for custom actions */
-export interface ArsenalInventory {
-  /** Number of active agents/implants (last seen within the active window) */
-  active_agent_count?: number;
-  /** Deterministic one-line recommendation on how to obtain a substrate */
-  advice?: string;
-  /** True when at least one agent/implant is active - i.e. a Command payload has a host to execute on */
-  command_delivery_available?: boolean;
-  /** True when an HTTP-request-capable injector is installed and active - i.e. a raw HTTP exploit payload (SQLi, SSRF, path traversal, auth bypass) has somewhere to run */
-  http_delivery_available?: boolean;
-  /** Injectors registered in this tenant's catalog */
-  installed_injectors?: InstalledInjector[];
-}
-
-/** An installed injector and its activity state */
-export interface InstalledInjector {
-  /** Built-in injectors are always active; external ones must heartbeat */
-  active?: boolean;
-  injector_type?: string;
-  name?: string;
-  /** True when the injector can carry custom payloads */
-  payloads?: boolean;
 }
 
 /** Resolution of one capability token against installed contracts */
@@ -6440,6 +6433,16 @@ export interface InjectsImportTestInput {
   sheet_name: string;
   /** @format int32 */
   timezone_offset: number;
+}
+
+/** An installed injector and its activity state */
+export interface InstalledInjector {
+  /** Built-in injectors are always active; external ones must heartbeat */
+  active?: boolean;
+  injector_type?: string;
+  name?: string;
+  /** True when the injector can carry custom payloads */
+  payloads?: boolean;
 }
 
 export interface Internal {
@@ -11895,6 +11898,8 @@ export interface Workflow {
   workflow_id?: string;
   /** Workflow template is edited */
   workflow_is_edited?: boolean;
+  /** Keep the workflow alive (parked in RUN) while empty/idle - autonomous runs */
+  workflow_keep_alive?: boolean;
   /**
    * @format int32
    * @min 1
