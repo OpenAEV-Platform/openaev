@@ -1484,6 +1484,12 @@ export interface AutonomousScopeTarget {
   type?: string;
 }
 
+/** Input for the orchestrator to set an autonomous run's resolved scope */
+export interface AutonomousScopeUpdateInput {
+  /** The resolved scope: a list of targets (assets, asset groups, teams, persons) that become the run's allow-list. Replaces any previous allow-list. Empty clears it. */
+  scope?: AutonomousScopeTarget[];
+}
+
 /** Run status update pushed by the orchestrator */
 export interface AutonomousStatusUpdateInput {
   /** Optional narration for the status timeline entry */
@@ -12088,7 +12094,13 @@ export interface WorkflowScopeRule {
   /** ID of the workflow scope rule */
   workflow_scope_rule_id?: string;
   workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
-  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "TEAM" | "PLAYER" | "MANUAL" | "CSV";
+  workflow_scope_rule_source?:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "TEAM"
+    | "PLAYER"
+    | "MANUAL"
+    | "CSV";
   /** @format date-time */
   workflow_scope_rule_updated_at?: string;
   workflow_scope_rule_value?: string;
@@ -12109,7 +12121,13 @@ export interface WorkflowScopeRuleInput {
   /** Selected list mode where the rule should be applied */
   workflow_scope_rule_selected_mode: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected rule */
-  workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "TEAM" | "PLAYER" | "MANUAL" | "CSV";
+  workflow_scope_rule_source:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "TEAM"
+    | "PLAYER"
+    | "MANUAL"
+    | "CSV";
   /**
    * Selected rule value
    * @minLength 1
@@ -12124,7 +12142,13 @@ export interface WorkflowScopeRuleOutput {
   /** Selected list mode where the rule is applied. */
   workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected item */
-  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "TEAM" | "PLAYER" | "MANUAL" | "CSV";
+  workflow_scope_rule_source?:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "TEAM"
+    | "PLAYER"
+    | "MANUAL"
+    | "CSV";
   /** Selected item value */
   workflow_scope_rule_value?: string;
 }
