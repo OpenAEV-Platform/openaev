@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import io.openaev.config.EngineConfig;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
@@ -36,6 +38,7 @@ class EngineSyncExecutionJobTest {
   @Mock private EngineContext engineContext;
   @Mock private EsModel<EsBase> esModel;
   @Mock private JobExecutionContext jobExecutionContext;
+  @Mock private TenantScopedTransaction tenantTx;
 
   private EngineConfig engineConfig;
 
@@ -47,10 +50,21 @@ class EngineSyncExecutionJobTest {
     JobDataMap jobDataMap = new JobDataMap();
     jobDataMap.put("modelName", MODEL_NAME);
     lenient().when(jobExecutionContext.getMergedJobDataMap()).thenReturn(jobDataMap);
+    // The tenant-scoped primitive runs the work it is given; the transaction plumbing itself is
+    // covered by TenantScopedTransaction's own tests.
+    lenient()
+        .doAnswer(
+            invocation -> {
+              invocation.getArgument(1, Runnable.class).run();
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
   }
 
   private EngineSyncExecutionJob buildJob() throws Exception {
-    return new EngineSyncExecutionJob(scheduler, engineService, engineContext, engineConfig);
+    return new EngineSyncExecutionJob(
+        scheduler, engineService, engineContext, engineConfig, tenantTx);
   }
 
   @Test
@@ -190,5 +204,23 @@ class EngineSyncExecutionJobTest {
 
     assertThrows(JobExecutionException.class, () -> pass.execute(jobExecutionContext));
     verify(engineService, never()).bulkProcessing(any());
+  }
+
+  @Test
+  @DisplayName("Runs the sync pass inside an all-tenants scoped transaction")
+  void given_syncPass_should_runInsideAllTenantsScope() throws Exception {
+    // The indexing sweep reads tenant-activated tables (e.g. collectors) to build the search
+    // documents, and can_access_tenant is fail-closed: a scope-less sweep silently reads those
+    // tables empty and drops the collector-to-security-platform attribution from every indexed
+    // expectation. The sweep must therefore always carry the allTenants() intention.
+    engineConfig.setIndexingMaxConcurrentModels(1);
+    EngineSyncExecutionJob job = buildJob();
+
+    job.new Job().execute(jobExecutionContext);
+
+    ArgumentCaptor<TxCtx> scope = ArgumentCaptor.forClass(TxCtx.class);
+    verify(tenantTx).execute(scope.capture(), any(Runnable.class));
+    assertEquals(TxCtx.allTenants(), scope.getValue(), "the sweep must carry the allTenants scope");
+    verify(engineService).bulkProcessing(any());
   }
 }
