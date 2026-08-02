@@ -6,6 +6,8 @@ import static org.quartz.TriggerBuilder.newTrigger;
 
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.EngineConfig;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
@@ -56,12 +58,22 @@ public class EngineSyncExecutionJob extends SelfConfiguredPlatformJob {
   private final ConcurrentHashMap<String, AtomicInteger> consecutiveSkips =
       new ConcurrentHashMap<>();
 
+  /**
+   * The indexing sweep is genuinely-global background work: it must read rows from every tenant to
+   * build the search documents. Without an explicit scope, {@code can_access_tenant} is fail-closed
+   * and every tenant-activated table (e.g. {@code collectors}) silently reads empty, which dropped
+   * the collector-to-security-platform attribution from every indexed expectation.
+   */
+  private final TenantScopedTransaction tenantTx;
+
   protected EngineSyncExecutionJob(
       Scheduler scheduler,
       EngineService engineService,
       EngineContext engineContext,
-      EngineConfig engineConfig) {
+      EngineConfig engineConfig,
+      TenantScopedTransaction tenantTx) {
     super(scheduler, engineService, engineContext);
+    this.tenantTx = tenantTx;
     // Clamp to at least 1: zero (or negative) permits would silently disable engine sync
     // altogether, which is never what a tuning knob should do.
     int maxConcurrentModels = engineConfig.getIndexingMaxConcurrentModels();
@@ -116,7 +128,10 @@ public class EngineSyncExecutionJob extends SelfConfiguredPlatformJob {
       consecutiveSkips.remove(modelName);
       try {
         log.info("Executing engine sync for model {}", modelName);
-        engineService.bulkProcessing(Stream.of(model.get()));
+        // allTenants(): the sweep indexes every tenant's rows; the primitive resolves it into an
+        // explicit tenant list for can_access_tenant (see TxCtx#allTenants).
+        tenantTx.execute(
+            TxCtx.allTenants(), () -> engineService.bulkProcessing(Stream.of(model.get())));
       } finally {
         concurrentSyncs.release();
       }
