@@ -4,7 +4,7 @@ import {
   HourglassEmpty,
   SendOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
+import { Box, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useRef, useState } from 'react';
@@ -29,9 +29,10 @@ import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 3000;
 
-// Sentinel radio value for "I'll type my own answer" - always offered as the last alternative so a
-// proposed choice never traps the operator into the orchestrator's suggestions.
-const CUSTOM_ANSWER = '__custom__';
+// Cap the proposed one-click choices so the callout stays scannable: at most this many radio options
+// are ever shown, and the always-present free-text composer below is the escape hatch for anything
+// the operator would rather type.
+const MAX_QUESTION_CHOICES = 3;
 
 interface QuestionChoice {
   id: string;
@@ -108,27 +109,28 @@ interface ThinkingPhase {
 const ThinkingBubble: FunctionComponent<{
   phase: ThinkingPhase;
   theme: Theme;
-  latest?: string;
+  lines: string[];
 }> = ({
   phase,
   theme,
-  latest,
+  lines,
 }) => {
   const accent = phase.color;
   const active = phase.active;
   // A parked/waiting phase never streams the live thought echo (there is no live thought - the run
   // is idle), and its dots do not pulse.
-  const showLatest = active && !!latest;
-  // Keep the window pinned to the bottom as the reasoning text changes, so it "defiles" like the
-  // XTM One chatbot thinking window - the newest lines sit at the bottom and older text scrolls up
-  // out of view (rather than clamping to the first lines and looking frozen on long reasoning).
+  const showLatest = active && lines.length > 0;
+  // Keep the window pinned to the bottom as the reasoning grows, so it visibly "defiles" like the
+  // XTM One thinking window: each new thought line is appended at the bottom and older lines scroll
+  // up out of view under the fade mask, instead of a single static block that never moves.
   const textRef = useRef<HTMLDivElement | null>(null);
+  const streamText = lines.join('\n');
   useEffect(() => {
     const node = textRef.current;
     if (node) {
       node.scrollTop = node.scrollHeight;
     }
-  }, [latest]);
+  }, [streamText]);
 
   return (
     <Box
@@ -218,28 +220,36 @@ const ThinkingBubble: FunctionComponent<{
         <Box
           ref={textRef}
           sx={{
-            'maxHeight': 54,
+            'maxHeight': 132,
             'overflowY': 'auto',
-            'marginTop': 0.5,
-            // Fade the top edge so text appears to scroll up out of view; no visible scrollbar.
-            'maskImage': 'linear-gradient(to bottom, transparent 0, black 18px)',
-            'WebkitMaskImage': 'linear-gradient(to bottom, transparent 0, black 18px)',
+            'marginTop': 0.75,
+            // Fade the top edge so older lines appear to scroll up out of view; no visible scrollbar.
+            'maskImage': 'linear-gradient(to bottom, transparent 0, black 28px)',
+            'WebkitMaskImage': 'linear-gradient(to bottom, transparent 0, black 28px)',
             'scrollbarWidth': 'none',
             '&::-webkit-scrollbar': { display: 'none' },
           }}
         >
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              fontStyle: 'italic',
-              color: alpha(theme.palette.text.secondary, 0.9),
-              whiteSpace: 'pre-wrap',
-              animation: 'aevThinkingShimmer 2.4s ease-in-out infinite',
-            }}
-          >
-            {latest}
-          </Typography>
+          {lines.map((line, index) => {
+            const isLast = index === lines.length - 1;
+            return (
+              <Typography
+                key={`${index}-${line.slice(0, 24)}`}
+                variant="caption"
+                sx={{
+                  display: 'block',
+                  fontStyle: 'italic',
+                  lineHeight: 1.5,
+                  color: alpha(theme.palette.text.secondary, isLast ? 0.95 : 0.5),
+                  whiteSpace: 'pre-wrap',
+                  // Only the newest line shimmers - the "live" thought; older lines settle, dimmed.
+                  animation: isLast ? 'aevThinkingShimmer 2.4s ease-in-out infinite' : undefined,
+                }}
+              >
+                {line}
+              </Typography>
+            );
+          })}
         </Box>
       )}
     </Box>
@@ -289,7 +299,8 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   const [run, setRun] = useState<AutonomousRun>(initialRun);
   const [events, setEvents] = useState<AutonomousEvent[]>([]);
   const [directive, setDirective] = useState('');
-  // Which proposed choice the operator picked (or CUSTOM_ANSWER to type free text).
+  // Which proposed one-click choice the operator picked (null = none; they can still type freely in
+  // the always-visible composer, which takes precedence over a selected choice).
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   // The question the operator just answered - suppressed immediately (optimistic) so the callout
   // does not linger and hog space while we wait for the status poll to flip the run to RUNNING.
@@ -430,7 +441,8 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   const pendingQuestion = latestQuestion && latestQuestion.autonomous_event_id !== answeredQuestionId
     ? latestQuestion
     : undefined;
-  const questionChoices = pendingQuestion ? parseQuestionChoices(pendingQuestion.autonomous_event_data) : [];
+  const questionChoices = (pendingQuestion ? parseQuestionChoices(pendingQuestion.autonomous_event_data) : [])
+    .slice(0, MAX_QUESTION_CHOICES);
   const hasChoices = questionChoices.length > 0;
 
   // Reset the choice selection whenever a new question arrives.
@@ -453,27 +465,34 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     addAutonomousDirective(runId, trimmed).then(() => pollTimeline()).catch(() => {});
   }, [isActive, pendingQuestion, runId, pollTimeline]);
 
-  const handleSendDirective = () => sendDirective(directive);
-
-  const handleSubmitChoice = () => {
-    if (selectedChoice === CUSTOM_ANSWER) {
-      sendDirective(directive);
+  // One submit path for the always-visible composer + optional one-click choices: a typed answer
+  // ALWAYS wins (it is the operator's explicit words); otherwise send the picked choice. This is
+  // why the free-text input lives directly next to the send button - it is the primary answer field,
+  // with the radio options as shortcuts above it, not a hidden "custom answer" mode.
+  const canSubmitAnswer = directive.trim().length > 0 || (hasChoices && selectedChoice !== null);
+  const handleComposerSubmit = useCallback(() => {
+    const typed = directive.trim();
+    if (typed.length > 0) {
+      sendDirective(typed);
       return;
     }
     const chosen = questionChoices.find(choice => choice.id === selectedChoice);
     if (chosen) {
       sendDirective(chosen.value);
     }
-  };
+  }, [directive, questionChoices, selectedChoice, sendDirective]);
 
-  // Echo the orchestrator's most recent reasoning line in the live thinking window so operators read
-  // its current train of thought, not just a spinner. Prefer narration/decision/tool prose.
-  const lastThought = [...events].reverse().find(
-    e => (['NARRATION', 'DECISION', 'TOOL_ACTION'] as const).includes(
+  // Feed the live thinking window a SCROLLING transcript of the orchestrator's recent reasoning
+  // (not a single frozen line): keep the tail of narration/decision/tool prose in chronological
+  // order so each new cycle appends a line at the bottom and older ones scroll up under the fade
+  // mask, mirroring the XTM One thinking window. Operators read its train of thought, not a spinner.
+  const thinkingLines = events
+    .filter(e => (['NARRATION', 'DECISION', 'TOOL_ACTION'] as const).includes(
       e.autonomous_event_type as 'NARRATION' | 'DECISION' | 'TOOL_ACTION',
-    ),
-  );
-  const thinkingText = sanitizeEventText(lastThought?.autonomous_event_content ?? lastThought?.autonomous_event_title) || undefined;
+    ))
+    .map(e => sanitizeEventText(e.autonomous_event_content ?? e.autonomous_event_title))
+    .filter((line): line is string => Boolean(line))
+    .slice(-8);
 
   // Current orchestrator phase for the thinking window. Derived from status + the latest activity
   // event rather than the raw run status, so the caption narrates what the run is doing and animates
@@ -767,7 +786,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                   <ThinkingBubble
                     phase={thinkingPhase}
                     theme={theme}
-                    latest={thinkingText}
+                    lines={thinkingLines}
                   />
                 )}
               </Stack>
@@ -830,12 +849,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               onChange={event => setSelectedChoice(event.target.value)}
               sx={{ gap: 0.75 }}
             >
-              {[...questionChoices, {
-                id: CUSTOM_ANSWER,
-                label: t('Write a custom answer'),
-                value: '',
-              }].map((choice) => {
-                const isCustom = choice.id === CUSTOM_ANSWER;
+              {questionChoices.map((choice) => {
                 const isSelected = selectedChoice === choice.id;
                 return (
                   <FormControlLabel
@@ -859,7 +873,6 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                       'backgroundColor': isSelected ? alpha(accent, 0.08) : 'transparent',
                       'padding': theme.spacing(0.5, 1, 0.5, 0.5),
                       'transition': theme.transitions.create(['border-color', 'background-color']),
-                      'fontStyle': isCustom ? 'italic' : 'normal',
                       '&:hover': { borderColor: alpha(accent, 0.6) },
                       '& .MuiFormControlLabel-label': {
                         fontSize: '0.8125rem',
@@ -872,76 +885,75 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
             </RadioGroup>
           )}
 
-          {(!hasChoices || selectedChoice === CUSTOM_ANSWER) && (
+          {/* Always-present composer: the free-text answer field sits directly next to the send
+              button, so typing is a first-class action (not a hidden "custom answer" mode). A typed
+              answer wins over a selected choice; the button also sends the picked choice when the
+              field is empty. */}
+          <Box
+            sx={{
+              'marginTop': hasChoices ? 1 : 0,
+              'display': 'flex',
+              'flexDirection': 'column',
+              'borderRadius': 2,
+              'border': `1px solid ${theme.palette.divider}`,
+              'backgroundColor': alpha(theme.palette.action.hover, 0.4),
+              'transition': theme.transitions.create(['border-color', 'background-color']),
+              '&:focus-within': {
+                borderColor: accent,
+                backgroundColor: alpha(theme.palette.action.hover, 0.6),
+              },
+            }}
+          >
             <TextField
               value={directive}
               onChange={event => setDirective(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
-                  if (hasChoices) {
-                    handleSubmitChoice();
-                  } else {
-                    handleSendDirective();
-                  }
+                  handleComposerSubmit();
                 }
               }}
-              placeholder={isWaitingInput
-                ? t('Answer the AI (e.g. the web apps in scope are app-prod-01 and app-prod-02)')
-                : t('Steer the AI live (e.g. focus on the finance subnet, avoid host X, try Kerberoasting)')}
+              placeholder={hasChoices
+                ? t('Or type your own answer')
+                : (isWaitingInput
+                    ? t('Answer the AI (e.g. the web apps in scope are app-prod-01 and app-prod-02)')
+                    : t('Steer the AI live (e.g. focus on the finance subnet, avoid host X, try Kerberoasting)'))}
               fullWidth
               multiline
-              minRows={2}
-              maxRows={6}
+              minRows={hasChoices ? 2 : 3}
+              maxRows={8}
               disabled={!isActive}
-              autoFocus={selectedChoice === CUSTOM_ANSWER}
+              variant="standard"
+              InputProps={{ disableUnderline: true }}
               sx={{
-                'marginTop': hasChoices ? 1 : 0,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  padding: theme.spacing(1.25, 1.5),
+                '& .MuiInputBase-root': {
+                  alignItems: 'flex-start',
+                  padding: theme.spacing(1.25, 1.5, 0.5),
                   fontSize: '0.875rem',
-                  backgroundColor: alpha(theme.palette.action.hover, 0.4),
                 },
               }}
             />
-          )}
-
-          {hasChoices ? (
-            <Button
-              variant="contained"
-              fullWidth
-              disableElevation
-              onClick={handleSubmitChoice}
-              disabled={!isActive
-                || selectedChoice === null
-                || (selectedChoice === CUSTOM_ANSWER && directive.trim().length === 0)}
-              endIcon={<SendOutlined fontSize="small" />}
-              sx={{
-                'marginTop': 1.25,
-                'textTransform': 'none',
-                'backgroundColor': accent,
-                'color': theme.palette.ai?.contrastText ?? theme.palette.primary.contrastText,
-                '&:hover': { backgroundColor: theme.palette.ai?.dark ?? theme.palette.primary.dark },
-                '&.Mui-disabled': {
-                  backgroundColor: alpha(accent, 0.3),
-                  color: alpha('#ffffff', 0.5),
-                },
-              }}
-            >
-              {t('Send answer')}
-            </Button>
-          ) : (
             <Stack sx={{
               flexDirection: 'row',
-              justifyContent: 'flex-end',
-              marginTop: 1,
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: theme.spacing(0, 0.75, 0.75, 1.5),
             }}
             >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  fontSize: '0.6875rem',
+                  opacity: 0.7,
+                }}
+              >
+                {t('Enter to send - Shift+Enter for a new line')}
+              </Typography>
               <IconButton
-                color="primary"
-                disabled={!isActive || directive.trim().length === 0}
-                onClick={handleSendDirective}
+                size="small"
+                onClick={handleComposerSubmit}
+                disabled={!isActive || !canSubmitAnswer}
                 sx={{
                   'backgroundColor': accent,
                   'color': theme.palette.ai?.contrastText ?? theme.palette.primary.contrastText,
@@ -955,7 +967,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 <SendOutlined fontSize="small" />
               </IconButton>
             </Stack>
-          )}
+          </Box>
 
           {!isActive && (
             <Typography

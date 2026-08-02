@@ -197,6 +197,72 @@ public class WorkflowService {
   }
 
   /**
+   * Writes ALLOWLIST scope rules onto a scenario's TEMPLATE workflow and its RUN workflow(s)
+   * without touching the rest of the configuration (timeout / rate-limit / keep-alive / denylist),
+   * so an autonomous run can persist its resolved scope onto the workflow it drives. Unlike {@link
+   * #updateWorkflowConfiguration}, this never resets the other config fields to their input
+   * defaults - it only writes the allow-list, which is what seeding / setting a scope requires.
+   *
+   * <p>When {@code replaceExisting} is {@code true} the current ALLOWLIST rules are cleared first
+   * (used when the orchestrator SETS a freshly resolved scope); when {@code false} the rules are
+   * appended idempotently (used to seed a preselected scope at provisioning). Denylist rules are
+   * always preserved. An empty input with {@code replaceExisting=false} is a no-op.
+   *
+   * @param scenarioId the scenario whose TEMPLATE workflow should carry the scope
+   * @param simulationId the simulation whose RUN workflow(s) should carry the scope
+   * @param allowlistRules the allow-list rules to write (each with source + value set)
+   * @param replaceExisting whether to replace the current allow-list or append to it
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void writeAllowlistScope(
+      String scenarioId,
+      String simulationId,
+      List<WorkflowScopeRuleInput> allowlistRules,
+      boolean replaceExisting) {
+    if (!replaceExisting && (allowlistRules == null || allowlistRules.isEmpty())) {
+      return;
+    }
+    List<WorkflowScopeRuleInput> rules = allowlistRules != null ? allowlistRules : List.of();
+    if (hasText(scenarioId)) {
+      try {
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .ifPresent(w -> writeAllowlistRules(w, rules, replaceExisting));
+      } catch (ChainingException e) {
+        log.warn(
+            "[Chaining] Could not write scope on scenario {} template workflow", scenarioId, e);
+      }
+    }
+    if (hasText(simulationId)) {
+      findWorkflowRunBySimulationId(simulationId)
+          .forEach(w -> writeAllowlistRules(w, rules, replaceExisting));
+    }
+  }
+
+  private void writeAllowlistRules(
+      Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs, boolean replaceExisting) {
+    List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
+    boolean changed = false;
+    if (replaceExisting) {
+      changed = existing.removeIf(r -> ScopeRuleSelectedMode.ALLOWLIST.equals(r.getSelectedMode()));
+    }
+    Set<String> existingKeys =
+        existing.stream()
+            .map(r -> r.getSelectedMode() + "|" + r.getRuleSource() + "|" + r.getRuleValue())
+            .collect(Collectors.toSet());
+    for (WorkflowScopeRuleInput in : ruleInputs) {
+      String key =
+          ScopeRuleSelectedMode.ALLOWLIST + "|" + in.getRuleSource() + "|" + in.getRuleValue();
+      if (existingKeys.add(key)) {
+        existing.add(buildScopeRule(in, workflow));
+        changed = true;
+      }
+    }
+    if (changed) {
+      workflowRepository.save(workflow);
+    }
+  }
+
+  /**
    * Saves a workflow run to the repository.
    *
    * @param workflowRun the workflow run to save
@@ -794,6 +860,8 @@ public class WorkflowService {
       return switch (input.getRuleSource()) {
         case ASSET -> ScopeRuleValueType.ASSET_ID;
         case ASSET_GROUP -> ScopeRuleValueType.ASSET_GROUP_ID;
+        case TEAM -> ScopeRuleValueType.TEAM_ID;
+        case PLAYER -> ScopeRuleValueType.PLAYER_ID;
         default -> resolveValueTypeFromString(input.getRuleValue());
       };
     }
@@ -1230,4 +1298,73 @@ public class WorkflowService {
             scenarioTemplate, stepInput, parentScenarioStepTemplateId);
     return created.getId();
   }
+
+  /**
+   * Reads the authored attack path of an autonomous run's simulation as an ordered list of its
+   * INJECT_EXECUTION step templates - the STABLE authoring handles the orchestrator built - each
+   * with its DEPEND_ON parent, its baked inject definition, and the inject ids of the run steps it
+   * has spawned. This is the source of the enriched attack-path state read: it lets the caller
+   * surface step_template_id + parent + target + live status so the orchestrator can chain onto or
+   * update an existing step by id instead of re-authoring a duplicate.
+   *
+   * @param simulationId the autonomous run's live simulation
+   * @return the authored steps in creation order (empty when there is no template workflow yet)
+   */
+  @Transactional(readOnly = true)
+  public List<AuthoredAttackStep> readAuthoredAttackPath(String simulationId) {
+    Optional<Workflow> template = findWorkflowTemplateBySimulationId(simulationId);
+    if (template.isEmpty()) {
+      return List.of();
+    }
+    List<Step> steps =
+        stepService.findAllStepTemplateByWorkflow(template.get().getId()).stream()
+            .filter(s -> StepActionClass.INJECT_EXECUTION.equals(s.getStepAction()))
+            .sorted(
+                Comparator.comparing(
+                    Step::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+            .toList();
+    List<AuthoredAttackStep> authored = new ArrayList<>();
+    for (Step step : steps) {
+      List<String> runInjectIds =
+          step.getStepsExecuted().stream()
+              .map(runStep -> StepService.getField(runStep.getData(), "inject_id"))
+              .filter(id -> id != null && !id.isBlank())
+              .distinct()
+              .toList();
+      authored.add(
+          new AuthoredAttackStep(
+              step.getId(),
+              stepService.dependOnParentTemplateId(step.getId()),
+              step.getData(),
+              runInjectIds));
+    }
+    return authored;
+  }
+
+  /**
+   * Updates an existing chained step's inject definition IN PLACE (same step template id, same
+   * DEPEND_ON parent), so the orchestrator can edit a step it already authored instead of minting a
+   * duplicate. Works for both the simulation template step and its scenario mirror twin - the
+   * caller passes whichever step template id it wants to update.
+   *
+   * @param stepTemplateId the id of the step template to update
+   * @param injectInput the new inject definition
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void updateChainedStep(String stepTemplateId, InjectInput injectInput)
+      throws ChainingException {
+    StepsCreateInput.StepInput stepInput =
+        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    stepService.updateInjectStepTemplateData(stepTemplateId, stepInput);
+  }
+
+  /**
+   * One authored attack-path step: its stable template id, its DEPEND_ON parent (null for a root),
+   * the baked inject JSON ({@code step_data}), and the inject ids of every run step it has spawned.
+   */
+  public record AuthoredAttackStep(
+      String stepTemplateId,
+      String parentStepTemplateId,
+      String injectDataJson,
+      List<String> runInjectIds) {}
 }

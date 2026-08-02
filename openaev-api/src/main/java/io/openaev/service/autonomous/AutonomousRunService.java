@@ -11,6 +11,7 @@ import io.openaev.api.autonomous.dto.AutonomousPromotedAssetResult;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.AutonomousTargetTeamResult;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
@@ -19,6 +20,8 @@ import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.ScopeRuleSelectedMode;
+import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
@@ -55,6 +58,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -177,6 +181,12 @@ public class AutonomousRunService {
     // single-scope consumers working while the mixed list stays authoritative.
     run.setScopeAssetGroupId(firstScopeIdOfType(scope, "ASSETS_GROUPS"));
     run.setScopeTeamId(firstScopeIdOfType(scope, "TEAMS"));
+    // Persist the preselected scope onto the scenario + run workflows as ALLOWLIST rules, so the
+    // perimeter is enforced and shown in the read-only Scope tab (and the empty-allowlist warning
+    // clears) instead of living only in the orchestrator's head. When no scope is preselected this
+    // is a no-op; the orchestrator records its resolved scope later via set_openaev_run_scope.
+    workflowService.writeAllowlistScope(
+        scenarioId, simulation.getId(), toAllowlistScopeInputs(scope), false);
     run.setXtmAgentSlug(input.getAgentSlug());
     run.setStatus(AutonomousRunStatus.CREATED);
     AutonomousRun saved = runRepository.save(run);
@@ -748,6 +758,46 @@ public class AutonomousRunService {
     return updated;
   }
 
+  /**
+   * Records the orchestrator's resolved scope onto the run: the given targets REPLACE the run's
+   * ALLOWLIST perimeter on both the scenario template and the live simulation workflow(s), so the
+   * scope is enforced and visible in the Scope tab (and the empty-allowlist warning clears) instead
+   * of living only in the AI's reasoning. Other workflow configuration (timeout / rate-limit /
+   * keep-alive / denylist) is preserved. The run's own scope projection is updated too so a restart
+   * or reconciliation sees the same perimeter. Team members in scope are enabled on the simulation
+   * so any human-targeted step that inherits the scope is deliverable.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public AutonomousRun setRunScope(String runId, List<AutonomousScopeTarget> targets) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    List<AutonomousScopeTarget> scope = targets != null ? new ArrayList<>(targets) : List.of();
+    workflowService.writeAllowlistScope(
+        run.getScenarioId(), run.getSimulationId(), toAllowlistScopeInputs(scope), true);
+    run.setScope(scope);
+    run.setScopeAssetGroupId(firstScopeIdOfType(scope, "ASSETS_GROUPS"));
+    run.setScopeTeamId(firstScopeIdOfType(scope, "TEAMS"));
+    AutonomousRun saved = runRepository.save(run);
+    enableTargetedTeamMembers(
+        run.getSimulationId(),
+        scope.stream()
+            .filter(t -> "TEAMS".equals(t.getType()))
+            .map(AutonomousScopeTarget::getId)
+            .toList());
+    eventService.append(
+        runId,
+        run.getSimulationId(),
+        AutonomousEventType.DECISION,
+        "Scope set",
+        scope.isEmpty()
+            ? "Scope cleared; the run now has no restricted perimeter."
+            : "Resolved scope recorded on the run ("
+                + scope.size()
+                + " target(s) in the allowlist).",
+        null);
+    return saved;
+  }
+
   // endregion
 
   // region attack-path authoring
@@ -801,6 +851,57 @@ public class AutonomousRunService {
         "Attack-path step authored",
         "A chained step was added to the live attack path"
             + (hasText(parentStepTemplateId) ? " (depends on a previous step)." : "."),
+        null);
+    return stepTemplateId;
+  }
+
+  /**
+   * Updates an existing chained step's inject definition IN PLACE - same step template id, same
+   * DEPEND_ON parent - so the orchestrator edits a step it already authored (payload / target /
+   * injector contract / title) instead of minting a duplicate. The scenario mirror twin is updated
+   * in lock-step so the exported attack path stays faithful, and any newly targeted team's members
+   * are re-enabled so a re-targeted human step stays deliverable.
+   *
+   * @param runId the autonomous run
+   * @param stepTemplateId the step template to update (from the attack-path state read)
+   * @param injectInput the new inject definition
+   * @return the (unchanged) step template id
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String updateAttackPathStep(String runId, String stepTemplateId, InjectInput injectInput) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    if (!hasText(run.getSimulationId())) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "The autonomous run has no live simulation to update steps on");
+    }
+    try {
+      workflowService.updateChainedStep(stepTemplateId, injectInput);
+    } catch (ChainingException e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Failed to update the attack-path step: " + e.getMessage(), e);
+    }
+    // Keep the scenario mirror twin in lock-step so the exported attack path reflects the edit.
+    Map<String, String> mirror = run.getStepMirror();
+    String scenarioStepId = mirror == null ? null : mirror.get(stepTemplateId);
+    if (hasText(scenarioStepId)) {
+      try {
+        workflowService.updateChainedStep(scenarioStepId, injectInput);
+      } catch (Exception e) {
+        log.warn(
+            "[Autonomous] Failed to update scenario mirror step {} for run {}: {}",
+            scenarioStepId,
+            runId,
+            e.getMessage());
+      }
+    }
+    enableTargetedTeamMembers(run.getSimulationId(), injectInput.getTeams());
+    eventService.append(
+        runId,
+        run.getSimulationId(),
+        AutonomousEventType.TOOL_ACTION,
+        "Attack-path step updated",
+        "An existing chained step was updated in place (no new step created).",
         null);
     return stepTemplateId;
   }
@@ -915,35 +1016,171 @@ public class AutonomousRunService {
     if (!hasText(run.getSimulationId())) {
       return List.of();
     }
-    return injectRepository.findByExerciseId(run.getSimulationId()).stream()
+    // Build the snapshot from the simulation TEMPLATE workflow's steps (the STABLE authoring
+    // handles the orchestrator built) rather than from materialized injects, so the read returns
+    // each step's step_template_id + DEPEND_ON parent + target - the graph the orchestrator needs
+    // to chain onto or UPDATE an existing step instead of re-authoring a duplicate.
+    return workflowService.readAuthoredAttackPath(run.getSimulationId()).stream()
         .map(this::toStepState)
         .toList();
   }
 
-  private AutonomousAttackPathStepState toStepState(Inject inject) {
-    String status =
-        inject
-            .getStatus()
-            .map(s -> s.getName() != null ? s.getName().name() : "PENDING")
-            .orElse("PENDING");
-    List<String> traces =
-        inject
-            .getStatus()
-            .map(
-                s ->
-                    s.getTraces().stream()
-                        .map(
-                            t ->
-                                (t.getAction() != null ? t.getAction().name() : "TRACE")
-                                    + "/"
-                                    + (t.getStatus() != null ? t.getStatus().name() : "")
-                                    + ": "
-                                    + t.getMessage())
-                        .toList())
-            .orElseGet(List::of);
-    String contractId = inject.getInjectorContract().map(InjectorContract::getId).orElse(null);
+  private AutonomousAttackPathStepState toStepState(WorkflowService.AuthoredAttackStep authored) {
+    JsonNode data = parseInjectData(authored.injectDataJson());
+    List<Inject> injects =
+        authored.runInjectIds().stream()
+            .map(id -> injectRepository.findById(id).orElse(null))
+            .filter(Objects::nonNull)
+            .toList();
+    String title = jsonText(data, "inject_title");
+    String type = jsonText(data, "inject_type");
+    String contractId = injectContractId(data);
+    if (!injects.isEmpty()) {
+      Inject last = injects.get(injects.size() - 1);
+      if (!hasText(title)) {
+        title = last.getTitle();
+      }
+      if (!hasText(type)) {
+        type = last.getType();
+      }
+      if (!hasText(contractId)) {
+        contractId = last.getInjectorContract().map(InjectorContract::getId).orElse(null);
+      }
+    }
+    String injectId = injects.isEmpty() ? "" : injects.get(injects.size() - 1).getId();
     return new AutonomousAttackPathStepState(
-        inject.getId(), inject.getTitle(), inject.getType(), contractId, status, traces);
+        authored.stepTemplateId(),
+        authored.parentStepTemplateId(),
+        injectId,
+        title,
+        type,
+        contractId,
+        targetSummary(data),
+        aggregateStatus(injects),
+        aggregateTraces(injects));
+  }
+
+  private JsonNode parseInjectData(String json) {
+    if (!hasText(json)) {
+      return null;
+    }
+    try {
+      return objectMapper.readTree(json);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static String jsonText(JsonNode node, String field) {
+    if (node == null) {
+      return null;
+    }
+    JsonNode value = node.get(field);
+    return value != null && !value.isNull() ? value.asText() : null;
+  }
+
+  private static String injectContractId(JsonNode data) {
+    if (data == null) {
+      return null;
+    }
+    JsonNode contract = data.get("inject_injector_contract");
+    if (contract == null || contract.isNull()) {
+      return null;
+    }
+    if (contract.isTextual()) {
+      return contract.asText();
+    }
+    JsonNode id = contract.get("injector_contract_id");
+    return id != null && !id.isNull() ? id.asText() : null;
+  }
+
+  private static List<String> jsonIdArray(JsonNode data, String field) {
+    List<String> ids = new ArrayList<>();
+    if (data == null) {
+      return ids;
+    }
+    JsonNode array = data.get(field);
+    if (array != null && array.isArray()) {
+      array.forEach(
+          element -> {
+            if (element != null && !element.isNull()) {
+              ids.add(element.asText());
+            }
+          });
+    }
+    return ids;
+  }
+
+  private static String targetSummary(JsonNode data) {
+    if (data == null) {
+      return "inherits run scope";
+    }
+    List<String> parts = new ArrayList<>();
+    JsonNode allTeams = data.get("inject_all_teams");
+    if (allTeams != null && allTeams.asBoolean(false)) {
+      parts.add("all teams");
+    }
+    List<String> teams = jsonIdArray(data, "inject_teams");
+    if (!teams.isEmpty()) {
+      parts.add("teams=" + teams);
+    }
+    List<String> assets = jsonIdArray(data, "inject_assets");
+    if (!assets.isEmpty()) {
+      parts.add("assets=" + assets);
+    }
+    List<String> groups = jsonIdArray(data, "inject_asset_groups");
+    if (!groups.isEmpty()) {
+      parts.add("asset_groups=" + groups);
+    }
+    return parts.isEmpty() ? "inherits run scope" : String.join("; ", parts);
+  }
+
+  private static String aggregateStatus(List<Inject> injects) {
+    if (injects.isEmpty()) {
+      return "PENDING";
+    }
+    List<String> names =
+        injects.stream()
+            .map(
+                inject ->
+                    inject
+                        .getStatus()
+                        .map(s -> s.getName() != null ? s.getName().name() : "PENDING")
+                        .orElse("PENDING"))
+            .toList();
+    if (names.contains("ERROR")) {
+      return "ERROR";
+    }
+    if (names.stream()
+        .anyMatch(
+            n ->
+                n.equals("QUEUING")
+                    || n.equals("EXECUTING")
+                    || n.equals("PENDING")
+                    || n.equals("DRAFT"))) {
+      return "EXECUTING";
+    }
+    return names.get(names.size() - 1);
+  }
+
+  private static List<String> aggregateTraces(List<Inject> injects) {
+    List<String> traces = new ArrayList<>();
+    for (Inject inject : injects) {
+      inject
+          .getStatus()
+          .ifPresent(
+              s ->
+                  s.getTraces()
+                      .forEach(
+                          t ->
+                              traces.add(
+                                  (t.getAction() != null ? t.getAction().name() : "TRACE")
+                                      + "/"
+                                      + (t.getStatus() != null ? t.getStatus().name() : "")
+                                      + ": "
+                                      + t.getMessage())));
+    }
+    return traces;
   }
 
   /**
@@ -1276,6 +1513,42 @@ public class AutonomousRunService {
         .map(AutonomousScopeTarget::getId)
         .findFirst()
         .orElse(null);
+  }
+
+  /**
+   * Translates the run's mixed scope list ({@link AutonomousScopeTarget}, using the {@code
+   * TargetType} vocabulary) into ALLOWLIST workflow scope-rule inputs so the perimeter can be
+   * persisted onto the workflow. Each kind maps to its scope-rule source (asset, asset group, team,
+   * person); unknown kinds are skipped.
+   */
+  private List<WorkflowScopeRuleInput> toAllowlistScopeInputs(List<AutonomousScopeTarget> scope) {
+    if (scope == null || scope.isEmpty()) {
+      return List.of();
+    }
+    List<WorkflowScopeRuleInput> inputs = new ArrayList<>();
+    for (AutonomousScopeTarget target : scope) {
+      if (target == null || !hasText(target.getId()) || target.getType() == null) {
+        continue;
+      }
+      ScopeRuleSource source =
+          switch (target.getType()) {
+            case "ASSETS" -> ScopeRuleSource.ASSET;
+            case "ASSETS_GROUPS" -> ScopeRuleSource.ASSET_GROUP;
+            case "TEAMS" -> ScopeRuleSource.TEAM;
+            case "PLAYERS" -> ScopeRuleSource.PLAYER;
+            default -> null;
+          };
+      if (source == null) {
+        continue;
+      }
+      inputs.add(
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(source)
+              .ruleValue(target.getId())
+              .build());
+    }
+    return inputs;
   }
 
   private String resolveObjective(AutonomousRunCreateInput input) {

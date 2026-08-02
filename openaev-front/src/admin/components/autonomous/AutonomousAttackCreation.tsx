@@ -49,11 +49,6 @@ const OBJECTIVE_ICONS: Record<string, SvgIconComponent> = {
   'user-check': HowToReg,
 };
 
-// Objective templates whose target is a human audience (phishing, human credential harvesting).
-// For these the run scope that matters is a TEAM (an inject can only be delivered to a team, never
-// to a bare person), so the drawer spotlights the team picker over the asset-group one.
-const IDENTITY_OBJECTIVE_KEYS = new Set(['phishing-to-access', 'harvest-credentials']);
-
 export interface AutonomousAttackCreationProps {
   /** Pre-select an asset group as the run scope (used by entity "Autonomous attack" entries). */
   presetScopeAssetGroupId?: string;
@@ -158,11 +153,6 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
   // opens by asking you which targets are in scope before it attacks anything (there is no longer
   // an "environment-wide, so no target needed" shortcut). So the scope field carries no
   // "required vs optional" distinction - it is the same uniform prompt for every objective.
-
-  // Identity-targeted objectives deliver to PEOPLE, and an inject can only reach a team - so the
-  // meaningful scope for these is an audience (teams / persons). The unified scope picker exposes
-  // all four kinds; this only decides which kind we spotlight first.
-  const isIdentityObjective = IDENTITY_OBJECTIVE_KEYS.has(selectedTemplateKey ?? '');
 
   const handleLaunch = () => {
     if (objective.trim().length === 0) {
@@ -369,7 +359,6 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
               <ScopeTargetsField
                 value={scope}
                 onChange={setScope}
-                emphasisType={isIdentityObjective ? 'TEAMS' : undefined}
               />
               <Typography
                 variant="caption"
@@ -379,9 +368,7 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
                   marginTop: theme.spacing(1),
                 }}
               >
-                {isIdentityObjective
-                  ? t('This objective targets people, so the scope is an audience. Add the teams or persons to attack (a person is targeted through a team - the AI wraps them for you), or select everything to authorize the whole audience. Leave it empty and the AI will ask you to pick the audience before sending anything.')
-                  : t('Define the perimeter to attack: add the assets, asset groups, teams or persons in scope, or select everything to authorize the whole environment. Leave it empty and the AI will ask you to choose targets before it attacks anything.')}
+                {t('Define the perimeter to attack: add the assets, asset groups, teams or persons in scope, or select everything to authorize the whole environment. Leave it empty and the AI will ask you to choose targets before it attacks anything.')}
               </Typography>
             </Box>
 

@@ -32,12 +32,15 @@ const SimulationScope = ({ readOnly = false }: { readOnly?: boolean }) => {
 
   if (!exercise?.exercise_workflow_id) return null;
 
+  // The empty-scope shortfall is already surfaced in the hero; drop the duplicate inline banner.
+  const visibleHealthchecks = healthchecks.filter(healthcheck => healthcheck.type !== 'SCOPE_DEFINITION');
+
   return (
     <div>
       {readOnly && <AutonomousReadOnlyBanner />}
-      {!!healthchecks?.length && (
+      {!!visibleHealthchecks.length && (
         <Healthchecks
-          healthchecks={healthchecks}
+          healthchecks={visibleHealthchecks}
           exerciseId={exerciseId}
         />
       )}

@@ -84,15 +84,16 @@ public class StepService {
    * <p>Idempotency key = the baked inject {@code data} (identical for an identical {@link
    * io.openaev.rest.inject.form.InjectInput} within a run) plus the kill-chain parent (the {@code
    * DEPEND_ON} step template id, {@code null} for a root). A match is reused ONLY while it is still
-   * <b>pending</b> - it has not yet spawned a run step - because that is the signature of the storm:
-   * a burst of identical author calls before the workflow first evaluates them. Once a twin has
-   * executed, a fresh author of the same inject is a deliberate <b>re-run</b> (e.g. the agent tried
-   * a step, saw no finding, edited the payload/injector contract in place - leaving the inject data
-   * byte-identical - and wants to fire it again) and MUST mint a new template so it actually runs
-   * again. This is the boundary that lets the guard kill the duplicate storm without ever blocking
-   * the normal try -> tweak -> re-fire loop. On a miss a new template is created exactly as {@link
-   * #createStepTemplate}; the candidate is built once via the action step's {@code create} (needed
-   * to compute {@code data}) and only persisted on a miss, so a hit performs no writes.
+   * <b>pending</b> - it has not yet spawned a run step - because that is the signature of the
+   * storm: a burst of identical author calls before the workflow first evaluates them. Once a twin
+   * has executed, a fresh author of the same inject is a deliberate <b>re-run</b> (e.g. the agent
+   * tried a step, saw no finding, edited the payload/injector contract in place - leaving the
+   * inject data byte-identical - and wants to fire it again) and MUST mint a new template so it
+   * actually runs again. This is the boundary that lets the guard kill the duplicate storm without
+   * ever blocking the normal try -> tweak -> re-fire loop. On a miss a new template is created
+   * exactly as {@link #createStepTemplate}; the candidate is built once via the action step's
+   * {@code create} (needed to compute {@code data}) and only persisted on a miss, so a hit performs
+   * no writes.
    *
    * @param workflow the workflow template to author on
    * @param stepInput the inject step input (its {@code conditions} carry the DEPEND_ON on a miss)
@@ -143,12 +144,60 @@ public class StepService {
   }
 
   private String dependOnParentOf(Step template) {
-    return conditionService.findAllConditionsByStepId(template.getId()).stream()
+    return dependOnParentTemplateId(template.getId());
+  }
+
+  /**
+   * Returns the DEPEND_ON parent step template id of a step template (the step it runs AFTER), or
+   * {@code null} for a root step. Exposed so the autonomous read path can surface the kill-chain
+   * graph to the orchestrator by step template id.
+   *
+   * @param stepTemplateId the step template to inspect
+   * @return the parent step template id, or {@code null} for a root step
+   */
+  public String dependOnParentTemplateId(String stepTemplateId) {
+    return conditionService.findAllConditionsByStepId(stepTemplateId).stream()
         .filter(c -> c.getType() == ConditionType.DEPEND_ON)
         .map(Condition::getValue)
         .filter(v -> v != null && !v.isBlank())
         .findFirst()
         .orElse(null);
+  }
+
+  /**
+   * Updates an existing INJECT_EXECUTION step template's baked inject data IN PLACE, preserving its
+   * id and its conditions (its DEPEND_ON kill-chain parent). This is how the AI orchestrator edits
+   * a step it already authored - change the payload / target / injector contract / title of the
+   * SAME step - instead of authoring a duplicate. The new inject definition is recomputed exactly
+   * as {@link #createStepTemplate} would (so targeting, tags, documents and defaults resolve the
+   * same way), then only the {@code data} column is swapped on the existing template. Conditions
+   * are intentionally left untouched so the attack-path edges stay intact.
+   *
+   * @param stepTemplateId the id of the step template to update
+   * @param stepInput the new inject step input
+   * @return the updated step template
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Step updateInjectStepTemplateData(
+      String stepTemplateId, StepsCreateInput.StepInput stepInput) throws ChainingException {
+    Step existing =
+        stepRepository
+            .findById(stepTemplateId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Step template not found. Step template ID: " + stepTemplateId));
+    if (!StepActionClass.INJECT_EXECUTION.equals(existing.getStepAction())) {
+      throw new ChainingException(
+          "Step template " + stepTemplateId + " is not an inject-execution step");
+    }
+    ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
+    Step candidate =
+        actionStep
+            .create(stepInput, existing.getWorkflow())
+            .orElseThrow(() -> new ChainingException("Failed to rebuild step data (TEMPLATE)"));
+    existing.setData(candidate.getData());
+    return saveStep(existing);
   }
 
   /**

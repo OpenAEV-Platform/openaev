@@ -1,3 +1,4 @@
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useCallback } from 'react';
 
@@ -7,6 +8,8 @@ import {
   fetchWorkflowConfiguration,
   updateWorkflowConfiguration,
 } from '../../../actions/chaining/workflow-actions';
+import { fetchTeams } from '../../../actions/teams/team-actions';
+import { fetchPlayers } from '../../../actions/users/User';
 import type { WorkflowConfigurationHelper } from '../../../actions/chaining/workflow-helper';
 import { useHelper } from '../../../store';
 import type { ScopeVariableInput, WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../utils/api-types';
@@ -36,6 +39,8 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
     dispatch(fetchWorkflowConfiguration(workflowId));
     dispatch(fetchEndpoints());
     dispatch(fetchAssetGroups());
+    dispatch(fetchTeams());
+    dispatch(fetchPlayers());
   });
 
   type WorkflowScopeRuleLike = Partial<WorkflowScopeRuleInput> & { get?: (key: keyof WorkflowScopeRuleInput) => unknown };
@@ -49,7 +54,7 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
             ?? (r.get?.('workflow_scope_rule_selected_mode') as 'ALLOWLIST' | 'DENYLIST'),
     workflow_scope_rule_source:
             r.workflow_scope_rule_source
-            ?? (r.get?.('workflow_scope_rule_source') as 'ASSET' | 'ASSET_GROUP' | 'MANUAL' | 'CSV'),
+            ?? (r.get?.('workflow_scope_rule_source') as 'ASSET' | 'ASSET_GROUP' | 'TEAM' | 'PLAYER' | 'MANUAL' | 'CSV'),
     workflow_scope_rule_value:
             r.workflow_scope_rule_value ?? (r.get?.('workflow_scope_rule_value') as string),
   });
@@ -86,18 +91,22 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
   }, [workflowConfiguration, workflowId, dispatch]);
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gap: `${theme.spacing(3)} ${theme.spacing(3)}`,
+    <Box
+      sx={{
+        'display': 'grid',
+        'gap': `${theme.spacing(3)} ${theme.spacing(3)}`,
         ...(readOnly
           ? {
-              pointerEvents: 'none',
-              userSelect: 'text',
+              // Keep the scope visible for inspection but block every mutation on autonomous runs -
+              // and make the (otherwise primary-blue) add / delete / toggle affordances actually
+              // read as disabled, since the AI owns the scope and they are not clickable here.
+              'pointerEvents': 'none',
+              'userSelect': 'text',
+              '& .MuiButton-root, & .MuiIconButton-root': { color: theme.palette.text.disabled },
+              '& .MuiSwitch-root': { opacity: 0.5 },
             }
           : {}),
       }}
-      // Keep the scope visible for inspection but block every mutation on autonomous runs.
       aria-disabled={readOnly || undefined}
     >
       <div style={{
@@ -124,7 +133,7 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
           onUpdate={handleUpdate}
         />
       </div>
-    </div>
+    </Box>
   );
 };
 

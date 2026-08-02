@@ -5,6 +5,8 @@ import { useState } from 'react';
 
 import type { AssetGroupsHelper } from '../../../actions/asset_groups/assetgroup-helper';
 import type { EndpointHelper } from '../../../actions/assets/asset-helper';
+import type { UserHelper } from '../../../actions/helper';
+import type { TeamsHelper } from '../../../actions/teams/team-helper';
 import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
@@ -92,9 +94,13 @@ const ScopeRules = ({ workflowConfiguration, onUpdate, readOnly = false }: Scope
   // Selected IDs for the form
   const [selectedEndpointIds, setSelectedEndpointIds] = useState<string[]>([]);
   const [selectedAssetGroupIds, setSelectedAssetGroupIds] = useState<string[]>([]);
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [selectedCustomRules, setSelectedCustomRules] = useState<ScopeCustomRule[]>([]);
   const [initialEndpointIds, setInitialEndpointIds] = useState<string[]>([]);
   const [initialAssetGroupIds, setInitialAssetGroupIds] = useState<string[]>([]);
+  const [initialTeamIds, setInitialTeamIds] = useState<string[]>([]);
+  const [initialPlayerIds, setInitialPlayerIds] = useState<string[]>([]);
   const [initialCustomRules, setInitialCustomRules] = useState<ScopeCustomRule[]>([]);
 
   const handleOpenDrawer = (mode: ScopeMode) => {
@@ -111,6 +117,14 @@ const ScopeRules = ({ workflowConfiguration, onUpdate, readOnly = false }: Scope
       .filter(r => r.workflow_scope_rule_source === 'ASSET_GROUP')
       .map(r => r.workflow_scope_rule_value ?? '')
       .filter(Boolean);
+    const teamIds = rulesForMode
+      .filter(r => r.workflow_scope_rule_source === 'TEAM')
+      .map(r => r.workflow_scope_rule_value ?? '')
+      .filter(Boolean);
+    const playerIds = rulesForMode
+      .filter(r => r.workflow_scope_rule_source === 'PLAYER')
+      .map(r => r.workflow_scope_rule_value ?? '')
+      .filter(Boolean);
     const customRules = rulesForMode
       .filter(r => r.workflow_scope_rule_source === 'MANUAL' || r.workflow_scope_rule_source === 'CSV')
       .map(r => ({
@@ -121,9 +135,13 @@ const ScopeRules = ({ workflowConfiguration, onUpdate, readOnly = false }: Scope
 
     setSelectedEndpointIds(endpointIds);
     setSelectedAssetGroupIds(assetGroupIds);
+    setSelectedTeamIds(teamIds);
+    setSelectedPlayerIds(playerIds);
     setSelectedCustomRules(customRules);
     setInitialEndpointIds(endpointIds);
     setInitialAssetGroupIds(assetGroupIds);
+    setInitialTeamIds(teamIds);
+    setInitialPlayerIds(playerIds);
     setInitialCustomRules(customRules);
 
     setDrawerOpen(true);
@@ -156,6 +174,18 @@ const ScopeRules = ({ workflowConfiguration, onUpdate, readOnly = false }: Scope
         workflow_scope_rule_source: 'ASSET_GROUP' as const,
         workflow_scope_rule_value: id,
       })),
+      ...selectedTeamIds.map(id => ({
+        workflow_scope_rule_id: existingIdMap.get(`TEAM:${id}`),
+        workflow_scope_rule_selected_mode: drawerMode,
+        workflow_scope_rule_source: 'TEAM' as const,
+        workflow_scope_rule_value: id,
+      })),
+      ...selectedPlayerIds.map(id => ({
+        workflow_scope_rule_id: existingIdMap.get(`PLAYER:${id}`),
+        workflow_scope_rule_selected_mode: drawerMode,
+        workflow_scope_rule_source: 'PLAYER' as const,
+        workflow_scope_rule_value: id,
+      })),
       ...selectedCustomRules.map(rule => ({
         workflow_scope_rule_id: existingIdMap.get(`${rule.source}:${rule.value}`),
         workflow_scope_rule_selected_mode: drawerMode,
@@ -184,10 +214,14 @@ const ScopeRules = ({ workflowConfiguration, onUpdate, readOnly = false }: Scope
     ? t('Define allowlisted scope')
     : t('Define denylisted scope');
 
-  const { endpointsMap, assetGroupsMap } = useHelper((helper: EndpointHelper & AssetGroupsHelper) => ({
-    endpointsMap: helper.getEndpointsMap(),
-    assetGroupsMap: helper.getAssetGroupMaps(),
-  }));
+  const { endpointsMap, assetGroupsMap, teamsMap, usersMap } = useHelper(
+    (helper: EndpointHelper & AssetGroupsHelper & TeamsHelper & UserHelper) => ({
+      endpointsMap: helper.getEndpointsMap(),
+      assetGroupsMap: helper.getAssetGroupMaps(),
+      teamsMap: helper.getTeamsMap(),
+      usersMap: helper.getUsersMap(),
+    }),
+  );
 
   const resolveLabel = (rule: WorkflowScopeRuleOutput): string => {
     const value = rule.workflow_scope_rule_value ?? '';
@@ -201,6 +235,16 @@ const ScopeRules = ({ workflowConfiguration, onUpdate, readOnly = false }: Scope
       case 'ASSET_GROUP': {
         const group = assetGroupsMap[value];
         return group?.asset_group_name ?? unresolvedLabel;
+      }
+      case 'TEAM': {
+        const team = teamsMap[value];
+        return team?.team_name ?? unresolvedLabel;
+      }
+      case 'PLAYER': {
+        const user = usersMap[value];
+        if (!user) return unresolvedLabel;
+        const name = `${user.user_firstname ?? ''} ${user.user_lastname ?? ''}`.trim();
+        return name.length > 0 ? name : (user.user_email ?? unresolvedLabel);
       }
       default:
         return value || unresolvedLabel;
@@ -288,12 +332,18 @@ const ScopeRules = ({ workflowConfiguration, onUpdate, readOnly = false }: Scope
           mode={drawerMode}
           selectedEndpointIds={selectedEndpointIds}
           selectedAssetGroupIds={selectedAssetGroupIds}
+          selectedTeamIds={selectedTeamIds}
+          selectedPlayerIds={selectedPlayerIds}
           selectedCustomRules={selectedCustomRules}
           initialEndpointIds={initialEndpointIds}
           initialAssetGroupIds={initialAssetGroupIds}
+          initialTeamIds={initialTeamIds}
+          initialPlayerIds={initialPlayerIds}
           initialCustomRules={initialCustomRules}
           onEndpointIdsChange={setSelectedEndpointIds}
           onAssetGroupIdsChange={setSelectedAssetGroupIds}
+          onTeamIdsChange={setSelectedTeamIds}
+          onPlayerIdsChange={setSelectedPlayerIds}
           onCustomRulesChange={setSelectedCustomRules}
           onCancel={handleCloseDrawer}
           onSubmit={handleSubmitScope}

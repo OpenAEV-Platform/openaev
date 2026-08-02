@@ -1253,12 +1253,18 @@ export interface AutonomousAttackPathStepResult {
 
 /** Live state of one authored attack-path step */
 export interface AutonomousAttackPathStepState {
-  /** Id of the inject backing this step */
+  /** Id of the inject backing this step (empty until the step has executed) */
   inject_id?: string;
   /** Id of the injector contract the step runs, when resolvable */
   injector_contract_id?: string;
+  /** The step template id this step runs AFTER (its DEPEND_ON parent), or null for a root step. Together with step_template_id this reconstructs the attack-path graph. */
+  parent_step_template_id?: string;
   /** Execution status: PENDING when never started, otherwise the live ExecutionStatus (QUEUING, EXECUTING, SUCCESS, ERROR, ...) */
   status?: string;
+  /** Stable authoring handle for this step (the chaining step template id). Pass it as parent_step_template_id to chain a follow-on step onto it, or to update/replace this exact step in place instead of re-authoring a duplicate. */
+  step_template_id?: string;
+  /** Resolved target of the step (teams / assets / asset groups, or 'inherits run scope' when it binds to the run's allow-list). */
+  target?: string;
   /** Human-readable step title */
   title?: string;
   /** Execution traces (action/status: message) captured while the step ran */
@@ -12082,7 +12088,7 @@ export interface WorkflowScopeRule {
   /** ID of the workflow scope rule */
   workflow_scope_rule_id?: string;
   workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
-  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
+  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "TEAM" | "PLAYER" | "MANUAL" | "CSV";
   /** @format date-time */
   workflow_scope_rule_updated_at?: string;
   workflow_scope_rule_value?: string;
@@ -12091,7 +12097,9 @@ export interface WorkflowScopeRule {
     | "IP_SUBNET"
     | "DOMAIN"
     | "ASSET_ID"
-    | "ASSET_GROUP_ID";
+    | "ASSET_GROUP_ID"
+    | "TEAM_ID"
+    | "PLAYER_ID";
 }
 
 /** Input for a scope rule used in workflow configuration. */
@@ -12101,7 +12109,7 @@ export interface WorkflowScopeRuleInput {
   /** Selected list mode where the rule should be applied */
   workflow_scope_rule_selected_mode: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected rule */
-  workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
+  workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "TEAM" | "PLAYER" | "MANUAL" | "CSV";
   /**
    * Selected rule value
    * @minLength 1
@@ -12116,7 +12124,7 @@ export interface WorkflowScopeRuleOutput {
   /** Selected list mode where the rule is applied. */
   workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected item */
-  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
+  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "TEAM" | "PLAYER" | "MANUAL" | "CSV";
   /** Selected item value */
   workflow_scope_rule_value?: string;
 }

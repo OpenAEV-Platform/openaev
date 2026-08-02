@@ -10,6 +10,7 @@ import io.openaev.api.autonomous.dto.AutonomousDirectiveInput;
 import io.openaev.api.autonomous.dto.AutonomousEventInput;
 import io.openaev.api.autonomous.dto.AutonomousPromotedAssetResult;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
+import io.openaev.api.autonomous.dto.AutonomousScopeUpdateInput;
 import io.openaev.api.autonomous.dto.AutonomousStatusUpdateInput;
 import io.openaev.api.autonomous.dto.AutonomousTargetTeamInput;
 import io.openaev.api.autonomous.dto.AutonomousTargetTeamResult;
@@ -223,6 +224,15 @@ public class AutonomousRunApi extends RestBehavior {
     return autonomousRunService.applyLiveConfiguration(runId, input);
   }
 
+  @Operation(summary = "Orchestrator: set the run's resolved scope (replaces the allow-list)")
+  @PutMapping("/{runId}/scope")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRun setScope(
+      @PathVariable String runId, @Valid @RequestBody AutonomousScopeUpdateInput input) {
+    return autonomousRunService.setRunScope(runId, input.getScope());
+  }
+
   // endregion
 
   // region orchestrator callbacks
@@ -271,6 +281,26 @@ public class AutonomousRunApi extends RestBehavior {
         autonomousRunService.appendAttackPathStep(
             runId, input.getInject(), input.getParentStepTemplateId());
     return new AutonomousAttackPathStepResult(stepTemplateId);
+  }
+
+  @Operation(
+      summary = "Orchestrator: update an existing chained step in place",
+      description =
+          "Edits a step the orchestrator already authored - payload / target / injector contract / "
+              + "title - by its step template id (from the attack-path state read), preserving the "
+              + "step's id and its DEPEND_ON kill-chain parent. This is how the AI changes existing "
+              + "logic instead of re-authoring a duplicate. The parent in the body is ignored; the "
+              + "existing dependency is kept.")
+  @PutMapping("/{runId}/attack-path/steps/{stepTemplateId}")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousAttackPathStepResult updateAttackPathStep(
+      @PathVariable String runId,
+      @PathVariable String stepTemplateId,
+      @Valid @RequestBody AutonomousAttackPathStepInput input) {
+    String updatedId =
+        autonomousRunService.updateAttackPathStep(runId, stepTemplateId, input.getInject());
+    return new AutonomousAttackPathStepResult(updatedId);
   }
 
   @Operation(
