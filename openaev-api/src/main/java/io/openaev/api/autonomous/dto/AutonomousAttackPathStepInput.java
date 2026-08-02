@@ -21,10 +21,10 @@ import lombok.Setter;
  * <ul>
  *   <li><b>Finding-driven ({@code trigger})</b> - the step declares which finding it reacts to and
  *       which finding values it consumes. The engine readies it, once per matching finding, against
- *       every target that finding pointed at. A single seed scan therefore fans out onto every
- *       host / port / credential it discovers - exactly like a hand-built chained scenario. A step
- *       with NEITHER a trigger nor a parent is a SEED: it readies immediately against the run scope
- *       and its output parser emits the findings that drive everything downstream.
+ *       every target that finding pointed at. A single seed scan therefore fans out onto every host
+ *       / port / credential it discovers - exactly like a hand-built chained scenario. A step with
+ *       NEITHER a trigger nor a parent is a SEED: it readies immediately against the run scope and
+ *       its output parser emits the findings that drive everything downstream.
  *   <li><b>Ordering-only ({@code parentStepTemplateId})</b> - a plain {@code DEPEND_ON}: the step
  *       readies once the parent has executed. Use this only when a step genuinely just needs to run
  *       after another and does not consume its findings; do NOT model the whole path as a linear
@@ -57,8 +57,8 @@ public class AutonomousAttackPathStepInput {
   @JsonProperty("trigger")
   @Schema(
       description =
-          "Optional finding-driven trigger: the finding(s) this step reacts to and the finding "
-              + "values it consumes as inputs. Preferred over parent_step_template_id - it lets the "
-              + "attack path draw itself. Omit for a seed step (recon that runs first).")
+          "Optional finding-driven trigger: the finding(s) this step reacts to and the finding"
+              + " values it consumes as inputs. Preferred over parent_step_template_id - it lets"
+              + " the attack path draw itself. Omit for a seed step (recon that runs first).")
   private AutonomousStepTrigger trigger;
 }

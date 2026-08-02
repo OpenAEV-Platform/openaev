@@ -71,8 +71,8 @@ public class ScenarioUtils {
   }
 
   /**
-   * Strips and maps the {@code scenario_type} filter to a Specification (or null). Multiple selected
-   * types are OR-combined (a scenario matches if it is any of the picked kinds).
+   * Strips and maps the {@code scenario_type} filter to a Specification (or null). Multiple
+   * selected types are OR-combined (a scenario matches if it is any of the picked kinds).
    */
   private static Specification<Scenario> typeSpecification(
       final SearchPaginationInput searchPaginationInput) {
@@ -103,7 +103,9 @@ public class ScenarioUtils {
     return spec;
   }
 
-  /** Combines two custom specifications with the filter group's AND/OR mode (nulls pass through). */
+  /**
+   * Combines two custom specifications with the filter group's AND/OR mode (nulls pass through).
+   */
   private static Specification<Scenario> combine(
       final Specification<Scenario> left,
       final Specification<Scenario> right,

@@ -10,8 +10,8 @@ import lombok.Setter;
 
 /**
  * The authoritative, live scope of an autonomous run, read back from the run's workflow (not the
- * start-time snapshot). Splits the resolved perimeter into the allow-list (what the orchestrator may
- * attack) and the deny-list (explicit carve-outs that always win), each across every source
+ * start-time snapshot). Splits the resolved perimeter into the allow-list (what the orchestrator
+ * may attack) and the deny-list (explicit carve-outs that always win), each across every source
  * (assets, asset groups, teams, persons, and manual IP / CIDR / hostname / CSV rules). The
  * orchestrator reads this before acting so it attacks exactly what is authorized.
  */

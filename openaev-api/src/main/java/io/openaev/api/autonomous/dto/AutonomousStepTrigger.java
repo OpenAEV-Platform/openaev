@@ -9,11 +9,11 @@ import lombok.Setter;
 
 /**
  * A finding-driven trigger for a chained step - the sanctioned way to build an attack path that
- * draws itself. Instead of hard-wiring one step after another with {@code
- * parent_step_template_id}, a step declares WHAT finding it reacts to ({@code filters}) and WHICH
- * finding values it consumes as inputs ({@code mappings}). The engine then readies it, once per
- * matching finding, against every target that finding pointed at - so a single seed scan fans out
- * onto every host/port/credential it discovers, exactly like a hand-built chained scenario.
+ * draws itself. Instead of hard-wiring one step after another with {@code parent_step_template_id},
+ * a step declares WHAT finding it reacts to ({@code filters}) and WHICH finding values it consumes
+ * as inputs ({@code mappings}). The engine then readies it, once per matching finding, against
+ * every target that finding pointed at - so a single seed scan fans out onto every
+ * host/port/credential it discovers, exactly like a hand-built chained scenario.
  *
  * <p>A step with NO trigger and NO parent is a SEED: it readies immediately against the run scope
  * (e.g. an Nmap sweep). Its output parser emits findings that trigger the finding-driven steps.

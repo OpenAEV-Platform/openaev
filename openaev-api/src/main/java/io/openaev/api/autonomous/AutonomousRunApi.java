@@ -136,8 +136,9 @@ public class AutonomousRunApi extends RestBehavior {
   @Operation(
       summary = "Get the autonomous run driving a given scenario, if any",
       description =
-          "Scenario-side twin of by-simulation: lets the scenario detail page render the AI-driven "
-              + "cockpit and steer the single underlying simulation. 404 when the scenario is manual.")
+          "Scenario-side twin of by-simulation: lets the scenario detail page render the AI-driven"
+              + " cockpit and steer the single underlying simulation. 404 when the scenario is"
+              + " manual.")
   @GetMapping("/by-scenario/{scenarioId}")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -180,9 +181,9 @@ public class AutonomousRunApi extends RestBehavior {
   @Operation(
       summary = "Restart a terminal run in place",
       description =
-          "Reuses the same scenario: tears the old simulation down, provisions a fresh one, resets "
-              + "the run's timeline / directives to CREATED. The caller then starts it again. No new "
-              + "scenario is ever created on restart.")
+          "Reuses the same scenario: tears the old simulation down, provisions a fresh one, resets"
+              + " the run's timeline / directives to CREATED. The caller then starts it again. No"
+              + " new scenario is ever created on restart.")
   @PostMapping("/{runId}/restart")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -193,10 +194,11 @@ public class AutonomousRunApi extends RestBehavior {
   @Operation(
       summary = "Promote a completed dry-run plan to a real, executing run",
       description =
-          "Turns a PLANNED dry-run into a live run in place: tears the non-executing plan simulation "
-              + "and the mirrored plan steps down, provisions a fresh executing simulation, clears "
-              + "plan mode and keeps the plan summary as guidance. The caller then starts it again; "
-              + "the orchestrator follows the plan while adapting to live findings.")
+          "Turns a PLANNED dry-run into a live run in place: tears the non-executing plan"
+              + " simulation and the mirrored plan steps down, provisions a fresh executing"
+              + " simulation, clears plan mode and keeps the plan summary as guidance. The caller"
+              + " then starts it again; the orchestrator follows the plan while adapting to live"
+              + " findings.")
   @PostMapping("/{runId}/promote")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -239,8 +241,7 @@ public class AutonomousRunApi extends RestBehavior {
     return autonomousRunService.applyLiveConfiguration(runId, input);
   }
 
-  @Operation(
-      summary = "Orchestrator: read the run's live, resolved scope (allow-list + deny-list)")
+  @Operation(summary = "Orchestrator: read the run's live, resolved scope (allow-list + deny-list)")
   @GetMapping("/{runId}/scope")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -292,12 +293,13 @@ public class AutonomousRunApi extends RestBehavior {
   @Operation(
       summary = "Orchestrator: append a chained step to the live attack path",
       description =
-          "The ONLY sanctioned way for the AI to build the attack path. Wraps the inject as a "
-              + "chained INJECT_EXECUTION step on the run's simulation workflow so it executes "
-              + "through the chaining engine and renders in the animated map. Prefer a finding-"
-              + "driven 'trigger' (the step fires on a finding and consumes its values, so the path "
-              + "draws itself) over a linear 'parent_step_template_id'. A step with neither is a "
-              + "seed that readies immediately. Returns the created step template id.")
+          "The ONLY sanctioned way for the AI to build the attack path. Wraps the inject as a"
+              + " chained INJECT_EXECUTION step on the run's simulation workflow so it executes"
+              + " through the chaining engine and renders in the animated map. Prefer a"
+              + " finding-driven 'trigger' (the step fires on a finding and consumes its values, so"
+              + " the path draws itself) over a linear 'parent_step_template_id'. A step with"
+              + " neither is a seed that readies immediately. Returns the created step template"
+              + " id.")
   @PostMapping("/{runId}/attack-path/steps")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -312,11 +314,11 @@ public class AutonomousRunApi extends RestBehavior {
   @Operation(
       summary = "Orchestrator: update an existing chained step in place",
       description =
-          "Edits a step the orchestrator already authored - payload / target / injector contract / "
-              + "title - by its step template id (from the attack-path state read), preserving the "
-              + "step's id and its DEPEND_ON kill-chain parent. This is how the AI changes existing "
-              + "logic instead of re-authoring a duplicate. The parent in the body is ignored; the "
-              + "existing dependency is kept.")
+          "Edits a step the orchestrator already authored - payload / target / injector contract /"
+              + " title - by its step template id (from the attack-path state read), preserving the"
+              + " step's id and its DEPEND_ON kill-chain parent. This is how the AI changes"
+              + " existing logic instead of re-authoring a duplicate. The parent in the body is"
+              + " ignored; the existing dependency is kept.")
   @PutMapping("/{runId}/attack-path/steps/{stepTemplateId}")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -332,10 +334,10 @@ public class AutonomousRunApi extends RestBehavior {
   @Operation(
       summary = "Orchestrator: read the live attack-path state (authored steps + status + traces)",
       description =
-          "The dedup + verify read path. Returns every step already authored on the run, each with "
-              + "its backing inject, live execution status, and execution traces. The orchestrator "
-              + "MUST consult this before authoring anything so it never re-authors an existing step "
-              + "and can verify what each step actually did before deciding the next move.")
+          "The dedup + verify read path. Returns every step already authored on the run, each with"
+              + " its backing inject, live execution status, and execution traces. The orchestrator"
+              + " MUST consult this before authoring anything so it never re-authors an existing"
+              + " step and can verify what each step actually did before deciding the next move.")
   @GetMapping("/{runId}/attack-path/state")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -346,8 +348,9 @@ public class AutonomousRunApi extends RestBehavior {
   @Operation(
       summary = "Orchestrator: evaluate the live attack path now",
       description =
-          "Re-evaluates the run's workflow so freshly appended steps ready and execute immediately "
-              + "instead of waiting for an in-flight step to complete. Called after appending steps.")
+          "Re-evaluates the run's workflow so freshly appended steps ready and execute immediately"
+              + " instead of waiting for an in-flight step to complete. Called after appending"
+              + " steps.")
   @PostMapping("/{runId}/attack-path/evaluate")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -359,10 +362,10 @@ public class AutonomousRunApi extends RestBehavior {
   @Operation(
       summary = "Orchestrator: promote a finding to a targetable asset",
       description =
-          "Turns a discovered finding (an IP / hostname / asset-type finding) into a real endpoint "
-              + "asset the orchestrator can target with the next chained step - the lateral-movement "
-              + "pivot. The ORIGINAL finding is kept and linked to the new asset. Returns the created "
-              + "asset id to use as the inject target.")
+          "Turns a discovered finding (an IP / hostname / asset-type finding) into a real endpoint"
+              + " asset the orchestrator can target with the next chained step - the"
+              + " lateral-movement pivot. The ORIGINAL finding is kept and linked to the new asset."
+              + " Returns the created asset id to use as the inject target.")
   @PostMapping("/{runId}/findings/{findingId}/promote-to-asset")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -374,12 +377,13 @@ public class AutonomousRunApi extends RestBehavior {
   @Operation(
       summary = "Orchestrator: ensure a targetable team wrapping one or more persons",
       description =
-          "An inject can only target a TEAM whose players are ENABLED on the simulation, so a "
-              + "human-in-the-loop technique (phishing, smishing, credential harvesting) cannot "
-              + "point at a person directly. This atomically reuses-or-creates a contextual team on "
-              + "the run's simulation, sets its members, and enables those players for delivery, "
-              + "returning a team id the next chained step targets - eliminating the 'Email needs at "
-              + "least one user' failure caused by an unattached or empty wrapper team.")
+          "An inject can only target a TEAM whose players are ENABLED on the simulation, so a"
+              + " human-in-the-loop technique (phishing, smishing, credential harvesting) cannot"
+              + " point at a person directly. This atomically reuses-or-creates a contextual team"
+              + " on the run's simulation, sets its members, and enables those players for"
+              + " delivery, returning a team id the next chained step targets - eliminating the"
+              + " 'Email needs at least one user' failure caused by an unattached or empty wrapper"
+              + " team.")
   @PostMapping("/{runId}/target-teams")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)

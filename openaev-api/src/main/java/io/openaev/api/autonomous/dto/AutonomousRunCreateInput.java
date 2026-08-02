@@ -80,7 +80,7 @@ public class AutonomousRunCreateInput {
   @Schema(
       description =
           "Dry-run: when true the orchestrator only designs the attack path (scope, steps,"
-              + " decisions) and executes nothing. The operator can review the plan and later run it"
-              + " for real. Defaults to false (immediate live run).")
+              + " decisions) and executes nothing. The operator can review the plan and later run"
+              + " it for real. Defaults to false (immediate live run).")
   private boolean planMode = false;
 }

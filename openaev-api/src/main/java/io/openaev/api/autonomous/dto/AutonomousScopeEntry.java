@@ -9,10 +9,10 @@ import lombok.Setter;
 
 /**
  * One entry of an autonomous run's resolved scope, as read back from the run's workflow. Carries
- * both the workflow rule {@code source} (ASSET / ASSET_GROUP / TEAM / PLAYER / MANUAL / CSV) and the
- * orchestrator target-kind {@code type} (ASSETS / ASSETS_GROUPS / TEAMS / PLAYERS / MANUAL), plus the
- * value ({@code id} - an entity id, or a raw IP / CIDR / hostname for manual rules) and a resolved
- * display {@code name} for entities.
+ * both the workflow rule {@code source} (ASSET / ASSET_GROUP / TEAM / PLAYER / MANUAL / CSV) and
+ * the orchestrator target-kind {@code type} (ASSETS / ASSETS_GROUPS / TEAMS / PLAYERS / MANUAL),
+ * plus the value ({@code id} - an entity id, or a raw IP / CIDR / hostname for manual rules) and a
+ * resolved display {@code name} for entities.
  */
 @Getter
 @Setter
@@ -33,7 +33,8 @@ public class AutonomousScopeEntry {
   private String type;
 
   @JsonProperty("id")
-  @Schema(description = "The rule value: an entity id, or a raw IP / CIDR / hostname for MANUAL/CSV")
+  @Schema(
+      description = "The rule value: an entity id, or a raw IP / CIDR / hostname for MANUAL/CSV")
   private String id;
 
   @JsonProperty("name")

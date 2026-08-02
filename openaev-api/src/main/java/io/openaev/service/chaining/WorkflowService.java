@@ -242,8 +242,8 @@ public class WorkflowService {
    * Seeds a full scope definition (ALLOWLIST and/or DENYLIST rules, any source) onto a run's
    * scenario template and live simulation workflows. Used at autonomous-run creation to mirror the
    * scope the operator picked in the launch stepper onto the auto-provisioned workflow, so it is
-   * enforced and shown in the Scope tab exactly like a manually chained scenario. Rules are appended
-   * and de-duplicated by (mode, source, value); an empty list is a no-op. Unlike {@link
+   * enforced and shown in the Scope tab exactly like a manually chained scenario. Rules are
+   * appended and de-duplicated by (mode, source, value); an empty list is a no-op. Unlike {@link
    * #writeAllowlistScope} this never clears existing rules and is mode-agnostic.
    */
   public void writeScopeRules(
@@ -253,11 +253,9 @@ public class WorkflowService {
     }
     if (hasText(scenarioId)) {
       try {
-        findWorkflowTemplateByScenarioId(scenarioId)
-            .ifPresent(w -> appendScopeRules(w, rules));
+        findWorkflowTemplateByScenarioId(scenarioId).ifPresent(w -> appendScopeRules(w, rules));
       } catch (ChainingException e) {
-        log.warn(
-            "[Chaining] Could not seed scope on scenario {} template workflow", scenarioId, e);
+        log.warn("[Chaining] Could not seed scope on scenario {} template workflow", scenarioId, e);
       }
     }
     if (hasText(simulationId)) {
@@ -1285,7 +1283,8 @@ public class WorkflowService {
    * no parent is a SEED that readies immediately against the run scope. The engine already persists
    * arbitrary condition trees, so this simply merges the provided conditions with the DEPEND_ON.
    *
-   * @param triggerConditions finding-trigger + mapper conditions (empty for a seed / DEPEND_ON-only)
+   * @param triggerConditions finding-trigger + mapper conditions (empty for a seed /
+   *     DEPEND_ON-only)
    */
   @Transactional(rollbackFor = Exception.class)
   public String appendChainedStep(
@@ -1358,7 +1357,8 @@ public class WorkflowService {
    * original (they are parent-independent, so they copy verbatim), keeping the exported scenario a
    * faithful reproduction of the finding-driven attack path.
    *
-   * @param triggerConditions the same finding-trigger + mapper conditions authored on the simulation
+   * @param triggerConditions the same finding-trigger + mapper conditions authored on the
+   *     simulation
    */
   @Transactional(rollbackFor = Exception.class)
   public String appendChainedStepToScenario(

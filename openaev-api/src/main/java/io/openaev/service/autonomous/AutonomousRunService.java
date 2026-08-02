@@ -195,9 +195,7 @@ public class AutonomousRunService {
         workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
       } catch (ChainingException e) {
         throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST,
-            "Failed to start the chained simulation: " + e.getMessage(),
-            e);
+            HttpStatus.BAD_REQUEST, "Failed to start the chained simulation: " + e.getMessage(), e);
       }
     }
 
@@ -209,7 +207,8 @@ public class AutonomousRunService {
     run.setSimulationId(simulation.getId());
     // The run's mixed scope projection is the union of the legacy target list ('scope' +
     // single-id shortcuts) and any allow-listed ENTITY rules coming from the launch stepper's full
-    // scope definition. Manual IP / CIDR / hostname / CSV and deny-list rules cannot be expressed as
+    // scope definition. Manual IP / CIDR / hostname / CSV and deny-list rules cannot be expressed
+    // as
     // entity targets, so they live only on the workflow (and drive the Scope tab) - the projection
     // stays entity-only for the orchestrator and restart/reconcile paths.
     List<AutonomousScopeTarget> scope = resolveScope(input);
@@ -258,12 +257,10 @@ public class AutonomousRunService {
         AutonomousEventType.STATUS,
         planMode ? "Plan created" : "Run created",
         (planMode
-                ? "Autonomous attack-path DRY-RUN created from scenario \""
-                    + scenario.getName()
-                    + "\". The orchestrator will design the attack path without executing anything."
-                : "Autonomous attack-path run created from scenario \""
-                    + scenario.getName()
-                    + "\"."),
+            ? "Autonomous attack-path DRY-RUN created from scenario \""
+                + scenario.getName()
+                + "\". The orchestrator will design the attack path without executing anything."
+            : "Autonomous attack-path run created from scenario \"" + scenario.getName() + "\"."),
         null);
     return saved;
   }
@@ -576,11 +573,11 @@ public class AutonomousRunService {
    * Promotes a completed dry-run to a real, executing run <b>in place</b>. Same machinery as {@link
    * #restart}: cancel the planning orchestration, tear down the (non-executing) plan simulation and
    * the run's mirrored scenario steps + decision timeline, provision a FRESH simulation and start
-   * its RUN workflow so the chaining engine can dispatch. Unlike restart, it clears {@code planMode}
-   * (the run is now live) but KEEPS {@code planGuidance}, which {@link #start} then hands to the
-   * orchestrator as the prior plan to follow-while-adapting. The scenario's resolved scope survives
-   * (the fresh simulation is copied from it), so the live run starts scoped but with an empty attack
-   * path. The caller then {@link #start}s it again.
+   * its RUN workflow so the chaining engine can dispatch. Unlike restart, it clears {@code
+   * planMode} (the run is now live) but KEEPS {@code planGuidance}, which {@link #start} then hands
+   * to the orchestrator as the prior plan to follow-while-adapting. The scenario's resolved scope
+   * survives (the fresh simulation is copied from it), so the live run starts scoped but with an
+   * empty attack path. The caller then {@link #start}s it again.
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun promoteToRealRun(String runId) {
@@ -632,9 +629,9 @@ public class AutonomousRunService {
         simulation.getId(),
         AutonomousEventType.STATUS,
         "Plan promoted to live run",
-        "The dry-run plan was promoted to a real run; a fresh executing simulation was provisioned. "
-            + "The orchestrator will follow the plan as closely as possible while adapting to live "
-            + "findings.",
+        "The dry-run plan was promoted to a real run; a fresh executing simulation was provisioned."
+            + " The orchestrator will follow the plan as closely as possible while adapting to live"
+            + " findings.",
         null);
     return saved;
   }
@@ -954,13 +951,13 @@ public class AutonomousRunService {
   }
 
   /**
-   * Reads the run's live, authoritative scope back from its workflow so the orchestrator can see the
-   * real perimeter before acting - not the start-time snapshot it was handed, and not just its own
-   * in-memory reasoning. Returns both the allow-list (what may be attacked) and the deny-list
+   * Reads the run's live, authoritative scope back from its workflow so the orchestrator can see
+   * the real perimeter before acting - not the start-time snapshot it was handed, and not just its
+   * own in-memory reasoning. Returns both the allow-list (what may be attacked) and the deny-list
    * (carve-outs that always win), across every source (assets, asset groups, teams, persons, and
-   * manual IP / CIDR / hostname / CSV rules), with resolved display names for entities. The scenario
-   * template workflow is the canonical source (it is what a restart re-seeds from and what the Scope
-   * tab shows); the live simulation run is the fallback when no template is resolvable.
+   * manual IP / CIDR / hostname / CSV rules), with resolved display names for entities. The
+   * scenario template workflow is the canonical source (it is what a restart re-seeds from and what
+   * the Scope tab shows); the live simulation run is the fallback when no template is resolvable.
    */
   @Transactional(readOnly = true)
   public AutonomousScopeView getRunScopeView(String runId) {
@@ -1210,10 +1207,7 @@ public class AutonomousRunService {
       ConditionType rootType =
           "OR".equalsIgnoreCase(trigger.getMatch()) ? ConditionType.OR : ConditionType.AND;
       conditions.add(
-          ConditionCreateInput.builder()
-              .temporaryId(TRIGGER_ROOT_TMP_ID)
-              .type(rootType)
-              .build());
+          ConditionCreateInput.builder().temporaryId(TRIGGER_ROOT_TMP_ID).type(rootType).build());
       conditions.addAll(leaves);
     }
 
@@ -1951,7 +1945,8 @@ public class AutonomousRunService {
    * IP / CIDR / hostname / CSV rules and deny-list rules are intentionally skipped: they are not
    * targetable entities and live only on the workflow scope, not the run projection.
    */
-  private List<AutonomousScopeTarget> allowlistTargetsFromRules(List<WorkflowScopeRuleInput> rules) {
+  private List<AutonomousScopeTarget> allowlistTargetsFromRules(
+      List<WorkflowScopeRuleInput> rules) {
     if (rules == null || rules.isEmpty()) {
       return List.of();
     }
@@ -2040,7 +2035,8 @@ public class AutonomousRunService {
       //     simulation reads FINISHED while it waits. Completing here terminated the run before the
       //     operator could answer the scoping question (the reported plan-mode bug).
       // Cancellation / deletion of the simulation still settles both (handled above), so the
-      // operator can always stop a parked or plan run; only the FINISHED->COMPLETED sync is skipped.
+      // operator can always stop a parked or plan run; only the FINISHED->COMPLETED sync is
+      // skipped.
       if (run.isPlanMode() || current == AutonomousRunStatus.WAITING_INPUT) {
         return run;
       }
@@ -2078,7 +2074,8 @@ public class AutonomousRunService {
       }
     } catch (Exception e) {
       log.warn(
-          "[Autonomous] Could not persist reconciled status {} for run {}; returning in-memory sync",
+          "[Autonomous] Could not persist reconciled status {} for run {}; returning in-memory"
+              + " sync",
           target,
           run.getId(),
           e);

@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
  *   <li>{@code autonomous_run_plan_mode}: when true the run is a dry-run - the orchestrator designs
  *       the attack path (scope, steps, decisions) but nothing is ever executed. Defaults to false
  *       so every existing run stays a normal executing run.
- *   <li>{@code autonomous_run_plan_guidance}: the plan summary captured from a dry-run and handed to
- *       the promoted real run as guidance.
+ *   <li>{@code autonomous_run_plan_guidance}: the plan summary captured from a dry-run and handed
+ *       to the promoted real run as guidance.
  * </ul>
  *
  * <p>Additive, idempotent, and lock-light: a nullable {@code ADD COLUMN} (and a boolean column with
