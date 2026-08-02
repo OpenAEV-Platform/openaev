@@ -12,12 +12,14 @@ import io.openaev.database.model.Tenant;
 import io.openaev.engine.model.injectexpectation.EsInjectExpectation;
 import io.openaev.engine.model.injectexpectation.InjectExpectationHandler;
 import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectExpectationFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
+import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
@@ -67,6 +69,7 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
 
   @Autowired private InjectExpectationHandler injectExpectationHandler;
 
+  @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectComposer injectComposer;
@@ -79,6 +82,7 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() {
+    assetGroupComposer.reset();
     collectorComposer.reset();
     endpointComposer.reset();
     injectComposer.reset();
@@ -307,5 +311,100 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
 
     assertThat(fetchDoc(agentlessExpectation.getId()).getBase_security_platforms_side())
         .contains(securityPlatform.get().getId());
+  }
+
+  /**
+   * Asset-group parent documents roll their agent-level children's platforms up too, but only the
+   * children of THEIR OWN group: an inject targeting two asset groups must not cross-attribute one
+   * group's platforms onto the other group's synthesis document.
+   */
+  @Test
+  @DisplayName("asset-group docs roll up their own group's children platforms only")
+  void given_assetGroupExpectation_should_attributeOwnGroupChildrenPlatformsOnly() {
+    setScope(Tenant.DEFAULT_TENANT_UUID);
+
+    SecurityPlatformComposer.Composer platformOwnGroup =
+        securityPlatformComposer
+            .forSecurityPlatform(SecurityPlatformFixture.createDefault("EDR own group", "EDR"))
+            .persist();
+    SecurityPlatformComposer.Composer platformOtherGroup =
+        securityPlatformComposer
+            .forSecurityPlatform(SecurityPlatformFixture.createDefault("EDR other group", "EDR"))
+            .persist();
+    Collector ownCollector =
+        collectorComposer
+            .forCollector(CollectorFixture.createDefaultCollector("collector-edr-own-group"))
+            .withSecurityPlatform(platformOwnGroup)
+            .persist()
+            .get();
+    Collector otherCollector =
+        collectorComposer
+            .forCollector(CollectorFixture.createDefaultCollector("collector-edr-other-group"))
+            .withSecurityPlatform(platformOtherGroup)
+            .persist()
+            .get();
+
+    AssetGroupComposer.Composer ownGroup =
+        assetGroupComposer.forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("own-group"));
+    AssetGroupComposer.Composer otherGroup =
+        assetGroupComposer.forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("other-group"));
+
+    // The group-level synthesis expectation of the OWN group (no asset, no agent).
+    BaseInjectExpectation groupExpectation =
+        InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+    InjectExpectationComposer.Composer groupExpectationWrapper =
+        injectExpectationComposer.forExpectation(groupExpectation).withAssetGroup(ownGroup);
+
+    InjectComposer.Composer injectWrapper =
+        injectComposer
+            .forInject(InjectFixture.getDefaultInject())
+            .withExpectation(groupExpectationWrapper)
+            .withExpectation(agentChildExpectation(ownCollector, ownGroup, "endpoint-own-group"))
+            .withExpectation(
+                agentChildExpectation(otherCollector, otherGroup, "endpoint-other-group"));
+    scenarioComposer
+        .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+        .withInject(injectWrapper)
+        .persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(fetchDoc(groupExpectation.getId()).getBase_security_platforms_side())
+        .contains(platformOwnGroup.get().getId())
+        .doesNotContain(platformOtherGroup.get().getId());
+  }
+
+  /**
+   * Builds an agent-level detection expectation bound to the given asset group and filled by the
+   * given collector, on a fresh endpoint carrying a fresh agent.
+   */
+  private InjectExpectationComposer.Composer agentChildExpectation(
+      Collector collector, AssetGroupComposer.Composer group, String endpointKey) {
+    EndpointComposer.Composer endpointWrapper =
+        endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+    endpointWrapper.persist();
+
+    Agent agent = AgentFixture.createDefaultAgentService();
+    agent.setAsset(endpointWrapper.get());
+    entityManager.persist(agent);
+    entityManager.flush();
+    Agent persistedAgent = entityManager.getReference(Agent.class, agent.getId());
+
+    DetectionInjectExpectation agentExpectation =
+        InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+    agentExpectation.setAgent(persistedAgent);
+    agentExpectation.setResults(
+        List.of(
+            InjectExpectationResult.builder()
+                .sourceId(collector.getId())
+                .sourceType("collector")
+                .sourceName(collector.getName())
+                .result("detected")
+                .score(100.0)
+                .build()));
+    return injectExpectationComposer
+        .forExpectation(agentExpectation)
+        .withEndpoint(endpointWrapper)
+        .withAssetGroup(group);
   }
 }
