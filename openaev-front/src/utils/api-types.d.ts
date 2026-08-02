@@ -1578,6 +1578,8 @@ export interface AutonomousStatusUpdateInput {
   /** New lifecycle status */
   status:
     | "CREATED"
+    | "PLANNING"
+    | "PLANNED"
     | "RUNNING"
     | "PAUSED"
     | "WAITING_INPUT"
@@ -9870,6 +9872,8 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_all_users_number?: number;
+  /** Whether the scenario is an autonomous (AI-driven) attack-path scenario */
+  scenario_autonomous?: boolean;
   /** Category of the scenario */
   scenario_category?: string;
   /**

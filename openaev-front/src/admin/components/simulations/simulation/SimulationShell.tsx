@@ -56,11 +56,15 @@ const SimulationShell: FunctionComponent<{
   // - time-based: Overview / Injects / Tests / Execution / Lessons / Findings / Statistics.
   const buildTabs = (): [string, string][] => {
     if (isAutonomous) {
+      // Scope and Logic are ALWAYS surfaced (read-only) for an autonomous run: their routes are
+      // registered unconditionally in Index.tsx, and they must stay visible even before the AI has
+      // provisioned a workflow (e.g. a plan-mode / dry-run simulation that has no workflow yet), so
+      // the operator can always inspect the perimeter and the designed logic. Only Attack path is
+      // workflow-backed, so it alone is gated on the workflow existing (its route is too).
       return [
         ['', t('Overview')],
-        ...(isChainingFeatureEnabled && exercise.exercise_workflow_id
-          ? [['/scope', t('Scope')] as [string, string], ['/logic', t('Logic')] as [string, string]]
-          : []),
+        ['/scope', t('Scope')],
+        ['/logic', t('Logic')],
         ...(isAttackPathEnabled ? [['/attack-path', t('Attack path')] as [string, string]] : []),
         ['/execution', t('Execution')],
         ['/findings', t('Findings')],

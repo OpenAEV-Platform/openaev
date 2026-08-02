@@ -87,6 +87,10 @@ interface ScenarioHeaderProps {
   // scope controls are hidden and replaced with autonomous pause / resume / stop controls that act
   // on the run and its single underlying simulation.
   autonomousRun?: AutonomousRun | null;
+  // Authoritative DB verdict (scenario_autonomous): drives the autonomous chrome (status chip,
+  // no manual launch, attack-path stat) even before the live run object has been fetched, so the
+  // header never flips to the manual layout on reload while the run lookup is in flight.
+  knownAutonomous?: boolean;
   onAutonomousRunUpdate?: (run: AutonomousRun) => void;
 }
 
@@ -94,6 +98,7 @@ const ScenarioHeader = ({
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
   autonomousRun = null,
+  knownAutonomous = false,
   onAutonomousRunUpdate,
 }: ScenarioHeaderProps) => {
   // Standard hooks
@@ -162,7 +167,7 @@ const ScenarioHeader = ({
       ? helper.getWorkflowConfiguration(scenarioWorkflowId)
       : undefined,
   }));
-  const isAutonomous = !!autonomousRun;
+  const isAutonomous = knownAutonomous || !!autonomousRun;
   const autonomousStatus = autonomousRun?.autonomous_run_status;
   // The run drives its single simulation: deleting the scenario tears both down, so it is only
   // allowed once the run has stopped (terminal). While it is still live (created / running /

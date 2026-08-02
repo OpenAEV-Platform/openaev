@@ -46,11 +46,18 @@ const ScenarioExecution = lazy(() => import('./execution/ScenarioExecution'));
 const IndexScenarioComponent: FunctionComponent<{
   scenario: ScenarioOutput;
   autonomousRun: AutonomousRun | null;
+  /** Authoritative "this scenario is autonomous" verdict from the DB flag (scenario_autonomous).
+   *  It drives the whole view - tab set, read-only scope/logic, no manual launch - independently of
+   *  whether the live run object has been fetched yet. This is what stops the scenario from flashing
+   *  back to a plain chained scenario on reload while the run lookup is still in flight. */
+  knownAutonomous: boolean;
   onAutonomousRunUpdate: (run: AutonomousRun) => void;
-}> = ({ scenario, autonomousRun, onAutonomousRunUpdate }) => {
+}> = ({ scenario, autonomousRun, knownAutonomous, onAutonomousRunUpdate }) => {
   const { t } = useFormatter();
   const location = useLocation();
-  const isAutonomous = !!autonomousRun;
+  // The view is autonomous as soon as the DB flag says so; the run object only gates the live
+  // cockpit surfaces (overview, reasoning panel, run controls) that need its data.
+  const isAutonomous = knownAutonomous || !!autonomousRun;
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   // Attack path only exists for chained scenarios (workflow-backed), never
   // for time-based ones: same gating as the simulation side.
@@ -88,9 +95,11 @@ const IndexScenarioComponent: FunctionComponent<{
   const [openInstantiateSimulationAndStart, setOpenInstantiateSimulationAndStart] = useState<boolean>(false);
 
   // Resizable reasoning-panel width, shared with the content padding so the two stay in lockstep and
-  // the scenario content never renders underneath the panel (mirrors the simulation cockpit).
+  // the scenario content never renders underneath the panel (mirrors the simulation cockpit). The
+  // padding follows the ACTUAL panel (run present), not just the autonomous verdict, so a known-
+  // autonomous scenario whose run is still loading does not reserve empty space.
   const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
-  const contentPaddingRight = isAutonomous ? `${panelWidth}px` : undefined;
+  const contentPaddingRight = autonomousRun ? `${panelWidth}px` : undefined;
 
   // Autonomous scenarios expose the same tab set but with Scope and Logic in read-only mode: the AI
   // owns the scope and logic, yet operators can still inspect them to understand what the
@@ -249,6 +258,20 @@ const IndexScenarioComponent: FunctionComponent<{
     );
   };
 
+  // Overview route content, resolved without a nested ternary (lint):
+  //  - live run present  -> the autonomous overview,
+  //  - known autonomous but run still loading (or XTM One briefly unreachable) -> a loader, never
+  //    the manual overview (this is what keeps the cockpit from flashing back to a plain scenario),
+  //  - otherwise         -> the manual scenario overview.
+  let overviewElement;
+  if (autonomousRun) {
+    overviewElement = <AutonomousOverview run={autonomousRun} />;
+  } else if (isAutonomous) {
+    overviewElement = <Loader />;
+  } else {
+    overviewElement = errorWrapper(ScenarioComponent)({ setOpenInstantiateSimulationAndStart });
+  }
+
   return (
     <PermissionsContext.Provider value={permissionsContext}>
       <DocumentContext.Provider value={documentContext}>
@@ -275,6 +298,7 @@ const IndexScenarioComponent: FunctionComponent<{
               setOpenInstantiateSimulationAndStart={setOpenInstantiateSimulationAndStart}
               openInstantiateSimulationAndStart={openInstantiateSimulationAndStart}
               autonomousRun={autonomousRun}
+              knownAutonomous={knownAutonomous}
               onAutonomousRunUpdate={onAutonomousRunUpdate}
             />
             <Box
@@ -288,12 +312,7 @@ const IndexScenarioComponent: FunctionComponent<{
             </Box>
             <Suspense fallback={<Loader />}>
               <Routes>
-                <Route
-                  path=""
-                  element={autonomousRun
-                    ? <AutonomousOverview run={autonomousRun} />
-                    : errorWrapper(ScenarioComponent)({ setOpenInstantiateSimulationAndStart })}
-                />
+                <Route path="" element={overviewElement} />
                 {/* Definition merged into the Injects authoring tab; redirect old links. */}
                 <Route path="definition" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/injects`} replace />} />
                 <Route path="injects" element={errorWrapper(Injects)()} />
@@ -359,9 +378,10 @@ const Index = () => {
   // (reasoning panel + gated tabs + run controls) as the simulation side. The scenario carries its
   // own autonomous flag, so once it is loaded a manual scenario skips the run lookup entirely (no
   // 404 probe, no re-poll); while it is still loading we pass undefined to probe as before.
+  const knownAutonomous = scenario ? scenario.scenario_autonomous === true : undefined;
   const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForScenario(
     scenarioId,
-    scenario ? scenario.scenario_autonomous === true : undefined,
+    knownAutonomous,
   );
   useDataLoader(() => {
     setLoading(true);
@@ -390,6 +410,7 @@ const Index = () => {
       <IndexScenarioComponent
         scenario={scenario}
         autonomousRun={autonomousRun}
+        knownAutonomous={knownAutonomous === true}
         onAutonomousRunUpdate={setAutonomousRun}
       />
     </InjectContext.Provider>

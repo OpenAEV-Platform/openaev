@@ -3,17 +3,13 @@ import { useParams } from 'react-router';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { useHelper } from '../../../../../store';
 import type { Exercise } from '../../../../../utils/api-types';
-import AutonomousReadOnlyBanner from '../../../chaining/AutonomousReadOnlyBanner';
 import Logic from '../../../chaining/logic/Logic';
 
 const SimulationLogic = ({ readOnly = false }: { readOnly?: boolean }) => {
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   return (
-    <>
-      {readOnly && <AutonomousReadOnlyBanner />}
-      <Logic workflowId={exercise?.exercise_workflow_id} context="simulation" readOnly={readOnly} />
-    </>
+    <Logic workflowId={exercise?.exercise_workflow_id} context="simulation" readOnly={readOnly} />
   );
 };
 

@@ -448,7 +448,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   let composerPlaceholder = t('Steer the AI live (e.g. focus on the finance subnet, avoid host X, try Kerberoasting)');
   if (hasChoices) {
     composerPlaceholder = t('Or type your own answer');
-  } else if (isWaitingInput) {
+  } else if (isWaitingInput && pendingQuestion) {
+    // Only prompt for an answer while a question is actually pending. Once the operator answers we
+    // optimistically clear pendingQuestion, so revert to the default steer placeholder immediately
+    // instead of leaving "Answer the AI..." stuck until the backend flips out of WAITING_INPUT.
     composerPlaceholder = t('Answer the AI (e.g. the web apps in scope are app-prod-01 and app-prod-02)');
   }
 
@@ -902,13 +905,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               'marginTop': hasChoices ? 1 : 0,
               'display': 'flex',
               'flexDirection': 'column',
-              'borderRadius': 2,
+              'borderRadius': 1,
               'border': `1px solid ${theme.palette.divider}`,
-              'backgroundColor': alpha(theme.palette.action.hover, 0.4),
-              'transition': theme.transitions.create(['border-color', 'background-color']),
+              'backgroundColor': 'transparent',
+              'transition': theme.transitions.create('border-color'),
+              '&:hover': { borderColor: theme.palette.text.primary },
               '&:focus-within': {
                 borderColor: accent,
-                backgroundColor: alpha(theme.palette.action.hover, 0.6),
+                boxShadow: `0 0 0 1px ${accent}`,
               },
             }}
           >

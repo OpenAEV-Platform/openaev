@@ -482,13 +482,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   </IconButton>
                 </Tooltip>
               )}
-              {/* Entity-scoped reports - self-hides without the reporting
-                  access capability. */}
-              <EntityReportsPanel
-                contextType="SIMULATION"
-                contextId={exercise.exercise_id}
-                entityName={exercise.exercise_name}
-              />
               {permissions.canManage && !isAutonomous && (
                 <>
                   <Tooltip title={t('Modify the scheduling')}>
@@ -549,6 +542,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   </span>
                 </Tooltip>
               )}
+              {/* Entity-scoped reports - self-hides without the reporting access capability. Kept
+                  right next to the overflow menu so the two "meta" actions sit together. */}
+              <EntityReportsPanel
+                contextType="SIMULATION"
+                contextId={exercise.exercise_id}
+                entityName={exercise.exercise_name}
+              />
               {/* CRUD actions in one overflow menu. */}
               <ExercisePopover
                 exercise={exercise}
