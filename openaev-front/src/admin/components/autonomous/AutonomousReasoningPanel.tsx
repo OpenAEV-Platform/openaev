@@ -445,6 +445,13 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     .slice(0, MAX_QUESTION_CHOICES);
   const hasChoices = questionChoices.length > 0;
 
+  let composerPlaceholder = t('Steer the AI live (e.g. focus on the finance subnet, avoid host X, try Kerberoasting)');
+  if (hasChoices) {
+    composerPlaceholder = t('Or type your own answer');
+  } else if (isWaitingInput) {
+    composerPlaceholder = t('Answer the AI (e.g. the web apps in scope are app-prod-01 and app-prod-02)');
+  }
+
   // Reset the choice selection whenever a new question arrives.
   useEffect(() => {
     setSelectedChoice(null);
@@ -827,7 +834,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       {/* Steering box - chatbot-style, doubles as the answer field when waiting on input. On the
           observe-only (simulation) view it is replaced by a hint pointing to the parent scenario,
           where all control (incl. steering) lives. */}
-      {readOnly ? (
+      {readOnly && (
         <Box sx={{
           padding: theme.spacing(1.5, 2),
           borderTop: `1px solid ${theme.palette.divider}`,
@@ -837,7 +844,8 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
             {t('Observe-only view. Steer and control this run from the parent scenario.')}
           </Typography>
         </Box>
-      ) : (
+      )}
+      {!readOnly && isActive && (
         <Box sx={{
           padding: theme.spacing(1.5, 2),
           borderTop: `1px solid ${theme.palette.divider}`,
@@ -913,16 +921,11 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                   handleComposerSubmit();
                 }
               }}
-              placeholder={hasChoices
-                ? t('Or type your own answer')
-                : (isWaitingInput
-                    ? t('Answer the AI (e.g. the web apps in scope are app-prod-01 and app-prod-02)')
-                    : t('Steer the AI live (e.g. focus on the finance subnet, avoid host X, try Kerberoasting)'))}
+              placeholder={composerPlaceholder}
               fullWidth
               multiline
               minRows={hasChoices ? 2 : 3}
               maxRows={8}
-              disabled={!isActive}
               variant="standard"
               InputProps={{ disableUnderline: true }}
               sx={{
@@ -953,7 +956,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               <IconButton
                 size="small"
                 onClick={handleComposerSubmit}
-                disabled={!isActive || !canSubmitAnswer}
+                disabled={!canSubmitAnswer}
                 sx={{
                   'backgroundColor': accent,
                   'color': theme.palette.ai?.contrastText ?? theme.palette.primary.contrastText,
@@ -968,19 +971,6 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               </IconButton>
             </Stack>
           </Box>
-
-          {!isActive && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{
-                display: 'block',
-                marginTop: 0.5,
-              }}
-            >
-              {t('Steering is available while the run is active.')}
-            </Typography>
-          )}
         </Box>
       )}
     </Box>
