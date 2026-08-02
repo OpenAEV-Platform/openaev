@@ -203,8 +203,8 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
 
   /**
    * Virtual filter facet exposing the scenario "engine type" (Time-based / Chained / Autonomous) to
-   * the list's filter bar. It is NOT a stored column: the value is derived at query time from {@link
-   * #autonomous} and the presence of a chaining Workflow TEMPLATE (see {@code
+   * the list's filter bar. It is NOT a stored column: the value is derived at query time from
+   * {@link #autonomous} and the presence of a chaining Workflow TEMPLATE (see {@code
    * ScenarioUtils#handleCustomFilter}, which strips this key and re-expresses it as a
    * Specification). Declared only so the schema endpoint advertises a filterable {@code
    * scenario_type} property; it is never read or written.

@@ -5,13 +5,14 @@ public enum AutonomousRunStatus {
   /** Created but not yet handed to the orchestrator. */
   CREATED,
   /**
-   * Dry-run only: the orchestrator is designing the attack path (scoping, authoring steps, recording
-   * decisions) but executes nothing. A plan run stays in this state until the plan is complete.
+   * Dry-run only: the orchestrator is designing the attack path (scoping, authoring steps,
+   * recording decisions) but executes nothing. A plan run stays in this state until the plan is
+   * complete.
    */
   PLANNING,
   /**
-   * Dry-run only: the plan is complete and awaiting the operator's decision to run it for real. This
-   * is a settled, non-executing state; promoting the run resets it to a fresh executing run.
+   * Dry-run only: the plan is complete and awaiting the operator's decision to run it for real.
+   * This is a settled, non-executing state; promoting the run resets it to a fresh executing run.
    */
   PLANNED,
   /** The orchestrator is actively planning and executing. */

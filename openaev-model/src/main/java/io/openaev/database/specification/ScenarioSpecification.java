@@ -53,7 +53,8 @@ public class ScenarioSpecification {
   /** Time-based scenarios: neither chained (no workflow template) nor autonomous. */
   public static Specification<Scenario> isTimeBased() {
     return (root, query, cb) ->
-        cb.and(cb.not(hasChainingWorkflow(root, query, cb)), cb.equal(root.get("autonomous"), false));
+        cb.and(
+            cb.not(hasChainingWorkflow(root, query, cb)), cb.equal(root.get("autonomous"), false));
   }
 
   public static Specification<Scenario> recurrenceStartDateBefore(
