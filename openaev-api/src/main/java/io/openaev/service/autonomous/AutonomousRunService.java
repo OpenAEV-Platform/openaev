@@ -190,13 +190,21 @@ public class AutonomousRunService {
     // tools work unchanged, but never start its RUN workflow. With no run workflow the chaining
     // engine has nothing to ready or dispatch, so a plan authors a full attack path without ever
     // executing an inject. A live run starts the workflow as usual.
-    if (!planMode) {
-      try {
+    //
+    // A plan STILL needs the simulation-scoped TEMPLATE workflow (and its step templates): without
+    // it every author call fails with "Workflow (TEMPLATE) not found", AND the simulation is not
+    // recognized as chaining, so the auto-closing scheduler finishes the empty plan simulation out
+    // from under the orchestrator (the reported "simulation FINISHED without user action" +
+    // "no workflow to author into" block). So we provision the TEMPLATE only in plan mode.
+    try {
+      if (planMode) {
+        workflowService.provisionSimulationTemplateWorkflow(scenarioId, simulation);
+      } else {
         workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
-      } catch (ChainingException e) {
-        throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST, "Failed to start the chained simulation: " + e.getMessage(), e);
       }
+    } catch (ChainingException e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Failed to start the chained simulation: " + e.getMessage(), e);
     }
 
     AutonomousRun run = new AutonomousRun();
@@ -545,7 +553,14 @@ public class AutonomousRunService {
         scenarioToExerciseService.toExercise(
             scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
     try {
-      workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation);
+      // Mirror create(): a plan-mode restart provisions the simulation TEMPLATE workflow only (no
+      // RUN), so the restarted plan can be re-authored without executing; a live restart starts the
+      // RUN workflow as usual.
+      if (run.isPlanMode()) {
+        workflowService.provisionSimulationTemplateWorkflow(run.getScenarioId(), simulation);
+      } else {
+        workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation);
+      }
     } catch (ChainingException e) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to start the restarted simulation: " + e.getMessage(), e);

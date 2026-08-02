@@ -1024,6 +1024,36 @@ public class WorkflowService {
   }
 
   /**
+   * Provisions ONLY the simulation-scoped TEMPLATE workflow (with its step templates) from the
+   * scenario template, WITHOUT creating or starting a RUN workflow. This is the dry-run / plan-mode
+   * counterpart of {@link #startWorkflowByScenarioIdAndSimulation}: a plan must have a real
+   * simulation TEMPLATE workflow to author steps into (otherwise every author call fails with
+   * "Workflow (TEMPLATE) not found") and to mark the simulation as chaining (so the auto-closing
+   * job does not finish the empty simulation out from under the orchestrator). Because no RUN
+   * workflow is created, the chaining engine has nothing to ready or dispatch, so the plan is
+   * designed without ever executing an inject.
+   *
+   * @param scenarioId the autonomous scenario whose TEMPLATE workflow is the design source
+   * @param simulation the plan simulation to attach the TEMPLATE workflow to
+   * @return the created simulation TEMPLATE workflow
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Workflow provisionSimulationTemplateWorkflow(String scenarioId, Exercise simulation)
+      throws ChainingException {
+    Workflow workflowTemplateScenario =
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+
+    Workflow workflowTemplateSimulation =
+        saveWorkflowRun(copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation));
+    stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
+    return workflowTemplateSimulation;
+  }
+
+  /**
    * Starts workflow evaluation: seeds global state from allowlist scope rules and scope variables,
    * evaluates step progress, and saves the workflow run.
    *
