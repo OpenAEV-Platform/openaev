@@ -8,8 +8,10 @@ import {
   InsertChartOutlined,
   KeyOutlined,
   LayersOutlined,
+  MailOutlineOutlined,
   PersonOutlined,
   PlayCircleOutlineOutlined,
+  PublicOutlined,
   RocketLaunchOutlined,
   RouteOutlined,
   RowingOutlined,
@@ -170,6 +172,7 @@ const LeftBar = () => {
           href: 'components',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DOCUMENTS)
             || ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS)
+            || ability.can(ACTIONS.ACCESS, SUBJECTS.PHISHING)
             || ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES)
             || ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED),
           subItems: [
@@ -184,6 +187,18 @@ const LeftBar = () => {
               label: 'Channels',
               icon: () => (<PostOutline fontSize="small" />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS),
+            },
+            {
+              link: '/admin/components/phishing/landing_pages',
+              label: 'Phishing pages',
+              icon: () => (<PublicOutlined fontSize="small" />),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PHISHING),
+            },
+            {
+              link: '/admin/components/phishing/email_templates',
+              label: 'Phishing emails',
+              icon: () => (<MailOutlineOutlined fontSize="small" />),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PHISHING),
             },
             {
               link: '/admin/components/challenges',

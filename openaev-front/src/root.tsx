@@ -39,6 +39,7 @@ const Challenges = lazy(() => import('./public/components/challenges/ChallengesP
 const ExerciseViewLessons = lazy(() => import('./public/components/lessons/ExerciseViewLessons'));
 const ScenarioViewLessons = lazy(() => import('./public/components/lessons/ScenarioViewLessons'));
 const UrlAccess = lazy(() => import('./public/components/url_access/UrlAccess'));
+const PhishingPage = lazy(() => import('./public/components/phishing/PhishingPage'));
 const SimulationChallengesPreview = lazy(() => import('./admin/components/simulations/simulation/challenges/SimulationChallengesPreview'));
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
 const ReportingRender = lazy(() => import('./admin/components/reporting/render/ReportingRender'));
@@ -165,6 +166,7 @@ const Root = () => {
                     <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
                     <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
                     <Route path="url/access" element={errorWrapper(UrlAccess)()} />
+                    <Route path="phishing/:tenantId/:token" element={errorWrapper(PhishingPage)()} />
                     {/* Not found */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>

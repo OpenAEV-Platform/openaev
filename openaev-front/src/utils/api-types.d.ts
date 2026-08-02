@@ -9007,6 +9007,77 @@ export interface PayloadsDeprecateInput {
   payload_external_ids: string[];
 }
 
+export interface PhishingEmailTemplate {
+  phishing_email_template_add_tracking_pixel?: boolean;
+  /** @format date-time */
+  phishing_email_template_created_at: string;
+  phishing_email_template_description?: string;
+  phishing_email_template_from_email?: string;
+  phishing_email_template_from_name?: string;
+  phishing_email_template_html_body?: string;
+  /** @minLength 1 */
+  phishing_email_template_id: string;
+  /** @minLength 1 */
+  phishing_email_template_name: string;
+  /** @minLength 1 */
+  phishing_email_template_subject: string;
+  phishing_email_template_text_body?: string;
+  /** @format date-time */
+  phishing_email_template_updated_at: string;
+}
+
+export interface PhishingEmailTemplateInput {
+  phishing_email_template_add_tracking_pixel?: boolean;
+  phishing_email_template_description?: string;
+  phishing_email_template_from_email?: string;
+  phishing_email_template_from_name?: string;
+  phishing_email_template_html_body?: string;
+  /** @minLength 1 */
+  phishing_email_template_name: string;
+  /** @minLength 1 */
+  phishing_email_template_subject: string;
+  phishing_email_template_text_body?: string;
+}
+
+export interface PhishingLandingPage {
+  phishing_landing_page_capture_passwords?: boolean;
+  phishing_landing_page_capture_submitted_data?: boolean;
+  /** @format date-time */
+  phishing_landing_page_created_at: string;
+  phishing_landing_page_css?: string;
+  phishing_landing_page_description?: string;
+  phishing_landing_page_html?: string;
+  /** @minLength 1 */
+  phishing_landing_page_id: string;
+  phishing_landing_page_logo_dark?: string;
+  phishing_landing_page_logo_light?: string;
+  /** @minLength 1 */
+  phishing_landing_page_name: string;
+  phishing_landing_page_primary_color_dark?: string;
+  phishing_landing_page_primary_color_light?: string;
+  phishing_landing_page_redirect_url?: string;
+  /** @format date-time */
+  phishing_landing_page_updated_at: string;
+}
+
+export interface PhishingLandingPageInput {
+  phishing_landing_page_capture_passwords?: boolean;
+  phishing_landing_page_capture_submitted_data?: boolean;
+  phishing_landing_page_css?: string;
+  phishing_landing_page_description?: string;
+  phishing_landing_page_html?: string;
+  /** @minLength 1 */
+  phishing_landing_page_name: string;
+  phishing_landing_page_primary_color_dark?: string;
+  phishing_landing_page_primary_color_light?: string;
+  phishing_landing_page_redirect_url?: string;
+}
+
+export interface PhishingLandingPageLogoInput {
+  phishing_landing_page_logo_dark?: string;
+  phishing_landing_page_logo_light?: string;
+}
+
 export interface PlatformGroupInput {
   group_default_user_assign?: boolean;
   platform_group_description?: string;

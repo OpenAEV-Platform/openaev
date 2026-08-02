@@ -11,6 +11,10 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 const IndexChannel = lazy(() => import('./channels/Index'));
 const Channels = lazy(() => import('./channels/Channels'));
+const IndexPhishingLandingPage = lazy(() => import('./phishing/landing_pages/Index'));
+const PhishingLandingPages = lazy(() => import('./phishing/landing_pages/PhishingLandingPages'));
+const IndexPhishingEmailTemplate = lazy(() => import('./phishing/email_templates/Index'));
+const PhishingEmailTemplates = lazy(() => import('./phishing/email_templates/PhishingEmailTemplates'));
 const Documents = lazy(() => import('./documents/Documents'));
 const Challenges = lazy(() => import('./challenges/Challenges'));
 const Lessons = lazy(() => import('./lessons/LessonsTemplates'));
@@ -22,11 +26,12 @@ const Index = () => {
   const { classes } = useStyles();
   const ability = useContext(AbilityContext);
 
-  const order = ['DOCUMENTS', 'CHANNELS', 'CHALLENGES', 'LESSONS_LEARNED'] as const;
+  const order = ['DOCUMENTS', 'CHANNELS', 'PHISHING', 'CHALLENGES', 'LESSONS_LEARNED'] as const;
 
   const subjectToRoute: Record<typeof order[number], string> = {
     DOCUMENTS: 'documents',
     CHANNELS: 'channels',
+    PHISHING: 'phishing/landing_pages',
     CHALLENGES: 'challenges',
     LESSONS_LEARNED: 'lessons',
   };
@@ -73,6 +78,54 @@ const Index = () => {
                   subject: SUBJECTS.CHANNELS,
                 }]}
                 Component={errorWrapper(IndexChannel)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/landing_pages"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(PhishingLandingPages)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/landing_pages/:landingPageId/*"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(IndexPhishingLandingPage)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/email_templates"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(PhishingEmailTemplates)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/email_templates/:emailTemplateId/*"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(IndexPhishingEmailTemplate)()}
               />
             )}
           />
