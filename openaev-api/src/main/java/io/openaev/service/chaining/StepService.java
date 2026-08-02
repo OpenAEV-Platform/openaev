@@ -273,6 +273,22 @@ public class StepService {
         return List.of();
       }
 
+      // Every INJECT_EXECUTION batch MUST carry a stable, non-null dedup hash so it is committed
+      // below and skipped on the next scheduling cycle. Two paths produce a null hash: a step with
+      // no mapper (a DEPEND_ON-only step, i.e. any step the orchestrator chains via
+      // parent_step_template_id) and a step whose scope resolves to no asset (expandTargetBatches
+      // then returns the original batch untouched, e.g. a team-targeted human step or an inject
+      // that bakes its own asset). With a null hash the batch is never committed and the step
+      // re-readies -> re-executes on EVERY evaluation cycle, spawning a storm of duplicate injects.
+      // Fall back to a deterministic hash derived from the step template and the resolved input so
+      // the step readies exactly once per (template, run), just like an asset-expanded batch does
+      // via its per-target hash. Mapper batches already carry a non-null combo hash and are
+      // untouched, so legitimate per-upstream-value re-execution still works.
+      executionBatches =
+          executionBatches.stream()
+              .map(batch -> ensureNonNullBatchHash(batch, persistedTemplate))
+              .toList();
+
       // Per-target deduplication: expanded batches carry a per-target hash (combo + target).
       // The combo-level dedup in prepareInputsForStepExecution runs BEFORE expansion and only
       // knows the combo hash, so it cannot skip individual targets already executed. Load the
@@ -314,6 +330,28 @@ public class StepService {
     conditionService.commitHashes(persistedTemplate, workflowRun, committedHashes);
 
     return stepReadys;
+  }
+
+  /**
+   * Guarantees a batch has a non-null deduplication hash. Returns the batch unchanged when it
+   * already carries one (mapper combos, per-target expanded batches); otherwise returns a copy with
+   * a deterministic hash built from the step template id and the resolved input. This is what stops
+   * a no-mapper / no-scope-asset INJECT_EXECUTION step (e.g. a DEPEND_ON step the orchestrator
+   * chained, or a team-targeted / asset-baked inject) from re-readying and re-executing on every
+   * evaluation cycle: the fallback hash is committed once, so the step readies exactly once per
+   * (template, run). String.hashCode is spec-defined and deterministic, so the key is stable across
+   * cycles and JVMs.
+   */
+  private ConditionService.ExecutionBatch ensureNonNullBatchHash(
+      ConditionService.ExecutionBatch batch, Step template) {
+    if (batch.hash() != null) {
+      return batch;
+    }
+    String input = batch.inputString() != null ? batch.inputString() : "";
+    String fallbackHash =
+        "direct:" + template.getId() + ":" + Integer.toHexString(input.hashCode());
+    return new ConditionService.ExecutionBatch(
+        batch.inputString(), batch.usedMappers(), fallbackHash);
   }
 
   /**
