@@ -494,12 +494,16 @@ public interface InjectExpectationRepository
     ),
     sp_self AS (
         -- Collectors / assets referenced in THIS expectation own results.
+        -- The collectors join is tenant-correlated: the indexing sweep runs under an all-tenant
+        -- scope (multi-tenancy v2), and built-in collectors share the same collector_id across
+        -- tenants, so a bare sourceId join would attribute the security platform of another tenant.
         SELECT b.inject_expectation_id,
                COALESCE(array_agg(DISTINCT c.collector_security_platform::text) FILTER (WHERE c.collector_security_platform IS NOT NULL), ARRAY[]::text[])
                || COALESCE(array_agg(DISTINCT a.asset_id::text) FILTER (WHERE a.asset_id IS NOT NULL), ARRAY[]::text[]) AS ids
         FROM base b
         LEFT JOIN LATERAL jsonb_array_elements(b.inject_expectation_results::jsonb) AS r(elem) ON true
         LEFT JOIN collectors c ON r.elem->>'sourceId' = c.collector_id::text
+                              AND c.tenant_id = b.tenant_id
         LEFT JOIN assets a ON r.elem->>'sourceId' = a.asset_id::text
         GROUP BY b.inject_expectation_id
     ),
@@ -520,6 +524,7 @@ public interface InjectExpectationRepository
          AND (b.asset_id IS NULL OR child_ie.asset_id = b.asset_id)
         LEFT JOIN LATERAL jsonb_array_elements(child_ie.inject_expectation_results::jsonb) AS child_r(elem) ON true
         LEFT JOIN collectors child_c ON child_r.elem->>'sourceId' = child_c.collector_id::text
+                                    AND child_c.tenant_id = b.tenant_id
         LEFT JOIN assets child_a ON child_r.elem->>'sourceId' = child_a.asset_id::text
         GROUP BY b.inject_expectation_id
     )
