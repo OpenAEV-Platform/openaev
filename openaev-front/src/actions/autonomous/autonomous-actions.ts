@@ -72,6 +72,13 @@ export const cancelAutonomousRun = (runId: string): Promise<{ data: AutonomousRu
 export const restartAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
   simplePostCall(`${AUTONOMOUS_URI}/${runId}/restart`);
 
+// Promote a completed dry-run plan to a real, executing run in place: the backend tears the
+// non-executing plan simulation + mirrored plan steps down, provisions a fresh executing
+// simulation, clears plan mode and keeps the plan summary as guidance, resetting the run to
+// CREATED. Pair with startAutonomousRun to engage the orchestrator on the live run.
+export const promoteAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
+  simplePostCall(`${AUTONOMOUS_URI}/${runId}/promote`);
+
 // -- live view: decision timeline + steering --
 
 // The decision timeline, optionally since a sequence cursor for incremental polling. Pairs with the

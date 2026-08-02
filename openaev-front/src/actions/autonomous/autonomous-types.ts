@@ -3,8 +3,12 @@
 // than in the generated api-types.d.ts) until `yarn generate-types-from-api` is run against a built
 // backend carrying the new endpoints; once regenerated, switch the imports to api-types.
 
+import { type WorkflowScopeRuleInput } from '../../utils/api-types';
+
 export type AutonomousRunStatus
   = | 'CREATED'
+    | 'PLANNING'
+    | 'PLANNED'
     | 'RUNNING'
     | 'PAUSED'
     | 'WAITING_INPUT'
@@ -36,6 +40,10 @@ export interface AutonomousRun {
   autonomous_run_scope_team_id?: string | null;
   autonomous_run_scope?: AutonomousScopeTarget[] | null;
   autonomous_run_status: AutonomousRunStatus;
+  // Dry-run flag: the orchestrator is only designing the attack path; nothing is executed and the
+  // cockpit is styled in draft orange until the operator runs it for real.
+  autonomous_run_plan_mode?: boolean;
+  autonomous_run_plan_guidance?: string | null;
   autonomous_run_xtm_session_id?: string | null;
   autonomous_run_xtm_agent_slug?: string | null;
   autonomous_run_last_error?: string | null;
@@ -100,7 +108,14 @@ export interface AutonomousRunCreateInput {
   scope_asset_group_id?: string;
   scope_team_id?: string;
   scope?: AutonomousScopeTarget[];
+  // Full scope definition (allow-list + deny-list, every source incl. manual IP / CIDR / hostname /
+  // CSV) seeded onto the run's scenario and simulation workflows, matching the manual chained-scope
+  // editor. Superset of `scope`. Empty means "skip scope at launch; the AI will resolve it".
+  scope_rules?: WorkflowScopeRuleInput[];
   agent_slug?: string;
+  // Dry-run: design the attack path (scope, steps, decisions) without executing anything. The
+  // operator can review the plan and later run it for real.
+  plan_mode?: boolean;
 }
 
 // One entry of an autonomous run's mixed scope. `type` uses the platform target-kind vocabulary;

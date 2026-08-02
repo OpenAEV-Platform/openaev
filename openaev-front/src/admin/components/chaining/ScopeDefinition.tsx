@@ -15,9 +15,8 @@ import { useHelper } from '../../../store';
 import type { ScopeVariableInput, WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
-import ScopeRateLimit from './ScopeRateLimit';
+import ScopeExecutionLimits from './ScopeExecutionLimits';
 import ScopeRules from './ScopeRules';
-import ScopeTimeOut from './ScopeTimeOut';
 import ScopeVariables from './ScopeVariables';
 
 interface ScopeDefinitionProps {
@@ -93,8 +92,16 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
   return (
     <Box
       sx={{
+        // A balanced 2x2 card grid: row 1 pairs the allow-list and deny-list; row 2 pairs the
+        // variables card with a combined time-out + rate-limit card. Cells stretch to equal height
+        // per row so the screen reads as four aligned cards rather than a ragged stack.
         display: 'grid',
-        gap: `${theme.spacing(3)} ${theme.spacing(3)}`,
+        gridTemplateColumns: {
+          xs: '1fr',
+          md: '1fr 1fr',
+        },
+        gap: theme.spacing(3),
+        alignItems: 'stretch',
         ...(readOnly
           ? {
               // Keep the scope visible for inspection but block every mutation on autonomous runs -
@@ -109,30 +116,11 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
       }}
       aria-disabled={readOnly || undefined}
     >
-      <div style={{
-        display: 'grid',
-        gap: theme.spacing(3),
-        gridTemplateColumns: '1fr 1fr',
-      }}
-      >
-        <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
-        <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
-      </div>
-      <div style={{
-        display: 'grid',
-        gap: theme.spacing(3),
-        gridTemplateColumns: '1fr 1fr',
-      }}
-      >
-        <ScopeTimeOut
-          workflowConfiguration={workflowConfiguration}
-          onUpdate={handleUpdate}
-        />
-        <ScopeRateLimit
-          workflowConfiguration={workflowConfiguration}
-          onUpdate={handleUpdate}
-        />
-      </div>
+      {/* Row 1: allow list | deny list (ScopeRules renders both cards as a fragment). */}
+      <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
+      {/* Row 2: variables | combined execution limits. */}
+      <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
+      <ScopeExecutionLimits workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
     </Box>
   );
 };

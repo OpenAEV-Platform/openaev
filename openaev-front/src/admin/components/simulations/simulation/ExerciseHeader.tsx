@@ -17,7 +17,7 @@ import {
 } from '@mui/icons-material';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
@@ -30,6 +30,8 @@ import { type ExercisesHelper } from '../../../../actions/exercises/exercise-hel
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { fetchExerciseInjectsSimple } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
+import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
@@ -42,6 +44,8 @@ import { useHelper } from '../../../../store';
 import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -259,6 +263,18 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
     };
   });
   const permissions = useSimulationPermissions(exerciseId, exercise);
+  const ability = useContext(AbilityContext);
+
+  // A simulation run from a scenario keeps a pointer to its parent. Autonomous runs carry it on the
+  // run instead of (or as well as) the exercise, so fall back to the run's scenario id. When present
+  // it is surfaced as a single unified "parent scenario" pivot button in the hero (top-right), the
+  // same for manual and autonomous runs.
+  const parentScenarioId = (exercise.exercise_scenario as string | undefined)
+    || autonomousRun?.autonomous_run_scenario_id
+    || undefined;
+  const { parentScenario } = useHelper((helper: ScenariosHelper) => ({ parentScenario: parentScenarioId ? helper.getScenario(parentScenarioId) : undefined }));
+  const canAccessParentScenario = !!parentScenario
+    && ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, parentScenario.scenario_id);
 
   // Challenges are authored inside injects (no configuration tab): as soon as
   // at least one inject uses a challenge, expose the player-facing preview
@@ -269,6 +285,11 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
     dispatch(fetchExerciseInjectsSimple(exerciseId));
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchExerciseArticles(exerciseId));
+    // Resolve the parent scenario name for the hero pivot button (it is not embedded in the
+    // SimulationDetails DTO), on every tab where the header lives.
+    if (parentScenarioId) {
+      dispatch(fetchScenario(parentScenarioId));
+    }
   });
   const hasChallenges = challenges.length > 0;
 
@@ -497,19 +518,36 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   isScopeMissing={isScopeMissing}
                 />
               )}
-              {/* Autonomous run: the only hero action is jumping to the parent scenario, where the
-                  full control surface (pause / resume / stop / restart / steer) lives. */}
-              {isAutonomous && autonomousRun?.autonomous_run_scenario_id && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="small"
-                  startIcon={<RouteOutlined />}
-                  component={Link}
-                  to={`${SCENARIO_BASE_URL}/${autonomousRun.autonomous_run_scenario_id}`}
-                >
-                  {t('Parent scenario')}
-                </Button>
+              {/* Unified parent-scenario pivot: whenever a simulation was run from a scenario (manual
+                  or autonomous), the top-right hero action is an outlined button carrying the scenario
+                  name. For autonomous runs the parent scenario is also where the full control surface
+                  (pause / resume / stop / restart / steer) lives. */}
+              {parentScenarioId && (
+                <Tooltip title={parentScenario?.scenario_name ?? t('Parent scenario')}>
+                  <span style={{ display: 'inline-flex' }}>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      startIcon={<RouteOutlined />}
+                      component={canAccessParentScenario ? Link : 'button'}
+                      to={canAccessParentScenario ? `${SCENARIO_BASE_URL}/${parentScenarioId}` : undefined}
+                      disabled={!canAccessParentScenario}
+                      sx={{ maxWidth: 220 }}
+                    >
+                      <Box
+                        component="span"
+                        sx={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {parentScenario?.scenario_name ?? t('Parent scenario')}
+                      </Box>
+                    </Button>
+                  </span>
+                </Tooltip>
               )}
               {/* CRUD actions in one overflow menu. */}
               <ExercisePopover

@@ -11,6 +11,7 @@ import io.openaev.api.autonomous.dto.AutonomousEventInput;
 import io.openaev.api.autonomous.dto.AutonomousPromotedAssetResult;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.AutonomousScopeUpdateInput;
+import io.openaev.api.autonomous.dto.AutonomousScopeView;
 import io.openaev.api.autonomous.dto.AutonomousStatusUpdateInput;
 import io.openaev.api.autonomous.dto.AutonomousTargetTeamInput;
 import io.openaev.api.autonomous.dto.AutonomousTargetTeamResult;
@@ -189,6 +190,20 @@ public class AutonomousRunApi extends RestBehavior {
     return autonomousRunService.restart(runId);
   }
 
+  @Operation(
+      summary = "Promote a completed dry-run plan to a real, executing run",
+      description =
+          "Turns a PLANNED dry-run into a live run in place: tears the non-executing plan simulation "
+              + "and the mirrored plan steps down, provisions a fresh executing simulation, clears "
+              + "plan mode and keeps the plan summary as guidance. The caller then starts it again; "
+              + "the orchestrator follows the plan while adapting to live findings.")
+  @PostMapping("/{runId}/promote")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRun promote(@PathVariable String runId) {
+    return autonomousRunService.promoteToRealRun(runId);
+  }
+
   @Operation(summary = "Run decision timeline, optionally since a sequence cursor")
   @GetMapping("/{runId}/timeline")
   @Transactional(readOnly = true)
@@ -222,6 +237,15 @@ public class AutonomousRunApi extends RestBehavior {
   public List<Workflow> updateConfiguration(
       @PathVariable String runId, @Valid @RequestBody WorkflowConfigurationInput input) {
     return autonomousRunService.applyLiveConfiguration(runId, input);
+  }
+
+  @Operation(
+      summary = "Orchestrator: read the run's live, resolved scope (allow-list + deny-list)")
+  @GetMapping("/{runId}/scope")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousScopeView getScope(@PathVariable String runId) {
+    return autonomousRunService.getRunScopeView(runId);
   }
 
   @Operation(summary = "Orchestrator: set the run's resolved scope (replaces the allow-list)")
@@ -270,8 +294,10 @@ public class AutonomousRunApi extends RestBehavior {
       description =
           "The ONLY sanctioned way for the AI to build the attack path. Wraps the inject as a "
               + "chained INJECT_EXECUTION step on the run's simulation workflow so it executes "
-              + "through the chaining engine and renders in the animated map. Returns the created "
-              + "step template id so the orchestrator can chain the next step (DEPEND_ON) onto it.")
+              + "through the chaining engine and renders in the animated map. Prefer a finding-"
+              + "driven 'trigger' (the step fires on a finding and consumes its values, so the path "
+              + "draws itself) over a linear 'parent_step_template_id'. A step with neither is a "
+              + "seed that readies immediately. Returns the created step template id.")
   @PostMapping("/{runId}/attack-path/steps")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -279,7 +305,7 @@ public class AutonomousRunApi extends RestBehavior {
       @PathVariable String runId, @Valid @RequestBody AutonomousAttackPathStepInput input) {
     String stepTemplateId =
         autonomousRunService.appendAttackPathStep(
-            runId, input.getInject(), input.getParentStepTemplateId());
+            runId, input.getInject(), input.getParentStepTemplateId(), input.getTrigger());
     return new AutonomousAttackPathStepResult(stepTemplateId);
   }
 

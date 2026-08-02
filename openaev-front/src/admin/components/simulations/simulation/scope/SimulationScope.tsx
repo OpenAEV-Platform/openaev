@@ -6,7 +6,6 @@ import { searchExerciseHealthchecks } from '../../../../../actions/Exercise';
 import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { useHelper } from '../../../../../store';
 import { type Exercise, type HealthCheck } from '../../../../../utils/api-types';
-import AutonomousReadOnlyBanner from '../../../chaining/AutonomousReadOnlyBanner';
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
 
@@ -37,7 +36,6 @@ const SimulationScope = ({ readOnly = false }: { readOnly?: boolean }) => {
 
   return (
     <div>
-      {readOnly && <AutonomousReadOnlyBanner />}
       {!!visibleHealthchecks.length && (
         <Healthchecks
           healthchecks={visibleHealthchecks}

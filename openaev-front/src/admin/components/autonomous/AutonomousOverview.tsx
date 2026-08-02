@@ -20,7 +20,7 @@ import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/Sa
 import { eventAccent, eventIcon, eventTypeLabel, sanitizeEventText } from './autonomousEventVisuals';
 import AutonomousOutcomeDialog, { type OutcomeKind } from './AutonomousOutcomeDialog';
 
-const ACTIVE_STATUSES: AutonomousRunStatus[] = ['RUNNING', 'WAITING_INPUT'];
+const ACTIVE_STATUSES: AutonomousRunStatus[] = ['PLANNING', 'RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 5000;
 
 // The orchestrator writes free prose in event titles/content; MITRE technique ids (T1190,
@@ -235,6 +235,10 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
   const navigate = useNavigate();
   const location = useLocation();
   const accent = theme.palette.ai?.main ?? theme.palette.primary.main;
+  // In dry-run the mission card itself carries the "plan mode" signal (orange, like the OCTI
+  // draft): the mission is the natural anchor, so we tint it instead of stacking a separate banner.
+  const isPlanMode = run.autonomous_run_plan_mode;
+  const missionAccent = isPlanMode ? theme.palette.warning.main : accent;
   const runId = run.autonomous_run_id;
   const status = run.autonomous_run_status;
   const simulationId = run.autonomous_run_simulation_id;
@@ -612,13 +616,14 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
 
   return (
     <Stack sx={{ gap: 2 }}>
-      {/* Mission card. */}
+      {/* Mission card. In plan mode it turns orange (OCTI draft tone) and its title carries the
+          "(plan mode)" marker, so the dedicated banner is dropped to save vertical space. */}
       <Paper
         variant="outlined"
         sx={{
           padding: 2,
-          borderColor: alpha(accent, 0.4),
-          background: `linear-gradient(180deg, ${alpha(accent, 0.08)} 0%, ${alpha(accent, 0)} 100%)`,
+          borderColor: alpha(missionAccent, 0.4),
+          background: `linear-gradient(180deg, ${alpha(missionAccent, 0.08)} 0%, ${alpha(missionAccent, 0)} 100%)`,
         }}
       >
         <Stack sx={{
@@ -628,11 +633,13 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
           marginBottom: 1,
         }}
         >
-          <AutoAwesome fontSize="small" sx={{ color: accent }} />
+          <AutoAwesome fontSize="small" sx={{ color: missionAccent }} />
           {/* Run status lives in the hero (single control surface); not repeated here. The live
               attack map is one click away in this view's own "Attack path" tab, so no button is
               duplicated at the top of the mission card. */}
-          <Typography variant="h6" sx={{ margin: 0 }}>{t('Mission')}</Typography>
+          <Typography variant="h6" sx={{ margin: 0 }}>
+            {isPlanMode ? t('Mission (plan mode)') : t('Mission')}
+          </Typography>
         </Stack>
         <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
           {run.autonomous_run_objective}

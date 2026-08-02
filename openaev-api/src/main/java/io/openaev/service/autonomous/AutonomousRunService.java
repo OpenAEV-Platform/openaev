@@ -7,24 +7,34 @@ import static org.springframework.util.StringUtils.hasText;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepState;
+import io.openaev.api.autonomous.dto.AutonomousInputMapping;
 import io.openaev.api.autonomous.dto.AutonomousPromotedAssetResult;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
+import io.openaev.api.autonomous.dto.AutonomousScopeEntry;
+import io.openaev.api.autonomous.dto.AutonomousScopeView;
+import io.openaev.api.autonomous.dto.AutonomousStepTrigger;
 import io.openaev.api.autonomous.dto.AutonomousTargetTeamResult;
+import io.openaev.api.autonomous.dto.AutonomousTriggerFilter;
+import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.model.AssetGroup;
+import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.MappingType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousDirectiveStatus;
 import io.openaev.database.model.autonomous.AutonomousEvent;
@@ -33,6 +43,7 @@ import io.openaev.database.model.autonomous.AutonomousObjectiveTemplate;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.model.autonomous.AutonomousScopeTarget;
+import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -59,6 +70,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -85,6 +97,9 @@ import org.springframework.web.server.ResponseStatusException;
 @Slf4j
 public class AutonomousRunService {
 
+  /** Temporary-id anchor for the synthetic AND/OR root of a finding-driven trigger tree. */
+  private static final String TRIGGER_ROOT_TMP_ID = "trigger-root";
+
   private final AutonomousRunRepository runRepository;
   private final AutonomousDirectiveRepository directiveRepository;
   private final AutonomousEventService eventService;
@@ -102,6 +117,7 @@ public class AutonomousRunService {
   private final EndpointService endpointService;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
+  private final AssetGroupRepository assetGroupRepository;
   private final ExerciseRepository exerciseRepository;
 
   // A dedicated bean persists the read-path reconcile in its OWN transaction (REQUIRES_NEW) through
@@ -147,6 +163,12 @@ public class AutonomousRunService {
             HttpStatus.BAD_REQUEST,
             "The scenario must define a chaining (attack path) workflow to run autonomously");
       }
+      // Mark the caller-provided scenario autonomous too, so its detail page renders the AI cockpit
+      // without a lookup probe (persisted via dirty-checking in this transaction).
+      if (!scenario.isAutonomous()) {
+        scenario.setAutonomous(true);
+        scenario = scenarioService.updateScenario(scenario);
+      }
     } else {
       // Autonomous default: provision a fresh attack-path scenario so the operator never has to
       // build one. The AI orchestrator populates and drives it after start().
@@ -160,33 +182,72 @@ public class AutonomousRunService {
     // BEFORE launch so the flag propagates to the simulation template and RUN workflow.
     markWorkflowKeepAlive(scenarioId);
 
+    boolean planMode = input.isPlanMode();
     Exercise simulation =
         scenarioToExerciseService.toExercise(
             scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
-    try {
-      workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
-    } catch (ChainingException e) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Failed to start the chained simulation: " + e.getMessage(), e);
+    // Dry-run: provision the simulation substrate so the orchestrator's authoring / mirror / read
+    // tools work unchanged, but never start its RUN workflow. With no run workflow the chaining
+    // engine has nothing to ready or dispatch, so a plan authors a full attack path without ever
+    // executing an inject. A live run starts the workflow as usual.
+    if (!planMode) {
+      try {
+        workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
+      } catch (ChainingException e) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Failed to start the chained simulation: " + e.getMessage(),
+            e);
+      }
     }
 
     AutonomousRun run = new AutonomousRun();
     run.setObjective(objective);
     run.setObjectiveTemplateKey(input.getObjectiveTemplateKey());
+    run.setPlanMode(planMode);
     run.setScenarioId(scenarioId);
     run.setSimulationId(simulation.getId());
+    // The run's mixed scope projection is the union of the legacy target list ('scope' +
+    // single-id shortcuts) and any allow-listed ENTITY rules coming from the launch stepper's full
+    // scope definition. Manual IP / CIDR / hostname / CSV and deny-list rules cannot be expressed as
+    // entity targets, so they live only on the workflow (and drive the Scope tab) - the projection
+    // stays entity-only for the orchestrator and restart/reconcile paths.
     List<AutonomousScopeTarget> scope = resolveScope(input);
+    for (AutonomousScopeTarget target : allowlistTargetsFromRules(input.getScopeRules())) {
+      addScopeIfAbsent(scope, target.getType(), target.getId());
+    }
     run.setScope(scope);
     // Convenience projections (first of each kind) keep the preset asset-group flow and any legacy
     // single-scope consumers working while the mixed list stays authoritative.
     run.setScopeAssetGroupId(firstScopeIdOfType(scope, "ASSETS_GROUPS"));
     run.setScopeTeamId(firstScopeIdOfType(scope, "TEAMS"));
-    // Persist the preselected scope onto the scenario + run workflows as ALLOWLIST rules, so the
-    // perimeter is enforced and shown in the read-only Scope tab (and the empty-allowlist warning
-    // clears) instead of living only in the orchestrator's head. When no scope is preselected this
-    // is a no-op; the orchestrator records its resolved scope later via set_openaev_run_scope.
-    workflowService.writeAllowlistScope(
-        scenarioId, simulation.getId(), toAllowlistScopeInputs(scope), false);
+    // Persist the launch-time scope onto the scenario + run workflows (both allow-list AND
+    // deny-list, every source), so the perimeter is enforced and shown in the Scope tab (and the
+    // empty-allowlist warning clears) instead of living only in the orchestrator's head. The full
+    // 'scope_rules' definition from the stepper is combined with the legacy entity targets (as
+    // allow-list). When nothing is scoped this is a no-op and the orchestrator records its resolved
+    // scope later via set_openaev_run_scope.
+    List<WorkflowScopeRuleInput> seededScopeRules = new ArrayList<>();
+    if (input.getScopeRules() != null) {
+      for (WorkflowScopeRuleInput rule : input.getScopeRules()) {
+        if (rule != null
+            && rule.getSelectedMode() != null
+            && rule.getRuleSource() != null
+            && hasText(rule.getRuleValue())) {
+          seededScopeRules.add(rule);
+        }
+      }
+    }
+    seededScopeRules.addAll(toAllowlistScopeInputs(resolveScope(input)));
+    workflowService.writeScopeRules(scenarioId, simulation.getId(), seededScopeRules);
+    // Make any allow-listed team's members deliverable on the simulation, so a human-targeted step
+    // that inherits the scope can actually be sent (mirrors setRunScope / inject authoring).
+    enableTargetedTeamMembers(
+        simulation.getId(),
+        scope.stream()
+            .filter(t -> "TEAMS".equals(t.getType()))
+            .map(AutonomousScopeTarget::getId)
+            .toList());
     run.setXtmAgentSlug(input.getAgentSlug());
     run.setStatus(AutonomousRunStatus.CREATED);
     AutonomousRun saved = runRepository.save(run);
@@ -195,8 +256,14 @@ public class AutonomousRunService {
         saved.getId(),
         simulation.getId(),
         AutonomousEventType.STATUS,
-        "Run created",
-        "Autonomous attack-path run created from scenario \"" + scenario.getName() + "\".",
+        planMode ? "Plan created" : "Run created",
+        (planMode
+                ? "Autonomous attack-path DRY-RUN created from scenario \""
+                    + scenario.getName()
+                    + "\". The orchestrator will design the attack path without executing anything."
+                : "Autonomous attack-path run created from scenario \""
+                    + scenario.getName()
+                    + "\"."),
         null);
     return saved;
   }
@@ -215,15 +282,18 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Run cannot be started from status " + run.getStatus());
     }
-    run.setStatus(AutonomousRunStatus.RUNNING);
+    boolean planMode = run.isPlanMode();
+    run.setStatus(planMode ? AutonomousRunStatus.PLANNING : AutonomousRunStatus.RUNNING);
     run.setLastError(null);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId,
         run.getSimulationId(),
         AutonomousEventType.STATUS,
-        "Run started",
-        "Orchestrator engaged; autonomous execution is now running.",
+        planMode ? "Planning started" : "Run started",
+        planMode
+            ? "Orchestrator engaged in dry-run: designing the attack path, nothing is executed."
+            : "Orchestrator engaged; autonomous execution is now running.",
         null);
     engageOrchestratorAfterCommit(saved);
     return saved;
@@ -257,6 +327,10 @@ public class AutonomousRunService {
     final List<AutonomousScopeTarget> scope =
         run.getScope() != null ? new ArrayList<>(run.getScope()) : new ArrayList<>();
     final String scopeMode = resolveScopeMode(run.getObjectiveTemplateKey());
+    final boolean planMode = run.isPlanMode();
+    // A promoted real run carries the dry-run's plan summary as guidance ("follow this plan but
+    // adapt to live findings"); a plan run and a plain live run pass none.
+    final String priorPlan = planMode ? null : run.getPlanGuidance();
     if (TransactionSynchronizationManager.isSynchronizationActive()) {
       TransactionSynchronizationManager.registerSynchronization(
           new TransactionSynchronization() {
@@ -270,7 +344,9 @@ public class AutonomousRunService {
                   scopeAssetGroupId,
                   scopeTeamId,
                   scope,
-                  scopeMode);
+                  scopeMode,
+                  planMode,
+                  priorPlan);
             }
           });
     } else {
@@ -282,7 +358,9 @@ public class AutonomousRunService {
           scopeAssetGroupId,
           scopeTeamId,
           scope,
-          scopeMode);
+          scopeMode,
+          planMode,
+          priorPlan);
     }
   }
 
@@ -300,7 +378,9 @@ public class AutonomousRunService {
       String scopeAssetGroupId,
       String scopeTeamId,
       List<AutonomousScopeTarget> scope,
-      String scopeMode) {
+      String scopeMode,
+      boolean planMode,
+      String priorPlan) {
     try {
       Map<String, Object> handle =
           xtmOneClient.startAutonomousRun(
@@ -312,6 +392,8 @@ public class AutonomousRunService {
               scopeTeamId,
               scope,
               scopeMode,
+              planMode,
+              priorPlan,
               openAEVConfig.getBaseUrl());
       String sessionId = handle != null ? asString(handle.get("session_id")) : null;
       String resolvedSlug = handle != null ? asString(handle.get("agent_slug")) : null;
@@ -491,6 +573,73 @@ public class AutonomousRunService {
   }
 
   /**
+   * Promotes a completed dry-run to a real, executing run <b>in place</b>. Same machinery as {@link
+   * #restart}: cancel the planning orchestration, tear down the (non-executing) plan simulation and
+   * the run's mirrored scenario steps + decision timeline, provision a FRESH simulation and start
+   * its RUN workflow so the chaining engine can dispatch. Unlike restart, it clears {@code planMode}
+   * (the run is now live) but KEEPS {@code planGuidance}, which {@link #start} then hands to the
+   * orchestrator as the prior plan to follow-while-adapting. The scenario's resolved scope survives
+   * (the fresh simulation is copied from it), so the live run starts scoped but with an empty attack
+   * path. The caller then {@link #start}s it again.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public AutonomousRun promoteToRealRun(String runId) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    if (!run.isPlanMode()) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Only a dry-run plan can be promoted to a real run");
+    }
+    if (run.getStatus() != AutonomousRunStatus.PLANNED
+        && run.getStatus() != AutonomousRunStatus.FAILED
+        && run.getStatus() != AutonomousRunStatus.CANCELED) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "A plan can only be run for real once planning has settled");
+    }
+    // Stop the planning orchestration and purge its coordination state so the live run does not
+    // inherit the plan cycle's assumptions.
+    cancelOrchestratorAfterCommit(runId, "plan promoted to a real run by operator", true);
+    if (hasText(run.getSimulationId())) {
+      exerciseService.deleteById(run.getSimulationId());
+    }
+    Scenario scenario = scenarioService.scenario(run.getScenarioId());
+    // Drop the mirrored plan steps so the promoted simulation starts with an empty attack path and
+    // the orchestrator rebuilds it live (guided by planGuidance) rather than replaying the plan.
+    if (run.getStepMirror() != null && !run.getStepMirror().isEmpty()) {
+      workflowService.deleteScenarioMirrorSteps(run.getStepMirror().values());
+      run.setStepMirror(new HashMap<>());
+    }
+    markWorkflowKeepAlive(run.getScenarioId());
+    Exercise simulation =
+        scenarioToExerciseService.toExercise(
+            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+    try {
+      workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation);
+    } catch (ChainingException e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Failed to start the promoted simulation: " + e.getMessage(), e);
+    }
+    directiveRepository.deleteByRunId(runId);
+    eventService.deleteByRun(runId);
+    run.setSimulationId(simulation.getId());
+    run.setPlanMode(false);
+    run.setStatus(AutonomousRunStatus.CREATED);
+    run.setLastError(null);
+    run.setXtmSessionId(null);
+    AutonomousRun saved = runRepository.save(run);
+    eventService.append(
+        saved.getId(),
+        simulation.getId(),
+        AutonomousEventType.STATUS,
+        "Plan promoted to live run",
+        "The dry-run plan was promoted to a real run; a fresh executing simulation was provisioned. "
+            + "The orchestrator will follow the plan as closely as possible while adapting to live "
+            + "findings.",
+        null);
+    return saved;
+  }
+
+  /**
    * Tears down the autonomous run owning {@code scenarioId} together with its single underlying
    * simulation (attack-path rows included) and its timeline/directives. An autonomous scenario and
    * its simulation are one unit, so deleting the scenario must delete the simulation too -
@@ -623,7 +772,13 @@ public class AutonomousRunService {
     if (lastError != null) {
       run.setLastError(lastError);
     }
+    // A dry-run that reaches PLANNED captures the orchestrator's plan summary as guidance, so
+    // promoting it to a real run can hand the plan to the live orchestrator ("follow but adapt").
+    if (status == AutonomousRunStatus.PLANNED && hasText(content)) {
+      run.setPlanGuidance(content);
+    }
     // Reflect a terminal orchestrator decision onto the chained simulation so both stay consistent.
+    // PLANNED is settled but not terminal (the plan sim never ran), so it never touches the sim.
     if (status == AutonomousRunStatus.COMPLETED || status == AutonomousRunStatus.FAILED) {
       transitionSimulationQuietly(run, ExerciseStatus.FINISHED);
     }
@@ -798,6 +953,126 @@ public class AutonomousRunService {
     return saved;
   }
 
+  /**
+   * Reads the run's live, authoritative scope back from its workflow so the orchestrator can see the
+   * real perimeter before acting - not the start-time snapshot it was handed, and not just its own
+   * in-memory reasoning. Returns both the allow-list (what may be attacked) and the deny-list
+   * (carve-outs that always win), across every source (assets, asset groups, teams, persons, and
+   * manual IP / CIDR / hostname / CSV rules), with resolved display names for entities. The scenario
+   * template workflow is the canonical source (it is what a restart re-seeds from and what the Scope
+   * tab shows); the live simulation run is the fallback when no template is resolvable.
+   */
+  @Transactional(readOnly = true)
+  public AutonomousScopeView getRunScopeView(String runId) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    List<WorkflowScopeRule> rules = readScopeRules(run);
+    Map<String, String> names = resolveScopeNames(rules);
+    List<AutonomousScopeEntry> allow = new ArrayList<>();
+    List<AutonomousScopeEntry> deny = new ArrayList<>();
+    for (WorkflowScopeRule rule : rules) {
+      if (rule == null || rule.getRuleSource() == null || rule.getSelectedMode() == null) {
+        continue;
+      }
+      String value = rule.getRuleValue();
+      AutonomousScopeEntry entry =
+          new AutonomousScopeEntry(
+              rule.getRuleSource().name(),
+              scopeTypeForSource(rule.getRuleSource()),
+              value,
+              names.getOrDefault(nameKey(rule.getRuleSource(), value), value));
+      if (rule.getSelectedMode() == ScopeRuleSelectedMode.DENYLIST) {
+        deny.add(entry);
+      } else {
+        allow.add(entry);
+      }
+    }
+    return new AutonomousScopeView(runId, allow, deny);
+  }
+
+  private List<WorkflowScopeRule> readScopeRules(AutonomousRun run) {
+    if (hasText(run.getScenarioId())) {
+      try {
+        List<WorkflowScopeRule> fromTemplate =
+            workflowService
+                .findWorkflowTemplateByScenarioId(run.getScenarioId())
+                .map(w -> new ArrayList<>(w.getWorkflowScopeRules()))
+                .orElse(null);
+        if (fromTemplate != null) {
+          return fromTemplate;
+        }
+      } catch (ChainingException e) {
+        log.warn("[Autonomous] Could not read scenario {} scope", run.getScenarioId(), e);
+      }
+    }
+    if (hasText(run.getSimulationId())) {
+      return workflowService.findWorkflowRunBySimulationId(run.getSimulationId()).stream()
+          .flatMap(w -> w.getWorkflowScopeRules().stream())
+          .collect(Collectors.toList());
+    }
+    return List.of();
+  }
+
+  private String scopeTypeForSource(ScopeRuleSource source) {
+    return switch (source) {
+      case ASSET -> "ASSETS";
+      case ASSET_GROUP -> "ASSETS_GROUPS";
+      case TEAM -> "TEAMS";
+      case PLAYER -> "PLAYERS";
+      case MANUAL, CSV -> "MANUAL";
+    };
+  }
+
+  private String nameKey(ScopeRuleSource source, String value) {
+    return source.name() + "|" + value;
+  }
+
+  /** Batch-resolves entity display names per kind so scope reads never issue a query per rule. */
+  private Map<String, String> resolveScopeNames(List<WorkflowScopeRule> rules) {
+    Map<String, String> names = new HashMap<>();
+    List<String> assetIds = idsForSource(rules, ScopeRuleSource.ASSET);
+    List<String> groupIds = idsForSource(rules, ScopeRuleSource.ASSET_GROUP);
+    List<String> teamIds = idsForSource(rules, ScopeRuleSource.TEAM);
+    List<String> playerIds = idsForSource(rules, ScopeRuleSource.PLAYER);
+    if (!assetIds.isEmpty()) {
+      for (Endpoint endpoint : endpointService.endpoints(assetIds)) {
+        names.put(nameKey(ScopeRuleSource.ASSET, endpoint.getId()), endpoint.getName());
+      }
+    }
+    if (!groupIds.isEmpty()) {
+      for (AssetGroup group : assetGroupRepository.findAllById(groupIds)) {
+        names.put(nameKey(ScopeRuleSource.ASSET_GROUP, group.getId()), group.getName());
+      }
+    }
+    if (!teamIds.isEmpty()) {
+      for (Team team : teamRepository.findAllById(teamIds)) {
+        names.put(nameKey(ScopeRuleSource.TEAM, team.getId()), team.getName());
+      }
+    }
+    if (!playerIds.isEmpty()) {
+      for (User user : userRepository.findAllById(playerIds)) {
+        names.put(nameKey(ScopeRuleSource.PLAYER, user.getId()), scopePlayerName(user));
+      }
+    }
+    return names;
+  }
+
+  private List<String> idsForSource(List<WorkflowScopeRule> rules, ScopeRuleSource source) {
+    return rules.stream()
+        .filter(r -> r != null && r.getRuleSource() == source && hasText(r.getRuleValue()))
+        .map(WorkflowScopeRule::getRuleValue)
+        .distinct()
+        .toList();
+  }
+
+  private String scopePlayerName(User user) {
+    String name = user.getName();
+    if (name != null && !name.isBlank()) {
+      return name.trim();
+    }
+    return user.getEmail();
+  }
+
   // endregion
 
   // region attack-path authoring
@@ -815,20 +1090,36 @@ public class AutonomousRunService {
    * @param parentStepTemplateId optional step template id this step depends on (null for a root)
    * @return the id of the created step template
    */
-  @Transactional(rollbackFor = Exception.class)
   public String appendAttackPathStep(
       String runId, InjectInput injectInput, String parentStepTemplateId) {
+    return appendAttackPathStep(runId, injectInput, parentStepTemplateId, null);
+  }
+
+  /**
+   * Finding-driven overload of {@link #appendAttackPathStep(String, InjectInput, String)}. The step
+   * is authored with a finding {@code trigger} (a filter tree and/or {@code MAPPER} bindings) so it
+   * readies off findings and consumes their values - the way a hand-built chained scenario works,
+   * and the way the attack path draws itself. A {@code null} trigger with no parent is a SEED step
+   * that readies immediately against the run scope.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendAttackPathStep(
+      String runId,
+      InjectInput injectInput,
+      String parentStepTemplateId,
+      AutonomousStepTrigger trigger) {
     requireFeature();
     AutonomousRun run = require(runId);
     if (!hasText(run.getSimulationId())) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "The autonomous run has no live simulation to build steps on");
     }
+    List<ConditionCreateInput> triggerConditions = toTriggerConditions(trigger);
     String stepTemplateId;
     try {
       stepTemplateId =
           workflowService.appendChainedStep(
-              run.getSimulationId(), injectInput, parentStepTemplateId);
+              run.getSimulationId(), injectInput, parentStepTemplateId, triggerConditions);
     } catch (ChainingException e) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to author the attack-path step: " + e.getMessage(), e);
@@ -843,16 +1134,105 @@ public class AutonomousRunService {
     enableTargetedTeamMembers(run.getSimulationId(), injectInput.getTeams());
     // Mirror the step onto the run's SCENARIO so the scenario carries the attack path and can be
     // exported/reproduced (the executing copy lives on the simulation; this twin never runs).
-    mirrorStepOntoScenario(run, injectInput, parentStepTemplateId, stepTemplateId);
+    mirrorStepOntoScenario(
+        run, injectInput, parentStepTemplateId, stepTemplateId, triggerConditions);
+    boolean findingDriven = !triggerConditions.isEmpty();
     eventService.append(
         runId,
         run.getSimulationId(),
         AutonomousEventType.TOOL_ACTION,
         "Attack-path step authored",
         "A chained step was added to the live attack path"
-            + (hasText(parentStepTemplateId) ? " (depends on a previous step)." : "."),
+            + (findingDriven
+                ? " (fires on a finding and consumes its values)."
+                : hasText(parentStepTemplateId)
+                    ? " (depends on a previous step)."
+                    : " (seed step - readies immediately against the scope)."),
         null);
     return stepTemplateId;
+  }
+
+  /**
+   * Translates the orchestrator-facing {@link AutonomousStepTrigger} into the engine's condition
+   * vocabulary: a finding-trigger filter tree (an AND/OR root with one leaf per predicate) plus one
+   * {@code MAPPER} condition per input binding. Readiness matches on the finding's primitive
+   * key-type, so the trigger fires whenever an upstream step emits a matching finding, once per
+   * value, and the mappers bind those values into this step's inject inputs. Returns an empty list
+   * for a {@code null}/empty trigger (a seed or DEPEND_ON-only step).
+   *
+   * <p>If mappings are given without explicit filters, an {@code IS_NOT_NULL} filter is synthesised
+   * per distinct mapped key-type, so the step fires as soon as the finding values it needs exist.
+   */
+  private List<ConditionCreateInput> toTriggerConditions(AutonomousStepTrigger trigger) {
+    List<ConditionCreateInput> conditions = new ArrayList<>();
+    if (trigger == null) {
+      return conditions;
+    }
+    List<AutonomousTriggerFilter> filters =
+        trigger.getFilters() == null ? List.of() : trigger.getFilters();
+    List<AutonomousInputMapping> mappings =
+        trigger.getMappings() == null ? List.of() : trigger.getMappings();
+
+    // Build the leaves: explicit filters, or a synthesised IS_NOT_NULL per mapped key-type.
+    List<ConditionCreateInput> leaves = new ArrayList<>();
+    for (AutonomousTriggerFilter filter : filters) {
+      if (filter == null || filter.getKeyType() == null) {
+        continue;
+      }
+      ConditionType op =
+          filter.getOperator() == null ? ConditionType.IS_NOT_NULL : filter.getOperator();
+      leaves.add(
+          ConditionCreateInput.builder()
+              .temporaryId(UUID.randomUUID().toString())
+              .temporaryIdConditionParent(TRIGGER_ROOT_TMP_ID)
+              .type(op)
+              .keyTypes(List.of(filter.getKeyType()))
+              .value(filter.getValue())
+              .caseSensitive(filter.getCaseSensitive() == null || filter.getCaseSensitive())
+              .build());
+    }
+    if (leaves.isEmpty() && !mappings.isEmpty()) {
+      mappings.stream()
+          .map(AutonomousInputMapping::getKeyType)
+          .filter(Objects::nonNull)
+          .distinct()
+          .forEach(
+              keyType ->
+                  leaves.add(
+                      ConditionCreateInput.builder()
+                          .temporaryId(UUID.randomUUID().toString())
+                          .temporaryIdConditionParent(TRIGGER_ROOT_TMP_ID)
+                          .type(ConditionType.IS_NOT_NULL)
+                          .keyTypes(List.of(keyType))
+                          .build()));
+    }
+    if (!leaves.isEmpty()) {
+      ConditionType rootType =
+          "OR".equalsIgnoreCase(trigger.getMatch()) ? ConditionType.OR : ConditionType.AND;
+      conditions.add(
+          ConditionCreateInput.builder()
+              .temporaryId(TRIGGER_ROOT_TMP_ID)
+              .type(rootType)
+              .build());
+      conditions.addAll(leaves);
+    }
+
+    // MAPPER conditions bind finding values into this step's inject inputs (default GLOBAL pool).
+    for (AutonomousInputMapping mapping : mappings) {
+      if (mapping == null || mapping.getKeyType() == null || !hasText(mapping.getInputKey())) {
+        continue;
+      }
+      conditions.add(
+          ConditionCreateInput.builder()
+              .temporaryId(UUID.randomUUID().toString())
+              .type(ConditionType.MAPPER)
+              .mappingType(
+                  mapping.getMappingType() == null ? MappingType.GLOBAL : mapping.getMappingType())
+              .key(mapping.getInputKey())
+              .keyTypes(List.of(mapping.getKeyType()))
+              .build());
+    }
+    return conditions;
   }
 
   /**
@@ -916,7 +1296,11 @@ public class AutonomousRunService {
    * and swallowed rather than propagated.
    */
   private void mirrorStepOntoScenario(
-      AutonomousRun run, InjectInput injectInput, String parentSimStepId, String simStepId) {
+      AutonomousRun run,
+      InjectInput injectInput,
+      String parentSimStepId,
+      String simStepId,
+      List<ConditionCreateInput> triggerConditions) {
     String scenarioId = run.getScenarioId();
     if (!hasText(scenarioId)) {
       return;
@@ -927,7 +1311,7 @@ public class AutonomousRunService {
     try {
       String scenarioStepId =
           workflowService.appendChainedStepToScenario(
-              scenarioId, injectInput, parentScenarioStepId);
+              scenarioId, injectInput, parentScenarioStepId, triggerConditions);
       mirror.put(simStepId, scenarioStepId);
       run.setStepMirror(mirror);
       runRepository.save(run);
@@ -986,6 +1370,12 @@ public class AutonomousRunService {
     requireFeature();
     AutonomousRun run = require(runId);
     if (!hasText(run.getSimulationId())) {
+      return;
+    }
+    // Belt-and-suspenders for dry-run: a plan run never starts a RUN workflow, so there is nothing
+    // to ready here anyway, but guard explicitly so a stray evaluate call can never dispatch an
+    // inject while planning.
+    if (run.isPlanMode()) {
       return;
     }
     // Re-evaluate the run's live workflow(s) so freshly authored step templates ready and execute
@@ -1426,6 +1816,10 @@ public class AutonomousRunService {
     scenario.setDescription(
         hasText(description) ? description.trim() : defaultScenarioDescription(objective));
     scenario.setCategory("attack-scenario");
+    // Persist the autonomous marker so the scenario payload states it directly: the detail page
+    // then renders the AI cockpit without probing the autonomous-run lookup, and a manual scenario
+    // (flag false) never fires that lookup at all.
+    scenario.setAutonomous(true);
     try {
       return scenarioService.createScenarioChaining(scenario);
     } catch (ChainingException e) {
@@ -1551,6 +1945,39 @@ public class AutonomousRunService {
     return inputs;
   }
 
+  /**
+   * Extracts the allow-listed ENTITY targets (asset, asset group, team, person) from a full scope
+   * rule list so they can be folded into the run's {@link AutonomousScopeTarget} projection. Manual
+   * IP / CIDR / hostname / CSV rules and deny-list rules are intentionally skipped: they are not
+   * targetable entities and live only on the workflow scope, not the run projection.
+   */
+  private List<AutonomousScopeTarget> allowlistTargetsFromRules(List<WorkflowScopeRuleInput> rules) {
+    if (rules == null || rules.isEmpty()) {
+      return List.of();
+    }
+    List<AutonomousScopeTarget> targets = new ArrayList<>();
+    for (WorkflowScopeRuleInput rule : rules) {
+      if (rule == null
+          || rule.getSelectedMode() != ScopeRuleSelectedMode.ALLOWLIST
+          || rule.getRuleSource() == null
+          || !hasText(rule.getRuleValue())) {
+        continue;
+      }
+      String type =
+          switch (rule.getRuleSource()) {
+            case ASSET -> "ASSETS";
+            case ASSET_GROUP -> "ASSETS_GROUPS";
+            case TEAM -> "TEAMS";
+            case PLAYER -> "PLAYERS";
+            default -> null;
+          };
+      if (type != null) {
+        targets.add(new AutonomousScopeTarget(type, rule.getRuleValue().trim()));
+      }
+    }
+    return targets;
+  }
+
   private String resolveObjective(AutonomousRunCreateInput input) {
     String objective = input.getObjective();
     if ((objective == null || objective.isBlank()) && input.getObjectiveTemplateKey() != null) {
@@ -1603,6 +2030,20 @@ public class AutonomousRunService {
     } else if (simStatus == ExerciseStatus.CANCELED) {
       target = AutonomousRunStatus.CANCELED;
     } else if (simStatus == ExerciseStatus.FINISHED) {
+      // A FINISHED simulation only means the RUN is complete when the run is actually EXECUTING.
+      // Two active states are not executing, so a finished/idle simulation beneath them is expected
+      // and must NOT auto-complete the run:
+      //   - plan mode (dry-run): the plan simulation never runs, so it reads FINISHED from the
+      //     start; the settled state of a plan is PLANNED, set explicitly by the orchestrator when
+      //     the design is done - never COMPLETED derived from the empty sim.
+      //   - WAITING_INPUT: the orchestrator deliberately parked awaiting the operator, and an empty
+      //     simulation reads FINISHED while it waits. Completing here terminated the run before the
+      //     operator could answer the scoping question (the reported plan-mode bug).
+      // Cancellation / deletion of the simulation still settles both (handled above), so the
+      // operator can always stop a parked or plan run; only the FINISHED->COMPLETED sync is skipped.
+      if (run.isPlanMode() || current == AutonomousRunStatus.WAITING_INPUT) {
+        return run;
+      }
       target = AutonomousRunStatus.COMPLETED;
     } else {
       // Scheduled / running / paused: the simulation is still live, no desync to fix.

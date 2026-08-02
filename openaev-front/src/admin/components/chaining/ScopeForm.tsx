@@ -72,8 +72,14 @@ interface ScopeFormProps {
   onTeamIdsChange: (ids: string[]) => void;
   onPlayerIdsChange: (ids: string[]) => void;
   onCustomRulesChange: (rules: ScopeCustomRule[]) => void;
-  onCancel: () => void;
-  onSubmit: () => void;
+  onCancel?: () => void;
+  onSubmit?: () => void;
+  /**
+   * Hide the built-in Cancel / Define-scope footer so the picker body (inventory + kind tabs + list)
+   * can be embedded inside another flow that owns its own navigation - e.g. the autonomous launch
+   * stepper, which drives Back / Next / Launch itself and reuses this exact experience per list.
+   */
+  hideFooter?: boolean;
 }
 
 const ScopeForm: FunctionComponent<ScopeFormProps> = ({
@@ -95,6 +101,7 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   onCustomRulesChange,
   onCancel,
   onSubmit,
+  hideFooter = false,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -623,28 +630,30 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
       </Box>
 
       {/* Footer buttons */}
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: theme.spacing(1),
-      }}
-      >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={onCancel}
+      {!hideFooter && (
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: theme.spacing(1),
+        }}
         >
-          {t('Cancel')}
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={onSubmit}
-          disabled={!hasChanges}
-        >
-          {t('Define scope')}
-        </Button>
-      </Box>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={onCancel}
+          >
+            {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={onSubmit}
+            disabled={!hasChanges}
+          >
+            {t('Define scope')}
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 };

@@ -35,6 +35,9 @@ const useStyles = makeStyles()(() => ({
 // purple accent.
 const STATUS_COLOR: Record<AutonomousRunStatus, keyof typeof colorStyles> = {
   CREATED: 'blue',
+  // Dry-run states use OCTI draft orange so a plan reads as "not executed yet" at a glance.
+  PLANNING: 'orange',
+  PLANNED: 'orange',
   RUNNING: 'green',
   PAUSED: 'orange',
   WAITING_INPUT: 'purple',
@@ -48,6 +51,8 @@ const STATUS_COLOR: Record<AutonomousRunStatus, keyof typeof colorStyles> = {
 // to plain English keys the translation layer can localize.
 const STATUS_LABEL: Record<AutonomousRunStatus, string> = {
   CREATED: 'Created',
+  PLANNING: 'Planning',
+  PLANNED: 'Plan ready',
   RUNNING: 'Running',
   PAUSED: 'Paused',
   WAITING_INPUT: 'Waiting for input',

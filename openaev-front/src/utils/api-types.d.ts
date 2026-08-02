@@ -1241,8 +1241,10 @@ export interface AttackPatternUpsertInput {
 /** A chained inject step appended to a live autonomous attack path */
 export interface AutonomousAttackPathStepInput {
   inject: InjectInput;
-  /** Optional step template id this step depends on (DEPEND_ON). Null / omitted for a root step that readies immediately. */
+  /** Optional step template id this step depends on (DEPEND_ON), for pure ordering. Null / omitted for a seed or a finding-driven step. Prefer 'trigger' over this. */
   parent_step_template_id?: string;
+  /** Optional finding-driven trigger: the finding(s) this step reacts to and the finding values it consumes as inputs. Preferred over parent_step_template_id - it lets the attack path draw itself. Omit for a seed step (recon that runs first). */
+  trigger?: AutonomousStepTrigger;
 }
 
 /** Result of appending a chained attack-path step */
@@ -1360,6 +1362,51 @@ export interface AutonomousEventInput {
     | "PROOF";
 }
 
+/** Binds an upstream finding value into one of this step's inject inputs */
+export interface AutonomousInputMapping {
+  /** The inject content field to fill (e.g. host, port, username, password) - the key the injector contract reads its input from. */
+  input_key?: string;
+  /** The finding primitive to pull the value from, as its lowercase label (e.g. host, port, username, password, hash). Must match a primitive an upstream step emits. */
+  key_type?:
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
+  /** Where to read the value from: GLOBAL (workflow-wide finding pool, the default and usual choice), LOCAL (this step's own matched values), or DEFAULT (static). */
+  mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
+}
+
 export interface AutonomousObjectiveTemplate {
   /** Whether this is a seeded built-in template */
   autonomous_objective_template_builtin?: boolean;
@@ -1423,6 +1470,10 @@ export interface AutonomousRun {
   autonomous_run_objective: string;
   /** Key of the objective template the run was seeded from, if any */
   autonomous_run_objective_template_key?: string;
+  /** Plan summary captured from a dry-run and handed to the promoted real run as guidance, so the live run follows the plan while still adapting to what it finds. */
+  autonomous_run_plan_guidance?: string;
+  /** Dry-run flag. When true the orchestrator only designs the attack path (scope + steps + decisions) and nothing is executed; the run is shown in draft orange and can be promoted to a real, executing run. */
+  autonomous_run_plan_mode: boolean;
   /** Scenario the simulation was created from, if any */
   autonomous_run_scenario_id?: string;
   /** Authoritative run scope: a mixed list of targetable entities (assets, asset groups, teams, persons). The orchestrator attacks within this perimeter. */
@@ -1436,6 +1487,8 @@ export interface AutonomousRun {
   /** Lifecycle status of the run */
   autonomous_run_status:
     | "CREATED"
+    | "PLANNING"
+    | "PLANNED"
     | "RUNNING"
     | "PAUSED"
     | "WAITING_INPUT"
@@ -1466,14 +1519,30 @@ export interface AutonomousRunCreateInput {
   objective?: string;
   /** Key of an objective template to seed the objective from */
   objective_template_key?: string;
+  /** Dry-run: when true the orchestrator only designs the attack path (scope, steps, decisions) and executes nothing. The operator can review the plan and later run it for real. Defaults to false (immediate live run). */
+  plan_mode?: boolean;
   /** Advanced/optional: seed from an existing chaining scenario instead of auto-provisioning. Leave empty for a fully autonomous run. */
   scenario_id?: string;
   /** Optional mixed scope: a list of targetable entities (assets, asset groups, teams, persons) the run is restricted to. Leave empty to let the AI resolve the scope. */
   scope?: AutonomousScopeTarget[];
   /** Optional asset group defining the initial in-scope perimeter */
   scope_asset_group_id?: string;
+  /** Optional full scope definition seeded onto the run's scenario and simulation workflows: allow-list and deny-list rules across every source (asset, asset group, team, person, and manual IP / CIDR / hostname / CSV), matching the manual chained-scope editor. Superset of 'scope' (which only carries allow-listed entities). Leave empty to skip scoping at launch and let the AI resolve and record the scope. */
+  scope_rules?: WorkflowScopeRuleInput[];
   /** Optional team defining the in-scope audience for identity-targeted objectives (phishing, human credential harvesting). Legacy single-team shortcut; prefer the mixed 'scope' list. */
   scope_team_id?: string;
+}
+
+/** One resolved scope entry of an autonomous run */
+export interface AutonomousScopeEntry {
+  /** The rule value: an entity id, or a raw IP / CIDR / hostname for MANUAL/CSV */
+  id?: string;
+  /** Resolved display name for entities; falls back to the id / raw value */
+  name?: string;
+  /** Workflow scope-rule source: ASSET, ASSET_GROUP, TEAM, PLAYER, MANUAL, CSV */
+  source?: string;
+  /** Orchestrator target kind: ASSETS, ASSETS_GROUPS, TEAMS, PLAYERS (or MANUAL for a raw IP / CIDR / hostname). Use this kind's ids with the authoring / scope tools. */
+  type?: string;
 }
 
 /** One targetable entity in an autonomous run's scope */
@@ -1488,6 +1557,16 @@ export interface AutonomousScopeTarget {
 export interface AutonomousScopeUpdateInput {
   /** The resolved scope: a list of targets (assets, asset groups, teams, persons) that become the run's allow-list. Replaces any previous allow-list. Empty clears it. */
   scope?: AutonomousScopeTarget[];
+}
+
+/** An autonomous run's live, resolved scope (allow-list + deny-list) */
+export interface AutonomousScopeView {
+  /** The authorized perimeter the orchestrator may attack */
+  allowlist?: AutonomousScopeEntry[];
+  /** Explicit carve-outs the orchestrator must never touch (deny wins) */
+  denylist?: AutonomousScopeEntry[];
+  /** The autonomous run id this scope belongs to */
+  run_id?: string;
 }
 
 /** Run status update pushed by the orchestrator */
@@ -1507,6 +1586,16 @@ export interface AutonomousStatusUpdateInput {
     | "CANCELED";
   /** Optional short title for the status timeline entry */
   title?: string;
+}
+
+/** A finding-driven trigger: react to findings and consume their values */
+export interface AutonomousStepTrigger {
+  /** The predicates that make this step fire. Empty means: fire as soon as any of the mapped key_types is present in the finding pool. */
+  filters?: AutonomousTriggerFilter[];
+  /** Which finding values to bind into this step's inject inputs (GLOBAL mappers). This is how the step attacks what upstream steps discovered. */
+  mappings?: AutonomousInputMapping[];
+  /** How to combine multiple filters: AND (all must hold) or OR (any). Defaults to AND. */
+  match?: string;
 }
 
 /** Ensure a targetable team wrapping the given persons */
@@ -1530,6 +1619,67 @@ export interface AutonomousTargetTeamResult {
   team_id?: string;
   /** Name of the team */
   team_name?: string;
+}
+
+/** A single predicate of a finding-driven trigger */
+export interface AutonomousTriggerFilter {
+  /** Whether the comparison is case-sensitive (default true). */
+  case_sensitive?: boolean;
+  /** The finding primitive to test, as its lowercase label (e.g. port, host, ipv4, cve, username, password, hash, share_name, service, severity, kerberoastable_account). This is the field an upstream inject's output parser emitted. */
+  key_type?:
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
+  /** Comparison: EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN. Defaults to IS_NOT_NULL (fire as soon as the finding carries this key_type at all). */
+  operator?:
+    | "AND"
+    | "OR"
+    | "EQ"
+    | "NEQ"
+    | "IS_NULL"
+    | "IS_NOT_NULL"
+    | "GT"
+    | "GTE"
+    | "LT"
+    | "LTE"
+    | "IN"
+    | "NIN"
+    | "MAPPER"
+    | "DEPEND_ON";
+  /** The value to compare against (omit for IS_NULL / IS_NOT_NULL). */
+  value?: string;
 }
 
 export type AverageConfiguration = UtilRequiredKeys<
@@ -9587,6 +9737,7 @@ export interface Scenario {
   /** @format int64 */
   scenario_all_users_number?: number;
   scenario_articles?: string[];
+  scenario_autonomous?: boolean;
   scenario_category?: string;
   /** @format int64 */
   scenario_communications_number?: number;
@@ -9650,6 +9801,7 @@ export interface Scenario {
   scenario_tags?: string[];
   scenario_teams?: string[];
   scenario_teams_users?: ScenarioTeamUser[];
+  scenario_type?: string;
   scenario_type_affinity?: string;
   /** @format date-time */
   scenario_updated_at: string;

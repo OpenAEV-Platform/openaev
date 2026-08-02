@@ -1,6 +1,7 @@
 package io.openaev.api.autonomous.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.autonomous.AutonomousScopeTarget;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
@@ -61,7 +62,25 @@ public class AutonomousRunCreateInput {
               + " persons) the run is restricted to. Leave empty to let the AI resolve the scope.")
   private List<AutonomousScopeTarget> scope;
 
+  @JsonProperty("scope_rules")
+  @Schema(
+      description =
+          "Optional full scope definition seeded onto the run's scenario and simulation workflows:"
+              + " allow-list and deny-list rules across every source (asset, asset group, team,"
+              + " person, and manual IP / CIDR / hostname / CSV), matching the manual chained-scope"
+              + " editor. Superset of 'scope' (which only carries allow-listed entities). Leave"
+              + " empty to skip scoping at launch and let the AI resolve and record the scope.")
+  private List<WorkflowScopeRuleInput> scopeRules;
+
   @JsonProperty("agent_slug")
   @Schema(description = "Optional orchestrator agent slug override")
   private String agentSlug;
+
+  @JsonProperty("plan_mode")
+  @Schema(
+      description =
+          "Dry-run: when true the orchestrator only designs the attack path (scope, steps,"
+              + " decisions) and executes nothing. The operator can review the plan and later run it"
+              + " for real. Defaults to false (immediate live run).")
+  private boolean planMode = false;
 }

@@ -134,6 +134,7 @@ const Scenarios = () => {
     'scenario_recurrence',
     'scenario_severity',
     'scenario_tags',
+    'scenario_type',
     'scenario_updated_at',
   ];
 

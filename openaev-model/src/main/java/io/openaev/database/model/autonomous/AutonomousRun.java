@@ -63,6 +63,24 @@ public class AutonomousRun implements TenantBase {
   @Schema(description = "Lifecycle status of the run")
   private AutonomousRunStatus status = AutonomousRunStatus.CREATED;
 
+  @NotNull
+  @Column(name = "autonomous_run_plan_mode", nullable = false)
+  @JsonProperty("autonomous_run_plan_mode")
+  @Schema(
+      description =
+          "Dry-run flag. When true the orchestrator only designs the attack path (scope + steps +"
+              + " decisions) and nothing is executed; the run is shown in draft orange and can be"
+              + " promoted to a real, executing run.")
+  private boolean planMode = false;
+
+  @Column(name = "autonomous_run_plan_guidance", columnDefinition = "text")
+  @JsonProperty("autonomous_run_plan_guidance")
+  @Schema(
+      description =
+          "Plan summary captured from a dry-run and handed to the promoted real run as guidance, so"
+              + " the live run follows the plan while still adapting to what it finds.")
+  private String planGuidance;
+
   @Column(name = "autonomous_run_simulation_id")
   @JsonProperty("autonomous_run_simulation_id")
   @Schema(description = "Chained simulation (Exercise) this run drives")

@@ -406,6 +406,8 @@ public class XtmOneClient {
       String scopeTeamId,
       List<AutonomousScopeTarget> scope,
       String scopeMode,
+      boolean planMode,
+      String priorPlan,
       String callbackBaseUrl) {
     if (!config.isConfigured()) {
       return null;
@@ -421,6 +423,8 @@ public class XtmOneClient {
       if (scopeTeamId != null) body.put("scope_team_id", scopeTeamId);
       if (scope != null && !scope.isEmpty()) body.put("scope", scope);
       if (scopeMode != null) body.put("scope_mode", scopeMode);
+      body.put("plan_mode", planMode);
+      if (priorPlan != null && !priorPlan.isBlank()) body.put("prior_plan", priorPlan);
       body.put("callback_base_url", callbackBaseUrl);
       String json = objectMapper.writeValueAsString(body);
 

@@ -14,8 +14,13 @@ const ScenarioAttackPath: FunctionComponent = () => {
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
   // An autonomous scenario is never launched by hand (the AI drives its single run, the operator
-  // restarts from the hero), so the empty-state "Launch a simulation" CTA is suppressed here.
-  const { run: autonomousRun } = useAutonomousRunForScenario(scenarioId);
+  // restarts from the hero), so the empty-state "Launch a simulation" CTA is suppressed here. The
+  // scenario is already loaded by the parent route, so pass its autonomous flag to skip the run
+  // lookup on a manual scenario.
+  const { run: autonomousRun } = useAutonomousRunForScenario(
+    scenarioId,
+    scenario ? scenario.scenario_autonomous === true : undefined,
+  );
   // Stable reference so the explorer's picker effect does not refetch on every render.
   const exerciseIds = useMemo(() => scenario?.scenario_exercises ?? [], [scenario?.scenario_exercises]);
   return (

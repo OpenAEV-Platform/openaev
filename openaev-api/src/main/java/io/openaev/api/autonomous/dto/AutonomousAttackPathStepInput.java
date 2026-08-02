@@ -15,9 +15,23 @@ import lombok.Setter;
  * sanctioned way for the AI to build the path (standalone injects and atomic tests are denied to
  * the orchestrator because they never populate the map projection).
  *
- * <p>When {@code parentStepTemplateId} is set, a {@code DEPEND_ON} condition is attached so this
- * step only readies once the parent has executed, giving the kill chain its ordering. A root step
- * (no parent) readies immediately against the run's scope on the next evaluation.
+ * <p>There are two ways to place a step in the path, and the finding-driven one is strongly
+ * preferred because it makes the attack path draw ITSELF from what actually executes:
+ *
+ * <ul>
+ *   <li><b>Finding-driven ({@code trigger})</b> - the step declares which finding it reacts to and
+ *       which finding values it consumes. The engine readies it, once per matching finding, against
+ *       every target that finding pointed at. A single seed scan therefore fans out onto every
+ *       host / port / credential it discovers - exactly like a hand-built chained scenario. A step
+ *       with NEITHER a trigger nor a parent is a SEED: it readies immediately against the run scope
+ *       and its output parser emits the findings that drive everything downstream.
+ *   <li><b>Ordering-only ({@code parentStepTemplateId})</b> - a plain {@code DEPEND_ON}: the step
+ *       readies once the parent has executed. Use this only when a step genuinely just needs to run
+ *       after another and does not consume its findings; do NOT model the whole path as a linear
+ *       chain of DEPEND_ONs (that hard-draws the path instead of letting findings shape it).
+ * </ul>
+ *
+ * Both may be combined (a trigger AND a parent).
  */
 @Getter
 @Setter
@@ -35,7 +49,16 @@ public class AutonomousAttackPathStepInput {
   @JsonProperty("parent_step_template_id")
   @Schema(
       description =
-          "Optional step template id this step depends on (DEPEND_ON). Null / omitted for a root "
-              + "step that readies immediately.")
+          "Optional step template id this step depends on (DEPEND_ON), for pure ordering. Null / "
+              + "omitted for a seed or a finding-driven step. Prefer 'trigger' over this.")
   private String parentStepTemplateId;
+
+  @Valid
+  @JsonProperty("trigger")
+  @Schema(
+      description =
+          "Optional finding-driven trigger: the finding(s) this step reacts to and the finding "
+              + "values it consumes as inputs. Preferred over parent_step_template_id - it lets the "
+              + "attack path draw itself. Omit for a seed step (recon that runs first).")
+  private AutonomousStepTrigger trigger;
 }

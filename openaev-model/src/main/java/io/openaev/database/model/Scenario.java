@@ -191,6 +191,29 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_expectations_drift_dismissed")
   private boolean expectationsDriftDismissed;
 
+  /**
+   * Whether this scenario is driven by an autonomous (AI) attack-path run. Set when the scenario is
+   * auto-provisioned for an autonomous run (or an existing scenario is handed to one). Persisted so
+   * the detail page can render the AI cockpit - and, crucially, so a plain manual scenario can be
+   * recognized as manual WITHOUT probing the autonomous-run lookup endpoint on every load.
+   */
+  @Column(name = "scenario_autonomous")
+  @JsonProperty("scenario_autonomous")
+  private boolean autonomous;
+
+  /**
+   * Virtual filter facet exposing the scenario "engine type" (Time-based / Chained / Autonomous) to
+   * the list's filter bar. It is NOT a stored column: the value is derived at query time from {@link
+   * #autonomous} and the presence of a chaining Workflow TEMPLATE (see {@code
+   * ScenarioUtils#handleCustomFilter}, which strips this key and re-expresses it as a
+   * Specification). Declared only so the schema endpoint advertises a filterable {@code
+   * scenario_type} property; it is never read or written.
+   */
+  @Transient
+  @JsonProperty("scenario_type")
+  @Queryable(filterable = true)
+  private String type;
+
   @Column(name = "scenario_type_affinity")
   @JsonProperty("scenario_type_affinity")
   private String typeAffinity;

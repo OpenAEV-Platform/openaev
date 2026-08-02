@@ -356,8 +356,13 @@ const Index = () => {
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
   // Detect whether this scenario is an autonomous (AI-driven) run, so we render the same AI cockpit
-  // (reasoning panel + gated tabs + run controls) as the simulation side.
-  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForScenario(scenarioId);
+  // (reasoning panel + gated tabs + run controls) as the simulation side. The scenario carries its
+  // own autonomous flag, so once it is loaded a manual scenario skips the run lookup entirely (no
+  // 404 probe, no re-poll); while it is still loading we pass undefined to probe as before.
+  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForScenario(
+    scenarioId,
+    scenario ? scenario.scenario_autonomous === true : undefined,
+  );
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchScenario(scenarioId)).finally(() => {

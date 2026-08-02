@@ -238,6 +238,55 @@ public class WorkflowService {
     }
   }
 
+  /**
+   * Seeds a full scope definition (ALLOWLIST and/or DENYLIST rules, any source) onto a run's
+   * scenario template and live simulation workflows. Used at autonomous-run creation to mirror the
+   * scope the operator picked in the launch stepper onto the auto-provisioned workflow, so it is
+   * enforced and shown in the Scope tab exactly like a manually chained scenario. Rules are appended
+   * and de-duplicated by (mode, source, value); an empty list is a no-op. Unlike {@link
+   * #writeAllowlistScope} this never clears existing rules and is mode-agnostic.
+   */
+  public void writeScopeRules(
+      String scenarioId, String simulationId, List<WorkflowScopeRuleInput> rules) {
+    if (rules == null || rules.isEmpty()) {
+      return;
+    }
+    if (hasText(scenarioId)) {
+      try {
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .ifPresent(w -> appendScopeRules(w, rules));
+      } catch (ChainingException e) {
+        log.warn(
+            "[Chaining] Could not seed scope on scenario {} template workflow", scenarioId, e);
+      }
+    }
+    if (hasText(simulationId)) {
+      findWorkflowRunBySimulationId(simulationId).forEach(w -> appendScopeRules(w, rules));
+    }
+  }
+
+  private void appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
+    List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
+    Set<String> existingKeys =
+        existing.stream()
+            .map(r -> r.getSelectedMode() + "|" + r.getRuleSource() + "|" + r.getRuleValue())
+            .collect(Collectors.toSet());
+    boolean changed = false;
+    for (WorkflowScopeRuleInput in : ruleInputs) {
+      if (in == null || in.getSelectedMode() == null || in.getRuleSource() == null) {
+        continue;
+      }
+      String key = in.getSelectedMode() + "|" + in.getRuleSource() + "|" + in.getRuleValue();
+      if (existingKeys.add(key)) {
+        existing.add(buildScopeRule(in, workflow));
+        changed = true;
+      }
+    }
+    if (changed) {
+      workflowRepository.save(workflow);
+    }
+  }
+
   private void writeAllowlistRules(
       Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs, boolean replaceExisting) {
     List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
@@ -1225,6 +1274,26 @@ public class WorkflowService {
   public String appendChainedStep(
       String simulationId, InjectInput injectInput, String parentStepTemplateId)
       throws ChainingException {
+    return appendChainedStep(simulationId, injectInput, parentStepTemplateId, List.of());
+  }
+
+  /**
+   * Finding-driven overload of {@link #appendChainedStep(String, InjectInput, String)}. In addition
+   * to the optional {@code DEPEND_ON} parent, the step carries {@code triggerConditions} - a
+   * finding-trigger filter tree and/or {@code MAPPER} bindings - so it readies off findings and
+   * consumes their values (the way a hand-built chained scenario works). A step with no trigger and
+   * no parent is a SEED that readies immediately against the run scope. The engine already persists
+   * arbitrary condition trees, so this simply merges the provided conditions with the DEPEND_ON.
+   *
+   * @param triggerConditions finding-trigger + mapper conditions (empty for a seed / DEPEND_ON-only)
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendChainedStep(
+      String simulationId,
+      InjectInput injectInput,
+      String parentStepTemplateId,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
     Workflow simulationTemplate =
         findWorkflowTemplateBySimulationId(simulationId)
             .orElseThrow(
@@ -1234,13 +1303,19 @@ public class WorkflowService {
 
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    List<ConditionCreateInput> conditions = new ArrayList<>();
+    if (triggerConditions != null) {
+      conditions.addAll(triggerConditions);
+    }
     if (hasText(parentStepTemplateId)) {
-      ConditionCreateInput dependOn =
+      conditions.add(
           ConditionCreateInput.builder()
               .type(ConditionType.DEPEND_ON)
               .value(parentStepTemplateId)
-              .build();
-      stepInput.setConditions(List.of(dependOn));
+              .build());
+    }
+    if (!conditions.isEmpty()) {
+      stepInput.setConditions(conditions);
     }
 
     // Idempotent authoring: a retried/replayed orchestrator call for the SAME inject + same parent
@@ -1273,6 +1348,25 @@ public class WorkflowService {
   public String appendChainedStepToScenario(
       String scenarioId, InjectInput injectInput, String parentScenarioStepTemplateId)
       throws ChainingException {
+    return appendChainedStepToScenario(
+        scenarioId, injectInput, parentScenarioStepTemplateId, List.of());
+  }
+
+  /**
+   * Finding-driven overload of {@link #appendChainedStepToScenario(String, InjectInput, String)}.
+   * The scenario twin carries the same finding-trigger + mapper conditions as its simulation
+   * original (they are parent-independent, so they copy verbatim), keeping the exported scenario a
+   * faithful reproduction of the finding-driven attack path.
+   *
+   * @param triggerConditions the same finding-trigger + mapper conditions authored on the simulation
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendChainedStepToScenario(
+      String scenarioId,
+      InjectInput injectInput,
+      String parentScenarioStepTemplateId,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
     Workflow scenarioTemplate =
         findWorkflowTemplateByScenarioId(scenarioId)
             .orElseThrow(
@@ -1282,13 +1376,19 @@ public class WorkflowService {
 
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    List<ConditionCreateInput> conditions = new ArrayList<>();
+    if (triggerConditions != null) {
+      conditions.addAll(triggerConditions);
+    }
     if (hasText(parentScenarioStepTemplateId)) {
-      ConditionCreateInput dependOn =
+      conditions.add(
           ConditionCreateInput.builder()
               .type(ConditionType.DEPEND_ON)
               .value(parentScenarioStepTemplateId)
-              .build();
-      stepInput.setConditions(List.of(dependOn));
+              .build());
+    }
+    if (!conditions.isEmpty()) {
+      stepInput.setConditions(conditions);
     }
 
     // Idempotent mirror: keep the scenario twin in lock-step with the (now idempotent) simulation

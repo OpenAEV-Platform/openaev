@@ -8,7 +8,11 @@ import { type AutonomousRun, type AutonomousRunStatus } from '../../../actions/a
  */
 export const isAutonomousRunActive = (run: AutonomousRun | null | undefined): boolean => {
   const status = run?.autonomous_run_status;
+  // PLANNING (the orchestrator is still designing a dry-run) is active so the cockpit polls it.
+  // PLANNED is deliberately excluded: a finished plan is settled and can be promoted or deleted,
+  // and it never owns a live simulation.
   return status === 'CREATED'
+    || status === 'PLANNING'
     || status === 'RUNNING'
     || status === 'PAUSED'
     || status === 'WAITING_INPUT';
@@ -26,6 +30,8 @@ const autonomousRunStatusColor = (
   switch (status) {
     case 'RUNNING':
       return 'info';
+    case 'PLANNING':
+    case 'PLANNED':
     case 'WAITING_INPUT':
     case 'PAUSED':
       return 'warning';

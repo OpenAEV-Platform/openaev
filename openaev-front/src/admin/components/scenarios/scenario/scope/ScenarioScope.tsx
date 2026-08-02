@@ -6,7 +6,6 @@ import { searchScenarioHealthcheks } from '../../../../../actions/scenarios/scen
 import type { ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
 import { useHelper } from '../../../../../store';
 import { type HealthCheck, type Scenario } from '../../../../../utils/api-types';
-import AutonomousReadOnlyBanner from '../../../chaining/AutonomousReadOnlyBanner';
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
 
@@ -35,7 +34,6 @@ const ScenarioScope = ({ readOnly = false }: { readOnly?: boolean }) => {
 
   return (
     <div>
-      {readOnly && <AutonomousReadOnlyBanner />}
       {!!visibleHealthchecks.length && (
         <Healthchecks
           healthchecks={visibleHealthchecks}
