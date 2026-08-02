@@ -1,0 +1,34 @@
+name: Design system Git authentication
+description: >
+  Configure git so Yarn can clone XTM-Foundation/filigran-design-system, which
+  openaev-front consumes as a direct git dependency. The repository is private,
+  so the default GITHUB_TOKEN cannot read it: a dedicated PAT is required.
+  Must run BEFORE any `yarn install` in openaev-front.
+  See fds-migration/IMPLEMENTATION-PLAYBOOK.md.
+
+inputs:
+  token:
+    description: >
+      Fine-grained PAT with Contents:Read on XTM-Foundation/filigran-design-system,
+      stored as the FDS_GIT_TOKEN repository secret.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Configure git credentials for the design system
+      shell: bash
+      # The token is passed through env, never interpolated into the script
+      # body, so it is never expanded into a logged command line.
+      env:
+        FDS_GIT_TOKEN: ${{ inputs.token }}
+      run: |
+        if [ -z "$FDS_GIT_TOKEN" ]; then
+          echo "::error::FDS_GIT_TOKEN is empty. openaev-front depends on the private"
+          echo "::error::XTM-Foundation/filigran-design-system repository as a git dependency;"
+          echo "::error::yarn install cannot clone it without credentials."
+          exit 1
+        fi
+        git config --global \
+          url."https://x-access-token:${FDS_GIT_TOKEN}@github.com/".insteadOf \
+          "https://github.com/"

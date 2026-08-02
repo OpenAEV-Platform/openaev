@@ -39,6 +39,12 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
     const rawUserTheme = me?.user_theme ?? 'default';
     const themeToSet = rawUserTheme !== 'default' ? rawUserTheme : rawPlatformTheme;
     document.body.setAttribute('data-theme', themeToSet);
+    // The design system reads its light/dark tokens from a `.light` / `.dark`
+    // class. It has to sit on <html>, not on a container: the library portals
+    // its tooltips, submenu flyouts and dropdowns straight into <body>, so a
+    // scoped class would leave those floating layers unthemed.
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(themeToSet === 'light' ? 'light' : 'dark');
     setTheme(themeToSet);
   }, [settings, tenantSettings, me]);
 

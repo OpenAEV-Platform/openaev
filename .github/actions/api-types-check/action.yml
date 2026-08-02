@@ -11,6 +11,11 @@ description: >
   OPENAEV_ADMIN_ENCRYPTION_KEY, OPENAEV_ADMIN_ENCRYPTION_SALT,
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
 
+inputs:
+  fds-git-token:
+    description: "PAT with read access to XTM-Foundation/filigran-design-system (secrets.FDS_GIT_TOKEN)."
+    required: true
+
 runs:
   using: composite
   steps:
@@ -80,6 +85,10 @@ runs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-yarn-
+
+    - uses: ./.github/actions/setup-fds-auth
+      with:
+        token: ${{ inputs.fds-git-token }}
 
     - name: Install frontend dependencies
       run: yarn install --immutable

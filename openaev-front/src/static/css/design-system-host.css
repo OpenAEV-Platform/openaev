@@ -1,0 +1,42 @@
+/*
+ * Host-side prerequisites for the Filigran design system.
+ *
+ * Loaded AFTER `@filigran/design-system/dist/index.css` so these rules win over
+ * the user-agent defaults the library's stylesheet does not (yet) reset.
+ */
+
+/*
+ * The application's menu icons come from MUI, which renders them at 24px; the
+ * design system's navigation rows are designed around 16px glyphs. Scoped to
+ * the navigation so no other MUI icon in the app is affected.
+ */
+.app-navbar .MuiSvgIcon-root {
+  font-size: 16px;
+}
+
+/*
+ * TEMPORARY COMPENSATION — remove when the library makes its overlay stacking
+ * level configurable (see fds-migration/LIBRARY-FEEDBACK.md, "Portalled
+ * surfaces are pinned to z-index 50").
+ *
+ * Every floating surface of the library (menus, submenu flyouts, tooltips,
+ * dialogs, select panels) is hardcoded to Tailwind's `z-50`. Radix copies that
+ * value onto the portal wrapper it appends to <body>, so the wrapper competes
+ * with the host's own stacking at level 50. MUI's scale starts far above it —
+ * this application's top bar is a `MuiAppBar` at `z-index: 1100` — so any
+ * library panel opened near the top of the page is painted UNDER the header.
+ * Neither the panel nor the wrapper accepts a class or a style from the
+ * product for most of these components, so this cannot be fixed at the call
+ * site.
+ *
+ * 1300 is MUI's own `zIndex.modal`, the level its popovers and menus use, so
+ * the library's panels sit exactly where the components they replace sat.
+ * `!important` is required because Radix writes the value inline.
+ *
+ * REMOVAL TEST: delete this rule, open the product switcher menu at the top of
+ * the rail, and check whether the panel is still fully visible over the top
+ * bar. If it is, the compensation is no longer needed.
+ */
+body > [data-radix-popper-content-wrapper] {
+  z-index: 1300 !important;
+}

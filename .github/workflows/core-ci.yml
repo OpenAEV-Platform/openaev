@@ -2,11 +2,14 @@ name: "[Core] CI"
 
 on:
   push:
-    branches: [main]
+    # design-system/current is the long-lived integration branch for the
+    # Filigran design-system migration. Without it here, no CI ever ran on
+    # that branch nor on any PR targeting it.
+    branches: [main, design-system/current]
     tags:
       - "[0-9]*.[0-9]*.[0-9]*"
   pull_request:
-    branches: [main]
+    branches: [main, design-system/current]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -49,6 +52,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
+        with:
+          fds-git-token: ${{ secrets.FDS_GIT_TOKEN }}
 
   # ──────────────────────────────────────────────────────────────────
   # Quality gates (frontend quality, API tests, E2E tests, coverage)

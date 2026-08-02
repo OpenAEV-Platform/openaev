@@ -68,6 +68,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
+        with:
+          fds-git-token: ${{ secrets.FDS_GIT_TOKEN }}
 
   # ──────────────────────────────────────────────────────────────────
   # 2. Quality gates (shared with core-ci.yml via _quality-gates.yml)

@@ -1,8 +1,6 @@
-import { ArrowDropDown, OpenInNew } from '@mui/icons-material';
-import { Box, Divider, IconButton, List, ListItemButton, ListItemIcon, Popover, Tooltip } from '@mui/material';
+import { ProductSwitcher } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useContext, useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { type FunctionComponent, useContext, useEffect } from 'react';
 
 import { type LoggedHelper } from '../../../actions/helper';
 import { fetchXtmHubRegistration } from '../../../actions/xtmhub/xtmhub-actions';
@@ -18,82 +16,20 @@ import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-
-interface PopoverItemProps {
-  logo: string;
-  alt: string;
-  tooltip: string;
-  href?: string;
-  to?: string;
-  onClick: () => void;
-}
-
-// One product row of the switcher popover (OpenCTI LeftBarHeader pattern):
-// product logo on the left, external-link icon on the right.
-const PopoverListItem: FunctionComponent<PopoverItemProps> = ({ logo, alt, tooltip, href, to, onClick }) => {
-  const theme = useTheme();
-  const linkProps = href
-    ? {
-        component: 'a' as const,
-        href,
-        target: '_blank',
-        rel: 'noreferrer',
-      }
-    : {
-        component: Link,
-        to: to ?? '',
-      };
-  return (
-    <Tooltip title={tooltip} placement="right">
-      <ListItemButton
-        {...linkProps}
-        onClick={onClick}
-        sx={{
-          borderRadius: 1,
-          px: 1,
-          py: 1.5,
-          justifyContent: 'space-between',
-          backgroundColor: theme.palette.leftBar?.header?.itemBackground,
-        }}
-      >
-        <ListItemIcon sx={{
-          width: 132,
-          p: 1,
-        }}
-        >
-          <Box sx={{
-            width: '100%',
-            height: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          >
-            <img
-              src={fileUri(logo)}
-              alt={alt}
-              style={{
-                width: '100%',
-                height: 'auto',
-                objectFit: 'contain',
-              }}
-            />
-          </Box>
-        </ListItemIcon>
-        {href && <OpenInNew sx={{ fontSize: 16 }} />}
-      </ListItemButton>
-    </Tooltip>
-  );
-};
-
-interface Props { navOpen: boolean }
+import { computeTenantBasename } from '../../../utils/url-helper';
 
 /**
- * Header of the left navigation drawer, aligned with OpenCTI's LeftBarHeader:
- * the platform logo (link to home) plus an arrow trigger opening the Filigran
- * product-switcher popover (OpenCTI / XTM Hub).
+ * Header of the navigation: the platform logo plus the Filigran product
+ * switcher (OpenCTI / XTM Hub), rendered by the design system's
+ * `ProductSwitcher`.
+ *
+ * Expanded, the wordmark is a link home and the chevron opens the switcher.
+ * Collapsed, the library renders `logoCollapsed` in its own 28px square slot
+ * and the menu is not reachable — the arbitrated behaviour, identical across
+ * Filigran products. The collapse state comes from the library's own Navbar
+ * context, so this component takes no props.
  */
-const LeftBarHeader: FunctionComponent<Props> = ({ navOpen }) => {
+const LeftBarHeader: FunctionComponent = () => {
   const theme = useTheme();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
@@ -111,14 +47,6 @@ const LeftBarHeader: FunctionComponent<Props> = ({ navOpen }) => {
   const isRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
   const shouldXtmHubRedirectToSite = isRegistered || !isXTMHubAccessible || !ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
 
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-  const handleOpen = (event: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
-    event.preventDefault();
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => setAnchorEl(null);
-  const open = Boolean(anchorEl);
-
   const isDark = theme.palette.mode === 'dark';
   const isOpenCtiConnected = !!(tenantSettings?.xtm_opencti_enable && tenantSettings?.xtm_opencti_url);
   const openCtiUrl = isOpenCtiConnected
@@ -128,112 +56,83 @@ const LeftBarHeader: FunctionComponent<Props> = ({ navOpen }) => {
     ? settings.xtm_hub_url
     : XTM_HUB_DEFAULT_URL;
 
-  return (
-    <div
+  const productLogo = (src: string, alt: string) => (
+    <img
+      src={fileUri(src)}
+      alt={alt}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: navOpen ? 'flex-start' : 'center',
-        gap: theme.spacing(0.5),
-        padding: theme.spacing(1.5, 1),
-        minHeight: 56,
+        width: '100%',
+        height: 'auto',
+        objectFit: 'contain',
       }}
-    >
-      {/* Expanded: the logo fills the remaining header width (flex: 1) so wide
-          wordmarks like OpenAEV's render at a comfortable height instead of being
-          capped short by a fixed maxWidth. Collapsed: a fixed square emblem. */}
-      <Link
-        to="/admin"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          minWidth: 0,
-          ...(navOpen ? { flex: 1 } : {}),
-        }}
-      >
+    />
+  );
+
+  return (
+    <ProductSwitcher
+      label={t('Filigran products')}
+      logo={(
         <img
-          src={navOpen ? theme.logo : theme.logo_collapsed}
-          alt="logo"
-          style={navOpen
-            ? {
-                cursor: 'pointer',
-                width: '100%',
-                height: 'auto',
-                maxHeight: 40,
-                objectFit: 'contain',
-                objectPosition: 'left center',
-              }
-            : {
-                cursor: 'pointer',
-                height: 35,
-                maxWidth: 23,
-                objectFit: 'contain',
-              }}
+          src={theme.logo}
+          alt=""
+          // Inline, not utility classes: the product has no Tailwind build, so
+          // only the utilities the library's own components emit exist at
+          // runtime — `object-contain` is not one of them, and a class here
+          // silently stretched the logo to the slot's width.
+          style={{
+            height: 28,
+            width: '100%',
+            objectFit: 'contain',
+            objectPosition: 'left center',
+          }}
         />
-      </Link>
-      {navOpen && (
-        <>
-          <IconButton
-            size="small"
-            color="primary"
-            aria-label={t('Filigran products')}
-            onClick={handleOpen}
-            sx={{
-              borderRadius: 1,
-              flexShrink: 0,
-              transition: 'transform 0.2s',
-              transform: open ? 'rotate(180deg)' : 'none',
-            }}
-          >
-            <ArrowDropDown />
-          </IconButton>
-          <Popover
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleClose}
-            anchorOrigin={{
-              vertical: 'bottom',
-              horizontal: 'right',
-            }}
-            transformOrigin={{
-              vertical: 'top',
-              horizontal: 'left',
-            }}
-            slotProps={{ paper: { sx: { transform: 'translateX(-40px)' } } }}
-          >
-            <List dense sx={{ minWidth: 228 }}>
-              <PopoverListItem
-                logo={isDark ? logoOpenCtiDark : logoOpenCtiLight}
-                alt="OpenCTI"
-                tooltip={isOpenCtiConnected ? t('Platform connected') : t('Get OpenCTI now')}
-                href={openCtiUrl}
-                onClick={handleClose}
-              />
-              <Divider />
-              {shouldXtmHubRedirectToSite
-                ? (
-                    <PopoverListItem
-                      logo={isDark ? logoXtmHubDark : logoXtmHubLight}
-                      alt="XTM Hub"
-                      tooltip={isRegistered ? t('Platform connected') : t('Get XTM Hub now')}
-                      href={xtmHubUrl}
-                      onClick={handleClose}
-                    />
-                  )
-                : (
-                    <PopoverListItem
-                      logo={isDark ? logoXtmHubDark : logoXtmHubLight}
-                      alt="XTM Hub"
-                      tooltip={t('Connect your product')}
-                      to={REDIRECT_CONNECT_XTM_HUB_URL}
-                      onClick={handleClose}
-                    />
-                  )}
-            </List>
-          </Popover>
-        </>
       )}
-    </div>
+      logoCollapsed={(
+        <img
+          src={theme.logo_collapsed}
+          alt=""
+          // The library's collapsed slot is a 28px square that clips rather
+          // than scales its child (its inner wrapper is `shrink-0`), and it
+          // gives the child no height of its own — so the asset has to be
+          // sized here. Inline for the same reason as above.
+          style={{
+            height: 28,
+            width: 28,
+            objectFit: 'contain',
+          }}
+        />
+      )}
+      // The library renders the destination as a plain anchor, with no router
+      // integration, so the tenant basename has to be prefixed by hand — a
+      // bare "/admin" would drop the tenant segment on a tenant deployment.
+      // See fds-migration/LIBRARY-FEEDBACK.md.
+      logoHref={`${computeTenantBasename()}/admin`}
+      logoLabel={t('Home')}
+      options={[
+        {
+          id: 'opencti',
+          label: 'OpenCTI',
+          logo: productLogo(isDark ? logoOpenCtiDark : logoOpenCtiLight, 'OpenCTI'),
+          tooltip: isOpenCtiConnected ? t('Platform connected') : t('Get OpenCTI now'),
+          href: openCtiUrl,
+        },
+        shouldXtmHubRedirectToSite
+          ? {
+              id: 'xtm-hub',
+              label: 'XTM Hub',
+              logo: productLogo(isDark ? logoXtmHubDark : logoXtmHubLight, 'XTM Hub'),
+              tooltip: isRegistered ? t('Platform connected') : t('Get XTM Hub now'),
+              href: xtmHubUrl,
+            }
+          : {
+              id: 'xtm-hub',
+              label: 'XTM Hub',
+              logo: productLogo(isDark ? logoXtmHubDark : logoXtmHubLight, 'XTM Hub'),
+              tooltip: t('Connect your product'),
+              to: REDIRECT_CONNECT_XTM_HUB_URL,
+            },
+      ]}
+    />
   );
 };
 

@@ -5,6 +5,7 @@ import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, 
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 
 import { logout } from '../../../actions/Application';
+import { readNavOpen } from '../../../components/common/menu/navbar/useNavbarState';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
 import SearchInput from '../../../components/SearchFilter';
@@ -20,9 +21,9 @@ import isXtmOneAvailable from '../ariane/xtmOneAvailability';
 import BulkOperationsIndicator from './BulkOperationsIndicator';
 import TopBarNotifications from './TopBarNotifications';
 
-// Drawer widths shared with the left menu (OpenCTI: OPEN_BAR_WIDTH / SMALL_BAR_WIDTH).
+// Navigation widths, mirroring the design system Navbar's own w-45 / w-12.
 export const OPEN_BAR_WIDTH = 180;
-export const SMALL_BAR_WIDTH = 55;
+export const SMALL_BAR_WIDTH = 48;
 
 /**
  * Top bar aligned with OpenCTI's TopBar: a fixed, transparent, blur-backdrop
@@ -39,11 +40,12 @@ const TopBar: FunctionComponent = () => {
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
   const dispatch = useAppDispatch();
-  const [navOpen, setNavOpen] = useState(
-    localStorage.getItem('navOpen') === 'true',
-  );
+  // Same resolution helper as the navigation itself: with a viewport-based
+  // default, reading localStorage directly here would disagree with the
+  // navigation on first mount and offset the top bar by the wrong width.
+  const [navOpen, setNavOpen] = useState(readNavOpen);
   useEffect(() => {
-    const sub = MESSAGING$.toggleNav.subscribe({ next: () => setNavOpen(localStorage.getItem('navOpen') === 'true') });
+    const sub = MESSAGING$.toggleNav.subscribe({ next: () => setNavOpen(readNavOpen()) });
     return () => {
       sub.unsubscribe();
     };
