@@ -8,9 +8,9 @@ import {
   fetchWorkflowConfiguration,
   updateWorkflowConfiguration,
 } from '../../../actions/chaining/workflow-actions';
+import type { WorkflowConfigurationHelper } from '../../../actions/chaining/workflow-helper';
 import { fetchTeams } from '../../../actions/teams/team-actions';
 import { fetchPlayers } from '../../../actions/users/User';
-import type { WorkflowConfigurationHelper } from '../../../actions/chaining/workflow-helper';
 import { useHelper } from '../../../store';
 import type { ScopeVariableInput, WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -93,8 +93,8 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
   return (
     <Box
       sx={{
-        'display': 'grid',
-        'gap': `${theme.spacing(3)} ${theme.spacing(3)}`,
+        display: 'grid',
+        gap: `${theme.spacing(3)} ${theme.spacing(3)}`,
         ...(readOnly
           ? {
               // Keep the scope visible for inspection but block every mutation on autonomous runs -

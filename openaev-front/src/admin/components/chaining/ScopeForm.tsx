@@ -15,10 +15,10 @@ import {
 import { findAssetGroups, searchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { findEndpoints, searchEndpoints } from '../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../actions/executors/executor-action';
+import type { ExecutorHelper } from '../../../actions/executors/executor-helper';
 import { searchPlayers } from '../../../actions/players/player-actions';
 import { searchTeamByIdAsOption, searchTeams } from '../../../actions/teams/team-actions';
 import { searchPlayerByIdAsOption } from '../../../actions/users/User';
-import type { ExecutorHelper } from '../../../actions/executors/executor-helper';
 import ClickableList, { type ClickableListElements } from '../../../components/common/ClickableList';
 import { SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
