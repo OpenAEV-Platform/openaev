@@ -573,9 +573,11 @@ public class ConditionServiceTest {
               mapper(MappingType.LOCAL, PrimitiveType.Port, null),
               mapper(MappingType.GLOBAL, PrimitiveType.Host, null));
 
+      // Hash identity is keyed by mapper position ("mapper#<index in mappers list>"), not by
+      // source type name, so it stays unique even when mappers share a source type.
       Map<String, String> executedCombo = new java.util.TreeMap<>();
-      executedCombo.put("Host", "0.0.0.0");
-      executedCombo.put("Port", "5040");
+      executedCombo.put("mapper#0", "5040"); // Port mapper (index 0)
+      executedCombo.put("mapper#1", "0.0.0.0"); // Host mapper (index 1)
       String executedHash = hashCombo(executedCombo);
 
       WorkflowStateEntries localEntries =
@@ -718,6 +720,113 @@ public class ConditionServiceTest {
       assertEquals("admin", json.get("Text").getAsString());
       assertEquals("worker-01", json.get("Host").getAsString());
       assertNotNull(batches.getFirst().hash());
+    }
+
+    @Test
+    void given_twoMappersSharingSameSourceType_should_generateAllCombinationsWithoutDuplicates() {
+      // -------- Arrange --------
+      // Regression test: two input fields ("value" and "value2") both mapped from the same
+      // primitive type pool used to silently collapse "swapped" combinations (e.g. value=A/
+      // value2=B vs value=B/value2=A) into the same hash, dropping one and duplicating another.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-shared-type");
+
+      Condition valueMapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      valueMapper.setKey("value");
+      Condition value2Mapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      value2Mapper.setKey("value2");
+      List<Condition> mappers = List.of(valueMapper, value2Mapper);
+
+      WorkflowStateEntries localEntries = entries(List.of(input("Text", "key", "pass")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-shared-type"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 2 mappers x 2 candidate values each = 4 distinct combinations, no drops, no duplicates.
+      assertEquals(4, batches.size());
+
+      Set<String> combos =
+          batches.stream()
+              .map(
+                  b -> {
+                    Map<String, String> byKey =
+                        b.usedMappers().stream()
+                            .collect(
+                                java.util.stream.Collectors.toMap(
+                                    Condition::getKey, Condition::getValue));
+                    return byKey.get("value") + ":" + byKey.get("value2");
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("key:key", "key:pass", "pass:key", "pass:pass"), combos);
+
+      // All batch hashes are unique (no accidental collisions causing duplicate executions).
+      Set<String> hashes =
+          batches.stream()
+              .map(ConditionService.ExecutionBatch::hash)
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(4, hashes.size());
+    }
+
+    @Test
+    void given_alreadyExecutedSwappedCombo_should_stillGenerateItsDistinctMirrorCombo() {
+      // -------- Arrange --------
+      // Even if one cross-combination (value=key/value2=pass) was already executed, its mirror
+      // (value=pass/value2=key) must still be generated: they are distinct combinations, not the
+      // same hash.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-shared-type-executed");
+
+      Condition valueMapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      valueMapper.setKey("value");
+      Condition value2Mapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      value2Mapper.setKey("value2");
+      List<Condition> mappers = List.of(valueMapper, value2Mapper);
+
+      // Mark "value=key / value2=pass" (mapper#0="key", mapper#1="pass") as already executed.
+      Map<String, String> executedCombo = new java.util.TreeMap<>();
+      executedCombo.put("mapper#0", "key");
+      executedCombo.put("mapper#1", "pass");
+      String executedHash = hashCombo(executedCombo);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "key", "pass")), List.of(), Set.of(executedHash));
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-shared-type-executed"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 4 combinations minus the 1 already executed = 3 remaining, including the mirror combo.
+      assertEquals(3, batches.size());
+      Set<String> combos =
+          batches.stream()
+              .map(
+                  b -> {
+                    Map<String, String> byKey =
+                        b.usedMappers().stream()
+                            .collect(
+                                java.util.stream.Collectors.toMap(
+                                    Condition::getKey, Condition::getValue));
+                    return byKey.get("value") + ":" + byKey.get("value2");
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("key:key", "pass:key", "pass:pass"), combos);
     }
   }
 
