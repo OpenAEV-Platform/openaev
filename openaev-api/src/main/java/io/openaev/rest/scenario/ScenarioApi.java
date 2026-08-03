@@ -529,6 +529,10 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
   public Scenario updateScenarioRecurrence(
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfScenarioNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
@@ -615,8 +619,11 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  public Exercise createRunningExerciseFromScenario(@PathVariable @NotBlank final String scenarioId)
-      throws ChainingException {
+  public Exercise createRunningExerciseFromScenario(
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfScenarioNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
 
@@ -725,7 +732,9 @@ public class ScenarioApi extends RestBehavior {
       summary = "Get endpoints. Can only be called if the user has access to the given scenario.",
       description = "Get all endpoints used by injects for a given scenario")
   @Transactional
-  public List<Endpoint> endpoints(@PathVariable String scenarioId) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
+  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
     return this.endpointService.endpointsForScenario(scenarioId);
   }
 
@@ -742,7 +751,10 @@ public class ScenarioApi extends RestBehavior {
       summary =
           "Get endpoints by ids. Can only be called if the user has access to the given scenario.",
       description = "Get all endpoints by ids used by injects for a given scenario")
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
   public List<EndpointOutput> endpointsByIds(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @RequestBody @Valid @NotNull final List<String> endpointIds) {
     return this.endpointService.endpointsByIdsForScenario(scenarioId, endpointIds);
