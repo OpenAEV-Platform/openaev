@@ -31,6 +31,9 @@ public class AttackPathNodeDTO {
   // ASSET (endpoint), from the run snapshot
   private String hostname;
   private String ip;
+  // ASSET: the endpoint's seen (primary) IP, resolved live from the asset, so the map node shows a
+  // single relevant IP rather than the frozen full IP list. Null when the asset has no seen IP.
+  private String seenIp;
   private String platform;
   // ASSET: the endpoint's business criticality (VERY_HIGH..LOW / UNKNOWN), resolved from the asset,
   // so

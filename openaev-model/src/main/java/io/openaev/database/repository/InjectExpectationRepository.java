@@ -339,6 +339,19 @@ public interface InjectExpectationRepository
       @Param("injectId") @NotBlank final String injectId,
       @Param("assetGroupId") @NotBlank final String assetGroupId);
 
+  // Child expectation rows (asset AND agent levels) of an asset group. Used to mirror
+  // the children's security-platform results onto the asset-group target-results view.
+  @Query(
+      value =
+          "SELECT i FROM InjectExpectation i "
+              + "WHERE i.inject.id = :injectId "
+              + "AND i.assetGroup.id = :assetGroupId "
+              + "AND (i.asset IS NOT NULL OR i.agent IS NOT NULL) "
+              + "ORDER BY i.type, i.createdAt")
+  List<BaseInjectExpectation> findAllChildExpectationsByInjectAndAssetGroup(
+      @Param("injectId") @NotBlank final String injectId,
+      @Param("assetGroupId") @NotBlank final String assetGroupId);
+
   @Query(
       value =
           "SELECT "
@@ -494,21 +507,26 @@ public interface InjectExpectationRepository
     ),
     sp_self AS (
         -- Collectors / assets referenced in THIS expectation own results.
+        -- The collectors join is tenant-correlated: the indexing sweep runs under an all-tenant
+        -- scope (multi-tenancy v2), and built-in collectors share the same collector_id across
+        -- tenants, so a bare sourceId join would attribute the security platform of another tenant.
         SELECT b.inject_expectation_id,
                COALESCE(array_agg(DISTINCT c.collector_security_platform::text) FILTER (WHERE c.collector_security_platform IS NOT NULL), ARRAY[]::text[])
                || COALESCE(array_agg(DISTINCT a.asset_id::text) FILTER (WHERE a.asset_id IS NOT NULL), ARRAY[]::text[]) AS ids
         FROM base b
         LEFT JOIN LATERAL jsonb_array_elements(b.inject_expectation_results::jsonb) AS r(elem) ON true
         LEFT JOIN collectors c ON r.elem->>'sourceId' = c.collector_id::text
+                              AND c.tenant_id = b.tenant_id
         LEFT JOIN assets a ON r.elem->>'sourceId' = a.asset_id::text
         GROUP BY b.inject_expectation_id
     ),
     agent_security_platforms AS (
         -- Security platforms contributed by agent-level children, scoped to the SAME expectation
-        -- type and (when the parent is asset-level) the SAME asset as the parent doc. Keyed per
-        -- parent expectation: joining only on inject_id would attribute every platform that
-        -- returned any result for any expectation of the inject (e.g. blame a platform that
-        -- detected for a prevention miss on another asset).
+        -- type and (when the parent is asset-level) the SAME asset - or (when the parent is
+        -- asset-group-level) the SAME asset group - as the parent doc. Keyed per parent
+        -- expectation: joining only on inject_id would attribute every platform that returned
+        -- any result for any expectation of the inject (e.g. blame a platform that detected for
+        -- a prevention miss on another asset, or on an asset of another targeted group).
         SELECT b.inject_expectation_id,
                COALESCE(array_agg(DISTINCT child_c.collector_security_platform::text) FILTER (WHERE child_c.collector_security_platform IS NOT NULL), ARRAY[]::text[])
                || COALESCE(array_agg(DISTINCT child_a.asset_id::text) FILTER (WHERE child_a.asset_id IS NOT NULL), ARRAY[]::text[]) AS security_platform_ids
@@ -518,8 +536,10 @@ public interface InjectExpectationRepository
          AND child_ie.agent_id IS NOT NULL
          AND child_ie.inject_expectation_type = b.inject_expectation_type
          AND (b.asset_id IS NULL OR child_ie.asset_id = b.asset_id)
+         AND (b.asset_group_id IS NULL OR child_ie.asset_group_id = b.asset_group_id)
         LEFT JOIN LATERAL jsonb_array_elements(child_ie.inject_expectation_results::jsonb) AS child_r(elem) ON true
         LEFT JOIN collectors child_c ON child_r.elem->>'sourceId' = child_c.collector_id::text
+                                    AND child_c.tenant_id = b.tenant_id
         LEFT JOIN assets child_a ON child_r.elem->>'sourceId' = child_a.asset_id::text
         GROUP BY b.inject_expectation_id
     )
