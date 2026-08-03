@@ -12,7 +12,7 @@ on:
     - cron: "0 4 * * *"
   workflow_dispatch:
     inputs:
-      retention-hours:
+      retention_hours:
         description: "Delete CI image versions older than this many hours"
         type: string
         required: false
@@ -35,7 +35,7 @@ jobs:
       - name: Delete stale CI image versions
         env:
           GH_TOKEN: ${{ github.token }}
-          RETENTION_HOURS: ${{ inputs.retention-hours || '24' }}
+          RETENTION_HOURS: ${{ inputs.retention_hours || '24' }}
         run: |
           set -euo pipefail
 
