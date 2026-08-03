@@ -40,12 +40,10 @@ export const applyAutoLinks = (
   contractFields: ContractElement[],
   existingLinks: Record<string, FieldLink>,
   argumentWithDefaultValueTypes: Set<string>,
-  autoLinkDisabledFields: Set<string> = new Set(),
 ): Record<string, FieldLink> => {
   const updates: Record<string, FieldLink> = {};
   for (const field of contractFields) {
-    if (Object.prototype.hasOwnProperty.call(existingLinks, field.key)
-      || autoLinkDisabledFields.has(field.key)) continue;
+    if (Object.prototype.hasOwnProperty.call(existingLinks, field.key)) continue;
     const outputType = resolveDefaultOutputType(field, argumentWithDefaultValueTypes);
     if (outputType) {
       updates[field.key] = {
@@ -74,7 +72,7 @@ export const mapFieldLinksToStepConditions = (
 ): ConditionCreateInput[] => {
   return Object.entries(fieldLinks).map(([fieldKey, link], index) => {
     const outputTypes = link.outputTypes ?? [];
-    const keyTypes = outputTypes.length > 0 ? outputTypes : ['text'];
+    const keyTypes = outputTypes.length > 0 ? outputTypes : [];
     return {
       condition_temporary_id: String(index),
       condition_type: 'MAPPER',

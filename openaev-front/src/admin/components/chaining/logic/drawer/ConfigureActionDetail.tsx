@@ -133,13 +133,15 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   // Auto-link action input fields with their default primitive type when available.
   // Example: field argumentType "ipv4" -> outputTypes ["ipv4"].
   useEffect(() => {
+    // In edit mode, preserve persisted links exactly as-is (no auto-link recomputation).
+    if (initialData) return;
     if (contractFields.length === 0) return;
     setFieldLinks(prev => applyAutoLinks(
       contractFields,
       prev,
       argumentWithDefaultValueTypes,
     ));
-  }, [contractFields, argumentWithDefaultValueTypes]);
+  }, [initialData, contractFields, argumentWithDefaultValueTypes]);
 
   // Resets all input argument fields to contract defaults.
   // Expectations are explicitly restored from current state because they are not part of this reset.
