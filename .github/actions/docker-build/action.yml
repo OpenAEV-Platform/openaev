@@ -38,9 +38,13 @@ inputs:
     required: false
     default: "docker-standard"
   download-release-assets:
-    description: "Download release-assets artifact (agent/implant binaries) before building"
+    description: >
+      Prepare the agent/implant binaries and catalog on this runner. Done inline
+      rather than by downloading the release-assets artifact, so the build does
+      not have to wait for the prepare-bundled-assets job to finish.
+      Requires the calling job to check out with fetch-depth: 0.
     required: false
-    default: "false"
+    default: "true"
 
 outputs:
   digest:
@@ -78,12 +82,11 @@ runs:
         echo "cache_scope=${{ inputs.cache-scope }}-${ARCH}" >> "$GITHUB_OUTPUT"
       shell: bash
 
-    - name: Download release assets (agents, implants, catalog)
+    - name: Prepare release assets (agents, implants, catalog)
       if: ${{ inputs.download-release-assets == 'true' }}
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/prepare-bundled-assets
       with:
-        name: release-assets
-        path: openaev-api/src/main/resources
+        upload-artifact: "false"
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4

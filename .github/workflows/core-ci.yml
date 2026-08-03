@@ -21,9 +21,10 @@ jobs:
   pipeline:
     uses: ./.github/workflows/_ci-pipeline.yml
     with:
-      # ── API Tests: 6 balanced shards + catch-all ──
-      # Patterns live in .github/shards/api-<n>.txt; "remaining" runs whatever no
-      # shard file claims, so a new package is never silently untested.
+      # ── API Tests: 7 balanced shards + catch-all ──
+      # Patterns live in .github/shards/api-<n>.txt, balanced from measured
+      # per-class runtimes; "remaining" runs whatever no shard file claims, so a
+      # new package is never silently untested.
       api-matrix: >
         [
           {"shard":"1","shard_name":"1","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
@@ -32,7 +33,8 @@ jobs:
           {"shard":"4","shard_name":"4","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
           {"shard":"5","shard_name":"5","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
           {"shard":"6","shard_name":"6","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"7","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""}
+          {"shard":"7","shard_name":"7","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"8","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""}
         ]
       # ── E2E Tests: standard image only, chrome/chromium × 3 shards + infra ──
       # ubi9 and webkit are nightly-only: they exercise the same JAR and were

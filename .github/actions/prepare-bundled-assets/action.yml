@@ -1,8 +1,16 @@
 name: Prepare Bundled Assets
 description: >
-  Download agent/implant binaries from JFrog, patch the catalog version,
-  and upload the resulting assets as a workflow artifact.
-  Requires a full git checkout (fetch-depth: 0) in the calling job.
+  Download agent/implant binaries from JFrog and patch the catalog version.
+  Requires a full git checkout (fetch-depth: 0) in the calling job, because the
+  local artifact version comes from `git describe`.
+  Callers that only need the assets on their own runner should set
+  upload-artifact: false; exactly one job must upload for the artifact to exist.
+
+inputs:
+  upload-artifact:
+    description: Upload the prepared assets as the shared `release-assets` artifact.
+    required: false
+    default: "true"
 
 runs:
   using: composite
@@ -77,6 +85,7 @@ runs:
         echo "✅ Catalog version patched to '$CATALOG_VERSION'"
 
     - name: Upload release assets
+      if: ${{ inputs.upload-artifact == 'true' }}
       uses: actions/upload-artifact@v7
       with:
         name: release-assets

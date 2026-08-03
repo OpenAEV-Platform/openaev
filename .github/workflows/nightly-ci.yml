@@ -19,7 +19,7 @@ jobs:
   pipeline:
     uses: ./.github/workflows/_ci-pipeline.yml
     with:
-      # ── API Tests: 6 balanced shards + catch-all, × Elasticsearch and OpenSearch ──
+      # ── API Tests: 7 balanced shards + catch-all, × Elasticsearch and OpenSearch ──
       # Patterns live in .github/shards/api-<n>.txt.
       api-matrix: >
         [
@@ -29,14 +29,16 @@ jobs:
           {"shard":"4","shard_name":"4","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
           {"shard":"5","shard_name":"5","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
           {"shard":"6","shard_name":"6","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"7","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""},
+          {"shard":"7","shard_name":"7","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"8","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""},
           {"shard":"1","shard_name":"1-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"2","shard_name":"2-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"3","shard_name":"3-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"4","shard_name":"4-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"5","shard_name":"5-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"6","shard_name":"6-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
-          {"shard":"7","shard_name":"remaining-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"catchall","excludes":""}
+          {"shard":"7","shard_name":"7-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
+          {"shard":"8","shard_name":"remaining-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"catchall","excludes":""}
         ]
       # ── E2E: OpenSearch (Chrome/WebKit/Chromium) + ES Firefox/Edge + expanded infra ──
       e2e-matrix: >

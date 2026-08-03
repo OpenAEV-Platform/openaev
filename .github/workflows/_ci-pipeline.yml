@@ -72,7 +72,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # git describe needs the commit graph, not historical file contents
           fetch-depth: 0
+          filter: blob:none
       - uses: ./.github/actions/prepare-bundled-assets
 
   # ════════════════════════════════════════════════════════════════════
@@ -332,11 +334,13 @@ jobs:
   # Docker
   # ════════════════════════════════════════════════════════════════════
 
+  # No `needs: [prepare-bundled-assets]`: the assets are fetched inline instead,
+  # which removes ~1.4 min of serial wait from the head of the critical path.
+  # fetch-depth 0 is required because the asset version comes from `git describe`.
   docker-build:
     name: "🐳 Docker Build (${{ matrix.variant }} ${{ matrix.arch }})"
-    needs: [prepare-bundled-assets]
-    if: ${{ !cancelled() && (needs.prepare-bundled-assets.result == 'success' || needs.prepare-bundled-assets.result == 'skipped') }}
-    timeout-minutes: 20
+    if: ${{ !cancelled() }}
+    timeout-minutes: 25
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -380,6 +384,10 @@ jobs:
             tags: openaev-ubi9:ci-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # git describe needs the commit graph, not historical file contents
+          fetch-depth: 0
+          filter: blob:none
       - uses: ./.github/actions/docker-build
         with:
           dockerfile: ${{ matrix.dockerfile }}
@@ -388,7 +396,6 @@ jobs:
           jar-path: ${{ matrix.jar-path }}
           cache-scope: ${{ matrix.cache-scope }}
           tags: ${{ matrix.tags }}
-          download-release-assets: ${{ needs.prepare-bundled-assets.result == 'success' }}
 
   # No `needs: [docker-build]`: that waits for job completion, i.e. ~2.5 min of
   # gzip/validate/upload this job never consumes. It polls for the platform images

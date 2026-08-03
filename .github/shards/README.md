@@ -5,23 +5,33 @@ One file per shard, listing Surefire include patterns (relative to
 catch-all: it runs everything **not** listed in any `api-*.txt`, so a newly added
 package starts there and never goes untested.
 
-Shards are numbered rather than grouped by feature, and are balanced by measured
-cost — not by file count. A shard's runtime is dominated by how many Spring
-context configurations it boots, not how many test files it holds: in run
-30624476290 the old `remaining` shard ran 598 tests from 21 files in 4.4 min
-while `misc-1` ran 368 tests from 63 files in 5.4 min.
+Shards are numbered rather than grouped by feature, and are balanced from
+**measured** per-class runtimes rather than a heuristic. An earlier attempt
+modelled cost from `@SpringBootTest` counts; refitting that model against a real
+run gave ~1 min rms — the same size as the improvement being chased — because
+two shards with the same number of Spring-context classes ran 4.6 min and
+7.6 min. Observed times are used instead.
 
-There is a fixed ~4.4 min floor per shard (JVM + service startup), so adding
-shards has sharp diminishing returns: 5 shards → ~6.8 min, 6 → ~6.4, 7 → ~6.1.
+Roughly 3.4 min of every shard is fixed cost (JVM + Spring contexts + Maven);
+only ~17 min of work is actually distributable, so adding shards has sharp
+diminishing returns.
 
 ## Rebalancing
 
-    python .github/scripts/pack-api-shards.py 6
+After a run finishes, harvest the real per-class times and repack:
 
-Regenerates the split from the cost model. Update the measured times in
-`.github/scripts/balance-api-shards.py` first if shard runtimes have drifted,
-then re-run and copy the output into these files.
+    python .github/scripts/collect-test-timings.py <run_id>
+    python .github/scripts/balance-api-shards.py 7
 
-Verify coverage after any change:
+The first writes `.timings.json` by parsing Surefire's
+`Time elapsed: ... -- in <class>` lines out of the API job logs; the second
+bin-packs packages into `api-<n>.txt`. If you change the shard count, update the
+`api-matrix` in `core-ci.yml` and `nightly-ci.yml` to match — the catch-all must
+stay last.
 
-    python .github/scripts/verify-test-shards.py core-ci.yml
+Always verify coverage afterwards:
+
+    python .github/scripts/verify-test-shards.py
+
+It fails on duplicates or an empty catch-all (which would make Surefire run zero
+tests and break the JaCoCo step).

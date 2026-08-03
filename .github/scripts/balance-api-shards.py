@@ -1,137 +1,122 @@
 #!/usr/bin/env python3
-"""Fit a per-package cost model from measured shard times, then bin-pack balanced shards.
+"""Rebalance API test shards from measured per-class runtimes.
 
-Measured mvn-test minutes come from run 30624476290 attempt 2. Cost is modelled as
-alpha * (Spring-context tests) + beta * (plain tests) + a fixed per-shard JVM cost;
-the model is fitted to the six observed shards, then used to build N balanced shards.
+Reads .github/shards/.timings.json (produced by collect-test-timings.py) and
+bin-packs the test packages into balanced shards. An earlier attempt modelled
+cost from @SpringBootTest counts; that fit had ~1 min rms — the same magnitude
+as the improvement being chased — so this uses observed times instead.
+
+Classes with no recorded time get DEFAULT_SECONDS. In run 30795177398 the
+measured classes accounted for 14.8 of the ~17.4 min of variable work, so the
+unmeasured remainder averages well under a second each.
+
+    python .github/scripts/balance-api-shards.py [num_shards]
 """
 
 import json
-import re
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 TEST_ROOT = REPO / "openaev-api" / "src" / "test" / "java"
+SHARD_DIR = REPO / ".github" / "shards"
+TIMINGS = SHARD_DIR / ".timings.json"
 PKG = "io/openaev"
 
-HEAVY = re.compile(r"@SpringBootTest|@IntegrationTest|@DataJpaTest|@WebMvcTest")
-
-MEASURED = {
-    "main": 9.1,
-    "rest-1": 6.1,
-    "rest-2": 7.5,
-    "misc-1": 5.4,
-    "misc-2": 5.7,
-    "remaining": 4.4,
-}
-
-SHARD_DIRS = {
-    "main": ["api", "integration", "injects", "opencti", "service"],
-    "rest-1": ["rest/", "rest/asset_group", "rest/attack_pattern",
-               "rest/custom_dashboard", "rest/dashboard", "rest/exercise"],
-    "misc-1": ["config", "database", "scheduler"],
-    "misc-2": ["datapack", "debug", "output_processor", "executors", "engine",
-               "context", "processor", "injector_contract", "helper", "runner",
-               "healthcheck", "telemetry", "aop", "architecture", "utils",
-               "utilstest", "notification"],
-}
+# Per-shard JVM + Spring context + Maven startup, measured across shards whose
+# class-time totals differ by 6x yet whose runtimes differ by far less.
+FIXED_MINUTES = 3.4
+DEFAULT_SECONDS = 0.6
+SPLIT_THRESHOLD = 30  # files; larger packages are split one level deeper
 
 
-def classify():
-    """Return {relative_dir: (heavy, light)} for every dir holding test files."""
-    stats = {}
-    for p in (TEST_ROOT / PKG).rglob("*Test.java"):
-        rel = p.parent.relative_to(TEST_ROOT / PKG).as_posix()
-        rel = "" if rel == "." else rel
-        h, l = stats.get(rel, (0, 0))
-        if HEAVY.search(p.read_text(encoding="utf-8", errors="ignore")):
-            stats[rel] = (h + 1, l)
-        else:
-            stats[rel] = (h, l + 1)
-    return stats
+def load_timings():
+    if not TIMINGS.exists():
+        sys.exit(f"missing {TIMINGS.relative_to(REPO)} — run collect-test-timings.py first")
+    raw = json.loads(TIMINGS.read_text(encoding="utf-8"))
+    # FQCN -> relative source path
+    return {cls.replace(".", "/") + ".java": v["seconds"] for cls, v in raw.items()}
 
 
-def units(stats):
-    """Assignable units: one per directory, keyed by its glob pattern."""
-    out = {}
-    for d, (h, l) in stats.items():
-        pattern = f"{PKG}/*Test.java" if d == "" else f"{PKG}/{d}/*Test.java"
-        out[pattern] = {"dir": d, "heavy": h, "light": l}
+def scan():
+    return sorted(p.relative_to(TEST_ROOT).as_posix() for p in TEST_ROOT.rglob("*Test.java"))
+
+
+def units(files):
+    top = {}
+    for rel in files:
+        rest = rel[len(PKG) + 1:]
+        parts = rest.split("/")
+        top.setdefault(parts[0] if len(parts) > 1 else "", []).append(rel)
+    out = []
+    for name, group in sorted(top.items()):
+        if name == "":
+            out.append((f"{PKG}/*Test.java", group))
+            continue
+        if len(group) <= SPLIT_THRESHOLD:
+            out.append((f"{PKG}/{name}/**/*Test.java", group))
+            continue
+        direct = [r for r in group if r[len(PKG) + 1:].count("/") == 1]
+        if direct:
+            out.append((f"{PKG}/{name}/*Test.java", direct))
+        subs = {}
+        for r in group:
+            rest = r[len(PKG) + 1:]
+            if rest.count("/") > 1:
+                subs.setdefault(rest.split("/")[1], []).append(r)
+        for sub, members in sorted(subs.items()):
+            out.append((f"{PKG}/{name}/{sub}/**/*Test.java", members))
     return out
 
 
-def shard_of(d):
-    for name, prefixes in SHARD_DIRS.items():
-        for pre in prefixes:
-            if pre.endswith("/"):
-                if d == pre.rstrip("/"):
-                    return name
-            elif d == pre or d.startswith(pre + "/"):
-                return name
-    if d == "" or d.split("/")[0] not in {
-        x.split("/")[0] for v in SHARD_DIRS.values() for x in v
-    }:
-        return "remaining"
-    return "rest-2"
+def main(n=7):
+    timings = load_timings()
+    files = scan()
+    measured = sum(1 for f in files if f in timings)
+    total_s = sum(timings.get(f, DEFAULT_SECONDS) for f in files)
+    print(f"{len(files)} test files, {measured} with measured timings "
+          f"({measured * 100 // len(files)}%)")
+    print(f"variable work: {total_s / 60:.1f} min   fixed per shard: {FIXED_MINUTES:.1f} min")
 
+    def cost(members):
+        return sum(timings.get(m, DEFAULT_SECONDS) for m in members)
 
-def main():
-    stats = classify()
-    u = units(stats)
+    u = units(files)
+    root = f"{PKG}/*Test.java"
+    reserved = [x for x in u if x[0] == root]
+    packable = [x for x in u if x not in reserved]
 
-    # Aggregate observed shards
-    agg = {}
-    for pattern, m in u.items():
-        s = shard_of(m["dir"])
-        a = agg.setdefault(s, [0, 0])
-        a[0] += m["heavy"]
-        a[1] += m["light"]
+    print(f"\n{len(u)} assignable units; 10 most expensive:")
+    for pat, members in sorted(packable, key=lambda x: -cost(x[1]))[:10]:
+        print(f"  {cost(members):>7.1f}s  {len(members):>4} files  {pat}")
 
-    print("Observed shards (fitted inputs):")
-    print(f"  {'shard':<12}{'heavy':>7}{'light':>7}{'mvn min':>10}")
-    for s in MEASURED:
-        h, l = agg.get(s, [0, 0])
-        print(f"  {s:<12}{h:>7}{l:>7}{MEASURED[s]:>10.1f}")
+    bins = [{"pat": [], "files": [], "cost": 0.0} for _ in range(n)]
+    for pattern, members in sorted(packable, key=lambda x: cost(x[1]), reverse=True):
+        t = min(bins, key=lambda b: b["cost"])
+        t["pat"].append(pattern)
+        t["files"].extend(members)
+        t["cost"] += cost(members)
 
-    # Least squares: minutes = FIXED + alpha*heavy + beta*light
-    import itertools
-    best, bestErr = None, 1e9
-    for fixed in [x / 10 for x in range(0, 45, 1)]:
-        A = [[agg[s][0], agg[s][1]] for s in MEASURED]
-        y = [MEASURED[s] - fixed for s in MEASURED]
-        # closed-form 2-var normal equations
-        s11 = sum(r[0] * r[0] for r in A); s12 = sum(r[0] * r[1] for r in A)
-        s22 = sum(r[1] * r[1] for r in A)
-        t1 = sum(r[0] * v for r, v in zip(A, y)); t2 = sum(r[1] * v for r, v in zip(A, y))
-        det = s11 * s22 - s12 * s12
-        if abs(det) < 1e-9:
-            continue
-        alpha = (t1 * s22 - t2 * s12) / det
-        beta = (s11 * t2 - s12 * t1) / det
-        if alpha < 0 or beta < 0:
-            continue
-        err = sum((fixed + alpha * r[0] + beta * r[1] - MEASURED[s]) ** 2
-                  for r, s in zip(A, MEASURED))
-        if err < bestErr:
-            bestErr, best = err, (fixed, alpha, beta)
+    print(f"\nrepacked into {n} shards + catch-all:")
+    for i, b in enumerate(bins, 1):
+        print(f"  api-{i:<6}{len(b['files']):>5} files  {b['cost']:>7.1f}s var"
+              f"   ~{FIXED_MINUTES + b['cost'] / 60:>4.1f} min")
+    print(f"  remaining{sum(len(m) for _, m in reserved):>5} files"
+          f"   ~{FIXED_MINUTES:>17.1f} min")
+    worst = FIXED_MINUTES + max(b["cost"] for b in bins) / 60
+    spread = (max(b["cost"] for b in bins) - min(b["cost"] for b in bins)) / 60
+    print(f"\n  predicted max {worst:.1f} min  (spread {spread:.2f} min)")
 
-    fixed, alpha, beta = best
-    print(f"\nFitted: minutes = {fixed:.2f} + {alpha:.4f}*heavy + {beta:.4f}*light"
-          f"   (rms {(bestErr/len(MEASURED))**0.5:.2f} min)")
-    print("  predicted vs actual:")
-    for s in MEASURED:
-        h, l = agg[s]
-        print(f"    {s:<12}{fixed + alpha*h + beta*l:>6.1f} vs {MEASURED[s]:>5.1f}")
-
-    def cost(m):
-        return alpha * m["heavy"] + beta * m["light"]
-
-    total_var = sum(cost(m) for m in u.values())
-    print(f"\nTotal variable work: {total_var:.1f} min across {len(u)} units")
-    for n in (5, 6, 7, 8):
-        print(f"  {n} shards -> ~{fixed + total_var/n:.1f} min/shard")
-    return u, cost, fixed, total_var
+    for i, b in enumerate(bins, 1):
+        (SHARD_DIR / f"api-{i}.txt").write_text(
+            "\n".join(sorted(b["pat"])) + "\n", encoding="utf-8", newline="\n")
+    for extra in range(n + 1, 20):
+        stale = SHARD_DIR / f"api-{extra}.txt"
+        if stale.exists():
+            stale.unlink()
+            print(f"  removed stale {stale.name}")
+    print(f"\nwrote {n} shard file(s) to .github/shards/")
 
 
 if __name__ == "__main__":
-    main()
+    main(int(sys.argv[1]) if len(sys.argv) > 1 else 7)

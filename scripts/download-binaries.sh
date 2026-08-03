@@ -23,16 +23,42 @@ RESOURCES="openaev-api/src/main/resources"
 AGENT_LOCAL="${RESOURCES}/agents/openaev-agent"
 IMPLANT_LOCAL="${RESOURCES}/implants/openaev-implant"
 
-CURL_OPTS=(-L --fail --retry 3 --retry-delay 5 --silent --show-error)
+# Word-split on use, so keep every option space-free.
+export CURL_OPTS="-L --fail --retry 3 --retry-delay 5 --silent --show-error"
+
+# Each artifact is a separate request that costs ~1s of latency and almost no
+# bandwidth, so fetching them concurrently turns ~40s into a few seconds.
+PARALLELISM="${DOWNLOAD_PARALLELISM:-8}"
+QUEUE="$(mktemp)"
+trap 'rm -f "$QUEUE"' EXIT
 
 # ---------------------------------------------------------------------------
-# helper: download <remote_path> <local_path>
+# helper: download <remote_path> <local_path>  (queued, fetched at the end)
 # ---------------------------------------------------------------------------
 download() {
-  local remote="$1" local_path="$2"
-  mkdir -p "$(dirname "$local_path")"
-  echo "  ↓ ${local_path}"
-  curl "${CURL_OPTS[@]}" -o "$local_path" "$remote"
+  printf '%s %s\n' "$1" "$2" >> "$QUEUE"
+}
+
+fetch_one() {
+  mkdir -p "$(dirname "$2")"
+  # shellcheck disable=SC2086
+  if ! curl $CURL_OPTS -o "$2" "$1"; then
+    echo "  ✗ FAILED  $1" >&2
+    return 1
+  fi
+  echo "  ↓ $2"
+}
+export -f fetch_one
+
+run_queue() {
+  local count
+  count=$(wc -l < "$QUEUE")
+  echo ""
+  echo "Fetching ${count} artifact(s), ${PARALLELISM} at a time..."
+  if ! xargs -a "$QUEUE" -P "$PARALLELISM" -n 2 bash -c 'fetch_one "$0" "$1"'; then
+    echo "❌ One or more downloads failed" >&2
+    exit 1
+  fi
 }
 
 echo "══════════════════════════════════════════════════════════════"
@@ -103,6 +129,8 @@ for arch in arm64 x86_64; do
   download "${JFROG_BASE}/${IMPLANT_REMOTE}/windows/${arch}/openaev-implant-${BINARY_VERSION}.exe" \
            "${IMPLANT_LOCAL}/windows/${arch}/openaev-implant-${LOCAL_VERSION}.exe"
 done
+
+run_queue
 
 echo ""
 echo "✅ All binaries downloaded successfully."
