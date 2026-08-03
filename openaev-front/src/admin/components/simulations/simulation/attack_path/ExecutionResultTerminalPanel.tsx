@@ -184,6 +184,7 @@ const toPlatformRows = (
           id: a.id ?? `${bucket}-alert-${index}-${i}`,
           title: a.title ?? 'Alert',
           date: a.date,
+          link: a.link,
         })),
       };
     });
