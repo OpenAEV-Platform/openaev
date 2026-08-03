@@ -33,6 +33,11 @@ export const exportInject = (injectId: string, data: InjectIndividualExportReque
   });
 };
 
+export const getInjectSimple = (injectId: string) => {
+  const uri = `${INJECT_URI}/${injectId}`;
+  return simpleCall(uri);
+};
+
 // -- TARGETS --
 
 export const searchTargets = (injectId: string, targetType: string, searchPaginationInput: SearchPaginationInput) => {
