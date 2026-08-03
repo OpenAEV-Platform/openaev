@@ -89,9 +89,12 @@ public class InjectExecutionResultService {
   /**
    * Resolves every {@code #{argumentKey}} placeholder in the payload's command/cleanup templates
    * (e.g. {@code echo #{host}:#{port}}) to its actual value, mirroring what is actually sent for
-   * execution ({@link ExecutableInjectService#replaceArgumentsByValue}) instead of the raw template
-   * — so the terminal view shows {@code echo localhost:22} rather than the unresolved placeholders.
-   * Falls back to the raw blocks if the inject has no payload to resolve against.
+   * execution ({@link ExecutableInjectService#resolveArgumentsForDisplay}) instead of the raw
+   * template — so the terminal view shows {@code echo localhost:22} rather than the unresolved
+   * placeholders. Falls back to the raw blocks if the inject has no payload to resolve against.
+   *
+   * <p>The rendered string is for display only: the executed command binds these values to shell
+   * variables instead of substituting them verbatim.
    */
   private List<PayloadCommandBlock> resolveArgumentPlaceholders(
       final String injectId, final List<PayloadCommandBlock> payloadCommandBlocks) {
@@ -122,7 +125,7 @@ public class InjectExecutionResultService {
                   .map(
                       block -> {
                         String resolvedContent =
-                            executableInjectService.replaceArgumentsByValue(
+                            executableInjectService.resolveArgumentsForDisplay(
                                 block.getContent(),
                                 arguments,
                                 injectorContractFields,
@@ -133,7 +136,7 @@ public class InjectExecutionResultService {
                                 : block.getCleanupCommand().stream()
                                     .map(
                                         cmd ->
-                                            executableInjectService.replaceArgumentsByValue(
+                                            executableInjectService.resolveArgumentsForDisplay(
                                                 cmd,
                                                 arguments,
                                                 injectorContractFields,

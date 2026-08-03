@@ -2046,3 +2046,79 @@ export const buildCausalChainFlow = (
     edges,
   };
 };
+
+// Filters a causal-chain flow (already built for the WHOLE run) down to the subgraph reachable
+// from a set of seed nodes: their causal ancestry (every action/finding that led to them, walked
+// backward through BOTH production and causal edges — same rule as the page's own
+// selectedNodeId&&chainMode highlight walk) plus their own direct children (one hop forward, so
+// what a seed itself discovered/led to still shows even though nothing consumed it further). Used
+// for the focused view (chokepoint/endpoint click seeds on the endpoint; a finding click seeds on
+// the finding itself instead, for a tighter focus that doesn't pull in the endpoint's unrelated
+// siblings) so that view keeps the real kill chain instead of falling back to the flatter,
+// non-causal buildFindingPathFlow layout.
+//
+// Known limitation (deferred pending a backend change): a shared action that fans out to several
+// targets from different upstream triggers (e.g. one credential-yielding finding per endpoint, all
+// feeding the same shared "NetExec SMB" node) still pulls in every trigger feeding that shared node,
+// including ones for OTHER, unrelated endpoints — the backend currently records causal
+// dependencies per injector, not per specific (injector, target) execution, so the frontend has no
+// way to tell which specific trigger produced which specific execution.
+//
+// Node positions are left untouched (still their absolute coordinates from the full-graph layout,
+// not re-flowed for the smaller subgraph) — ReactFlow's fitView still frames whatever is rendered,
+// so the result is correctly scoped even if not as compact as a purpose-built focused layout.
+export const scopeChainFlowToSeeds = (
+  chainFlow: {
+    nodes: AttackPathFlowNode[];
+    edges: AttackPathFlowEdge[];
+  },
+  seedIds: Set<string>,
+): {
+  nodes: AttackPathFlowNode[];
+  edges: AttackPathFlowEdge[];
+} => {
+  const { nodes, edges } = chainFlow;
+  // None of the seeds exist in the causal chain yet (e.g. no full-graph data, or a finding whose
+  // type cluster is still collapsed): show the whole thing rather than an empty focus.
+  if (seedIds.size === 0) {
+    return chainFlow;
+  }
+  const scope = new Set(seedIds);
+  for (let pass = 0; pass < 8; pass += 1) {
+    for (const e of edges) {
+      if (e.source && e.target && scope.has(e.target) && !scope.has(e.source)) {
+        scope.add(e.source);
+      }
+    }
+  }
+  for (let pass = 0; pass < 3; pass += 1) {
+    for (const e of edges) {
+      if (e.source && e.target && seedIds.has(e.source) && !scope.has(e.target)) {
+        scope.add(e.target);
+      }
+    }
+  }
+  return {
+    nodes: nodes.filter(n => scope.has(n.id)),
+    edges: edges.filter(e => scope.has(e.source) && scope.has(e.target)),
+  };
+};
+
+// scopeChainFlowToSeeds, seeded on every depth-instance of one endpoint (the causal chain lays the
+// same physical endpoint out again at each depth it's touched, each a distinct `chain-ep|depth|id`
+// node) — the endpoint-focus case (chokepoint click, endpoint drill-down with no specific finding).
+export const scopeChainFlowToEndpoint = (
+  chainFlow: {
+    nodes: AttackPathFlowNode[];
+    edges: AttackPathFlowEdge[];
+  },
+  endpointId: string,
+): {
+  nodes: AttackPathFlowNode[];
+  edges: AttackPathFlowEdge[];
+} => scopeChainFlowToSeeds(
+  chainFlow,
+  new Set(
+    chainFlow.nodes.filter(n => n.id.startsWith('chain-ep|') && n.id.endsWith(`|${endpointId}`)).map(n => n.id),
+  ),
+);
