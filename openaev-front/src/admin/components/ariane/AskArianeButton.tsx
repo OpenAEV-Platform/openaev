@@ -11,6 +11,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
 import FiligranAiCguDialog from './FiligranAiCguDialog';
 import { useChatbot } from './useChatbotHooks';
+import isXtmOneAvailable from './xtmOneAvailability';
 
 const AskArianeButton = () => {
   const theme = useTheme();
@@ -28,8 +29,12 @@ const AskArianeButton = () => {
   const chatbotCguStatus = settings.filigran_chatbot_ai_cgu_status;
   const isCguPending = chatbotCguStatus === 'pending' || chatbotCguStatus === undefined;
 
-  // Hide if chatbot has been explicitly disabled
-  if (chatbotCguStatus === 'disabled') {
+  // Hide if the chatbot has been explicitly disabled, or if XTM One is not
+  // connected properly (configured url + token, valid http(s) URL): the chat
+  // proxy (`/api/xtmone/chat/*`) rejects every call in that case, so the
+  // button cannot lead anywhere. Same gating as the CTEM Command Center
+  // shortcut next to it (shared `isXtmOneAvailable` predicate).
+  if (!isXtmOneAvailable(settings)) {
     return null;
   }
 

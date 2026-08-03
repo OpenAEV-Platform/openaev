@@ -21,7 +21,6 @@ import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -117,6 +116,28 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return collectorRepository
         .findByCollectorId(id)
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
+  }
+
+  /**
+   * Deletes a collector. A started collector can never be deleted (OpenCTI parity): a managed one
+   * must have a stop requested or effective on its owning instance, an unmanaged one must have
+   * stopped pinging (see {@link #throwIfConnectorRunning}). When the collector was deployed through
+   * the Integration Manager, the owning instance is torn down with it - deleting the row alone
+   * would leave the container running and the entity would reappear on its next registration
+   * heartbeat.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteCollector(String collectorId, String tenantId) throws ConnectorStatusException {
+    Collector collector = collector(collectorId, tenantId);
+    if (collector.isExternal()) {
+      throwIfConnectorRunning(collector, collector.getUpdatedAt());
+    }
+    if (!deleteOwningConnectorInstance(collectorId)) {
+      // Tenant-exact delete on the composite PK (collector_id, tenant_id): the entity was
+      // resolved with the explicit tenantId above, so the delete must not rely on the tenant
+      // rewriting of the id-only DELETE.
+      collectorRepository.delete(collector);
+    }
   }
 
   /**
@@ -299,20 +320,5 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
               collector.setLastExecution(Instant.now());
               collectorRepository.save(collector);
             });
-  }
-
-  /**
-   * Deletes a collector and, when it was deployed through the Integration Manager, the connector
-   * instance that owns it - otherwise the deployment keeps running against a collector that no
-   * longer exists and recreates it on its next registration heartbeat (see {@link
-   * io.openaev.service.connectors.AbstractConnectorService#deleteOwningConnectorInstance}).
-   *
-   * @param collectorId collector identifier
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void deleteCollector(@NotBlank final String collectorId) throws ConnectorStatusException {
-    if (!deleteOwningConnectorInstance(collectorId)) {
-      collectorRepository.deleteByCollectorId(collectorId);
-    }
   }
 }

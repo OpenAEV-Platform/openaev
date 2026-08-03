@@ -229,6 +229,11 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    */
   @Transactional
   public void remove(String id) throws ConnectorStatusException {
+    // A started executor can never be deleted (OpenCTI parity): stop it first.
+    executorRepository
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .filter(BaseConnectorEntity::isExternal)
+        .ifPresent(executor -> throwIfConnectorRunning(executor, executor.getUpdatedAt()));
     if (deleteOwningConnectorInstance(id)) {
       return;
     }

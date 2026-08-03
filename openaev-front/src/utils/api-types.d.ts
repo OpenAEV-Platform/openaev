@@ -1095,6 +1095,7 @@ export interface AttackPathNodeDTO {
   platform?: string;
   privilege?: string;
   ref?: string;
+  seenIp?: string;
   status?: string;
   stepTemplateId?: string;
   type?: string;

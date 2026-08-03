@@ -61,6 +61,7 @@ export interface AttackPathFlowNodeData {
   findingCounts?: Record<string, number>;
   hostname?: string;
   ip?: string;
+  seenIp?: string;
   platform?: string;
   agents?: string[];
   // For an injector/execution node: the id of the step template it ran. Carried so the kill-chain
@@ -115,6 +116,23 @@ export interface AttackPathFlowEdgeData {
 export type AttackPathFlowNode = Node<AttackPathFlowNodeData>;
 export type AttackPathFlowEdge = Edge<AttackPathFlowEdgeData>;
 
+// An endpoint can carry several IPs (comma-separated). The map node shows only the relevant one to
+// stay readable: the asset's seen IP when known, otherwise the first IPv4, otherwise the first
+// entry. The full list stays in the node tooltip.
+export const displayIp = (seenIp?: string, ip?: string): string | undefined => {
+  if (seenIp && seenIp.trim()) {
+    return seenIp.trim();
+  }
+  if (!ip) {
+    return undefined;
+  }
+  const ips = ip.split(',').map(s => s.trim()).filter(Boolean);
+  if (ips.length === 0) {
+    return undefined;
+  }
+  return ips.find(candidate => /^\d{1,3}(\.\d{1,3}){3}$/.test(candidate)) ?? ips[0];
+};
+
 const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   label: n.label,
   status: n.status,
@@ -123,6 +141,7 @@ const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   findingCounts: n.findingCounts,
   hostname: n.hostname,
   ip: n.ip,
+  seenIp: n.seenIp,
   platform: n.platform,
   agents: n.agents,
   stepTemplateId: n.stepTemplateId,
@@ -1411,6 +1430,9 @@ const CHAIN_EP_BLOCK_MIN = 120; // minimum height of one endpoint block (endpoin
 const CHAIN_FIND_HALF = 28; // half of AP_FINDING_SIZE (56), to centre a finding node on its row
 const CHAIN_FINDINGS_MAX_PER_TYPE = 4; // a type with more than this on an endpoint collapses into a "+N"
 // cluster (click to expand), so a heavy endpoint (e.g. 24 portscans) stays a few rows tall, not a column.
+const CHAIN_ENDPOINTS_MAX_PER_DEPTH = 4; // a depth column with more distinct endpoints than this collapses
+// the overflow into a single "+N" endpoint cluster (click to expand), so a step reaching dozens of hosts
+// stays a few blocks tall instead of one node per host in a long unreadable vertical stack.
 
 interface ChainStep {
   injectorId: string;
@@ -1430,6 +1452,9 @@ export const buildCausalChainFlow = (
   // Cluster ids (chain-fc|<depth>|<endpoint>|<type>) the user expanded, so their findings render
   // individually instead of collapsed into a "+N" cluster row.
   expandedChainClusters: Set<string> = new Set(),
+  // Cluster id (chain-epc|<depth>) -> how many of that depth's hidden endpoints to reveal beyond the
+  // always-shown cap, batched by ENDPOINT_BATCH_SIZE per click so a heavy depth reveals progressively.
+  endpointClusterBatch: Map<string, number> = new Map(),
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -1660,11 +1685,21 @@ export const buildCausalChainFlow = (
       }
     });
 
+    // A depth with more distinct endpoints than the cap collapses the overflow into a single "+N"
+    // endpoint cluster; each click reveals another ENDPOINT_BATCH_SIZE hosts (never all at once), so a
+    // step reaching dozens of hosts stays a few blocks tall instead of one node per host in a long
+    // unreadable vertical stack, and expanding it doesn't dump the user back into that same wall.
+    const epClusterId = `chain-epc|${d}`;
+    const hiddenTotal = Math.max(0, assetOrder.length - CHAIN_ENDPOINTS_MAX_PER_DEPTH);
+    const revealedExtra = Math.min(endpointClusterBatch.get(epClusterId) ?? 0, hiddenTotal);
+    const visibleAssetIds = hiddenTotal > 0 ? assetOrder.slice(0, CHAIN_ENDPOINTS_MAX_PER_DEPTH + revealedExtra) : assetOrder;
+    const hiddenAssetIds = hiddenTotal > 0 ? assetOrder.slice(CHAIN_ENDPOINTS_MAX_PER_DEPTH + revealedExtra) : [];
+
     // One vertical block per distinct asset, tall enough for BOTH its stacked injectors (left) and its
     // stacked findings (right). An injector that hits several assets is positioned once (first block).
     let cursorY = PADDING;
     const injectorPlaced = new Set<string>();
-    for (const epId of assetOrder) {
+    for (const epId of visibleAssetIds) {
       // Endpoint-local action: the "injector" is this very endpoint (self-loop). Drop it BEFORE the
       // layout so no injector node, no self arrow, and no empty injector slot is reserved for it —
       // the endpoint node and its findings still render.
@@ -1841,6 +1876,70 @@ export const buildCausalChainFlow = (
 
       cursorY = blockTop + h + CHAIN_STEP_GAP;
     }
+
+    // The collapsed overflow: one "+N" endpoint cluster carrying every hidden host at this depth, wired
+    // to whichever injector(s) reached them. Its own findings stay hidden until expanded — mirrors the
+    // per-type finding cluster above (collapse hides detail behind a click, not just a count).
+    if (hiddenAssetIds.length > 0) {
+      // Route the hidden endpoints' findings through the cluster too, so a downstream causal edge whose
+      // producer got collapsed still resolves to a placed node instead of a fid that was never rendered.
+      hiddenAssetIds.forEach(epId => (assetFindings.get(epId) ?? []).forEach(fid => causalSourceByFinding.set(fid, epClusterId)));
+      const clusterInjectors = [...new Set(hiddenAssetIds.flatMap(epId => assetInjectors.get(epId) ?? []))];
+      const hCluster = Math.max(CHAIN_EP_BLOCK_MIN, clusterInjectors.length * CHAIN_INJECTOR_ROW);
+      const blockTop = cursorY;
+      const blockCenter = blockTop + hCluster / 2;
+      const clusterStatus = aggregateStatus(hiddenAssetIds.map(epId => assetById.get(epId)?.status));
+
+      nodes.push({
+        id: epClusterId,
+        type: AP_FLOW_NODE_TYPE.endpointCluster,
+        position: {
+          x: x + chainEpDx,
+          y: blockCenter - CLUSTER_EP_HALF_H,
+        },
+        data: {
+          count: hiddenAssetIds.length,
+          clusterId: epClusterId,
+          clusterKind: revealedExtra === 0 ? 'header' : 'overflow',
+          expanded: revealedExtra > 0,
+          status: clusterStatus,
+        },
+      });
+
+      clusterInjectors.forEach((injId, i) => {
+        const s = steps.get(injId) as ChainStep;
+        if (!injectorPlaced.has(injId)) {
+          injectorPlaced.add(injId);
+          const injCenterY = clusterInjectors.length === 1
+            ? blockCenter
+            : blockTop + (i + 0.5) * (hCluster / clusterInjectors.length);
+          const injDto = injectorById.get(injId);
+          const injActionLabel = [...s.contractByEndpoint.values()][0];
+          nodes.push({
+            id: injId,
+            type: AP_FLOW_NODE_TYPE.injector,
+            position: {
+              x,
+              y: injCenterY - CLUSTER_INJECTOR_HALF_H,
+            },
+            data: injDto ? nodeData(injDto) : { label: injActionLabel || friendlyNodeId(injId) },
+          });
+        }
+        const reachedCount = hiddenAssetIds.filter(epId => (assetInjectors.get(epId) ?? []).includes(injId)).length;
+        edges.push({
+          id: `${injId}-${epClusterId}`,
+          source: injId,
+          target: epClusterId,
+          type: AP_FLOW_EDGE_TYPE,
+          data: {
+            count: reachedCount,
+            status: clusterStatus,
+          },
+        });
+      });
+
+      cursorY = blockTop + hCluster + CHAIN_STEP_GAP;
+    }
   }
 
   // Forward causal links: a produced finding → the downstream inject that consumes a matching key. When a
@@ -1947,3 +2046,79 @@ export const buildCausalChainFlow = (
     edges,
   };
 };
+
+// Filters a causal-chain flow (already built for the WHOLE run) down to the subgraph reachable
+// from a set of seed nodes: their causal ancestry (every action/finding that led to them, walked
+// backward through BOTH production and causal edges — same rule as the page's own
+// selectedNodeId&&chainMode highlight walk) plus their own direct children (one hop forward, so
+// what a seed itself discovered/led to still shows even though nothing consumed it further). Used
+// for the focused view (chokepoint/endpoint click seeds on the endpoint; a finding click seeds on
+// the finding itself instead, for a tighter focus that doesn't pull in the endpoint's unrelated
+// siblings) so that view keeps the real kill chain instead of falling back to the flatter,
+// non-causal buildFindingPathFlow layout.
+//
+// Known limitation (deferred pending a backend change): a shared action that fans out to several
+// targets from different upstream triggers (e.g. one credential-yielding finding per endpoint, all
+// feeding the same shared "NetExec SMB" node) still pulls in every trigger feeding that shared node,
+// including ones for OTHER, unrelated endpoints — the backend currently records causal
+// dependencies per injector, not per specific (injector, target) execution, so the frontend has no
+// way to tell which specific trigger produced which specific execution.
+//
+// Node positions are left untouched (still their absolute coordinates from the full-graph layout,
+// not re-flowed for the smaller subgraph) — ReactFlow's fitView still frames whatever is rendered,
+// so the result is correctly scoped even if not as compact as a purpose-built focused layout.
+export const scopeChainFlowToSeeds = (
+  chainFlow: {
+    nodes: AttackPathFlowNode[];
+    edges: AttackPathFlowEdge[];
+  },
+  seedIds: Set<string>,
+): {
+  nodes: AttackPathFlowNode[];
+  edges: AttackPathFlowEdge[];
+} => {
+  const { nodes, edges } = chainFlow;
+  // None of the seeds exist in the causal chain yet (e.g. no full-graph data, or a finding whose
+  // type cluster is still collapsed): show the whole thing rather than an empty focus.
+  if (seedIds.size === 0) {
+    return chainFlow;
+  }
+  const scope = new Set(seedIds);
+  for (let pass = 0; pass < 8; pass += 1) {
+    for (const e of edges) {
+      if (e.source && e.target && scope.has(e.target) && !scope.has(e.source)) {
+        scope.add(e.source);
+      }
+    }
+  }
+  for (let pass = 0; pass < 3; pass += 1) {
+    for (const e of edges) {
+      if (e.source && e.target && seedIds.has(e.source) && !scope.has(e.target)) {
+        scope.add(e.target);
+      }
+    }
+  }
+  return {
+    nodes: nodes.filter(n => scope.has(n.id)),
+    edges: edges.filter(e => scope.has(e.source) && scope.has(e.target)),
+  };
+};
+
+// scopeChainFlowToSeeds, seeded on every depth-instance of one endpoint (the causal chain lays the
+// same physical endpoint out again at each depth it's touched, each a distinct `chain-ep|depth|id`
+// node) — the endpoint-focus case (chokepoint click, endpoint drill-down with no specific finding).
+export const scopeChainFlowToEndpoint = (
+  chainFlow: {
+    nodes: AttackPathFlowNode[];
+    edges: AttackPathFlowEdge[];
+  },
+  endpointId: string,
+): {
+  nodes: AttackPathFlowNode[];
+  edges: AttackPathFlowEdge[];
+} => scopeChainFlowToSeeds(
+  chainFlow,
+  new Set(
+    chainFlow.nodes.filter(n => n.id.startsWith('chain-ep|') && n.id.endsWith(`|${endpointId}`)).map(n => n.id),
+  ),
+);

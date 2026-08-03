@@ -17,7 +17,7 @@ import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds } from './attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
@@ -328,6 +328,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
   // Finding-cluster drill-down: which finding clusters are expanded, their fetched (deduped) findings,
   // and how many are revealed (batched), keyed by the finding-cluster node id.
   const [expandedFindingClusters, setExpandedFindingClusters] = useState<Set<string>>(new Set());
+  // Causal-chain view: per-depth "+N endpoints" overflow cluster id -> how many hidden endpoints the
+  // user revealed beyond the always-shown cap, batched by ENDPOINT_BATCH_SIZE per click.
+  const [endpointClusterBatch, setEndpointClusterBatch] = useState<Map<string, number>>(new Map());
   const [findingsByCluster, setFindingsByCluster] = useState<Map<string, AttackPathNodeDTO[]>>(new Map());
   const [findingBatch, setFindingBatch] = useState<Map<string, number>>(new Map());
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -464,6 +467,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
     endpointSeq.current += 1;
     setEndpointBatch(new Map());
     setExpandedFindingClusters(new Set());
+    setEndpointClusterBatch(new Map());
     setFindingsByCluster(new Map());
     setFindingBatch(new Map());
     setSelectedNodeId(null);
@@ -717,6 +721,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       setFitNonce(n => n + 1);
     }
   }, [endpointBatch]);
+
+  // Causal-chain view: reveal another ENDPOINT_BATCH_SIZE of a depth's hidden endpoints per click — never
+  // the whole overflow at once, so drilling into a heavy step doesn't dump the user back into a wall of
+  // nodes. Keeps the current view (no refit): the newly revealed hosts appear near where the user clicked.
+  const onEndpointClusterClick = useCallback((clusterId: string) => {
+    setEndpointClusterBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + ENDPOINT_BATCH_SIZE));
+  }, []);
 
   // injector id -> refs of the endpoints it reached (asset ref or id), for the bounded finding fetch.
   const injectorEndpointRefs = useMemo(() => {
@@ -993,10 +1004,18 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         });
         setFitNonce(n => n + 1);
       } else {
-        // The chain graph is built straight from backend node/edge ids (no `path-cl-type|...` synthetic
-        // clusters), so it's highlighted the same way a direct graph click on this finding is
-        // (openFindingFromGraph's chainMode branch): via selectedFindingId, not pathFinding.
-        setPathFinding(null);
+        // Chain view: switch into the SAME chokepoint-style scoped focus (scopeChainFlowToEndpoint
+        // filters the real graph down to this endpoint's own causal subgraph), rather than leaving
+        // the finding highlighted-but-lost in the full, possibly crowded map. type/value stay empty
+        // (chokepoint's own shape) — selectedFindingId (set below) is what seeds the walk onto the
+        // exact finding inside this now-scoped view, not the endpoint alone.
+        setPathFinding({
+          endpointNodeId: item.endpointNodeId,
+          endpointKey: item.endpointKey,
+          type: '',
+          value: '',
+        });
+        setFitNonce(n => n + 1);
       }
       // onEndpointClick itself unconditionally clears selectedFindingId/findingDetail, so both must be
       // re-set AFTER it (matches openFindingFromGraph's ordering) — setting them before it here was
@@ -1204,14 +1223,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         nodes: AttackPathFlowNode[];
         edges: AttackPathFlowEdge[];
       };
-      if (pathFinding) {
+      if (pathFinding && chainMode && fullDto) {
+        // Chain mode has the real kill chain already built for the whole run — scope THAT down
+        // instead of falling back to buildFindingPathFlow's flatter, non-causal layout, so the
+        // focused view keeps the causal ("Triggered ...") structure between actions. A specific
+        // finding (selectedFindingId) seeds on itself for a tighter focus that skips the endpoint's
+        // unrelated siblings; the plain endpoint-only focus (chokepoint click) seeds on the endpoint.
+        const fullChain = buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch);
+        raw = selectedFindingId
+          ? scopeChainFlowToSeeds(fullChain, new Set([selectedFindingId]))
+          : scopeChainFlowToEndpoint(fullChain, pathFinding.endpointNodeId);
+      } else if (pathFinding) {
         raw = buildFindingPathFlow(dto, pathFinding, t, pathContractLabelByInjector, {
           expanded: expandedFindingClusters,
           findingsByCluster,
           batch: findingBatch,
         });
       } else if (chainMode && fullDto) {
-        raw = buildCausalChainFlow(fullDto, t, expandedFindingClusters);
+        raw = buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch);
       } else {
         raw = buildClusteredAttackPathFlow(dto, endpointBatch, t, {
           expanded: expandedFindingClusters,
@@ -1237,8 +1266,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       };
     },
     [
-      dto, chainMode, fullDto, pathFinding, pathContractLabelByInjector, endpointBatch,
-      expandedFindingClusters, findingsByCluster, findingBatch, chokepointRankById, pivotNodeIds, t,
+      dto, chainMode, fullDto, pathFinding, selectedFindingId, pathContractLabelByInjector, endpointBatch,
+      expandedFindingClusters, endpointClusterBatch, findingsByCluster, findingBatch, chokepointRankById, pivotNodeIds, t,
     ],
   );
 
@@ -1358,8 +1387,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         type,
         value,
       });
-      setFitNonce(n => n + 1);
+    } else {
+      // Chain view: same chokepoint-style scoped focus as a drawer pick (scopeChainFlowToEndpoint
+      // filters the real causal graph down to this endpoint), not a plain in-place highlight on the
+      // possibly crowded full map. type/value stay empty (chokepoint's own shape); selectedFindingId
+      // (set below) is what seeds the walk onto the exact finding inside this now-scoped view.
+      setPathFinding({
+        endpointNodeId: assetNodeId,
+        endpointKey,
+        type: '',
+        value: '',
+      });
     }
+    setFitNonce(n => n + 1);
     // Loads the endpoint feed (executions + relations) so producing actions resolve. It also resets
     // findingDetail + highlightedExecutionIds + selectedFindingId, so all are set right after in the batch.
     onEndpointClick(assetNodeId, endpointKey, label);
@@ -1603,10 +1643,14 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
       // the focused endpoint is "selected" (blue); its injectors, edges and finding clusters keep their
       // verdict colour (green/orange/red) so blue means "what I picked", not "the whole subgraph".
       if (!pathFinding.type && !selectedInjectorId && !selectedFindingId) {
+        // The endpoint's own node id in the scoped chain graph is `chain-ep|depth|<raw id>`, not the
+        // raw id itself (that's the non-chain buildFindingPathFlow layout's scheme) — match either.
+        const isFocusedEndpoint = (nodeId: string) => nodeId === pathFinding.endpointNodeId
+          || (nodeId.startsWith('chain-ep|') && nodeId.endsWith(`|${pathFinding.endpointNodeId}`));
         return {
           nodes: baseFlow.nodes.map(n => ({
             ...n,
-            selected: n.id === pathFinding.endpointNodeId,
+            selected: isFocusedEndpoint(n.id),
             data: {
               ...(n.data ?? {}),
               dimmed: false,
@@ -1650,8 +1694,14 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
         activeId = selectedFindingId ?? defaultId;
         // Only the injector(s) that actually produced the focused finding light up — not every injector
         // that merely reached the endpoint — so the highlighted path stays scoped to the finding the
-        // analyst opened, even after expanding its cluster.
-        const restrictInjectors = producingInjectorIds.size > 0;
+        // analyst opened, even after expanding its cluster. Chain mode is exempt: producingInjectorIds
+        // is only ever the finding's DIRECT (one-hop) producer, so applying it here cut the walk short
+        // at the second injector hop back — every EARLIER action in the causal chain (e.g. the "NetExec
+        // SMB - Share Listing" that ran before the "spider_plus" pass that actually captured the file)
+        // never got added, staying dimmed despite being genuinely on the path. Chain mode has no
+        // shared-hub ambiguity to guard against (unlike the clustered view this restriction was written
+        // for), so there's nothing to lose by walking every hop back.
+        const restrictInjectors = !chainMode && producingInjectorIds.size > 0;
         pathSet.add(activeId);
         for (let pass = 0; pass < 8; pass += 1) {
           for (const e of baseFlow.edges) {
@@ -1743,13 +1793,28 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
           }
         }
       }
+    } else if (selectedFindingId && chainMode) {
+      // Chain view: mirror the selectedInjectorId&&chainMode branch above — a finding several hops
+      // into the causal chain (e.g. a captured file dropped by a late-stage action) previously only
+      // lit its immediate producing injector, because the restricted walk below (kept for the
+      // non-chain/clustered case) explicitly skips causal edges. In chain mode there's no shared-hub
+      // ambiguity to guard against, so walk the same unrestricted way: from the first action through
+      // every action that led to this finding.
+      pathSet.add(selectedFindingId);
+      for (let pass = 0; pass < 8; pass += 1) {
+        for (const e of baseFlow.edges) {
+          if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            pathSet.add(e.source);
+          }
+        }
+      }
     } else if (selectedFindingId) {
       // Walk UP a finding's PRODUCTION path only: endpoint(s) it was found on, then the injector(s) that
-      // actually produced it. Two guards keep it scoped on a shared/hub endpoint (chain mode): never follow
-      // a causal ("Triggered …") edge — those point forward to the NEXT action, so following them lit the
-      // whole downstream kill-chain (NetExec + shares) off a mere portscan click; and when we know the
-      // producing injector(s) from the finding's executions, don't light the other injectors that merely
-      // also reached the endpoint.
+      // actually produced it. Two guards keep it scoped on a shared/hub endpoint (clustered view): never
+      // follow a causal ("Triggered …") edge — those point forward to the NEXT action, so following them
+      // lit the whole downstream kill-chain (NetExec + shares) off a mere portscan click; and when we know
+      // the producing injector(s) from the finding's executions, don't light the other injectors that
+      // merely also reached the endpoint.
       const injectorNodeIds = new Set(
         baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
       );
@@ -1777,6 +1842,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
             if (restrictInjectors && injectorNodeIds.has(e.source) && !producingInjectors.has(e.source)) {
               continue;
             }
+            pathSet.add(e.source);
+          }
+        }
+      }
+    } else if (selectedNodeId && chainMode) {
+      // Chain view: same unrestricted backward walk as the injector/finding branches above — an
+      // endpoint click previously fell through to the clustered branch below, which compares
+      // against `dto`'s (collapsed-view) node ids and never matches the chain graph's own
+      // (`chain-ep|depth|id`-style) ids, so it found nothing to light past the endpoint itself.
+      pathSet.add(selectedNodeId);
+      for (let pass = 0; pass < 8; pass += 1) {
+        for (const e of baseFlow.edges) {
+          if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source)) {
             pathSet.add(e.source);
           }
         }
@@ -2767,6 +2845,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId }: SimulationAtt
                     edges={graphEdges}
                     onEndpointClick={onEndpointClick}
                     onClusterClick={onClusterClick}
+                    onEndpointClusterClick={onEndpointClusterClick}
                     onFindingClusterClick={onFindingClusterClick}
                     onFindingSelect={onFindingSelect}
                     onInjectorSelect={onInjectorSelect}

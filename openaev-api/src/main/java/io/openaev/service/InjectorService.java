@@ -157,6 +157,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       throw new BadRequestException(
           "The implant injector is required by the platform and cannot be deleted");
     }
+    // A started injector can never be deleted (OpenCTI parity): stop it first.
+    if (injector.isExternal()) {
+      throwIfConnectorRunning(injector, injector.getUpdatedAt());
+    }
     List<String> orphanedContractIds =
         injectorContractRepository.findByInjectorsContaining(injector).stream()
             .filter(

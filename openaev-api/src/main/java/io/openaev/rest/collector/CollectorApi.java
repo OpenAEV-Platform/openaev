@@ -19,6 +19,7 @@ import io.openaev.rest.collector.form.CollectorUpdateInput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -210,13 +211,16 @@ public class CollectorApi extends RestBehavior {
   @Operation(
       summary = "Delete a collector",
       description =
-          "Removes a registered collector. Intended for stopped collectors that no longer ping;"
-              + " an active collector re-registers on its next heartbeat.")
+          "Removes a registered collector. A started collector is rejected (stop it first): a"
+              + " managed one needs a stop requested on its instance, an unmanaged one must have"
+              + " stopped pinging - an active collector re-registers on its next heartbeat"
+              + " anyway.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteCollector(@RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
+  public void deleteCollector(@RequireTenantSelector TxCtx ctx, @PathVariable String collectorId)
+      throws ConnectorStatusException {
     // Enforce a single-tenant write scope (400 on ambiguous selector) before issuing the delete.
-    writeScopeResolver.tenantForWrite(ctx, null);
-    collectorRepository.deleteByCollectorId(collectorId);
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    collectorService.deleteCollector(collectorId, tenantId);
   }
 
   @PostMapping(
