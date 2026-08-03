@@ -120,12 +120,17 @@ public class CommandArgumentBinder {
   // -- PLACEHOLDER SUBSTITUTION --
 
   /**
-   * Replaces {@code #{key}} — and a pair of quotes directly wrapping it, since the binder owns the
-   * quoting — by the given replacement.
+   * Replaces {@code #{key}} — and, in binding mode only, a pair of quotes directly wrapping it,
+   * since the binder owns the quoting — by the given replacement.
+   *
+   * <p>In literal mode the template is left structurally untouched: it backs the read-only display
+   * path, where {@code echo "#{host}"} must render as {@code echo "localhost"}.
    */
   private String replacePlaceholder(String command, String argumentKey, String replacement) {
-    Pattern placeholder =
-        Pattern.compile("(['\"])?#\\{" + Pattern.quote(argumentKey) + "}(?:\\1)?");
+    if (!shell.supportsBinding()) {
+      return command.replace("#{" + argumentKey + "}", replacement);
+    }
+    Pattern placeholder = Pattern.compile("(['\"])?#\\{" + Pattern.quote(argumentKey) + "}\\1?");
     Matcher matcher = placeholder.matcher(command);
     StringBuilder result = new StringBuilder();
     while (matcher.find()) {

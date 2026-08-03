@@ -128,6 +128,29 @@ public class ExecutableInjectService {
     return binder.render(command);
   }
 
+  /**
+   * Resolves every {@code #{argumentKey}} placeholder to its actual value for <b>read-only
+   * display</b> (e.g. the terminal view), so the UI shows {@code echo localhost:22} rather than the
+   * raw template.
+   *
+   * <p>This performs a plain, verbatim substitution and the result <b>must never be executed</b>:
+   * only {@link #replaceArgumentsByValue(String, CommandArgumentBinder, List, List, ObjectNode)}
+   * with a shell-aware binder is safe for dispatch. The two paths intentionally share the same
+   * value-resolution rule ({@link #resolveArgumentValue}) so display and execution stay in sync.
+   */
+  public String resolveArgumentsForDisplay(
+      String command,
+      List<PayloadArgument> defaultPayloadArguments,
+      List<ObjectNode> injectorContractContentFields,
+      ObjectNode injectContent) {
+    return replaceArgumentsByValue(
+        command,
+        CommandArgumentBinder.literal(),
+        defaultPayloadArguments,
+        injectorContractContentFields,
+        injectContent);
+  }
+
   /** Resolves the effective value of a single argument, before any shell escaping. */
   private String resolveArgumentValue(
       String argumentKey,

@@ -159,6 +159,31 @@ class CommandArgumentBinderTest {
 
       assertThat(binder.render("#{host}")).isEqualTo("example.com");
     }
+
+    @Test
+    @DisplayName("given a quoted placeholder should keep the template quotes untouched")
+    void given_quoted_placeholder_should_keep_template_quotes() {
+      // Arrange: literal mode powers the read-only terminal view, which must mirror the template.
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+      binder.bind("host", "localhost");
+      binder.bind("port", "22");
+
+      // Act
+      String rendered = binder.render("echo \"#{host}\":'#{port}'");
+
+      // Assert
+      assertThat(rendered).isEqualTo("echo \"localhost\":'22'");
+    }
+
+    @Test
+    @DisplayName("given a literal binder should never prepend a variable declaration")
+    void given_literal_binder_should_not_prepend_declaration() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("host", "a; whoami");
+
+      assertThat(binder.render("echo #{host}")).isEqualTo("echo a; whoami").doesNotContain("OAEV_");
+    }
   }
 
   @Nested
