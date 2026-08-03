@@ -1,9 +1,9 @@
 name: Snyk Container Scan
 description: >
-  Download Docker image artifacts (standard + UBI9 amd64 builds), load them
-  into the local daemon, run Snyk vulnerability scanning, and upload reports.
-  Core CI uses advisory mode; Nightly CI enables enforcement and fails on any
-  high/critical finding or scan execution error.
+  Obtain the standard + UBI9 amd64 images (from GHCR when available, otherwise
+  from the workflow artifacts), run Snyk vulnerability scanning, and upload
+  reports. Core CI uses advisory mode; Nightly CI enables enforcement and fails
+  on any high/critical finding or scan execution error.
 
 inputs:
   snyk-token:
@@ -29,19 +29,110 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Resolve CI registry
+      id: registry
+      uses: ./.github/actions/ci-registry
+
+    - name: Log in to GHCR
+      if: ${{ steps.registry.outputs.available == 'true' }}
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Pull images from registry
+      if: ${{ steps.registry.outputs.available == 'true' }}
+      shell: bash
+      env:
+        REPO: ${{ steps.registry.outputs.repository }}
+        PREFIX: ${{ steps.registry.outputs.tag-prefix }}
+        STANDARD: ${{ inputs.standard-artifact }}
+        UBI9: ${{ inputs.ubi9-artifact }}
+      run: |
+        set -euo pipefail
+
+        build_failed() {
+          local n
+          n=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+                --jq '[.jobs[] | select(.name | test("Docker Build")) | .conclusion]
+                      | map(select(. == "failure" or . == "cancelled")) | length' 2>/dev/null) || n=""
+          echo "${n:-0}"
+        }
+
+        await_and_pull() {
+          local ref="$1" local_tag="$2"
+          echo "⏳ Waiting for ${ref}..."
+          for i in $(seq 1 180); do
+            if docker buildx imagetools inspect "$ref" >/dev/null 2>&1; then
+              echo "  ✅ published (after ~$((i * 5))s)"
+              break
+            fi
+            if [ "$(build_failed)" -gt 0 ]; then
+              echo "❌ A Docker Build job failed or was cancelled — aborting"
+              exit 1
+            fi
+            if [ "$i" -eq 180 ]; then
+              echo "❌ Timed out waiting for ${ref} (15 min)"
+              exit 1
+            fi
+            sleep 5
+          done
+          docker pull "$ref"
+          docker tag "$ref" "$local_tag"
+          echo "  ✅ tagged as ${local_tag}"
+        }
+
+        await_and_pull "${REPO}:${PREFIX}-${STANDARD}" "openaev:ci"
+        await_and_pull "${REPO}:${PREFIX}-${UBI9}" "openaev-ubi9:ci"
+
+    - name: Wait for image artifacts
+      if: ${{ steps.registry.outputs.available != 'true' }}
+      shell: bash
+      env:
+        STANDARD: ${{ inputs.standard-artifact }}
+        UBI9: ${{ inputs.ubi9-artifact }}
+      run: |
+        set -euo pipefail
+        for name in "$STANDARD" "$UBI9"; do
+          echo "⏳ Waiting for artifact ${name}..."
+          for i in $(seq 1 180); do
+            if gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+                 --jq '[.artifacts[].name]' 2>/dev/null | grep -qF "\"$name\""; then
+              echo "  ✅ ${name} available (after ~$((i * 5))s)"
+              break
+            fi
+            FAILED=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+              --jq '[.jobs[] | select(.name | test("Docker Build")) | .conclusion]
+                    | map(select(. == "failure" or . == "cancelled")) | length' 2>/dev/null) || FAILED=""
+            if [ "${FAILED:-0}" -gt 0 ]; then
+              echo "❌ A Docker Build job failed or was cancelled — aborting"
+              exit 1
+            fi
+            if [ "$i" -eq 180 ]; then
+              echo "❌ Timed out waiting for artifact ${name} (15 min)"
+              exit 1
+            fi
+            sleep 5
+          done
+        done
+
     - name: Download standard Docker image
+      if: ${{ steps.registry.outputs.available != 'true' }}
       uses: actions/download-artifact@v8
       with:
         name: ${{ inputs.standard-artifact }}
         path: /tmp/docker-images
 
     - name: Download UBI9 Docker image
+      if: ${{ steps.registry.outputs.available != 'true' }}
       uses: actions/download-artifact@v8
       with:
         name: ${{ inputs.ubi9-artifact }}
         path: /tmp/docker-images
 
     - name: Load Docker images
+      if: ${{ steps.registry.outputs.available != 'true' }}
       run: |
         cd /tmp/docker-images
         gunzip ${{ inputs.standard-artifact }}.tar.gz
