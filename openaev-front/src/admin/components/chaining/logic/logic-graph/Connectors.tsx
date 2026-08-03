@@ -85,6 +85,14 @@ const Connectors = ({
             <path d="M 0 0 L 10 5 L 0 10 z" fill={marker.color} />
           </marker>
         ))}
+        <style>
+          {`
+            .logic-remove-link circle { transition: fill 0.15s ease, stroke 0.15s ease; }
+            .logic-remove-link line { transition: stroke 0.15s ease; }
+            .logic-remove-link:hover circle { fill: ${theme.palette.error.main}; stroke: ${theme.palette.error.main}; }
+            .logic-remove-link:hover line { stroke: ${theme.palette.error.contrastText}; }
+          `}
+        </style>
       </defs>
 
       {edges.map((edge) => {
@@ -126,6 +134,7 @@ const Connectors = ({
             />
             {canDelete && (
               <g
+                className="logic-remove-link"
                 transform={`translate(${edge.labelX}, ${edge.labelY})`}
                 onPointerDown={e => e.stopPropagation()}
                 onClick={(e) => {

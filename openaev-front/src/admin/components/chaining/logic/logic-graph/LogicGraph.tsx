@@ -20,6 +20,7 @@ import {
   buildEventFlow,
   buildOutputProvidersMap,
   buildTacticForStep,
+  buildTriggerFanIn,
   enrichActionMetasWithContracts,
   summarizeEventConditions,
 } from '../logic-flow-helpers';
@@ -248,33 +249,44 @@ const LogicGraph = ({
     [layout, refitNonce],
   );
 
-  // Data-flow spotlight for the selected node (action or trigger): walk the full backward dependency
-  // chain (producer action -> its trigger -> that trigger's producer -> ... -> event-less start) plus,
-  // for a trigger, the actions it gates. Shared with the React Flow attack-path view via buildEventFlow.
+  // Data-flow spotlight for the selected node (action or trigger). `flow` resolves one representative
+  // line (numbered badges + the actions a trigger gates); `fanIn` adds EVERY interchangeable producer
+  // upstream so selecting a trigger lights up all actions that can satisfy it, not just the first one.
   const flow = useMemo(
     () => buildEventFlow(selectedNodeId, eventMetas, actionMetas, theme.palette.warning.main),
     [selectedNodeId, eventMetas, actionMetas, theme.palette.warning.main],
   );
+  const fanIn = useMemo(
+    () => buildTriggerFanIn(selectedNodeId, eventMetas, actionMetas),
+    [selectedNodeId, eventMetas, actionMetas],
+  );
 
-  // Edge ids on the spotlighted flow: real trigger->action links come from triggerEdgeKeys; the
-  // dotted producer->trigger links come from the informational (produces) edges.
+  // Union of the representative line and the full upstream fan-in (plus the trigger's consumers).
+  const highlightedSteps = useMemo(
+    () => new Set<string>([...flow.highlightedStepIds, ...fanIn.highlightedStepIds]),
+    [flow, fanIn],
+  );
+  const highlightedEvents = useMemo(
+    () => new Set<string>([...flow.highlightedEventIds, ...fanIn.highlightedEventIds]),
+    [flow, fanIn],
+  );
+
+  // An edge belongs to the spotlight when both endpoints are highlighted: this lights up every
+  // producer -> trigger and trigger -> action link inside the fan-in, not only the primary line.
   const highlightedEdgeIds = useMemo(() => {
     const ids = new Set<string>();
     if (!selectedNodeId) return ids;
-    const infoKeys = new Set(flow.informationalEdges.map(e => `${e.source}->${e.target}`));
+    const inSpotlight = (id: string) => highlightedSteps.has(id) || highlightedEvents.has(id);
     for (const edge of layout.edges) {
-      const key = `${edge.source}->${edge.target}`;
-      if (edge.kind === 'real' ? flow.triggerEdgeKeys.has(key) : infoKeys.has(key)) {
-        ids.add(edge.id);
-      }
+      if (inSpotlight(edge.source) && inSpotlight(edge.target)) ids.add(edge.id);
     }
     return ids;
-  }, [layout.edges, selectedNodeId, flow]);
+  }, [layout.edges, selectedNodeId, highlightedSteps, highlightedEvents]);
 
   const isDimmed = useCallback((nodeId: string) => {
     if (!selectedNodeId) return false;
-    return !(flow.highlightedStepIds.has(nodeId) || flow.highlightedEventIds.has(nodeId));
-  }, [selectedNodeId, flow]);
+    return !(highlightedSteps.has(nodeId) || highlightedEvents.has(nodeId));
+  }, [selectedNodeId, highlightedSteps, highlightedEvents]);
 
   const handleSelect = useCallback((id: string) => {
     setSelectedNodeId(prev => (prev === id ? null : id));
@@ -496,7 +508,7 @@ const LogicGraph = ({
                   outputTypes={meta.step_output_types ?? []}
                   targetCount={meta.inject_assets?.length ?? 0}
                   triggerCount={meta.step_condition_ids?.length ?? 0}
-                  highlighted={flow.highlightedStepIds.has(node.id)}
+                  highlighted={highlightedSteps.has(node.id)}
                   dimmed={dimmed}
                   pathIndex={flow.pathIndex[node.id]}
                   readOnly={readOnly}
@@ -513,7 +525,7 @@ const LogicGraph = ({
           if (!meta) return null;
           const summary = summarizeEventConditions(meta.formData);
           const isSelected = node.id === selectedNodeId;
-          const onFlow = flow.highlightedEventIds.has(node.id);
+          const onFlow = highlightedEvents.has(node.id);
           return (
             <div
               key={node.id}

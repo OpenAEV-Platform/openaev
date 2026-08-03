@@ -688,3 +688,63 @@ export const buildEventFlow = (
     informationalEdges,
   };
 };
+
+export interface TriggerFanIn {
+  /** Every action that can contribute to the selected node firing (all interchangeable producers). */
+  highlightedStepIds: Set<string>;
+  /** Every event traversed while walking the producers backward. */
+  highlightedEventIds: Set<string>;
+}
+
+/**
+ * The full upstream fan-in of the selected node: unlike {@link buildEventFlow} (which resolves a
+ * single numbered spine), this lights up EVERY action that can satisfy each event on the way back,
+ * not just the first one that completes a chain. So selecting a trigger reveals all interchangeable
+ * producers (e.g. three different scans that all emit the port finding), transitively upstream.
+ *
+ * @param selectedId the currently selected node id — an event or an action (or null → empty)
+ * @param eventMetas all events keyed by id
+ * @param actionMetas all steps keyed by id
+ */
+export const buildTriggerFanIn = (
+  selectedId: string | null,
+  eventMetas: Record<string, EventMeta>,
+  actionMetas: Record<string, ActionMeta>,
+): TriggerFanIn => {
+  const highlightedStepIds = new Set<string>();
+  const highlightedEventIds = new Set<string>();
+  if (!selectedId) return {
+    highlightedStepIds,
+    highlightedEventIds,
+  };
+
+  const ctx: FlowContext = {
+    eventMetas,
+    actionMetas,
+  };
+
+  const visitEvent = (eventId: string) => {
+    if (highlightedEventIds.has(eventId)) return;
+    highlightedEventIds.add(eventId);
+    for (const producer of typeProducersOf(eventId, ctx)) {
+      if (highlightedStepIds.has(producer)) continue;
+      highlightedStepIds.add(producer);
+      const trigger = triggerEventOf(producer, ctx);
+      if (trigger) visitEvent(trigger);
+    }
+  };
+  const visitAction = (actionId: string) => {
+    if (highlightedStepIds.has(actionId)) return;
+    highlightedStepIds.add(actionId);
+    const trigger = triggerEventOf(actionId, ctx);
+    if (trigger) visitEvent(trigger);
+  };
+
+  if (eventMetas[selectedId]) visitEvent(selectedId);
+  else if (actionMetas[selectedId]) visitAction(selectedId);
+
+  return {
+    highlightedStepIds,
+    highlightedEventIds,
+  };
+};

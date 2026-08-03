@@ -33,8 +33,8 @@ const LogicNodeTooltip = ({
   accentColor,
 }: LogicNodeTooltipProps): ReactNode => (
   <Box sx={{
-    maxWidth: 320,
-    padding: 0.5,
+    maxWidth: 340,
+    padding: 1.25,
   }}
   >
     {eyebrow && (
@@ -46,7 +46,7 @@ const LogicNodeTooltip = ({
           fontWeight: 700,
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
-          marginBottom: '2px',
+          marginBottom: '5px',
         }}
       >
         {eyebrow}
@@ -57,7 +57,7 @@ const LogicNodeTooltip = ({
       sx={{
         fontSize: '0.8125rem',
         fontWeight: 700,
-        lineHeight: 1.3,
+        lineHeight: 1.35,
         wordBreak: 'break-word',
       }}
     >
@@ -67,10 +67,10 @@ const LogicNodeTooltip = ({
       <Typography
         component="div"
         sx={{
-          marginTop: 0.5,
+          marginTop: 0.75,
           fontSize: '0.75rem',
           color: 'text.secondary',
-          lineHeight: 1.4,
+          lineHeight: 1.5,
           display: '-webkit-box',
           WebkitLineClamp: 5,
           WebkitBoxOrient: 'vertical',
@@ -82,12 +82,12 @@ const LogicNodeTooltip = ({
     )}
     {rows.length > 0 && (
       <>
-        <Divider sx={{ marginBlock: 0.75 }} />
+        <Divider sx={{ marginBlock: 1.25 }} />
         <Box sx={{
           display: 'grid',
           gridTemplateColumns: 'auto 1fr',
-          columnGap: 1,
-          rowGap: 0.5,
+          columnGap: 1.5,
+          rowGap: 0.75,
         }}
         >
           {rows.map(row => (
@@ -125,8 +125,8 @@ const LogicNodeTooltip = ({
       <Box sx={{
         display: 'flex',
         flexWrap: 'wrap',
-        gap: 0.5,
-        marginTop: 0.75,
+        gap: 0.75,
+        marginTop: rows.length > 0 ? 1.25 : 1,
       }}
       >
         {chips.map(chip => (
@@ -137,8 +137,9 @@ const LogicNodeTooltip = ({
               fontSize: '0.625rem',
               fontWeight: 600,
               lineHeight: 1.6,
-              paddingInline: 0.75,
-              borderRadius: 0.75,
+              paddingInline: 1,
+              paddingBlock: 0.25,
+              borderRadius: 1,
               color: accentColor ?? 'primary.main',
               border: '1px solid',
               borderColor: 'divider',
