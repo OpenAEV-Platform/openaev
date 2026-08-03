@@ -1155,9 +1155,9 @@ public class ConditionService {
    *
    * <p>This is purely a display/lookup structure (e.g. for filter conditions reading a value by
    * type). It intentionally may collapse several dynamic mappers sharing the same source type into
-   * one entry; hashing and per-mapper value resolution never rely on it (see {@link
-   * #comboIdentity} and {@link #resolveMapperRuntimeValue}), so that collapsing can no longer cause
-   * combinations to be dropped or duplicated.
+   * one entry; hashing and per-mapper value resolution never rely on it (see {@link #comboIdentity}
+   * and {@link #resolveMapperRuntimeValue}), so that collapsing can no longer cause combinations to
+   * be dropped or duplicated.
    */
   private Map<String, String> toComboMap(List<WorkflowStateEntries.Pair> pairs) {
     Map<String, String> combo = new TreeMap<>();
