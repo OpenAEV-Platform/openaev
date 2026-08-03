@@ -11,6 +11,7 @@ import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.TargetType;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -99,7 +100,7 @@ public class FindingMapper {
   public AggregatedFindingOutput toAggregatedFindingOutput(
       Finding finding, List<Asset> relatedAssets) {
     return toAggregatedFindingOutput(
-        finding, relatedAssets, finding.getCreationDate(), finding.getUpdateDate());
+        finding, relatedAssets, finding.getCreationDate(), finding.getUpdateDate(), Map.of());
   }
 
   /**
@@ -111,6 +112,15 @@ public class FindingMapper {
    */
   public AggregatedFindingOutput toAggregatedFindingOutput(
       Finding finding, List<Asset> relatedAssets, Instant firstSeen, Instant lastSeen) {
+    return toAggregatedFindingOutput(finding, relatedAssets, firstSeen, lastSeen, Map.of());
+  }
+
+  public AggregatedFindingOutput toAggregatedFindingOutput(
+      Finding finding,
+      List<Asset> relatedAssets,
+      Instant firstSeen,
+      Instant lastSeen,
+      Map<String, FindingTriageStatus> triageStatusByFindingId) {
     return AggregatedFindingOutput.builder()
         .id(finding.getId())
         .value(SensitiveValueMaskingUtils.maskIfNeeded(finding.getType(), finding.getValue()))
@@ -123,10 +133,18 @@ public class FindingMapper {
             relatedAssets.stream()
                 .map(endpointMapper::toEndpointSimple)
                 .collect(Collectors.toSet()))
+        .findingTriageStatus(
+            triageStatusByFindingId.getOrDefault(
+                finding.getId(), FindingTriageStatus.UNTRIAGED))
         .build();
   }
 
   public RelatedFindingOutput toRelatedFindingOutput(Finding finding) {
+    return toRelatedFindingOutput(finding, Map.of());
+  }
+
+  public RelatedFindingOutput toRelatedFindingOutput(
+      Finding finding, Map<String, FindingTriageStatus> triageStatusByFindingId) {
     return RelatedFindingOutput.builder()
         .id(finding.getId())
         .value(SensitiveValueMaskingUtils.maskIfNeeded(finding.getType(), finding.getValue()))
@@ -173,6 +191,9 @@ public class FindingMapper {
                             .build())
                 .collect(Collectors.toSet()))
         .creationDate(finding.getCreationDate())
+        .findingTriageStatus(
+            triageStatusByFindingId.getOrDefault(
+                finding.getId(), FindingTriageStatus.UNTRIAGED))
         .build();
   }
 }

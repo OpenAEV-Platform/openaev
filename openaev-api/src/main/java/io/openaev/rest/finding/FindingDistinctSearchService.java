@@ -5,8 +5,11 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
+import io.openaev.database.model.FindingTriage;
+import io.openaev.database.model.FindingTriageStatus;
 import io.openaev.database.model.TypeValueKey;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.FindingTriageRepository;
 import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.utils.mapper.FindingMapper;
@@ -31,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class FindingDistinctSearchService {
 
   private final FindingRepository findingRepository;
+  private final FindingTriageRepository findingTriageRepository;
   private final FindingMapper findingMapper;
 
   public Page<AggregatedFindingOutput> searchDistinctFindings(
@@ -169,6 +173,13 @@ public class FindingDistinctSearchService {
       lastSeenByKey.merge(key, occurrence.getUpdateDate(), (a, b) -> a.isAfter(b) ? a : b);
     }
 
+    List<String> findingIds = page.getContent().stream().map(Finding::getId).toList();
+    Map<String, FindingTriageStatus> triageStatusByFindingId =
+        findingTriageRepository.findByFinding_IdIn(findingIds).stream()
+            .collect(
+                Collectors.toMap(
+                    triage -> triage.getFinding().getId(), FindingTriage::getStatus));
+
     // Step 4: Map page findings + grouped assets to AggregatedFindingOutput
     return page.map(
         finding -> {
@@ -178,7 +189,8 @@ public class FindingDistinctSearchService {
               finding,
               relatedAssets,
               firstSeenByKey.getOrDefault(key, finding.getCreationDate()),
-              lastSeenByKey.getOrDefault(key, finding.getUpdateDate()));
+              lastSeenByKey.getOrDefault(key, finding.getUpdateDate()),
+              triageStatusByFindingId);
         });
   }
 }
