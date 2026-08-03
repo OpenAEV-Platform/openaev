@@ -7,6 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -25,6 +29,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.*;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -35,10 +40,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 public class ExecutionExecutorServiceTest {
@@ -51,8 +54,10 @@ public class ExecutionExecutorServiceTest {
   @Mock private ConnectorInstanceRepository connectorInstanceRepository;
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
   @Mock private EndpointService endpointService;
+  @Mock private AuditLogger auditLogger;
+  @Mock private ActionMetricCollector actionMetricCollector;
 
-  @InjectMocks private ExecutionExecutorService executorService;
+  private ExecutionExecutorService executorService;
   @Mock private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   @BeforeEach
@@ -71,10 +76,18 @@ public class ExecutionExecutorServiceTest {
             null,
             null,
             null);
-    ReflectionTestUtils.setField(
-        executorService, "connectorInstanceService", connectorInstanceService);
-    ReflectionTestUtils.setField(
-        executorService, "executorUtils", new ExecutorUtils(assetAgentJobRepository));
+    executorService =
+        new ExecutionExecutorService(
+            managerFactory,
+            executionTraceRepository,
+            injectStatusRepository,
+            injectService,
+            new ExecutorUtils(assetAgentJobRepository),
+            endpointService,
+            connectorInstanceService,
+            serviceAccountPrivilegeService,
+            actionMetricCollector,
+            Optional.of(auditLogger));
   }
 
   @Test
@@ -366,6 +379,19 @@ public class ExecutionExecutorServiceTest {
       ArgumentCaptor<InjectStatus> statusCaptor = ArgumentCaptor.forClass(InjectStatus.class);
       verify(injectStatusRepository).save(statusCaptor.capture());
       assertThat(statusCaptor.getValue().getExpectedAgentCount()).isEqualTo(1);
+
+      ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+      verify(auditLogger).logEvent(eventCaptor.capture());
+      AuditEvent event = eventCaptor.getValue();
+      assertThat(event.getEventType()).isEqualTo(EventType.EXECUTION);
+      assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_QUEUED);
+      assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
+      assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
+      assertThat(event.getResourceType()).isEqualTo(ResourceType.INJECT);
+      assertThat(event.getResourceId()).isEqualTo(inject.getId());
+      assertThat(event.getContextData().get("integration_agent_id")).isEqualTo(executor.getId());
+      assertThat(event.getContextData().get("executor_type")).isEqualTo(executor.getType());
+      assertThat(event.getContextData().get("queued_agents_count")).isEqualTo(1);
     }
 
     @Test
@@ -489,6 +515,17 @@ public class ExecutionExecutorServiceTest {
           .launchExecutorSubprocess(eq(inject), any(Endpoint.class), eq(agent1), anyString());
       verify(mockCtx2)
           .launchExecutorSubprocess(eq(inject), any(Endpoint.class), eq(agent2), anyString());
+
+      ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+      verify(auditLogger, times(2)).logEvent(eventCaptor.capture());
+      List<AuditEvent> events = eventCaptor.getAllValues();
+      assertThat(events).allSatisfy(event -> assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_QUEUED));
+      assertThat(events)
+          .extracting(AuditEvent::getResourceId)
+          .containsOnly(inject.getId());
+      assertThat(events)
+          .extracting(event -> (String) event.getContextData().get("integration_agent_id"))
+          .containsExactlyInAnyOrder("executor-cs-1", "executor-cs-2");
     }
   }
 }
