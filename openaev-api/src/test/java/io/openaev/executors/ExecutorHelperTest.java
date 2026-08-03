@@ -69,7 +69,16 @@ class ExecutorHelperTest {
     // act
     String result =
         ExecutorHelper.replaceArgs(
-            PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+            PLATFORM_TYPE.Linux,
+            command,
+            INJECT_ID,
+            AGENT_ID,
+            TENANT_ID,
+            TOKEN,
+            BASE_URL,
+            MAX_SIZE,
+            UNSECURED_CERTIFICATE,
+            WITH_PROXY);
 
     // assert
     assertThat(result)
@@ -85,7 +94,16 @@ class ExecutorHelperTest {
     // act
     String result =
         ExecutorHelper.replaceArgs(
-            PLATFORM_TYPE.Windows, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+            PLATFORM_TYPE.Windows,
+            command,
+            INJECT_ID,
+            AGENT_ID,
+            TENANT_ID,
+            TOKEN,
+            BASE_URL,
+            MAX_SIZE,
+            UNSECURED_CERTIFICATE,
+            WITH_PROXY);
 
     // assert
     assertThat(result)
@@ -101,7 +119,16 @@ class ExecutorHelperTest {
     // act
     String result =
         ExecutorHelper.replaceArgs(
-            PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+            PLATFORM_TYPE.Linux,
+            command,
+            INJECT_ID,
+            AGENT_ID,
+            TENANT_ID,
+            TOKEN,
+            BASE_URL,
+            MAX_SIZE,
+            UNSECURED_CERTIFICATE,
+            WITH_PROXY);
 
     // assert
     assertThat(result)
@@ -122,7 +149,16 @@ class ExecutorHelperTest {
     // act
     String result =
         ExecutorHelper.replaceArgs(
-            PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+            PLATFORM_TYPE.Linux,
+            command,
+            INJECT_ID,
+            AGENT_ID,
+            TENANT_ID,
+            TOKEN,
+            BASE_URL,
+            MAX_SIZE,
+            UNSECURED_CERTIFICATE,
+            WITH_PROXY);
 
     // assert
     assertThat(result).isEqualTo("cd " + ExecutorHelper.UNIX_LOCATION_PATH);
@@ -250,7 +286,16 @@ class ExecutorHelperTest {
     assertThatThrownBy(
             () ->
                 ExecutorHelper.replaceArgs(
-                    PLATFORM_TYPE.Unknown, "echo hello", INJECT_ID, AGENT_ID, TENANT_ID, TOKEN))
+                    PLATFORM_TYPE.Unknown,
+                    "echo hello",
+                    INJECT_ID,
+                    AGENT_ID,
+                    TENANT_ID,
+                    TOKEN,
+                    BASE_URL,
+                    MAX_SIZE,
+                    UNSECURED_CERTIFICATE,
+                    WITH_PROXY))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Unsupported platform type: Unknown");
   }
@@ -298,17 +343,44 @@ class ExecutorHelperTest {
     assertThatThrownBy(
             () ->
                 ExecutorHelper.replaceArgs(
-                    PLATFORM_TYPE.Linux, "echo hello", null, AGENT_ID, TENANT_ID, TOKEN))
+                    PLATFORM_TYPE.Linux,
+                    "echo hello",
+                    null,
+                    AGENT_ID,
+                    TENANT_ID,
+                    TOKEN,
+                    BASE_URL,
+                    MAX_SIZE,
+                    UNSECURED_CERTIFICATE,
+                    WITH_PROXY))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(
             () ->
                 ExecutorHelper.replaceArgs(
-                    PLATFORM_TYPE.Linux, "echo hello", INJECT_ID, null, TENANT_ID, TOKEN))
+                    PLATFORM_TYPE.Linux,
+                    "echo hello",
+                    INJECT_ID,
+                    null,
+                    TENANT_ID,
+                    TOKEN,
+                    BASE_URL,
+                    MAX_SIZE,
+                    UNSECURED_CERTIFICATE,
+                    WITH_PROXY))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(
             () ->
                 ExecutorHelper.replaceArgs(
-                    PLATFORM_TYPE.Linux, "echo hello", INJECT_ID, AGENT_ID, null, TOKEN))
+                    PLATFORM_TYPE.Linux,
+                    "echo hello",
+                    INJECT_ID,
+                    AGENT_ID,
+                    null,
+                    TOKEN,
+                    BASE_URL,
+                    MAX_SIZE,
+                    UNSECURED_CERTIFICATE,
+                    WITH_PROXY))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }
