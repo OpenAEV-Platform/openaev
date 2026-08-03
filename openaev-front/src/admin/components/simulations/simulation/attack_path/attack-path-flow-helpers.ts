@@ -2046,3 +2046,54 @@ export const buildCausalChainFlow = (
     edges,
   };
 };
+
+// Filters a causal-chain flow (already built for the WHOLE run) down to one endpoint's own
+// subgraph: its causal ancestry (every action/finding that led to it, walked backward through
+// BOTH production and causal edges — same rule as the page's own selectedNodeId&&chainMode
+// highlight walk) plus its own direct findings (one hop forward from the endpoint, so what it
+// discovered still shows even though nothing consumed it further). Used for the focused
+// single-endpoint view (chokepoint click, endpoint drill-down) so that view keeps the real kill
+// chain instead of falling back to the flatter, non-causal buildFindingPathFlow layout.
+//
+// Node positions are left untouched (still their absolute coordinates from the full-graph layout,
+// not re-flowed for the smaller subgraph) — ReactFlow's fitView still frames whatever is rendered,
+// so the result is correctly scoped even if not as compact as a purpose-built focused layout.
+export const scopeChainFlowToEndpoint = (
+  chainFlow: {
+    nodes: AttackPathFlowNode[];
+    edges: AttackPathFlowEdge[];
+  },
+  endpointId: string,
+): {
+  nodes: AttackPathFlowNode[];
+  edges: AttackPathFlowEdge[];
+} => {
+  const { nodes, edges } = chainFlow;
+  const seedIds = new Set(
+    nodes.filter(n => n.id.startsWith('chain-ep|') && n.id.endsWith(`|${endpointId}`)).map(n => n.id),
+  );
+  // The endpoint never executed anything in the causal chain yet (e.g. no full-graph data): show
+  // the whole thing rather than an empty focus.
+  if (seedIds.size === 0) {
+    return chainFlow;
+  }
+  const scope = new Set(seedIds);
+  for (let pass = 0; pass < 8; pass += 1) {
+    for (const e of edges) {
+      if (e.source && e.target && scope.has(e.target) && !scope.has(e.source)) {
+        scope.add(e.source);
+      }
+    }
+  }
+  for (let pass = 0; pass < 3; pass += 1) {
+    for (const e of edges) {
+      if (e.source && e.target && seedIds.has(e.source) && !scope.has(e.target)) {
+        scope.add(e.target);
+      }
+    }
+  }
+  return {
+    nodes: nodes.filter(n => scope.has(n.id)),
+    edges: edges.filter(e => scope.has(e.source) && scope.has(e.target)),
+  };
+};
