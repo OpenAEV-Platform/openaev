@@ -45,29 +45,46 @@ public class CommandArgumentBinder {
 
   private final ExecutorShell shell;
 
+  /**
+   * {@code true} when {@link ExecutorShell#NONE} was <em>suffered</em> (unknown executor) rather
+   * than <em>chosen</em> ({@link #literal()}). Falling back to verbatim substitution on a command
+   * line would reintroduce command injection, so rendering is refused instead.
+   */
+  private final boolean rejectPlaceholders;
+
+  /** Executor this binder was built for, kept for diagnostics only. */
+  private final String executor;
+
   /** argument key -> generated variable name, in declaration order. */
   private final Map<String, String> variablesByKey = new LinkedHashMap<>();
 
   /** generated variable name -> already escaped declaration value. */
   private final Map<String, String> valuesByVariable = new LinkedHashMap<>();
 
-  private CommandArgumentBinder(ExecutorShell shell) {
+  private CommandArgumentBinder(ExecutorShell shell, boolean rejectPlaceholders, String executor) {
     this.shell = shell;
+    this.rejectPlaceholders = rejectPlaceholders;
+    this.executor = executor;
   }
 
+  /**
+   * Binder for a command that will actually be executed on an endpoint.
+   *
+   * <p>If no binding strategy exists for the executor, the binder is built in <em>fail-closed</em>
+   * mode: a template referencing arguments is rejected at {@link #render(String)} rather than
+   * silently substituted.
+   */
   public static CommandArgumentBinder forExecutor(String executor) {
     ExecutorShell resolved = ExecutorShell.from(executor);
-    if (resolved == ExecutorShell.NONE && executor != null && !executor.isBlank()) {
-      log.warn(
-          "No argument binding strategy for executor '{}': argument values will be substituted "
-              + "literally. Add the executor to ExecutorShell to enable safe binding.",
-          executor);
-    }
-    return new CommandArgumentBinder(resolved);
+    return new CommandArgumentBinder(resolved, !resolved.supportsBinding(), executor);
   }
 
+  /**
+   * Binder for a value that never reaches a shell (read-only display, DNS hostname): placeholders
+   * are substituted verbatim, only control characters are stripped.
+   */
   public static CommandArgumentBinder literal() {
-    return new CommandArgumentBinder(ExecutorShell.NONE);
+    return new CommandArgumentBinder(ExecutorShell.NONE, false, null);
   }
 
   /**
@@ -102,6 +119,18 @@ public class CommandArgumentBinder {
   public String render(String template) {
     if (template == null) {
       return null;
+    }
+    // Fail closed: an unmapped executor must never fall back to verbatim substitution, which is
+    // exactly the command injection this class exists to prevent. Templates without any argument
+    // are still rendered, so payloads using an exotic executor keep working.
+    if (rejectPlaceholders && !variablesByKey.isEmpty()) {
+      log.error(
+          "Refusing to render a command with argument placeholders for executor '{}': no binding "
+              + "strategy available. Add the executor to ExecutorShell to enable safe binding.",
+          executor);
+      throw new CommandBindingException(
+          "Unsupported executor '%s' for argument binding: refusing to render a command with placeholders."
+              .formatted(executor));
     }
     String rendered = template;
     for (Map.Entry<String, String> entry : variablesByKey.entrySet()) {

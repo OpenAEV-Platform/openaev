@@ -1,6 +1,7 @@
 package io.openaev.utils.command;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -8,6 +9,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @DisplayName("Command argument binder")
 class CommandArgumentBinderTest {
@@ -215,6 +218,59 @@ class CommandArgumentBinderTest {
 
       assertThat(rendered.split("OAEV_ARG_A=", -1)).hasSize(2);
       assertThat(rendered).endsWith("echo \"$OAEV_ARG_A\" \"$OAEV_ARG_A\"");
+    }
+  }
+
+  @Nested
+  @DisplayName("Unsupported executor (fail closed)")
+  class UnsupportedExecutor {
+
+    @ParameterizedTest
+    @ValueSource(strings = {"python", "perl", "bash5", "unknown"})
+    @DisplayName("given an unmapped executor and a bound argument should refuse to render")
+    void given_unmappedExecutorWithArgument_should_throw(String executor) {
+      // Arrange
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor(executor);
+      binder.bind("host", "a; whoami");
+
+      // Act + Assert
+      assertThatThrownBy(() -> binder.render("echo #{host}"))
+          .isInstanceOf(CommandBindingException.class)
+          .hasMessageContaining(executor);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @DisplayName("given a null or blank executor and a bound argument should refuse to render")
+    void given_blankExecutorWithArgument_should_throw(String executor) {
+      // Arrange
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor(executor);
+      binder.bind("host", "a; whoami");
+
+      // Act + Assert
+      assertThatThrownBy(() -> binder.render("echo #{host}"))
+          .isInstanceOf(CommandBindingException.class);
+    }
+
+    @Test
+    @DisplayName("given an unmapped executor without any argument should render unchanged")
+    void given_unmappedExecutorWithoutArgument_should_render() {
+      // Arrange
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("python");
+
+      // Act + Assert
+      assertThat(binder.render("print('hello')")).isEqualTo("print('hello')");
+    }
+
+    @Test
+    @DisplayName("given the explicit literal binder should still substitute placeholders")
+    void given_literalBinder_should_stillSubstitute() {
+      // Arrange
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+      binder.bind("host", "localhost");
+
+      // Act + Assert
+      assertThat(binder.render("echo #{host}")).isEqualTo("echo localhost");
     }
   }
 }
