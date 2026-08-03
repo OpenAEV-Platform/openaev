@@ -1476,7 +1476,7 @@ export interface AutonomousRun {
   autonomous_run_plan_mode: boolean;
   /** Scenario the simulation was created from, if any */
   autonomous_run_scenario_id?: string;
-  /** Authoritative run scope: a mixed list of targetable entities (assets, asset groups, teams, persons). The orchestrator attacks within this perimeter. */
+  /** Authoritative run scope: a mixed list of targetable entities (assets, asset groups, teams). The orchestrator attacks within this perimeter. */
   autonomous_run_scope?: AutonomousScopeTarget[];
   /** Asset group defining the initial in-scope perimeter */
   autonomous_run_scope_asset_group_id?: string;
@@ -8521,7 +8521,8 @@ export interface PayloadInput {
    * @uniqueItems true
    */
   payload_output_parsers?: OutputParserInput[];
-  payload_platforms?: (
+  /** @minItems 1 */
+  payload_platforms: (
     | "Linux"
     | "Windows"
     | "MacOS"
@@ -8704,7 +8705,8 @@ export interface PayloadUpdateInput {
    * @uniqueItems true
    */
   payload_output_parsers?: OutputParserInput[];
-  payload_platforms?: (
+  /** @minItems 1 */
+  payload_platforms: (
     | "Linux"
     | "Windows"
     | "MacOS"
@@ -12287,7 +12289,6 @@ export interface WorkflowScopeRuleInput {
     | "ASSET"
     | "ASSET_GROUP"
     | "TEAM"
-    | "PLAYER"
     | "MANUAL"
     | "CSV";
   /**
