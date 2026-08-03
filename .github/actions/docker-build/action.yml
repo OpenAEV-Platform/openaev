@@ -45,6 +45,12 @@ inputs:
       Requires the calling job to check out with fetch-depth: 0.
     required: false
     default: "true"
+  allow-registry:
+    description: >
+      Set to "false" when the calling workflow has no packages:write; the image
+      is then handed to downstream jobs as an artifact only.
+    required: false
+    default: "true"
 
 outputs:
   digest:
@@ -94,6 +100,8 @@ runs:
     - name: Resolve CI registry
       id: registry
       uses: ./.github/actions/ci-registry
+      with:
+        allow-registry: ${{ inputs.allow-registry }}
 
     - name: Log in to GHCR
       if: ${{ steps.registry.outputs.available == 'true' }}

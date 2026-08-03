@@ -13,6 +13,12 @@ inputs:
     description: "Comma-separated platforms to merge (default: linux/amd64,linux/arm64)"
     required: false
     default: "linux/amd64,linux/arm64"
+  allow-registry:
+    description: >
+      Set to "false" when the calling workflow has no packages:write; the
+      per-platform archives are then merged from artifacts.
+    required: false
+    default: "true"
 
 outputs:
   digest:
@@ -25,6 +31,8 @@ runs:
     - name: Resolve CI registry
       id: registry
       uses: ./.github/actions/ci-registry
+      with:
+        allow-registry: ${{ inputs.allow-registry }}
 
     - name: Log in to GHCR
       if: ${{ steps.registry.outputs.available == 'true' }}

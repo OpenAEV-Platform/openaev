@@ -77,17 +77,23 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.head_sha }}
+          # prepare-bundled-assets derives the local asset version from `git describe`
+          fetch-depth: 0
+          filter: blob:none
       - uses: ./.github/actions/docker-build
         with:
           tags: ${{ needs.prepare-build.outputs.image-tag }}
           platform: ${{ matrix.platform }}
           download-release-assets: "true"
+          allow-registry: "false"
 
   docker-merge:
     name: "🐳 Merge Platforms"
     needs: docker-build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -95,6 +101,7 @@ jobs:
       - uses: ./.github/actions/docker-merge-platforms
         with:
           artifact-name: openaev-image
+          allow-registry: "false"
 
   # Save metadata as artifact for the workflow_run follow-up
   save-metadata:

@@ -5,6 +5,14 @@ description: >
   packages:write, so they fall back to the artifact path. Images are uploaded as
   artifacts either way; the registry only changes how jobs consume them.
 
+inputs:
+  allow-registry:
+    description: >
+      Set to "false" by workflows that run without packages:write, so the
+      registry handoff is never attempted.
+    required: false
+    default: "true"
+
 outputs:
   available:
     description: '"true" when the registry handoff can be used'
@@ -24,6 +32,7 @@ runs:
       shell: bash
       env:
         HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        ALLOW_REGISTRY: ${{ inputs.allow-registry }}
       run: |
         set -euo pipefail
         REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
@@ -31,7 +40,10 @@ runs:
         # Attempt is part of the prefix so a re-run never pulls the previous attempt's image
         echo "tag_prefix=run-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
 
-        if [ "${{ github.event_name }}" = "pull_request" ] && \
+        if [ "$ALLOW_REGISTRY" != "true" ]; then
+          echo "available=false" >> "$GITHUB_OUTPUT"
+          echo "🔒 Caller has no packages:write — using artifact handoff"
+        elif [ "${{ github.event_name }}" = "pull_request" ] && \
            [ -n "$HEAD_REPO" ] && [ "$HEAD_REPO" != "${{ github.repository }}" ]; then
           echo "available=false" >> "$GITHUB_OUTPUT"
           echo "🔒 Fork PR ($HEAD_REPO) — GITHUB_TOKEN is read-only, using artifact handoff"
