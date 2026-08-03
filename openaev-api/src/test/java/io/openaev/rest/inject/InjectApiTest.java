@@ -1,5 +1,26 @@
 package io.openaev.rest.inject;
 
+import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.model.ExerciseStatus.RUNNING;
+import static io.openaev.database.model.InjectorContract.*;
+import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
+import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
+import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.inject.InjectApi.INJECT_URI;
+import static io.openaev.rest.inject.service.ExecutableInjectService.formatMultilineCommand;
+import static io.openaev.rest.inject.service.ExecutableInjectService.replaceCmdVariables;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -34,6 +55,13 @@ import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.persistence.EntityManager;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import net.javacrumbs.jsonunit.core.Option;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
@@ -52,35 +80,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ResourceUtils;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-
-import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.model.ExerciseStatus.RUNNING;
-import static io.openaev.database.model.InjectorContract.*;
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
-import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
-import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.rest.inject.InjectApi.INJECT_URI;
-import static io.openaev.rest.inject.service.ExecutableInjectService.formatMultilineCommand;
-import static io.openaev.rest.inject.service.ExecutableInjectService.replaceCmdVariables;
-import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
-import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
-import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 @Transactional
