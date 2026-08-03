@@ -354,7 +354,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     outputElement.setType(ContractOutputType.ActionOutput);
     outputElement.setName("output");
     outputElement.setRule(".*");
-
+    outputElement.setFinding(false);
     OutputParser outputParser = new OutputParser();
     outputParser.setMode(ParserMode.STDOUT);
     outputParser.setType(ParserType.REGEX);
