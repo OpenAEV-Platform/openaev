@@ -859,7 +859,7 @@ public class InjectExecutionStep implements ActionStep {
 
     // Resolve each #{argumentKey} the same way a real execution does (inject content first,
     // falling back to the payload argument's default value) — see
-    // ExecutableInjectService#replaceArgumentsByValue, also used by InjectExecutionResultService
+    // ExecutableInjectService#resolveArgumentsForDisplay, also used by InjectExecutionResultService
     // for the live terminal view (#7110). Otherwise the attack-path snapshot freezes the default
     // value instead of what was actually run.
     ObjectNode convertedContent = injectorContract.get().getConvertedContent();
@@ -872,7 +872,7 @@ public class InjectExecutionStep implements ActionStep {
                 .toList();
     ObjectNode injectContent =
         inject.getContent() != null ? inject.getContent() : JsonNodeFactory.instance.objectNode();
-    return executableInjectService.replaceArgumentsByValue(
+    return executableInjectService.resolveArgumentsForDisplay(
         resolvedCommand, args, injectorContractContentFields, injectContent);
   }
 
