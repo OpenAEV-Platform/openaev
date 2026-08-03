@@ -1102,9 +1102,10 @@ public class AutonomousRunService {
    * @param parentStepTemplateId optional step template id this step depends on (null for a root)
    * @return the id of the created step template
    */
+  @Transactional(rollbackFor = Exception.class)
   public String appendAttackPathStep(
       String runId, InjectInput injectInput, String parentStepTemplateId) {
-    return appendAttackPathStep(runId, injectInput, parentStepTemplateId, null);
+    return doAppendAttackPathStep(runId, injectInput, parentStepTemplateId, null);
   }
 
   /**
@@ -1116,6 +1117,18 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public String appendAttackPathStep(
+      String runId,
+      InjectInput injectInput,
+      String parentStepTemplateId,
+      AutonomousStepTrigger trigger) {
+    return doAppendAttackPathStep(runId, injectInput, parentStepTemplateId, trigger);
+  }
+
+  // Shared body for both appendAttackPathStep overloads. Private and non-transactional on purpose:
+  // both public overloads are @Transactional entry points that delegate here, so a single proxied
+  // transaction wraps the authoring. One overload self-invoking the other would bypass the Spring
+  // proxy (no transaction, no tenant scope) - which is exactly what the architecture rule forbids.
+  private String doAppendAttackPathStep(
       String runId,
       InjectInput injectInput,
       String parentStepTemplateId,

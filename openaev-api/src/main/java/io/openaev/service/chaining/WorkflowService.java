@@ -1302,7 +1302,7 @@ public class WorkflowService {
   public String appendChainedStep(
       String simulationId, InjectInput injectInput, String parentStepTemplateId)
       throws ChainingException {
-    return appendChainedStep(simulationId, injectInput, parentStepTemplateId, List.of());
+    return doAppendChainedStep(simulationId, injectInput, parentStepTemplateId, List.of());
   }
 
   /**
@@ -1318,6 +1318,20 @@ public class WorkflowService {
    */
   @Transactional(rollbackFor = Exception.class)
   public String appendChainedStep(
+      String simulationId,
+      InjectInput injectInput,
+      String parentStepTemplateId,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    return doAppendChainedStep(simulationId, injectInput, parentStepTemplateId, triggerConditions);
+  }
+
+  // Shared body for both appendChainedStep overloads. Private and non-transactional on purpose: the
+  // public overloads are the @Transactional entry points, and each simply widens its arguments and
+  // delegates here. Delegating to a plain helper (instead of one overload self-invoking the other)
+  // keeps the transactional boundary on the proxied public method - an intra-class call to a
+  // @Transactional method would bypass the Spring proxy (no transaction, no tenant scope).
+  private String doAppendChainedStep(
       String simulationId,
       InjectInput injectInput,
       String parentStepTemplateId,
@@ -1377,7 +1391,7 @@ public class WorkflowService {
   public String appendChainedStepToScenario(
       String scenarioId, InjectInput injectInput, String parentScenarioStepTemplateId)
       throws ChainingException {
-    return appendChainedStepToScenario(
+    return doAppendChainedStepToScenario(
         scenarioId, injectInput, parentScenarioStepTemplateId, List.of());
   }
 
@@ -1392,6 +1406,19 @@ public class WorkflowService {
    */
   @Transactional(rollbackFor = Exception.class)
   public String appendChainedStepToScenario(
+      String scenarioId,
+      InjectInput injectInput,
+      String parentScenarioStepTemplateId,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    return doAppendChainedStepToScenario(
+        scenarioId, injectInput, parentScenarioStepTemplateId, triggerConditions);
+  }
+
+  // Shared body for both appendChainedStepToScenario overloads. See doAppendChainedStep for why
+  // this
+  // is a private, non-transactional helper the public @Transactional overloads delegate to.
+  private String doAppendChainedStepToScenario(
       String scenarioId,
       InjectInput injectInput,
       String parentScenarioStepTemplateId,
