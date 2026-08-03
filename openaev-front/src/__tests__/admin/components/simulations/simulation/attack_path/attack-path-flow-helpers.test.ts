@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -1291,5 +1291,39 @@ describe('buildFindingPathFlow', () => {
     expect(nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector)).toHaveLength(0);
     expect(nodes.find(n => n.id === 'ep-1')?.type).toBe(AP_FLOW_NODE_TYPE.asset);
     expect(nodes.find(n => n.id === 'path-cl-type|username|dc-01')?.type).toBe(AP_FLOW_NODE_TYPE.findingCluster);
+  });
+});
+
+// The endpoint node shows a single relevant IP instead of the full comma-separated list (#5048):
+// the asset's live seen IP when known, else the first IPv4 of the frozen list, else its first entry.
+describe('displayIp', () => {
+  it('prefers the seen IP over the frozen list', () => {
+    expect(displayIp('203.0.113.7', '10.0.0.1,10.0.0.2')).toBe('203.0.113.7');
+  });
+
+  it('trims the seen IP', () => {
+    expect(displayIp(' 203.0.113.7 ', undefined)).toBe('203.0.113.7');
+  });
+
+  it('ignores a blank seen IP and falls back to the list', () => {
+    expect(displayIp('   ', '192.168.1.10')).toBe('192.168.1.10');
+  });
+
+  it('falls back to the first IPv4 of a mixed list', () => {
+    expect(displayIp(undefined, 'fe80::1, 2001:db8::1, 192.168.1.10, 10.0.0.2')).toBe('192.168.1.10');
+  });
+
+  it('falls back to the first entry when the list has no IPv4', () => {
+    expect(displayIp(undefined, 'fe80::1, 2001:db8::1')).toBe('fe80::1');
+  });
+
+  it('keeps a single-IP endpoint unchanged', () => {
+    expect(displayIp(undefined, '192.168.1.1')).toBe('192.168.1.1');
+  });
+
+  it('returns undefined when neither a seen IP nor a list is available', () => {
+    expect(displayIp(undefined, undefined)).toBeUndefined();
+    expect(displayIp('', '')).toBeUndefined();
+    expect(displayIp(undefined, ' , ')).toBeUndefined();
   });
 });
