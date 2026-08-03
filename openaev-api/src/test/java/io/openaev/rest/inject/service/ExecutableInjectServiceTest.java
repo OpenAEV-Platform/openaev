@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.ArgumentType;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.PayloadArgument;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -37,7 +37,7 @@ class ExecutableInjectServiceTest {
 
   private static PayloadArgument payloadArgument(String key, String defaultValue) {
     PayloadArgument payloadArgument = new PayloadArgument();
-    payloadArgument.setType(ArgumentType.Text);
+    payloadArgument.setType(PrimitiveType.Text);
     payloadArgument.setKey(key);
     payloadArgument.setDefaultValue(defaultValue);
     return payloadArgument;
