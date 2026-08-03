@@ -13,7 +13,6 @@ import co.elastic.clients.util.TriConsumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
 import io.openaev.config.OpenAEVAnonymous;
@@ -92,9 +91,6 @@ import org.springframework.util.StringUtils;
 @Service
 @Slf4j
 public class InjectorContractService implements DependenciesManager {
-  private static final String CONTRACT_CONTENT_FIELDS_NODE = "fields";
-  private static final String CONTRACT_FIELD_ARGUMENT_TYPE = "argumentType";
-  private static final String DEFAULT_ARGUMENT_TYPE_LABEL = PrimitiveType.Text.label;
 
   @PersistenceContext private EntityManager entityManager;
   @Resource private ObjectMapper mapper;
@@ -992,7 +988,7 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setLabels(in.getLabels());
     injectorContract.addInjector(injector);
     injectorContract.setTenant(new Tenant(injector.getTenantId()));
-    injectorContract.setContent(normalizeContractContentArgumentType(in.getContent()));
+    injectorContract.setContent(in.getContent());
     injectorContract.setAtomicTesting(in.isAtomicTesting());
     injectorContract.setPlatforms(in.getPlatforms());
     if (!in.getAttackPatternsExternalIds().isEmpty()) {
@@ -1009,51 +1005,6 @@ public class InjectorContractService implements DependenciesManager {
           this.domainService.upserts(in.getDomains(), injector.getTenantId()));
     }
     return injectorContract;
-  }
-
-  /**
-   * Normalizes contract field argument types in raw contract JSON.
-   *
-   * <p>For externally pushed injector contracts, {@code argumentType} may be omitted, null, or an
-   * empty string. In such cases, this method sets it to {@code text} to keep contract content
-   * consistent. If the JSON cannot be parsed, the original content is returned unchanged.
-   */
-  public String normalizeContractContentArgumentType(String rawContent) {
-    if (!StringUtils.hasText(rawContent)) {
-      return rawContent;
-    }
-    try {
-      JsonNode root = mapper.readTree(rawContent);
-      if (!root.isObject()) {
-        return rawContent;
-      }
-      JsonNode fieldsNode = root.get(CONTRACT_CONTENT_FIELDS_NODE);
-      if (fieldsNode == null || !fieldsNode.isArray()) {
-        return rawContent;
-      }
-
-      boolean changed = false;
-      for (JsonNode fieldNode : fieldsNode) {
-        if (!fieldNode.isObject()) {
-          continue;
-        }
-        JsonNode argumentTypeNode = fieldNode.get(CONTRACT_FIELD_ARGUMENT_TYPE);
-
-        boolean isMissingOrNull = argumentTypeNode == null || argumentTypeNode.isNull();
-        boolean isBlankString =
-            argumentTypeNode != null
-                && argumentTypeNode.isTextual()
-                && !StringUtils.hasText(argumentTypeNode.asText());
-
-        if (isMissingOrNull || isBlankString) {
-          ((ObjectNode) fieldNode).put(CONTRACT_FIELD_ARGUMENT_TYPE, DEFAULT_ARGUMENT_TYPE_LABEL);
-          changed = true;
-        }
-      }
-      return changed ? mapper.writeValueAsString(root) : rawContent;
-    } catch (JsonProcessingException e) {
-      return rawContent;
-    }
   }
 
   /**

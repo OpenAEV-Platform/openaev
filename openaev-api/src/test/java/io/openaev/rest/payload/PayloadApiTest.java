@@ -521,49 +521,6 @@ class PayloadApiTest extends IntegrationTest {
       assertEquals(expectedArgumentTypes, actualArgumentTypes);
     }
 
-    @Test
-    @DisplayName("Given missing argument type, should default to text in payload and contract")
-    void given_missingArgumentType_should_default_to_text() throws Exception {
-      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
-      PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
-              List.of(domain.getId()));
-      PayloadArgument argumentWithoutType = new PayloadArgument();
-      argumentWithoutType.setKey("arg_without_type");
-      argumentWithoutType.setDefaultValue("value");
-      input.setArguments(List.of(argumentWithoutType));
-
-      String response =
-          mvc.perform(
-                  post(PAYLOAD_URI)
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
-              .andExpect(status().is2xxSuccessful())
-              .andExpect(jsonPath("$.payload_arguments[0].type").value("text"))
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      InjectorContract injectorContract =
-          injectorContractRepository
-              .findOne(byPayloadId(JsonPath.read(response, "$.payload_id")))
-              .orElse(null);
-      assertNotNull(injectorContract);
-
-      JsonNode fieldForArgument = null;
-      ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
-      for (JsonNode field : contractFields) {
-        if ("arg_without_type".equals(field.get("key").asText())) {
-          fieldForArgument = field;
-          break;
-        }
-      }
-      assertNotNull(fieldForArgument, "Contract must contain a field for 'arg_without_type'");
-      assertEquals("text", fieldForArgument.get("type").asText());
-      assertEquals("text", fieldForArgument.get("argumentType").asText());
-    }
-
     /** Primitive argument types are persisted and returned in the payload response. */
     @Test
     @DisplayName("Given primitive arguments, should persist and return the correct type for each")

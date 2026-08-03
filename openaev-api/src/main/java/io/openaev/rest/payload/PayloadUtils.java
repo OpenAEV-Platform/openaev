@@ -32,7 +32,6 @@ public class PayloadUtils {
   private final LicenseCacheManager licenseCacheManager;
   private final OutputParserService outputParserService;
   private final DetectionRemediationUtils detectionRemediationUtils;
-  private static final PrimitiveType DEFAULT_ARGUMENT_TYPE = PrimitiveType.Text;
 
   public static PayloadCreateInput buildPayload(@NotNull final JsonNode payloadNode) {
     PayloadCreateInput payloadCreateInput = new PayloadCreateInput();
@@ -84,12 +83,7 @@ public class PayloadUtils {
     List<PayloadArgument> arguments = new ArrayList<>();
     for (JsonNode argumentNode : safeArray(payloadNode, "payload_arguments")) {
       PayloadArgument argument = new PayloadArgument();
-      JsonNode typeNode = argumentNode.get("type");
-      if (typeNode == null || typeNode.isNull()) {
-        argument.setType(DEFAULT_ARGUMENT_TYPE);
-      } else {
-        argument.setType(PrimitiveType.fromLabel(typeNode.textValue()));
-      }
+      argument.setType(PrimitiveType.fromLabel(argumentNode.get("type").textValue()));
       argument.setKey(argumentNode.get("key").textValue());
       argument.setDefaultValue(argumentNode.get("default_value").textValue());
       argument.setDescription(argumentNode.get("description").textValue());
@@ -181,14 +175,6 @@ public class PayloadUtils {
    */
   private static void dedupeArgumentsAndPrerequisites(Payload target) {
     if (target.getArguments() != null) {
-      target
-          .getArguments()
-          .forEach(
-              argument -> {
-                if (argument.getType() == null) {
-                  argument.setType(DEFAULT_ARGUMENT_TYPE);
-                }
-              });
       Map<String, PayloadArgument> argumentsByKey = new LinkedHashMap<>();
       target
           .getArguments()

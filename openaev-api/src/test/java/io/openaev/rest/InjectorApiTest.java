@@ -327,7 +327,7 @@ public class InjectorApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should register external injector and default missing argumentType to text")
+    @DisplayName("Should store external contract content as-is when argumentType is absent")
     void shouldRegisterExternalInjectorWithoutArgumentTypeInContractContent() throws Exception {
       String injectorId = "ext-injector-without-argument-type";
       String injectorType = "openaev_ext_no_argument_type";
@@ -374,87 +374,10 @@ public class InjectorApiTest extends IntegrationTest {
       List<InjectorContract> contracts =
           injectorContractRepository.findByInjectorsContaining(persisted.get());
       assertThat(contracts).hasSize(1);
-      String fieldKey = JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].key");
-      String fieldArgumentType =
-          JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].argumentType");
+      String storedContent = contracts.getFirst().getContent();
+      String fieldKey = JsonPath.read(storedContent, "$.fields[0].key");
       assertThat(fieldKey).isEqualTo("target");
-      assertThat(fieldArgumentType).isEqualTo("text");
-    }
-
-    @Test
-    @DisplayName(
-        "Should default argumentType to text when external contract sends null or empty values")
-    void shouldDefaultArgumentTypeToTextWhenNullOrEmpty() throws Exception {
-      String injectorId = "ext-injector-null-empty-argument-type";
-      String injectorType = "openaev_ext_null_empty_argument_type";
-      String contractId = "ext-contract-null-empty-argument-type";
-
-      InjectorContractInput contract = new InjectorContractInput();
-      contract.setId(contractId);
-      contract.setLabels(Map.of("en", "Contract with null and empty argumentType"));
-      contract.setContent(
-          """
-          {
-            "fields": [
-              {
-                "key": "missing_type",
-                "label": "missing_type",
-                "type": "text",
-                "mandatory": true,
-                "defaultValue": "value-1"
-              },
-              {
-                "key": "null_type",
-                "label": "null_type",
-                "type": "text",
-                "mandatory": true,
-                "defaultValue": "value-2",
-                "argumentType": null
-              },
-              {
-                "key": "empty_type",
-                "label": "empty_type",
-                "type": "text",
-                "mandatory": true,
-                "defaultValue": "value-3",
-                "argumentType": ""
-              }
-            ]
-          }
-          """);
-
-      InjectorCreateInput input = new InjectorCreateInput();
-      input.setId(injectorId);
-      input.setName("External Injector Null Empty Type");
-      input.setType(injectorType);
-      input.setCategory("attack");
-      input.setPayloads(false);
-      input.setContracts(List.of(contract));
-
-      mvc.perform(
-              multipart(INJECT0R_URI)
-                  .file(buildInputPart(input))
-                  .file(buildEmptyIconPart())
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-
-      Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
-      assertThat(persisted).isPresent();
-
-      List<InjectorContract> contracts =
-          injectorContractRepository.findByInjectorsContaining(persisted.get());
-      assertThat(contracts).hasSize(1);
-      String missingType =
-          JsonPath.read(contracts.getFirst().getContent(), "$.fields[0].argumentType");
-      String nullType =
-          JsonPath.read(contracts.getFirst().getContent(), "$.fields[1].argumentType");
-      String emptyType =
-          JsonPath.read(contracts.getFirst().getContent(), "$.fields[2].argumentType");
-      assertThat(missingType).isEqualTo("text");
-      assertThat(nullType).isEqualTo("text");
-      assertThat(emptyType).isEqualTo("text");
+      assertThat(storedContent).doesNotContain("argumentType");
     }
 
     @Test

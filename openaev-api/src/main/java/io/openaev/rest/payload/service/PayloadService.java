@@ -159,9 +159,7 @@ public class PayloadService {
 
   private List<ContractElement> targetedAssetFields(String key, PayloadArgument payloadArgument) {
     ContractElement targetedAssetField = new ContractTargetedAsset(key, key);
-    PrimitiveType argumentType =
-        payloadArgument.getType() != null ? payloadArgument.getType() : PrimitiveType.Text;
-    targetedAssetField.setArgumentType(argumentType);
+    targetedAssetField.setArgumentType(payloadArgument.getType());
 
     Map<String, String> targetPropertySelectorMap = new HashMap<>();
     for (ContractTargetedProperty property : ContractTargetedProperty.values()) {
@@ -216,11 +214,7 @@ public class PayloadService {
           .getArguments()
           .forEach(
               payloadArgument -> {
-                PrimitiveType argumentType =
-                    payloadArgument.getType() != null
-                        ? payloadArgument.getType()
-                        : PrimitiveType.Text;
-                if (PrimitiveType.TargetedAsset == argumentType) {
+                if (PrimitiveType.TargetedAsset == payloadArgument.getType()) {
                   List<ContractElement> targetedAssetsFields =
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
                   targetedAssetsFields.forEach(builder::mandatory);
@@ -230,7 +224,7 @@ public class PayloadService {
                           payloadArgument.getKey(),
                           payloadArgument.getKey(),
                           payloadArgument.getDefaultValue());
-                  textField.setArgumentType(argumentType);
+                  textField.setArgumentType(payloadArgument.getType());
                   builder.mandatory(textField);
                 }
               });

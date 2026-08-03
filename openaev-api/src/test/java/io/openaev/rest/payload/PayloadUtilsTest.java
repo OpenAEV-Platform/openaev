@@ -153,26 +153,4 @@ class PayloadUtilsTest {
 
     assertEquals(PrimitiveType.TargetedAsset, payload.getArguments().getFirst().getType());
   }
-
-  @Test
-  void given_missingArgumentType_should_defaultToText() throws Exception {
-    JsonNode payloadNode =
-        mapper.readTree(
-            """
-            {
-              "payload_type":"command",
-              "payload_name":"missing-type-payload",
-              "payload_source":"MANUAL",
-              "payload_status":"VERIFIED",
-              "payload_platforms":["Linux"],
-              "payload_arguments":[
-                {"key":"target","default_value":"asset-01","description":"d"}
-              ]
-            }
-            """);
-
-    PayloadCreateInput payload = PayloadUtils.buildPayload(payloadNode);
-
-    assertEquals(PrimitiveType.Text, payload.getArguments().getFirst().getType());
-  }
 }
