@@ -88,9 +88,7 @@ public abstract class ContractElement {
   /** Pre-selected values from linked fields. */
   private List<String> linkedValues = new ArrayList<>();
 
-  /**
-   * Argument primitive type.
-   */
+  /** Argument primitive type. */
   private PrimitiveType argumentType;
 
   /**
