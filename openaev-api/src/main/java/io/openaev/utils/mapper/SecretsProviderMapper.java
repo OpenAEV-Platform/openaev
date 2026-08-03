@@ -19,17 +19,19 @@ public class SecretsProviderMapper {
   public SecretsProviderOutput toSecretsProviderOutput(
       SecretsProvider secretsProvider,
       @Nullable CatalogConnector catalogConnector,
-      ConnectorInstance connectorInstance) {
+      ConnectorInstance connectorInstance,
+      boolean existingConnector) {
     return SecretsProviderOutput.builder()
         .id(secretsProvider.getId())
         .name(secretsProvider.getName())
-        .type(secretsProvider.getProviderType().name())
+        .type(secretsProvider.getType())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
         .verified(connectorInstance != null)
         .connectorInstance(
             connectorInstance != null
                 ? connectorInstanceMapper.toConnectorInstanceOutput(connectorInstance)
                 : null)
+        .existing(existingConnector)
         .build();
   }
 }

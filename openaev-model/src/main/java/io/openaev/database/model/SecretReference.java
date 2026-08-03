@@ -19,7 +19,6 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -29,7 +28,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "secret_reference_type", discriminatorType = DiscriminatorType.STRING)
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+// secret_references is fully on v2 (inspector + can_access_tenant); no v1 @Filter
 public class SecretReference implements TenantBase {
 
   @Id

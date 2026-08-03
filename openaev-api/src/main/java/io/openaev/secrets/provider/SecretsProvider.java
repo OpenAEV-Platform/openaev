@@ -3,7 +3,6 @@ package io.openaev.secrets.provider;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.BaseConnectorEntity;
-import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.SecretReference;
 import io.openaev.database.model.TenantIdBase;
 import lombok.Getter;
@@ -11,7 +10,6 @@ import lombok.Setter;
 
 public abstract class SecretsProvider extends BaseConnectorEntity
     implements SecretProvider, TenantIdBase {
-  protected SecretsProvider() {}
 
   public static final String SERVICE_NAME = "secrets-provider";
 
@@ -27,13 +25,17 @@ public abstract class SecretsProvider extends BaseConnectorEntity
 
   @JsonIgnore @Getter @Setter private String tenantId;
 
-  protected SecretsProvider(String id, String name) {
-    this.id = id;
-    this.name = name;
-    this.setType(ConnectorType.SECRETS_PROVIDER.name());
+  @Override
+  @JsonProperty("secrets_provider_type")
+  public String getType() {
+    return super.getType();
   }
 
-  public abstract SecretsProviderType getProviderType();
+  protected SecretsProvider(String id, String name, String type) {
+    this.id = id;
+    this.name = name;
+    this.setType(type);
+  }
 
   // -- SecretProvider default implementations  --
 
@@ -57,12 +59,7 @@ public abstract class SecretsProvider extends BaseConnectorEntity
 
   public static class Placeholder extends SecretsProvider {
     public Placeholder() {
-      super();
-    }
-
-    @Override
-    public SecretsProviderType getProviderType() {
-      return SecretsProviderType.PLACEHOLDER;
+      super("placeholder", "Placeholder", SecretsProviderType.PLACEHOLDER.type);
     }
   }
 }
