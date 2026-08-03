@@ -1189,6 +1189,7 @@ public class ConditionService {
       WorkflowStateEntries localEntries,
       WorkflowStateEntries globalEntries) {
     List<WorkflowStateEntries.Pair> pairs = new ArrayList<>();
+    Set<String> seenValues = new HashSet<>();
     for (String sourceKey : mapperContext.sourceKeys()) {
       Set<String> values =
           resolveValuesByMappingType(
@@ -1196,9 +1197,26 @@ public class ConditionService {
       if (values == null || values.isEmpty()) {
         continue;
       }
-      pairs.addAll(
-          values.stream().map(value -> new WorkflowStateEntries.Pair(sourceKey, value)).toList());
+      for (String value : values) {
+        if (seenValues.add(value)) {
+          pairs.add(new WorkflowStateEntries.Pair(sourceKey, value));
+        }
+      }
     }
+
+    // A defined value can be set on a mapper independently of any linked primitive type(s), and
+    // must keep being used as one more candidate even after type(s) are linked — it should never
+    // be silently discarded just because the mapper is no longer MappingType.DEFAULT. Skip it if
+    // it's already present in the pool (would otherwise generate two combinations with the exact
+    // same effective value for this mapper).
+    String definedValue = mapperContext.mapper().getValue();
+    if (definedValue != null && !definedValue.isBlank() && seenValues.add(definedValue)) {
+      String targetKey = resolveMapperTargetKey(mapperContext.mapper());
+      pairs.add(
+          new WorkflowStateEntries.Pair(
+              targetKey != null ? targetKey : "DEFINED_VALUE", definedValue));
+    }
+
     return pairs;
   }
 

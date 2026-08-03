@@ -828,6 +828,80 @@ public class ConditionServiceTest {
               .collect(java.util.stream.Collectors.toSet());
       assertEquals(Set.of("key:key", "pass:key", "pass:pass"), combos);
     }
+
+    @Test
+    void
+        given_mapperWithBothDefinedValueAndLinkedType_should_includeDefinedValueAsExtraCandidate() {
+      // -------- Arrange --------
+      // A mapper can have a static "defined value" set before a primitive type is linked to it.
+      // Linking a type switches its mappingType away from DEFAULT, but the defined value must
+      // still be used as one more candidate in the generated combinations, not discarded.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-defined-plus-linked-type");
+
+      Condition mapperWithDefinedValue =
+          mapper(MappingType.LOCAL, PrimitiveType.Text, "manual-value");
+      mapperWithDefinedValue.setKey("value");
+      List<Condition> mappers = List.of(mapperWithDefinedValue);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-defined-plus-linked-type"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 2 values from the linked type's pool + 1 defined value = 3 distinct combinations.
+      assertEquals(3, batches.size());
+      Set<String> values =
+          batches.stream()
+              .map(b -> b.usedMappers().getFirst().getValue())
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("pool-a", "pool-b", "manual-value"), values);
+    }
+
+    @Test
+    void given_mapperDefinedValueAlreadyInLinkedTypePool_should_notGenerateDuplicateCombination() {
+      // -------- Arrange --------
+      // If the defined value happens to already be one of the linked type's pool values, it must
+      // not be added a second time (would otherwise execute the exact same effective value twice).
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-defined-value-collision");
+
+      Condition mapperWithDefinedValue = mapper(MappingType.LOCAL, PrimitiveType.Text, "pool-a");
+      mapperWithDefinedValue.setKey("value");
+      List<Condition> mappers = List.of(mapperWithDefinedValue);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-defined-value-collision"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      Set<String> values =
+          batches.stream()
+              .map(b -> b.usedMappers().getFirst().getValue())
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("pool-a", "pool-b"), values);
+    }
   }
 
   /* ============================================================
