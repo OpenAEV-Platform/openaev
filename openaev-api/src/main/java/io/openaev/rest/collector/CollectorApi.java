@@ -8,6 +8,7 @@ import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.ConnectorCompositeId;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.CollectorRepository;
@@ -27,14 +28,11 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
-import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.io.IOUtils;
-import org.springframework.http.CacheControl;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -139,17 +137,8 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get collector image by type")
   @Transactional
-  public ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
-      throws IOException {
-    Optional<InputStream> fileStream = fileService.getCollectorImage(collectorType);
-    if (fileStream.isPresent()) {
-      try (InputStream is = fileStream.get()) {
-        return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-            .body(IOUtils.toByteArray(is));
-      }
-    }
-    return ResponseEntity.notFound().build();
+  public ResponseEntity<InputStreamResource> getCollectorImage(@PathVariable String collectorType) {
+    return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collectorType);
   }
 
   @GetMapping(
@@ -162,7 +151,7 @@ public class CollectorApi extends RestBehavior {
   @Operation(summary = "Get collector image by collector id")
   @Transactional
   // Composite PK: require a tenant selector to avoid NonUniqueResultException on the ID lookup.
-  public ResponseEntity<byte[]> getCollectorImageById(
+  public ResponseEntity<InputStreamResource> getCollectorImageById(
       @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) throws IOException {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<Collector> collector =
@@ -170,15 +159,7 @@ public class CollectorApi extends RestBehavior {
     if (collector.isEmpty()) {
       return ResponseEntity.notFound().build();
     }
-    Optional<InputStream> fileStream = fileService.getCollectorImage(collector.get().getType());
-    if (fileStream.isPresent()) {
-      try (InputStream is = fileStream.get()) {
-        return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-            .body(IOUtils.toByteArray(is));
-      }
-    }
-    return ResponseEntity.notFound().build();
+    return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collector.get().getType());
   }
 
   @PutMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})

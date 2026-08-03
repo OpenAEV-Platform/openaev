@@ -21,4 +21,8 @@ public class SecretsProviderOutput extends ConnectorOutput {
   @JsonProperty("secrets_provider_type")
   @NotBlank
   private String type;
+
+  @JsonProperty("existing_secret_provider")
+  @NotBlank
+  private boolean existing;
 }

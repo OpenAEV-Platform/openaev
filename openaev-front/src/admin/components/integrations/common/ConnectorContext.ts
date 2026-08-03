@@ -166,7 +166,7 @@ export const secretsProviderConfig: ConnectorContextType<SecretsProviderOutput> 
     list: '/admin/integrations/deployed',
     detail: (id: string) => `/admin/integrations/secrets-providers/${id}`,
   },
-  logoUrl: (type: string) => buildTenantApiPath(`/api/images/secrets_providers/icons/${type}`),
+  logoUrl: (type: string) => buildTenantApiPath(`/api/secrets_providers/${type}/image`),
   normalizeSingle: data => ({
     id: data?.secrets_provider_id,
     name: data?.secrets_provider_name,
@@ -174,6 +174,7 @@ export const secretsProviderConfig: ConnectorContextType<SecretsProviderOutput> 
     catalog: data?.catalog,
     isVerified: data?.is_verified ?? false,
     connectorInstance: data?.connector_instance,
+    isExisting: data?.existing_secret_provider,
   }),
 };
 

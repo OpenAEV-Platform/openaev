@@ -28,15 +28,10 @@ public class LocalSecretsProvider extends SecretsProvider {
       NativeEncryptionService nativeEncryptionService,
       SecretService secretService,
       SecretReferenceService secretReferenceService) {
-    super(id, name);
+    super(id, name, SecretsProviderType.LOCAL.type);
     this.nativeEncryptionService = nativeEncryptionService;
     this.secretService = secretService;
     this.secretReferenceService = secretReferenceService;
-  }
-
-  @Override
-  public SecretsProviderType getProviderType() {
-    return SecretsProviderType.LOCAL;
   }
 
   @Override

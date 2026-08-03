@@ -1,7 +1,7 @@
 package io.openaev.api.secrets_providers;
 
 import io.openaev.api.secrets_providers.form.SecretsProviderOutput;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TransactionalTenantScope;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -27,6 +27,7 @@ public class SecretsProviderService
 
   private final SecretsProviderMapper secretsProviderMapper;
   private final ManagerFactory managerFactory;
+  private final TransactionalTenantScope transactionalTenantScope;
 
   @Autowired
   public SecretsProviderService(
@@ -35,7 +36,8 @@ public class SecretsProviderService
       ConnectorInstanceService connectorInstanceService,
       SecretsProviderMapper secretsProviderMapper,
       CatalogConnectorMapper catalogConnectorMapper,
-      ManagerFactory managerFactory) {
+      ManagerFactory managerFactory,
+      TransactionalTenantScope transactionalTenantScope) {
     super(
         ConnectorType.SECRETS_PROVIDER,
         connectorInstanceConfigurationRepository,
@@ -44,6 +46,7 @@ public class SecretsProviderService
         catalogConnectorMapper);
     this.secretsProviderMapper = secretsProviderMapper;
     this.managerFactory = managerFactory;
+    this.transactionalTenantScope = transactionalTenantScope;
   }
 
   /**
@@ -68,11 +71,14 @@ public class SecretsProviderService
 
   @Override
   protected List<SecretsProvider> getAllConnectors() {
-    return managerFactory
-        .getManager(TenantContext.getCurrentTenant())
-        .requestManyAllStates(
-            new ComponentRequest(SecretsProvider.SERVICE_NAME), SecretsProvider.class)
-        .stream()
+    return transactionalTenantScope.currentTenantIds().stream()
+        .flatMap(
+            tenantId ->
+                managerFactory
+                    .getManager(tenantId)
+                    .requestManyAllStates(
+                        new ComponentRequest(SecretsProvider.SERVICE_NAME), SecretsProvider.class)
+                    .stream())
         .toList();
   }
 
@@ -87,7 +93,8 @@ public class SecretsProviderService
       CatalogConnector catalogConnector,
       ConnectorInstance instance,
       boolean existingConnector) {
-    return secretsProviderMapper.toSecretsProviderOutput(connector, catalogConnector, instance);
+    return secretsProviderMapper.toSecretsProviderOutput(
+        connector, catalogConnector, instance, existingConnector);
   }
 
   @Override

@@ -9631,10 +9631,9 @@ export interface SearchTerm {
 export interface SecretsProvider {
   external?: boolean;
   listened?: boolean;
-  providerType?: "LOCAL" | "VAULT" | "PLACEHOLDER";
   secrets_provider_id?: string;
   secrets_provider_name?: string;
-  type?: string;
+  secrets_provider_type?: string;
 }
 
 /** Secrets provider output */
@@ -9642,6 +9641,7 @@ export interface SecretsProviderOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
   connector_instance?: ConnectorInstanceOutput;
+  existing_secret_provider: boolean;
   is_verified?: boolean;
   /**
    * Secrets provider id
