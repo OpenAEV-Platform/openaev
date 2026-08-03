@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  * PostgreSQL 11+ (no table rewrite), and {@code IF NOT EXISTS} makes re-running a no-op.
  */
 @Component
-public class V6_20260801090000000__Add_autonomous_scope_targets extends BaseJavaMigration {
+public class V6_20260803130000000__Add_autonomous_scope_targets extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

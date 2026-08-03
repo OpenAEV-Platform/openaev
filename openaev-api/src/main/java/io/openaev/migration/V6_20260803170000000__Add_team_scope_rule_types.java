@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  * label to the existing enum type; it does not rewrite the {@code workflow_scope_rules} table.
  */
 @Component
-public class V6_20260803090000000__Add_team_scope_rule_types extends BaseJavaMigration {
+public class V6_20260803170000000__Add_team_scope_rule_types extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
