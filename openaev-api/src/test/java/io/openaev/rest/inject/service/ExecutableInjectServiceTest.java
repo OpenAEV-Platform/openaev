@@ -27,7 +27,7 @@ class ExecutableInjectServiceTest {
 
     // Act
     String result =
-        service.replaceArgumentsByValue(
+        service.resolveArgumentsForDisplay(
             command, List.of(payloadArgument("message", "fallback")), List.of(), injectContent);
 
     // Assert
