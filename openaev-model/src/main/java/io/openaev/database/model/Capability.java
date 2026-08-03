@@ -313,8 +313,6 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.TENANT_SETTING, Action.READ),
       pair(ResourceType.TENANT_SETTING, Action.SEARCH),
-      /*pair(ResourceType.TAG, Action.READ),
-      pair(ResourceType.TAG, Action.SEARCH),*/
       pair(ResourceType.TAG_RULE, Action.READ),
       pair(ResourceType.TAG_RULE, Action.SEARCH),
       pair(ResourceType.ATTACK_PATTERN, Action.READ),
@@ -347,6 +345,8 @@ public enum Capability {
   ACCESS_TAGS(
       null,
       CapabilityGroup.TAXONOMY,
+      false,
+      false,
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.TAG, Action.READ),
       pair(ResourceType.TAG, Action.SEARCH)),
@@ -361,8 +361,6 @@ public enum Capability {
       ACCESS_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.WRITE),
       pair(ResourceType.TENANT_SETTING, Action.CREATE),
-      /*pair(ResourceType.TAG, Action.WRITE),
-      pair(ResourceType.TAG, Action.CREATE),*/
       pair(ResourceType.TAG_RULE, Action.WRITE),
       pair(ResourceType.TAG_RULE, Action.CREATE),
       pair(ResourceType.ATTACK_PATTERN, Action.WRITE),
@@ -400,7 +398,6 @@ public enum Capability {
   DELETE_TENANT_SETTINGS(
       MANAGE_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.DELETE),
-      /*pair(ResourceType.TAG, Action.DELETE),*/
       pair(ResourceType.TAG_RULE, Action.DELETE),
       pair(ResourceType.ATTACK_PATTERN, Action.DELETE),
       pair(ResourceType.KILL_CHAIN_PHASE, Action.DELETE),
