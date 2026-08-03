@@ -5,8 +5,11 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
+import io.openaev.database.model.FindingTriage;
+import io.openaev.database.model.FindingTriageStatus;
 import io.openaev.database.model.TypeValueKey;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.FindingTriageRepository;
 import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.utils.mapper.FindingMapper;
@@ -29,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class FindingDistinctSearchService {
 
   private final FindingRepository findingRepository;
+  private final FindingTriageRepository findingTriageRepository;
   private final FindingMapper findingMapper;
 
   public Page<AggregatedFindingOutput> searchDistinctFindings(
@@ -150,12 +154,20 @@ public class FindingDistinctSearchService {
                     Map.Entry::getKey,
                     Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
 
-    // Step 4: Map page findings + grouped assets to AggregatedFindingOutput
+    // Step 4: Bulk-fetch triage statuses for the page's findings (one query total, not one per
+    // finding) to avoid N+1 - see FindingTriageRepository#findByFinding_IdIn.
+    List<String> findingIds = page.getContent().stream().map(Finding::getId).toList();
+    Map<String, FindingTriageStatus> triageStatusByFindingId =
+        findingTriageRepository.findByFinding_IdIn(findingIds).stream()
+            .collect(Collectors.toMap(triage -> triage.getFinding().getId(), FindingTriage::getStatus));
+
+    // Step 5: Map page findings + grouped assets + triage statuses to AggregatedFindingOutput
     return page.map(
         finding -> {
           TypeValueKey key = new TypeValueKey(finding.getType(), finding.getValue());
           List<Asset> relatedAssets = groupedAssets.getOrDefault(key, List.of());
-          return findingMapper.toAggregatedFindingOutput(finding, relatedAssets);
+          return findingMapper.toAggregatedFindingOutput(
+              finding, relatedAssets, triageStatusByFindingId);
         });
   }
 }

@@ -5,6 +5,7 @@ import io.openaev.database.repository.FindingRepository;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -23,8 +24,22 @@ public class FindingMapper {
   private final ScenarioMapper scenarioMapper;
   private final InjectMapper injectMapper;
 
+  /**
+   * Convenience single-finding overload (no bulk triage map available) - defaults {@code
+   * finding_triage_status} to {@link FindingTriageStatus#UNTRIAGED} for every finding. Only
+   * appropriate for one-off/test usage; callers mapping a page/list of findings MUST fetch triage
+   * statuses in bulk (see {@code FindingTriageRepository#findByFinding_IdIn}) and use the overload
+   * below instead, to avoid one triage query per finding (N+1).
+   */
   public AggregatedFindingOutput toAggregatedFindingOutput(
       Finding finding, List<Asset> relatedAssets) {
+    return toAggregatedFindingOutput(finding, relatedAssets, Map.of());
+  }
+
+  public AggregatedFindingOutput toAggregatedFindingOutput(
+      Finding finding,
+      List<Asset> relatedAssets,
+      Map<String, FindingTriageStatus> triageStatusByFindingId) {
     return AggregatedFindingOutput.builder()
         .id(finding.getId())
         .value(finding.getValue())
@@ -37,10 +52,22 @@ public class FindingMapper {
             relatedAssets.stream()
                 .map(endpointMapper::toEndpointSimple)
                 .collect(Collectors.toSet()))
+        .findingTriageStatus(
+            triageStatusByFindingId.getOrDefault(
+                finding.getId(), FindingTriageStatus.UNTRIAGED))
         .build();
   }
 
+  /**
+   * Convenience single-finding overload - see {@link #toAggregatedFindingOutput(Finding, List)}'s
+   * javadoc: defaults to UNTRIAGED, not for use in a loop.
+   */
   public RelatedFindingOutput toRelatedFindingOutput(Finding finding) {
+    return toRelatedFindingOutput(finding, Map.of());
+  }
+
+  public RelatedFindingOutput toRelatedFindingOutput(
+      Finding finding, Map<String, FindingTriageStatus> triageStatusByFindingId) {
     return RelatedFindingOutput.builder()
         .id(finding.getId())
         .value(finding.getValue())
@@ -65,6 +92,9 @@ public class FindingMapper {
                 .map(scenario -> scenarioMapper.toScenarioSimple(scenario))
                 .orElse(null))
         .creationDate(finding.getCreationDate())
+        .findingTriageStatus(
+            triageStatusByFindingId.getOrDefault(
+                finding.getId(), FindingTriageStatus.UNTRIAGED))
         .build();
   }
 }

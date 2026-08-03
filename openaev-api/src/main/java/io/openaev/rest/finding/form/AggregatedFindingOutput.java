@@ -5,6 +5,7 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.database.model.FindingTriageStatus;
 import io.openaev.rest.asset.endpoint.form.EndpointSimple;
 import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -55,4 +56,12 @@ public class AggregatedFindingOutput {
   @Schema(description = "Asset groups linked to assets")
   @JsonProperty("finding_asset_groups")
   private Set<AssetGroupSimple> assetGroups;
+
+  @Schema(
+      description =
+          "Current triage status of the finding (UNTRIAGED if no triage decision has been made"
+              + " yet)")
+  @JsonProperty("finding_triage_status")
+  @NotNull
+  private FindingTriageStatus findingTriageStatus;
 }
