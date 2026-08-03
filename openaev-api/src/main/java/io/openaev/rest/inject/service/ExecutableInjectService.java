@@ -81,7 +81,14 @@ public class ExecutableInjectService {
     return String.join(assetSeparator, valuesAssetsMap.keySet());
   }
 
-  private String replaceArgumentsByValue(
+  /**
+   * Resolves every {@code #{argumentKey}} placeholder in a command template to its actual value:
+   * the inject's own content when set, otherwise the payload argument's default value. Shared by
+   * the real execution path ({@link #processAndEncodeCommand}, before obfuscation/encoding) and by
+   * read-only display of a payload's command (e.g. the terminal view), so both stay in sync with a
+   * single resolution rule.
+   */
+  public String replaceArgumentsByValue(
       String command,
       List<PayloadArgument> defaultPayloadArguments,
       List<ObjectNode> injectorContractContentFields,
