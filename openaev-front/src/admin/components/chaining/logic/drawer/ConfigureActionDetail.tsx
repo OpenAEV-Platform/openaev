@@ -13,7 +13,6 @@ import type { ContractElement } from '../../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../../utils/Zod';
 import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
-import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import { type ActionDetailData } from '../types';
 import ActionFormButtons from './ActionFormButtons';
 import ActionInjectData from './ActionInjectData';
@@ -68,7 +67,6 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   onSave,
 }) => {
   const { t, tPick } = useFormatter();
-  const { argumentWithDefaultValueTypes } = useArgumentTypes();
 
   const isPayload = !!action?.action_payload;
 
@@ -136,12 +134,8 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     // In edit mode, preserve persisted links exactly as-is (no auto-link recomputation).
     if (initialData) return;
     if (contractFields.length === 0) return;
-    setFieldLinks(prev => applyAutoLinks(
-      contractFields,
-      prev,
-      argumentWithDefaultValueTypes,
-    ));
-  }, [initialData, contractFields, argumentWithDefaultValueTypes]);
+    setFieldLinks(prev => applyAutoLinks(contractFields, prev));
+  }, [initialData, contractFields]);
 
   // Resets all input argument fields to contract defaults.
   // Expectations are explicitly restored from current state because they are not part of this reset.
@@ -237,14 +231,14 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     () =>
       isPayload
         ? new Set(
-            contractFields
-              .filter(
-                f =>
-                  f.key.startsWith('targeted-property-')
-                  || f.key.startsWith('targeted-asset-separator-'),
-              )
-              .map(f => f.key),
-          )
+          contractFields
+            .filter(
+              f =>
+                f.key.startsWith('targeted-property-')
+                || f.key.startsWith('targeted-asset-separator-'),
+            )
+            .map(f => f.key),
+        )
         : new Set<string>(),
     [isPayload, contractFields],
   );

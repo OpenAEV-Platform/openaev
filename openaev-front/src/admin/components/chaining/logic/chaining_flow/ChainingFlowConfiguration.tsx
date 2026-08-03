@@ -16,7 +16,6 @@ import type {
   ThreatArsenalAction,
 } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
-import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import AddActionList from '../drawer/AddActionList';
 import AddComponentDrawer from '../drawer/AddComponentDrawer';
 import ConfigureActionDetail from '../drawer/ConfigureActionDetail';
@@ -81,7 +80,6 @@ const ChainingFlowConfiguration = ({
   linkToEventId,
 }: ChainingFlowConfigurationProps) => {
   const { t } = useFormatter();
-  const { argumentWithDefaultValueTypes } = useArgumentTypes();
 
   // -- Action-specific state --
   const [selectedAction, setSelectedAction] = useState<ThreatArsenalAction | null>(null);
@@ -163,14 +161,14 @@ const ChainingFlowConfiguration = ({
         const response = await directFetchInjectorContract(injectorContractId) as { data?: { injector_contract_content?: string } };
         // Keep direct-add behavior identical to form auto-link behavior.
         const fields = parseContractFields(response.data?.injector_contract_content);
-        const links = buildAutoLinkFieldLinks(fields, argumentWithDefaultValueTypes);
+        const links = buildAutoLinkFieldLinks(fields);
         return mapFieldLinksToStepConditions(links);
       } catch {
         // Do not block action creation if contract fetch/parse fails.
         return [];
       }
     },
-    [argumentWithDefaultValueTypes],
+    [],
   );
 
   const handleAddActions = async (selectedActions: ThreatArsenalAction[]) => {

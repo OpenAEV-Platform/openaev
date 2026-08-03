@@ -14,37 +14,26 @@ const FRONTEND_CONTENT_KEY_PREFIX = '__openaev_';
  */
 const AUTO_LINK_BY_FIELD_TYPE: Partial<Record<ContractType, string>> = { 'targeted-asset': 'targeted-asset' };
 
-const resolveDefaultOutputType = (
-  field: ContractElement,
-  argumentWithDefaultValueTypes: Set<string>,
-): string | undefined => {
+const resolveDefaultOutputType = (field: ContractElement): string | undefined => {
   const argumentType = typeof field.argumentType === 'string' ? field.argumentType.trim() : '';
   if (argumentType.length > 0) {
     return argumentType;
   }
-  const strictAutoType = AUTO_LINK_BY_FIELD_TYPE[field.type];
-  if (strictAutoType) {
-    return strictAutoType;
-  }
-  if (argumentWithDefaultValueTypes.has(field.type)) {
-    return field.type;
-  }
-  return undefined;
+  return AUTO_LINK_BY_FIELD_TYPE[field.type];
 };
 
 /**
- * Returns an updated fieldLinks record with auto-links applied for fields whose argumentType
- * or fallback field type has a known primitive type mapping. Existing links are never overwritten.
+ * Returns an updated fieldLinks record with auto-links applied for fields carrying an argumentType,
+ * or whose field type is strictly auto-linked. Existing links are never overwritten.
  */
 export const applyAutoLinks = (
   contractFields: ContractElement[],
   existingLinks: Record<string, FieldLink>,
-  argumentWithDefaultValueTypes: Set<string>,
 ): Record<string, FieldLink> => {
   const updates: Record<string, FieldLink> = {};
   for (const field of contractFields) {
     if (Object.prototype.hasOwnProperty.call(existingLinks, field.key)) continue;
-    const outputType = resolveDefaultOutputType(field, argumentWithDefaultValueTypes);
+    const outputType = resolveDefaultOutputType(field);
     if (outputType) {
       updates[field.key] = {
         outputTypes: [outputType],
@@ -63,8 +52,7 @@ export const applyAutoLinks = (
 /** Builds default auto-link map for a fresh action with no existing links. */
 export const buildAutoLinkFieldLinks = (
   contractFields: ContractElement[],
-  argumentWithDefaultValueTypes: Set<string>,
-): Record<string, FieldLink> => applyAutoLinks(contractFields, {}, argumentWithDefaultValueTypes);
+): Record<string, FieldLink> => applyAutoLinks(contractFields, {});
 
 /** Converts linked fields to step mapper conditions. */
 export const mapFieldLinksToStepConditions = (
