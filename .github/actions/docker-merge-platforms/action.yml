@@ -34,6 +34,64 @@ runs:
         username: ${{ github.actor }}
         password: ${{ github.token }}
 
+    - name: Wait for platform images
+      shell: bash
+      env:
+        REPO: ${{ steps.registry.outputs.repository }}
+        PREFIX: ${{ steps.registry.outputs.tag-prefix }}
+        ARTIFACT: ${{ inputs.artifact-name }}
+        PLATFORMS: ${{ inputs.platforms }}
+        USE_REGISTRY: ${{ steps.registry.outputs.available }}
+      run: |
+        set -euo pipefail
+        IFS=',' read -ra PLATS <<< "$PLATFORMS"
+
+        # Counts Docker Build cells that already failed, so a broken build aborts the
+        # poll instead of running it out to the timeout.
+        build_failed() {
+          local n
+          n=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+                --jq '[.jobs[] | select(.name | test("Docker Build")) | .conclusion]
+                      | map(select(. == "failure" or . == "cancelled")) | length' 2>/dev/null) || n=""
+          echo "${n:-0}"
+        }
+
+        ready() {
+          if [ "$USE_REGISTRY" = "true" ]; then
+            docker buildx imagetools inspect "$1" >/dev/null 2>&1
+          else
+            gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+              --jq '[.artifacts[].name]' 2>/dev/null | grep -qF "\"$1\""
+          fi
+        }
+
+        for plat in "${PLATS[@]}"; do
+          plat=$(echo "$plat" | xargs)
+          ARCH="${plat#*/}"
+          if [ "$USE_REGISTRY" = "true" ]; then
+            TARGET="${REPO}:${PREFIX}-${ARTIFACT}-${ARCH}"
+          else
+            TARGET="${ARTIFACT}-${ARCH}"
+          fi
+          echo "⏳ Waiting for ${TARGET}..."
+
+          for i in $(seq 1 180); do
+            if ready "$TARGET"; then
+              echo "  ✅ ${TARGET} ready (after ~$((i * 5))s)"
+              break
+            fi
+            if [ "$(build_failed)" -gt 0 ]; then
+              echo "❌ A Docker Build job failed or was cancelled — aborting"
+              exit 1
+            fi
+            if [ "$i" -eq 180 ]; then
+              echo "❌ Timed out waiting for ${TARGET} (15 min)"
+              exit 1
+            fi
+            sleep 5
+          done
+        done
+
     # Registry path: the index is assembled server-side from manifests that already
     # exist, so no ~1.9 GB of archives are moved just to staple them together.
     - name: Merge platforms via registry

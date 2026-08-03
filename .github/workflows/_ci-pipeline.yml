@@ -390,12 +390,16 @@ jobs:
           tags: ${{ matrix.tags }}
           download-release-assets: ${{ needs.prepare-bundled-assets.result == 'success' }}
 
+  # No `needs: [docker-build]`: that waits for job completion, i.e. ~2.5 min of
+  # gzip/validate/upload this job never consumes. It polls for the platform images
+  # instead and aborts by itself if a build fails.
   docker-merge:
     name: "🐳 Merge Platforms (${{ matrix.variant }})"
-    needs: [docker-build]
-    if: ${{ !cancelled() && needs.docker-build.result == 'success' }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
     strategy:
       fail-fast: false
       matrix:
