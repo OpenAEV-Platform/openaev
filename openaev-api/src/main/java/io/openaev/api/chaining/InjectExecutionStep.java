@@ -1361,8 +1361,8 @@ public class InjectExecutionStep implements ActionStep {
 
     if (inject.getPayload().isPresent()) {
       Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
-      injectorContractContentUtils
-          .getAllContractOutputs(outputParsers)
+      outputParsers.stream()
+          .flatMap(outputParser -> outputParser.getContractOutputElements().stream())
           .forEach(
               out ->
                   typeMappings.put(
