@@ -339,6 +339,10 @@ public class StepService {
   @Transactional(rollbackFor = Exception.class)
   List<Step> copyStepsTemplate(List<Step> stepsFrom, Workflow workflowTo) {
     List<Step> stepsCopied = new ArrayList<>();
+    // Shared across every step copied in this call so that a single condition/event linked to
+    // several source steps (e.g. one "event" root shared by 3 actions) is copied exactly once
+    // and reused (re-linked) for the other steps, instead of being duplicated per step.
+    Map<String, Condition> copiedConditionsByOriginalId = new HashMap<>();
     for (Step step : stepsFrom) {
       String data = step.getData();
       if (workflowTo.getSimulation() != null) {
@@ -358,7 +362,7 @@ public class StepService {
               .build();
 
       copy = saveStep(copy);
-      copyStepConditionTemplate(step, copy);
+      copyStepConditionTemplate(step, copy, copiedConditionsByOriginalId);
       stepsCopied.add(copy);
     }
     return stepsCopied;
@@ -367,11 +371,18 @@ public class StepService {
   /**
    * Copies the condition tree from a source step to a target step, preserving parent hierarchy.
    *
+   * <p>Root conditions already copied for a previous step in the same {@link #copyStepsTemplate}
+   * call (tracked via {@code copiedConditionsByOriginalId}) are reused instead of duplicated, so
+   * that a condition/event shared across multiple source steps stays shared in the copy too.
+   *
    * @param step source step with conditions
    * @param stepCopied target step to attach copied conditions to
+   * @param copiedConditionsByOriginalId map of original condition id -> already-copied condition,
+   *     shared across all steps copied in the same {@link #copyStepsTemplate} call
    */
   @Transactional(rollbackFor = Exception.class)
-  void copyStepConditionTemplate(Step step, Step stepCopied) {
+  void copyStepConditionTemplate(
+      Step step, Step stepCopied, Map<String, Condition> copiedConditionsByOriginalId) {
     // Roots linked to this step (source of truth for which trees to copy)
     List<Condition> linkedConditions = conditionService.findAllConditionsByStepId(step.getId());
     if (linkedConditions == null || linkedConditions.isEmpty()) {
@@ -408,9 +419,21 @@ public class StepService {
             .filter(condition -> condition.getConditionParent() != null)
             .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
 
-    Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
+    // Local view of the shared map, plus the subset of roots that are newly copied during this
+    // call (as opposed to reused from a previous step) — only newly copied roots need their
+    // children traversed/copied below.
+    Map<String, Condition> temporaryIdAndSaveId = copiedConditionsByOriginalId;
+    List<Condition> newlyCopiedRootConditions = new ArrayList<>();
 
     for (Condition firstCondition : rootConditions) {
+      Condition alreadyCopied = temporaryIdAndSaveId.get(firstCondition.getId());
+      if (alreadyCopied != null) {
+        // This condition (and its subtree) was already copied for another step sharing it —
+        // reuse it instead of duplicating, so the sharing is preserved in the copy.
+        conditionService.linkToStep(alreadyCopied, stepCopied, true);
+        continue;
+      }
+
       Step stepFrom =
           firstCondition.getStepFrom() == null
               ? null
@@ -434,10 +457,11 @@ public class StepService {
       first = conditionService.saveCondition(first);
 
       temporaryIdAndSaveId.put(firstCondition.getId(), first);
+      newlyCopiedRootConditions.add(firstCondition);
     }
 
     Queue<String> currentId = new LinkedList<>();
-    rootConditions.forEach(rc -> currentId.add(rc.getId()));
+    newlyCopiedRootConditions.forEach(rc -> currentId.add(rc.getId()));
 
     while (!currentId.isEmpty()) {
       String currentTemporaryId = currentId.poll();

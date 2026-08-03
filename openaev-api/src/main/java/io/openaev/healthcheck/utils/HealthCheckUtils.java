@@ -476,14 +476,22 @@ public class HealthCheckUtils {
 
   /**
    * Run scope definition check for a workflow template. Returns a warning when the workflow has no
-   * scope rules defined (neither allowlist nor denylist).
+   * usable allowlist target.
    *
    * @param workflow the workflow template to check
    * @return found healthchecks
    */
   public List<HealthCheck> runScopeDefinitionChecks(@NotNull final Workflow workflow) {
     List<HealthCheck> result = new ArrayList<>();
-    if (workflow.getWorkflowScopeRules() == null || workflow.getWorkflowScopeRules().isEmpty()) {
+    boolean hasAllowlistTarget =
+        workflow.getWorkflowScopeRules() != null
+            && workflow.getWorkflowScopeRules().stream()
+                .anyMatch(
+                    rule ->
+                        ScopeRuleSelectedMode.ALLOWLIST.equals(rule.getSelectedMode())
+                            && rule.getRuleValue() != null
+                            && !rule.getRuleValue().trim().isEmpty());
+    if (!hasAllowlistTarget) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.SCOPE_DEFINITION,

@@ -13,6 +13,7 @@ import { api } from '../../../network';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
+import { toHttpUrl } from '../../../utils/url-helper';
 import installChatbotCsrf from './installChatbotCsrf';
 
 interface AskArianePanelProps {
@@ -48,7 +49,10 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   const topOffset = 64 + bannerHeightNumber;
   const firstName = me.user_email?.split('@')[0] ?? 'User';
   const accentColor = theme.palette.ai?.main ?? '#B286FF';
-  const xtmOneUrl = settings.platform_xtm_one_url || '';
+  // Guarded by the shared http(s)-only helper: the URL is forwarded to the
+  // chatbot widget as `agentDashboardUrl` (an anchor href), so a misconfigured
+  // scheme must never reach it.
+  const xtmOneUrl = toHttpUrl(settings.platform_xtm_one_url) || '';
   const isDarkMode = theme.palette.mode === 'dark';
 
   const logoIcon = (

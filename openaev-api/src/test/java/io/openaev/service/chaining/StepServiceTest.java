@@ -1227,7 +1227,7 @@ class StepServiceTest {
               });
 
       // Act
-      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
       // Assert — root condition fields
       assertEquals(2, savedConditions.size());
@@ -1291,7 +1291,7 @@ class StepServiceTest {
               });
 
       // Act
-      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
       // Assert
       ArgumentCaptor<Condition> captor = ArgumentCaptor.forClass(Condition.class);
@@ -1354,7 +1354,7 @@ class StepServiceTest {
               });
 
       // WHEN copyStepConditionTemplate copies the step into the simulation workflow
-      stepService.copyStepConditionTemplate(sourceStep, stepCopied);
+      stepService.copyStepConditionTemplate(sourceStep, stepCopied, new HashMap<>());
 
       // THEN the copied root condition has:
       assertEquals(2, savedConditions.size());
@@ -1429,7 +1429,7 @@ class StepServiceTest {
               });
 
       // WHEN copyStepConditionTemplate copies the step into the simulation workflow
-      stepService.copyStepConditionTemplate(sourceStep, stepCopied);
+      stepService.copyStepConditionTemplate(sourceStep, stepCopied, new HashMap<>());
 
       // THEN the copied root exposes its child in memory (inverse side populated)
       assertEquals(2, savedConditions.size());
@@ -1501,7 +1501,7 @@ class StepServiceTest {
               });
 
       // Act
-      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
       // Assert — both root and child are copied
       assertEquals(2, savedConditions.size());
@@ -1575,7 +1575,7 @@ class StepServiceTest {
               });
 
       // Act
-      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
       // Assert — all 3 levels copied
       assertEquals(3, savedConditions.size());
@@ -1656,7 +1656,7 @@ class StepServiceTest {
                 return c;
               });
 
-      stepService.copyStepConditionTemplate(sourceStep, targetStep);
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
       // event root + mapper root + event leaf
       assertEquals(3, savedConditions.size());
