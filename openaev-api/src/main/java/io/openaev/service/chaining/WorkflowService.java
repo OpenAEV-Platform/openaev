@@ -908,7 +908,6 @@ public class WorkflowService {
         case ASSET -> ScopeRuleValueType.ASSET_ID;
         case ASSET_GROUP -> ScopeRuleValueType.ASSET_GROUP_ID;
         case TEAM -> ScopeRuleValueType.TEAM_ID;
-        case PLAYER -> ScopeRuleValueType.PLAYER_ID;
         default -> resolveValueTypeFromString(input.getRuleValue());
       };
     }

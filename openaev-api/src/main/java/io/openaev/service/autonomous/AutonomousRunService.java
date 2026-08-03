@@ -795,9 +795,20 @@ public class AutonomousRunService {
     if (status == AutonomousRunStatus.PLANNED && hasText(content)) {
       run.setPlanGuidance(content);
     }
-    // Reflect a terminal orchestrator decision onto the chained simulation so both stay consistent.
-    // PLANNED is settled but not terminal (the plan sim never ran), so it never touches the sim.
-    if (status == AutonomousRunStatus.COMPLETED || status == AutonomousRunStatus.FAILED) {
+    // Reflect a terminal/settled orchestrator decision onto the chained simulation so both stay
+    // consistent. A plan-mode run needs the DIRECT finish: its simulation is the RUNNING authoring
+    // substrate whose RUN workflow is never started, so no scheduler ever closes it, and
+    // changeExerciseStatus refuses RUNNING -> FINISHED (only the scheduler sets FINISHED). Left
+    // alone it stays "On-going" forever once the plan is ready. PLANNED is the normal settled
+    // state;
+    // COMPLETED / FAILED can also end a plan (e.g. it could not be designed).
+    if (run.isPlanMode()) {
+      if (status == AutonomousRunStatus.PLANNED
+          || status == AutonomousRunStatus.COMPLETED
+          || status == AutonomousRunStatus.FAILED) {
+        finishPlanSimulationQuietly(run);
+      }
+    } else if (status == AutonomousRunStatus.COMPLETED || status == AutonomousRunStatus.FAILED) {
       transitionSimulationQuietly(run, ExerciseStatus.FINISHED);
     }
     AutonomousRun saved = runRepository.save(run);
@@ -1036,7 +1047,6 @@ public class AutonomousRunService {
       case ASSET -> "ASSETS";
       case ASSET_GROUP -> "ASSETS_GROUPS";
       case TEAM -> "TEAMS";
-      case PLAYER -> "PLAYERS";
       case MANUAL, CSV -> "MANUAL";
     };
   }
@@ -1051,7 +1061,6 @@ public class AutonomousRunService {
     List<String> assetIds = idsForSource(rules, ScopeRuleSource.ASSET);
     List<String> groupIds = idsForSource(rules, ScopeRuleSource.ASSET_GROUP);
     List<String> teamIds = idsForSource(rules, ScopeRuleSource.TEAM);
-    List<String> playerIds = idsForSource(rules, ScopeRuleSource.PLAYER);
     if (!assetIds.isEmpty()) {
       for (Endpoint endpoint : endpointService.endpoints(assetIds)) {
         names.put(nameKey(ScopeRuleSource.ASSET, endpoint.getId()), endpoint.getName());
@@ -1067,11 +1076,6 @@ public class AutonomousRunService {
         names.put(nameKey(ScopeRuleSource.TEAM, team.getId()), team.getName());
       }
     }
-    if (!playerIds.isEmpty()) {
-      for (User user : userRepository.findAllById(playerIds)) {
-        names.put(nameKey(ScopeRuleSource.PLAYER, user.getId()), scopePlayerName(user));
-      }
-    }
     return names;
   }
 
@@ -1081,14 +1085,6 @@ public class AutonomousRunService {
         .map(WorkflowScopeRule::getRuleValue)
         .distinct()
         .toList();
-  }
-
-  private String scopePlayerName(User user) {
-    String name = user.getName();
-    if (name != null && !name.isBlank()) {
-      return name.trim();
-    }
-    return user.getEmail();
   }
 
   // endregion
@@ -1957,7 +1953,6 @@ public class AutonomousRunService {
             case "ASSETS" -> ScopeRuleSource.ASSET;
             case "ASSETS_GROUPS" -> ScopeRuleSource.ASSET_GROUP;
             case "TEAMS" -> ScopeRuleSource.TEAM;
-            case "PLAYERS" -> ScopeRuleSource.PLAYER;
             default -> null;
           };
       if (source == null) {
@@ -1974,10 +1969,10 @@ public class AutonomousRunService {
   }
 
   /**
-   * Extracts the allow-listed ENTITY targets (asset, asset group, team, person) from a full scope
-   * rule list so they can be folded into the run's {@link AutonomousScopeTarget} projection. Manual
-   * IP / CIDR / hostname / CSV rules and deny-list rules are intentionally skipped: they are not
-   * targetable entities and live only on the workflow scope, not the run projection.
+   * Extracts the allow-listed ENTITY targets (asset, asset group, team) from a full scope rule list
+   * so they can be folded into the run's {@link AutonomousScopeTarget} projection. Manual IP / CIDR
+   * / hostname / CSV rules and deny-list rules are intentionally skipped: they are not targetable
+   * entities and live only on the workflow scope, not the run projection.
    */
   private List<AutonomousScopeTarget> allowlistTargetsFromRules(
       List<WorkflowScopeRuleInput> rules) {
@@ -1997,7 +1992,6 @@ public class AutonomousRunService {
             case ASSET -> "ASSETS";
             case ASSET_GROUP -> "ASSETS_GROUPS";
             case TEAM -> "TEAMS";
-            case PLAYER -> "PLAYERS";
             default -> null;
           };
       if (type != null) {
@@ -2138,6 +2132,42 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
           "Cannot move the simulation to " + target + ": " + e.getMessage(),
+          e);
+    }
+  }
+
+  /**
+   * Finishes a dry-run plan's simulation directly (status FINISHED + end date), mirroring the way
+   * {@code InjectsExecutionJob} closes a simulation. A plan simulation is created RUNNING as the
+   * orchestrator's authoring / visualization substrate, but its RUN workflow is intentionally never
+   * started (see {@link #create}), so the auto-closing scheduler never runs on it and it would stay
+   * "On-going" forever after the plan is ready. We cannot route this through {@link
+   * #transitionSimulationQuietly}: RUNNING -> FINISHED is not an allowed {@code
+   * Exercise#nextPossibleStatus} manual transition (FINISHED is scheduler-only), so
+   * changeExerciseStatus would just throw and be swallowed. A plan simulation has no RUN workflow
+   * and no executed injects, so the normal close side effects do not apply - a plain terminal set
+   * is both correct and sufficient. Best-effort: never fails the orchestrator callback.
+   */
+  private void finishPlanSimulationQuietly(AutonomousRun run) {
+    String simulationId = run.getSimulationId();
+    if (!hasText(simulationId)) {
+      return;
+    }
+    try {
+      Exercise simulation = exerciseService.exercise(simulationId);
+      ExerciseStatus current = simulation.getStatus();
+      if (current == ExerciseStatus.FINISHED || current == ExerciseStatus.CANCELED) {
+        return;
+      }
+      simulation.setStatus(ExerciseStatus.FINISHED);
+      simulation.setEnd(now());
+      simulation.setUpdatedAt(now());
+      exerciseRepository.save(simulation);
+    } catch (Exception e) {
+      log.warn(
+          "[Autonomous] Could not finish plan simulation {} on run {}",
+          simulationId,
+          run.getId(),
           e);
     }
   }

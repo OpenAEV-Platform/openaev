@@ -1,15 +1,16 @@
-import { InfoOutlined } from '@mui/icons-material';
+import { GroupsOutlined, InfoOutlined } from '@mui/icons-material';
 import { Box, Chip, Tooltip, Typography } from '@mui/material';
 
 import { useFormatter } from '../../../../../components/i18n';
-import type { ScopeAssetOutput } from '../../../../../utils/api-types';
+import type { ScopeAssetOutput, ScopeTeamOutput } from '../../../../../utils/api-types';
 
 interface ActionScopeChipsProps {
   isPayload: boolean;
   validAssets: ScopeAssetOutput[];
+  validTeams?: ScopeTeamOutput[];
 }
 
-const ActionScopeChips = ({ isPayload, validAssets }: ActionScopeChipsProps) => {
+const ActionScopeChips = ({ isPayload, validAssets, validTeams = [] }: ActionScopeChipsProps) => {
   const { t } = useFormatter();
 
   const title = isPayload ? t('Initial Source Assets') : t('Initial Target');
@@ -17,6 +18,10 @@ const ActionScopeChips = ({ isPayload, validAssets }: ActionScopeChipsProps) => 
     ? t('Additional endpoints may be included during simulation based on real decision logic.')
     : t('Additional targets may be included during simulation based on real decision logic.');
   const emptyLabel = isPayload ? t('No assets in the allow list.') : t('No targets in the allow list.');
+
+  // Payloads only ever target assets; the team axis is an inject-only concept.
+  const teams = isPayload ? [] : validTeams;
+  const hasTargets = validAssets.length > 0 || teams.length > 0;
 
   return (
     <Box>
@@ -32,7 +37,7 @@ const ActionScopeChips = ({ isPayload, validAssets }: ActionScopeChipsProps) => 
           <InfoOutlined fontSize="small" color="info" />
         </Tooltip>
       </Box>
-      {validAssets.length > 0 ? (
+      {hasTargets ? (
         <Box sx={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -41,8 +46,17 @@ const ActionScopeChips = ({ isPayload, validAssets }: ActionScopeChipsProps) => 
         >
           {validAssets.map(asset => (
             <Chip
-              key={asset.asset_id ?? ''}
+              key={`asset-${asset.asset_id ?? ''}`}
               label={asset.asset_name ?? ''}
+              size="small"
+              variant="filled"
+            />
+          ))}
+          {teams.map(team => (
+            <Chip
+              key={`team-${team.team_id ?? ''}`}
+              icon={<GroupsOutlined />}
+              label={team.team_name ?? ''}
               size="small"
               variant="filled"
             />

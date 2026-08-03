@@ -3,6 +3,7 @@ package io.openaev.service.chaining;
 import static io.openaev.utils.JsonUtils.gson;
 
 import io.openaev.database.model.*;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
@@ -20,6 +21,7 @@ public class ScopeService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final WorkflowStateService workflowStateService;
+  private final TeamRepository teamRepository;
 
   /**
    * Returns the assets that are in scope for the given workflow and that are not denied by a value
@@ -58,6 +60,37 @@ public class ScopeService {
     return completeAllowedAssetList.stream()
         .filter(asset -> !deniedAssetIds.contains(asset.getId()))
         .toList();
+  }
+
+  /**
+   * Returns the teams that are in scope for the given workflow: allowlisted TEAM rules minus
+   * denylisted TEAM rules. Mirrors {@link #getValidAssets(String)} for the audience axis.
+   */
+  public List<Team> getValidTeams(String workflowId) {
+    List<WorkflowScopeRule> allRules = workflowScopeRuleRepository.findAllByWorkflowId(workflowId);
+
+    Set<String> allowedTeamIds =
+        allRules.stream()
+            .filter(rule -> ScopeRuleSelectedMode.ALLOWLIST.equals(rule.getSelectedMode()))
+            .filter(rule -> ScopeRuleValueType.TEAM_ID.equals(rule.getValueType()))
+            .map(WorkflowScopeRule::getRuleValue)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+    if (allowedTeamIds.isEmpty()) {
+      return List.of();
+    }
+
+    Set<String> deniedTeamIds =
+        allRules.stream()
+            .filter(rule -> ScopeRuleSelectedMode.DENYLIST.equals(rule.getSelectedMode()))
+            .filter(rule -> ScopeRuleValueType.TEAM_ID.equals(rule.getValueType()))
+            .map(WorkflowScopeRule::getRuleValue)
+            .collect(Collectors.toSet());
+
+    List<String> keptTeamIds =
+        allowedTeamIds.stream().filter(id -> !deniedTeamIds.contains(id)).toList();
+
+    return keptTeamIds.isEmpty() ? List.of() : teamRepository.findAllById(keptTeamIds);
   }
 
   private Set<Asset> getAssetsAllowedByAssetId(List<WorkflowScopeRule> allowlistRules) {

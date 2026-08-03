@@ -1,4 +1,4 @@
-import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, ScheduleOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
+import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Divider, Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
@@ -181,9 +181,11 @@ const OutcomeCard: FunctionComponent<{
       }}
       >
         <Typography
-          variant="subtitle2"
           sx={{
             margin: 0,
+            fontSize: 13,
+            fontWeight: 600,
+            lineHeight: 1.35,
             ...clampSx(2),
           }}
         >
@@ -651,13 +653,9 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
         )}
         <Box sx={{ marginTop: 2 }}>
           <HeroStats>
-            {run.autonomous_run_created_at && (
-              <HeroStat
-                icon={ScheduleOutlined}
-                label={t('Started')}
-                value={nsdt(run.autonomous_run_created_at)}
-              />
-            )}
+            {/* Start date is not repeated here - the page hero already carries it. The mission card
+                keeps only the live progress stats (short numeric values the HeroStat is designed
+                for), not a long datetime that overflows the 18px value slot. */}
             <HeroStat
               icon={BoltOutlined}
               label={t('Decisions')}

@@ -1539,17 +1539,17 @@ export interface AutonomousScopeEntry {
   id?: string;
   /** Resolved display name for entities; falls back to the id / raw value */
   name?: string;
-  /** Workflow scope-rule source: ASSET, ASSET_GROUP, TEAM, PLAYER, MANUAL, CSV */
+  /** Workflow scope-rule source: ASSET, ASSET_GROUP, TEAM, MANUAL, CSV */
   source?: string;
-  /** Orchestrator target kind: ASSETS, ASSETS_GROUPS, TEAMS, PLAYERS (or MANUAL for a raw IP / CIDR / hostname). Use this kind's ids with the authoring / scope tools. */
+  /** Orchestrator target kind: ASSETS, ASSETS_GROUPS, TEAMS (or MANUAL for a raw IP / CIDR / hostname). Use this kind's ids with the authoring / scope tools. */
   type?: string;
 }
 
 /** One targetable entity in an autonomous run's scope */
 export interface AutonomousScopeTarget {
-  /** Entity id of that kind (asset / asset-group / team / user id) */
+  /** Entity id of that kind (asset / asset-group / team id) */
   id?: string;
-  /** Target kind: ASSETS, ASSETS_GROUPS, TEAMS or PLAYERS */
+  /** Target kind: ASSETS, ASSETS_GROUPS or TEAMS */
   type?: string;
 }
 
@@ -10017,6 +10017,14 @@ export interface ScopeAssetOutput {
   asset_type?: string;
 }
 
+/** A team that is in scope (allowlisted and not denylisted) for a workflow. */
+export interface ScopeTeamOutput {
+  /** ID of the team */
+  team_id?: string;
+  /** Name of the team */
+  team_name?: string;
+}
+
 export interface ScopeVariable {
   listened?: boolean;
   /** @format date-time */
@@ -12254,7 +12262,6 @@ export interface WorkflowScopeRule {
     | "ASSET"
     | "ASSET_GROUP"
     | "TEAM"
-    | "PLAYER"
     | "MANUAL"
     | "CSV";
   /** @format date-time */
@@ -12266,8 +12273,7 @@ export interface WorkflowScopeRule {
     | "DOMAIN"
     | "ASSET_ID"
     | "ASSET_GROUP_ID"
-    | "TEAM_ID"
-    | "PLAYER_ID";
+    | "TEAM_ID";
 }
 
 /** Input for a scope rule used in workflow configuration. */
@@ -12302,7 +12308,6 @@ export interface WorkflowScopeRuleOutput {
     | "ASSET"
     | "ASSET_GROUP"
     | "TEAM"
-    | "PLAYER"
     | "MANUAL"
     | "CSV";
   /** Selected item value */

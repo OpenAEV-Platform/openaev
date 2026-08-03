@@ -145,6 +145,10 @@ const LogicGraph = ({
         inject_description: action.inject_description,
         inject_injector_contract: action.inject_injector_contract,
         inject_assets: action.inject_assets,
+        inject_asset_groups: action.inject_asset_groups,
+        inject_all_teams: action.inject_all_teams,
+        inject_teams: action.inject_teams,
+        inject_documents: action.inject_documents,
         inject_content: action.inject_content,
       },
     };

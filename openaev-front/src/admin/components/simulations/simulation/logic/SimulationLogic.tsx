@@ -9,7 +9,7 @@ const SimulationLogic = ({ readOnly = false }: { readOnly?: boolean }) => {
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   return (
-    <Logic workflowId={exercise?.exercise_workflow_id} context="simulation" readOnly={readOnly} />
+    <Logic workflowId={exercise?.exercise_workflow_id} context="simulation" exerciseId={exerciseId} readOnly={readOnly} />
   );
 };
 

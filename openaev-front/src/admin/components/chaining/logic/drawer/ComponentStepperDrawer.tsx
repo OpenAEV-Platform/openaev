@@ -16,9 +16,11 @@ import type {
   InjectInput,
   PayloadSimple,
   ScopeAssetOutput,
+  ScopeTeamOutput,
   ThreatArsenalAction,
 } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
+import { type LogicContext } from '../AddComponentButton';
 import {
   conditionGroupsToApi,
   type EventFormData,
@@ -28,6 +30,7 @@ import { resolveConditionKeyTypes } from '../logic-flow-helpers';
 import type { ActionDetailData, ActionMeta, EventMeta } from '../types';
 import AddActionList from './AddActionList';
 import ConfigureActionDetail from './ConfigureActionDetail';
+import InjectTargetsProvider from './InjectTargetsProvider';
 
 /**
  * Drawer navigation state, shared with the Logic container:
@@ -41,7 +44,11 @@ export type DrawerView = 'closed' | 'choose' | 'action' | 'actionDetail' | 'even
 
 interface ComponentStepperDrawerProps {
   workflowId: string | undefined;
+  context: LogicContext;
+  scenarioId?: string;
+  exerciseId?: string;
   validAssets: ScopeAssetOutput[];
+  validTeams?: ScopeTeamOutput[];
   drawerView: DrawerView;
   onDrawerViewChange: (view: DrawerView) => void;
   editingStep: {
@@ -133,7 +140,11 @@ const ChoiceCard = ({ icon: Icon, iconColor, circle, title, description, onClick
  */
 const ComponentStepperDrawer = ({
   workflowId,
+  context,
+  scenarioId,
+  exerciseId,
   validAssets,
+  validTeams = [],
   drawerView,
   onDrawerViewChange,
   editingStep,
@@ -178,6 +189,10 @@ const ComponentStepperDrawer = ({
       inject_injector_contract: meta.inject_injector_contract ?? '',
       inject_injector: meta.inject_injector,
       inject_assets: meta.inject_assets ?? [],
+      inject_asset_groups: meta.inject_asset_groups ?? [],
+      inject_teams: meta.inject_teams ?? [],
+      inject_all_teams: meta.inject_all_teams ?? false,
+      inject_documents: meta.inject_documents ?? [],
       inject_content: meta.inject_content ?? {},
       inject_field_links: {},
       contract_fields: meta.contract_fields ?? [],
@@ -280,10 +295,10 @@ const ComponentStepperDrawer = ({
         inject_assets: data.inject_assets,
         inject_content: data.inject_content,
         inject_tags: [],
-        inject_all_teams: false,
-        inject_teams: [],
-        inject_asset_groups: [],
-        inject_documents: [],
+        inject_all_teams: data.inject_all_teams,
+        inject_teams: data.inject_teams,
+        inject_asset_groups: data.inject_asset_groups,
+        inject_documents: data.inject_documents,
         inject_depends_duration: 0,
         inject_depends_on: [],
       } as unknown as InjectInput,
@@ -417,13 +432,16 @@ const ComponentStepperDrawer = ({
         )}
 
         {drawerView === 'actionDetail' && (
-          <ConfigureActionDetail
-            action={activeAction}
-            validAssets={validAssets}
-            initialData={editingInitialData}
-            onClose={handleClose}
-            onSave={handleSaveActionDetail}
-          />
+          <InjectTargetsProvider context={context} scenarioId={scenarioId} exerciseId={exerciseId}>
+            <ConfigureActionDetail
+              action={activeAction}
+              validAssets={validAssets}
+              validTeams={validTeams}
+              initialData={editingInitialData}
+              onClose={handleClose}
+              onSave={handleSaveActionDetail}
+            />
+          </InjectTargetsProvider>
         )}
 
         {drawerView === 'event' && (

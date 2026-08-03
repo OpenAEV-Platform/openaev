@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { fetchConditions, fetchSteps } from '../../../../actions/chaining/chaining-actions';
-import { fetchValidAssets } from '../../../../actions/chaining/workflow-actions';
+import { fetchValidAssets, fetchValidTeams } from '../../../../actions/chaining/workflow-actions';
 import type {
   EventOutput,
   ScopeAssetOutput,
+  ScopeTeamOutput,
   StepOutput,
 } from '../../../../utils/api-types';
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
@@ -17,15 +18,21 @@ import type { ActionMeta, EventMeta } from './types';
 interface LogicProps {
   workflowId: string | undefined;
   context: LogicContext;
+  /** Owning scenario id (scenario context) - feeds the inject form's team/document providers. */
+  scenarioId?: string;
+  /** Owning exercise id (simulation context) - feeds the inject form's team/document providers. */
+  exerciseId?: string;
   /** Read-only inspection mode (autonomous runs): the AI owns the attack path, so the manual
    *  authoring affordances (top bar, add-component, node edit/delete) are hidden while pan/zoom
    *  and the trigger spotlight stay available. */
   readOnly?: boolean;
 }
 
-const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
+const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }: LogicProps) => {
   // Fetch computed valid assets (allowlist minus denylist)
   const [validAssets, setValidAssets] = useState<ScopeAssetOutput[]>([]);
+  // Fetch computed valid teams (allowlist minus denylist)
+  const [validTeams, setValidTeams] = useState<ScopeTeamOutput[]>([]);
   // Track whether existing steps/events exist
   const [hasExistingData, setHasExistingData] = useState<boolean | null>(null);
   // Count of existing events (used to generate default names)
@@ -57,6 +64,9 @@ const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
     if (workflowId) {
       fetchValidAssets(workflowId).then((assets: ScopeAssetOutput[]) => {
         setValidAssets(assets);
+      });
+      fetchValidTeams(workflowId).then((teams: ScopeTeamOutput[]) => {
+        setValidTeams(teams);
       });
     }
   }, [workflowId]);
@@ -179,7 +189,11 @@ const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
       </div>
       <ComponentStepperDrawer
         workflowId={workflowId}
+        context={context}
+        scenarioId={scenarioId}
+        exerciseId={exerciseId}
         validAssets={validAssets}
+        validTeams={validTeams}
         drawerView={drawerView}
         onDrawerViewChange={setDrawerView}
         editingStep={editingStep}

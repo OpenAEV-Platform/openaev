@@ -81,6 +81,10 @@ export const buildActionMetas = (steps: StepOutput[]): Record<string, ActionMeta
         inject_kill_chain_phase_ids: killChainPhaseIds,
         inject_assets: (data?.inject_assets as string[]) ?? [],
         inject_asset_objects: [],
+        inject_asset_groups: (data?.inject_asset_groups as string[]) ?? [],
+        inject_teams: (data?.inject_teams as string[]) ?? [],
+        inject_all_teams: (data?.inject_all_teams as boolean) ?? false,
+        inject_documents: (data?.inject_documents as ActionMeta['inject_documents']) ?? [],
         step_condition_ids: s.step_condition_ids ?? [],
         step_conditions: (s.step_mapper_conditions ?? []).map((mc) => {
           const resolvedKeyTypes = resolveConditionKeyTypes(mc as unknown as Record<string, unknown>);

@@ -112,17 +112,43 @@ interface ThinkingPhase {
 // settles into a STATIC hourglass + calm caption with no pulsing and no thought echo, so a parked
 // run stops looking like it is still thinking. The label + colour reflect the CURRENT phase and
 // animate on every phase change.
+// Turn a millisecond gap into a compact "still working" clock: "12s", "1m 20s". Kept short so it
+// sits inline next to the phase caption without wrapping.
+const formatElapsed = (ms: number): string => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+};
+
 const ThinkingBubble: FunctionComponent<{
   phase: ThinkingPhase;
   theme: Theme;
   lines: string[];
+  /** Timestamp of the most recent activity, so the window can tick a live "working for Ns" clock.
+   *  This is what turns a silent stretch (e.g. the orchestrator grinding through tool retries with
+   *  no new narration) from a frozen caption into a visibly advancing counter. */
+  activitySince?: string | number | null;
 }> = ({
   phase,
   theme,
   lines,
+  activitySince,
 }) => {
   const accent = phase.color;
   const active = phase.active;
+  // Tick a 1s clock ONLY while actively working, so the elapsed counter advances live and the
+  // interval is torn down the moment the run parks/waits.
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (!active) return undefined;
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [active, phase.key]);
+  const sinceMs = activitySince != null ? new Date(activitySince).getTime() : Number.NaN;
+  const elapsedLabel = active && Number.isFinite(sinceMs) ? formatElapsed(now - sinceMs) : null;
   // A parked/waiting phase never streams the live thought echo (there is no live thought - the run
   // is idle), and its dots do not pulse.
   const showLatest = active && lines.length > 0;
@@ -221,6 +247,17 @@ const ThinkingBubble: FunctionComponent<{
         >
           {phase.label}
         </Typography>
+        {elapsedLabel && (
+          <Typography
+            variant="caption"
+            sx={{
+              color: alpha(theme.palette.text.secondary, 0.7),
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {`· ${elapsedLabel}`}
+          </Typography>
+        )}
       </Stack>
       {showLatest && (
         <Box
@@ -807,6 +844,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     phase={thinkingPhase}
                     theme={theme}
                     lines={thinkingLines}
+                    activitySince={newestEvent?.autonomous_event_created_at}
                   />
                 )}
               </Stack>
