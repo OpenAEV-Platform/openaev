@@ -17,7 +17,7 @@ import { type ExpectationResultsByType, type InjectExpectationResultsByAttackPat
 import MitreCoverageMatrix from '../common/matrix/MitreCoverageMatrix';
 import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../workspaces/custom_dashboards/results/contextualWidgets';
 import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
-import { eventAccent, eventIcon, eventTypeLabel, sanitizeEventText } from './autonomousEventVisuals';
+import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
 import AutonomousOutcomeDialog, { type OutcomeKind } from './AutonomousOutcomeDialog';
 
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['PLANNING', 'RUNNING', 'WAITING_INPUT'];
@@ -212,7 +212,7 @@ const OutcomeCard: FunctionComponent<{
             ...clampSx(3),
           }}
         >
-          {body}
+          {stripMarkdown(body)}
         </Typography>
       )}
     </Box>
@@ -820,17 +820,14 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
                               borderColor: theme.palette.divider,
                             }}
                             />
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{
-                                fontSize: 11,
-                                lineHeight: 1.45,
-                                ...clampSx(8),
-                              }}
+                            <Box sx={{
+                              maxHeight: 240,
+                              overflow: 'hidden',
+                              maskImage: 'linear-gradient(to bottom, black 88%, transparent 100%)',
+                            }}
                             >
-                              {eventContent}
-                            </Typography>
+                              <EventMarkdown content={eventContent} fontSize={11} />
+                            </Box>
                           </>
                         )}
                       </Box>

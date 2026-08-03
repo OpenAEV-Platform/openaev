@@ -507,12 +507,17 @@ public class AutonomousRunService {
   }
 
   /**
-   * Restarts a terminal run <b>in place</b>: reuses the SAME scenario, tears down the previous
+   * Restarts a settled run <b>in place</b>: reuses the SAME scenario, tears down the previous
    * simulation (attack-path rows included) and the run's decision timeline + steering directives,
    * provisions a fresh simulation from that scenario, and resets the run to {@code CREATED}. The
    * caller then {@link #start}s it again. This keeps the invariant "one scenario == one run == one
    * live simulation" instead of spawning a brand-new scenario on every restart, and gives the
    * cockpit (overview, attack-path graph, reasoning panel) a clean slate to animate from scratch.
+   *
+   * <p>Allowed once a run has settled: a terminal live run (COMPLETED / FAILED / CANCELED) or a
+   * settled dry-run plan (PLANNED). Re-planning a settled plan (e.g. after the operator filled a
+   * capability gap or steered the scope) is the same reset - a plan-mode restart re-provisions the
+   * TEMPLATE workflow so the AI rebuilds the plan from scratch.
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun restart(String runId) {
@@ -520,9 +525,10 @@ public class AutonomousRunService {
     AutonomousRun run = require(runId);
     if (run.getStatus() != AutonomousRunStatus.COMPLETED
         && run.getStatus() != AutonomousRunStatus.FAILED
-        && run.getStatus() != AutonomousRunStatus.CANCELED) {
+        && run.getStatus() != AutonomousRunStatus.CANCELED
+        && run.getStatus() != AutonomousRunStatus.PLANNED) {
       throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Run can only be restarted once it has stopped");
+          HttpStatus.CONFLICT, "Run can only be restarted once it has settled");
     }
     // Stop the previous XTM One orchestration before tearing its simulation down, so a lingering
     // decision cycle can't dispatch injects against the simulation we are about to delete. The

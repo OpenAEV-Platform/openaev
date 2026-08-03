@@ -6,6 +6,7 @@ import { Link as RouterLink } from 'react-router';
 
 import { type AutonomousEvent } from '../../../actions/autonomous/autonomous-types';
 import { useFormatter } from '../../../components/i18n';
+import { EventMarkdown, sanitizeEventText } from './autonomousEventVisuals';
 
 export type OutcomeKind = 'GAP' | 'PROOF';
 
@@ -178,10 +179,12 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
             </Stack>
           )}
 
-          {event.autonomous_event_content && (
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-              {event.autonomous_event_content}
-            </Typography>
+          {sanitizeEventText(event.autonomous_event_content) && (
+            <EventMarkdown
+              content={sanitizeEventText(event.autonomous_event_content)}
+              color="text.primary"
+              fontSize="0.875rem"
+            />
           )}
 
           {/* PROOF: the finding(s) that back this proof. No finding => not a valid proof. */}

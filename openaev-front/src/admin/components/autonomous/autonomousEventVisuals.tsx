@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- shared visual helpers (icons/accents/labels), not a component module */
 import {
   AccountTreeOutlined,
   AutoAwesome,
@@ -13,10 +14,12 @@ import {
   SendOutlined,
   WarningAmberOutlined,
 } from '@mui/icons-material';
+import { Box } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { type ReactNode } from 'react';
 
 import { type AutonomousEvent, type AutonomousEventType } from '../../../actions/autonomous/autonomous-types';
+import MarkdownDisplay from '../../../components/MarkdownDisplay';
 
 // Shared visual language for autonomous timeline events, so every surface that renders the run's
 // event stream (the always-open reasoning panel and the overview decision timeline) uses the exact
@@ -118,6 +121,121 @@ export const sanitizeEventText = (text?: string | null): string => {
   const cleaned = match && match.index !== undefined ? text.slice(0, match.index) : text;
   return cleaned.trim();
 };
+
+// Flatten Markdown to plain text for compact, line-clamped previews (e.g. the gap/proof teaser
+// cards) where the full rich body is one click away in a dialog. Rendering block Markdown (tables,
+// code fences) inside a 3-line -webkit-line-clamp does not clamp and would leak raw '**' / '|'
+// syntax, so strip the syntax to keep the teaser clean while the dialog keeps the rich formatting.
+export const stripMarkdown = (text?: string | null): string => {
+  if (!text) {
+    return '';
+  }
+  return text
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+    .replace(/^\s{0,3}>\s?/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/^\s*[-*_]{3,}\s*$/gm, '')
+    .replace(/\|/g, ' ')
+    .replace(/(\*\*|__)(.*?)\1/g, '$2')
+    .replace(/(\*|_)(.*?)\1/g, '$2')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// The orchestrator authors its narration / decisions / proofs / gaps in GitHub-flavored Markdown
+// (bold, lists, tables, inline code, fenced code for commands). Render it through the platform's
+// standard MarkdownDisplay - the same renderer the rest of the app uses - so the reasoning reads like
+// the XTM One chat instead of a raw text wall. Styling is scoped to stay compact inside the reasoning
+// panel / timeline card (tight margins, small code blocks) rather than page-sized markdown.
+export const EventMarkdown = ({
+  content,
+  color,
+  fontSize = '0.75rem',
+}: {
+  content: string;
+  color?: string;
+  fontSize?: number | string;
+}): ReactNode => (
+  <Box
+    sx={{
+      'color': color ?? 'text.secondary',
+      fontSize,
+      'lineHeight': 1.5,
+      'wordBreak': 'break-word',
+      '& > *:first-of-type': { marginTop: 0 },
+      '& > *:last-of-type': { marginBottom: 0 },
+      '& p': { margin: '3px 0' },
+      '& ul, & ol': {
+        margin: '3px 0',
+        paddingLeft: '1.25rem',
+      },
+      '& li': { margin: '1px 0' },
+      '& li > p': { margin: 0 },
+      '& h1, & h2, & h3, & h4, & h5, & h6': {
+        margin: '6px 0 2px',
+        fontSize: '0.8125rem',
+        fontWeight: 700,
+        lineHeight: 1.3,
+      },
+      '& strong': { fontWeight: 700 },
+      '& a': { color: 'primary.main' },
+      '& code': {
+        fontFamily: 'monospace',
+        fontSize: '0.85em',
+        padding: '1px 4px',
+        borderRadius: 0.5,
+        backgroundColor: 'action.hover',
+        wordBreak: 'break-all',
+      },
+      '& pre': {
+        margin: '4px 0',
+        padding: 1,
+        borderRadius: 1,
+        overflowX: 'auto',
+        backgroundColor: 'action.hover',
+      },
+      '& pre code': {
+        padding: 0,
+        backgroundColor: 'transparent',
+        wordBreak: 'normal',
+      },
+      '& blockquote': {
+        margin: '4px 0',
+        paddingLeft: 1,
+        borderLeft: '2px solid',
+        borderColor: 'divider',
+        color: 'text.secondary',
+      },
+      '& table': {
+        borderCollapse: 'collapse',
+        margin: '4px 0',
+        fontSize: '0.95em',
+        display: 'block',
+        overflowX: 'auto',
+      },
+      '& th, & td': {
+        border: '1px solid',
+        borderColor: 'divider',
+        padding: '3px 6px',
+        textAlign: 'left',
+      },
+      '& th': { fontWeight: 700 },
+      '& hr': {
+        margin: '6px 0',
+        border: 0,
+        borderTop: '1px solid',
+        borderColor: 'divider',
+      },
+    }}
+  >
+    <MarkdownDisplay content={content} remarkGfmPlugin />
+  </Box>
+);
 
 export const eventIcon = (event: AutonomousEvent): ReactNode => {
   switch (event.autonomous_event_type) {

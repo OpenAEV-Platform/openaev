@@ -1,4 +1,4 @@
-import { type Edge, MarkerType, type Node } from '@xyflow/react';
+import { type Edge, MarkerType } from '@xyflow/react';
 
 import { directFetchInjectorContract } from '../../../../actions/InjectorContracts';
 import type { ConditionOutput, EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
@@ -10,9 +10,12 @@ import {
   createEmptyCondition,
   createEmptyGroup,
   type EventCondition,
+  type EventFormData,
   formatConditionKeyLabel,
   generateId,
   type LogicalOperator,
+  OPERATOR_LABELS,
+  UNARY_OPERATORS,
 } from './events/event-types';
 import type { ActionMeta, EventMeta } from './types';
 
@@ -36,30 +39,6 @@ export const resolveConditionKeyTypes = (condition: Record<string, unknown>): st
   }
   return [];
 };
-
-// Layout design tokens for tactic groups (px)
-const TACTIC_WIDTH = 280; // Width of each tactic column
-const TACTIC_GAP = 260; // Horizontal gap between tactic columns (wide enough to host an event lane on the left of each column)
-const ACTION_WIDTH = 248; // Width of a single action node
-const ACTION_HEIGHT = 70; // Height of a single action node
-const ACTION_GAP = 12; // Vertical gap between action nodes
-const GROUP_PADDING_TOP = 40; // Top padding inside a tactic group
-const GROUP_PADDING_BOTTOM = 20; // Bottom padding inside a tactic group
-const GROUP_PADDING_X = (TACTIC_WIDTH - ACTION_WIDTH) / 2; // Horizontal padding to center actions
-
-export { ACTION_WIDTH, GROUP_PADDING_X, TACTIC_WIDTH };
-
-/**
- * Compute tactic group height dynamically based on the number of action nodes inside it.
- */
-export const computeGroupHeight = (childCount: number) =>
-  GROUP_PADDING_TOP + childCount * (ACTION_HEIGHT + ACTION_GAP) + GROUP_PADDING_BOTTOM;
-
-/**
- * Compute the Y position of an action node within its parent tactic group.
- */
-export const computeActionY = (index: number) =>
-  GROUP_PADDING_TOP + index * (ACTION_HEIGHT + ACTION_GAP);
 
 // -- Data builders --
 
@@ -278,19 +257,52 @@ const reconstructConditionGroups = (
   };
 };
 
+/** Human-readable summary of an event's trigger conditions, used by the node label and tooltip. */
+export interface EventConditionSummary {
+  /** Distinct condition fields referenced by the event (e.g. ["credentials", "hostname"]). */
+  fields: string[];
+  /** One human line per leaf condition (e.g. `Hostname contains "dc01"`). */
+  lines: string[];
+  /** Top-level logical operator combining the groups/conditions (AND / OR). */
+  operator: LogicalOperator;
+}
+
+/** Flatten every leaf-condition field referenced by a condition group tree. */
+const collectGroupFields = (group: ConditionGroup): string[] => [
+  ...group.conditions.map(c => c.field),
+  ...group.subGroups.flatMap(collectGroupFields),
+];
+
+/** Render every leaf condition of a group tree as a readable one-liner. */
+const summarizeGroup = (group: ConditionGroup): string[] => {
+  const own = group.conditions
+    .filter(c => c.field)
+    .map((c) => {
+      const field = formatConditionKeyLabel(c.field);
+      const operator = (OPERATOR_LABELS[c.operator] ?? c.operator).toLowerCase();
+      if (UNARY_OPERATORS.includes(c.operator)) {
+        return `${field} ${operator}`;
+      }
+      return c.value ? `${field} ${operator} "${c.value}"` : `${field} ${operator}`;
+    });
+  return [...own, ...group.subGroups.flatMap(summarizeGroup)];
+};
+
+/** Build a readable summary (fields, lines, operator) from an event's condition tree. */
+export const summarizeEventConditions = (formData: EventFormData): EventConditionSummary => ({
+  fields: Array.from(new Set(formData.conditionGroups.flatMap(collectGroupFields).filter(Boolean))),
+  lines: formData.conditionGroups.flatMap(summarizeGroup),
+  operator: formData.groupOperators[0] ?? formData.conditionGroups[0]?.operator ?? 'AND',
+});
+
 /**
- * Parse events API response into EventMeta records and preliminary event nodes.
+ * Parse the events API response into EventMeta records keyed by event id.
  */
-export const buildEventData = (events: EventOutput[]): {
-  eventMetas: Record<string, EventMeta>;
-  eventNodes: Node[];
-} => {
+export const buildEventData = (events: EventOutput[]): { eventMetas: Record<string, EventMeta> } => {
   const eventMetas: Record<string, EventMeta> = {};
 
-  const eventNodes: Node[] = events.map((e, i) => {
-    const allConditions = e.event_conditions ?? [];
-    const { groups, groupOperators } = reconstructConditionGroups(allConditions);
-
+  for (const e of events) {
+    const { groups, groupOperators } = reconstructConditionGroups(e.event_conditions ?? []);
     eventMetas[e.event_id] = {
       eventId: e.event_id,
       formData: {
@@ -300,22 +312,9 @@ export const buildEventData = (events: EventOutput[]): {
         conditionGroups: groups,
       },
     };
+  }
 
-    return {
-      id: e.event_id,
-      type: 'event' as const,
-      position: {
-        x: 50,
-        y: 100 + i * 140,
-      },
-      data: { label: e.event_name },
-    };
-  });
-
-  return {
-    eventMetas,
-    eventNodes,
-  };
+  return { eventMetas };
 };
 
 /**
@@ -393,228 +392,6 @@ export const buildTacticForStep = ({
   }
 
   return tacticForStep;
-};
-
-/**
- * Build tactic group nodes and position action nodes inside their respective tactic column.
- */
-export const buildTacticNodes = (
-  tacticForStep: Record<string, string>,
-  actionMetas: Record<string, ActionMeta>,
-  killChainPhasesMap: Record<string, KillChainPhase>,
-): {
-  groupNodes: Node[];
-  actionNodes: Node[];
-} => {
-  // 1. Determine the global order of tactics (columns) based on official MITRE order
-  const tacticOrder: Record<string, number> = {};
-  for (const phase of Object.values(killChainPhasesMap)) {
-    // Keep the lowest order (leftmost) if a tactic appears multiple times
-    if (tacticOrder[phase.phase_name] === undefined || (phase.phase_order ?? 99) < tacticOrder[phase.phase_name]) {
-      tacticOrder[phase.phase_name] = phase.phase_order ?? 99;
-    }
-  }
-
-  // 2. Extract and sort unique tactics present in this specific workflow
-  const uniqueTactics = Array.from(new Set(Object.values(tacticForStep)));
-  uniqueTactics.sort((a, b) => (tacticOrder[a] ?? 99) - (tacticOrder[b] ?? 99));
-
-  const groupNodes: Node[] = [];
-  const actionNodes: Node[] = [];
-
-  // 3. Loop through each tactic to create its column (group) and position its actions
-  for (let tacticIdx = 0; tacticIdx < uniqueTactics.length; tacticIdx++) {
-    const tactic = uniqueTactics[tacticIdx];
-    const groupId = `tactic-${tactic.replace(/\s+/g, '-').toLowerCase()}`;
-
-    // Get all step IDs (actions) belonging to this tactic
-    const stepsInTactic = Object.entries(tacticForStep)
-      .filter(([, t2]) => t2 === tactic)
-      .map(([sid]) => sid);
-
-    // 4. Create the "Group" node
-    groupNodes.push({
-      id: groupId,
-      type: 'tacticGroup',
-      position: {
-        x: tacticIdx * (TACTIC_WIDTH + TACTIC_GAP), // Horizontal offset based on tactic index
-        y: 0,
-      },
-      data: { label: tactic },
-      style: {
-        width: TACTIC_WIDTH,
-        height: computeGroupHeight(stepsInTactic.length), // Dynamic height based on number of actions
-      },
-    });
-
-    // 5. Position each action inside its tactic column
-    for (let actionIdx = 0; actionIdx < stepsInTactic.length; actionIdx++) {
-      const stepId = stepsInTactic[actionIdx];
-      const meta = actionMetas[stepId];
-      actionNodes.push({
-        id: stepId,
-        type: 'action',
-        position: {
-          x: GROUP_PADDING_X,
-          y: computeActionY(actionIdx),
-        },
-        parentId: groupId, // Link action to group for collective movement
-        extent: 'parent' as const, // Prevents dragging action outside its column
-        data: {
-          label: meta.inject_title,
-          injectorType: meta.inject_injector,
-          payloadType: meta.inject_payload_collector_type ?? meta.inject_payload_type,
-          isPayload: !!meta.inject_payload_type,
-        },
-      });
-    }
-  }
-
-  return {
-    groupNodes,
-    actionNodes,
-  };
-};
-
-// Layout design tokens for event column (px)
-const EVENT_NODE_HEIGHT = 100; // Approx. rendered height of an event node (bolt icon + box + "+" button)
-const EVENT_GAP = 40;
-const EVENT_WIDTH = 180; // Width of an event node
-const EVENT_TO_GROUP_GAP = 50; // Horizontal gap between an event and the tactic column it feeds
-
-/** Placement hint for an event: the tactic column it sits left of, and the Y of its target step. */
-export interface EventPlacement {
-  groupX: number;
-  anchorY: number;
-}
-
-/**
- * Resolve, for each event, where it should sit:
- * - `groupX`: X of the tactic group (column) it should be placed to the left of. An event is
- *   linked to a step (via the step's `step_condition_ids`); that step belongs to a tactic column.
- *   When an event feeds several tactics, the leftmost (earliest) one wins.
- * - `anchorY`: the absolute vertical center of the linked step, used to align the event with its
- *   target so the connecting arrow stays horizontal (fewer crossings).
- */
-export const buildEventToGroupX = (
-  actionMetas: Record<string, ActionMeta>,
-  groupNodes: Node[],
-  actionNodes: Node[],
-): Record<string, EventPlacement> => {
-  const groupXById: Record<string, number> = {};
-  const groupYById: Record<string, number> = {};
-  for (const g of groupNodes) {
-    groupXById[g.id] = g.position.x;
-    groupYById[g.id] = g.position.y;
-  }
-
-  const stepToGroupX: Record<string, number> = {};
-  const stepToY: Record<string, number> = {};
-  for (const a of actionNodes) {
-    if (a.parentId && groupXById[a.parentId] !== undefined) {
-      stepToGroupX[a.id] = groupXById[a.parentId];
-      // Absolute vertical center of the step (parent group Y + relative Y + half node height),
-      // so events can be aligned to it regardless of the group's own Y offset.
-      stepToY[a.id] = (groupYById[a.parentId] ?? 0) + a.position.y + ACTION_HEIGHT / 2;
-    }
-  }
-
-  const placement: Record<string, EventPlacement> = {};
-  for (const [stepId, meta] of Object.entries(actionMetas)) {
-    const gx = stepToGroupX[stepId];
-    if (gx === undefined) continue;
-    const y = stepToY[stepId] ?? 0;
-    for (const eventId of meta.step_condition_ids) {
-      const current = placement[eventId];
-      // Prefer the leftmost column; within the same column, keep the topmost step as anchor.
-      if (!current || gx < current.groupX || (gx === current.groupX && y < current.anchorY)) {
-        placement[eventId] = {
-          groupX: gx,
-          anchorY: y,
-        };
-      }
-    }
-  }
-
-  return placement;
-};
-
-/**
- * Position event nodes to the left of the tactic group they feed.
- *
- * <p>Each event is placed at its target step's vertical center so the event→step arrow is
- * horizontal. Events feeding the same column are processed top-to-bottom by anchor; when two would
- * overlap, the lower one is pushed down by the minimum gap ("align, then de-overlap"). Events not
- * linked to any step fall back to the far-left lane (X = 0) and are appended below the anchored ones.
- */
-export const positionEventNodes = (
-  eventNodes: Node[],
-  placement: Record<string, EventPlacement> = {},
-): Node[] => {
-  // Bucket events per lane (column X). Each event remembers the absolute center of the step it
-  // feeds (anchorY); orphan events (no linked step) carry a null anchor and sink to the bottom.
-  const lanes: Record<number, {
-    node: Node;
-    anchorY: number | null;
-  }[]> = {};
-  for (const en of eventNodes) {
-    const p = placement[en.id];
-    const x = (p?.groupX ?? 0) - EVENT_WIDTH - EVENT_TO_GROUP_GAP;
-    (lanes[x] ??= []).push({
-      node: en,
-      anchorY: p?.anchorY ?? null,
-    });
-  }
-
-  const positioned: Node[] = [];
-  for (const [x, items] of Object.entries(lanes)) {
-    // Order by the target step's center, so arrows keep their vertical order; orphans go last.
-    items.sort(
-      (a, b) => (a.anchorY ?? Number.POSITIVE_INFINITY) - (b.anchorY ?? Number.POSITIVE_INFINITY),
-    );
-
-    // Align each event to its step's center, cascading down only to resolve overlaps. `cursor` is
-    // the lowest Y still available; it starts at the top padding, so events never rise above it.
-    let cursor = GROUP_PADDING_TOP;
-    for (const { node, anchorY } of items) {
-      const desiredTop = anchorY === null ? cursor : anchorY - EVENT_NODE_HEIGHT / 2;
-      const y = Math.max(desiredTop, cursor);
-      positioned.push({
-        ...node,
-        position: {
-          x: Number(x),
-          y,
-        },
-        style: { width: EVENT_WIDTH },
-      });
-      cursor = y + EVENT_NODE_HEIGHT + EVENT_GAP;
-    }
-  }
-  return positioned;
-};
-
-/**
- * Reconstruct edges from step_condition_ids linking events to actions.
- */
-export const buildEdges = (
-  actionMetas: Record<string, ActionMeta>,
-  eventMetas: Record<string, EventMeta>,
-): Edge[] => {
-  const edges: Edge[] = [];
-  for (const [stepId, meta] of Object.entries(actionMetas)) {
-    for (const condId of meta.step_condition_ids) {
-      if (eventMetas[condId]) {
-        edges.push({
-          id: `${condId}-${stepId}`,
-          source: condId,
-          target: stepId,
-          type: 'deletable',
-          markerEnd: { type: MarkerType.ArrowClosed },
-        });
-      }
-    }
-  }
-  return edges;
 };
 
 // -- Informational data-flow visualization (selected event) --

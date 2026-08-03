@@ -27,7 +27,9 @@ interface AutonomousRunControlsProps {
  * run can be paused or stopped without leaving the scenario, mirroring the reasoning panel. A
  * terminal run (completed / failed / canceled) is one-shot and cannot resume in place, so it offers
  * a Restart that re-runs it against the SAME scenario (a fresh simulation replaces the old one),
- * fully resetting the cockpit without ever spawning a new scenario.
+ * fully resetting the cockpit without ever spawning a new scenario. A settled dry-run (PLANNED)
+ * additionally offers "Redo plan" - the same reset, kept available before the plan goes terminal so
+ * the operator can rebuild the plan after filling a gap or steering the scope.
  */
 const AutonomousRunControls: FunctionComponent<AutonomousRunControlsProps> = ({ run, onRunUpdate }) => {
   const { t } = useFormatter();
@@ -48,6 +50,12 @@ const AutonomousRunControls: FunctionComponent<AutonomousRunControlsProps> = ({ 
   // A settled dry-run can be promoted to a live run: PLANNED is the happy path, but a plan that
   // stopped on FAILED/CANCELED can still be run for real.
   const canPromote = planMode && (status === 'PLANNED' || status === 'FAILED' || status === 'CANCELED');
+  // A settled dry-run can also be reset and re-planned from scratch - e.g. the operator filled a
+  // capability gap or steered the scope and wants a brand-new plan. A PLANNED run is NOT terminal,
+  // so without this it would only offer "Run for real" and no way to rebuild the plan. Surface the
+  // redo the moment the plan is settled (PLANNED) as well as on a terminal run; the underlying
+  // Restart re-provisions a fresh plan-mode template and re-engages the orchestrator to re-plan.
+  const canRestart = isTerminal || (planMode && status === 'PLANNED');
 
   // Run for real: promote the plan in place (fresh executing simulation, plan kept as guidance),
   // then engage the orchestrator on the live run and refresh the scenario like Restart does.
@@ -136,7 +144,7 @@ const AutonomousRunControls: FunctionComponent<AutonomousRunControlsProps> = ({ 
           {t('Run for real')}
         </Button>
       )}
-      {isTerminal && (
+      {canRestart && (
         <Button
           startIcon={<RestartAltOutlined />}
           variant="outlined"
@@ -144,8 +152,9 @@ const AutonomousRunControls: FunctionComponent<AutonomousRunControlsProps> = ({ 
           size="small"
           disabled={busy}
           onClick={handleRestart}
+          data-testid="button-autonomous-redo"
         >
-          {t('Restart')}
+          {planMode ? t('Redo plan') : t('Restart')}
         </Button>
       )}
       <Dialog open={promoteOpen} onClose={() => setPromoteOpen(false)} maxWidth="xs">

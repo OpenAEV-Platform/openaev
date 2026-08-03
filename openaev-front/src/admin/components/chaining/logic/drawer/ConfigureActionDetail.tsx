@@ -5,13 +5,11 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
-import Drawer from '../../../../../components/common/Drawer';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
 import type { ScopeAssetOutput, ThreatArsenalAction } from '../../../../../utils/api-types';
 import type { ContractElement } from '../../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../../utils/Zod';
-import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import { type ActionDetailData } from '../types';
 import ActionFormButtons from './ActionFormButtons';
@@ -33,13 +31,12 @@ import {
 import { type FieldLink } from './InjectDataFieldItem';
 
 interface ConfigureActionDetailProps {
-  open: boolean;
+  /** Whether the hosting drawer step is active (feeds the inject-data panel + contract fetch). */
+  open?: boolean;
   action: ThreatArsenalAction | null;
   validAssets: ScopeAssetOutput[];
   initialData?: ActionDetailData;
   onClose: () => void;
-  onBack: () => void;
-  onBackToRoot: () => void;
   onSave: (data: ActionDetailData) => void;
 }
 
@@ -57,13 +54,11 @@ const INJECTOR_HIDDEN_KEYS = new Set([
 interface FormValues { inject_title: string }
 
 const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
-  open,
+  open = true,
   action,
   validAssets,
   initialData,
   onClose,
-  onBack,
-  onBackToRoot,
   onSave,
 }) => {
   const { t, tPick } = useFormatter();
@@ -200,11 +195,6 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     });
   };
 
-  const actionLabel = useMemo(() => {
-    if (!action?.action_labels) return '';
-    return tPick(action.action_labels);
-  }, [action, tPick]);
-
   // Expectations are not part of the generic input data because they are handled separately
   // in their own dedicated section via <InjectExpectations>.
   const inputArgumentFields = useMemo(() => {
@@ -253,75 +243,61 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   }, [expectationField, fieldValues]);
 
   return (
-    <Drawer
-      open={open}
-      handleClose={onClose}
-      title={actionLabel}
-    >
-      <FormProvider {...methods}>
-        <Box
-          component="form"
-          onSubmit={handleSubmit(onSubmit)}
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-        >
-          <DrawerBreadcrumb
-            grandParentLabel={t('Add component')}
-            onBackToGrandParent={onBackToRoot}
-            parentLabel={t('Add actions')}
-            currentLabel={actionLabel}
-            onBack={onBack}
-          />
+    <FormProvider {...methods}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit(onSubmit)}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+        }}
+      >
+        <TextFieldController
+          name="inject_title"
+          label={t('Title')}
+          required
+        />
 
-          <TextFieldController
-            name="inject_title"
-            label={t('Title')}
-            required
-          />
+        <ActionScopeChips isPayload={isPayload} validAssets={validAssets} />
 
-          <ActionScopeChips isPayload={isPayload} validAssets={validAssets} />
+        <ActionInjectData
+          panelOpen={open}
+          loading={loadingContract}
+          fields={inputArgumentFields}
+          fieldValues={fieldValues}
+          fieldLinks={fieldLinks}
+          autoLinkedFields={autoLinkedFields}
+          noLinkFields={noLinkFields}
+          onResetDefaults={handleResetDefaults}
+          onValueChange={handleFieldValueChange}
+          onLink={handleLinkField}
+          onUnlink={handleUnlinkField}
+          onToggleLocalScope={handleToggleLocalScope}
+        />
 
-          <ActionInjectData
-            panelOpen={open}
-            loading={loadingContract}
-            fields={inputArgumentFields}
-            fieldValues={fieldValues}
-            fieldLinks={fieldLinks}
-            autoLinkedFields={autoLinkedFields}
-            noLinkFields={noLinkFields}
-            onResetDefaults={handleResetDefaults}
-            onValueChange={handleFieldValueChange}
-            onLink={handleLinkField}
-            onUnlink={handleUnlinkField}
-            onToggleLocalScope={handleToggleLocalScope}
-          />
+        {expectationField && (
+          <Box>
+            <InjectExpectations
+              expectationDatas={expectations}
+              handleExpectations={updatedExpectations => setFieldValues(prev => ({
+                ...prev,
+                [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
+              }))}
+              availableExpectations={expectationField.availableExpectations ?? []}
+              inline
+            />
+            {expectations.length === 0 && (
+              <Typography variant="body2" color="text.secondary">
+                {t('No expectations for this action.')}
+              </Typography>
+            )}
+          </Box>
+        )}
 
-          {expectationField && (
-            <Box>
-              <InjectExpectations
-                expectationDatas={expectations}
-                handleExpectations={updatedExpectations => setFieldValues(prev => ({
-                  ...prev,
-                  [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
-                }))}
-                availableExpectations={expectationField.availableExpectations ?? []}
-                inline
-              />
-              {expectations.length === 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  {t('No expectations for this action.')}
-                </Typography>
-              )}
-            </Box>
-          )}
-
-          <ActionFormButtons disabled={!isValid} onCancel={onClose} />
-        </Box>
-      </FormProvider>
-    </Drawer>
+        <ActionFormButtons disabled={!isValid} onCancel={onClose} />
+      </Box>
+    </FormProvider>
   );
 };
 

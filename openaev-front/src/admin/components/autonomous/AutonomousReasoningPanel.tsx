@@ -23,10 +23,16 @@ import { useFormatter } from '../../../components/i18n';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useChatbot, useChatbotContentMargin } from '../ariane/useChatbotHooks';
-import { eventAccent, eventIcon, eventTypeLabel, sanitizeEventText } from './autonomousEventVisuals';
+import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
 import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 
-const ACTIVE_STATUSES: AutonomousRunStatus[] = ['RUNNING', 'WAITING_INPUT'];
+// An "active" run is one the orchestrator is currently driving, so the panel keeps polling the
+// timeline, shows the live thinking/hourglass indicator, and enables steering. PLANNING (dry-run
+// plan design in progress) MUST be here alongside RUNNING/WAITING_INPUT: it is an in-progress phase
+// where the AI is authoring the plan, so without it the right panel would sit frozen with no
+// indicator and never refresh until a question flips the run to WAITING_INPUT. PLANNED is settled
+// (planning done), so it is intentionally NOT active.
+const ACTIVE_STATUSES: AutonomousRunStatus[] = ['PLANNING', 'RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 3000;
 
 // Cap the proposed one-click choices so the callout stays scannable: at most this many radio options
@@ -437,8 +443,19 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   const latestQuestion = isWaitingInput
     ? [...events].reverse().find(e => e.autonomous_event_type === 'QUESTION')
     : undefined;
-  // Hide the question the moment it is answered, without waiting for the 3s status poll.
-  const pendingQuestion = latestQuestion && latestQuestion.autonomous_event_id !== answeredQuestionId
+  // A question is ALREADY answered if the operator's reply (a DIRECTIVE event, "Operator directive
+  // queued") was recorded after it in the timeline. Deriving this from the stream - not only from the
+  // optimistic local answeredQuestionId - is what keeps an answered question from re-surfacing: local
+  // state is lost on any remount (switching Overview/Scope/Logic tabs re-mounts the panel) and the
+  // backend can linger in WAITING_INPUT, so a purely-local guard let a stale re-park re-show the same
+  // question. A genuinely NEW question has no directive after it yet, so it still shows.
+  const questionAnsweredInTimeline = !!latestQuestion
+    && events.some(e => e.autonomous_event_type === 'DIRECTIVE'
+      && e.autonomous_event_sequence > latestQuestion.autonomous_event_sequence);
+  // Also hide it the moment it is answered (optimistic), before the DIRECTIVE event is polled back.
+  const pendingQuestion = latestQuestion
+    && latestQuestion.autonomous_event_id !== answeredQuestionId
+    && !questionAnsweredInTimeline
     ? latestQuestion
     : undefined;
   const questionChoices = (pendingQuestion ? parseQuestionChoices(pendingQuestion.autonomous_event_data) : [])
@@ -500,7 +517,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     .filter(e => (['NARRATION', 'DECISION', 'TOOL_ACTION'] as const).includes(
       e.autonomous_event_type as 'NARRATION' | 'DECISION' | 'TOOL_ACTION',
     ))
-    .map(e => sanitizeEventText(e.autonomous_event_content ?? e.autonomous_event_title))
+    .map(e => stripMarkdown(sanitizeEventText(e.autonomous_event_content ?? e.autonomous_event_title)))
     .filter((line): line is string => Boolean(line))
     .slice(-8);
 
@@ -778,16 +795,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                         </Typography>
                       )}
                       {eventContent && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{
-                            display: 'block',
-                            whiteSpace: 'pre-wrap',
-                          }}
-                        >
-                          {eventContent}
-                        </Typography>
+                        <Box sx={{ marginTop: 0.25 }}>
+                          <EventMarkdown content={eventContent} />
+                        </Box>
                       )}
                     </Box>
                   );
@@ -824,10 +834,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               <Typography variant="subtitle2" sx={{ margin: 0 }}>
                 {pendingQuestion.autonomous_event_title ?? t('The AI needs your input to continue')}
               </Typography>
-              {pendingQuestion.autonomous_event_content && (
-                <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {pendingQuestion.autonomous_event_content}
-                </Typography>
+              {sanitizeEventText(pendingQuestion.autonomous_event_content) && (
+                <Box sx={{ marginTop: 0.25 }}>
+                  <EventMarkdown content={sanitizeEventText(pendingQuestion.autonomous_event_content)} fontSize="0.8125rem" />
+                </Box>
               )}
             </Box>
           </Stack>

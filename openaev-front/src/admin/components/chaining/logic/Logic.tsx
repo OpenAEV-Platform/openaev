@@ -8,8 +8,8 @@ import type {
   StepOutput,
 } from '../../../../utils/api-types';
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
-import ChainingFlowConfiguration, { type DrawerView } from './chaining_flow/ChainingFlowConfiguration';
-import LogicFlow from './chaining_flow/LogicFlow';
+import ComponentStepperDrawer, { type DrawerView } from './drawer/ComponentStepperDrawer';
+import LogicGraph from './logic-graph/LogicGraph';
 import LogicTopBar from './LogicTopBar';
 import OutputProvidersProvider from './OutputProvidersContext';
 import type { ActionMeta, EventMeta } from './types';
@@ -19,7 +19,7 @@ interface LogicProps {
   context: LogicContext;
   /** Read-only inspection mode (autonomous runs): the AI owns the attack path, so the manual
    *  authoring affordances (top bar, add-component, node edit/delete) are hidden while pan/zoom
-   *  and the event spotlight stay available. */
+   *  and the trigger spotlight stay available. */
   readOnly?: boolean;
 }
 
@@ -30,27 +30,26 @@ const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
   const [hasExistingData, setHasExistingData] = useState<boolean | null>(null);
   // Count of existing events (used to generate default names)
   const [eventCount, setEventCount] = useState(0);
-  // Key to force LogicFlow re-mount after adding a step
+  // Key to force the graph to re-fetch after a mutation
   const [refreshKey, setRefreshKey] = useState(0);
-  // Drawer navigation state (shared with ChainingFlowConfiguration)
+  // Drawer navigation state (shared with ComponentStepperDrawer)
   const [drawerView, setDrawerView] = useState<DrawerView>('closed');
   // Step currently being edited
   const [editingStep, setEditingStep] = useState<{
     stepId: string;
     meta: ActionMeta;
   } | null>(null);
-    // Output type required by the "Add Compatible Action" banner (pre-filters the action list)
+  // Output type required by the "Add compatible action" banner (pre-filters the action list)
   const [compatibleActionFilter, setCompatibleActionFilter] = useState<string | undefined>();
-
-  // Event to link a newly created action to (set when adding an action via the event node "+")
+  // Event to link a newly created action to (set when adding an action via a trigger's "+")
   const [linkToEventId, setLinkToEventId] = useState<string | undefined>();
-
+  // Output types to seed a new trigger with (set when adding a trigger via an action's "+")
+  const [prefillEventFields, setPrefillEventFields] = useState<string[] | undefined>();
   // Event currently being edited
   const [editingEvent, setEditingEvent] = useState<{
     eventId: string;
     meta: EventMeta;
   } | null>(null);
-
   // Latest event metas
   const [eventMetas, setEventMetas] = useState<Record<string, EventMeta>>({});
 
@@ -74,7 +73,7 @@ const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
       setHasExistingData(steps.length > 0 || events.length > 0);
       setEventCount(events.length);
     });
-  }, [workflowId]);
+  }, [workflowId, refreshKey]);
 
   const handleStepCreated = useCallback(() => {
     setHasExistingData(true);
@@ -90,21 +89,32 @@ const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
   const handleOpenDrawer = useCallback(() => {
     setCompatibleActionFilter(undefined);
     setLinkToEventId(undefined);
+    setPrefillEventFields(undefined);
     setDrawerView('choose');
   }, []);
 
-  // Opens the action list directly, optionally pre-filtered by output type
+  // Opens the action list directly, optionally pre-filtered by output type (warning banner)
   const handleOpenActionDrawer = useCallback((field?: string) => {
     setCompatibleActionFilter(field);
     setLinkToEventId(undefined);
+    setPrefillEventFields(undefined);
     setDrawerView('action');
   }, []);
 
-  // Opens the action list from an event node "+", linking created actions to that event
+  // Inline "+" on a trigger: add an action gated by that trigger
   const handleAddActionToEvent = useCallback((eventId: string) => {
     setCompatibleActionFilter(undefined);
+    setPrefillEventFields(undefined);
     setLinkToEventId(eventId);
     setDrawerView('action');
+  }, []);
+
+  // Inline "+" on an action: add a trigger fed by that action's output types
+  const handleAddTriggerAfterAction = useCallback((_stepId: string, outputTypes: string[]) => {
+    setEditingEvent(null);
+    setLinkToEventId(undefined);
+    setPrefillEventFields(outputTypes);
+    setDrawerView('event');
   }, []);
 
   const handleEditStep = useCallback((stepId: string, meta: ActionMeta) => {
@@ -120,6 +130,7 @@ const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
       eventId,
       meta,
     });
+    setPrefillEventFields(undefined);
     setDrawerView('event');
   }, []);
 
@@ -141,12 +152,13 @@ const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
         {hasExistingData && workflowId
           ? (
               <>
-                <LogicFlow
+                <LogicGraph
                   reloadTrigger={refreshKey}
                   workflowId={workflowId}
                   onEditStep={handleEditStep}
                   onEditEvent={handleEditEvent}
                   onAddActionToEvent={handleAddActionToEvent}
+                  onAddTriggerAfterAction={handleAddTriggerAfterAction}
                   onEventMetasChange={setEventMetas}
                   readOnly={readOnly}
                 />
@@ -165,7 +177,7 @@ const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
               )
             )}
       </div>
-      <ChainingFlowConfiguration
+      <ComponentStepperDrawer
         workflowId={workflowId}
         validAssets={validAssets}
         drawerView={drawerView}
@@ -178,7 +190,9 @@ const Logic = ({ workflowId, context, readOnly = false }: LogicProps) => {
         onEventCreated={handleEventCreated}
         eventCount={eventCount}
         compatibleActionFilter={compatibleActionFilter}
+        onCompatibleActionFilterChange={setCompatibleActionFilter}
         linkToEventId={linkToEventId}
+        prefillEventFields={prefillEventFields}
       />
     </OutputProvidersProvider>
   );
