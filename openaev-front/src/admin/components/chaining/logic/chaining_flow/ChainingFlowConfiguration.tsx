@@ -6,10 +6,8 @@ import {
   updateCondition,
   updateStep,
 } from '../../../../../actions/chaining/chaining-actions';
-import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
 import { useFormatter } from '../../../../../components/i18n';
 import type {
-  ConditionCreateInput,
   InjectInput,
   PayloadSimple,
   ScopeAssetOutput,
@@ -19,11 +17,7 @@ import { MESSAGING$ } from '../../../../../utils/Environment';
 import AddActionList from '../drawer/AddActionList';
 import AddComponentDrawer from '../drawer/AddComponentDrawer';
 import ConfigureActionDetail from '../drawer/ConfigureActionDetail';
-import {
-  buildAutoLinkFieldLinks,
-  mapFieldLinksToStepConditions,
-  parseContractFields,
-} from '../drawer/ConfigureActionDetail.utils';
+import { mapFieldLinksToStepConditions } from '../drawer/ConfigureActionDetail.utils';
 import ConfigureEventDetail from '../events/ConfigureEventDetail';
 import {
   conditionGroupsToApi,
@@ -154,37 +148,20 @@ const ChainingFlowConfiguration = ({
   const handleBackToChoose = () => onDrawerViewChange('choose');
 
   // -- Actions --
-  // Reuse form auto-link rules so direct add and configure flow stay consistent.
-  const buildAutoLinkStepConditions = useCallback(
-    async (injectorContractId: string): Promise<ConditionCreateInput[]> => {
-      try {
-        const response = await directFetchInjectorContract(injectorContractId) as { data?: { injector_contract_content?: string } };
-        // Keep direct-add behavior identical to form auto-link behavior.
-        const fields = parseContractFields(response.data?.injector_contract_content);
-        const links = buildAutoLinkFieldLinks(fields);
-        return mapFieldLinksToStepConditions(links);
-      } catch {
-        // Do not block action creation if contract fetch/parse fails.
-        return [];
-      }
-    },
-    [],
-  );
 
   const handleAddActions = async (selectedActions: ThreatArsenalAction[]) => {
     if (!workflowId || selectedActions.length === 0) return;
 
-    const promises = selectedActions.map(async (action) => {
+    const promises = selectedActions.map((action) => {
       const title = action.action_labels?.en
         ?? action.action_labels?.fr
         ?? 'Untitled action';
-      const stepConditions = await buildAutoLinkStepConditions(action.injector_contract_id);
 
+      // No step_conditions: the backend applies the contract auto-links.
       return createStep({
         step_workflow_id: workflowId,
         step_action: 'INJECT_EXECUTION' as const,
         step_condition_ids: linkToEventId ? [linkToEventId] : [],
-        step_conditions: stepConditions.length > 0 ? stepConditions : undefined,
         step_data_step: {
           inject_title: title,
           inject_injector_contract: action.injector_contract_id,
@@ -228,13 +205,14 @@ const ChainingFlowConfiguration = ({
   const handleSaveActionDetail = async (data: ActionDetailData) => {
     if (!workflowId) return;
 
+    // Always sent, even empty: it tells the backend not to re-apply the contract auto-links.
     const stepConditions = mapFieldLinksToStepConditions(data.inject_field_links);
 
     const stepPayload = {
       step_workflow_id: workflowId,
       step_action: 'INJECT_EXECUTION' as const,
       step_condition_ids: editingStep?.meta.step_condition_ids ?? (linkToEventId ? [linkToEventId] : []),
-      step_conditions: stepConditions.length > 0 ? stepConditions : undefined,
+      step_conditions: stepConditions,
       step_data_step: {
         inject_title: data.inject_title,
         inject_injector_contract: data.inject_injector_contract,

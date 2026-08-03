@@ -49,11 +49,6 @@ export const applyAutoLinks = (
     : existingLinks;
 };
 
-/** Builds default auto-link map for a fresh action with no existing links. */
-export const buildAutoLinkFieldLinks = (
-  contractFields: ContractElement[],
-): Record<string, FieldLink> => applyAutoLinks(contractFields, {});
-
 /** Converts linked fields to step mapper conditions. */
 export const mapFieldLinksToStepConditions = (
   fieldLinks: Record<string, FieldLink>,
