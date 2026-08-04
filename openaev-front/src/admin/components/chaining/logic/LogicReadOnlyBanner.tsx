@@ -10,7 +10,9 @@ import AlertBanner from '../../common/AlertBanner';
  * Read-only banner shown on a launched simulation. A launched simulation is frozen:
  * its logic map / scope can only be edited while the simulation is in Draft (see ADR-005).
  */
-const LogicReadOnlyBanner: FunctionComponent<{ message?: string }> = ({ message }) => {
+interface Props { message?: string }
+
+const LogicReadOnlyBanner: FunctionComponent<Props> = ({ message }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   return (

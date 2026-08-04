@@ -262,9 +262,10 @@ public class ConditionService {
     Condition root = findConditionRootById(conditionRootId);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
-    // Guard on the persisted condition's workflow (authoritative), not the client-supplied
-    // workflowId, so the freeze cannot be bypassed by sending a different (SCHEDULED) workflow id.
     assertLogicMapEditable(root.getWorkflowId());
+    if (!Objects.equals(root.getWorkflowId(), input.getWorkflowId())) {
+      assertLogicMapEditable(input.getWorkflowId());
+    }
 
     root.setName(input.getName());
     root.setDescription(input.getDescription());
@@ -945,7 +946,7 @@ public class ConditionService {
    * DEFAULT mapper values, and keeps only combinations that satisfy required execution keys. Unique
    * combinations are tracked via hash to avoid duplicate executions and returned as ready-to-run
    * input batches with resolved mapper conditions. Hashes are only prepared in memory here and are
-   * committed later by the caller through {@link #commitHashes(WorkflowState, List)}.
+   * committed later by the caller through .
    *
    * @param stepTemplate step template for which input combinations are generated
    * @param workflowRun active workflow run used to resolve global/local workflow states

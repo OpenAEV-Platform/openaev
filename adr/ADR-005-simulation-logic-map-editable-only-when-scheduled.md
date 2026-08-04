@@ -332,11 +332,16 @@ title 7. ConditionService.updateConditionTree
         ConditionService-->>ConditionService: root
         ConditionService->>ConditionService: findRootConditionInput(conditionInputs)
 
-        %% --- Guard on the persisted root's workflow (authoritative, not client input) ---
+        %% --- Guard both source (persisted) and target (client-supplied) workflows ---
         ConditionService->>Condition: getWorkflowId()
-        Condition-->>ConditionService: workflowId
+        Condition-->>ConditionService: workflowId (source, persisted)
         ConditionService->>ConditionService: assertLogicMapEditable(workflowId)(2)
-        alt WorkflowNotEditableException
+        alt target workflowId differs from source
+            ConditionService->>ConditionService: assertLogicMapEditable(input.getWorkflowId())(2)
+        else same workflowId
+            ConditionService->>ConditionService: skip (avoid duplicate DB read)
+        end
+        alt WorkflowNotEditableException (source or target frozen)
             ConditionService-->>Caller: HTTP 403
         else editable
             ConditionService->>ConditionService: set fields + persistConditionTree(...)

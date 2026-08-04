@@ -77,6 +77,18 @@ const Logic = ({ workflowId, context, readOnly = false, readOnlyMessage }: Logic
     });
   }, [workflowId]);
 
+  // If the map becomes read-only while a drawer/edit is open (e.g. the simulation is launched
+  // from another tab), force everything back to a consistent read-only state. See ADR-005.
+  useEffect(() => {
+    if (readOnly) {
+      setDrawerView('closed');
+      setEditingStep(null);
+      setEditingEvent(null);
+      setLinkToEventId(undefined);
+      setCompatibleActionFilter(undefined);
+    }
+  }, [readOnly]);
+
   const handleStepCreated = useCallback(() => {
     setHasExistingData(true);
     setRefreshKey(k => k + 1);

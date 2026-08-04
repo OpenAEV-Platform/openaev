@@ -2314,6 +2314,33 @@ public class ConditionServiceTest {
     }
 
     @Test
+    void given_editableRoot_should_rejectUpdate_whenTargetWorkflowIsFrozen() {
+      // Arrange — the persisted root is editable (SCHEDULED), but the client re-points it onto a
+      // launched (RUNNING) workflow via the payload. Both source and target must be editable.
+      String rootId = "root-1";
+      String scheduledWorkflowId = "wf-scheduled-source";
+      String frozenTargetWorkflowId = "wf-running-target";
+      Condition existingRoot = new Condition();
+      existingRoot.setId(rootId);
+      existingRoot.setWorkflowId(scheduledWorkflowId);
+      existingRoot.setType(ConditionType.OR);
+      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
+      when(workflowRepository.findById(scheduledWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(scheduledWorkflowId, ExerciseStatus.SCHEDULED)));
+      when(workflowRepository.findById(frozenTargetWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(frozenTargetWorkflowId, ExerciseStatus.RUNNING)));
+
+      EventInput input = singleRootEventInput(frozenTargetWorkflowId);
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.updateConditionTree(rootId, input));
+    }
+
+    @Test
     void given_runningSimulation_should_rejectDeleteConditionTree() {
       // Arrange
       String conditionRootId = "cond-1";

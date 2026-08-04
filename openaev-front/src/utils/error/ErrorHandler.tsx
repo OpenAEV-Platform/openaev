@@ -23,7 +23,7 @@ const ErrorHandler = () => {
       } else if (error.status === 403 && error.message === 'TENANT_ACCESS_DENIED') {
         MESSAGING$.notifyError(t('You are not a member of this tenant. Please contact your administrator to request access.'));
       } else if (error.status === 403 && error.message === 'WORKFLOW_NOT_EDITABLE') {
-        MESSAGING$.notifyError(t('This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it, or update the scenario and run it again.'));
+        MESSAGING$.notifyError(t('This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it.'));
       } else if (error.status === 409) {
         MESSAGING$.notifyError(t('The element already exists'));
       } else if (error.status === 400) {

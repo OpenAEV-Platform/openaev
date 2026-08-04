@@ -11,8 +11,9 @@ const SimulationLogic = () => {
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   // A launched simulation is frozen: the logic map is editable only while it is SCHEDULED
-  // (UI "Draft" / "Scheduled"). See ADR-005.
-  const readOnly = exercise?.exercise_status !== 'SCHEDULED';
+  // (UI "Draft" / "Scheduled"). See ADR-005. While the exercise is still loading (undefined),
+  // keep it editable so the frozen banner never flashes before the status is known.
+  const readOnly = !!exercise && exercise.exercise_status !== 'SCHEDULED';
   const readOnlyMessage = exercise?.exercise_scenario
     ? t('This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it, or update the scenario and run it again.')
     : t('This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it.');
