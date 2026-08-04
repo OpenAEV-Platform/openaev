@@ -242,123 +242,6 @@ public class InjectsExecutionJob implements Job {
     }
   }
 
-  private void logScheduledLaunch(Exercise exercise) {
-    auditLogger.ifPresent(
-        logger -> {
-          Map<String, Object> contextData = new LinkedHashMap<>();
-          contextData.put("simulation_id", exercise.getId());
-          contextData.put("simulation_name", exercise.getName());
-          contextData.put(
-              "scheduled_start", exercise.getStart().map(Instant::toString).orElse(null));
-          contextData.put("initiator", "scheduler");
-          if (exercise.getScenario() != null) {
-            String scenarioId = exercise.getScenario().getId();
-            contextData.put("scenario_id", scenarioId);
-            scenarioRepository
-                .findNameById(scenarioId)
-                .ifPresent(scenarioName -> contextData.put("scenario_name", scenarioName));
-          }
-          logger.logEvent(
-              AuditEvent.builder()
-                  .eventType(EventType.SYSTEM)
-                  .eventScope(AuditEventScope.SCHEDULED_LAUNCH)
-                  .eventStatus(EventStatus.SUCCESS)
-                  .resourceType(ResourceType.SIMULATION)
-                  .resourceId(exercise.getId())
-                  .message(
-                      "Simulation '%s' started (scheduled start reached)"
-                          .formatted(exercise.getName()))
-                  .contextData(contextData)
-                  .origin(SYSTEM)
-                  .build());
-        });
-  }
-
-  private void logTargetResolution(
-      Inject inject,
-      ExecutableInject executableInject,
-      List<Map<String, Object>> endpointResolutions) {
-    auditLogger.ifPresent(
-        logger -> {
-          Map<String, Object> contextData = new LinkedHashMap<>();
-          contextData.put("inject_id", inject.getId());
-          contextData.put("inject_name", inject.getTitle());
-          contextData.put(
-              "asset_group_ids",
-              executableInject.getAssetGroups().stream()
-                  .map(AssetGroup::getId)
-                  .filter(Objects::nonNull)
-                  .toList());
-          contextData.put(
-              "team_ids",
-              executableInject.getTeams().stream()
-                  .map(Team::getId)
-                  .filter(Objects::nonNull)
-                  .toList());
-          contextData.put(
-              "player_ids",
-              executableInject.getUsers().stream()
-                  .map(ExecutionContext::getUser)
-                  .filter(Objects::nonNull)
-                  .map(ProtectUser::getId)
-                  .filter(Objects::nonNull)
-                  .toList());
-          contextData.put("total_endpoints", endpointResolutions.size());
-          contextData.put("endpoints", endpointResolutions);
-          logger.logEvent(
-              AuditEvent.builder()
-                  .eventType(EventType.EXECUTION)
-                  .eventScope(AuditEventScope.TARGET_RESOLUTION)
-                  .eventStatus(EventStatus.SUCCESS)
-                  .resourceType(ResourceType.INJECT)
-                  .resourceId(inject.getId())
-                  .message(
-                      "Resolved %d endpoints for inject '%s'"
-                          .formatted(endpointResolutions.size(), inject.getTitle()))
-                  .contextData(contextData)
-                  .origin(SYSTEM)
-                  .build());
-        });
-  }
-
-  private List<Map<String, Object>> buildEndpointResolutions(List<AssetToExecute> resolvedAssets) {
-    Map<String, Endpoint> endpointsById = new LinkedHashMap<>();
-    resolvedAssets.stream()
-        .map(AssetToExecute::asset)
-        .filter(Endpoint.class::isInstance)
-        .map(Endpoint.class::cast)
-        .forEach(endpoint -> endpointsById.putIfAbsent(endpoint.getId(), endpoint));
-
-    return endpointsById.values().stream().map(this::toEndpointResolution).toList();
-  }
-
-  private Map<String, Object> toEndpointResolution(Endpoint endpoint) {
-    Map<String, Object> endpointResolution = new LinkedHashMap<>();
-    endpointResolution.put("endpoint_id", endpoint.getId());
-
-    List<Agent> endpointAgents =
-        ofNullable(endpoint.getAgents()).orElse(List.of()).stream()
-            .filter(AgentUtils::isPrimaryAgent)
-            .toList();
-    if (endpointAgents.isEmpty()) {
-      endpointResolution.put("status", "ASSET_AGENTLESS");
-      return endpointResolution;
-    }
-
-    endpointResolution.put(
-        "agents",
-        endpointAgents.stream()
-            .map(
-                agent ->
-                    Map.of(
-                        "agent_id",
-                        agent.getId(),
-                        "status",
-                        agent.isActive() ? "AGENT_ACTIVE" : "AGENT_INACTIVE"))
-            .toList());
-    return endpointResolution;
-  }
-
   /**
    * Get error messages if pre execution conditions are not met
    *
@@ -366,7 +249,6 @@ public class InjectsExecutionJob implements Job {
    * @param inject the inject to check
    */
   @VisibleForTesting
-  @SuppressWarnings("java:S3776")
   protected void checkErrorMessagesPreExecution(String exerciseId, Inject inject)
       throws ErrorMessagesPreExecutionException {
     List<InjectDependency> injectDependencies =
@@ -564,7 +446,6 @@ public class InjectsExecutionJob implements Job {
 
   @Override
   @LogExecutionTime
-  @SuppressWarnings("java:S3776")
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
       // Handle starting exercises if needed.
@@ -685,5 +566,125 @@ public class InjectsExecutionJob implements Job {
       }
     }
     injectService.saveAll(fulfilled);
+  }
+
+  // -- AUDIT LOGGING --
+
+  private void logScheduledLaunch(Exercise exercise) {
+    auditLogger.ifPresent(
+        logger -> {
+          Map<String, Object> contextData = new LinkedHashMap<>();
+          contextData.put("simulation_id", exercise.getId());
+          contextData.put("simulation_name", exercise.getName());
+          contextData.put(
+              "scheduled_start", exercise.getStart().map(Instant::toString).orElse(null));
+          contextData.put("initiator", "scheduler");
+          if (exercise.getScenario() != null) {
+            String scenarioId = exercise.getScenario().getId();
+            contextData.put("scenario_id", scenarioId);
+            // Can't get scenario from exercise here (unproxy exception) so SQL find
+            scenarioRepository
+                .findNameById(scenarioId)
+                .ifPresent(scenarioName -> contextData.put("scenario_name", scenarioName));
+          }
+          logger.logEvent(
+              AuditEvent.builder()
+                  .eventType(EventType.SYSTEM)
+                  .eventScope(AuditEventScope.SCHEDULED_LAUNCH)
+                  .eventStatus(EventStatus.SUCCESS)
+                  .resourceType(ResourceType.SIMULATION)
+                  .resourceId(exercise.getId())
+                  .message(
+                      "Simulation '%s' started (scheduled start reached)"
+                          .formatted(exercise.getName()))
+                  .contextData(contextData)
+                  .origin(SYSTEM)
+                  .build());
+        });
+  }
+
+  private void logTargetResolution(
+      Inject inject,
+      ExecutableInject executableInject,
+      List<Map<String, Object>> endpointResolutions) {
+    auditLogger.ifPresent(
+        logger -> {
+          Map<String, Object> contextData = new LinkedHashMap<>();
+          contextData.put("inject_id", inject.getId());
+          contextData.put("inject_name", inject.getTitle());
+          contextData.put(
+              "asset_group_ids",
+              executableInject.getAssetGroups().stream()
+                  .map(AssetGroup::getId)
+                  .filter(Objects::nonNull)
+                  .toList());
+          contextData.put(
+              "team_ids",
+              executableInject.getTeams().stream()
+                  .map(Team::getId)
+                  .filter(Objects::nonNull)
+                  .toList());
+          contextData.put(
+              "player_ids",
+              executableInject.getUsers().stream()
+                  .map(ExecutionContext::getUser)
+                  .filter(Objects::nonNull)
+                  .map(ProtectUser::getId)
+                  .filter(Objects::nonNull)
+                  .toList());
+          contextData.put("total_endpoints", endpointResolutions.size());
+          contextData.put("endpoints", endpointResolutions);
+          logger.logEvent(
+              AuditEvent.builder()
+                  .eventType(EventType.EXECUTION)
+                  .eventScope(AuditEventScope.TARGET_RESOLUTION)
+                  .eventStatus(EventStatus.SUCCESS)
+                  .resourceType(ResourceType.INJECT)
+                  .resourceId(inject.getId())
+                  .message(
+                      "Resolved %d endpoints for inject '%s'"
+                          .formatted(endpointResolutions.size(), inject.getTitle()))
+                  .contextData(contextData)
+                  .origin(SYSTEM)
+                  .build());
+        });
+  }
+
+  private List<Map<String, Object>> buildEndpointResolutions(List<AssetToExecute> resolvedAssets) {
+    Map<String, Endpoint> endpointsById = new LinkedHashMap<>();
+    resolvedAssets.stream()
+        .map(AssetToExecute::asset)
+        .filter(Endpoint.class::isInstance)
+        .map(Endpoint.class::cast)
+        .forEach(endpoint -> endpointsById.putIfAbsent(endpoint.getId(), endpoint));
+
+    return endpointsById.values().stream().map(this::toEndpointResolution).toList();
+  }
+
+  private Map<String, Object> toEndpointResolution(Endpoint endpoint) {
+    Map<String, Object> endpointResolution = new LinkedHashMap<>();
+    endpointResolution.put("endpoint_id", endpoint.getId());
+
+    List<Agent> endpointAgents =
+        ofNullable(endpoint.getAgents()).orElse(List.of()).stream()
+            .filter(AgentUtils::isPrimaryAgent)
+            .toList();
+    if (endpointAgents.isEmpty()) {
+      endpointResolution.put("status", ExecutionTraceStatus.ASSET_AGENTLESS);
+      return endpointResolution;
+    }
+
+    endpointResolution.put(
+        "agents",
+        endpointAgents.stream()
+            .map(
+                agent ->
+                    Map.of(
+                        "agent_id",
+                        agent.getId(),
+                        "status",
+                        agent.isActive() ? "AGENT_ACTIVE" : "AGENT_INACTIVE"))
+            .toList());
+    return endpointResolution;
   }
 }
