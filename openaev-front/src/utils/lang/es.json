@@ -2816,6 +2816,7 @@
   "Saas_app": "SaaS app",
   "Saas_application": "SaaS application",
   "Saas_tenant": "SaaS tenant",
+  "Safe mode is active: background processing is disabled.": "El modo seguro está activo: el procesamiento en segundo plano está deshabilitado.",
   "Sample": "Muestra",
   "San_nas": "SAN / NAS",
   "Sarcastic": "Sarcástico",
@@ -3764,7 +3765,6 @@
   "Your threat arsenal is empty": "Tu arsenal está vacío",
   "your trial license online": "su licencia de prueba en línea",
   "YYYY": "AAAA",
-  "Safe mode is active: background processing is disabled.": "El modo seguro está activo: el procesamiento en segundo plano está deshabilitado.",
   "Zoom in": "Acercar",
   "Zoom out": "Alejar"
 }

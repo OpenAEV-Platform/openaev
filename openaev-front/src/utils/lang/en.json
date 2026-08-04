@@ -2817,6 +2817,7 @@
   "Saas_app": "SaaS app",
   "Saas_application": "SaaS application",
   "Saas_tenant": "SaaS tenant",
+  "Safe mode is active: background processing is disabled.": "Safe mode is active: background processing is disabled.",
   "Sample": "Sample",
   "San_nas": "SAN / NAS",
   "Sarcastic": "Sarcastic",
@@ -3765,7 +3766,6 @@
   "Your threat arsenal is empty": "Your threat arsenal is empty",
   "your trial license online": "your trial license online",
   "YYYY": "YYYY",
-  "Safe mode is active: background processing is disabled.": "Safe mode is active: background processing is disabled.",
   "Zoom in": "Zoom in",
   "Zoom out": "Zoom out"
 }
