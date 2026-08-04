@@ -6,7 +6,7 @@ import DOMPurify from 'dompurify';
 import { useContext, useEffect, useRef, useState } from 'react';
 
 import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
-import { getInjectSimple, getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
+import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import Tabs from '../../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../../components/common/tabs/useTabs';
@@ -311,113 +311,13 @@ const LiveExecutionTerminal = ({ injectId, endpointName }: {
   return <TerminalViewTab injectId={injectId} target={target} />;
 };
 
-// Same prefix/suffix reveal rule as the backend's PrimitiveValueMaskingUtils (used for the workflow
-// Scope's own credential variables): a password shows only its first and last character, a
-// hash/key shows three on each side. Any other field is shown as-is (this is what makes the
-// username legible, with no special-casing needed).
-const maskCommandValue = (key: string, value: string): string => {
-  const normalizedKey = key.toLowerCase();
-  let prefixLength = 0;
-  let suffixLength = 0;
-  if (normalizedKey.includes('password') || normalizedKey.includes('secret')) {
-    prefixLength = 1;
-    suffixLength = 1;
-  } else if (normalizedKey === 'hash' || normalizedKey === 'key') {
-    prefixLength = 3;
-    suffixLength = 3;
-  } else {
-    return value;
-  }
-  if (value.length <= prefixLength + suffixLength) {
-    return '*'.repeat(value.length);
-  }
-  return value.slice(0, prefixLength)
-    + '*'.repeat(value.length - prefixLength - suffixLength)
-    + value.slice(value.length - suffixLength);
-};
-
 // A network injector (NetExec, Nmap…) has no single shell command on the DTO — `command` is only ever
-// resolved for Command-payload-backed injects (see InjectExecutionStep#getCommand on the backend). What
-// it actually ran is instead logged as one of its own execution traces — always fully redacted
-// ("-u *** -p ***"), since the injector doesn't know which of its args are safe to print. This
-// un-redacts it using the inject's own resolved field values (fetched separately, since the trace
-// carries no structured field data), applying our own partial-reveal rule rather than the injector's
-// blanket one.
-const COMMAND_FLAG_TO_FIELD_KEY: Record<string, string> = {
-  '-u': 'username',
-  '--user': 'username',
-  '--username': 'username',
-  '-p': 'password',
-  '--pass': 'password',
-  '--password': 'password',
-  '-H': 'hash',
-  '--hash': 'hash',
-  '--ntlm': 'hash',
-  '-d': 'domain',
-  '--domain': 'domain',
-};
-
-// The first trace is always the "published, waiting to be consumed" boilerplate; the next one is the
-// tool invocation itself (then come "executed against target…", "succeeded: …", etc.) — this ordering
-// holds across every injector observed (NetExec, Nmap), there being no structured "this is the command"
-// marker on a trace to key off instead.
-const findCommandTraceMessage = (traces: { execution_message: string }[]): string | undefined => {
-  if (traces.length === 0) {
-    return undefined;
-  }
-  return /^The inject has been published/i.test(traces[0].execution_message)
-    ? traces[1]?.execution_message
-    : traces[0].execution_message;
-};
-
-// Replaces each redacted "-<flag> ***" in the injector's own trace with the real value, partially
-// revealed by us (maskCommandValue), for every flag we recognize and have a resolved value for. Any
-// unrecognized flag/token — including a plain "***" for a field we don't know — is left exactly as the
-// injector logged it, rather than guessed at.
-const unmaskCommandLine = (commandLine: string, content: Record<string, unknown>): string => commandLine.replace(
-  /(--?[A-Za-z][A-Za-z-]*)(\s+)(\*+)/g,
-  (fullMatch, flag: string, whitespace: string) => {
-    const fieldKey = COMMAND_FLAG_TO_FIELD_KEY[flag];
-    const fieldValue = fieldKey ? content[fieldKey] : undefined;
-    if (typeof fieldValue !== 'string' || fieldValue.trim().length === 0) {
-      return fullMatch;
-    }
-    return `${flag}${whitespace}${maskCommandValue(fieldKey, fieldValue)}`;
-  },
-);
-
-const InjectorCommandParams = ({ injectId }: { injectId: string }) => {
+// resolved for Command-payload-backed injects (see InjectExecutionStep#getCommand on the backend).
+// What it actually ran is instead reconstructed and partially masked server-side (see
+// AttackPathGraphService#injectorCommandLine) from its own redacted execution trace and the inject's
+// resolved content — never sent to the client in the clear, unlike reconstructing it here would.
+const InjectorCommandLine = ({ commandLine }: { commandLine: string }) => {
   const { t } = useFormatter();
-  const [commandLine, setCommandLine] = useState<string | null | undefined>(undefined);
-  useEffect(() => {
-    let active = true;
-    setCommandLine(undefined);
-    Promise.all([
-      getInjectSimple(injectId),
-      getInjectStatusWithGlobalExecutionTraces(injectId),
-    ]).then(([injectResponse, statusResponse]: [
-      { data: { inject_content?: Record<string, unknown> } },
-      { data: InjectStatusOutput },
-    ]) => {
-      if (!active) {
-        return;
-      }
-      const content = injectResponse.data.inject_content ?? {};
-      const rawCommandLine = findCommandTraceMessage(statusResponse.data.status_main_traces ?? []);
-      setCommandLine(rawCommandLine ? unmaskCommandLine(rawCommandLine, content) : null);
-    }).catch(() => active && setCommandLine(null));
-    return () => {
-      active = false;
-    };
-  }, [injectId]);
-
-  if (commandLine === undefined) {
-    return <Loader variant="inElement" size="sm" />;
-  }
-  if (commandLine === null) {
-    return null;
-  }
-
   return (
     <Box sx={{ mb: 2 }}>
       <Typography variant="subtitle2" gutterBottom>{t('Command')}</Typography>
@@ -501,11 +401,12 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   // is rendered live from execution traces instead (see hasSnapshot below).
   const hasSnapshot = Boolean(detail?.command || detail?.terminalOutput);
   // A network injector (NetExec, Nmap…) never has a `command` — regardless of whether its terminalOutput
-  // snapshot is populated — so its resolved parameters render as an extra block ahead of the
+  // snapshot is populated — so its reconstructed command line (server-side, see
+  // AttackPathGraphService#injectorCommandLine) renders as an extra block ahead of the
   // traces/snapshot. That extra block isn't accounted for by the snapshot Terminal's own fixed,
   // internally-scrolling height, so this case must use the outer box's scroll instead (see
   // injectorTracesView below) to avoid clipping it.
-  const showsCommandParams = !detail?.command && !!detail?.injectId && !detail?.payloadId;
+  const showsCommandParams = !!detail?.injectorCommandLine;
   // On the terminal tab a network injector shows its execution traces (a plain list that grows) and/or
   // its command params, unlike the snapshot/payload `Terminal` which is sized to fill and scrolls
   // internally. Both need the outer box to scroll, otherwise their content is clipped.
@@ -883,8 +784,8 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 {/* A network injector (NetExec, Nmap…) has no `command` regardless of whether its
                     terminalOutput snapshot is populated — show what was actually sent either way,
                     ahead of whichever traces/output view renders below. */}
-                {!detail.command && !!detail.injectId && !detail.payloadId && (
-                  <InjectorCommandParams injectId={detail.injectId} />
+                {detail.injectorCommandLine && (
+                  <InjectorCommandLine commandLine={detail.injectorCommandLine} />
                 )}
                 {(() => {
                   // Seeded runs show their frozen snapshot. For a real inject: a payload-backed execution
