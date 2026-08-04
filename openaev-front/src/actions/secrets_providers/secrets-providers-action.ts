@@ -18,7 +18,3 @@ export const fetchSecretProvider = (secrets_providerId: string) => (dispatch: Di
 export const fetchSecretsProviderRelatedIds = (secrets_providerId: string) => {
   return simpleCall(`${SECRETS_PROVIDERS_URI}/${secrets_providerId}/related-ids`);
 };
-
-export const deleteSecretsProvider = (secrets_providerId: string) => (dispatch: Dispatch) => {
-  return delReferential(`${SECRETS_PROVIDERS_URI}/${secrets_providerId}`, 'secretsproviders', secrets_providerId)(dispatch);
-};
