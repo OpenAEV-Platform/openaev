@@ -118,6 +118,15 @@ const ChainingFlowConfiguration = ({
             outputTypes,
             localScope: cond.condition_mapping_type === 'LOCAL',
           };
+          // Restore the MAPPER condition's own defined value into the editable field so
+          // reopening a linked field for edit shows the value that's actually persisted
+          // (and used as an extra combination candidate), not a stale inject_content value.
+          if (cond.condition_value != null && cond.condition_value !== '') {
+            initialData.inject_content = {
+              ...initialData.inject_content,
+              [cond.condition_key]: cond.condition_value,
+            };
+          }
         }
       }
       initialData.inject_field_links = links;
@@ -206,7 +215,7 @@ const ChainingFlowConfiguration = ({
     if (!workflowId) return;
 
     // Always sent, even empty: it tells the backend not to re-apply the contract auto-links.
-    const stepConditions = mapFieldLinksToStepConditions(data.inject_field_links);
+    const stepConditions = mapFieldLinksToStepConditions(data);
 
     const stepPayload = {
       step_workflow_id: workflowId,
