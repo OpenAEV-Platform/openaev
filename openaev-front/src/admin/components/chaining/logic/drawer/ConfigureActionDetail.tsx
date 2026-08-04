@@ -19,7 +19,6 @@ import InjectContentFieldComponent from '../../../common/injects/form/InjectCont
 import InjectFormSection from '../../../common/injects/form/InjectFormSection';
 import InjectTeamsList from '../../../common/injects/form/teams/InjectTeamsList';
 import { isInjectContentType, isRequiredField, isVisibleField } from '../../../common/injects/utils';
-import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import { type ActionDetailData, type InjectDocumentInput } from '../types';
 import ActionFormButtons from './ActionFormButtons';
 import ActionScopeChips from './ActionScopeChips';
@@ -33,7 +32,6 @@ import {
   getContractFieldDefaultValue,
   isExpectationInput,
   normalizeFieldLinks,
-  parseContractFields,
   stripFrontendMetadataKeys,
 } from './ConfigureActionDetail.utils';
 import FieldOutputLink, { type FieldLink } from './FieldOutputLink';
