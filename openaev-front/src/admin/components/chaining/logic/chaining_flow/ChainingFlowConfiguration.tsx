@@ -215,7 +215,7 @@ const ChainingFlowConfiguration = ({
     if (!workflowId) return;
 
     // Always sent, even empty: it tells the backend not to re-apply the contract auto-links.
-    const stepConditions = mapFieldLinksToStepConditions(data.inject_field_links);
+    const stepConditions = mapFieldLinksToStepConditions(data);
 
     const stepPayload = {
       step_workflow_id: workflowId,
