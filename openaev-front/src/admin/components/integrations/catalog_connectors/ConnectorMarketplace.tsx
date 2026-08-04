@@ -1,4 +1,4 @@
-import { OnlinePredictionOutlined, SmartButtonOutlined, TerminalOutlined } from '@mui/icons-material';
+import { Key, OnlinePredictionOutlined, SmartButtonOutlined, TerminalOutlined} from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactNode, useMemo, useState } from 'react';
@@ -80,7 +80,7 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
       },
       SECRETS_PROVIDER: {
         label: t('Secrets Provider'),
-        icon: TerminalOutlined,
+        icon: Key,
       },
     };
     return CONNECTOR_TYPE_ORDER

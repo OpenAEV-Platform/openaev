@@ -8,8 +8,7 @@ import io.openaev.database.model.TenantIdBase;
 import lombok.Getter;
 import lombok.Setter;
 
-public abstract class SecretsProvider extends BaseConnectorEntity
-    implements SecretProvider, TenantIdBase {
+public abstract class AbstractSecretsProvider extends BaseConnectorEntity implements TenantIdBase {
 
   public static final String SERVICE_NAME = "secrets-provider";
 
@@ -31,7 +30,7 @@ public abstract class SecretsProvider extends BaseConnectorEntity
     return super.getType();
   }
 
-  protected SecretsProvider(String id, String name, String type) {
+  protected AbstractSecretsProvider(String id, String name, String type) {
     this.id = id;
     this.name = name;
     this.setType(type);
@@ -39,25 +38,22 @@ public abstract class SecretsProvider extends BaseConnectorEntity
 
   // -- SecretProvider default implementations  --
 
-  @Override
   public SecretReference store(SecretReference secretReference, SecretStoreRequest request) {
     throw new UnsupportedOperationException(
         "This secret backend does not support storing secrets.");
   }
 
-  @Override
   public SecretReference update(SecretReference secretReference, SecretStoreRequest request) {
     throw new UnsupportedOperationException(
         "This secret backend does not support updating secrets.");
   }
 
-  @Override
   public void delete(SecretReference secretReference) {
     throw new UnsupportedOperationException(
         "This secret backend does not support deleting secrets.");
   }
 
-  public static class Placeholder extends SecretsProvider {
+  public static class Placeholder extends AbstractSecretsProvider {
     public Placeholder() {
       super("placeholder", "Placeholder", SecretsProviderType.PLACEHOLDER.type);
     }
