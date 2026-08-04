@@ -2168,6 +2168,25 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     setDrawerCategory(null);
   };
 
+  // Clicking the empty grid is the universal escape: it dismisses whichever side panel is open
+  // (endpoint / finding / injector / category / execution detail) and clears the node selection and
+  // highlight — the panel's cross must not be the only way out. The focused-path mode is deliberately
+  // kept: it has its own explicit escape in the header.
+  const onCanvasBackgroundClick = () => {
+    setSelectedNodeId(null);
+    setSelectedFindingId(null);
+    setSelectedInjectorId(null);
+    setInjectorExecutions([]);
+    setInjectorFindingGroups([]);
+    setFindingDetail(null);
+    setDetailExecutionId(null);
+    setDetail(null);
+    setActiveCard(null);
+    setDrawerCategory(null);
+    setHighlightedExecutionIds(new Set());
+    setFocusRequest(null);
+  };
+
   // Leave the focused finding-path view and restore the full clustered graph (fitted).
   const clearPathFocus = () => {
     setPathFinding(null);
@@ -2553,6 +2572,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                 onFindingClusterClick={onFindingClusterClick}
                 onFindingSelect={onFindingSelect}
                 onInjectorSelect={onInjectorSelect}
+                onBackgroundClick={onCanvasBackgroundClick}
                 focusRequest={focusRequest}
                 fitRequest={fitNonce}
                 showMiniMap={!pathFinding && nodes.length > 40}
