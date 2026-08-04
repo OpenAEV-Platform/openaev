@@ -1117,25 +1117,30 @@ public class InjectExecutionStep implements ActionStep {
    * @param inputValues the source JSON containing the values to map
    */
   private void applyMapping(ObjectNode contentNode, Condition mapping, JsonNode inputValues) {
+    String targetJsonKey = mapping.getKey();
+
+    // Prefer the value already resolved for this specific mapper during chaining (see
+    // ConditionService#toResolvedMapper). This is required when several mappers share the same
+    // key type(s): looking the value up from `inputValues` by type alone can't tell them apart and
+    // would collapse them onto the same shared source value. Values only known once the batch is
+    // expanded per target (e.g. "_target"-derived fields) are not resolved at that stage, so they
+    // still fall through to the inputValues lookup below.
+    if (targetJsonKey != null && mapping.getValue() != null && !mapping.getValue().isBlank()) {
+      contentNode.set(targetJsonKey, TextNode.valueOf(mapping.getValue()));
+      return;
+    }
+
     List<String> keyTypes =
         mapping.getKeyTypes() != null && !mapping.getKeyTypes().isEmpty()
             ? mapping.getKeyTypes().stream().map(Enum::name).toList()
             : List.of();
     if (keyTypes.isEmpty()) {
-      if (mapping.getMappingType() == MappingType.DEFAULT) {
-        // DEFAULT mapper with no keyTypes: apply static value directly.
-        // If blank, leave the injector contract default for this field untouched.
-        String targetJsonKey = mapping.getKey();
-        if (targetJsonKey != null && mapping.getValue() != null && !mapping.getValue().isBlank()) {
-          contentNode.set(targetJsonKey, TextNode.valueOf(mapping.getValue()));
-        }
-        return;
+      if (mapping.getMappingType() != MappingType.DEFAULT) {
+        log.warn(
+            "[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
       }
-      log.warn(
-          "[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
       return;
     }
-    String targetJsonKey = mapping.getKey();
 
     for (String inputKey : keyTypes) {
       if (inputValues.has(inputKey)) {

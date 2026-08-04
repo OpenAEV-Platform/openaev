@@ -195,8 +195,12 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
         </Box>
       )}
 
-      {/* Default value input + Link button: only when no link */}
-      {!link && (
+      {/* Default value input + Link button: shown when there's no link, or when a
+          defined value is already set on a linked field (so it stays editable and can
+          still be used as an extra combination candidate alongside the linked type's
+          resolved pool). Linked fields with no defined value keep the old, collapsed
+          look (just the "(default: ...)" label above). */}
+      {(!link || value) && (
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
@@ -234,7 +238,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                   onChange={e => onValueChange(fieldKey, e.target.value)}
                 />
               )}
-          {!noLink && (
+          {!link && !noLink && (
             <Button
               size="small"
               variant="text"
