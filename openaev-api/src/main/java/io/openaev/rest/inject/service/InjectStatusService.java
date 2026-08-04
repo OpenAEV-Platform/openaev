@@ -455,6 +455,8 @@ public class InjectStatusService {
     injectStatusRepository.deleteAllByIds(injectStatusIds);
   }
 
+  // -- AUDIT LOGGING --
+
   private void logInjectStatusTransition(
       Inject inject, ExecutionStatus previousStatus, ExecutionStatus newStatus, Agent agent) {
     String previousName = previousStatus != null ? previousStatus.name() : NO_STATUS;
