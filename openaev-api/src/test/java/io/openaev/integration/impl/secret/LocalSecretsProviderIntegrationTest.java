@@ -11,10 +11,11 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration;
 import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegrationFactory;
-import io.openaev.secrets.provider.SecretsProvider;
+import io.openaev.secrets.provider.AbstractSecretsProvider;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
+import io.openaev.service.FileService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -46,6 +47,7 @@ public class LocalSecretsProviderIntegrationTest {
   @Autowired private SecretService secretService;
   @Autowired private SecretReferenceService secretReferenceService;
   @Autowired private PreviewFeatureService previewFeatureService;
+  @Autowired private FileService fileService;
 
   private LocalSecretsProviderIntegrationFactory getFactory() {
     return new LocalSecretsProviderIntegrationFactory(
@@ -56,7 +58,8 @@ public class LocalSecretsProviderIntegrationTest {
         nativeEncryptionService,
         secretService,
         secretReferenceService,
-        previewFeatureService);
+        previewFeatureService,
+        fileService);
   }
 
   @Nested
@@ -114,9 +117,9 @@ public class LocalSecretsProviderIntegrationTest {
       Integration integration = integrations.getFirst();
 
       // Act
-      List<SecretsProvider> providers =
+      List<AbstractSecretsProvider> providers =
           integration.requestComponent(
-              new ComponentRequest("secrets-provider"), SecretsProvider.class);
+              new ComponentRequest("secrets-provider"), AbstractSecretsProvider.class);
 
       // Assert
       assertThat(providers).hasSize(1);

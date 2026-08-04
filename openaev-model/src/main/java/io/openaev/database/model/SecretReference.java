@@ -5,9 +5,11 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
+import io.openaev.helper.MonoIdSerializer;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -69,6 +71,7 @@ public class SecretReference implements TenantBase {
   @ManyToOne
   @JoinColumn(name = "secret_reference_created_by")
   @JsonProperty("secret_reference_created_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
   private User createdBy;
 
   @Column(name = "secret_reference_created_at")

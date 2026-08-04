@@ -9,13 +9,15 @@ import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
-import io.openaev.secrets.provider.SecretsProvider;
+import io.openaev.secrets.provider.AbstractSecretsProvider;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.SecretsProviderMapper;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,7 +25,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class SecretsProviderService
-    extends AbstractConnectorService<SecretsProvider, SecretsProviderOutput> {
+    extends AbstractConnectorService<AbstractSecretsProvider, SecretsProviderOutput> {
 
   private final SecretsProviderMapper secretsProviderMapper;
   private final ManagerFactory managerFactory;
@@ -70,35 +72,43 @@ public class SecretsProviderService
   }
 
   @Override
-  protected List<SecretsProvider> getAllConnectors() {
+  protected List<AbstractSecretsProvider> getAllConnectors() {
     return transactionalTenantScope.currentTenantIds().stream()
         .flatMap(
-            tenantId ->
-                managerFactory
+            tenantId -> {
+              try {
+                return managerFactory
                     .getManager(tenantId)
                     .requestManyAllStates(
-                        new ComponentRequest(SecretsProvider.SERVICE_NAME), SecretsProvider.class)
-                    .stream())
+                        new ComponentRequest(AbstractSecretsProvider.SERVICE_NAME),
+                        AbstractSecretsProvider.class)
+                    .stream();
+              } catch (NoSuchElementException e) {
+                log.debug("No secrets provider registered for tenant {}, skipping.", tenantId, e);
+                return Stream.empty();
+              }
+            })
         .toList();
   }
 
   @Override
-  protected SecretsProvider getConnectorById(String id) {
+  protected AbstractSecretsProvider getConnectorById(String id) {
     return getAllConnectors().stream().filter(sp -> id.equals(sp.getId())).findFirst().orElse(null);
   }
 
   @Override
   protected SecretsProviderOutput mapToOutput(
-      SecretsProvider connector,
+      AbstractSecretsProvider connector,
+      String displayName,
       CatalogConnector catalogConnector,
       ConnectorInstance instance,
       boolean existingConnector) {
     return secretsProviderMapper.toSecretsProviderOutput(
-        connector, catalogConnector, instance, existingConnector);
+        connector, displayName, catalogConnector, instance, existingConnector);
   }
 
   @Override
-  protected SecretsProvider createNewConnector() {
-    return new SecretsProvider.Placeholder();
+  protected AbstractSecretsProvider createNewConnector() {
+    return new AbstractSecretsProvider.Placeholder();
   }
 }

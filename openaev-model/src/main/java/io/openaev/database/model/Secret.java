@@ -11,19 +11,22 @@ import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import lombok.Data;
+import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "secrets")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "secret_type", discriminatorType = DiscriminatorType.STRING)
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 // secrets is fully on v2 (inspector + can_access_tenant); no v1 @Filter
+@ToString(onlyExplicitlyIncluded = true)
 public class Secret implements TenantBase {
 
   @Id
@@ -31,11 +34,13 @@ public class Secret implements TenantBase {
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
   @JsonProperty("secret_id")
+  @ToString.Include
   private String id;
 
   @Column(name = "secret_type", insertable = false, updatable = false)
   @JsonProperty("secret_type")
   @Setter(NONE)
+  @ToString.Include
   private String type;
 
   @Column(name = "secret_created_at")

@@ -6,7 +6,6 @@ import { deleteCollector, fetchCollector, fetchCollectorRelatedIds, fetchCollect
 import { deleteExecutor, fetchExecutor, fetchExecutorRelatedIds, fetchExecutors } from '../../../../actions/executors/executor-action';
 import { deleteInjector, fetchInjector, fetchInjectorRelatedIds, fetchInjectors } from '../../../../actions/injectors/injector-action';
 import {
-  deleteSecretsProvider,
   fetchSecretProvider,
   fetchSecretsProviderRelatedIds,
   fetchSecretsProviders,
@@ -160,7 +159,7 @@ export const secretsProviderConfig: ConnectorContextType<SecretsProviderOutput> 
     fetchAll: () => fetchSecretsProviders(true),
     fetchSingle: (id: string) => fetchSecretProvider(id),
     getRelatedIds: (id: string) => fetchSecretsProviderRelatedIds(id),
-    deleteSingle: (id: string) => deleteSecretsProvider(id),
+    deleteSingle: (_id: string) => async (_dispatch: Dispatch) => Promise.reject(new Error('Deleting secrets providers is not supported')),
   },
   routes: {
     list: '/admin/integrations/deployed',
