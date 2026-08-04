@@ -163,7 +163,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
     if (startDate !== undefined) {
       startDate = cronObject !== null
         ? moment(startDate).utc().hour(cronObject.getRecurrenceTime().hour || 0).minute(cronObject.getRecurrenceTime().minute || 0)
-            .format()
+          .format()
         : moment(startDate).utc().format();
     }
   } else if (exercise !== undefined) {
@@ -486,9 +486,9 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
       const label = startDate === undefined
         ? formatRelativeTime(seconds)
         : (() => {
-            const date = moment.utc(startDate).add(seconds, 's').toDate();
-            return `${fld(date)} - ${ft(date)}`;
-          })();
+          const date = moment.utc(startDate).add(seconds, 's').toDate();
+          return `${fld(date)} - ${ft(date)}`;
+        })();
       setGhost({
         visible: ghostClickable,
         x: eventMove.clientX - rect.left,
@@ -632,7 +632,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
             onClick={onPlaygroundClick}
             onMouseEnter={showGhost}
             onMouseLeave={hideGhost}
-            onReconnect={() => {}}
+            onReconnect={() => { }}
             // @ts-expect-error the xyflow signature is not well defined here
             onReconnectEnd={onReconnectEnd}
             edgesReconnectable={permissions.canManage}
