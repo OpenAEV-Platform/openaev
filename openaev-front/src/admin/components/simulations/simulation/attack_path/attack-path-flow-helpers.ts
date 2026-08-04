@@ -265,17 +265,21 @@ export const ENDPOINT_BATCH_SIZE = 10;
 // Same batching for revealing individual findings under a finding cluster.
 export const FINDING_BATCH_SIZE = 10;
 
-// Aggregate a set of prevention/detection statuses into one: all-same keeps that status, a mix (e.g.
-// some prevented and some undetected) is ORANGE — the "partially handled" middle ground.
+// Aggregate a set of prevention/detection statuses into one worst-case verdict: RED beats ORANGE beats
+// GREEN — one bad execution among several (e.g. one endpoint undetected while the rest were prevented)
+// must not read as fully green just because it's a minority.
 const aggregateStatus = (statuses: Array<string | undefined>): string | undefined => {
   const set = new Set(statuses.filter((s): s is string => s === 'GREEN' || s === 'ORANGE' || s === 'RED'));
-  if (set.size === 0) {
-    return undefined;
+  if (set.has('RED')) {
+    return 'RED';
   }
-  if (set.size === 1) {
-    return [...set][0];
+  if (set.has('ORANGE')) {
+    return 'ORANGE';
   }
-  return 'ORANGE';
+  if (set.has('GREEN')) {
+    return 'GREEN';
+  }
+  return undefined;
 };
 
 /**
@@ -830,12 +834,23 @@ export const buildFindingPathFlow = (
   const endpointId = finding.endpointNodeId;
   const endpoint = dtoNodes.find(n => n.id === endpointId);
 
-  // The injector(s) that reached this endpoint (execution edges into it).
+  // The injector(s) that reached this endpoint (execution edges into it), and — per injector — the
+  // worst-case status of just ITS OWN execution(s) against this endpoint (not the endpoint's overall
+  // status, which is a cross-injector aggregate and would wrongly colour every injector's edge the
+  // same, e.g. a Nmap execution that was actually Prevented showing red because some other injector's
+  // execution on the same endpoint wasn't).
+  const execByRef = new Map((dto.attackPathExecutions ?? []).filter(x => x.ref).map(x => [x.ref as string, x]));
   const injectorIds = new Set<string>();
+  const statusesByInjector = new Map<string, Array<string | undefined>>();
   for (const e of dto.attackPathEdges ?? []) {
     if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === endpointId && e.edgeSourceId
       && e.edgeSourceId !== e.edgeTargetId) {
       injectorIds.add(e.edgeSourceId);
+      const statuses = (e.executionIds ?? []).map(ref => execByRef.get(ref)?.status);
+      statusesByInjector.set(
+        e.edgeSourceId,
+        (statusesByInjector.get(e.edgeSourceId) ?? []).concat(statuses),
+      );
     }
   }
   const injectors = dtoNodes.filter(n => n.type === 'INJECTOR' && n.id && injectorIds.has(n.id as string));
@@ -877,7 +892,7 @@ export const buildFindingPathFlow = (
       type: AP_FLOW_EDGE_TYPE,
       data: {
         count: 1,
-        status: endpointStatus,
+        status: aggregateStatus(statusesByInjector.get(inj.id as string) ?? []) ?? endpointStatus,
         label: contractLabelByInjector?.[inj.id as string] || finding.contractLabel || inj.label,
       },
       selected: true,
@@ -1442,6 +1457,10 @@ interface ChainStep {
   // endpoint node id -> the contract name run against it (what was launched), for the inject→endpoint
   // edge label. First non-empty contract name wins when several executions hit the same endpoint.
   contractByEndpoint: Map<string, string>;
+  // endpoint node id -> worst-case status of just THIS injector's execution(s) against that endpoint —
+  // what colours the inject→endpoint edge (never the endpoint's own cross-injector status, which would
+  // wrongly paint every injector's edge into it the same colour).
+  statusByEndpoint: Map<string, Array<string | undefined>>;
   consumed: CausalConsumedKey[];
   deps: Set<string>;
 }
@@ -1518,6 +1537,7 @@ export const buildCausalChainFlow = (
         injectorId: id,
         endpoints: new Map(),
         contractByEndpoint: new Map(),
+        statusByEndpoint: new Map(),
         consumed: [],
         deps: new Set(),
       };
@@ -1543,6 +1563,7 @@ export const buildCausalChainFlow = (
       if (ex.contractName && !s.contractByEndpoint.has(ep)) {
         s.contractByEndpoint.set(ep, ex.contractName);
       }
+      s.statusByEndpoint.set(ep, (s.statusByEndpoint.get(ep) ?? []).concat(ex.status));
     }
     for (const k of ex.consumedFindingKeys ?? []) {
       if (k.keyType && !s.consumed.some(c => c.keyType === k.keyType && c.operator === (k.operator ?? '') && c.value === (k.value ?? ''))) {
@@ -1784,7 +1805,10 @@ export const buildCausalChainFlow = (
           type: AP_FLOW_EDGE_TYPE,
           data: {
             count: 1,
-            status: epDto?.status,
+            // This injector's own execution(s) against this endpoint, worst-case — not epDto?.status
+            // (the endpoint's cross-injector aggregate), which would wrongly paint every injector
+            // reaching this endpoint the same colour regardless of that injector's own result.
+            status: aggregateStatus(s.statusByEndpoint.get(epId) ?? []) ?? epDto?.status,
             // What was launched against this endpoint (the injector contract name), so the analyst reads
             // the action on the edge rather than guessing from the injector icon alone.
             label: s.contractByEndpoint.get(epId),
@@ -1926,6 +1950,10 @@ export const buildCausalChainFlow = (
           });
         }
         const reachedCount = hiddenAssetIds.filter(epId => (assetInjectors.get(epId) ?? []).includes(injId)).length;
+        // This injector's own execution(s) against just the endpoints hidden in this cluster, worst-case
+        // — not clusterStatus (every hidden endpoint's own aggregate, cross-injector), for the same
+        // reason as the expanded per-endpoint edge above.
+        const injStatus = aggregateStatus(hiddenAssetIds.flatMap(epId => s.statusByEndpoint.get(epId) ?? []));
         edges.push({
           id: `${injId}-${epClusterId}`,
           source: injId,
@@ -1933,7 +1961,7 @@ export const buildCausalChainFlow = (
           type: AP_FLOW_EDGE_TYPE,
           data: {
             count: reachedCount,
-            status: clusterStatus,
+            status: injStatus ?? clusterStatus,
           },
         });
       });
