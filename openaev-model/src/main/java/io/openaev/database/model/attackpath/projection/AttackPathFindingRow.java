@@ -12,4 +12,5 @@ public record AttackPathFindingRow(
     String endpointId,
     String endpointRaw,
     String endpointKey,
-    String executionId) {}
+    String executionId,
+    boolean isFinding) {}

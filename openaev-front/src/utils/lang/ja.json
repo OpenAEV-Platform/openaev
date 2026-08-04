@@ -938,6 +938,8 @@
   "Discovered on": "発見日時",
   "Discovered Shares": "検出された共有",
   "Discovered Users": "発見されたユーザー",
+  "Output only": "出力のみ",
+  "This is an output-only value used by the chaining and not recorded as a finding.": "これはチェーンで使用される出力専用の値であり、finding として記録されません。",
   "Dismiss": "却下",
   "Display legend": "凡例を表示",
   "Display list": "リストを表示する",

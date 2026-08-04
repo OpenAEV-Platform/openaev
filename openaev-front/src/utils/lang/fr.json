@@ -939,6 +939,8 @@
   "Discovered on": "Découvert sur",
   "Discovered Shares": "Partages découverts",
   "Discovered Users": "Utilisateurs découverts",
+  "Output only": "Sortie uniquement",
+  "This is an output-only value used by the chaining and not recorded as a finding.": "Il s'agit d'une valeur de sortie utilisée par le chaînage et non enregistrée comme finding.",
   "Dismiss": "Ignorer",
   "Display legend": "Afficher la légende",
   "Display list": "Liste d'affichage",

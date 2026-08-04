@@ -938,6 +938,8 @@
   "Discovered on": "发现时间",
   "Discovered Shares": "发现的共享",
   "Discovered Users": "发现的用户",
+  "Output only": "仅输出",
+  "This is an output-only value used by the chaining and not recorded as a finding.": "这是链式处理使用的仅输出值，不会记录为 finding。",
   "Dismiss": "忽略",
   "Display legend": "显示图例",
   "Display list": "显示列表",

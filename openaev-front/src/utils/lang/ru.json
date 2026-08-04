@@ -938,6 +938,8 @@
   "Discovered on": "Дата обнаружения",
   "Discovered Shares": "Обнаруженные общие ресурсы",
   "Discovered Users": "Обнаруженные пользователи",
+  "Output only": "Только вывод",
+  "This is an output-only value used by the chaining and not recorded as a finding.": "Это значение, используемое только для вывода в цепочке и не записываемое как finding.",
   "Dismiss": "Скрыть",
   "Display legend": "Отображение легенды",
   "Display list": "Отобразить список",

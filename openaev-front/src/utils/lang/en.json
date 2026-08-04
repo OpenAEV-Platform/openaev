@@ -939,6 +939,8 @@
   "Discovered on": "Discovered on",
   "Discovered Shares": "Discovered Shares",
   "Discovered Users": "Discovered Users",
+  "Output only": "Output only",
+  "This is an output-only value used by the chaining and not recorded as a finding.": "This is an output-only value used by the chaining and not recorded as a finding.",
   "Dismiss": "Dismiss",
   "Display legend": "Display legend",
   "Display list": "Display list",
