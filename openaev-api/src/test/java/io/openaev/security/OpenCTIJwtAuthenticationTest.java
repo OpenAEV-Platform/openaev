@@ -21,7 +21,6 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.TokenComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockConfig.WithMockOpenCTIConfig;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;

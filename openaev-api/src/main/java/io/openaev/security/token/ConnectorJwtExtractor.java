@@ -1,5 +1,7 @@
 package io.openaev.security.token;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Jwks;
@@ -14,8 +16,6 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 @Component
 @Slf4j
