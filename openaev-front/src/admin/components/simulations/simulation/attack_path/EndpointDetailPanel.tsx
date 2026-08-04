@@ -67,6 +67,12 @@ interface Props {
   // When true, the Findings section is omitted — used for the injector panel, which lists the
   // injector's contracts under "Executions" but has no findings of its own.
   hideFindings?: boolean;
+  /**
+   * Empty-state text for the Findings section. The panel serves endpoints, teams, asset groups AND
+   * actions (injector panel), so the caller words it for the actual entity ("No findings on this
+   * team", "No findings from this action", ...). Falls back to a neutral target wording.
+   */
+  emptyFindingsLabel?: string;
 }
 
 // Right-side panel for one endpoint selected in the attack-path graph: its findings grouped by type
@@ -88,6 +94,7 @@ const EndpointDetailPanel = ({
   execStatusLabel,
   onClose,
   hideFindings = false,
+  emptyFindingsLabel,
 }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -162,7 +169,7 @@ const EndpointDetailPanel = ({
               </Box>
             )}
             {!findingsLoading && findingGroups.length === 0 && (
-              <Alert severity="info">{t('No findings on this endpoint')}</Alert>
+              <Alert severity="info">{emptyFindingsLabel ?? t('No findings on this target')}</Alert>
             )}
             {!findingsLoading && findingGroups.map((g) => {
               const pageCount = Math.max(1, Math.ceil(g.values.length / findingsPageSize));

@@ -534,6 +534,14 @@ export const buildClusteredAttackPathFlow = (
     if (!src || !tgt || !assetById.has(tgt)) {
       continue;
     }
+    // Skip the nested team -> person recipient edge of a human-in-the-loop inject: its source is a
+    // TEAM/PERSON/ASSET_GROUP asset, not an injector, so it must not add the recipient as an endpoint
+    // "reached by" the team (which has no injector node and would render as a phantom action). The team
+    // itself stays — it is the injector-sourced target of the same inject.
+    const srcKind = assetById.get(src)?.entityKind;
+    if (srcKind === 'TEAM' || srcKind === 'PERSON' || srcKind === 'ASSET_GROUP') {
+      continue;
+    }
     // The endpoint is a reached node even for endpoint-local actions.
     if (!reachedOrder.includes(tgt)) {
       reachedOrder.push(tgt);
@@ -1536,11 +1544,25 @@ export const buildCausalChainFlow = (
   const execByRef = new Map((dto.attackPathExecutions ?? []).filter(e => e.ref).map(e => [e.ref as string, e]));
   const execEdges = (dto.attackPathEdges ?? []).filter(e => e.type === EDGE_EXECUTIONS);
 
+  // A human-in-the-loop inject (email, SMS, …) emits a nested execution edge per enabled recipient:
+  // team -> person (the source is the TEAM asset, the target the PERSON). That edge must NOT start a
+  // step — its source is not an injector — otherwise the team is promoted into a phantom "action" node
+  // (with the fallback icon, since an asset carries no injectorType) that reads as a second send to the
+  // person. Only a real injector source (or an agent/endpoint pivot, entityKind null) starts a step, so
+  // a source whose asset node is a TEAM/PERSON/ASSET_GROUP is dropped here.
+  const isHumanInLoopSource = (id?: string): boolean => {
+    const kind = assetById.get(id ?? '')?.entityKind;
+    return kind === 'TEAM' || kind === 'PERSON' || kind === 'ASSET_GROUP';
+  };
+
   // Each execution edge links one injector (edgeSourceId) to one endpoint (edgeTargetId), carrying the
   // execution refs that ran it — so we recover, per execution, which injector ran it and which endpoint.
   const injByExec = new Map<string, string>();
   const epByExec = new Map<string, string>();
   for (const e of execEdges) {
+    if (isHumanInLoopSource(e.edgeSourceId)) {
+      continue;
+    }
     for (const ref of e.executionIds ?? []) {
       if (e.edgeSourceId) {
         injByExec.set(ref, e.edgeSourceId);

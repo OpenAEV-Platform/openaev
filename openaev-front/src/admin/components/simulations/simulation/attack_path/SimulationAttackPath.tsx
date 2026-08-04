@@ -1,4 +1,4 @@
-import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, InsertDriveFileOutlined, LabelOutlined, PlayArrowOutlined, VpnKeyOutlined } from '@mui/icons-material';
+import { AccountTreeOutlined, BugReportOutlined, GroupOutlined, InsertDriveFileOutlined, LabelOutlined, PlayArrowOutlined, TrackChangesOutlined, VpnKeyOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, GlobalStyles, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FolderNetworkOutline } from 'mdi-material-ui';
@@ -21,7 +21,7 @@ import { AP_GLOBAL_STYLES, AP_PANEL_DEFAULT_WIDTH, AP_PANEL_MAX_WIDTH, AP_PANEL_
 import AttackPathHeader, { type FindingCard, type SearchOption } from './AttackPathHeader';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
-import AttackPathCanvas, { type AttackPathFocusRequest } from './canvas/AttackPathCanvas';
+import AttackPathCanvas, { type AttackPathFocusRequest, type AttackPathPursuitRequest } from './canvas/AttackPathCanvas';
 import CategoryFindingsPanel from './CategoryFindingsPanel';
 import EndpointDetailPanel from './EndpointDetailPanel';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
@@ -55,6 +55,10 @@ const FINDING_FETCH_ENDPOINTS = 30;
 
 // How many top-exposed endpoints are surfaced as chokepoints (badged on the map + listed in the card).
 const CHOKEPOINT_TOP_N = 5;
+
+// During a live run, the first structural deltas re-frame the whole graph at most this many times
+// ("unzoom 1-2 times max"); after that the camera switches to pursuit and follows the newest nodes.
+const AP_MAX_LIVE_FITS = 2;
 
 // Chokepoint score weights an endpoint's finding count by its business criticality, so the top
 // chokepoint is "the most findings on the most critical endpoint" (not raw finding count alone). The
@@ -351,16 +355,40 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // Bumped whenever a side panel/drawer opens so the graph legend folds away (reopenable by the user).
   const [legendCollapseNonce, setLegendCollapseNonce] = useState(0);
 
-  // Live growth reframe: nodes a delta introduces land outside a panned/zoomed viewport, so re-frame
-  // the graph whenever the shape moved. Keyed on structuralNonce, so an attribute-only tick (a verdict
-  // flip) never moves the camera; the focused finding-path view frames itself through its own bumps.
+  // Live growth reframe with a pursuit mode: the first couple of structural deltas still re-frame the
+  // whole graph (the run "unzooms" at most AP_MAX_LIVE_FITS times, settling on a readable zoom), after
+  // which the camera stops pulling back and instead CHASES the newest nodes at the current zoom — the
+  // real-time drawing stays centered on the action, and the fit control keeps offering the big
+  // picture. Keyed on structuralNonce, so an attribute-only tick (a verdict flip) never moves the
+  // camera; the focused finding-path view frames itself through its own bumps.
   const lastStructuralFit = useRef(0);
+  const liveFitCount = useRef(0);
+  const [pursuitRequest, setPursuitRequest] = useState<AttackPathPursuitRequest | null>(null);
+  const [pursuitActive, setPursuitActive] = useState(false);
+  useEffect(() => {
+    // A different run starts its own framing budget from scratch.
+    liveFitCount.current = 0;
+    setPursuitActive(false);
+    setPursuitRequest(null);
+  }, [simulationId]);
   useEffect(() => {
     if (structuralNonce > 0 && structuralNonce !== lastStructuralFit.current && !pathFinding) {
       lastStructuralFit.current = structuralNonce;
-      setFitNonce(n => n + 1);
+      if (pursuitActive && newNodeIds.length > 0) {
+        setPursuitRequest({
+          nodeIds: newNodeIds,
+          nonce: structuralNonce,
+        });
+      } else {
+        liveFitCount.current += 1;
+        setFitNonce(n => n + 1);
+        // Only a run still producing deltas graduates to pursuit; a terminal run loads once and fits.
+        if (!runTerminal && liveFitCount.current >= AP_MAX_LIVE_FITS) {
+          setPursuitActive(true);
+        }
+      }
     }
-  }, [structuralNonce, pathFinding]);
+  }, [structuralNonce, pathFinding, pursuitActive, newNodeIds, runTerminal]);
 
   // The finding details panel only lives inside the focused view; close it whenever the focus ends.
   useEffect(() => {
@@ -1210,6 +1238,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               seeds = new Set([cluster.id]);
             }
           }
+        } else if (selectedInjectorId && fullChain.nodes.some(n => n.id === selectedInjectorId)) {
+          // A clicked action (with no finding selected) seeds the scope on itself, so the WHOLE chain
+          // through it — including its downstream consequences (recipient team, follow-on actions) —
+          // stays in the focused view. Without this the scope collapsed to the endpoint-only slice,
+          // which drops those downstream nodes; the selected action then vanished and its highlight
+          // walk found nothing, so the graph read as "nothing highlighted".
+          seeds = new Set([selectedInjectorId]);
         }
         raw = seeds
           ? scopeChainFlowToSeeds(fullChain, seeds)
@@ -1247,7 +1282,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       };
     },
     [
-      dto, chainMode, fullDto, pathFinding, selectedFindingId, pathContractLabelByInjector, endpointBatch,
+      dto, chainMode, fullDto, pathFinding, selectedFindingId, selectedInjectorId, pathContractLabelByInjector, endpointBatch,
       expandedFindingClusters, endpointClusterBatch, findingsByCluster, findingBatch, chokepointRankById, pivotNodeIds, t,
     ],
   );
@@ -1572,6 +1607,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // action-side mirror of the finding click.
   const onInjectorSelect = useCallback((injectorId: string, label?: string) => {
     if (pathFinding) {
+      // Clicking the already-highlighted action again clears it (a consistent unselect), restoring the
+      // focused endpoint's base view instead of leaving a stuck selection.
+      if (selectedInjectorId === injectorId) {
+        setSelectedInjectorId(null);
+        setHighlightedExecutionIds(new Set());
+        setDetailExecutionId(null);
+        setDetail(null);
+        return;
+      }
       highlightGraphInjector(injectorId);
       // Also open the inject drawer for this injector's execution on the focused endpoint — same
       // behaviour as the global view, not just the highlight.
@@ -1658,12 +1702,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       // type-cluster's own default focus).
       let activeId: string | null = null;
       if (selectedInjectorId && injectorIds.has(selectedInjectorId)) {
-        // Reverse focus: walk DOWNSTREAM from the clicked injector (injector -> endpoint -> the
-        // findings it reached), the mirror of the finding walk-up below.
+        // Focus a clicked action on its FULL path, mirroring a finding click: the whole chain that led
+        // to it (walk UPSTREAM) plus what it itself reached (walk DOWNSTREAM seeded from the action
+        // alone, so sibling branches hanging off a shared upstream node are not swept in). Downstream
+        // only (the old behaviour) left a late-stage action like "Send individual mails" lighting just
+        // its recipient — everything that led there went dark, which read as "nothing highlighted".
         pathSet.add(selectedInjectorId);
         for (let pass = 0; pass < 8; pass += 1) {
           for (const e of baseFlow.edges) {
-            if (e.source && e.target && pathSet.has(e.source) && !pathSet.has(e.target)) {
+            if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source)) {
+              pathSet.add(e.source);
+            }
+          }
+        }
+        const down = new Set<string>([selectedInjectorId]);
+        for (let pass = 0; pass < 8; pass += 1) {
+          for (const e of baseFlow.edges) {
+            if (e.source && e.target && down.has(e.source) && !down.has(e.target)) {
+              down.add(e.target);
               pathSet.add(e.target);
             }
           }
@@ -2050,6 +2106,35 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
 
   const drawerPageCount = Math.max(1, Math.ceil(drawerFilteredItems.length / DRAWER_PAGE_SIZE));
   const drawerSafePage = Math.min(drawerPage, drawerPageCount - 1);
+
+  // Whether clearing detailExecutionId would reveal a master panel in the side slot — mirrors the
+  // render conditions of the finding / endpoint / injector / category panels below. When it wouldn't
+  // (the execution detail was opened directly, e.g. by clicking an action in the focused view), the
+  // detail's back arrow is hidden: back would behave exactly like the close cross.
+  const executionDetailHasMaster = !!findingDetail || !!selectedNodeId
+    || (!!selectedInjectorId && !pathFinding)
+    || (drawerCategory !== null && !selectedInjectorId);
+
+  // The selected target's findings empty state is worded for what it actually IS — a team / person /
+  // asset group carries its entityKind (endpoints are the null default), and the chain view prefixes
+  // node ids with `chain-ep|<depth>|`, so strip that before resolving the graph node.
+  const selectedTargetEmptyFindingsLabel = useMemo(() => {
+    const rawId = selectedNodeId?.startsWith('chain-ep|')
+      ? selectedNodeId.slice(selectedNodeId.indexOf('|', 'chain-ep|'.length) + 1)
+      : selectedNodeId;
+    const node = (dto?.attackPathNodes ?? []).find(n => n.id === rawId)
+      ?? (fullDto?.attackPathNodes ?? []).find(n => n.id === rawId);
+    switch (node?.entityKind) {
+      case 'TEAM':
+        return t('No findings on this team');
+      case 'PERSON':
+        return t('No findings on this person');
+      case 'ASSET_GROUP':
+        return t('No findings on this asset group');
+      default:
+        return node ? t('No findings on this endpoint') : t('No findings on this target');
+    }
+  }, [selectedNodeId, dto, fullDto, t]);
   const drawerPageItems = useMemo(
     () => drawerFilteredItems.slice(drawerSafePage * DRAWER_PAGE_SIZE, drawerSafePage * DRAWER_PAGE_SIZE + DRAWER_PAGE_SIZE),
     [drawerFilteredItems, drawerSafePage],
@@ -2062,6 +2147,16 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
 
   const focusedSharesCount = focusedEndpoint?.findingCounts?.share ?? 0;
   const focusedFilesCount = focusedEndpoint?.findingCounts?.file ?? 0;
+  // Distinct target entities actually drawn in the path: every ASSET node (endpoints AND the injects'
+  // team/asset-group recipients), minus the human-in-the-loop PERSON leaves we deliberately hide (a
+  // team's individual mail recipients are execution rows the backend's `distinct targetKey` counter
+  // still counts, which is why that raw count over-reports what the graph shows). Counted off the
+  // collapsed dto, which carries every ASSET node even when the view clusters them, so large runs stay
+  // correct.
+  const reachedTargetsCount = useMemo(
+    () => (dto?.attackPathNodes ?? []).filter(n => n.type === 'ASSET' && n.entityKind !== 'PERSON').length,
+    [dto],
+  );
   const effectiveCounters = pathFinding
     ? {
         endpoints: 1,
@@ -2070,7 +2165,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         cves: focusedEndpoint?.findingCounts?.cve ?? 0,
       }
     : {
-        endpoints: counters?.endpoints ?? 0,
+        endpoints: reachedTargetsCount,
         credentials: counters?.credentials ?? 0,
         users: counters?.users ?? 0,
         cves: counters?.cves ?? 0,
@@ -2080,8 +2175,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     const base: FindingCard[] = [
       {
         key: 'endpoints',
-        label: t('Discovered assets'),
-        icon: <DnsOutlined fontSize="small" />,
+        label: t('Targets reached'),
+        icon: <TrackChangesOutlined fontSize="small" />,
         count: effectiveCounters.endpoints,
       },
       {
@@ -2575,6 +2670,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                 onBackgroundClick={onCanvasBackgroundClick}
                 focusRequest={focusRequest}
                 fitRequest={fitNonce}
+                pursuitRequest={pathFinding ? null : pursuitRequest}
+                pursuitActive={pursuitActive && !pathFinding}
                 showMiniMap={!pathFinding && nodes.length > 40}
                 legend={<AttackPathLegend collapseSignal={legendCollapseNonce} />}
               />
@@ -2642,6 +2739,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               {!findingDetail && selectedNodeId && !detailExecutionId && (
                 <EndpointDetailPanel
                   endpointLabel={selectedLabel || t('Endpoint')}
+                  emptyFindingsLabel={selectedTargetEmptyFindingsLabel}
                   findingsLoading={endpointFindingsLoading}
                   findingGroups={endpointFindingGroups}
                   executions={executions}
@@ -2671,6 +2769,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               {!pathFinding && !findingDetail && !selectedNodeId && selectedInjectorId && !detailExecutionId && (
                 <EndpointDetailPanel
                   endpointLabel={injectorPanelLabel || t('Injector')}
+                  emptyFindingsLabel={t('No findings from this action')}
                   findingsLoading={injectorFindingsLoading}
                   findingGroups={injectorFindingGroups}
                   executions={injectorExecutions}
@@ -2718,9 +2817,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                   loading={detailLoading}
                   detail={detail}
                   endpointLabel={detail?.endpointKey ? endpointLabelByRef.get(detail.endpointKey) : undefined}
-                  // Back returns to the master panel (endpoint/finding/injector) it was opened from; close
-                  // dismisses the whole drawer.
-                  onBack={() => setDetailExecutionId(null)}
+                  // Back returns to the master panel (endpoint/finding/injector/category) it was opened
+                  // from; close dismisses the whole drawer. When the detail was opened DIRECTLY (e.g.
+                  // clicking an action in the focused view), no master would show after clearing it, so
+                  // the arrow is hidden — back would otherwise just duplicate the close cross.
+                  onBack={executionDetailHasMaster ? () => setDetailExecutionId(null) : undefined}
                   onClose={() => {
                     setDetailExecutionId(null);
                     setSelectedNodeId(null);
