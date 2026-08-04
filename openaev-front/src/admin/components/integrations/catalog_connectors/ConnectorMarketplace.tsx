@@ -1,4 +1,4 @@
-import { Key, OnlinePredictionOutlined, SmartButtonOutlined, TerminalOutlined} from '@mui/icons-material';
+import { Key, OnlinePredictionOutlined, SmartButtonOutlined, TerminalOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactNode, useMemo, useState } from 'react';
