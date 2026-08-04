@@ -231,29 +231,12 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   public void remove(String id) throws ConnectorStatusException {
     // A started executor can never be deleted (OpenCTI parity): stop it first.
     executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByExecutorId(id)
         .filter(BaseConnectorEntity::isExternal)
         .ifPresent(executor -> throwIfConnectorRunning(executor, executor.getUpdatedAt()));
     if (deleteOwningConnectorInstance(id)) {
       return;
     }
-    executorRepository
-        .findByExecutorId(id)
-        .ifPresent(
-            executor -> {
-              endpointService.removeSourceTagsForExecutor(id, executor.getTenantId());
-              // removeSourceTagsForExecutor eager-loads this executor's Agents (agent_executor is
-              // FetchType.EAGER), which pins them - and the Executor they reference - in the
-              // persistence context. Deleting the (still-referenced) Executor entity as-is makes
-              // Hibernate's flush-time integrity check reject it: a live, managed Agent still
-              // points at an entity we're marking for removal, and that association carries no
-              // cascade=REMOVE. The FK itself is ON DELETE CASCADE at the DB level (agents are
-              // dropped regardless), so flushing and clearing here - then re-fetching the now
-              // detached executor - lets the delete proceed with a clean persistence context.
-              entityManager.flush();
-              entityManager.clear();
-              executorRepository.findByExecutorId(id).ifPresent(executorRepository::delete);
-            });
   }
 
   /**
