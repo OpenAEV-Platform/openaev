@@ -101,41 +101,6 @@ public class ExecutionExecutorService {
     }
   }
 
-  private void logInjectQueuedEvent(Inject inject, Executor executor, Set<Agent> executorAgents) {
-    if (executorAgents.isEmpty()) {
-      return;
-    }
-    auditLogger.ifPresent(
-        logger ->
-            logger.logEvent(
-                AuditEvent.builder()
-                    .eventType(EventType.EXECUTION)
-                    .eventScope(AuditEventScope.INJECT_QUEUED)
-                    .eventStatus(EventStatus.SUCCESS)
-                    .resourceType(ResourceType.INJECT)
-                    .resourceId(inject.getId())
-                    .message(
-                        "Inject '%s' dispatched to integration agent '%s'"
-                            .formatted(inject.getTitle(), executor.getName()))
-                    .contextData(buildInjectQueuedContextData(inject, executor, executorAgents))
-                    .origin(AuditEventOrigin.SYSTEM)
-                    .build()));
-  }
-
-  private Map<String, Object> buildInjectQueuedContextData(
-      Inject inject, Executor executor, Set<Agent> executorAgents) {
-    Map<String, Object> contextData = new LinkedHashMap<>();
-    contextData.put("inject_id", inject.getId());
-    contextData.put("inject_name", inject.getTitle());
-    contextData.put("integration_agent_id", executor.getId());
-    contextData.put("executor_type", executor.getType());
-    contextData.put("queued_agents_count", executorAgents.size());
-    if (inject.getExercise() != null) {
-      contextData.put("simulation_id", inject.getExercise().getId());
-    }
-    return contextData;
-  }
-
   private void launchBatchExecutorContextForAgent(
       Set<Agent> agents,
       Executor executor,
@@ -338,5 +303,42 @@ public class ExecutionExecutorService {
                           null))
               .toList());
     }
+  }
+
+  // -- AUDIT LOGGING --
+
+  private void logInjectQueuedEvent(Inject inject, Executor executor, Set<Agent> executorAgents) {
+    if (executorAgents.isEmpty()) {
+      return;
+    }
+    auditLogger.ifPresent(
+        logger ->
+            logger.logEvent(
+                AuditEvent.builder()
+                    .eventType(EventType.EXECUTION)
+                    .eventScope(AuditEventScope.INJECT_QUEUED)
+                    .eventStatus(EventStatus.SUCCESS)
+                    .resourceType(ResourceType.INJECT)
+                    .resourceId(inject.getId())
+                    .message(
+                        "Inject '%s' dispatched to '%s' agent(s)"
+                            .formatted(inject.getTitle(), executor.getName()))
+                    .contextData(buildInjectQueuedContextData(inject, executor, executorAgents))
+                    .origin(AuditEventOrigin.SYSTEM)
+                    .build()));
+  }
+
+  private Map<String, Object> buildInjectQueuedContextData(
+      Inject inject, Executor executor, Set<Agent> executorAgents) {
+    Map<String, Object> contextData = new LinkedHashMap<>();
+    contextData.put("inject_id", inject.getId());
+    contextData.put("inject_name", inject.getTitle());
+    contextData.put("executor_type", executor.getType());
+    contextData.put(
+        "agent_ids", executorAgents.stream().map(Agent::getId).filter(Objects::nonNull).toList());
+    if (inject.getExercise() != null) {
+      contextData.put("simulation_id", inject.getExercise().getId());
+    }
+    return contextData;
   }
 }

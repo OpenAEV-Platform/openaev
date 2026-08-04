@@ -389,9 +389,13 @@ public class ExecutionExecutorServiceTest {
       assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
       assertThat(event.getResourceType()).isEqualTo(ResourceType.INJECT);
       assertThat(event.getResourceId()).isEqualTo(inject.getId());
-      assertThat(event.getContextData().get("integration_agent_id")).isEqualTo(executor.getId());
+      assertThat(event.getMessage())
+          .isEqualTo(
+              "Inject '%s' dispatched to '%s' agent(s)"
+                  .formatted(inject.getTitle(), executor.getName()));
       assertThat(event.getContextData().get("executor_type")).isEqualTo(executor.getType());
-      assertThat(event.getContextData().get("queued_agents_count")).isEqualTo(1);
+      assertThat(event.getContextData().get("agent_ids")).isInstanceOf(List.class);
+      assertThat((List<?>) event.getContextData().get("agent_ids")).hasSize(1);
     }
 
     @Test
@@ -519,13 +523,19 @@ public class ExecutionExecutorServiceTest {
       ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
       verify(auditLogger, times(2)).logEvent(eventCaptor.capture());
       List<AuditEvent> events = eventCaptor.getAllValues();
-      assertThat(events).allSatisfy(event -> assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_QUEUED));
       assertThat(events)
-          .extracting(AuditEvent::getResourceId)
-          .containsOnly(inject.getId());
-      assertThat(events)
-          .extracting(event -> (String) event.getContextData().get("integration_agent_id"))
-          .containsExactlyInAnyOrder("executor-cs-1", "executor-cs-2");
+          .allSatisfy(
+              event -> assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_QUEUED));
+      assertThat(events).extracting(AuditEvent::getResourceId).containsOnly(inject.getId());
+      List<String> queuedAgentIds =
+          events.stream()
+              .map(event -> event.getContextData().get("agent_ids"))
+              .filter(List.class::isInstance)
+              .map(value -> (List<?>) value)
+              .flatMap(List::stream)
+              .map(String::valueOf)
+              .toList();
+      assertThat(queuedAgentIds).containsExactlyInAnyOrder(agent1.getId(), agent2.getId());
     }
   }
 }
