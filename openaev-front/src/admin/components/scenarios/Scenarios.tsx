@@ -33,6 +33,7 @@ import ToolBar from '../common/ToolBar';
 import ImportUploaderScenario from './ImportUploaderScenario';
 import ScenarioPopover from './scenario/ScenarioPopover';
 import ScenarioStatus from './scenario/ScenarioStatus';
+import ScenarioType, { SCENARIO_TYPE_AUTONOMOUS, SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED, type ScenarioTypeValue } from './scenario/ScenarioType';
 import ScenarioCreation from './ScenarioCreation';
 
 const useStyles = makeStyles()(() => ({
@@ -41,12 +42,13 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  scenario_name: { width: '25%' },
+  scenario_name: { width: '22%' },
   scenario_severity: { width: '8%' },
   scenario_category: { width: '12%' },
-  scenario_recurrence: { width: '12%' },
+  scenario_type: { width: '12%' },
+  scenario_recurrence: { width: '10%' },
   scenario_platforms: { width: '10%' },
-  scenario_tags: { width: '18%' },
+  scenario_tags: { width: '16%' },
   scenario_updated_at: { width: '10%' },
 };
 
@@ -96,6 +98,24 @@ const Scenarios = () => {
       ),
     },
     {
+      field: 'scenario_type',
+      label: 'Type',
+      // Derived engine facet (no single sortable column), mirroring the backend ScenarioSpecification:
+      // an AI-driven scenario is Autonomous (it also carries a workflow, so this wins first), a
+      // scenario carrying a chaining workflow template is Chained, otherwise it is a classic
+      // Time-based scenario. Autonomous is detected via the runs index, since the list DTO
+      // (RawPaginationScenario) exposes the workflow id but not the autonomous flag.
+      isSortable: false,
+      value: (scenario: Scenario) => {
+        const isAutonomous = !!autonomousRuns.byScenario(scenario.scenario_id);
+        const workflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id;
+        const type: ScenarioTypeValue = isAutonomous
+          ? SCENARIO_TYPE_AUTONOMOUS
+          : (workflowId ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED);
+        return <ScenarioType type={type} variant="list" />;
+      },
+    },
+    {
       field: 'scenario_recurrence',
       label: 'Status',
       isSortable: false,
@@ -121,7 +141,7 @@ const Scenarios = () => {
       isSortable: true,
       value: (scenario: Scenario) => nsdt(scenario.scenario_updated_at),
     },
-  ], []);
+  ], [autonomousRuns]);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
 
