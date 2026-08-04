@@ -342,7 +342,9 @@ public class AttackPathGraphService {
         maskSecrets(e.getTerminalOutput(), secrets),
         // A network injector (NetExec, Nmap…) never has its own `command` snapshot; reconstruct one
         // server-side instead of leaving the client to fetch the raw inject content itself.
-        (injectId != null && e.getPayloadId() == null && (e.getCommand() == null || e.getCommand().isBlank()))
+        (injectId != null
+                && e.getPayloadId() == null
+                && (e.getCommand() == null || e.getCommand().isBlank()))
             ? maskSecrets(injectorCommandLine(injectId), secrets)
             : null);
   }
@@ -367,8 +369,11 @@ public class AttackPathGraphService {
     if (rawCommandLine == null) {
       return null;
     }
-    ObjectNode injectContent = injectRepository.findById(injectId).map(Inject::getContent).orElse(null);
-    return injectContent == null ? rawCommandLine : unmaskCommandLine(rawCommandLine, injectContent);
+    ObjectNode injectContent =
+        injectRepository.findById(injectId).map(Inject::getContent).orElse(null);
+    return injectContent == null
+        ? rawCommandLine
+        : unmaskCommandLine(rawCommandLine, injectContent);
   }
 
   /**

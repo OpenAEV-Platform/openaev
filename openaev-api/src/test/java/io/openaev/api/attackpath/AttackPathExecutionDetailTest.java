@@ -298,7 +298,8 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
   // A network injector's (NetExec, Nmap…) own trace always redacts every flag with a blanket "***";
   // injectorCommandLine() un-redacts the flags it recognizes from the inject's resolved content,
   // partially masking password/hash rather than exposing them in full. These tests target the pure
-  // helpers directly (reflection, like InjectExecutionStepTest#getCommand) rather than seeding a full
+  // helpers directly (reflection, like InjectExecutionStepTest#getCommand) rather than seeding a
+  // full
   // Inject/InjectStatus/ExecutionTrace tree through the ORM.
 
   @Test
