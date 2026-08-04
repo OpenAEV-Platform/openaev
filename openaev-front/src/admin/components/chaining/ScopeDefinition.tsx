@@ -17,9 +17,13 @@ import ScopeRules from './ScopeRules';
 import ScopeTimeOut from './ScopeTimeOut';
 import ScopeVariables from './ScopeVariables';
 
-interface ScopeDefinitionProps { workflowId: string }
+interface ScopeDefinitionProps {
+  workflowId: string;
+  /** When true, the scope is frozen (launched simulation) and no mutation is allowed. */
+  readOnly?: boolean;
+}
 
-const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
+const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps) => {
   // Standard hooks
   const theme = useTheme();
   const dispatch = useAppDispatch();
@@ -92,8 +96,8 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
         gridTemplateColumns: '1fr 1fr',
       }}
       >
-        <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
-        <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
+        <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} readOnly={readOnly} />
+        <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} readOnly={readOnly} />
       </div>
       <div style={{
         display: 'grid',
@@ -104,10 +108,12 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
         <ScopeTimeOut
           workflowConfiguration={workflowConfiguration}
           onUpdate={handleUpdate}
+          readOnly={readOnly}
         />
         <ScopeRateLimit
           workflowConfiguration={workflowConfiguration}
           onUpdate={handleUpdate}
+          readOnly={readOnly}
         />
       </div>
     </div>
