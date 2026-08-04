@@ -33,6 +33,7 @@ import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationCompose
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,6 +68,7 @@ public class ExecutorApiTest extends IntegrationTest {
   @Autowired private AgentRepository agentRepository;
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
+  @Autowired private EntityManager entityManager;
 
   @BeforeEach
   void setUp() {
@@ -593,6 +595,12 @@ public class ExecutorApiTest extends IntegrationTest {
 
       mvc.perform(delete(EXECUTOR_URI + "/" + executor.getId()).with(csrf()))
           .andExpect(status().is2xxSuccessful());
+
+      // agent_executor_id_fk cascades the DB delete, but Hibernate never learns about it: the
+      // agent entity managed above (agentRepository.save) stays in this transaction's persistence
+      // context. Evict it so the assertions below hit the DB instead of the stale L1 cache.
+      entityManager.flush();
+      entityManager.clear();
 
       assertThat(executorRepository.findByExecutorId(executor.getId())).isEmpty();
       assertThat(agentRepository.findById(agent.getId())).isEmpty();

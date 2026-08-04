@@ -244,8 +244,6 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executorOptional.ifPresent(
         executor -> {
           endpointService.removeSourceTagsForExecutor(executor.getId(), executor.getTenantId());
-          agentRepository.deleteAllByExecutorIdAndTenantId(
-              executor.getId(), executor.getTenantId());
           executorRepository.deleteByExecutorId(executor.getId());
         });
   }
