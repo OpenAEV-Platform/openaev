@@ -8,6 +8,7 @@ import co.elastic.clients.elasticsearch._types.aggregations.FieldDateMath;
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import io.openaev.database.model.Filters;
 import io.openaev.engine.api.HistogramInterval;
+import io.openaev.exception.InvalidDateRangeException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -42,6 +43,9 @@ public class ElasticUtils {
    */
   public static Query buildDateRangeQuery(
       @NotBlank final String field, @NotNull final Instant start, @NotNull final Instant end) {
+    if (!start.isBefore(end)) {
+      throw new InvalidDateRangeException("Start date must be before end date");
+    }
     return DateRangeQuery.of(d -> d.field(field).gt(String.valueOf(start)).lt(String.valueOf(end)))
         ._toRangeQuery()
         ._toQuery();
