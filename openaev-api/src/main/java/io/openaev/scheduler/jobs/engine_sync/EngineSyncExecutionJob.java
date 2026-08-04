@@ -23,11 +23,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
 @Profile("!test")
+@ConditionalOnProperty(name = "openaev.run-mode", havingValue = "normal", matchIfMissing = true)
 @Slf4j
 public class EngineSyncExecutionJob extends SelfConfiguredPlatformJob {
   private static final String MODEL_NAME_KEY = "modelName";

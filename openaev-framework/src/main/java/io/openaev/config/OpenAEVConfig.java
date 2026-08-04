@@ -48,7 +48,7 @@ public class OpenAEVConfig {
   private String applicationLicense;
 
   @JsonIgnore
-  @Value("${openbas.run-mode:${openaev.run-mode:normal}}")
+  @Value("${openaev.run-mode:normal}")
   private String runMode;
 
   @JsonProperty("application_base_url")
