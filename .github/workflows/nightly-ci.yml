@@ -41,33 +41,35 @@ jobs:
           {"shard":"8","shard_name":"remaining-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"catchall","excludes":""}
         ]
       # ── E2E: OpenSearch (Chrome/WebKit/Chromium) + ES Firefox/Edge + expanded infra ──
+      # artifact_suffix must be unique per cell: the report artifact is named
+      # playwright-report-<browser><suffix> and duplicates fail the upload.
       e2e-matrix: >
         [
-          {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":""},
-          {"browser":"webkit","project":"webkit","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":""},
-          {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":""},
-          {"browser":"webkit","project":"webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":""},
-          {"browser":"chrome","project":"chrome","docker_image":"openaev-ubi9-image-amd64","variant":"ubi9-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":""},
-          {"browser":"webkit","project":"webkit","docker_image":"openaev-ubi9-image-amd64","variant":"ubi9-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":""},
-          {"browser":"chromium","project":"chromium","docker_image":"openaev-ubi9-image-arm64","variant":"ubi9-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":""},
-          {"browser":"webkit","project":"webkit","docker_image":"openaev-ubi9-image-arm64","variant":"ubi9-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":""},
-          {"browser":"firefox","project":"firefox","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-firefox"},
-          {"browser":"firefox","project":"firefox","docker_image":"openaev-ubi9-image-amd64","variant":"ubi9-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-firefox"},
-          {"browser":"edge","project":"edge","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-edge"},
-          {"browser":"edge","project":"edge","docker_image":"openaev-ubi9-image-amd64","variant":"ubi9-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-edge"},
-          {"browser":"firefox","project":"firefox","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-firefox"},
-          {"browser":"firefox","project":"firefox","docker_image":"openaev-ubi9-image-arm64","variant":"ubi9-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-firefox"},
-          {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"opensearch","artifact_suffix":"-opensearch"},
-          {"browser":"webkit","project":"webkit","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"opensearch","artifact_suffix":"-opensearch"},
-          {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"opensearch","artifact_suffix":"-opensearch"},
-          {"browser":"webkit","project":"webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"opensearch","artifact_suffix":"-opensearch"},
-          {"browser":"chrome","project":"infra-chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-infra"},
-          {"browser":"firefox","project":"infra-firefox","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-infra-firefox"},
-          {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-infra-webkit"},
-          {"browser":"edge","project":"infra-edge","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-infra-edge"},
-          {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-infra"},
-          {"browser":"firefox","project":"infra-firefox","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-infra-firefox"},
-          {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-infra-webkit"}
+          {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-std-amd64"},
+          {"browser":"webkit","project":"webkit","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-std-amd64"},
+          {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64"},
+          {"browser":"webkit","project":"webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64"},
+          {"browser":"chrome","project":"chrome","docker_image":"openaev-ubi9-image-amd64","variant":"ubi9-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-ubi9-amd64"},
+          {"browser":"webkit","project":"webkit","docker_image":"openaev-ubi9-image-amd64","variant":"ubi9-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-ubi9-amd64"},
+          {"browser":"chromium","project":"chromium","docker_image":"openaev-ubi9-image-arm64","variant":"ubi9-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-ubi9-arm64"},
+          {"browser":"webkit","project":"webkit","docker_image":"openaev-ubi9-image-arm64","variant":"ubi9-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-ubi9-arm64"},
+          {"browser":"firefox","project":"firefox","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-std-amd64"},
+          {"browser":"firefox","project":"firefox","docker_image":"openaev-ubi9-image-amd64","variant":"ubi9-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-ubi9-amd64"},
+          {"browser":"edge","project":"edge","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-std-amd64"},
+          {"browser":"edge","project":"edge","docker_image":"openaev-ubi9-image-amd64","variant":"ubi9-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-ubi9-amd64"},
+          {"browser":"firefox","project":"firefox","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64"},
+          {"browser":"firefox","project":"firefox","docker_image":"openaev-ubi9-image-arm64","variant":"ubi9-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-ubi9-arm64"},
+          {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"opensearch","artifact_suffix":"-std-amd64-opensearch"},
+          {"browser":"webkit","project":"webkit","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"opensearch","artifact_suffix":"-std-amd64-opensearch"},
+          {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"opensearch","artifact_suffix":"-std-arm64-opensearch"},
+          {"browser":"webkit","project":"webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"opensearch","artifact_suffix":"-std-arm64-opensearch"},
+          {"browser":"chrome","project":"infra-chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-std-amd64-infra"},
+          {"browser":"firefox","project":"infra-firefox","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-std-amd64-infra"},
+          {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-std-amd64-infra"},
+          {"browser":"edge","project":"infra-edge","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-std-amd64-infra"},
+          {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64-infra"},
+          {"browser":"firefox","project":"infra-firefox","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64-infra"},
+          {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64-infra"}
         ]
       snyk-fail-on-error: true
     secrets: inherit

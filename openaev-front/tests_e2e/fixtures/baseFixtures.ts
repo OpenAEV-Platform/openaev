@@ -7,7 +7,6 @@ const test = testBase.extend<{ autoTestFixture: string }>({
     const activateCoverage = process.env.E2E_COVERAGE;
     const isChromium = test.info().project.use?.defaultBrowserType === 'chromium'
       || test.info().project.name === 'chromium'
-      || test.info().project.name === 'Google Chrome'
       || test.info().project.name === 'chrome';
 
     const handlePageEvent = async (page: Page) => {

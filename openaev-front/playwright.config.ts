@@ -69,11 +69,9 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
-      use: {
-        ...devices['Desktop Chrome'],
-        // Use bundled Chromium when Chrome channel is unavailable (arm64)
-        ...(process.arch !== 'arm64' ? { channel: 'chrome' } : {}),
-      },
+      // Bundled Chromium: it only writes storageState, and it is the one browser
+      // present on every runner and dev machine (no Chrome channel on arm64).
+      use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'chrome',
