@@ -1,5 +1,5 @@
 import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
-import { Button, IconButton, Paper, Typography } from '@mui/material';
+import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
@@ -184,6 +184,7 @@ const toPlatformRows = (
           id: a.id ?? `${bucket}-alert-${index}-${i}`,
           title: a.title ?? 'Alert',
           date: a.date,
+          link: a.link,
         })),
       };
     });
@@ -310,6 +311,30 @@ const LiveExecutionTerminal = ({ injectId, endpointName }: {
   return <TerminalViewTab injectId={injectId} target={target} />;
 };
 
+// A network injector (NetExec, Nmap…) has no single shell command on the DTO — `command` is only ever
+// resolved for Command-payload-backed injects (see InjectExecutionStep#getCommand on the backend).
+// What it actually ran is instead reconstructed and partially masked server-side (see
+// AttackPathGraphService#injectorCommandLine) from its own redacted execution trace and the inject's
+// resolved content — never sent to the client in the clear, unlike reconstructing it here would.
+const InjectorCommandLine = ({ commandLine }: { commandLine: string }) => {
+  const { t } = useFormatter();
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Typography variant="subtitle2" gutterBottom>{t('Command')}</Typography>
+      <Typography
+        variant="body2"
+        sx={{
+          fontFamily: 'monospace',
+          wordBreak: 'break-all',
+          whiteSpace: 'pre-wrap',
+        }}
+      >
+        {commandLine}
+      </Typography>
+    </Box>
+  );
+};
+
 // Terminal for a network injector's execution (NetExec, Nmap…): these have no per-agent terminal, so the
 // per-target `TerminalViewTab` above shows nothing. Instead render the inject's global execution traces —
 // the very same "Traces" the inject execution-details page shows (the "<tool> succeeded: …" output).
@@ -375,10 +400,14 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   // Seeded runs carry a frozen command/output snapshot on the DTO; a real inject leaves them empty and
   // is rendered live from execution traces instead (see hasSnapshot below).
   const hasSnapshot = Boolean(detail?.command || detail?.terminalOutput);
-  // On the terminal tab a network injector shows its execution traces (a plain list that grows), unlike
-  // the snapshot/payload `Terminal` which is sized to fill and scrolls internally. The list needs the
-  // outer box to scroll, otherwise long traces are clipped.
-  const injectorTracesView = !hasSnapshot && !!detail?.injectId && !detail?.payloadId;
+  // A network injector (NetExec, Nmap...) never has a `command` — regardless of whether its
+  // terminalOutput snapshot is populated — so its reconstructed command line (server-side, see
+  // AttackPathGraphService#injectorCommandLine) renders as an extra block ahead of the traces/snapshot.
+  const showsCommandParams = !!detail?.injectorCommandLine;
+  // On the terminal tab a network injector shows its execution traces (a plain list that grows) and/or
+  // its command params, unlike the snapshot/payload `Terminal` which is sized to fill and scrolls
+  // internally. Both need the outer box to scroll, otherwise their content is clipped.
+  const injectorTracesView = (!hasSnapshot || showsCommandParams) && !!detail?.injectId && !detail?.payloadId;
   const terminalLines: TerminalLine[] = [];
   if (detail?.command) {
     terminalLines.push({
@@ -761,17 +790,27 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               </div>
             )}
 
-            {currentTab === TERMINAL_TAB && (() => {
-              // Seeded runs show their frozen snapshot. For a real inject: a payload-backed execution runs
-              // on an agent and has a per-target terminal (keep it); a network injector (NetExec, Nmap…)
-              // has none, so show its global execution traces instead.
-              if (hasSnapshot || !detail.injectId) {
-                return <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />;
-              }
-              return detail.payloadId
-                ? <LiveExecutionTerminal injectId={detail.injectId} endpointName={endpointLabel || detail.targetHostname || detail.endpointKey} />
-                : <InjectorExecutionTraces injectId={detail.injectId} />;
-            })()}
+            {currentTab === TERMINAL_TAB && (
+              <>
+                {/* A network injector (NetExec, Nmap…) has no `command` regardless of whether its
+                    terminalOutput snapshot is populated — show what was actually sent either way,
+                    ahead of whichever traces/output view renders below. */}
+                {detail.injectorCommandLine && (
+                  <InjectorCommandLine commandLine={detail.injectorCommandLine} />
+                )}
+                {(() => {
+                  // Seeded runs show their frozen snapshot. For a real inject: a payload-backed execution
+                  // runs on an agent and has a per-target terminal (keep it); a network injector has none,
+                  // so show its global execution traces instead.
+                  if (hasSnapshot || !detail.injectId) {
+                    return <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />;
+                  }
+                  return detail.payloadId
+                    ? <LiveExecutionTerminal injectId={detail.injectId} endpointName={endpointLabel || detail.targetHostname || detail.endpointKey} />
+                    : <InjectorExecutionTraces injectId={detail.injectId} />;
+                })()}
+              </>
+            )}
 
             {currentTab === FINDINGS_TAB && detail.injectId && (
               <FindingList

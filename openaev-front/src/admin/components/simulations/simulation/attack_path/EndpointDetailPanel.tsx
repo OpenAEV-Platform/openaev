@@ -1,6 +1,7 @@
 import { Close } from '@mui/icons-material';
-import { Alert, Box, Button, IconButton, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, IconButton, MenuItem, Pagination, Paper, Select, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { useState } from 'react';
 
 import FindingIcon from '../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../components/i18n';
@@ -13,6 +14,33 @@ interface FindingGroup {
   type: string;
   values: string[];
 }
+
+const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
+const DEFAULT_PAGE_SIZE = 10;
+
+// A compact "N / page" selector rendered in the Findings section header: values are all loaded, so
+// this only windows the display of a group that would otherwise render an unbounded list of values.
+const PageSizeSelect = ({ value, onChange }: {
+  value: number;
+  onChange: (value: number) => void;
+}) => {
+  const { t } = useFormatter();
+  return (
+    <Select
+      size="small"
+      variant="standard"
+      value={value}
+      onChange={e => onChange(Number(e.target.value))}
+      sx={{ fontSize: 12 }}
+    >
+      {PAGE_SIZE_OPTIONS.map(size => (
+        <MenuItem key={size} value={size} sx={{ fontSize: 12 }}>
+          {t('{count} / page', { count: size })}
+        </MenuItem>
+      ))}
+    </Select>
+  );
+};
 
 interface Props {
   endpointLabel: string;
@@ -63,6 +91,10 @@ const EndpointDetailPanel = ({
 }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  // One page per finding-type group (values are already loaded — this only windows the display); the
+  // page size is shared by every group, one control for the whole Findings section.
+  const [groupPages, setGroupPages] = useState<Record<string, number>>({});
+  const [findingsPageSize, setFindingsPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   return (
     <Paper
@@ -118,7 +150,12 @@ const EndpointDetailPanel = ({
       }}
       >
         {!hideFindings && (
-          <InjectFormSection title={t('Findings')}>
+          <InjectFormSection
+            title={t('Findings')}
+            action={findingGroups.some(g => g.values.length > PAGE_SIZE_OPTIONS[0])
+              ? <PageSizeSelect value={findingsPageSize} onChange={setFindingsPageSize} />
+              : undefined}
+          >
             {findingsLoading && (
               <Box sx={{ minHeight: 60 }}>
                 <Loader variant="inElement" size="sm" />
@@ -127,50 +164,70 @@ const EndpointDetailPanel = ({
             {!findingsLoading && findingGroups.length === 0 && (
               <Alert severity="info">{t('No findings on this endpoint')}</Alert>
             )}
-            {!findingsLoading && findingGroups.map(g => (
-              <Box key={g.type}>
-                <Box sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  mb: 0.5,
-                }}
-                >
+            {!findingsLoading && findingGroups.map((g) => {
+              const pageCount = Math.max(1, Math.ceil(g.values.length / findingsPageSize));
+              const page = Math.min(groupPages[g.type] ?? 1, pageCount);
+              const pageValues = g.values.slice((page - 1) * findingsPageSize, page * findingsPageSize);
+              return (
+                <Box key={g.type}>
                   <Box sx={{
-                    'display': 'flex',
-                    'alignItems': 'center',
-                    'flexShrink': 0,
-                    '& .MuiSvgIcon-root': { fontSize: 16 },
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    mb: 0.5,
                   }}
                   >
-                    <FindingIcon findingType={g.type} />
-                  </Box>
-                  <Typography
-                    sx={{
-                      fontFamily: '"Geologica", sans-serif',
-                      fontWeight: 600,
-                      fontSize: 10,
-                      letterSpacing: '0.12em',
-                      textTransform: 'uppercase',
-                      color: 'text.secondary',
+                    <Box sx={{
+                      'display': 'flex',
+                      'alignItems': 'center',
+                      'flexShrink': 0,
+                      '& .MuiSvgIcon-root': { fontSize: 16 },
                     }}
-                  >
-                    {`${g.type} (${g.values.length})`}
-                  </Typography>
+                    >
+                      <FindingIcon findingType={g.type} />
+                    </Box>
+                    <Typography
+                      sx={{
+                        fontFamily: '"Geologica", sans-serif',
+                        fontWeight: 600,
+                        fontSize: 10,
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {`${g.type} (${g.values.length})`}
+                    </Typography>
+                  </Box>
+                  {pageValues.map((v, i) => (
+                    <Typography
+                      key={`${g.type}-${i}`}
+                      variant="body2"
+                      noWrap
+                      title={v}
+                      sx={{ pl: 2.75 }}
+                    >
+                      {v}
+                    </Typography>
+                  ))}
+                  {pageCount > 1 && (
+                    <Pagination
+                      size="small"
+                      count={pageCount}
+                      page={page}
+                      onChange={(_, value) => setGroupPages(prev => ({
+                        ...prev,
+                        [g.type]: value,
+                      }))}
+                      sx={{
+                        mt: 0.5,
+                        pl: 2.25,
+                      }}
+                    />
+                  )}
                 </Box>
-                {g.values.map((v, i) => (
-                  <Typography
-                    key={`${g.type}-${i}`}
-                    variant="body2"
-                    noWrap
-                    title={v}
-                    sx={{ pl: 2.75 }}
-                  >
-                    {v}
-                  </Typography>
-                ))}
-              </Box>
-            ))}
+              );
+            })}
           </InjectFormSection>
         )}
 
