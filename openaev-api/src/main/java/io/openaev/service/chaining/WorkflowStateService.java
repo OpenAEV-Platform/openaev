@@ -570,7 +570,8 @@ public class WorkflowStateService {
    * findings it already consumed), now with the corrected definition.
    *
    * <p>Load-only (never builds a state): a step that never executed against this run has no local
-   * state and nothing committed, so this is a no-op and a cosmetic pre-execution edit costs nothing.
+   * state and nothing committed, so this is a no-op and a cosmetic pre-execution edit costs
+   * nothing.
    *
    * @param stepTemplate the step template whose re-fire guard should be reset
    * @param workflowExecution the RUN workflow the step executes under

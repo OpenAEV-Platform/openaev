@@ -1525,8 +1525,8 @@ public class WorkflowService {
    *
    * <p>Simulation-scoped by construction: re-fire state lives only on RUN workflows, which exist
    * only on the simulation. A scenario-owned template (e.g. the autonomous scenario mirror twin,
-   * updated in lock-step) has no simulation and no RUN workflow, so this is a no-op for it — exactly
-   * right, since the mirror never executes.
+   * updated in lock-step) has no simulation and no RUN workflow, so this is a no-op for it —
+   * exactly right, since the mirror never executes.
    */
   private void rearmStepForReExecution(Step stepTemplate) {
     Workflow template = stepTemplate.getWorkflow();
