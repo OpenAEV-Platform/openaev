@@ -36,8 +36,7 @@ public interface AgentRepository
 
   List<Agent> findByExecutorId(String executorId);
 
-  @Query(
-      "SELECT a FROM Agent a WHERE a.executor.id = :executorId AND a.tenant.id = :tenantId")
+  @Query("SELECT a FROM Agent a WHERE a.executor.id = :executorId AND a.tenant.id = :tenantId")
   List<Agent> findByExecutorIdAndTenantId(
       @Param("executorId") String executorId, @Param("tenantId") String tenantId);
 
