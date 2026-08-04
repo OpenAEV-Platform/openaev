@@ -16,6 +16,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.exception.ConnectorStatusException;
@@ -362,7 +363,32 @@ public class ConnectorInstanceService {
   }
 
   /**
-   * Deletes a connector instance by its ID.
+   * Rejects the deletion of a connector instance that is still running (OpenCTI parity: a started
+   * connector can never be deleted). Deletion is only allowed once a stop has been requested
+   * ({@code requestedStatus == stopping}) or is effective ({@code currentStatus == stopped}).
+   *
+   * @param id the connector instance ID about to be deleted
+   */
+  public void throwIfInstanceRunning(String id) throws BadRequestException {
+    connectorInstanceRepository
+        .findById(id)
+        .ifPresent(ConnectorInstanceService::throwIfInstanceRunning);
+  }
+
+  public static void throwIfInstanceRunning(ConnectorInstance instance) throws BadRequestException {
+    boolean stopRequested =
+        ConnectorInstance.REQUESTED_STATUS_TYPE.stopping.equals(instance.getRequestedStatus());
+    boolean stopped =
+        ConnectorInstance.CURRENT_STATUS_TYPE.stopped.equals(instance.getCurrentStatus());
+    if (!stopRequested && !stopped) {
+      throw new BadRequestException(
+          "The connector instance is started: stop it before deleting it");
+    }
+  }
+
+  /**
+   * Deletes a connector instance by its ID. A started instance is rejected: it must be stopped (or
+   * at least have a stop requested) first.
    *
    * @param id the connector instance ID to delete
    */
@@ -374,6 +400,8 @@ public class ConnectorInstanceService {
             .orElseThrow(
                 () ->
                     new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
+
+    throwIfInstanceRunning(connectorInstance);
 
     if (managerFactory
             .getManager(connectorInstance.getTenant().getId())

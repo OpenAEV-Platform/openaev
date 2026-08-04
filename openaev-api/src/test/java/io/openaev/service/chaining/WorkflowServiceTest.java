@@ -579,6 +579,11 @@ class WorkflowServiceTest {
                               .build(),
                           WorkflowScopeRule.builder()
                               .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.IP_SUBNET)
+                              .ruleValue("2001:db8::/126")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
                               .valueType(ScopeRuleValueType.ASSET_ID)
                               .ruleValue("asset-123")
                               .build(),
@@ -613,6 +618,9 @@ class WorkflowServiceTest {
           "10.0.0.0/24",
           mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP_SUBNET.name()).get(0).getAsString());
       assertEquals(
+          "2001:db8::/126",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP_SUBNET.name()).get(1).getAsString());
+      assertEquals(
           "asset-123",
           mappedScopeData.getAsJsonArray(ScopeRuleValueType.ASSET_ID.name()).get(0).getAsString());
       assertEquals(
@@ -643,6 +651,27 @@ class WorkflowServiceTest {
               .getValue()
               .get(ScopeRuleValueType.ASSET_GROUP_ID.name())
               .primitiveTypes());
+
+      assertTrue(mappedScopeData.has(PrimitiveType.IPv4.name()));
+      assertEquals(254, mappedScopeData.getAsJsonArray(PrimitiveType.IPv4.name()).size());
+      assertEquals(
+          "10.0.0.1",
+          mappedScopeData.getAsJsonArray(PrimitiveType.IPv4.name()).get(0).getAsString());
+      assertEquals(
+          "10.0.0.254",
+          mappedScopeData
+              .getAsJsonArray(PrimitiveType.IPv4.name())
+              .get(mappedScopeData.getAsJsonArray(PrimitiveType.IPv4.name()).size() - 1)
+              .getAsString());
+
+      assertTrue(mappedScopeData.has(PrimitiveType.IPv6.name()));
+      assertEquals(4, mappedScopeData.getAsJsonArray(PrimitiveType.IPv6.name()).size());
+      assertEquals(
+          List.of(PrimitiveType.IPv4),
+          scopeTypeCaptor.getValue().get(PrimitiveType.IPv4.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.IPv6),
+          scopeTypeCaptor.getValue().get(PrimitiveType.IPv6.name()).primitiveTypes());
     }
   }
 
@@ -990,6 +1019,67 @@ class WorkflowServiceTest {
       // Assert
       assertSame(workflow, result);
       verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should preserve raw sensitive value when update input sends masked echo")
+    void given_maskedEchoForSensitiveVariable_should_preserveRawValue() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("password_var");
+      existing.setType(PrimitiveType.Password);
+      existing.setValue("TopSecret");
+      existing.setDescription("desc");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      ScopeVariableInput input =
+          new ScopeVariableInput(
+              varId, "password_var", PrimitiveType.Password, "T*******t", "desc");
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(List.of(input));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertSame(workflow, result);
+      assertEquals("TopSecret", result.getWorkflowScopeVariables().getFirst().getValue());
+      verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should preserve raw sensitive value when type changes and input is masked echo")
+    void given_typeChangeAndMaskedEcho_should_preserveRawValue() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("password_var");
+      existing.setType(PrimitiveType.Password);
+      existing.setValue("TopSecret");
+      existing.setDescription("desc");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      ScopeVariableInput input =
+          new ScopeVariableInput(varId, "password_var", PrimitiveType.Text, "T*******t", "desc");
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(List.of(input));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertSame(workflow, result);
+      ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
+      assertEquals(PrimitiveType.Text, updated.getType());
+      assertEquals("TopSecret", updated.getValue());
+      verify(workflowRepository).save(workflow);
     }
 
     @Test

@@ -249,7 +249,16 @@ public class ConditionServiceTest {
       Condition mapper = new Condition();
       mapper.setType(ConditionType.MAPPER);
       mapper.setMappingType(mappingType);
-      mapper.setKeyType(keyType);
+      mapper.setKeyTypes(List.of(keyType));
+      mapper.setValue(value);
+      return mapper;
+    }
+
+    private Condition mapper(MappingType mappingType, List<PrimitiveType> keyTypes, String value) {
+      Condition mapper = new Condition();
+      mapper.setType(ConditionType.MAPPER);
+      mapper.setMappingType(mappingType);
+      mapper.setKeyTypes(keyTypes);
       mapper.setValue(value);
       return mapper;
     }
@@ -341,6 +350,46 @@ public class ConditionServiceTest {
                   })
               .collect(java.util.stream.Collectors.toSet());
       assertEquals(Set.of("10.0.0.1:80", "10.0.0.1:443", "10.0.0.2:80", "10.0.0.2:443"), pairs);
+    }
+
+    @Test
+    void given_mapperWithMultipleKeyTypes_should_generateOneBatchPerMatchedPrimitiveValue() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-multi-key-types");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.GLOBAL, List.of(PrimitiveType.IPv4, PrimitiveType.Service), null));
+
+      WorkflowStateEntries globalEntries =
+          entries(List.of(input("IPv4", "10.0.0.1"), input("Service", "ssh")), List.of());
+      WorkflowStateEntries localEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-multi-key-types"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      Set<String> payloads =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    if (json.has("IPv4")) {
+                      return "IPv4:" + json.get("IPv4").getAsString();
+                    }
+                    return "Service:" + json.get("Service").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("IPv4:10.0.0.1", "Service:ssh"), payloads);
     }
 
     @Test
@@ -524,9 +573,11 @@ public class ConditionServiceTest {
               mapper(MappingType.LOCAL, PrimitiveType.Port, null),
               mapper(MappingType.GLOBAL, PrimitiveType.Host, null));
 
+      // Hash identity is keyed by mapper position ("mapper#<index in mappers list>"), not by
+      // source type name, so it stays unique even when mappers share a source type.
       Map<String, String> executedCombo = new java.util.TreeMap<>();
-      executedCombo.put("Host", "0.0.0.0");
-      executedCombo.put("Port", "5040");
+      executedCombo.put("mapper#0", "5040"); // Port mapper (index 0)
+      executedCombo.put("mapper#1", "0.0.0.0"); // Host mapper (index 1)
       String executedHash = hashCombo(executedCombo);
 
       WorkflowStateEntries localEntries =
@@ -669,6 +720,187 @@ public class ConditionServiceTest {
       assertEquals("admin", json.get("Text").getAsString());
       assertEquals("worker-01", json.get("Host").getAsString());
       assertNotNull(batches.getFirst().hash());
+    }
+
+    @Test
+    void given_twoMappersSharingSameSourceType_should_generateAllCombinationsWithoutDuplicates() {
+      // -------- Arrange --------
+      // Regression test: two input fields ("value" and "value2") both mapped from the same
+      // primitive type pool used to silently collapse "swapped" combinations (e.g. value=A/
+      // value2=B vs value=B/value2=A) into the same hash, dropping one and duplicating another.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-shared-type");
+
+      Condition valueMapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      valueMapper.setKey("value");
+      Condition value2Mapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      value2Mapper.setKey("value2");
+      List<Condition> mappers = List.of(valueMapper, value2Mapper);
+
+      WorkflowStateEntries localEntries = entries(List.of(input("Text", "key", "pass")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-shared-type"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 2 mappers x 2 candidate values each = 4 distinct combinations, no drops, no duplicates.
+      assertEquals(4, batches.size());
+
+      Set<String> combos =
+          batches.stream()
+              .map(
+                  b -> {
+                    Map<String, String> byKey =
+                        b.usedMappers().stream()
+                            .collect(
+                                java.util.stream.Collectors.toMap(
+                                    Condition::getKey, Condition::getValue));
+                    return byKey.get("value") + ":" + byKey.get("value2");
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("key:key", "key:pass", "pass:key", "pass:pass"), combos);
+
+      // All batch hashes are unique (no accidental collisions causing duplicate executions).
+      Set<String> hashes =
+          batches.stream()
+              .map(ConditionService.ExecutionBatch::hash)
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(4, hashes.size());
+    }
+
+    @Test
+    void given_alreadyExecutedSwappedCombo_should_stillGenerateItsDistinctMirrorCombo() {
+      // -------- Arrange --------
+      // Even if one cross-combination (value=key/value2=pass) was already executed, its mirror
+      // (value=pass/value2=key) must still be generated: they are distinct combinations, not the
+      // same hash.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-shared-type-executed");
+
+      Condition valueMapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      valueMapper.setKey("value");
+      Condition value2Mapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      value2Mapper.setKey("value2");
+      List<Condition> mappers = List.of(valueMapper, value2Mapper);
+
+      // Mark "value=key / value2=pass" (mapper#0="key", mapper#1="pass") as already executed.
+      Map<String, String> executedCombo = new java.util.TreeMap<>();
+      executedCombo.put("mapper#0", "key");
+      executedCombo.put("mapper#1", "pass");
+      String executedHash = hashCombo(executedCombo);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "key", "pass")), List.of(), Set.of(executedHash));
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-shared-type-executed"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 4 combinations minus the 1 already executed = 3 remaining, including the mirror combo.
+      assertEquals(3, batches.size());
+      Set<String> combos =
+          batches.stream()
+              .map(
+                  b -> {
+                    Map<String, String> byKey =
+                        b.usedMappers().stream()
+                            .collect(
+                                java.util.stream.Collectors.toMap(
+                                    Condition::getKey, Condition::getValue));
+                    return byKey.get("value") + ":" + byKey.get("value2");
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("key:key", "pass:key", "pass:pass"), combos);
+    }
+
+    @Test
+    void
+        given_mapperWithBothDefinedValueAndLinkedType_should_includeDefinedValueAsExtraCandidate() {
+      // -------- Arrange --------
+      // A mapper can have a static "defined value" set before a primitive type is linked to it.
+      // Linking a type switches its mappingType away from DEFAULT, but the defined value must
+      // still be used as one more candidate in the generated combinations, not discarded.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-defined-plus-linked-type");
+
+      Condition mapperWithDefinedValue =
+          mapper(MappingType.LOCAL, PrimitiveType.Text, "manual-value");
+      mapperWithDefinedValue.setKey("value");
+      List<Condition> mappers = List.of(mapperWithDefinedValue);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-defined-plus-linked-type"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 2 values from the linked type's pool + 1 defined value = 3 distinct combinations.
+      assertEquals(3, batches.size());
+      Set<String> values =
+          batches.stream()
+              .map(b -> b.usedMappers().getFirst().getValue())
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("pool-a", "pool-b", "manual-value"), values);
+    }
+
+    @Test
+    void given_mapperDefinedValueAlreadyInLinkedTypePool_should_notGenerateDuplicateCombination() {
+      // -------- Arrange --------
+      // If the defined value happens to already be one of the linked type's pool values, it must
+      // not be added a second time (would otherwise execute the exact same effective value twice).
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-defined-value-collision");
+
+      Condition mapperWithDefinedValue = mapper(MappingType.LOCAL, PrimitiveType.Text, "pool-a");
+      mapperWithDefinedValue.setKey("value");
+      List<Condition> mappers = List.of(mapperWithDefinedValue);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-defined-value-collision"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      Set<String> values =
+          batches.stream()
+              .map(b -> b.usedMappers().getFirst().getValue())
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("pool-a", "pool-b"), values);
     }
   }
 
@@ -907,7 +1139,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -944,7 +1176,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -980,7 +1212,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -1016,7 +1248,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -1051,7 +1283,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -1089,7 +1321,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -1127,7 +1359,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(PrimitiveType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -1296,7 +1528,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(PrimitiveType.Port);
+      childInput.setKeyTypes(List.of(PrimitiveType.Port));
       childInput.setValue("445");
 
       EventInput input =
@@ -1368,7 +1600,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(PrimitiveType.Text);
+      childInput.setKeyTypes(List.of(PrimitiveType.Text));
       childInput.setValue("ok");
 
       EventInput input =
@@ -1686,6 +1918,13 @@ public class ConditionServiceTest {
         assertFalse(
             conditionUtils.isFilterConditionValid(
                 "unknown", leaf(ConditionType.IN, "admin, root")));
+      }
+
+      @Test
+      void in_shouldTrimSingleTargetCandidate() {
+        assertTrue(
+            conditionUtils.isFilterConditionValid(
+                "prefix-admin-suffix", leaf(ConditionType.IN, "  admin  ")));
       }
 
       @Test

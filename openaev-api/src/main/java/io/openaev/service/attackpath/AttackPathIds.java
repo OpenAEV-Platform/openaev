@@ -64,6 +64,11 @@ public final class AttackPathIds {
     return encode("NODE_EXECUTION", executionId, targetKey, agentId);
   }
 
+  /** {@code EXECUTION_COLLECTOR_ROW}: one collector-result snapshot line of an execution. */
+  public static String executionCollectorRow(String executionId, String bucket, String sourceKey) {
+    return encode("EXECUTION_COLLECTOR_ROW", executionId, bucket, sourceKey);
+  }
+
   /** {@code EDGE_EXECUTIONS}: source node to target node; grouped rows share this edge. */
   public static String executionsEdge(String sourceNodeId, String targetNodeId) {
     return encode("EDGE_EXECUTIONS", sourceNodeId, targetNodeId);
@@ -98,6 +103,20 @@ public final class AttackPathIds {
   /** {@code EDGE_FINDINGS_TYPE_FINDING}: a finding-type node to a specific finding. */
   public static String findingTypeFindingEdge(String type, String endpointKey, String value) {
     return encode("EDGE_FINDINGS_TYPE_FINDING", type, endpointKey, value);
+  }
+
+  /**
+   * {@code EXECUTION_REMEDIATION_ROW}: one remediation snapshot attached to a step execution.
+   *
+   * <p>The collector type is normalized to {@code "0"} when null/blank to keep a deterministic id
+   * even for remediation rows that no longer carry a collector key.
+   */
+  public static String executionRemediationRow(
+      String stepExecutionId, String collectorType, String securityPlatformId) {
+    String normalizedCollectorType =
+        collectorType == null || collectorType.isBlank() ? "0" : collectorType;
+    return encode(
+        "EXECUTION_REMEDIATION_ROW", stepExecutionId, normalizedCollectorType, securityPlatformId);
   }
 
   private static String encode(String kind, String... parts) {

@@ -16,6 +16,7 @@ import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollecto
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
+import io.openaev.utils.PrimitiveValueMaskingUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -364,17 +365,35 @@ public class WorkflowService {
   }
 
   private boolean hasVariableChanged(ScopeVariable existing, ScopeVariableInput input) {
+    String resolvedValue = resolveScopeVariableValueForPersistence(existing, input);
     return !Objects.equals(existing.getKey(), input.getKey())
         || !Objects.equals(existing.getType(), input.getType())
-        || !Objects.equals(existing.getValue(), input.getValue())
+        || !Objects.equals(existing.getValue(), resolvedValue)
         || !Objects.equals(existing.getDescription(), input.getDescription());
   }
 
   private void updateScopeVariable(ScopeVariable existing, ScopeVariableInput input) {
+    String resolvedValue = resolveScopeVariableValueForPersistence(existing, input);
     existing.setKey(input.getKey());
     existing.setType(input.getType());
-    existing.setValue(input.getValue());
+    existing.setValue(resolvedValue);
     existing.setDescription(input.getDescription());
+  }
+
+  /**
+   * Resolves the scope variable value that should be persisted from an update payload.
+   *
+   * <p>When a sensitive value is masked in API responses, the frontend may send this masked
+   * representation back unchanged. In that case we must preserve the existing raw value rather than
+   * overwrite it with the masked string.
+   */
+  private String resolveScopeVariableValueForPersistence(
+      ScopeVariable existing, ScopeVariableInput input) {
+    if (PrimitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
+        existing.getType(), existing.getValue(), input.getValue())) {
+      return existing.getValue();
+    }
+    return input.getValue();
   }
 
   private ScopeVariable buildScopeVariable(ScopeVariableInput input, Workflow workflow) {
@@ -827,8 +846,8 @@ public class WorkflowService {
   }
 
   /**
-   * Starts workflow evaluation: seeds global state from allowlist scope rules, evaluates step
-   * progress, and saves the workflow run.
+   * Starts workflow evaluation: seeds global state from allowlist scope rules and scope variables,
+   * evaluates step progress, and saves the workflow run.
    *
    * @param workflowRun the workflow run to start
    */
@@ -849,19 +868,65 @@ public class WorkflowService {
     saveWorkflowRun(workflowRun);
   }
 
+  /**
+   * Builds the initial global state seed for a workflow run from two sources:
+   *
+   * <ul>
+   *   <li>Scope allowlist rules (asset/IP/subnet/domain) restricting execution targets.
+   *   <li>Scope variables (e.g. a default "Username") manually defined on the Scope page.
+   * </ul>
+   *
+   * <p>Both sources are merged under the same key convention (the {@link PrimitiveType} name) so
+   * that a MAPPER condition looking for a GLOBAL value of a given type (e.g. {@code Username}) can
+   * be satisfied by either an allowlist rule or a scope variable. Without this, steps whose first
+   * condition requires a GLOBAL value that is only ever provided via a scope variable (there is no
+   * other producer for it) could never become READY.
+   */
   private ScopeStateSeed extractScopeStateSeed(Workflow workflowRun) {
-    if (workflowRun.getAllowlist() == null || workflowRun.getAllowlist().isEmpty()) {
-      return new ScopeStateSeed(Collections.emptyMap(), Collections.emptyMap());
-    }
-
     Map<String, List<String>> scopeData = new HashMap<>();
     Map<String, ChainingMappedType> typeMappings = new HashMap<>();
-    for (WorkflowScopeRule rule : workflowRun.getAllowlist()) {
-      String key = rule.getValueType().name();
-      scopeData.computeIfAbsent(key, ignored -> new ArrayList<>()).add(rule.getRuleValue());
-      typeMappings.putIfAbsent(
-          key, ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(rule.getValueType()));
+
+    if (workflowRun.getAllowlist() != null) {
+      for (WorkflowScopeRule rule : workflowRun.getAllowlist()) {
+        String key = rule.getValueType().name();
+        scopeData.computeIfAbsent(key, ignored -> new ArrayList<>()).add(rule.getRuleValue());
+        typeMappings.putIfAbsent(
+            key, ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(rule.getValueType()));
+
+        if (ScopeRuleValueType.IP_SUBNET.equals(rule.getValueType())) {
+          IpAddressUtils.ExpandedSubnetHosts expanded =
+              IpAddressUtils.expandSubnetToHostsByFamily(rule.getRuleValue());
+          if (!expanded.ipv4Hosts().isEmpty()) {
+            scopeData
+                .computeIfAbsent(PrimitiveType.IPv4.name(), ignored -> new ArrayList<>())
+                .addAll(expanded.ipv4Hosts());
+            typeMappings.putIfAbsent(
+                PrimitiveType.IPv4.name(),
+                ChainingMappedType.primitive(List.of(PrimitiveType.IPv4)));
+          }
+          if (!expanded.ipv6Hosts().isEmpty()) {
+            scopeData
+                .computeIfAbsent(PrimitiveType.IPv6.name(), ignored -> new ArrayList<>())
+                .addAll(expanded.ipv6Hosts());
+            typeMappings.putIfAbsent(
+                PrimitiveType.IPv6.name(),
+                ChainingMappedType.primitive(List.of(PrimitiveType.IPv6)));
+          }
+        }
+      }
     }
+
+    if (workflowRun.getWorkflowScopeVariables() != null) {
+      for (ScopeVariable variable : workflowRun.getWorkflowScopeVariables()) {
+        if (variable.getValue() == null || variable.getValue().isBlank()) {
+          continue;
+        }
+        String key = variable.getType().name();
+        scopeData.computeIfAbsent(key, ignored -> new ArrayList<>()).add(variable.getValue());
+        typeMappings.putIfAbsent(key, ChainingMappedType.primitive(variable.getType()));
+      }
+    }
+
     return new ScopeStateSeed(scopeData, typeMappings);
   }
 

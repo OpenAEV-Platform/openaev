@@ -3,17 +3,28 @@ package io.openaev.service.connectors;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public abstract class AbstractConnectorService<
     T extends BaseConnectorEntity & TenantIdBase, Output> {
+
+  /**
+   * An external connector that pinged within this window is considered running. Mirrors the
+   * frontend liveliness threshold (LIVELINESS_THRESHOLD_MS): external connectors re-register every
+   * ~40s, so two minutes without a heartbeat means the process is down.
+   */
+  public static final Duration ACTIVE_HEARTBEAT_WINDOW = Duration.ofMinutes(2);
+
   protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   protected final CatalogConnectorService catalogConnectorService;
@@ -37,8 +48,20 @@ public abstract class AbstractConnectorService<
 
   protected abstract T getConnectorById(String id);
 
+  /**
+   * Maps a connector entity to its output DTO.
+   *
+   * @param connector the connector entity (may be Hibernate-managed: implementations must never
+   *     mutate it, see {@link #toConnectorOutput})
+   * @param displayName the resolved display name to expose (instance-configured name when the
+   *     connector is deployed through the Integration Manager, entity name otherwise)
+   * @param catalogConnector the matching catalog entry, if any
+   * @param instance the owning connector instance, if any
+   * @param existingConnector false for pending connectors not yet registered
+   */
   protected abstract Output mapToOutput(
       T connector,
+      String displayName,
       CatalogConnector catalogConnector,
       ConnectorInstance instance,
       boolean existingConnector);
@@ -72,10 +95,17 @@ public abstract class AbstractConnectorService<
         isVerified && instance instanceof ConnectorInstancePersisted
             ? ((ConnectorInstancePersisted) instance).getCatalogConnector()
             : catalogConnectorService.findBySlug(connector.getType()).orElse(null);
+    // The instance-configured name is a pure display concern: resolve it into the DTO without
+    // touching the managed entity. Calling connector.setName() here dirties the entity, and the
+    // open-in-view session flushes that UPDATE at response commit (outside the controller's
+    // read-only transaction, via the spring-session save) - a connector deleted or re-registered
+    // in between then makes the flush fail with StaleStateException and the GET returns a 500
+    // (issue #7092, regression of #6469).
+    String displayName = connector.getName();
     if (instance instanceof ConnectorInstancePersisted persistedInstance) {
-      getConfiguredConnectorName(persistedInstance).ifPresent(connector::setName);
+      displayName = getConfiguredConnectorName(persistedInstance).orElse(displayName);
     }
-    return mapToOutput(connector, catalogConnector, instance, true);
+    return mapToOutput(connector, displayName, catalogConnector, instance, true);
   }
 
   private Output toExistingConnectorOutput(
@@ -194,6 +224,7 @@ public abstract class AbstractConnectorService<
                 result.add(
                     mapToOutput(
                         newConnector,
+                        newConnector.getName(),
                         entry.getValue().getCatalogConnector(),
                         entry.getValue(),
                         false));
@@ -230,6 +261,47 @@ public abstract class AbstractConnectorService<
 
     // If nothing match this collector is manually deployed
     return catalogConnectorMapper.toConnectorIds(null, null, true);
+  }
+
+  /**
+   * Rejects the deletion of a connector that is still running (OpenCTI parity: a started connector
+   * can never be deleted, it must be stopped first).
+   *
+   * <p>Two cases, mirroring the frontend gating:
+   *
+   * <ul>
+   *   <li>deployed through the Integration Manager: the owning instance decides - deletion is only
+   *       allowed once a stop has been requested ({@code requestedStatus == stopping}) or is
+   *       effective ({@code currentStatus == stopped});
+   *   <li>unmanaged external connector: the registration heartbeat decides - a ping within {@link
+   *       #ACTIVE_HEARTBEAT_WINDOW} means the container is alive and must be stopped (externally)
+   *       before the row can be removed. Deleting an active row is futile anyway: the connector
+   *       re-registers on its next heartbeat.
+   * </ul>
+   *
+   * @param connector the connector entity being deleted
+   * @param lastHeartbeat the connector's last registration heartbeat ({@code updatedAt})
+   */
+  protected void throwIfConnectorRunning(T connector, Instant lastHeartbeat)
+      throws BadRequestException {
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            this.connectorType.getIdKeyName(), connector.getId(), connector.getTenantId());
+    if (relatedIds != null && relatedIds.getConnectorInstanceId() != null) {
+      connectorInstanceService.throwIfInstanceRunning(relatedIds.getConnectorInstanceId());
+      return;
+    }
+    if (lastHeartbeat != null
+        && lastHeartbeat.isAfter(Instant.now().minus(ACTIVE_HEARTBEAT_WINDOW))) {
+      throw new BadRequestException(
+          "The "
+              + this.connectorType.name().toLowerCase(Locale.ROOT)
+              + " "
+              + connector.getName()
+              + " is still running (last heartbeat "
+              + lastHeartbeat
+              + "): stop it before deleting it");
+    }
   }
 
   /**

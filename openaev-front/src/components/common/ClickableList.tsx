@@ -124,7 +124,6 @@ const ClickableList = <T extends object>({
                       <Box
                         key={header.field}
                         sx={{
-                          height: 20,
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',

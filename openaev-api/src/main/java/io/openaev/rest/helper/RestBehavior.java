@@ -206,6 +206,19 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
+  // Without this handler the class-level @ResponseStatus lets Spring produce the default /error
+  // body, whose "message" field is empty unless server.error.include-message=always - the frontend
+  // then shows a generic "Bad request" instead of the actual reason.
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(BadRequestException.class)
+  public ResponseEntity<ErrorMessage> handleBadRequestException(BadRequestException ex) {
+    ErrorMessage message = new ErrorMessage(ex.getMessage());
+    // Client error thrown all over the codebase: DEBUG (with the stack) keeps prod logs
+    // actionable while still supporting troubleshooting.
+    log.debug("BadRequestException: {}", ex.getMessage(), ex);
+    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  }
+
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   @ExceptionHandler(TenantSelectorRequiredException.class)
   public ResponseEntity<ErrorMessage> handleTenantSelectorRequiredException(

@@ -108,6 +108,9 @@ const CustomDashboardWrapper = ({
     const params = new URLSearchParams();
     params.set('widget_id', conf.widgetId);
     params.set('series_index', (conf.series_index ?? '').toString());
+    // Totals spanning several series carry every contributing index, so the
+    // drilled list resolves to exactly the documents the tile counted.
+    (conf.series_indexes ?? []).forEach(index => params.append('series_indexes', index.toString()));
     const source = resultsSource ?? { source: 'workspace' as const };
     params.set('source', source.source);
     if (source.contextId) {

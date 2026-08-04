@@ -2,6 +2,7 @@ package io.openaev.utils;
 
 import io.openaev.database.model.Filters;
 import io.openaev.engine.api.HistogramInterval;
+import io.openaev.exception.InvalidDateRangeException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -68,6 +69,9 @@ public class OpenSearchUtils {
    */
   public static Query buildDateRangeQuery(
       @NotBlank final String field, @NotNull final Instant start, @NotNull final Instant end) {
+    if (!start.isBefore(end)) {
+      throw new InvalidDateRangeException("Start date must be before end date");
+    }
     return RangeQuery.of(d -> d.field(field).gt(JsonData.of(start)).lt(JsonData.of(end))).toQuery();
   }
 

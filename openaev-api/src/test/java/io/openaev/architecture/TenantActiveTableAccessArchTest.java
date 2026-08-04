@@ -8,6 +8,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CweRepository;
@@ -17,6 +18,7 @@ import io.openaev.database.repository.MitigationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
+import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.collector.CollectorApi;
 import io.openaev.rest.collector.service.CollectorService;
@@ -41,6 +43,7 @@ import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
+import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
@@ -224,6 +227,41 @@ class TenantActiveTableAccessArchTest {
                   + " rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
+  static final ArchRule collectors_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Initializes the association inside its TxCtx-scoped transactions before the
+              // open-in-view JSON rendering (pinned by TenantScopedEntrypointsTxCtxArchTest and
+              // SecurityPlatformCollectorsTenantScopeTest, #7025):
+              SecurityPlatformApi.class)
+          .should()
+          .callMethod(SecurityPlatform.class, "getCollectors")
+          .because(
+              "collectors is reached through SecurityPlatform's association WITHOUT touching the"
+                  + " repository: a lazy getCollectors() in an unscoped context silently loads zero"
+                  + " rows, which unlocks collector-managed platforms in the UI. New callers must"
+                  + " run inside a scoped transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule injectors_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Initializes the association inside its TxCtx-scoped transactions before the
+              // open-in-view JSON rendering, next to the collectors association (pinned by
+              // SecurityPlatformInjectorLifecycleTest, #7063):
+              SecurityPlatformApi.class)
+          .should()
+          .callMethod(SecurityPlatform.class, "getInjectors")
+          .because(
+              "security_platform_injectors feeds the same UI read-only signal as"
+                  + " security_platform_collectors (#7063). injectors is not tenant-active yet, but"
+                  + " this lazy association is rendered open-in-view: new callers must initialize it"
+                  + " inside a scoped transaction and be allowlisted here so the #7025 blind spot"
+                  + " cannot recur when the table is activated");
+
+  @ArchTest
   static final ArchRule attackpath_execution_repository_access_is_reviewed =
       noClasses()
           .that()
@@ -231,6 +269,9 @@ class TenantActiveTableAccessArchTest {
               // Read path, driven by the TxCtx-carrying AttackPathApi (pinned by
               // TenantScopedEntrypointsTxCtxArchTest):
               AttackPathGraphService.class,
+              // Same read path, same TxCtx-carrying controller: the delta endpoint's cursor reads
+              // (pinned by AttackPathDeltaApiTest and AttackPathHttpIsolationTest):
+              AttackPathDeltaService.class,
               // Background writer, scoped: opens its own transaction through the tenant primitive
               // with the inject's tenant, and stamps the row through TenantWriteScopeResolver.
               // Pinned by AttackPathIngestionTenantAttributionTest:
@@ -254,6 +295,9 @@ class TenantActiveTableAccessArchTest {
               // Read path, driven by the TxCtx-carrying AttackPathApi (pinned by
               // TenantScopedEntrypointsTxCtxArchTest):
               AttackPathGraphService.class,
+              // Same read path, same TxCtx-carrying controller: the delta endpoint's cursor reads
+              // (pinned by AttackPathDeltaApiTest and AttackPathHttpIsolationTest):
+              AttackPathDeltaService.class,
               // Scoped writer: deletes a simulation's findings on reset/delete through the tenant
               // primitive (executeNew with the exercise's tenant). Pinned by
               // AttackPathIngestionTenantAttributionTest#deleteClearsTheSimulationScopedToItsTenant.

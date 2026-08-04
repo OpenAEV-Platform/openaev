@@ -82,4 +82,28 @@ public final class EsIndexingUtils {
         results.size());
     return boundary;
   }
+
+  /**
+   * Caps a computed cursor so it never gets closer to wall-clock than the configured grace window.
+   *
+   * <p>{@code @UpdateTimestamp} values are assigned when Hibernate flushes, but the rows only
+   * become visible to the (read-committed) indexing fetch at commit. Without a grace window, a
+   * transaction that commits after a concurrent sync round advanced the cursor leaves rows with
+   * {@code updated_at <= cursor} that a strictly-greater-than fetch will never see again - the
+   * documents stay stale in the engine forever while PostgreSQL is correct. Keeping the persisted
+   * cursor at least {@code graceWindowSeconds} behind {@code now} means rows younger than the
+   * window are re-fetched (and idempotently re-upserted) on every round until they age past it, so
+   * any writer committing within the window is guaranteed to be indexed.
+   *
+   * @param cursor the cursor computed from the processed batch (see {@link #computeNewCursor})
+   * @param now the current wall-clock instant
+   * @param graceWindowSeconds the grace window in seconds; negative values are treated as zero so a
+   *     misconfiguration can never push the cap into the future and re-enable the race
+   * @return the capped cursor: {@code min(cursor, now - max(0, graceWindowSeconds))}
+   */
+  public static Instant capCursorToGraceWindow(
+      Instant cursor, Instant now, long graceWindowSeconds) {
+    Instant maxSafeCursor = now.minusSeconds(Math.max(0, graceWindowSeconds));
+    return cursor.isAfter(maxSafeCursor) ? maxSafeCursor : cursor;
+  }
 }

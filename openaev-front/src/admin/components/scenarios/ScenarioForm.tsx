@@ -28,6 +28,7 @@ interface Props {
   disabled?: boolean;
   initialValues: ScenarioFormInput;
   isCreation?: boolean;
+  isChaining?: boolean;
 }
 
 const ScenarioForm: FunctionComponent<Props> = ({
@@ -37,6 +38,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
   initialValues,
   disabled,
   isCreation = false,
+  isChaining = false,
 }) => {
   // Standard hooks
   const theme = useTheme();
@@ -225,7 +227,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
           label={t('Use the scenario assistant')}
         />
       )}
-      {editing && (
+      {editing && !isChaining && (
         <div style={{ marginTop: theme.spacing(2) }}>
           <Typography variant="h2" gutterBottom>
             {t('Modules')}
@@ -251,95 +253,99 @@ const ScenarioForm: FunctionComponent<Props> = ({
           </Typography>
         </div>
       )}
-      <Typography variant="h2" style={{ marginTop: theme.spacing(2) }}>
-        {t('Emails and SMS')}
-      </Typography>
-      <MuiTextField
-        variant="standard"
-        fullWidth
-        label={t('Sender email address')}
-        value={settings.default_mailer ?? ''}
-        disabled
-      />
-      <MuiTextField
-        variant="standard"
-        fullWidth
-        label={t('Sender email from')}
-        error={!!errors.scenario_mail_from_name}
-        helperText={errors.scenario_mail_from_name?.message}
-        inputProps={register('scenario_mail_from_name')}
-        disabled={disabled}
-      />
-      <Controller
-        control={control}
-        name="scenario_mails_reply_to"
-        render={({ field, fieldState }) => {
-          return (
-            <Autocomplete
-              multiple
-              id="email-reply-to-input"
-              freeSolo
-              open={false}
-              options={[]}
-              value={field.value}
-              onChange={() => {
-                if (undefined !== field.value && inputValue !== '' && !field.value.includes(inputValue)) {
-                  field.onChange([...(field.value || []), inputValue.trim()]);
-                }
-              }}
-              onBlur={field.onBlur}
-              inputValue={inputValue}
-              onInputChange={(_event, newInputValue) => {
-                setInputValue(newInputValue);
-              }}
-              disableClearable={true}
-              renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
-                return (
-                  <Chip
-                    variant="outlined"
-                    label={email}
-                    {...getTagProps({ index })}
-                    key={email}
-                    style={{ borderRadius: 4 }}
-                    onDelete={() => {
-                      const newValue = [...(field.value || [])];
-                      newValue.splice(index, 1);
-                      field.onChange(newValue);
-                    }}
-                  />
-                );
-              })}
-              renderInput={params => (
-                <MuiTextField
-                  {...params}
-                  variant="standard"
-                  label={t('Reply to')}
-                  error={!!fieldState.error}
-                  helperText={errors.scenario_mails_reply_to?.find ? errors.scenario_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
+      {!isChaining && (
+        <>
+          <Typography variant="h2" style={{ marginTop: theme.spacing(2) }}>
+            {t('Emails and SMS')}
+          </Typography>
+          <MuiTextField
+            variant="standard"
+            fullWidth
+            label={t('Sender email address')}
+            value={settings.default_mailer ?? ''}
+            disabled
+          />
+          <MuiTextField
+            variant="standard"
+            fullWidth
+            label={t('Sender email from')}
+            error={!!errors.scenario_mail_from_name}
+            helperText={errors.scenario_mail_from_name?.message}
+            inputProps={register('scenario_mail_from_name')}
+            disabled={disabled}
+          />
+          <Controller
+            control={control}
+            name="scenario_mails_reply_to"
+            render={({ field, fieldState }) => {
+              return (
+                <Autocomplete
+                  multiple
+                  id="email-reply-to-input"
+                  freeSolo
+                  open={false}
+                  options={[]}
+                  value={field.value}
+                  onChange={() => {
+                    if (undefined !== field.value && inputValue !== '' && !field.value.includes(inputValue)) {
+                      field.onChange([...(field.value || []), inputValue.trim()]);
+                    }
+                  }}
+                  onBlur={field.onBlur}
+                  inputValue={inputValue}
+                  onInputChange={(_event, newInputValue) => {
+                    setInputValue(newInputValue);
+                  }}
+                  disableClearable={true}
+                  renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
+                    return (
+                      <Chip
+                        variant="outlined"
+                        label={email}
+                        {...getTagProps({ index })}
+                        key={email}
+                        style={{ borderRadius: 4 }}
+                        onDelete={() => {
+                          const newValue = [...(field.value || [])];
+                          newValue.splice(index, 1);
+                          field.onChange(newValue);
+                        }}
+                      />
+                    );
+                  })}
+                  renderInput={params => (
+                    <MuiTextField
+                      {...params}
+                      variant="standard"
+                      label={t('Reply to')}
+                      error={!!fieldState.error}
+                      helperText={errors.scenario_mails_reply_to?.find ? errors.scenario_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
+                    />
+                  )}
                 />
-              )}
-            />
-          );
-        }}
-      />
-      <MuiTextField
-        variant="standard"
-        fullWidth
-        label={t('Messages header')}
-        error={!!errors.scenario_message_header}
-        helperText={errors.scenario_message_header?.message}
-        inputProps={register('scenario_message_header')}
-        disabled={disabled}
-      />
-      <MuiTextField
-        variant="standard"
-        fullWidth
-        label={t('Messages footer')}
-        error={!!errors.scenario_message_footer}
-        helperText={errors.scenario_message_footer?.message}
-        inputProps={register('scenario_message_footer')}
-        disabled={disabled}
-      />
+              );
+            }}
+          />
+          <MuiTextField
+            variant="standard"
+            fullWidth
+            label={t('Messages header')}
+            error={!!errors.scenario_message_header}
+            helperText={errors.scenario_message_header?.message}
+            inputProps={register('scenario_message_header')}
+            disabled={disabled}
+          />
+          <MuiTextField
+            variant="standard"
+            fullWidth
+            label={t('Messages footer')}
+            error={!!errors.scenario_message_footer}
+            helperText={errors.scenario_message_footer?.message}
+            inputProps={register('scenario_message_footer')}
+            disabled={disabled}
+          />
+        </>
+      )}
       <div style={{
         display: 'flex',
         justifyContent: 'flex-end',

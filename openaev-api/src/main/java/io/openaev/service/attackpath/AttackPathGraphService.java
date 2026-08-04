@@ -1,7 +1,14 @@
 package io.openaev.service.attackpath;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.ExecutionTrace;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectStatus;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.model.attackpath.AttackPathExecutionRemediation;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingVerdictRow;
@@ -16,10 +23,12 @@ import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.StepConditionRow;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
@@ -37,6 +46,7 @@ import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingVerdictsDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.service.attackpath.dto.ConsumedFindingKeyDTO;
+import io.openaev.utils.PrimitiveValueMaskingUtils;
 import io.openaev.utils.mapper.PayloadMapper;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -50,6 +60,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -96,24 +108,50 @@ public class AttackPathGraphService {
   private static final String CATEGORY_CREDENTIALS = "credentials";
   private static final String CREDENTIAL_MASK = "••••";
 
-  // Interim stand-in: SMB `share` findings are presented as captured files until a native `file`
-  // finding type exists. presentType is applied once at each finding-read boundary, so every
-  // downstream node id / counter / DTO presents `file`. To drop the stand-in later, remove the
-  // `share` source from FILE_SOURCE_TYPES and presentType.
+  /**
+   * Maps a redacted command-line flag to the inject content field it was resolved from, for {@link
+   * #injectorCommandLine}. Mirrors the flags NetExec/Nmap contracts expose.
+   */
+  private static final Map<String, String> COMMAND_FLAG_TO_FIELD_KEY =
+      Map.ofEntries(
+          Map.entry("-u", "username"),
+          Map.entry("--user", "username"),
+          Map.entry("--username", "username"),
+          Map.entry("-p", "password"),
+          Map.entry("--pass", "password"),
+          Map.entry("--password", "password"),
+          Map.entry("-H", "hash"),
+          Map.entry("--hash", "hash"),
+          Map.entry("--ntlm", "hash"),
+          Map.entry("-d", "domain"),
+          Map.entry("--domain", "domain"));
+
+  /** Fields partially masked (rather than shown in full) once unredacted in the command line. */
+  private static final Map<String, PrimitiveType> FIELD_KEY_TO_MASKED_TYPE =
+      Map.of(
+          "password", PrimitiveType.Password,
+          "hash", PrimitiveType.Hash);
+
+  private static final Pattern REDACTED_FLAG_PATTERN =
+      Pattern.compile("(--?[A-Za-z][A-Za-z-]*)(\\s+)(\\*+)");
+
+  private static final String PUBLISHED_TRACE_PREFIX = "the inject has been published";
+
   private static final String SHARE_TYPE = "share";
   private static final String FILE_TYPE = "file";
-  private static final Set<String> FILE_SOURCE_TYPES = Set.of(SHARE_TYPE, FILE_TYPE);
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
+  private final AttackPathExecutionRemediationRepository executionRemediationRepository;
   private final InjectorContractRepository injectorContractRepository;
-  private final PayloadRepository payloadRepository;
   private final StepRepository stepRepository;
   private final PayloadMapper payloadMapper;
   private final AttackPathSecurityPlatformResolver securityPlatformResolver;
   private final AttackPathKillChainResolver killChainResolver;
   private final ConditionRepository conditionRepository;
   private final AssetRepository assetRepository;
+  private final InjectStatusRepository injectStatusRepository;
+  private final InjectRepository injectRepository;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -127,14 +165,28 @@ public class AttackPathGraphService {
    * Graph for a simulation, choosing the mode: {@code full} or {@code collapsed} forces it,
    * otherwise a large simulation (more executions than the collapse threshold) is served collapsed.
    * A cheap indexed {@code COUNT} decides; it costs a fraction of the collapsed rebuild.
+   *
+   * <p>{@code graphVersion} is the cursor the snapshot is labelled with, read by the caller BEFORE
+   * this call so it can only ever lag the rows, never lead them (see {@link AttackPathDTO}).
    */
   @Transactional(readOnly = true)
-  public AttackPathDTO buildGraph(String simulationId, String requestedMode) {
+  public AttackPathDTO buildGraph(String simulationId, String requestedMode, long graphVersion) {
     // Both branches call the private bodies, never the public transactional twins: an intra-class
     // call bypasses the Spring proxy, so the inner annotation would be silently inert.
     return resolveCollapsed(simulationId, requestedMode)
-        ? collapsedGraph(simulationId)
-        : fullGraph(simulationId);
+        ? collapsedGraph(simulationId, graphVersion)
+        : fullGraph(simulationId, graphVersion);
+  }
+
+  /**
+   * The same graph for callers that do not follow a cursor (unit tests, the benchmark): the DTO's
+   * {@code graphVersion} is 0, which a client reads as "no cursor, poll from the start".
+   */
+  @Transactional(readOnly = true)
+  public AttackPathDTO buildGraph(String simulationId, String requestedMode) {
+    return resolveCollapsed(simulationId, requestedMode)
+        ? collapsedGraph(simulationId, 0)
+        : fullGraph(simulationId, 0);
   }
 
   private boolean resolveCollapsed(String simulationId, String requestedMode) {
@@ -175,7 +227,7 @@ public class AttackPathGraphService {
     }
     Page<AttackPathFindingListRow> page =
         findingRepository.findPageByTypes(simulationId, types, pageable);
-    List<AttackPathFindingListRow> rows = presentListRows(page.getContent());
+    List<AttackPathFindingListRow> rows = page.getContent();
     FindingLinkData links = findingLinks(rows);
     boolean maskValue = CATEGORY_CREDENTIALS.equalsIgnoreCase(category);
     List<AttackPathFindingItemDTO> items =
@@ -215,8 +267,7 @@ public class AttackPathGraphService {
             AttackPathFindingVerdicts.ofExecution(
                 e.getPreventionStatus(), e.getDetectionStatus(), e.getVulnerabilityStatus()));
     List<AttackPathExecutionFindingItemDTO> findings = new ArrayList<>();
-    for (AttackPathEndpointFindingRow f :
-        presentEndpointFindingRows(findingRepository.findByExecutionId(executionId))) {
+    for (AttackPathEndpointFindingRow f : findingRepository.findByExecutionId(executionId)) {
       boolean credential = CATEGORY_CREDENTIALS.equals(f.type());
       findings.add(
           new AttackPathExecutionFindingItemDTO(
@@ -227,7 +278,7 @@ public class AttackPathGraphService {
     // links to, so endpoint-scoped masking never leaves a known secret in the clear.
     Set<String> secrets = new HashSet<>();
     for (AttackPathEndpointFindingVerdictRow f :
-        presentVerdictRows(findingRepository.findByEndpoint(simulationId, e.getTargetKey()))) {
+        findingRepository.findByEndpoint(simulationId, e.getTargetKey())) {
       if (CATEGORY_CREDENTIALS.equals(f.type())) {
         String secret = credentialSecret(f.value());
         if (secret != null && !secret.isEmpty()) {
@@ -252,17 +303,13 @@ public class AttackPathGraphService {
                                   new AttackPathAttackPatternDTO(
                                       pattern.getExternalId(), pattern.getName()))));
     }
-    // Detection remediations of the payload that actually ran (the frozen payload id, not the
-    // inject's current one). The mapper carries the EE gate: an inactive licence yields an empty
-    // list, which is exactly what the drawer already renders.
+    // Detection remediations snapshot frozen at step-run time (never from the live payload).
+    // The mapper still carries the EE gate: an inactive licence yields an empty list.
     List<DetectionRemediationOutput> detectionRemediations =
-        e.getPayloadId() == null
+        e.getStepId() == null
             ? List.of()
-            : payloadMapper.toDetectionRemediationOutputs(
-                payloadRepository
-                    .findById(e.getPayloadId())
-                    .map(p -> p.getDetectionRemediations())
-                    .orElse(List.of()));
+            : payloadMapper.applyDetectionRemediationLicenseGate(
+                toDetectionRemediationOutputsFromSnapshot(e.getStepId(), e.getPayloadId()));
     // "Action details" opens the run's inject. The frozen row no longer stores the injectId (it is
     // a
     // live ref), so resolve it from the durable step the row is keyed by: the engine writes
@@ -290,9 +337,94 @@ public class AttackPathGraphService {
         e.getVulnerabilityStatus(),
         e.getExecutedAt() == null ? null : e.getExecutedAt().toString(),
         findings,
-        securityPlatformResolver.resolve(injectId, e.getAgentId(), e.getTargetAssetId()),
+        securityPlatformResolver.resolve(e.getId(), e.getTenant().getId()),
         maskSecrets(e.getCommand(), secrets),
-        maskSecrets(e.getTerminalOutput(), secrets));
+        maskSecrets(e.getTerminalOutput(), secrets),
+        // A network injector (NetExec, Nmap…) never has its own `command` snapshot; reconstruct one
+        // server-side instead of leaving the client to fetch the raw inject content itself.
+        (injectId != null
+                && e.getPayloadId() == null
+                && (e.getCommand() == null || e.getCommand().isBlank()))
+            ? maskSecrets(injectorCommandLine(injectId), secrets)
+            : null);
+  }
+
+  /**
+   * Reconstructs a network injector's (NetExec, Nmap…) command line for display. Its own execution
+   * trace always redacts every flag value with a blanket "***" (the injector doesn't know which of
+   * its args are safe to print); this un-redacts the flags we recognize using the inject's own
+   * resolved content, applying our own partial-reveal mask (password/hash) instead of the
+   * injector's blanket one. Done entirely server-side so the raw credential value is never sent to
+   * the client, unlike reconstructing it client-side from the raw inject content.
+   *
+   * @return null when there is no matching trace or nothing to unmask
+   */
+  private String injectorCommandLine(String injectId) {
+    List<ExecutionTrace> traces =
+        injectStatusRepository
+            .findInjectStatusWithGlobalExecutionTraces(injectId)
+            .map(InjectStatus::getTraces)
+            .orElse(List.of());
+    String rawCommandLine = findCommandTraceMessage(traces);
+    if (rawCommandLine == null) {
+      return null;
+    }
+    ObjectNode injectContent =
+        injectRepository.findById(injectId).map(Inject::getContent).orElse(null);
+    return injectContent == null
+        ? rawCommandLine
+        : unmaskCommandLine(rawCommandLine, injectContent);
+  }
+
+  /**
+   * The first trace is always the "published, waiting to be consumed" boilerplate; the next one is
+   * the tool invocation itself (then "executed against target…", "succeeded: …", etc.) — this
+   * ordering holds across every injector observed (NetExec, Nmap), there being no structured "this
+   * is the command" marker on a trace to key off instead.
+   */
+  private static String findCommandTraceMessage(List<ExecutionTrace> traces) {
+    if (traces.isEmpty()) {
+      return null;
+    }
+    String first = traces.get(0).getMessage();
+    boolean firstIsBoilerplate =
+        first != null && first.toLowerCase(Locale.ROOT).startsWith(PUBLISHED_TRACE_PREFIX);
+    if (!firstIsBoilerplate) {
+      return first;
+    }
+    return traces.size() > 1 ? traces.get(1).getMessage() : null;
+  }
+
+  /**
+   * Replaces each redacted "-&lt;flag&gt; ***" in the injector's own trace with the real value,
+   * partially revealed by {@link PrimitiveValueMaskingUtils} for the fields we mask, in full for
+   * every other recognized field (e.g. username). Any unrecognized flag, or a recognized flag we
+   * have no resolved value for, is left exactly as the injector logged it.
+   */
+  private static String unmaskCommandLine(String commandLine, ObjectNode injectContent) {
+    Matcher matcher = REDACTED_FLAG_PATTERN.matcher(commandLine);
+    StringBuilder result = new StringBuilder();
+    while (matcher.find()) {
+      String flag = matcher.group(1);
+      String whitespace = matcher.group(2);
+      String fieldKey = COMMAND_FLAG_TO_FIELD_KEY.get(flag);
+      JsonNode fieldValueNode = fieldKey == null ? null : injectContent.get(fieldKey);
+      String fieldValue = fieldValueNode == null ? null : fieldValueNode.asText();
+      String replacement;
+      if (fieldValue == null || fieldValue.isBlank()) {
+        replacement = matcher.group();
+      } else {
+        PrimitiveType maskedType = FIELD_KEY_TO_MASKED_TYPE.get(fieldKey);
+        String displayValue =
+            maskedType == null
+                ? fieldValue
+                : PrimitiveValueMaskingUtils.maskForDisplay(maskedType, fieldValue);
+        replacement = flag + whitespace + displayValue;
+      }
+      matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+    }
+    matcher.appendTail(result);
+    return result.toString();
   }
 
   /** The secret half of a {@code username:password} credential value (never shown in the clear). */
@@ -353,11 +485,9 @@ public class AttackPathGraphService {
   /**
    * The finding types each product widget aggregates (spec 5048 section 2:
    * Files/Credentials/Users/CVEs; Endpoints is a separate endpoint-group read, not a finding type).
-   * {@code port} is a graph finding type but not a product widget, so it has no category here;
-   * {@code files} aggregates the SMB {@code share} source type (presented as {@code file}), an
-   * interim stand-in until a native {@code file} finding type exists. Any other category is treated
-   * as a literal finding type (data-driven, mirroring the front's cards), so a category matching no
-   * finding type yields an empty page.
+   * {@code port} is a graph finding type but not a product widget, so it has no category here. Any
+   * other category is treated as a literal finding type (data-driven, mirroring the front's cards),
+   * so a category matching no finding type yields an empty page.
    */
   private static Set<String> categoryTypes(String category) {
     if (category == null) {
@@ -367,83 +497,12 @@ public class AttackPathGraphService {
       case CATEGORY_CREDENTIALS -> Set.of("credentials");
       case "users" -> Set.of("username", "admin_username");
       case "cves" -> Set.of("cve");
-      case "files" -> FILE_SOURCE_TYPES;
+      case "shares" -> Set.of(SHARE_TYPE);
+      case "files" -> Set.of(FILE_TYPE);
       // Any other category is a literal finding type (data-driven, mirroring the front's cards),
       // so the "Text fields"/etc. cards open a populated drawer instead of an empty one.
       default -> Set.of(category.toLowerCase(Locale.ROOT));
     };
-  }
-
-  /**
-   * Interim stand-in: present a stored SMB {@code share} finding as the native {@code file} type.
-   */
-  private static String presentType(String rawType) {
-    return SHARE_TYPE.equals(rawType) ? FILE_TYPE : rawType;
-  }
-
-  // Relabel the finding type once at each repository-read boundary, so every downstream id / node /
-  // counter / DTO derives from the presented type (single choke point). Records are immutable and
-  // List overloads would clash on erasure, so each read has a distinctly-named mapper.
-  private static List<AttackPathFindingRow> presentGraphRows(List<AttackPathFindingRow> rows) {
-    return rows.stream()
-        .map(
-            r ->
-                new AttackPathFindingRow(
-                    r.id(),
-                    presentType(r.type()),
-                    r.value(),
-                    r.endpointId(),
-                    r.endpointRaw(),
-                    r.endpointKey(),
-                    r.executionId()))
-        .toList();
-  }
-
-  private static List<AttackPathEndpointFindingVerdictRow> presentVerdictRows(
-      List<AttackPathEndpointFindingVerdictRow> rows) {
-    return rows.stream()
-        .map(
-            r ->
-                new AttackPathEndpointFindingVerdictRow(
-                    presentType(r.type()),
-                    r.value(),
-                    r.preventionStatus(),
-                    r.detectionStatus(),
-                    r.vulnerabilityStatus()))
-        .toList();
-  }
-
-  private static List<AttackPathEndpointFindingRow> presentEndpointFindingRows(
-      List<AttackPathEndpointFindingRow> rows) {
-    return rows.stream()
-        .map(r -> new AttackPathEndpointFindingRow(presentType(r.type()), r.value()))
-        .toList();
-  }
-
-  private static List<AttackPathFindingListRow> presentListRows(
-      List<AttackPathFindingListRow> rows) {
-    return rows.stream()
-        .map(
-            r ->
-                new AttackPathFindingListRow(
-                    r.id(), presentType(r.type()), r.value(), r.endpointKey()))
-        .toList();
-  }
-
-  private static List<AttackPathTypeCountRow> presentTypeCounts(List<AttackPathTypeCountRow> rows) {
-    return rows.stream()
-        .map(r -> new AttackPathTypeCountRow(presentType(r.type()), r.distinctValues()))
-        .toList();
-  }
-
-  private static List<AttackPathEndpointTypeCountRow> presentEndpointTypeCounts(
-      List<AttackPathEndpointTypeCountRow> rows) {
-    return rows.stream()
-        .map(
-            r ->
-                new AttackPathEndpointTypeCountRow(
-                    r.endpointKey(), presentType(r.type()), r.distinctValues()))
-        .toList();
   }
 
   /**
@@ -462,16 +521,50 @@ public class AttackPathGraphService {
     return CREDENTIAL_MASK;
   }
 
-  @Transactional(readOnly = true)
-  public AttackPathDTO buildGraph(String simulationId) {
-    return fullGraph(simulationId);
+  private List<DetectionRemediationOutput> toDetectionRemediationOutputsFromSnapshot(
+      String stepId, String payloadId) {
+    List<AttackPathExecutionRemediation> snapshots =
+        executionRemediationRepository.findByStepId(stepId);
+    if (snapshots.isEmpty()) {
+      return List.of();
+    }
+
+    Set<String> platformIds =
+        snapshots.stream()
+            .map(AttackPathExecutionRemediation::getSecurityPlatformId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    Map<String, String> platformNamesById = new HashMap<>();
+    if (!platformIds.isEmpty()) {
+      assetRepository
+          .findAllById(platformIds)
+          .forEach(asset -> platformNamesById.put(asset.getId(), asset.getName()));
+    }
+
+    return snapshots.stream()
+        .map(
+            snapshot ->
+                DetectionRemediationOutput.builder()
+                    .id(snapshot.getId())
+                    .payloadId(payloadId)
+                    .securityPlatformId(snapshot.getSecurityPlatformId())
+                    .securityPlatformName(
+                        platformNamesById.getOrDefault(snapshot.getSecurityPlatformId(), null))
+                    .values(snapshot.getValues())
+                    .authorRule(snapshot.getAuthorRule())
+                    .build())
+        .toList();
   }
 
-  private AttackPathDTO fullGraph(String simulationId) {
+  @Transactional(readOnly = true)
+  public AttackPathDTO buildGraph(String simulationId) {
+    return fullGraph(simulationId, 0);
+  }
+
+  private AttackPathDTO fullGraph(String simulationId, long graphVersion) {
     List<AttackPathExecutionRow> executions = executionRepository.findGraphRows(simulationId);
-    List<AttackPathFindingRow> findings =
-        presentGraphRows(findingRepository.findGraphRows(simulationId));
-    return assemble(executions, findings);
+    List<AttackPathFindingRow> findings = findingRepository.findGraphRows(simulationId);
+    return assemble(executions, findings, graphVersion);
   }
 
   /**
@@ -481,7 +574,7 @@ public class AttackPathGraphService {
   @Transactional(readOnly = true)
   public AttackPathExpandDTO expandEndpoint(String simulationId, String endpointKey) {
     List<AttackPathEndpointFindingVerdictRow> findings =
-        presentVerdictRows(findingRepository.findByEndpoint(simulationId, endpointKey));
+        findingRepository.findByEndpoint(simulationId, endpointKey);
     String assetNodeId = AttackPathIds.endpointNode(endpointKey);
     Map<String, AttackPathNodeDTO> typeNodes = new LinkedHashMap<>();
     Map<String, AttackPathNodeDTO> findingNodes = new LinkedHashMap<>();
@@ -512,28 +605,52 @@ public class AttackPathGraphService {
    * it, from a single indexed read. {@code targetKey} is the asset id or the raw value.
    */
   @Transactional(readOnly = true)
-  public AttackPathEndpointRelationsDTO endpointRelations(String simulationId, String targetKey) {
-    List<AttackPathExecutionRow> executions =
+  public AttackPathEndpointRelationsDTO endpointRelations(
+      String simulationId, String targetKey, Pageable pageable) {
+    // The edges come from every execution, the feed from one page of them: an endpoint's in-degree
+    // is small and its edges reference execution ids across page boundaries, so paging them would
+    // hand the client edges pointing at rows it has not fetched.
+    List<AttackPathExecutionRow> allExecutions =
         executionRepository.findByTarget(simulationId, targetKey);
     String targetNodeId = AttackPathIds.endpointNode(targetKey);
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
-    Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
-    for (AttackPathExecutionRow e : executions) {
+    for (AttackPathExecutionRow e : allExecutions) {
       String sourceNodeId = sourceNodeId(e);
       String edgeId = AttackPathIds.executionsEdge(sourceNodeId, targetNodeId);
       AttackPathEdges edge =
           edges.computeIfAbsent(edgeId, id -> executionEdge(id, sourceNodeId, targetNodeId));
       edge.setCount(edge.getCount() + 1);
       edge.getExecutionIds().add(e.id());
+    }
+
+    List<AttackPathExecutionRow> page =
+        executionRepository.findPageByTarget(simulationId, targetKey, pageable);
+    Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
+    for (AttackPathExecutionRow e : page) {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
-    applyContractNames(executions, feedByExecutionId);
+    applyContractNames(page, feedByExecutionId);
     return new AttackPathEndpointRelationsDTO(
-        new ArrayList<>(feedByExecutionId.values()), new ArrayList<>(edges.values()));
+        new ArrayList<>(feedByExecutionId.values()),
+        new ArrayList<>(edges.values()),
+        executionRepository.countByTarget(simulationId, targetKey));
   }
 
-  private AttackPathDTO assemble(
-      List<AttackPathExecutionRow> executions, List<AttackPathFindingRow> findings) {
+  /**
+   * The full-mode rebuild pass, over whatever rows it is handed. Package-private rather than
+   * private because {@link AttackPathDeltaService} runs it over the rows that CHANGED, which is
+   * what makes "snapshot(v) + delta(v→w) ≡ snapshot(w)" hold by construction: the delta cannot
+   * drift from the snapshot's node shapes, ids or field set, because it is the same code. The
+   * aggregates a subset of rows cannot compute (endpoint colour, edge counts, counters) are the
+   * delta service's job to recompute over the whole affected endpoints.
+   *
+   * <p>{@code graphVersion} labels a snapshot; a delta passes 0, because it carries its own cursor
+   * in {@code AttackPathDeltaDTO#newVersion} and never ships this record to a client.
+   */
+  AttackPathDTO assemble(
+      List<AttackPathExecutionRow> executions,
+      List<AttackPathFindingRow> findings,
+      long graphVersion) {
     Map<String, AttackPathNodeDTO> nodes = new LinkedHashMap<>();
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
     Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
@@ -587,6 +704,7 @@ public class AttackPathGraphService {
     Set<String> userKeys = new HashSet<>();
     Set<String> cveKeys = new HashSet<>();
     Set<String> portKeys = new HashSet<>();
+    Set<String> shareKeys = new HashSet<>();
     Set<String> fileKeys = new HashSet<>();
     for (AttackPathFindingRow f : findings) {
       String assetNodeId = AttackPathIds.endpointNode(f.endpointKey());
@@ -635,7 +753,8 @@ public class AttackPathGraphService {
         case "username", "admin_username" -> userKeys.add(counterKey);
         case "cve" -> cveKeys.add(counterKey);
         case "port" -> portKeys.add(counterKey);
-        case "file" -> fileKeys.add(counterKey);
+        case SHARE_TYPE -> shareKeys.add(counterKey);
+        case FILE_TYPE -> fileKeys.add(counterKey);
         default -> {
           // other finding types do not feed a top-bar counter
         }
@@ -669,6 +788,7 @@ public class AttackPathGraphService {
             userKeys.size(),
             cveKeys.size(),
             portKeys.size(),
+            shareKeys.size(),
             fileKeys.size());
     return new AttackPathDTO(
         staticFindings,
@@ -676,7 +796,8 @@ public class AttackPathGraphService {
         new ArrayList<>(nodes.values()),
         new ArrayList<>(edges.values()),
         counters,
-        "full");
+        "full",
+        graphVersion);
   }
 
   /**
@@ -754,17 +875,16 @@ public class AttackPathGraphService {
    */
   @Transactional(readOnly = true)
   public AttackPathDTO buildCollapsedGraph(String simulationId) {
-    return collapsedGraph(simulationId);
+    return collapsedGraph(simulationId, 0);
   }
 
-  private AttackPathDTO collapsedGraph(String simulationId) {
+  private AttackPathDTO collapsedGraph(String simulationId, long graphVersion) {
     List<AttackPathEndpointGroupRow> endpoints =
         executionRepository.findEndpointGroups(simulationId);
     List<AttackPathEdgeGroupRow> edges = executionRepository.findEdgeGroups(simulationId);
-    List<AttackPathTypeCountRow> typeCounts =
-        presentTypeCounts(findingRepository.findTypeCounts(simulationId));
+    List<AttackPathTypeCountRow> typeCounts = findingRepository.findTypeCounts(simulationId);
     List<AttackPathEndpointTypeCountRow> endpointTypeCounts =
-        presentEndpointTypeCounts(findingRepository.findEndpointTypeCounts(simulationId));
+        findingRepository.findEndpointTypeCounts(simulationId);
 
     Map<String, Map<String, Long>> findingCountsByEndpoint = new LinkedHashMap<>();
     for (AttackPathEndpointTypeCountRow row : endpointTypeCounts) {
@@ -816,15 +936,16 @@ public class AttackPathGraphService {
         new ArrayList<>(nodes.values()),
         collapsedEdges,
         collapsedCounters(endpoints.size(), typeCounts),
-        "collapsed");
+        "collapsed",
+        graphVersion);
   }
 
-  private AttackPathCounters collapsedCounters(
-      int endpoints, List<AttackPathTypeCountRow> typeCounts) {
+  AttackPathCounters collapsedCounters(long endpoints, List<AttackPathTypeCountRow> typeCounts) {
     long credentials = 0;
     long users = 0;
     long cves = 0;
     long ports = 0;
+    long shares = 0;
     long files = 0;
     for (AttackPathTypeCountRow t : typeCounts) {
       switch (t.type()) {
@@ -832,17 +953,18 @@ public class AttackPathGraphService {
         case "username", "admin_username" -> users += t.distinctValues();
         case "cve" -> cves += t.distinctValues();
         case "port" -> ports += t.distinctValues();
-        case "file" -> files += t.distinctValues();
+        case SHARE_TYPE -> shares += t.distinctValues();
+        case FILE_TYPE -> files += t.distinctValues();
         default -> {
           // other finding types do not feed a top-bar counter
         }
       }
     }
-    return new AttackPathCounters(endpoints, credentials, users, cves, ports, files);
+    return new AttackPathCounters(endpoints, credentials, users, cves, ports, shares, files);
   }
 
   /** Worst-case severity of an endpoint's executions from the aggregated red/orange counts. */
-  private String collapsedColour(long redCount, long orangeCount) {
+  String collapsedColour(long redCount, long orangeCount) {
     if (redCount > 0) {
       return RED;
     }
@@ -852,7 +974,7 @@ public class AttackPathGraphService {
     return GREEN;
   }
 
-  private String collapsedSourceNodeId(AttackPathEdgeGroupRow g) {
+  String collapsedSourceNodeId(AttackPathEdgeGroupRow g) {
     return SOURCE_INJECTOR.equals(g.sourceKind())
         ? AttackPathIds.injectorNode(g.sourceInjector(), g.contractExternalId())
         : AttackPathIds.endpointNode(g.sourceAssetId());
@@ -933,11 +1055,15 @@ public class AttackPathGraphService {
         representative.targetHostname() != null && !representative.targetHostname().isBlank()
             ? representative.targetHostname()
             : targetKey);
+    // Sorted rather than left in row order: the rebuild reads its rows without an ORDER BY, so row
+    // order is not a stable property of the graph, and the delta recomputes this same list from its
+    // own grouped read (see AttackPathDeltaService#recomputeAggregates).
     node.setAgents(
         executions.stream()
             .map(AttackPathExecutionRow::agentName)
             .filter(Objects::nonNull)
             .distinct()
+            .sorted()
             .toList());
     node.setStatus(endpointColour(executions));
     return node;
@@ -1107,6 +1233,69 @@ public class AttackPathGraphService {
   }
 
   /**
+   * Re-resolves the event dependencies of a DELTA's consumer executions against every finding their
+   * keys could match, instead of only the ones in the batch.
+   *
+   * <p>{@link #applyEventDependencies} is an in-memory match over the rows of one pass, which is
+   * exact for a snapshot (it holds the whole graph) and structurally wrong for a delta: a consumed
+   * key matches findings produced by an EARLIER bump, so a batch carrying a new consuming execution
+   * carries none of them. The keys came back with no {@code matchedFindingIds} at all, and since
+   * the front anchors its causal edges on that field (#7038) rather than re-matching, the
+   * finding→action link only appeared after a reload — the same class of gap as an endpoint's
+   * colour, and fixed the same way this service fixes those: recompute what a subset cannot know,
+   * over the rows that actually determine it.
+   *
+   * <p>Two reads, and only on the ticks where a consuming execution lands: the findings of the
+   * candidate types, then their producers. The producers are needed for the ordering rule (a
+   * producer counts only if it ran before the consumer) but deliberately do NOT join the delta's
+   * node set — they are handed to the matcher alone, so the entities shipped stay exactly what
+   * changed.
+   */
+  void recomputeEventDependencies(
+      String simulationId,
+      List<AttackPathExecutionRow> batchExecutions,
+      List<AttackPathNodeDTO> feedNodes) {
+    Set<String> candidateTypes = new LinkedHashSet<>();
+    // The matcher indexes consumers by raw execution id, which the feed node carries on `ref` (its
+    // own id is the map node id).
+    Map<String, AttackPathNodeDTO> byExecutionId = new LinkedHashMap<>();
+    for (AttackPathNodeDTO node : feedNodes) {
+      if (node.getConsumedFindingKeys() == null
+          || node.getConsumedFindingKeys().isEmpty()
+          || node.getRef() == null) {
+        continue;
+      }
+      byExecutionId.put(node.getRef(), node);
+      node.getConsumedFindingKeys()
+          .forEach(
+              key ->
+                  candidateTypes.addAll(AttackPathKeyMatcher.candidateFindingTypes(key.keyType())));
+    }
+    if (candidateTypes.isEmpty()) {
+      return; // no consuming step in this batch: nothing to resolve, and no read paid for it
+    }
+    List<AttackPathFindingRow> candidates =
+        findingRepository.findGraphRowsByTypes(simulationId, candidateTypes);
+    if (candidates.isEmpty()) {
+      return;
+    }
+    Set<String> present = new HashSet<>();
+    batchExecutions.forEach(e -> present.add(e.id()));
+    Set<String> producerIds = new LinkedHashSet<>();
+    candidates.forEach(
+        f -> {
+          if (f.executionId() != null && !present.contains(f.executionId())) {
+            producerIds.add(f.executionId());
+          }
+        });
+    List<AttackPathExecutionRow> forMatching = new ArrayList<>(batchExecutions);
+    if (!producerIds.isEmpty()) {
+      forMatching.addAll(executionRepository.findGraphRowsByIds(simulationId, producerIds));
+    }
+    applyEventDependencies(forMatching, candidates, byExecutionId);
+  }
+
+  /**
    * Resolves each execution's injector-contract name (e.g. "NMAP SYN Scan") from its contract
    * external id and sets it on the execution feed node, so the front can name WHAT was launched on
    * the inject→endpoint edge. Batched over the DISTINCT external ids (a run uses a handful of
@@ -1204,10 +1393,12 @@ public class AttackPathGraphService {
     if (assetNodesByRef.isEmpty()) {
       return;
     }
-    for (Object[] row : assetRepository.findCriticalityByIds(assetNodesByRef.keySet())) {
+    for (Object[] row :
+        assetRepository.findCriticalityNameAndSeenIpByIds(assetNodesByRef.keySet())) {
       String assetId = (String) row[0];
       Object criticality = row[1];
       String name = (String) row[2];
+      String seenIp = (String) row[3];
       AttackPathNodeDTO node = assetNodesByRef.get(assetId);
       if (node == null) {
         continue;
@@ -1220,6 +1411,11 @@ public class AttackPathGraphService {
       // otherwise reads as its uuid on the map and in the chokepoint list).
       if (name != null && !name.isBlank()) {
         node.setLabel(name);
+      }
+      // The seen (primary) IP, so the map node shows a single relevant IP rather than the frozen
+      // full IP list. Null/blank leaves the node to fall back to its ip list on the front.
+      if (seenIp != null && !seenIp.isBlank()) {
+        node.setSeenIp(seenIp);
       }
     }
   }

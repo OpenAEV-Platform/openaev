@@ -11,7 +11,9 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
@@ -23,6 +25,7 @@ import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -37,12 +40,14 @@ import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.IpAddressUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.*;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -86,6 +91,7 @@ public class InjectExecutionStep implements ActionStep {
   private final AttackPathExecutionIngestionService attackPathIngestion;
   private final AttackPathFindingIngestionService attackPathFindingIngestion;
   private final InjectExpectationService injectExpectationService;
+  private final ExecutableInjectService executableInjectService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -239,6 +245,32 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
+   * Pushes the step's expectation verdicts onto the attack-path projection: flag-gated and
+   * non-fatal, like the two ingestion hooks around it. The write opens its own tenant-scoped
+   * REQUIRES_NEW transaction, so a failure here is caught and logged and can never roll the step
+   * update back. Runs on every execution event; the updates are guarded, so replaying the same
+   * results matches zero rows — and a write that touched nothing publishes no nudge.
+   *
+   * <p>The flag gate matters beyond the write: the version bump this triggers publishes the
+   * real-time nudge, so an environment with {@code ATTACK_PATH} off must not emit attack-path
+   * events at all (spec 003, FR3).
+   */
+  private void syncAttackPathVerdicts(Inject inject, List<BaseInjectExpectation> expectations) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
+      return;
+    }
+    try {
+      Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
+          expectationResults =
+              attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
+      attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
+      attackPathIngestion.upsertExecutionCollectors(inject, expectations);
+    } catch (Exception e) {
+      log.warn("Attack-path verdict sync skipped for inject {} (non-fatal)", inject.getId(), e);
+    }
+  }
+
+  /**
    * Copies the inject's findings onto the attack-path snapshot: flag-gated and non-fatal. The copy
    * opens its own tenant-scoped REQUIRES_NEW transaction, so a failure here is caught and logged
    * and can never roll the step update back. Runs on every execution event; the copy is idempotent.
@@ -312,7 +344,11 @@ public class InjectExecutionStep implements ActionStep {
     }
 
     // FORMAT EXPECTATION TO OUTPUT STEP
-    formatExpectationToOutput(injectId, output);
+    List<BaseInjectExpectation> expectations = formatExpectationToOutput(inject, output);
+
+    // SYNC the same verdicts onto the attack-path projection, keyed by execution row: per event,
+    // guarded (a replay writes nothing) and version-stamped so the change reaches the delta read.
+    syncAttackPathVerdicts(inject, expectations);
 
     // UPDATE step output
     if (!output.isEmpty()) {
@@ -555,7 +591,11 @@ public class InjectExecutionStep implements ActionStep {
 
         Map<String, Object> input = new HashMap<>();
         input.put("key", condition.getKey());
-        input.put("keyType", condition.getKeyType() != null ? condition.getKeyType().name() : null);
+        input.put(
+            "keyTypes",
+            condition.getKeyTypes() != null
+                ? condition.getKeyTypes().stream().map(Enum::name).toList()
+                : List.of());
         input.put("path", condition.getValue());
         input.put("mappingType", condition.getMappingType());
         input.put("id_step_from", condition.getStepFrom());
@@ -570,18 +610,35 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Expands condition batches into per-target batches by resolving scope assets and IPs.
+   * Expands condition batches into per-target batches by resolving scope assets and, for external
+   * injectors, IPs.
    *
-   * <p>Each original batch is duplicated once per in-scope asset and once per in-scope IP. The
+   * <p>Each original batch is duplicated once per in-scope asset and, for external injectors, once
+   * per in-scope manual target (raw IP, including IPv4/IPv6 produced by upstream actions). The
    * target is embedded in the batch {@code inputString} under {@code "_target"} so that {@link
    * #ready} can bake it into the step data for {@link #run} to consume.
+   *
+   * <p>Manual (IP) targets only make sense for external injectors, which can target a raw IP.
+   * Payload-based injects run on an agent/endpoint, so they are expanded per asset only. This
+   * injector-vs-payload decision is owned here (via {@link #hasPayload(Step)}) so callers stay
+   * agnostic.
+   *
+   * @param batches original condition batches to expand
+   * @param workflowRun the running workflow (provides the scope)
+   * @param stepTemplate the step template being expanded (used to detect payload vs injector)
    */
   public List<ConditionService.ExecutionBatch> expandTargetBatches(
-      List<ConditionService.ExecutionBatch> batches, Workflow workflowRun) {
+      List<ConditionService.ExecutionBatch> batches, Workflow workflowRun, Step stepTemplate) {
 
     String workflowId = workflowRun.getId();
     List<Asset> validAssets = scopeService.getValidAssets(workflowId);
-    List<String> validManualTargets = scopeService.getValidManualTargetsFromScope(workflowId);
+
+    // Manual (raw IP) targets — including IPv4/IPv6 produced by upstream actions — only apply to
+    // external injectors. Payload-based injects run on an agent/endpoint, so expand per asset only.
+    List<String> validManualTargets =
+        hasPayload(stepTemplate)
+            ? List.of()
+            : scopeService.getValidManualTargetsFromScopeAndGlobalState(workflowId);
 
     if (validAssets.isEmpty() && validManualTargets.isEmpty()) {
       return batches;
@@ -604,21 +661,44 @@ public class InjectExecutionStep implements ActionStep {
         target.addProperty("assetId", asset.getId());
         expanded.add(
             new ConditionService.ExecutionBatch(
-                addTargetToInput(batch.inputString(), target), batch.usedMappers(), null));
+                addTargetToInput(batch.inputString(), target),
+                batch.usedMappers(),
+                perTargetHash(batch.hash(), asset.getId())));
       }
 
       // One batch per manual data
       Set<String> uniqueManualTargets = new LinkedHashSet<>(validManualTargets);
       for (String manualTarget : uniqueManualTargets) {
+        if (IpAddressUtils.isIpv4Subnet(manualTarget)
+            || IpAddressUtils.isIpv6Subnet(manualTarget)) {
+          continue;
+        }
         JsonObject target = new JsonObject();
         target.addProperty("type", "MANUAL");
         target.addProperty("manual", manualTarget);
         expanded.add(
             new ConditionService.ExecutionBatch(
-                addTargetToInput(batch.inputString(), target), batch.usedMappers(), null));
+                addTargetToInput(batch.inputString(), target),
+                batch.usedMappers(),
+                perTargetHash(batch.hash(), manualTarget)));
       }
     }
     return expanded;
+  }
+
+  /**
+   * Builds a deterministic per-target deduplication hash for an expanded batch by combining the
+   * original combo hash (nullable, for non-mapper batches) with the target identifier (asset ID or
+   * manual target value). This keeps each (mapper combo, target) pair uniquely deduplicated so an
+   * already-executed target is never re-created, while a delayed (rate-limited) sibling target can
+   * still be retried independently.
+   *
+   * @param comboHash original batch hash (may be {@code null} when the batch has no mapper)
+   * @param targetId the target identifier this expanded batch is bound to
+   * @return a non-null hash unique to the (combo, target) pair
+   */
+  private String perTargetHash(String comboHash, String targetId) {
+    return (comboHash != null ? comboHash : "") + ":" + targetId;
   }
 
   /**
@@ -777,14 +857,23 @@ public class InjectExecutionStep implements ActionStep {
       return resolvedCommand;
     }
 
-    for (PayloadArgument arg : args) {
-      if (arg == null || arg.getKey() == null || arg.getKey().isBlank()) {
-        continue;
-      }
-      String value = arg.getDefaultValue() != null ? arg.getDefaultValue() : "";
-      resolvedCommand = resolvedCommand.replace("#{" + arg.getKey() + "}", value);
-    }
-    return resolvedCommand;
+    // Resolve each #{argumentKey} the same way a real execution does (inject content first,
+    // falling back to the payload argument's default value) — see
+    // ExecutableInjectService#resolveArgumentsForDisplay, also used by InjectExecutionResultService
+    // for the live terminal view (#7110). Otherwise the attack-path snapshot freezes the default
+    // value instead of what was actually run.
+    ObjectNode convertedContent = injectorContract.get().getConvertedContent();
+    JsonNode fields = convertedContent == null ? null : convertedContent.get("fields");
+    List<ObjectNode> injectorContractContentFields =
+        fields == null
+            ? List.of()
+            : StreamSupport.stream(fields.spliterator(), false)
+                .map(ObjectNode.class::cast)
+                .toList();
+    ObjectNode injectContent =
+        inject.getContent() != null ? inject.getContent() : JsonNodeFactory.instance.objectNode();
+    return executableInjectService.resolveArgumentsForDisplay(
+        resolvedCommand, args, injectorContractContentFields, injectContent);
   }
 
   /**
@@ -920,10 +1009,9 @@ public class InjectExecutionStep implements ActionStep {
       inject.setContent(contentWithExpectations);
 
       // Apply the per-target info baked in by ready() (asset or IP from scope).
-      // For injector-based steps, expansion set _chaining_target → one asset per step.
-      // For payload-based steps (no expansion), fall back to all scope assets so the
-      // executor can distribute the payload across every scoped endpoint — same behavior
-      // as before expandTargetBatches was introduced.
+      // Expansion sets _chaining_target → one asset per step (external injectors also expand per
+      // manual IP target). If no target was baked in (e.g. no assets in scope), fall back to all
+      // scope assets so the executor can still distribute across every scoped endpoint.
       boolean targetApplied =
           applyChainingTarget(inject, step.getData(), injectorContract.getPayload() == null);
       if (!targetApplied && step.getWorkflow() != null) {
@@ -1029,15 +1117,36 @@ public class InjectExecutionStep implements ActionStep {
    * @param inputValues the source JSON containing the values to map
    */
   private void applyMapping(ObjectNode contentNode, Condition mapping, JsonNode inputValues) {
-    if (mapping.getKeyType() == null) {
-      log.warn("[Chaining] Skipping mapper condition {} because keyType is null", mapping.getId());
-      return;
-    }
-    String inputKey = mapping.getKeyType().name(); // e.g., "IPv4"
     String targetJsonKey = mapping.getKey();
 
-    if (inputValues.has(inputKey)) {
-      contentNode.set(targetJsonKey, inputValues.get(inputKey));
+    // Prefer the value already resolved for this specific mapper during chaining (see
+    // ConditionService#toResolvedMapper). This is required when several mappers share the same
+    // key type(s): looking the value up from `inputValues` by type alone can't tell them apart and
+    // would collapse them onto the same shared source value. Values only known once the batch is
+    // expanded per target (e.g. "_target"-derived fields) are not resolved at that stage, so they
+    // still fall through to the inputValues lookup below.
+    if (targetJsonKey != null && mapping.getValue() != null && !mapping.getValue().isBlank()) {
+      contentNode.set(targetJsonKey, TextNode.valueOf(mapping.getValue()));
+      return;
+    }
+
+    List<String> keyTypes =
+        mapping.getKeyTypes() != null && !mapping.getKeyTypes().isEmpty()
+            ? mapping.getKeyTypes().stream().map(Enum::name).toList()
+            : List.of();
+    if (keyTypes.isEmpty()) {
+      if (mapping.getMappingType() != MappingType.DEFAULT) {
+        log.warn(
+            "[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
+      }
+      return;
+    }
+
+    for (String inputKey : keyTypes) {
+      if (inputValues.has(inputKey)) {
+        contentNode.set(targetJsonKey, inputValues.get(inputKey));
+        return;
+      }
     }
   }
 
@@ -1129,25 +1238,33 @@ public class InjectExecutionStep implements ActionStep {
    * entries returned without an agent_id and only with an asset_id. These entries do not correspond
    * to real executions; they are duplicated information.
    *
-   * @param injectId Inject id
+   * @param inject the inject already loaded by the caller
    * @param output the output list to populate
+   * @return the inject's expectations, so the caller can sync the same verdicts elsewhere without a
+   *     second read
    */
-  private void formatExpectationToOutput(String injectId, List<Map<String, JsonElement>> output) {
-    List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
-    Inject inject = injectService.inject(injectId);
-
+  private List<BaseInjectExpectation> formatExpectationToOutput(
+      Inject inject, List<Map<String, JsonElement>> output) {
+    List<BaseInjectExpectation> expectations =
+        injectExpectationService.findAllByInjectId(inject.getId());
     for (BaseInjectExpectation expectation : expectations) {
       for (InjectExpectationResult result : expectation.getResults()) {
+        if (isTechnicalExpectation(expectation)
+            && (result.getResult() == null || result.getResult().isBlank())) {
+          continue;
+        }
         Map<String, JsonElement> map = getExpectationOutput(expectation, result);
         addEndpointContext(inject, expectation, map);
         output.add(map);
       }
     }
+    return expectations;
+  }
 
-    Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
-        expectationResults =
-            attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
-    attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
+  private static boolean isTechnicalExpectation(BaseInjectExpectation expectation) {
+    return expectation instanceof PreventionInjectExpectation
+        || expectation instanceof DetectionInjectExpectation
+        || expectation instanceof VulnerabilityInjectExpectation;
   }
 
   /**
@@ -1250,7 +1367,7 @@ public class InjectExecutionStep implements ActionStep {
     if (inject.getPayload().isPresent()) {
       Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
       injectorContractContentUtils
-          .getAllContractOutputs(outputParsers)
+          .getAllContractOutputs(outputParsers, false)
           .forEach(
               out ->
                   typeMappings.put(

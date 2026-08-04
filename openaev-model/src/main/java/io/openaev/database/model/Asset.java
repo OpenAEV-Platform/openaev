@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
+import io.openaev.annotation.DomainConstraint;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateIgnore;
@@ -213,6 +214,7 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_seen_ip")
   private String seenIp;
 
+  @DomainConstraint
   @Queryable(filterable = true, sortable = true)
   @Column(name = "asset_hostname")
   @JsonProperty("asset_hostname")

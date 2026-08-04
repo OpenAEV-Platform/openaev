@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
@@ -1089,6 +1090,84 @@ class InjectExpectationServiceTest {
     }
 
     @Test
+    @DisplayName(
+        "Vulnerability display merge drops the expiration manager row when a platform answered")
+    void vulnerabilityDisplayMergeDropsExpirationManagerRowWhenPlatformAnswered() {
+      // Regression: the asset target-results view unions the agent children's collector results
+      // onto the asset expectation. The agents legitimately expire to the vulnerability default
+      // "Not vulnerable" (an agentless scanner never fills them), so the union displayed a
+      // redundant - or contradictory - "Expectations Expiration Manager" row next to the genuine
+      // scan verdict persisted on the asset row.
+      VulnerabilityInjectExpectation assetExpectation = new VulnerabilityInjectExpectation();
+      assetExpectation.setId("asset-expectation");
+      InjectExpectationResult nucleiResult =
+          InjectExpectationResult.builder()
+              .sourceId("nuclei-security-platform")
+              .sourceType("security-platform")
+              .sourceName("Nuclei")
+              .result("Not vulnerable")
+              .score(100.0)
+              .build();
+      assetExpectation.setResults(new ArrayList<>(List.of(nucleiResult)));
+      VulnerabilityInjectExpectation agentExpectation = new VulnerabilityInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      InjectExpectationResult managerResult =
+          InjectExpectationResult.builder()
+              .sourceId(ExpectationsExpirationManagerConfig.COLLECTOR_ID)
+              .sourceType("collector")
+              .sourceName("Expectations Expiration Manager")
+              .result("Not vulnerable")
+              .score(100.0)
+              .build();
+      agentExpectation.setResults(new ArrayList<>(List.of(managerResult)));
+      when(injectExpectationRepository.findAllByInjectAndAsset("inject-id", "asset-id"))
+          .thenReturn(List.of(assetExpectation));
+      when(injectExpectationRepository.findAllAgentExpectationsByInjectAndAsset(
+              "inject-id", "asset-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "parent-id", "ASSETS");
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(nucleiResult), merged.get(0).getResults());
+    }
+
+    @Test
+    @DisplayName(
+        "Vulnerability display merge keeps the expiration manager row when nothing answered")
+    void vulnerabilityDisplayMergeKeepsExpirationManagerRowWhenNothingAnswered() {
+      // When no platform ever answered, the expiration manager row IS the verdict
+      // ("Not vulnerable" by silence) and must stay visible on the asset view.
+      VulnerabilityInjectExpectation assetExpectation = new VulnerabilityInjectExpectation();
+      assetExpectation.setId("asset-expectation");
+      VulnerabilityInjectExpectation agentExpectation = new VulnerabilityInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      InjectExpectationResult managerResult =
+          InjectExpectationResult.builder()
+              .sourceId(ExpectationsExpirationManagerConfig.COLLECTOR_ID)
+              .sourceType("collector")
+              .sourceName("Expectations Expiration Manager")
+              .result("Not vulnerable")
+              .score(100.0)
+              .build();
+      agentExpectation.setResults(new ArrayList<>(List.of(managerResult)));
+      when(injectExpectationRepository.findAllByInjectAndAsset("inject-id", "asset-id"))
+          .thenReturn(List.of(assetExpectation));
+      when(injectExpectationRepository.findAllAgentExpectationsByInjectAndAsset(
+              "inject-id", "asset-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "parent-id", "ASSETS");
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(managerResult), merged.get(0).getResults());
+    }
+
+    @Test
     @DisplayName("Agentless assets keep their own expectation results unchanged")
     void agentlessAssetExpectationsAreReturnedUnchanged() {
       DetectionInjectExpectation assetExpectation = new DetectionInjectExpectation();
@@ -1104,6 +1183,179 @@ class InjectExpectationServiceTest {
               "inject-id", "asset-id", "parent-id", "ASSETS");
 
       assertEquals(List.of(assetExpectation), merged);
+    }
+  }
+
+  @Nested
+  @DisplayName("findMergedExpectationsByInjectAndTargetAndTargetType for asset groups")
+  class AssetGroupSecurityPlatformEnrichmentTests {
+
+    private InjectExpectationResult collectorResult(String result, Double score) {
+      return InjectExpectationResult.builder()
+          .sourceId("collector-1")
+          .sourceType("collector")
+          .sourceName("Microsoft Defender")
+          .result(result)
+          .score(score)
+          .build();
+    }
+
+    private List<? extends BaseInjectExpectation> merge() {
+      return injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+          "inject-id", "group-id", "parent-id", "ASSETS_GROUPS");
+    }
+
+    @Test
+    @DisplayName("Asset-group expectations mirror their children's security-platform results")
+    void assetGroupExpectationsAreEnrichedWithChildrenSecurityPlatformResults() {
+      // Regression (second half of #7147): the collector path writes its per-platform results on
+      // the agent rows only, so the group synthesis row displayed NO security platform at all
+      // while every underlying asset showed e.g. "Microsoft Defender - Not Prevented".
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      DetectionInjectExpectation agentExpectation = new DetectionInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      InjectExpectationResult defenderResult = collectorResult("Not Detected", 0.0);
+      agentExpectation.setResults(new ArrayList<>(List.of(defenderResult)));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(defenderResult), merged.get(0).getResults());
+      // The enrichment must stay display-only: the persistent entity is untouched.
+      assertTrue(groupExpectation.getResults().isEmpty());
+    }
+
+    @Test
+    @DisplayName("A platform's group row keeps its worst verdict under the default all-assets rule")
+    void assetGroupPlatformRowKeepsWorstVerdictUnderAllAssetsRule() {
+      // Default validation rule ("all assets must validate"): one missed asset fails the group,
+      // so the platform's overall verdict is its worst result across the group's children.
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      groupExpectation.setExpectationGroup(false);
+      groupExpectation.setExpectedScore(100.0);
+      DetectionInjectExpectation detectedChild = new DetectionInjectExpectation();
+      detectedChild.setId("agent-detected");
+      detectedChild.setResults(new ArrayList<>(List.of(collectorResult("Detected", 100.0))));
+      DetectionInjectExpectation missedChild = new DetectionInjectExpectation();
+      missedChild.setId("agent-missed");
+      InjectExpectationResult missedResult = collectorResult("Not Detected", 0.0);
+      missedChild.setResults(new ArrayList<>(List.of(missedResult)));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(detectedChild, missedChild));
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(missedResult), merged.get(0).getResults());
+    }
+
+    @Test
+    @DisplayName("A platform's group row keeps its best verdict under the at-least-one rule")
+    void assetGroupPlatformRowKeepsBestVerdictUnderAtLeastOneRule() {
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      groupExpectation.setExpectationGroup(true);
+      groupExpectation.setExpectedScore(100.0);
+      DetectionInjectExpectation detectedChild = new DetectionInjectExpectation();
+      detectedChild.setId("agent-detected");
+      InjectExpectationResult detectedResult = collectorResult("Detected", 100.0);
+      detectedChild.setResults(new ArrayList<>(List.of(detectedResult)));
+      DetectionInjectExpectation missedChild = new DetectionInjectExpectation();
+      missedChild.setId("agent-missed");
+      missedChild.setResults(new ArrayList<>(List.of(collectorResult("Not Detected", 0.0))));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(detectedChild, missedChild));
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(detectedResult), merged.get(0).getResults());
+    }
+
+    @Test
+    @DisplayName("An answered child result beats a pending one for the same platform")
+    void answeredChildResultBeatsPendingOne() {
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      groupExpectation.setExpectationGroup(false);
+      DetectionInjectExpectation pendingChild = new DetectionInjectExpectation();
+      pendingChild.setId("agent-pending");
+      pendingChild.setResults(new ArrayList<>(List.of(collectorResult(null, null))));
+      DetectionInjectExpectation answeredChild = new DetectionInjectExpectation();
+      answeredChild.setId("agent-answered");
+      InjectExpectationResult answeredResult = collectorResult("Not Detected", 0.0);
+      answeredChild.setResults(new ArrayList<>(List.of(answeredResult)));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(pendingChild, answeredChild));
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(answeredResult), merged.get(0).getResults());
+    }
+
+    @Test
+    @DisplayName("A direct result persisted on the group row itself stays visible")
+    void directGroupResultStaysVisible() {
+      // Assessment injectors (e.g. Nuclei) write their verdict directly on the group row: the
+      // display union must keep it next to the children's platforms.
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      InjectExpectationResult directResult =
+          InjectExpectationResult.builder()
+              .sourceId("nuclei-security-platform")
+              .sourceType("security-platform")
+              .sourceName("Nuclei")
+              .result("Detected")
+              .score(100.0)
+              .build();
+      groupExpectation.setResults(new ArrayList<>(List.of(directResult)));
+      DetectionInjectExpectation agentExpectation = new DetectionInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      InjectExpectationResult defenderResult = collectorResult("Not Detected", 0.0);
+      agentExpectation.setResults(new ArrayList<>(List.of(defenderResult)));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(defenderResult, directResult), merged.get(0).getResults());
+    }
+
+    @Test
+    @DisplayName("Asset groups without children rows are returned unchanged")
+    void assetGroupsWithoutChildrenAreReturnedUnchanged() {
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of());
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(List.of(groupExpectation), merged);
     }
   }
 }

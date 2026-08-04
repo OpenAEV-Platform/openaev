@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
 import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.EXPECTATIONS_VULNERABILITY_COLLECTOR_ID;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
@@ -24,6 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.WorkflowUpdateEvent;
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -59,6 +61,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -1267,7 +1270,10 @@ public class InjectExpectationService {
                 targetId,
                 injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId));
         case ASSETS_GROUPS ->
-            injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId);
+            enrichAssetGroupExpectationsWithChildrenSecurityPlatforms(
+                injectId,
+                targetId,
+                injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId));
         default ->
             throw new RuntimeException(
                 "Target type "
@@ -1302,22 +1308,81 @@ public class InjectExpectationService {
       // Agentless asset (AI target, agentless endpoint): the asset expectation is filled directly.
       return assetExpectations;
     }
+    return enrichExpectationsWithChildrenSecurityPlatforms(
+        assetExpectations,
+        agentExpectations,
+        // Prefer an answered result over a pending one for the same source.
+        expectation ->
+            (existing, candidate) -> existing.getResult() != null ? existing : candidate);
+  }
+
+  /**
+   * Makes the asset-group target-results view show the security platforms of its underlying assets.
+   * Asset-group detection/prevention expectations are scored by rolling up their asset children
+   * and, on the collector path, never carry the per-security-platform result rows that the agent /
+   * asset expectations hold (only direct writes - e.g. an assessment injector like Nuclei
+   * concluding the group row itself - do). For display we merge, per expectation type, the union of
+   * the children's (agent and asset levels) security-platform results onto a DETACHED clone of each
+   * group expectation, so the change never persists. Per platform, the displayed result reflects
+   * the platform's overall verdict under the group's validation rule (see {@link
+   * #pickGroupPlatformVerdict}). Groups without children rows are returned unchanged.
+   *
+   * @param injectId the inject ID
+   * @param assetGroupId the asset group ID
+   * @param assetGroupExpectations the group-level expectations for the inject
+   * @return detached group expectations enriched with their children's security-platform results
+   */
+  private List<BaseInjectExpectation> enrichAssetGroupExpectationsWithChildrenSecurityPlatforms(
+      final String injectId,
+      final String assetGroupId,
+      final List<BaseInjectExpectation> assetGroupExpectations) {
+    List<BaseInjectExpectation> childExpectations =
+        injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+            injectId, assetGroupId);
+    if (childExpectations.isEmpty()) {
+      return assetGroupExpectations;
+    }
+    return enrichExpectationsWithChildrenSecurityPlatforms(
+        assetGroupExpectations,
+        childExpectations,
+        expectation ->
+            (existing, candidate) -> pickGroupPlatformVerdict(expectation, existing, candidate));
+  }
+
+  /**
+   * Merges the children's security-platform (collector) results onto a DETACHED clone of each
+   * parent expectation of the same type, de-duplicated by source. The parent's OWN direct results
+   * (e.g. a security platform that answered the parent level directly) are kept in the union: a
+   * result persisted on the row must stay visible, silently dropping it would hide what drove the
+   * score. Display-only: the persistent entities are never modified.
+   *
+   * @param parentExpectations the parent expectations to enrich (asset or asset-group level)
+   * @param childExpectations the children carrying the security-platform results
+   * @param mergePreferenceFor picks, per parent expectation, which of two results of the same
+   *     source the merged view keeps
+   * @return detached parent expectations enriched with their children's security-platform results
+   */
+  private static List<BaseInjectExpectation> enrichExpectationsWithChildrenSecurityPlatforms(
+      final List<BaseInjectExpectation> parentExpectations,
+      final List<BaseInjectExpectation> childExpectations,
+      final Function<BaseInjectExpectation, BinaryOperator<InjectExpectationResult>>
+          mergePreferenceFor) {
     // Union of security-platform / collector results per expectation type, de-duplicated by source.
     Map<BaseInjectExpectation.EXPECTATION_TYPE, List<InjectExpectationResult>> resultsByType =
         new HashMap<>();
-    for (BaseInjectExpectation agentExpectation : agentExpectations) {
+    for (BaseInjectExpectation childExpectation : childExpectations) {
       List<InjectExpectationResult> platformResults =
-          agentExpectation.getResults().stream()
+          childExpectation.getResults().stream()
               .filter(
                   r ->
                       COLLECTOR.equals(r.getSourceType())
                           || SECURITY_PLATFORM.equals(r.getSourceType()))
               .toList();
       resultsByType
-          .computeIfAbsent(agentExpectation.getType(), k -> new ArrayList<>())
+          .computeIfAbsent(childExpectation.getType(), k -> new ArrayList<>())
           .addAll(platformResults);
     }
-    return assetExpectations.stream()
+    return parentExpectations.stream()
         .map(
             expectation -> {
               List<InjectExpectationResult> platformResults =
@@ -1326,10 +1391,10 @@ public class InjectExpectationService {
                 return expectation;
               }
               BaseInjectExpectation clone = expectation.clone();
+              BinaryOperator<InjectExpectationResult> mergePreference =
+                  mergePreferenceFor.apply(expectation);
               Map<String, InjectExpectationResult> bySource = new LinkedHashMap<>();
-              // Agents' results first, then the asset expectation's OWN direct results (e.g. a
-              // security platform that answered the asset level directly): a result persisted on
-              // the row must stay visible, silently dropping it would hide what drove the score.
+              // Children's results first, then the parent expectation's OWN direct results.
               Stream.concat(
                       platformResults.stream(),
                       expectation.getResults().stream()
@@ -1337,19 +1402,82 @@ public class InjectExpectationService {
                               r ->
                                   COLLECTOR.equals(r.getSourceType())
                                       || SECURITY_PLATFORM.equals(r.getSourceType())))
-                  .forEach(
-                      r ->
-                          bySource.merge(
-                              r.getSourceId() == null ? r.getSourceName() : r.getSourceId(),
-                              r,
-                              (existing, candidate) ->
-                                  // Prefer an answered result over a pending one for the same
-                                  // source.
-                                  existing.getResult() != null ? existing : candidate));
+                  .forEach(r -> bySource.merge(mergeSourceKey(r), r, mergePreference));
+              // A VULNERABILITY row a genuine platform already answered needs no expiration entry
+              // in the merged display either: the union pulls the children's expiration rows (the
+              // vulnerability default "Not vulnerable") onto the parent view, where they render as
+              // redundant - or contradictory - entries next to the real scan verdict. Same rule as
+              // the write path (InjectExpectationUtils.computeScores): the expiration default is
+              // the absence-of-signal fallback, a real answer supersedes it.
+              if (BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.equals(
+                  expectation.getType())) {
+                boolean hasGenuineAnswer =
+                    bySource.values().stream()
+                        .anyMatch(
+                            r ->
+                                !ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
+                                        r.getSourceId())
+                                    && r.getResult() != null
+                                    && !r.getResult().isBlank()
+                                    && !EXPIRED.equals(r.getResult()));
+                if (hasGenuineAnswer) {
+                  bySource
+                      .values()
+                      .removeIf(
+                          r ->
+                              ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
+                                  r.getSourceId()));
+                }
+              }
               clone.setResults(new ArrayList<>(bySource.values()));
               return clone;
             })
         .toList();
+  }
+
+  /**
+   * Per-platform verdict aggregation for the asset-group view: the same security platform typically
+   * answered several assets of the group with different verdicts (e.g. detected on one endpoint,
+   * missed on another). The displayed row must reflect the platform's OVERALL verdict under the
+   * group's validation rule: with the default "all assets must validate" rule one failure fails the
+   * platform overall (keep the worst-scored result), with the "at least one asset" rule one success
+   * validates it (keep the best-scored result). An answered result always beats a pending one.
+   *
+   * @param groupExpectation the group expectation whose validation rule drives the choice
+   * @param existing the result currently kept for this source
+   * @param candidate the competing result of the same source
+   * @return the result the merged view keeps
+   */
+  private static InjectExpectationResult pickGroupPlatformVerdict(
+      final BaseInjectExpectation groupExpectation,
+      final InjectExpectationResult existing,
+      final InjectExpectationResult candidate) {
+    boolean existingAnswered = isAnsweredResult(existing);
+    boolean candidateAnswered = isAnsweredResult(candidate);
+    if (existingAnswered != candidateAnswered) {
+      return existingAnswered ? existing : candidate;
+    }
+    Double existingScore = existing.getScore();
+    Double candidateScore = candidate.getScore();
+    if (existingScore == null || candidateScore == null) {
+      return existing;
+    }
+    if (groupExpectation.isExpectationGroup()) {
+      return candidateScore > existingScore ? candidate : existing;
+    }
+    return candidateScore < existingScore ? candidate : existing;
+  }
+
+  private static boolean isAnsweredResult(final InjectExpectationResult result) {
+    return result.getResult() != null && !result.getResult().isBlank();
+  }
+
+  private static String mergeSourceKey(InjectExpectationResult result) {
+    if (result.getSourceId() != null && !result.getSourceId().isBlank()) {
+      return result.getSourceId();
+    }
+    // Legacy-read compatibility only: old rows may miss sourceId.
+    return result.getSourceName();
   }
 
   /**

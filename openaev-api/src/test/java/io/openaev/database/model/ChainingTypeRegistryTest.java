@@ -17,6 +17,10 @@ class ChainingTypeRegistryTest {
             ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.IPv4).kind())
         .isEqualTo(ChainingTypeKind.PRIMITIVE);
     assertThat(
+            ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.ActionOutput)
+                .kind())
+        .isEqualTo(ChainingTypeKind.PRIMITIVE);
+    assertThat(
             ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Credentials)
                 .kind())
         .isEqualTo(ChainingTypeKind.COMPLEX);
@@ -39,6 +43,7 @@ class ChainingTypeRegistryTest {
             PrimitiveType.IpSubnet,
             PrimitiveType.TargetedAsset,
             PrimitiveType.Document,
+            PrimitiveType.ActionOutput,
             PrimitiveType.AssetId,
             PrimitiveType.AssetGroupId);
   }
@@ -109,6 +114,25 @@ class ChainingTypeRegistryTest {
         ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Credentials);
     assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.COMPLEX);
     assertThat(mapped.origin()).isEqualTo(ContractOutputType.Credentials);
+  }
+
+  @Test
+  @DisplayName(
+      "File is a complex type whose sub-fields resolve to primitives, incl. share -> ShareName")
+  void given_file_should_beComplexWithSubFieldPrimitives() {
+    ChainingMappedType mapped =
+        ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.File);
+    assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.COMPLEX);
+    assertThat(mapped.origin()).isEqualTo(ContractOutputType.File);
+
+    assertThat(
+            ChainingTypeRegistry.resolveComplexFieldPrimitive(ContractOutputType.File, "file_name"))
+        .isEqualTo(Optional.of(PrimitiveType.FileName));
+    assertThat(ChainingTypeRegistry.resolveComplexFieldPrimitive(ContractOutputType.File, "path"))
+        .isEqualTo(Optional.of(PrimitiveType.FilePath));
+    // A file discovered on a share exposes its share name as ShareName, so it links to the share.
+    assertThat(ChainingTypeRegistry.resolveComplexFieldPrimitive(ContractOutputType.File, "share"))
+        .isEqualTo(Optional.of(PrimitiveType.ShareName));
   }
 
   @Test

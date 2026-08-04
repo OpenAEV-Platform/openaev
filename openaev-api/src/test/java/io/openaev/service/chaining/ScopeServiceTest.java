@@ -24,6 +24,7 @@ class ScopeServiceTest {
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private AssetService assetService;
   @Mock private AssetGroupService assetGroupService;
+  @Mock private WorkflowStateService workflowStateService;
 
   @InjectMocks private ScopeService scopeService;
 
@@ -214,5 +215,57 @@ class ScopeServiceTest {
 
     assertThat(result).containsExactlyInAnyOrder(other1, other2);
     assertThat(result).doesNotContain(targeted);
+  }
+
+  @Test
+  @DisplayName("Allowlisted IPv4 subnet is expanded to host IP targets")
+  void givenAllowlistedSubnet_whenResolvingManualTargets_thenExpandsToHostIps() {
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(List.of(allowlistRule(ScopeRuleValueType.IP_SUBNET, "192.168.10.0/26")));
+
+    List<String> result = scopeService.getValidManualTargetsFromScopeAndGlobalState(WORKFLOW_ID);
+
+    assertThat(result).hasSize(62);
+    assertThat(result).contains("192.168.10.1", "192.168.10.62");
+    assertThat(result).doesNotContain("192.168.10.0", "192.168.10.63");
+  }
+
+  @Test
+  @DisplayName("Allowlisted subnet broader than /24 is ignored for manual target expansion")
+  void givenAllowlistedSlash18Subnet_whenResolvingManualTargets_thenNoExpansionIsApplied() {
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(List.of(allowlistRule(ScopeRuleValueType.IP_SUBNET, "67.205.128.0/18")));
+
+    List<String> result = scopeService.getValidManualTargetsFromScopeAndGlobalState(WORKFLOW_ID);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Denylisted IP is removed from an expanded subnet")
+  void givenDenylistedIp_whenResolvingExpandedSubnet_thenIpIsExcluded() {
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(
+            List.of(
+                allowlistRule(ScopeRuleValueType.IP_SUBNET, "192.168.10.0/30"),
+                denylistRule(ScopeRuleValueType.IP, "192.168.10.2")));
+
+    List<String> result = scopeService.getValidManualTargetsFromScopeAndGlobalState(WORKFLOW_ID);
+
+    assertThat(result).containsExactly("192.168.10.1");
+  }
+
+  @Test
+  @DisplayName("Denylisted subnet removes matching hosts from expanded allowlisted subnet")
+  void givenDenylistedSubnet_whenResolvingExpandedSubnet_thenMatchingHostsAreExcluded() {
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(
+            List.of(
+                allowlistRule(ScopeRuleValueType.IP_SUBNET, "192.168.10.0/29"),
+                denylistRule(ScopeRuleValueType.IP_SUBNET, "192.168.10.4/30")));
+
+    List<String> result = scopeService.getValidManualTargetsFromScopeAndGlobalState(WORKFLOW_ID);
+
+    assertThat(result).containsExactly("192.168.10.1", "192.168.10.2", "192.168.10.3");
   }
 }

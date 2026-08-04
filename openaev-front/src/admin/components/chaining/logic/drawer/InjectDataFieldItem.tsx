@@ -2,29 +2,33 @@ import { KeyboardArrowDown, LinkOff, LinkOutlined } from '@mui/icons-material';
 import {
   Box,
   Button,
+  ClickAwayListener,
   FormControl,
   IconButton,
   InputLabel,
-  Menu,
   MenuItem,
+  Paper,
+  Popper,
   Select,
   Switch,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { type FunctionComponent, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 
+import AutocompleteField from '../../../../../components/fields/AutocompleteField';
 import { useFormatter } from '../../../../../components/i18n';
 import { formatPrimitiveTypeLabel } from '../../../../../utils/String';
 import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 
 export interface FieldLink {
-  outputType: string;
+  outputTypes: string[];
   localScope: boolean;
 }
 
 interface Props {
+  panelOpen?: boolean;
   fieldKey: string;
   fieldLabel: string;
   value: string;
@@ -40,10 +44,10 @@ interface Props {
 }
 
 const InjectDataFieldItem: FunctionComponent<Props> = ({
+  panelOpen = true,
   fieldKey,
   fieldLabel,
   value,
-  defaultValue,
   link,
   readOnly = false,
   noLink = false,
@@ -56,27 +60,69 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const { argumentTypes } = useArgumentTypes();
 
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  // Stable anchor that persists across the "Link an Output" <-> "Edit links" transition:
+  // those are two different DOM elements (mounted conditionally on `link`), so anchoring
+  // the Popper directly to the clicked button leaves it pointing at a now-detached node
+  // once the link state changes (e.g. right after the first selection), causing the
+  // Popper to collapse to the top-left corner of the screen.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [typeSelectorAnchorEl, setTypeSelectorAnchorEl] = useState<HTMLElement | null>(null);
+  const isTypeSelectorOpen = Boolean(typeSelectorAnchorEl);
+  // Mounting the inner Autocomplete (and its autoFocus) in the same tick as the outer
+  // Popper would make it compute its position before the outer Popper has settled,
+  // making the listbox jump to the top-left corner on first open. Delaying its mount
+  // by a couple of frames lets the outer Popper finish positioning first.
+  const [selectorReady, setSelectorReady] = useState(false);
 
   const menuItems = useMemo(
     () => (argumentTypes.length > 0 ? argumentTypes : ['text']),
     [argumentTypes],
   );
 
-  const handleCloseMenu = () => {
-    setMenuAnchor(null);
+  const normalizedLinkOutputTypes = useMemo(() => {
+    if (!link) return [];
+    return link.outputTypes ?? [];
+  }, [link]);
+
+  const openTypeSelector = () => setTypeSelectorAnchorEl(containerRef.current);
+  const closeTypeSelector = () => setTypeSelectorAnchorEl(null);
+
+  const handleOutputTypesChange = (nextOutputTypes: string[]) => {
+    if (nextOutputTypes.length === 0) {
+      onUnlink(fieldKey);
+      return;
+    }
+
+    onLink(fieldKey, {
+      outputTypes: nextOutputTypes,
+      localScope: link?.localScope ?? false,
+    });
   };
 
-  const handleSelectType = (outputType: string) => {
-    onLink(fieldKey, {
-      outputType,
-      localScope: false,
+  useEffect(() => {
+    if (!panelOpen) {
+      closeTypeSelector();
+    }
+  }, [panelOpen]);
+
+  useEffect(() => {
+    if (!isTypeSelectorOpen) {
+      setSelectorReady(false);
+      return undefined;
+    }
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setSelectorReady(true));
     });
-    handleCloseMenu();
-  };
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [isTypeSelectorOpen]);
 
   return (
     <Box
+      ref={containerRef}
       sx={{
         backgroundColor: 'background.paper',
         borderRadius: 1,
@@ -102,15 +148,10 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
             <Typography variant="body2" fontWeight={600}>
               {fieldLabel}
             </Typography>
-            {defaultValue && (
-              <Typography variant="body2" color="text.secondary">
-                {`(default: ${defaultValue})`}
-              </Typography>
-            )}
             <Typography variant="body2" color="text.secondary">-</Typography>
             <LinkOutlined fontSize="small" color="primary" />
             <Typography variant="body2" color="primary">
-              {t(formatPrimitiveTypeLabel(link.outputType))}
+              {normalizedLinkOutputTypes.map(type => t(formatPrimitiveTypeLabel(type))).join(', ')}
             </Typography>
           </Box>
 
@@ -131,6 +172,15 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                 <Typography variant="caption" color="text.secondary">
                   {t('Limit to Local Scope')}
                 </Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  color="primary"
+                  endIcon={<KeyboardArrowDown />}
+                  onClick={openTypeSelector}
+                >
+                  {t('Edit links')}
+                </Button>
                 <Tooltip title={t('Unlink')}>
                   <IconButton
                     size="small"
@@ -145,8 +195,12 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
         </Box>
       )}
 
-      {/* Default value input + Link button: only when no link */}
-      {!link && (
+      {/* Default value input + Link button: shown when there's no link, or when a
+          defined value is already set on a linked field (so it stays editable and can
+          still be used as an extra combination candidate alongside the linked type's
+          resolved pool). Linked fields with no defined value keep the old, collapsed
+          look (just the "(default: ...)" label above). */}
+      {(!link || value) && (
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
@@ -184,13 +238,13 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                   onChange={e => onValueChange(fieldKey, e.target.value)}
                 />
               )}
-          {!noLink && (
+          {!link && !noLink && (
             <Button
               size="small"
               variant="text"
               color="primary"
               endIcon={<KeyboardArrowDown />}
-              onClick={event => setMenuAnchor(event.currentTarget)}
+              onClick={openTypeSelector}
               sx={{
                 whiteSpace: 'nowrap',
                 textTransform: 'none',
@@ -203,23 +257,44 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
         </Box>
       )}
 
-      <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={handleCloseMenu}
+      <Popper
+        open={isTypeSelectorOpen}
+        anchorEl={typeSelectorAnchorEl}
+        placement="bottom-end"
+        sx={{
+          zIndex: 1300,
+          width: 320,
+        }}
       >
-        {menuItems.map(item => (
-          <MenuItem
-            key={item}
-            onClick={() => handleSelectType(item)}
-            dense
-            sx={{ gap: 1 }}
+        <ClickAwayListener onClickAway={closeTypeSelector}>
+          <Paper
+            elevation={4}
+            sx={{
+              p: 1.5,
+              minHeight: 56,
+            }}
           >
-            <LinkOutlined fontSize="small" color="primary" />
-            {t(formatPrimitiveTypeLabel(item))}
-          </MenuItem>
-        ))}
-      </Menu>
+            {selectorReady && (
+              <AutocompleteField
+                autoFocus
+                label={t('Primitive types')}
+                variant="standard"
+                multiple
+                disableCloseOnSelect
+                disableOptionTooltip
+                options={menuItems.map(type => ({
+                  id: type,
+                  label: t(formatPrimitiveTypeLabel(type)),
+                }))}
+                value={normalizedLinkOutputTypes.filter(type => menuItems.includes(type))}
+                onInputChange={() => {
+                }}
+                onChange={handleOutputTypesChange}
+              />
+            )}
+          </Paper>
+        </ClickAwayListener>
+      </Popper>
     </Box>
   );
 };

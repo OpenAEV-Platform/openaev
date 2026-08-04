@@ -73,6 +73,17 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.mitigation.MitigationApi#updateMitigation",
           "io.openaev.rest.mitigation.MitigationApi#upsertMitigation",
           "io.openaev.rest.mitigation.MitigationApi#deleteMitigation",
+          // attackpath_execution / attackpath_finding (v2): every read of the projection, including
+          // the delta cursor added with the real-time updates (#6647, spec 002). Losing the TxCtx
+          // on
+          // one of these would not fail loudly — the reads would simply return zero rows.
+          "io.openaev.api.attackpath.AttackPathApi#graph",
+          "io.openaev.api.attackpath.AttackPathApi#graphDelta",
+          "io.openaev.api.attackpath.AttackPathApi#simulations",
+          "io.openaev.api.attackpath.AttackPathApi#expandEndpointFindings",
+          "io.openaev.api.attackpath.AttackPathApi#relations",
+          "io.openaev.api.attackpath.AttackPathApi#findings",
+          "io.openaev.api.attackpath.AttackPathApi#executionDetail",
           // collectors: all read/write endpoints wired with TxCtx
           "io.openaev.rest.collector.CollectorApi#collectors",
           "io.openaev.rest.collector.CollectorApi#getCollector",
@@ -109,7 +120,13 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // guard, #7014); the update endpoints attach collector-sourced results. Both overloads
           // of updateInjectExpectation are covered by the single name entry.
           "io.openaev.rest.expectation.ExpectationApi#getAiDefenseExpectationsNotFilledForSource",
-          "io.openaev.rest.expectation.ExpectationApi#updateInjectExpectation");
+          "io.openaev.rest.expectation.ExpectationApi#updateInjectExpectation",
+          // security platforms: serialize the collectors association (tenant-active table) so the
+          // UI can keep collector-managed platforms read-only (#7025). Both overloads of
+          // securityPlatforms (GET list and POST search) are covered by the single name entry.
+          "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#securityPlatforms",
+          "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#securityPlatform",
+          "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#updateSecurityPlatform");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

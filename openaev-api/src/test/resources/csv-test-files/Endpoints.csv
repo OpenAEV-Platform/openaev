@@ -1,2 +1,2 @@
 "name","description","hostname","ips","platform","arch","macAddresses","tags"
-"titi","desc","pc de michel","[""1.1.1.1"",""2.2.2.2""]","Windows","x86_64","[""aa:aa:aa:aa:aa:aa"",""bb:bb:bb:bb:bb:bb""]","[{""tag_name"":""ransomware"",""tag_color"":""#8fd671""}]"
+"titi","desc","pc-de-michel","[""1.1.1.1"",""2.2.2.2""]","Windows","x86_64","[""aa:aa:aa:aa:aa:aa"",""bb:bb:bb:bb:bb:bb""]","[{""tag_name"":""ransomware"",""tag_color"":""#8fd671""}]"

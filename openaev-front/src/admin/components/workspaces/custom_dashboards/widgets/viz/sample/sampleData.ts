@@ -160,6 +160,14 @@ export const sampleExposureSeries: EsSeries[] = [
       bucket('VULNERABILITY', 17),
     ],
   },
+  {
+    label: 'PENDING',
+    data: [
+      bucket('PREVENTION', 6),
+      bucket('DETECTION', 9),
+      bucket('VULNERABILITY', 4),
+    ],
+  },
 ];
 
 // -- POSTURE RADAR (2 series SUCCESS / FAILED over a structural field) --

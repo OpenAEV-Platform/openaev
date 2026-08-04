@@ -8,7 +8,6 @@ import {
 } from '../../../../../actions/chaining/chaining-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import type {
-  ConditionCreateInput,
   InjectInput,
   PayloadSimple,
   ScopeAssetOutput,
@@ -18,11 +17,13 @@ import { MESSAGING$ } from '../../../../../utils/Environment';
 import AddActionList from '../drawer/AddActionList';
 import AddComponentDrawer from '../drawer/AddComponentDrawer';
 import ConfigureActionDetail from '../drawer/ConfigureActionDetail';
+import { mapFieldLinksToStepConditions } from '../drawer/ConfigureActionDetail.utils';
 import ConfigureEventDetail from '../events/ConfigureEventDetail';
 import {
   conditionGroupsToApi,
   type EventFormData,
 } from '../events/event-types';
+import { resolveConditionKeyTypes } from '../logic-flow-helpers';
 import type { ActionDetailData, ActionMeta, EventMeta } from '../types';
 
 export type DrawerView = 'closed' | 'choose' | 'action' | 'actionDetail' | 'event';
@@ -53,6 +54,8 @@ interface ChainingFlowConfigurationProps {
   eventCount: number;
   /** When set, the action list opens pre-filtered to actions that produce this output type. */
   compatibleActionFilter?: string;
+  /** When set, newly created actions are linked to this event (added via the event node "+"). */
+  linkToEventId?: string;
 }
 
 const ChainingFlowConfiguration = ({
@@ -68,6 +71,7 @@ const ChainingFlowConfiguration = ({
   onEventCreated,
   eventCount,
   compatibleActionFilter,
+  linkToEventId,
 }: ChainingFlowConfigurationProps) => {
   const { t } = useFormatter();
 
@@ -104,15 +108,25 @@ const ChainingFlowConfiguration = ({
 
     if (meta.step_conditions) {
       const links: Record<string, {
-        outputType: string;
+        outputTypes: string[];
         localScope: boolean;
       }> = {};
       for (const cond of meta.step_conditions) {
         if (cond.condition_key) {
+          const outputTypes = resolveConditionKeyTypes(cond as unknown as Record<string, unknown>);
           links[cond.condition_key] = {
-            outputType: cond.condition_key_type ?? 'text',
+            outputTypes,
             localScope: cond.condition_mapping_type === 'LOCAL',
           };
+          // Restore the MAPPER condition's own defined value into the editable field so
+          // reopening a linked field for edit shows the value that's actually persisted
+          // (and used as an extra combination candidate), not a stale inject_content value.
+          if (cond.condition_value != null && cond.condition_value !== '') {
+            initialData.inject_content = {
+              ...initialData.inject_content,
+              [cond.condition_key]: cond.condition_value,
+            };
+          }
         }
       }
       initialData.inject_field_links = links;
@@ -152,9 +166,11 @@ const ChainingFlowConfiguration = ({
         ?? action.action_labels?.fr
         ?? 'Untitled action';
 
+      // No step_conditions: the backend applies the contract auto-links.
       return createStep({
         step_workflow_id: workflowId,
         step_action: 'INJECT_EXECUTION' as const,
+        step_condition_ids: linkToEventId ? [linkToEventId] : [],
         step_data_step: {
           inject_title: title,
           inject_injector_contract: action.injector_contract_id,
@@ -198,21 +214,14 @@ const ChainingFlowConfiguration = ({
   const handleSaveActionDetail = async (data: ActionDetailData) => {
     if (!workflowId) return;
 
-    const stepConditions: ConditionCreateInput[] = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => {
-      return {
-        condition_temporary_id: String(i),
-        condition_type: 'MAPPER' as const,
-        condition_key_type: link.outputType as ConditionCreateInput['condition_key_type'],
-        condition_key: fieldKey,
-        condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as ConditionCreateInput['condition_mapping_type'],
-      };
-    });
+    // Always sent, even empty: it tells the backend not to re-apply the contract auto-links.
+    const stepConditions = mapFieldLinksToStepConditions(data);
 
     const stepPayload = {
       step_workflow_id: workflowId,
       step_action: 'INJECT_EXECUTION' as const,
-      step_condition_ids: editingStep?.meta.step_condition_ids ?? [],
-      step_conditions: stepConditions.length > 0 ? stepConditions : undefined,
+      step_condition_ids: editingStep?.meta.step_condition_ids ?? (linkToEventId ? [linkToEventId] : []),
+      step_conditions: stepConditions,
       step_data_step: {
         inject_title: data.inject_title,
         inject_injector_contract: data.inject_injector_contract,

@@ -25,6 +25,8 @@ import io.openaev.database.model.UserScoped;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
+import io.openaev.service.attackpath.AttackPathAccessControl;
+import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
 import io.openaev.service.utils.BulkOperationMonitor;
 import java.time.Duration;
 import java.time.Instant;
@@ -57,6 +59,7 @@ public class StreamApi extends RestBehavior {
   public static final String EVENT_TYPE_MESSAGE = "message";
   public static final String EVENT_TYPE_PING = "ping";
   public static final String EVENT_TYPE_BULK_OPERATION = "bulk-operation";
+  public static final String EVENT_TYPE_ATTACK_PATH_VERSION = "attack-path-version";
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
 
   // Mutated from several threads: SSE connect (request thread), disconnect (reactor
@@ -85,6 +88,7 @@ public class StreamApi extends RestBehavior {
 
   private final PermissionService permissionService;
   private final UserService userService;
+  private final AttackPathAccessControl attackPathAccessControl;
 
   private Instant lastUpdate = Instant.now();
 
@@ -93,8 +97,22 @@ public class StreamApi extends RestBehavior {
 
   private record CachedUser(User user, Instant fetchedAt) {}
 
+  /**
+   * A cached decision. {@code checkId} identifies the predicate that produced it, so two listeners
+   * asking different questions about the same resource can never reuse each other's answer: the
+   * attack-path gate accepts synthetic seed ids unconditionally, and without this discriminator
+   * that "yes" could be replayed by the generic entity path, which delivers the full serialized
+   * entity.
+   */
   private record PermissionCacheKey(
-      String principalId, String resourceId, ResourceType resourceType, String tenantId) {}
+      String principalId,
+      String resourceId,
+      ResourceType resourceType,
+      String tenantId,
+      String checkId) {}
+
+  private static final String CHECK_ENTITY_EVENT = "entity-event";
+  private static final String CHECK_ATTACK_PATH = "attack-path";
 
   /**
    * Resolves the per-event READ permission through the short-lived decision cache. Must be called
@@ -103,23 +121,40 @@ public class StreamApi extends RestBehavior {
    * resolution per event per consumer.
    */
   private boolean hasReadPermission(StreamConsumer consumer, User user, BaseEvent event) {
+    return hasReadPermission(
+        consumer,
+        event.getInstance().getId(),
+        event.getInstance().getResourceType(),
+        CHECK_ENTITY_EVENT,
+        () ->
+            permissionService.hasPermission(
+                user,
+                Optional.empty(),
+                event.getInstance().getId(),
+                event.getInstance().getResourceType(),
+                Action.READ));
+  }
+
+  /**
+   * The cached decision path, independent of {@link BaseEvent}: callers that broadcast a plain
+   * notification (no entity to derive a resource from) supply the resource identity and the check
+   * to run on a miss. Same cache, so a consumer's decision is resolved once per TTL whichever
+   * listener asks — the constraint that made the per-event checks affordable at all (#6868).
+   */
+  private boolean hasReadPermission(
+      StreamConsumer consumer,
+      String resourceId,
+      ResourceType resourceType,
+      String checkId,
+      java.util.function.BooleanSupplier check) {
     PermissionCacheKey key =
         new PermissionCacheKey(
-            consumer.principal().getId(),
-            event.getInstance().getId(),
-            event.getInstance().getResourceType(),
-            consumer.tenantId());
+            consumer.principal().getId(), resourceId, resourceType, consumer.tenantId(), checkId);
     Boolean cached = permissionDecisionCache.getIfPresent(key);
     if (cached != null) {
       return cached;
     }
-    boolean allowed =
-        permissionService.hasPermission(
-            user,
-            Optional.empty(),
-            event.getInstance().getId(),
-            event.getInstance().getResourceType(),
-            Action.READ);
+    boolean allowed = check.getAsBoolean();
     permissionDecisionCache.put(key, allowed);
     return allowed;
   }
@@ -147,9 +182,13 @@ public class StreamApi extends RestBehavior {
     return user;
   }
 
-  public StreamApi(PermissionService permissionService, UserService userService) {
+  public StreamApi(
+      PermissionService permissionService,
+      UserService userService,
+      AttackPathAccessControl attackPathAccessControl) {
     this.permissionService = permissionService;
     this.userService = userService;
+    this.attackPathAccessControl = attackPathAccessControl;
   }
 
   private void sendStreamEvent(FluxSink<Object> flux, BaseEvent event) {
@@ -284,6 +323,58 @@ public class StreamApi extends RestBehavior {
             return;
           }
           consumer.fluxSink().next(message);
+        });
+  }
+
+  /**
+   * Delivers a simulation's attack-path version nudge to the consumers allowed to read it (#6647,
+   * spec 003). The payload is the notification only ({@code simulation_id}, {@code version}) —
+   * every byte of graph data still comes from the per-request delta read, so this listener can
+   * never leak state, and a client that misses a nudge is merely stale until its safety-net poll.
+   *
+   * <p>{@code @TransactionalEventListener} on purpose, unlike {@link #listenBulkOperation}'s plain
+   * {@code @EventListener}: delivery must wait for the ingestion commit, or a client fetching on
+   * the nudge could read a version lower than the announced one.
+   *
+   * <p>The gate is explicit, in this order: strict tenant equality (fail closed — a consumer whose
+   * tenant cannot be matched gets nothing, deliberately stricter than the bulk-operation clause),
+   * then the delta read's own predicate through {@link AttackPathAccessControl#canRead}, resolved
+   * via the shared decision cache under its own {@code checkId} so its seed exception can never be
+   * replayed by the generic entity path. Calling that predicate rather than re-implementing it is
+   * what keeps the nudge's audience equal to the read's, seed simulations included.
+   *
+   * <p>A bump published with no transaction bound is dropped ({@code fallbackExecution} is false),
+   * which is the safe direction: no nudge, and the client converges on its safety-net poll.
+   */
+  @Async("streamExecutor")
+  @TransactionalEventListener
+  public void listenAttackPathVersion(AttackPathVersionEvent event) {
+    if (event.tenantId() == null) {
+      return; // no routing tenant: fail closed rather than broadcast to everyone
+    }
+    ServerSentEvent<AttackPathVersionEvent> message =
+        ServerSentEvent.builder(event).event(EVENT_TYPE_ATTACK_PATH_VERSION).build();
+    consumers.forEach(
+        (key, consumer) -> {
+          if (!event.tenantId().equals(consumer.tenantId())) {
+            return;
+          }
+          TenantContext.setCurrentTenant(consumer.tenantId());
+          try {
+            // Resolved inside the tenant scope: the user's filtered collections must not load under
+            // the default-tenant fallback.
+            User user = resolveUser(consumer.principal().getId());
+            if (hasReadPermission(
+                consumer,
+                event.simulationId(),
+                ResourceType.SIMULATION,
+                CHECK_ATTACK_PATH,
+                () -> attackPathAccessControl.canRead(user, event.simulationId()))) {
+              consumer.fluxSink().next(message);
+            }
+          } finally {
+            TenantContext.clearCurrentTenant();
+          }
         });
   }
 

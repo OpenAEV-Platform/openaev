@@ -29,6 +29,7 @@ interface Props {
   disabled?: boolean;
   edit: boolean;
   simulationId?: string;
+  isChaining?: boolean;
 }
 
 const ExerciseForm: FunctionComponent<Props> = ({
@@ -36,6 +37,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
   handleClose,
   disabled,
   edit,
+  isChaining = false,
   initialValues = {
     exercise_name: '',
     exercise_subtitle: '',
@@ -254,7 +256,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         )}
       />
 
-      {edit && (
+      {edit && !isChaining && (
         <>
           <Typography
             variant="h2"
@@ -285,107 +287,111 @@ const ExerciseForm: FunctionComponent<Props> = ({
         </>
       )}
 
-      <Typography
-        variant="h2"
-        gutterBottom
-        style={{ marginTop: 40 }}
-      >
-        {t('Emails and SMS')}
-      </Typography>
+      {!isChaining && (
+        <>
+          <Typography
+            variant="h2"
+            gutterBottom
+            style={{ marginTop: 40 }}
+          >
+            {t('Emails and SMS')}
+          </Typography>
 
-      <MuiTextField
-        variant="standard"
-        fullWidth
-        label={t('Sender email address')}
-        style={{ marginTop: 20 }}
-        value={settings.default_mailer ?? ''}
-        disabled
-      />
+          <MuiTextField
+            variant="standard"
+            fullWidth
+            label={t('Sender email address')}
+            style={{ marginTop: 20 }}
+            value={settings.default_mailer ?? ''}
+            disabled
+          />
 
-      <MuiTextField
-        variant="standard"
-        fullWidth
-        label={t('Sender email from')}
-        style={{ marginTop: 20 }}
-        error={!!errors.exercise_mail_from_name}
-        helperText={errors.exercise_mail_from_name?.message}
-        inputProps={register('exercise_mail_from_name')}
-        disabled={disabled}
-      />
+          <MuiTextField
+            variant="standard"
+            fullWidth
+            label={t('Sender email from')}
+            style={{ marginTop: 20 }}
+            error={!!errors.exercise_mail_from_name}
+            helperText={errors.exercise_mail_from_name?.message}
+            inputProps={register('exercise_mail_from_name')}
+            disabled={disabled}
+          />
 
-      <Controller
-        control={control}
-        name="exercise_mails_reply_to"
-        render={({ field, fieldState }) => {
-          return (
-            <Autocomplete
-              multiple
-              id="email-reply-to-input"
-              freeSolo
-              open={false}
-              options={[]}
-              value={field.value}
-              onChange={() => {
-                if (undefined !== field.value && inputValue !== '' && !field.value.includes(inputValue)) {
-                  field.onChange([...(field.value || []), inputValue.trim()]);
-                }
-              }}
-              onBlur={field.onBlur}
-              inputValue={inputValue}
-              onInputChange={(_event, newInputValue) => {
-                setInputValue(newInputValue);
-              }}
-              disableClearable={true}
-              renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
-                return (
-                  <Chip
-                    variant="outlined"
-                    label={email}
-                    {...getTagProps({ index })}
-                    key={email}
-                    style={{ borderRadius: 4 }}
-                    onDelete={() => {
-                      const newValue = [...(field.value || [])];
-                      newValue.splice(index, 1);
-                      field.onChange(newValue);
-                    }}
-                  />
-                );
-              })}
-              renderInput={params => (
-                <MuiTextField
-                  {...params}
-                  variant="standard"
-                  label={t('Reply to')}
-                  style={{ marginTop: 20 }}
-                  error={!!fieldState.error}
-                  helperText={errors.exercise_mails_reply_to?.find ? errors.exercise_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
+          <Controller
+            control={control}
+            name="exercise_mails_reply_to"
+            render={({ field, fieldState }) => {
+              return (
+                <Autocomplete
+                  multiple
+                  id="email-reply-to-input"
+                  freeSolo
+                  open={false}
+                  options={[]}
+                  value={field.value}
+                  onChange={() => {
+                    if (undefined !== field.value && inputValue !== '' && !field.value.includes(inputValue)) {
+                      field.onChange([...(field.value || []), inputValue.trim()]);
+                    }
+                  }}
+                  onBlur={field.onBlur}
+                  inputValue={inputValue}
+                  onInputChange={(_event, newInputValue) => {
+                    setInputValue(newInputValue);
+                  }}
+                  disableClearable={true}
+                  renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
+                    return (
+                      <Chip
+                        variant="outlined"
+                        label={email}
+                        {...getTagProps({ index })}
+                        key={email}
+                        style={{ borderRadius: 4 }}
+                        onDelete={() => {
+                          const newValue = [...(field.value || [])];
+                          newValue.splice(index, 1);
+                          field.onChange(newValue);
+                        }}
+                      />
+                    );
+                  })}
+                  renderInput={params => (
+                    <MuiTextField
+                      {...params}
+                      variant="standard"
+                      label={t('Reply to')}
+                      style={{ marginTop: 20 }}
+                      error={!!fieldState.error}
+                      helperText={errors.exercise_mails_reply_to?.find ? errors.exercise_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
+                    />
+                  )}
                 />
-              )}
-            />
-          );
-        }}
-      />
-      <MuiTextField
-        variant="standard"
-        fullWidth
-        label={t('Messages header')}
-        style={{ marginTop: 20 }}
-        error={!!errors.exercise_message_header}
-        helperText={errors.exercise_message_header?.message}
-        inputProps={register('exercise_message_header')}
-        disabled={disabled}
-      />
-      <MuiTextField
-        variant="standard"
-        fullWidth
-        label={t('Messages footer')}
-        style={{ marginTop: 20 }}
-        error={!!errors.exercise_message_footer}
-        helperText={errors.exercise_message_footer?.message}
-        inputProps={register('exercise_message_footer')}
-        disabled={disabled}
-      />
+              );
+            }}
+          />
+          <MuiTextField
+            variant="standard"
+            fullWidth
+            label={t('Messages header')}
+            style={{ marginTop: 20 }}
+            error={!!errors.exercise_message_header}
+            helperText={errors.exercise_message_header?.message}
+            inputProps={register('exercise_message_header')}
+            disabled={disabled}
+          />
+          <MuiTextField
+            variant="standard"
+            fullWidth
+            label={t('Messages footer')}
+            style={{ marginTop: 20 }}
+            error={!!errors.exercise_message_footer}
+            helperText={errors.exercise_message_footer?.message}
+            inputProps={register('exercise_message_footer')}
+            disabled={disabled}
+          />
+        </>
+      )}
       <div style={{
         float: 'right',
         marginTop: 20,

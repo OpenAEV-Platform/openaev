@@ -37,7 +37,9 @@ import ResultsExplorer from './ResultsExplorer';
  */
 type ResultsSourceType = 'default' | 'tenant' | 'workspace' | 'simulation' | 'scenario';
 
-const RESERVED_PARAMS = ['widget_id', 'series_index', 'source', 'context_id', 'dashboard_id', 'back'];
+// Every non-reserved param is read as a clicked filter value, so any new control
+// param MUST be listed here or it silently becomes a filter on a bogus field.
+const RESERVED_PARAMS = ['widget_id', 'series_index', 'series_indexes', 'source', 'context_id', 'dashboard_id', 'back'];
 const PARAM_PREFIX = 'param.';
 
 const NAMED_TIME_RANGES = new Set(['LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']);
@@ -57,6 +59,16 @@ const DashboardResults = () => {
 
   const widgetId = searchParams.get('widget_id');
   const seriesIndex = Number(searchParams.get('series_index') ?? 0);
+  // A tile whose number spans several series names them all; the backend ORs their
+  // filters so the list matches the total exactly instead of a single series.
+  const seriesIndexes = useMemo(
+    () => searchParams.getAll('series_indexes')
+      // An empty value would coerce to 0 and silently drill the first series.
+      .filter(value => value !== '')
+      .map(Number)
+      .filter(index => Number.isInteger(index)),
+    [searchParams],
+  );
   const source = (searchParams.get('source') ?? 'default') as ResultsSourceType;
   const contextId = searchParams.get('context_id');
   // Internal path only: the back target always comes from our own navigation.
@@ -206,6 +218,7 @@ const DashboardResults = () => {
     const input: WidgetToEntitiesInput = {
       filter_values_map: filterValues,
       series_index: seriesIndex,
+      ...(seriesIndexes.length > 0 ? { series_indexes: seriesIndexes } : {}),
       parameters,
       pagination: {
         page: 0,
@@ -245,7 +258,7 @@ const DashboardResults = () => {
     return () => {
       cancelled = true;
     };
-  }, [source, contextId, widgetId, defaultWidget, contextualWidget, filterValues, seriesIndex, parameters]);
+  }, [source, contextId, widgetId, defaultWidget, contextualWidget, filterValues, seriesIndex, seriesIndexes, parameters]);
 
   // The widget scope is implicitly time-bounded (its time_range is applied
   // server-side when resolving the drill-down). Materialize that bound as
@@ -343,7 +356,7 @@ const DashboardResults = () => {
       {!seedError && (resolvedListConfig == null || (needsDashboard && !dashboardResolved)) && <Loader variant="inElement" />}
       {!seedError && resolvedListConfig != null && (!needsDashboard || dashboardResolved) && (
         <ResultsExplorer
-          key={`${widgetId}-${seriesIndex}`}
+          key={`${widgetId}-${seriesIndex}-${seriesIndexes.join('.')}`}
           listConfig={resolvedListConfig}
           initialEntities={seed?.entities}
           seedDateFilters={seedDateFilters}

@@ -53,11 +53,22 @@ public class InjectorContractContentUtils {
    * @return list of contract output elements
    */
   public List<ContractOutputElement> getAllContractOutputs(Set<OutputParser> outputParsers) {
+    return getAllContractOutputs(outputParsers, true);
+  }
+
+  /**
+   * Retrieves contract output elements from output parsers, optionally keeping only finding
+   * outputs.
+   *
+   * @param outputParsers the set of output parsers to inspect
+   * @param onlyFindings whether to keep only outputs flagged as findings
+   * @return list of contract output elements
+   */
+  public List<ContractOutputElement> getAllContractOutputs(
+      Set<OutputParser> outputParsers, boolean onlyFindings) {
     return outputParsers.stream()
         .flatMap(outputParser -> outputParser.getContractOutputElements().stream())
-        .filter(
-            ContractOutputElement
-                ::isFinding) // This is related to flag in the UI to compute findings
+        .filter(output -> !onlyFindings || output.isFinding())
         .toList();
   }
 

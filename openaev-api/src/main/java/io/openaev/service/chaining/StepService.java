@@ -32,6 +32,7 @@ public class StepService {
 
   private final InjectService injectService;
   private final ConditionService conditionService;
+  private final StepAutoLinkService stepAutoLinkService;
   private final QueueChainingService queueChainingService;
   private final SimulationRateLimitService simulationRateLimitService;
 
@@ -42,6 +43,9 @@ public class StepService {
   /**
    * Create a single step template.
    *
+   * <p>When no condition list is provided at all, the contract auto-links are applied. An explicit
+   * list — even empty — means the caller already picked its links and is kept untouched.
+   *
    * @param workflow workflow linked to the step template
    * @param stepInput input to create the step template
    * @return created step template
@@ -49,6 +53,9 @@ public class StepService {
   @Transactional(rollbackFor = Exception.class)
   public Step createStepTemplate(Workflow workflow, StepsCreateInput.StepInput stepInput)
       throws ChainingException {
+    if (stepInput.getConditions() == null) {
+      stepInput.setConditions(stepAutoLinkService.buildAutoLinkConditions(stepInput.getDataStep()));
+    }
     ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
     Step step =
         actionStep
@@ -113,13 +120,6 @@ public class StepService {
     Step persistedTemplate =
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
-    // If no condition mapper and step already executed, we skip the step to avoid to execute it
-    // again
-    if (!conditionService.hasConditionMapper(persistedTemplate)
-        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())) {
-      return List.of();
-    }
-
     ActionStep actionStep =
         factoryAction(persistedTemplate.getStepAction(), persistedTemplate.getId());
 
@@ -130,15 +130,32 @@ public class StepService {
       return List.of();
     }
 
-    // Expand each condition batch into one batch per scope target (one per asset, one per IP)
-    // so that each READY step handles exactly one inject.
-    // Only for injector-based steps (no payload): payload-based injects
-    // handle multi-asset distribution internally => one step covers all assets.
-    if (StepActionClass.INJECT_EXECUTION.equals(persistedTemplate.getStepAction())
-        && !injectExecutionStep.hasPayload(persistedTemplate)) {
-      executionBatches = injectExecutionStep.expandTargetBatches(executionBatches, workflowRun);
+    // Expand each condition batch into one batch per scope target so that each READY step handles
+    // exactly one inject → one execution unit. The injector-vs-payload targeting policy (external
+    // injectors also expand per manual IP target) is owned by expandTargetBatches, so StepService
+    // stays agnostic here.
+    if (StepActionClass.INJECT_EXECUTION.equals(persistedTemplate.getStepAction())) {
+      executionBatches =
+          injectExecutionStep.expandTargetBatches(executionBatches, workflowRun, persistedTemplate);
       if (executionBatches.isEmpty()) {
         return List.of();
+      }
+
+      // Per-target deduplication: expanded batches carry a per-target hash (combo + target).
+      // The combo-level dedup in prepareInputsForStepExecution runs BEFORE expansion and only
+      // knows the combo hash, so it cannot skip individual targets already executed. Load the
+      // committed hashes once and drop batches whose target was already turned into a READY step,
+      // preventing the same inject from being re-executed on every scheduling cycle.
+      Set<String> committedTargetHashes =
+          conditionService.getCommittedHashes(persistedTemplate, workflowRun);
+      if (!committedTargetHashes.isEmpty()) {
+        executionBatches =
+            executionBatches.stream()
+                .filter(batch -> !committedTargetHashes.contains(batch.hash()))
+                .toList();
+        if (executionBatches.isEmpty()) {
+          return List.of();
+        }
       }
     }
     List<Step> stepReadys = new ArrayList<>();
@@ -257,18 +274,6 @@ public class StepService {
   }
 
   /**
-   * Returns {@code true} if at least one executed step references the given step template, meaning
-   * this template has already been executed at least once in the given workflow run.
-   *
-   * @param stepTemplateId the ID of the step template to check
-   * @param workflowRunId the ID of the workflow run to scope the check
-   * @return {@code true} if the step template has been executed at least once in that run
-   */
-  public boolean isStepAlreadyExecutedOnce(String stepTemplateId, String workflowRunId) {
-    return stepRepository.existsByStepTemplateIdAndWorkflowId(stepTemplateId, workflowRunId);
-  }
-
-  /**
    * Get an action class
    *
    * @param actionClass name of the action class
@@ -341,6 +346,10 @@ public class StepService {
   @Transactional(rollbackFor = Exception.class)
   List<Step> copyStepsTemplate(List<Step> stepsFrom, Workflow workflowTo) {
     List<Step> stepsCopied = new ArrayList<>();
+    // Shared across every step copied in this call so that a single condition/event linked to
+    // several source steps (e.g. one "event" root shared by 3 actions) is copied exactly once
+    // and reused (re-linked) for the other steps, instead of being duplicated per step.
+    Map<String, Condition> copiedConditionsByOriginalId = new HashMap<>();
     for (Step step : stepsFrom) {
       String data = step.getData();
       if (workflowTo.getSimulation() != null) {
@@ -360,7 +369,7 @@ public class StepService {
               .build();
 
       copy = saveStep(copy);
-      copyStepConditionTemplate(step, copy);
+      copyStepConditionTemplate(step, copy, copiedConditionsByOriginalId);
       stepsCopied.add(copy);
     }
     return stepsCopied;
@@ -369,11 +378,18 @@ public class StepService {
   /**
    * Copies the condition tree from a source step to a target step, preserving parent hierarchy.
    *
+   * <p>Root conditions already copied for a previous step in the same {@link #copyStepsTemplate}
+   * call (tracked via {@code copiedConditionsByOriginalId}) are reused instead of duplicated, so
+   * that a condition/event shared across multiple source steps stays shared in the copy too.
+   *
    * @param step source step with conditions
    * @param stepCopied target step to attach copied conditions to
+   * @param copiedConditionsByOriginalId map of original condition id -> already-copied condition,
+   *     shared across all steps copied in the same {@link #copyStepsTemplate} call
    */
   @Transactional(rollbackFor = Exception.class)
-  void copyStepConditionTemplate(Step step, Step stepCopied) {
+  void copyStepConditionTemplate(
+      Step step, Step stepCopied, Map<String, Condition> copiedConditionsByOriginalId) {
     // Roots linked to this step (source of truth for which trees to copy)
     List<Condition> linkedConditions = conditionService.findAllConditionsByStepId(step.getId());
     if (linkedConditions == null || linkedConditions.isEmpty()) {
@@ -410,9 +426,21 @@ public class StepService {
             .filter(condition -> condition.getConditionParent() != null)
             .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
 
-    Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
+    // Local view of the shared map, plus the subset of roots that are newly copied during this
+    // call (as opposed to reused from a previous step) — only newly copied roots need their
+    // children traversed/copied below.
+    Map<String, Condition> temporaryIdAndSaveId = copiedConditionsByOriginalId;
+    List<Condition> newlyCopiedRootConditions = new ArrayList<>();
 
     for (Condition firstCondition : rootConditions) {
+      Condition alreadyCopied = temporaryIdAndSaveId.get(firstCondition.getId());
+      if (alreadyCopied != null) {
+        // This condition (and its subtree) was already copied for another step sharing it —
+        // reuse it instead of duplicating, so the sharing is preserved in the copy.
+        conditionService.linkToStep(alreadyCopied, stepCopied, true);
+        continue;
+      }
+
       Step stepFrom =
           firstCondition.getStepFrom() == null
               ? null
@@ -422,7 +450,7 @@ public class StepService {
           Condition.builder()
               .type(firstCondition.getType())
               .key(firstCondition.getKey())
-              .keyType(firstCondition.getKeyType())
+              .keyTypes(firstCondition.getKeyTypes())
               .value(firstCondition.getValue())
               .caseSensitive(firstCondition.isCaseSensitive())
               .mappingType(firstCondition.getMappingType())
@@ -436,10 +464,11 @@ public class StepService {
       first = conditionService.saveCondition(first);
 
       temporaryIdAndSaveId.put(firstCondition.getId(), first);
+      newlyCopiedRootConditions.add(firstCondition);
     }
 
     Queue<String> currentId = new LinkedList<>();
-    rootConditions.forEach(rc -> currentId.add(rc.getId()));
+    newlyCopiedRootConditions.forEach(rc -> currentId.add(rc.getId()));
 
     while (!currentId.isEmpty()) {
       String currentTemporaryId = currentId.poll();
@@ -457,7 +486,7 @@ public class StepService {
             Condition.builder()
                 .type(condition.getType())
                 .key(condition.getKey())
-                .keyType(condition.getKeyType())
+                .keyTypes(condition.getKeyTypes())
                 .value(condition.getValue())
                 .caseSensitive(condition.isCaseSensitive())
                 .mappingType(condition.getMappingType())

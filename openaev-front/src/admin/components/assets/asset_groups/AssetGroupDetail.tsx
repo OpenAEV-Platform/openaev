@@ -38,6 +38,7 @@ import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import AssetCategoryIcon from '../AssetCategoryIcon';
+import ExpectationList from '../ExpectationList';
 import PostureScore from '../PostureScore';
 import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart';
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
@@ -344,6 +345,17 @@ const AssetGroupDetail = () => {
               filterLocalStorageKey="asset-group-findings"
               searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_asset_groups', [assetGroupId]))}
               contextId={assetGroupId}
+            />
+          </SectionBlock>
+
+          <SectionBlock title={t('Expectations')}>
+            {/* Every expectation evaluated against this asset group - same
+                scope as the posture score and the hero counter, so the KPIs
+                and the list stay consistent. */}
+            <ExpectationList
+              filterLocalStorageKey="asset-group-expectations"
+              scopeField="base_asset_group_side"
+              entityId={assetGroupId}
             />
           </SectionBlock>
 

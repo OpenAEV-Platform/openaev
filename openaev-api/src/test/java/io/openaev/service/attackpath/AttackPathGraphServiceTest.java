@@ -3,11 +3,14 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.AssetCriticality;
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.dto.AttackPathAttackPatternDTO;
@@ -16,6 +19,7 @@ import io.openaev.service.attackpath.dto.AttackPathEdges;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
+import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
@@ -29,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -45,6 +50,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   @Autowired private AttackPathGraphService service;
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
+  @Autowired private AssetRepository assetRepository;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
 
@@ -232,6 +238,45 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     assertThat(sourceNode.getIp()).isEqualTo("10.0.9.2");
     assertThat(sourceNode.getPlatform()).isEqualTo("Windows");
     assertThat(sourceNode.getLabel()).isEqualTo("GATEWAY-02");
+  }
+
+  @Test
+  @DisplayName("An endpoint node is enriched with its asset's criticality, name and seen IP")
+  void endpoint_node_carries_asset_criticality_name_and_seen_ip() {
+    // A real backing asset: the enrichment pass resolves criticality, name and seen IP live from
+    // it (one batched read), so the map node shows a single relevant IP instead of the frozen list.
+    Endpoint asset = EndpointFixture.createEndpoint("DC Primary");
+    asset.setCriticality(AssetCriticality.VERY_HIGH);
+    asset.setSeenIp("203.0.113.7");
+    String assetId = assetRepository.save(asset).getId();
+    injectorExecution(
+        "NMAP", assetId, "CORP-DC-01", "Prevented", "Not Detected", "Nmap Scan", at(50));
+    entityManager.flush();
+
+    AttackPathNodeDTO node = nodeById(service.buildGraph(SIM), AttackPathIds.endpointNode(assetId));
+    assertThat(node.getSeenIp())
+        .as("the node carries the asset's seen (primary) IP, resolved live")
+        .isEqualTo("203.0.113.7");
+    assertThat(node.getCriticality()).isEqualTo("VERY_HIGH");
+    assertThat(node.getLabel())
+        .as("the asset's friendly name wins over the raw id fallback")
+        .isEqualTo("DC Primary");
+  }
+
+  @Test
+  @DisplayName("An asset with a blank seen IP leaves seenIp null (front falls back to the ip list)")
+  void endpoint_node_with_blank_seen_ip_stays_null() {
+    Endpoint asset = EndpointFixture.createEndpoint("Blank seen IP");
+    asset.setSeenIp("");
+    String assetId = assetRepository.save(asset).getId();
+    injectorExecution(
+        "NMAP", assetId, "CORP-APP-02", "Prevented", "Not Detected", "Nmap Scan", at(51));
+    entityManager.flush();
+
+    AttackPathNodeDTO node = nodeById(service.buildGraph(SIM), AttackPathIds.endpointNode(assetId));
+    assertThat(node.getSeenIp())
+        .as("a blank seen IP is omitted from the DTO so the front falls back to the frozen list")
+        .isNull();
   }
 
   @Test
@@ -515,20 +560,50 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Endpoint relations returns the targeting executions and grouped edge in one query")
+  @DisplayName("Endpoint relations returns the targeting executions and grouped edge")
   void relations_returns_executions_and_grouped_edge() {
     Statistics stats =
         entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
     stats.setStatisticsEnabled(true);
     stats.clear();
-    AttackPathEndpointRelationsDTO dto = service.endpointRelations(SIM, "dc-01");
-    assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
+    AttackPathEndpointRelationsDTO dto =
+        service.endpointRelations(SIM, "dc-01", PageRequest.of(0, 50));
+    // A bounded, constant number of statements whatever the endpoint's size: the edge set, the feed
+    // page and its total. Not one any more (#6647, spec 003: the feed is paged), but still not a
+    // function of the row count.
+    assertThat(stats.getPrepareStatementCount()).isEqualTo(3);
 
     assertThat(dto.executions()).hasSize(2);
+    assertThat(dto.totalExecutions()).isEqualTo(2);
     assertThat(dto.edges()).hasSize(1);
     AttackPathEdges edge = dto.edges().get(0);
     assertThat(edge.getCount()).isEqualTo(2);
     assertThat(edge.getExecutionIds()).containsExactlyInAnyOrder(exec1Id, exec2Id);
+  }
+
+  @Test
+  @DisplayName("Endpoint relations page the feed but keep the edges whole")
+  void relations_page_the_feed_and_keep_edges_whole() {
+    // One execution per page, so the second one is only reachable through page 1 — while the edge
+    // must still carry BOTH, because the front correlates edges against executions it may not have
+    // fetched yet.
+    AttackPathEndpointRelationsDTO first =
+        service.endpointRelations(SIM, "dc-01", PageRequest.of(0, 1));
+    assertThat(first.executions()).hasSize(1);
+    assertThat(first.totalExecutions())
+        .as("the client learns there is more without a second read")
+        .isEqualTo(2);
+    assertThat(first.edges().get(0).getExecutionIds())
+        .as("edges are whole: bounded by the endpoint's in-degree, not by the page")
+        .containsExactlyInAnyOrder(exec1Id, exec2Id);
+
+    AttackPathEndpointRelationsDTO second =
+        service.endpointRelations(SIM, "dc-01", PageRequest.of(1, 1));
+    assertThat(second.executions()).hasSize(1);
+    // Stable ordering (executedAt, id): the two pages are disjoint, so nothing is shown twice or
+    // skipped between them.
+    assertThat(second.executions().get(0).getRef())
+        .isNotEqualTo(first.executions().get(0).getRef());
   }
 
   @Test
@@ -542,7 +617,8 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     entityManager.flush();
 
     String expectedSource = AttackPathIds.injectorNode("WINRM", "C-REL");
-    AttackPathEndpointRelationsDTO relations = service.endpointRelations(SIM, "ep-rel");
+    AttackPathEndpointRelationsDTO relations =
+        service.endpointRelations(SIM, "ep-rel", PageRequest.of(0, 50));
     assertThat(relations.edges())
         .singleElement()
         .satisfies(e -> assertThat(e.getEdgeSourceId()).isEqualTo(expectedSource));
@@ -573,7 +649,8 @@ class AttackPathGraphServiceTest extends IntegrationTest {
         .extracting(AttackPathNodeDTO::getValue)
         .containsExactly("CVE-2024-9");
 
-    AttackPathEndpointRelationsDTO relations = service.endpointRelations(SIM, raw);
+    AttackPathEndpointRelationsDTO relations =
+        service.endpointRelations(SIM, raw, PageRequest.of(0, 50));
     assertThat(relations.executions()).hasSize(1);
     assertThat(relations.edges()).hasSize(1);
   }

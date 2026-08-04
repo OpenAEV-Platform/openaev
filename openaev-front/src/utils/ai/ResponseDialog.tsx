@@ -10,8 +10,8 @@ import MDEditor, { commands } from '@uiw/react-md-editor/nohighlight';
 // @ts-ignore
 import { type FunctionComponent, useEffect, useRef, useState } from 'react';
 
+import { type AgentAction } from '../../admin/components/common/form/TextFieldAskAI';
 // eslint-disable-next-line import/no-cycle
-import TextFieldAskAI, { type AgentAction } from '../../admin/components/common/form/TextFieldAskAI';
 import { useFormatter } from '../../components/i18n';
 import { isNotEmptyField } from '../utils';
 import { type AgentOption, fetchAgentsForIntent } from './agentApi';
@@ -226,19 +226,6 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
           multiline={true}
           onChange={event => setContent(event.target.value)}
           fullWidth={true}
-          InputProps={isLegacyMode ? {
-            endAdornment: (
-              <TextFieldAskAI
-                currentValue={content}
-                setFieldValue={(val: string) => {
-                  setContent(val);
-                }}
-                format="text"
-                variant="text"
-                disabled={isDisabled}
-              />
-            ),
-          } : undefined}
         />
       )}
       {format === 'html' && (
@@ -315,151 +302,134 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
           extraCommands={[]}
         />
       )}
-      {isLegacyMode && (format === 'markdown' || format === 'html') && (
-        <TextFieldAskAI
-          currentValue={content ?? ''}
-          setFieldValue={(val) => {
-            setContent(val);
-          }}
-          format={format}
-          variant={format}
-          disabled={isDisabled}
-          style={format === 'html' ? {
-            position: 'absolute',
-            top: 40,
-            right: 18,
-          } : undefined}
-        />
-      )}
     </>
   );
 
   return (
-    <>
-      <Dialog
-        PaperProps={{ elevation: 1 }}
-        open={isOpen}
-        onClose={() => {
-          setContent('');
-          handleClose();
+    <Dialog
+      PaperProps={{ elevation: 1 }}
+      open={isOpen}
+      onClose={() => {
+        setContent('');
+        handleClose();
+      }}
+      fullWidth={true}
+      maxWidth="lg"
+    >
+      <DialogTitle>{dialogTitle}</DialogTitle>
+      <DialogContent>
+        {/* Agent mode: tone selector */}
+        {agentMode?.action === 'tone' && (
+          <Box sx={{ mb: 2 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel id="tone-label">{t('Tone')}</InputLabel>
+              <Select
+                labelId="tone-label"
+                label={t('Tone')}
+                value={tone}
+                onChange={event => setTone(event.target.value)}
+                size="small"
+                disabled={effectiveDisabled}
+              >
+                <MenuItem value="formal">{t('Formal')}</MenuItem>
+                <MenuItem value="informal">{t('Informal')}</MenuItem>
+                <MenuItem value="authoritative">{t('Authoritative')}</MenuItem>
+                <MenuItem value="assertive">{t('Assertive')}</MenuItem>
+                <MenuItem value="critical">{t('Critical')}</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        )}
+
+        <div style={{
+          width: '100%',
+          minHeight: height,
+          height,
+          position: 'relative',
         }}
-        fullWidth={true}
-        maxWidth="lg"
-      >
-        <DialogTitle>{dialogTitle}</DialogTitle>
-        <DialogContent>
-          {/* Agent mode: tone selector */}
-          {agentMode?.action === 'tone' && (
-            <Box sx={{ mb: 2 }}>
-              <FormControl size="small" fullWidth>
-                <InputLabel id="tone-label">{t('Tone')}</InputLabel>
-                <Select
-                  labelId="tone-label"
-                  label={t('Tone')}
-                  value={tone}
-                  onChange={event => setTone(event.target.value)}
-                  size="small"
+        >
+          {agentMode && (
+            <>
+              {/* Refresh button */}
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={agentLoading || !selectedAgent}
+                sx={{
+                  position: 'absolute',
+                  top: 2,
+                  right: 2,
+                  zIndex: 1,
+                }}
+              >
+                <RefreshOutlined fontSize="small" />
+              </IconButton>
+
+              {((agentLoading && !content) || loadingAgents) && (
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                }}
                 >
-                  <MenuItem value="formal">{t('Formal')}</MenuItem>
-                  <MenuItem value="informal">{t('Informal')}</MenuItem>
-                  <MenuItem value="authoritative">{t('Authoritative')}</MenuItem>
-                  <MenuItem value="assertive">{t('Assertive')}</MenuItem>
-                  <MenuItem value="critical">{t('Critical')}</MenuItem>
-                </Select>
-              </FormControl>
-            </Box>
-          )}
+                  <CircularProgress size={40} />
+                </Box>
+              )}
 
-          <div style={{
-            width: '100%',
-            minHeight: height,
-            height,
-            position: 'relative',
-          }}
-          >
-            {agentMode && (
-              <>
-                {/* Refresh button */}
-                <IconButton
-                  size="small"
-                  onClick={handleRefresh}
-                  disabled={agentLoading || !selectedAgent}
-                  sx={{
-                    position: 'absolute',
-                    top: 2,
-                    right: 2,
-                    zIndex: 1,
-                  }}
+              {noAgents && !agentLoading && (
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                }}
                 >
-                  <RefreshOutlined fontSize="small" />
-                </IconButton>
+                  <Alert severity="info" variant="outlined">
+                    {t('No agent available for this action. Ask your administrator to configure XTM One.')}
+                  </Alert>
+                </Box>
+              )}
 
-                {((agentLoading && !content) || loadingAgents) && (
-                  <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                  }}
-                  >
-                    <CircularProgress size={40} />
-                  </Box>
-                )}
+              {agentError && !agentLoading && (
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                }}
+                >
+                  <Alert severity="error" variant="outlined">
+                    {agentError}
+                  </Alert>
+                </Box>
+              )}
 
-                {noAgents && !agentLoading && (
-                  <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                  }}
-                  >
-                    <Alert severity="info" variant="outlined">
-                      {t('No agent available for this action. Ask your administrator to configure XTM One.')}
-                    </Alert>
-                  </Box>
-                )}
-
-                {agentError && !agentLoading && (
-                  <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                  }}
-                  >
-                    <Alert severity="error" variant="outlined">
-                      {agentError}
-                    </Alert>
-                  </Box>
-                )}
-
-                {(!agentLoading || content) && !loadingAgents && !noAgents && !agentError && renderContentEditors()}
-              </>
-            )}
-
-            {/* Legacy mode: always show content editors */}
-            {isLegacyMode && renderContentEditors()}
-          </div>
-          <div className="clearfix" />
-          {isLegacyMode && (
-            <Alert severity="warning" variant="outlined" style={format === 'html' ? { marginTop: 30 } : {}}>
-              {t('Generative AI is a beta feature as we are currently fine-tuning our models. Consider checking important information.')}
-            </Alert>
+              {(!agentLoading || content) && !loadingAgents && !noAgents && !agentError && renderContentEditors()}
+            </>
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleClose}>
-            {t('Close')}
-          </Button>
-          {isAcceptable && (
-            <LoadingButton loading={effectiveDisabled} variant="contained" color="primary" disabled={!!agentError} onClick={() => handleAccept(content)}>
-              {t('Accept')}
-            </LoadingButton>
-          )}
-        </DialogActions>
-      </Dialog>
-    </>
+
+          {/* Legacy mode: always show content editors */}
+          {isLegacyMode && renderContentEditors()}
+        </div>
+        <div className="clearfix" />
+        {isLegacyMode && (
+          <Alert severity="warning" variant="outlined" style={format === 'html' ? { marginTop: 30 } : {}}>
+            {t('Generative AI is a beta feature as we are currently fine-tuning our models. Consider checking important information.')}
+          </Alert>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button variant="outlined" color="primary" onClick={handleClose}>
+          {t('Close')}
+        </Button>
+        {isAcceptable && (
+          <LoadingButton loading={effectiveDisabled} variant="contained" color="primary" disabled={!!agentError} onClick={() => handleAccept(content)}>
+            {t('Accept')}
+          </LoadingButton>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 };
 

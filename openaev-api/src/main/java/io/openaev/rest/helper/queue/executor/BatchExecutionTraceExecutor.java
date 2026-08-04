@@ -1,7 +1,7 @@
 package io.openaev.rest.helper.queue.executor;
 
 import io.openaev.rest.inject.form.InjectExecutionCallback;
-import io.openaev.rest.inject.service.BatchingInjectStatusService;
+import io.openaev.service.inject.BatchingInjectStatusService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

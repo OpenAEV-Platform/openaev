@@ -30,7 +30,7 @@ Here are the configuration keys, for both containers (environment variables) and
 |:--------------------------------------------|:--------------------------------------------|:----------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | server.address                              | SERVER_ADDRESS                              | 0.0.0.0               | Listen address of the application                                                                                                                                                          |
 | server.port                                 | SERVER_PORT                                 | 8080                  | Listen port of the application                                                                                                                                                             |
-| openaev.base-url                            | OPENAEV_BASE-URL                            | http://localhost:8080 | Base URL of the application, will be used in some email links                                                                                                                              |
+| openaev.base-url                            | OPENAEV_BASE-URL                            | http://localhost:8080 | Base URL of the application, used for some email links and as the default agent URL (agent installer scripts and executor commands) unless `openaev.agent-url` is set. In production environments, ensure this URL can be resolved from endpoints where agents will be deployed.               |
 | server.servlet.session.timeout              | SERVER_SERVLET_SESSION_TIMEOUT              | 1440m                 | Rolling session timeout: every request extends the session by this duration. Sessions are persisted in PostgreSQL and survive platform restarts                                            |
 | openaev.session-idle-timeout                | OPENAEV_SESSION-IDLE-TIMEOUT                | 0                     | Idle time before the UI locks the screen and asks the user to continue or log out (0 = disabled, e.g. 30m). Must be lower than the session timeout                                          |
 | openaev.session-cookie                      | OPENAEV_SESSION-COOKIE                      | `false`               | When `true`, the session cookie dies when the browser closes (server-side timeout still applies). When `false`, users stay logged in across browser restarts: the cookie is re-issued on every request (sliding Max-Age), so it only expires after `openaev.cookie-duration` of inactivity |
@@ -155,6 +155,12 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
     * ![Backend role mapping in AWS OpenSearch](assets/backend_role.png)
     
     
+
+Tuning parameters applicable to both engines:
+
+| Parameter                            | Environment variable                 | Default value | Description                                                                                                                                                                                                                                                            |
+|:-------------------------------------|:-------------------------------------|:--------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| engine.indexing-grace-window-seconds | ENGINE_INDEXING_GRACE_WINDOW_SECONDS | 60            | Indexing cursor grace window in seconds. The cursor persisted after each indexing round never gets closer to wall-clock than this window, so rows committed late by long write transactions are still indexed. Must exceed the longest expected write transaction. |
 
 If you switch your engine selector, you'll need to delete the `indexing_status` table in PostgreSQL to trigger a full
 reindex.
