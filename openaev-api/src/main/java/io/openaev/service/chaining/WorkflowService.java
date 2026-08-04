@@ -154,6 +154,7 @@ public class WorkflowService {
   public Workflow updateWorkflowConfiguration(
       @NotBlank String workflowId, WorkflowConfigurationInput input) {
     Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+    WorkflowEditability.assertLogicMapEditable(workflow);
     boolean changed = applyConfigurationInput(input, workflow);
     if (changed) {
       boolean workflowExecutedNotEmpty = !workflow.getWorkflowsExecuted().isEmpty();

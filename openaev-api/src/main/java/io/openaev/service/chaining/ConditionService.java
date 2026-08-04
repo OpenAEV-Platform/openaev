@@ -10,6 +10,7 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionKeyTypesUtils;
@@ -38,6 +39,7 @@ public class ConditionService {
 
   private final ConditionRepository conditionRepository;
   private final StepRepository stepRepository;
+  private final WorkflowRepository workflowRepository;
 
   // -- CONDITION TREE CREATE --
 
@@ -60,6 +62,8 @@ public class ConditionService {
     }
     validateConditionInputKeyTypes(conditionInputs);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
+
+    assertLogicMapEditable(input.getWorkflowId());
 
     Condition root =
         Condition.builder()
@@ -86,6 +90,17 @@ public class ConditionService {
           }
         },
         null);
+  }
+
+  /**
+   * Rejects a logic-map mutation when the workflow's owning simulation is no longer editable (not
+   * SCHEDULED). No-op for scenario-owned workflows or unknown/blank workflow ids. See ADR-005.
+   */
+  private void assertLogicMapEditable(String workflowId) {
+    if (workflowId == null || workflowId.isBlank()) {
+      return;
+    }
+    workflowRepository.findById(workflowId).ifPresent(WorkflowEditability::assertLogicMapEditable);
   }
 
   /**
@@ -247,6 +262,10 @@ public class ConditionService {
     Condition root = findConditionRootById(conditionRootId);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
+    // Guard on the persisted condition's workflow (authoritative), not the client-supplied
+    // workflowId, so the freeze cannot be bypassed by sending a different (SCHEDULED) workflow id.
+    assertLogicMapEditable(root.getWorkflowId());
+
     root.setName(input.getName());
     root.setDescription(input.getDescription());
     root.setWorkflowId(input.getWorkflowId());
@@ -392,9 +411,12 @@ public class ConditionService {
       throw new BadRequestException("conditionRootId must not be null or blank");
     }
 
-    if (!conditionRepository.existsById(conditionRootId)) {
-      throw new EntityNotFoundException("Condition not found: " + conditionRootId);
-    }
+    Condition condition =
+        conditionRepository
+            .findById(conditionRootId)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Condition not found: " + conditionRootId));
+    assertLogicMapEditable(condition.getWorkflowId());
     conditionRepository.deleteById(conditionRootId);
   }
 
