@@ -11,6 +11,7 @@ import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.ExecutionTraceStatus;
 import io.openaev.database.model.InjectStatus;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
+import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.utils.TargetType;
@@ -34,8 +35,10 @@ class InjectExecutionResultServiceTest {
     // Arrange
     InjectService injectService = mock(InjectService.class);
     InjectStatusService injectStatusService = mock(InjectStatusService.class);
+    ExecutableInjectService executableInjectService = mock(ExecutableInjectService.class);
     InjectExecutionResultService service =
-        new InjectExecutionResultService(injectService, injectStatusService);
+        new InjectExecutionResultService(
+            injectService, injectStatusService, executableInjectService);
     String injectId = "inject-1";
     String targetId = "target-1";
 
@@ -62,8 +65,10 @@ class InjectExecutionResultServiceTest {
     // Arrange
     InjectService injectService = mock(InjectService.class);
     InjectStatusService injectStatusService = mock(InjectStatusService.class);
+    ExecutableInjectService executableInjectService = mock(ExecutableInjectService.class);
     InjectExecutionResultService service =
-        new InjectExecutionResultService(injectService, injectStatusService);
+        new InjectExecutionResultService(
+            injectService, injectStatusService, executableInjectService);
     String injectId = "inject-2";
     String targetId = "target-2";
 
