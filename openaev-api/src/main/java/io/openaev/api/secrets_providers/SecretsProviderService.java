@@ -1,7 +1,7 @@
 package io.openaev.api.secrets_providers;
 
 import io.openaev.api.secrets_providers.form.SecretsProviderOutput;
-import io.openaev.context.TransactionalTenantScope;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -29,7 +29,6 @@ public class SecretsProviderService
 
   private final SecretsProviderMapper secretsProviderMapper;
   private final ManagerFactory managerFactory;
-  private final TransactionalTenantScope transactionalTenantScope;
 
   @Autowired
   public SecretsProviderService(
@@ -38,8 +37,7 @@ public class SecretsProviderService
       ConnectorInstanceService connectorInstanceService,
       SecretsProviderMapper secretsProviderMapper,
       CatalogConnectorMapper catalogConnectorMapper,
-      ManagerFactory managerFactory,
-      TransactionalTenantScope transactionalTenantScope) {
+      ManagerFactory managerFactory) {
     super(
         ConnectorType.SECRETS_PROVIDER,
         connectorInstanceConfigurationRepository,
@@ -48,32 +46,67 @@ public class SecretsProviderService
         catalogConnectorMapper);
     this.secretsProviderMapper = secretsProviderMapper;
     this.managerFactory = managerFactory;
-    this.transactionalTenantScope = transactionalTenantScope;
   }
 
   /**
-   * Retrieve all secrets' provider.
+   * Retrieve all secrets providers, scoped to the authorized {@link TxCtx} handed down by the
+   * controller. The {@code ctx} was produced by {@code TxCtxArgumentResolver}, i.e. it already went
+   * through the {@code users_tenants} membership check, so the tenant list here is guaranteed
+   * authorized. Secrets providers are in-memory {@code Manager} state with no repository-backed
+   * tenant filter, so the tenant scope must be passed in explicitly rather than read back from the
+   * ambient transaction scope; {@link TxCtx.AllTenants} is actively rejected on this HTTP path.
    *
-   * @param isIncludeNext Include pending executors.
-   * @return List of executor output
+   * @param ctx the authorized tenant scope for this request
+   * @param isIncludeNext Include pending providers.
+   * @return List of secrets provider output
    */
-  public Iterable<SecretsProviderOutput> secretsProviderOutput(boolean isIncludeNext) {
-    return getConnectorsOutput(isIncludeNext);
+  public Iterable<SecretsProviderOutput> secretsProviderOutput(TxCtx ctx, boolean isIncludeNext) {
+    List<SecretsProvider> connectors = getConnectorsForTenants(tenantIdsFromCtx(ctx));
+    return buildConnectorsOutput(connectors, isIncludeNext);
   }
 
   /**
-   * Retrieves IDs of resources associated with a secretProvider.
+   * Single-resource lookup scoped to the authorized {@link TxCtx}.
    *
+   * @param ctx the authorized tenant scope for this request
+   * @param id the secrets provider id
+   * @return the secrets provider if visible in the authorized scope, otherwise {@code null}
+   */
+  public SecretsProvider getConnectorById(TxCtx ctx, String id) {
+    return getConnectorsForTenants(tenantIdsFromCtx(ctx)).stream()
+        .filter(sp -> id.equals(sp.getId()))
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * Retrieves IDs of resources associated with a secrets provider, scoped to the authorized {@link
+   * TxCtx}.
+   *
+   * @param ctx the authorized tenant scope for this request
    * @param secretProviderId secret provider identifier
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
-  public ConnectorIds getSecretsProviderRelationsId(String secretProviderId) {
-    return getConnectorRelationsId(secretProviderId);
+  public ConnectorIds getSecretsProviderRelationsId(TxCtx ctx, String secretProviderId) {
+    return getConnectorRelationsId(getConnectorById(ctx, secretProviderId), secretProviderId);
   }
 
-  @Override
-  protected List<SecretsProvider> getAllConnectors() {
-    return transactionalTenantScope.currentTenantIds().stream()
+  /**
+   * Extracts the explicit tenant list from an authorized {@link TxCtx}. {@link TxCtx.Missing}
+   * (fail-closed, no scope) yields an empty list; {@link TxCtx.AllTenants} is an unresolved
+   * background-only intention and must never reach an HTTP read.
+   */
+  private static List<String> tenantIdsFromCtx(TxCtx ctx) {
+    return switch (ctx) {
+      case TxCtx.Missing ignored -> List.of();
+      case TxCtx.Restricted restricted -> restricted.tenantIds();
+      case TxCtx.AllTenants ignored ->
+          throw new IllegalArgumentException("AllTenants is not valid on the HTTP API path");
+    };
+  }
+
+  private List<SecretsProvider> getConnectorsForTenants(List<String> tenantIds) {
+    return tenantIds.stream()
         .flatMap(
             tenantId -> {
               try {
@@ -90,9 +123,25 @@ public class SecretsProviderService
         .toList();
   }
 
+  /**
+   * Secrets providers are in-memory {@code Manager} state, not repository-backed rows: they cannot
+   * be enumerated without an explicit, authorized tenant scope. Callers must use the {@link TxCtx}
+   * overloads ({@link #secretsProviderOutput(TxCtx, boolean)}, {@link #getConnectorById(TxCtx,
+   * String)}, {@link #getSecretsProviderRelationsId(TxCtx, String)}), which fail closed. This
+   * no-arg path (used by the repository-backed connector types via {@link
+   * AbstractConnectorService}) is intentionally unsupported here so no code can read providers from
+   * the ambient scope.
+   */
+  @Override
+  protected List<SecretsProvider> getAllConnectors() {
+    throw new UnsupportedOperationException(
+        "Secrets providers require an explicit authorized tenant scope; use the TxCtx overloads.");
+  }
+
   @Override
   protected SecretsProvider getConnectorById(String id) {
-    return getAllConnectors().stream().filter(sp -> id.equals(sp.getId())).findFirst().orElse(null);
+    throw new UnsupportedOperationException(
+        "Secrets providers require an explicit authorized tenant scope; use getConnectorById(TxCtx, String).");
   }
 
   @Override
