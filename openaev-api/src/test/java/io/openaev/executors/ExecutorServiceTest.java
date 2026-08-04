@@ -214,7 +214,7 @@ class ExecutorServiceTest {
 
       verify(connectorInstanceService, never()).deleteById(any());
       verify(endpointService).removeSourceTagsForExecutor("exec-manual", "tenant-001");
-      verify(executorRepository).delete(executor);
+      verify(executorRepository).deleteByExecutorId("exec-manual");
     }
   }
 }
