@@ -5,6 +5,7 @@ import io.openaev.database.model.Endpoint;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -189,4 +190,22 @@ public interface EndpointRepository
   List<Endpoint> findDistinctByInjectsExerciseIdAndIdIn(String exerciseId, List<String> ids);
 
   Optional<Endpoint> findByIdAndTenantId(String id, String tenantId);
+
+  @Query("SELECT DISTINCT e FROM Endpoint e LEFT JOIN FETCH e.tags WHERE e.id = :id")
+  Optional<Endpoint> findByIdWithTags(@Param("id") String id);
+
+  @Query("SELECT DISTINCT e FROM Endpoint e LEFT JOIN FETCH e.tags WHERE e.id IN :ids")
+  List<Endpoint> findAllByIdInWithTags(@Param("ids") Collection<String> ids);
+
+  @Query(
+      value =
+          "SELECT a.asset_id AS id, a.asset_name AS label "
+              + "FROM assets a "
+              + "WHERE a.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' "
+              + "AND a.asset_id IN :ids "
+              + "AND a.tenant_id = :#{#tenantContext.currentTenant}",
+      nativeQuery = true)
+  List<Object[]> findOptionsByIds(@Param("ids") List<String> ids);
 }

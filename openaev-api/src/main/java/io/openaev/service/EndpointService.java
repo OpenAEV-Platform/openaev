@@ -55,6 +55,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -672,7 +673,7 @@ public class EndpointService implements AuditLoggedService {
 
     // Batch load all endpoints
     List<Endpoint> endpoints =
-        fromIterable(endpointRepository.findAllById(executorsByEndpointId.keySet()));
+        endpointRepository.findAllByIdInWithTags(executorsByEndpointId.keySet());
 
     // Remove tags per endpoint and collect modified ones
     List<Endpoint> modifiedEndpoints = new ArrayList<>();
@@ -726,8 +727,23 @@ public class EndpointService implements AuditLoggedService {
     if (endpoint.getId() == null) {
       return new HashSet<>();
     }
-    return new HashSet<>(
-        tagRepository.findByAssetIdAndTenantId(endpoint.getId(), endpoint.getTenant().getId()));
+    if (Hibernate.isInitialized(endpoint.getTags())) {
+      return new HashSet<>(endpoint.getTags());
+    }
+    return endpointRepository
+        .findByIdWithTags(endpoint.getId())
+        .map(e -> new HashSet<>(e.getTags()))
+        .orElseGet(HashSet::new);
+  }
+
+  @Transactional(readOnly = true)
+  public List<FilterUtilsJpa.Option> getOptionsByIds(final List<String> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return List.of();
+    }
+    return endpointRepository.findOptionsByIds(ids).stream()
+        .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
+        .toList();
   }
 
   private Agent updateExistingEndpointAndManageAgent(Endpoint endpoint, AgentRegisterInput input) {

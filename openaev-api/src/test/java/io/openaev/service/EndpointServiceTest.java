@@ -144,8 +144,6 @@ class EndpointServiceTest {
 
       Tag csTag = new Tag();
       csTag.setName("source:crowdstrike");
-      when(tagRepository.findByAssetIdAndTenantId("existing-endpoint-id", TENANT_ID))
-          .thenReturn(new HashSet<>(Set.of(otherExecutorTag)));
       when(tagRepository.findByNameAndTenantId("source:crowdstrike", TENANT_ID))
           .thenReturn(Optional.of(csTag));
       when(agentService.saveAllAgents(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -180,12 +178,11 @@ class EndpointServiceTest {
 
       Tag csTag = new Tag();
       csTag.setName("source:crowdstrike");
+      existingEndpoint.setTags(new HashSet<>(Set.of(csTag)));
 
       when(agentService.saveAllAgents(any())).thenAnswer(inv -> inv.getArgument(0));
-      when(endpointRepository.findAllById(Set.of("inactive-endpoint-id")))
+      when(endpointRepository.findAllByIdInWithTags(Set.of("inactive-endpoint-id")))
           .thenReturn(List.of(existingEndpoint));
-      when(tagRepository.findByAssetIdAndTenantId("inactive-endpoint-id", TENANT_ID))
-          .thenReturn(new HashSet<>(Set.of(csTag)));
 
       // Act
       endpointService.syncAgentsEndpoints(
@@ -226,10 +223,10 @@ class EndpointServiceTest {
       Agent agent = new Agent();
       agent.setAsset(endpoint);
       agent.setExecutor(csExecutor);
+      endpoint.setTags(new HashSet<>(Set.of(csTag, taniumTag)));
 
-      when(endpointRepository.findAllById(Set.of(ENDPOINT_ID))).thenReturn(List.of(endpoint));
-      when(tagRepository.findByAssetIdAndTenantId(ENDPOINT_ID, TENANT_ID))
-          .thenReturn(new HashSet<>(Set.of(csTag, taniumTag)));
+      when(endpointRepository.findAllByIdInWithTags(Set.of(ENDPOINT_ID)))
+          .thenReturn(List.of(endpoint));
 
       // Act
       endpointService.removeSourceTagsFromAgentEndpoints(List.of(agent));
@@ -261,10 +258,10 @@ class EndpointServiceTest {
       Agent agent = new Agent();
       agent.setAsset(endpoint);
       agent.setExecutor(csExecutor);
+      endpoint.setTags(new HashSet<>(Set.of(taniumTag)));
 
-      when(endpointRepository.findAllById(Set.of(ENDPOINT_ID))).thenReturn(List.of(endpoint));
-      when(tagRepository.findByAssetIdAndTenantId(ENDPOINT_ID, TENANT_ID))
-          .thenReturn(new HashSet<>(Set.of(taniumTag)));
+      when(endpointRepository.findAllByIdInWithTags(Set.of(ENDPOINT_ID)))
+          .thenReturn(List.of(endpoint));
 
       // Act
       endpointService.removeSourceTagsFromAgentEndpoints(List.of(agent));
@@ -287,10 +284,10 @@ class EndpointServiceTest {
       Agent agent = new Agent();
       agent.setAsset(endpoint);
       agent.setExecutor(csExecutor);
+      endpoint.setTags(new HashSet<>());
 
-      when(endpointRepository.findAllById(Set.of(ENDPOINT_ID))).thenReturn(List.of(endpoint));
-      when(tagRepository.findByAssetIdAndTenantId(ENDPOINT_ID, TENANT_ID))
-          .thenReturn(new HashSet<>());
+      when(endpointRepository.findAllByIdInWithTags(Set.of(ENDPOINT_ID)))
+          .thenReturn(List.of(endpoint));
 
       // Act
       endpointService.removeSourceTagsFromAgentEndpoints(List.of(agent));
