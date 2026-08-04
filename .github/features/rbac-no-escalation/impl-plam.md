@@ -57,6 +57,8 @@
      - Integration test (API level)
      - Under feature flag `rbac-no-escalation`
 
+> 🎯 **Out of scope:** no need of datapack migration as pre-defined "manager" role does not have MANAGE_TENANT_SETTINGS and "admin" role uses TENANT_BYPASS, therefore no migration needed for DataPack.
+
 3. **Tenant group-based grant enforcement**
    - Enforce guard on role-to-group assignment using union of assigned role capabilities.
    - Enforce guard on user-to-group assignment using group effective capabilities.
@@ -95,6 +97,7 @@
      - Unit test
      - Integration test (API level)
      - Under feature flag `rbac-no-escalation`
+> 🧠 **To explore in the app** which message should we return when a user attempts an escalation; ensure a clear error message is returned when escalation is detected.
 
 3. **Platform group-based grant enforcement**
    - Enforce guard on platform role-to-group and user-to-group assignment paths.
@@ -115,4 +118,4 @@
 
 ## US.4 — Cross-scope test matrix (tenant + platform)
 
-TODO PO Soumaya
+> 🚧🛠 **ToDo** Soumaya to proposed an AI-driven Acceptance criteria test generation agent.
