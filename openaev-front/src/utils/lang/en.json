@@ -12,6 +12,7 @@
   ".": ".",
   "(last 180 days)": "(last 180 days)",
   "[{exerciseName}] Lessons learned questionnaire": "[{exerciseName}] Lessons learned questionnaire",
+  "{count} / page": "{count} / page",
   "{count} action(s) added successfully.": "{count} action(s) added successfully.",
   "{count} actions available": "{count} actions available",
   "{count} actions selected": "{count} actions selected",

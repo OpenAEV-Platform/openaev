@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -1223,6 +1223,73 @@ describe('buildCausalChainFlow', () => {
     const nodeIds = new Set(nodes.map(n => n.id));
     expect(edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.target === 'ep-1')).toHaveLength(0);
     expect(edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
+  });
+});
+
+describe('scopeChainFlowToSeeds', () => {
+  // Same "5 shares > cap of 4" shape as the buildCausalChainFlow collapse test above: the 5 findings
+  // never render individually, only their `chain-fc|...` cluster does.
+  const fids = ['a', 'b', 'c', 'd', 'e'];
+  const collapsed: AttackPathDTO = {
+    ...chainDto,
+    attackPathNodes: [
+      {
+        id: 'inj-A',
+        type: 'INJECTOR',
+        label: 'A',
+      },
+      {
+        id: 'ep-1',
+        type: 'ASSET',
+        label: 'EP1',
+        ip: '10.0.0.1',
+      },
+      ...fids.map(v => ({
+        id: `NODE_FINDING|share|${v}`,
+        type: 'FINDING' as const,
+        typeFindings: 'share',
+        value: v,
+        label: v,
+      })),
+    ],
+    attackPathExecutions: [
+      {
+        id: 'xA',
+        type: 'EXECUTION',
+        ref: 'exec-A',
+        stepTemplateId: 'step-A',
+        findingsNodeIds: fids.map(v => `NODE_FINDING|share|${v}`),
+        dependsOn: [],
+      },
+    ],
+    attackPathEdges: [
+      {
+        type: 'EDGE_EXECUTIONS',
+        edgeSourceId: 'inj-A',
+        edgeTargetId: 'ep-1',
+        executionIds: ['exec-A'],
+      },
+    ],
+  };
+
+  it('falls back to the full chain rather than an empty focus when the seed is a collapsed finding', () => {
+    const chainFlow = buildCausalChainFlow(collapsed, tt);
+    // The seed is one of the 5 collapsed findings — it has no node of its own, only its cluster does.
+    const scoped = scopeChainFlowToSeeds(chainFlow, new Set(['NODE_FINDING|share|a']));
+
+    expect(scoped.nodes).not.toHaveLength(0);
+    expect(scoped.nodes).toEqual(chainFlow.nodes);
+    expect(scoped.edges).toEqual(chainFlow.edges);
+  });
+
+  it('scopes down to the seed and its connected nodes when the seed is actually rendered', () => {
+    const chainFlow = buildCausalChainFlow(collapsed, tt);
+    const injectorNode = chainFlow.nodes.find(n => n.id === 'inj-A');
+
+    const scoped = scopeChainFlowToSeeds(chainFlow, new Set(['inj-A']));
+
+    expect(scoped.nodes).toContainEqual(injectorNode);
+    expect(scoped.nodes.length).toBeLessThan(chainFlow.nodes.length);
   });
 });
 
