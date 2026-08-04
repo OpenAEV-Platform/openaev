@@ -47,7 +47,8 @@ public class InjectExecutionResultService {
       @NotBlank final String targetId,
       @NotNull final TargetType targetType) {
     List<PayloadCommandBlock> payloadCommandBlocks =
-        this.injectStatusService.findInjectStatusByInjectIdOptional(injectId)
+        this.injectStatusService
+            .findInjectStatusByInjectIdOptional(injectId)
             .map(InjectStatus::getPayloadOutput)
             .map(StatusPayload::getPayloadCommandBlocks)
             .orElse(new ArrayList<>());
