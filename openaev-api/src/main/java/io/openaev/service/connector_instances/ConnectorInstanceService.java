@@ -44,6 +44,7 @@ public class ConnectorInstanceService {
   private final TokenRepository tokenRepository;
 
   private final CollectorRepository collectorRepository;
+  private final AgentRepository agentRepository;
   private final ExecutorRepository executorRepository;
   private final InjectorRepository injectorRepository;
 
@@ -60,6 +61,7 @@ public class ConnectorInstanceService {
       TokenRepository tokenRepository,
       EncryptionFactory encryptionFactory,
       CollectorRepository collectorRepository,
+      AgentRepository agentRepository,
       ExecutorRepository executorRepository,
       InjectorRepository injectorRepository,
       EntityManager entityManager,
@@ -73,6 +75,7 @@ public class ConnectorInstanceService {
     this.tokenRepository = tokenRepository;
     this.encryptionFactory = encryptionFactory;
     this.collectorRepository = collectorRepository;
+    this.agentRepository = agentRepository;
     this.executorRepository = executorRepository;
     this.injectorRepository = injectorRepository;
     this.entityManager = entityManager;
@@ -443,6 +446,7 @@ public class ConnectorInstanceService {
       switch (connectorInstance.getCatalogConnector().getContainerType()) {
         case EXECUTOR -> {
           endpointService.removeSourceTagsForExecutor(connectorId, tenantId);
+          agentRepository.deleteAllByExecutorIdAndTenantId(connectorId, tenantId);
           executorRepository.deleteByExecutorId(connectorId);
         }
         case INJECTOR -> injectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
