@@ -133,4 +133,17 @@ describe('AppNavbar', () => {
     fireEvent.click(screen.getByRole('button', { name: /Collapse/i }));
     expect(localStorage.getItem(NAV_OPEN_STORAGE_KEY)).toBe('false');
   });
+
+  it('keeps every row nameable and navigable once the rail is collapsed', () => {
+    // The collapsed rail is a separate branch of the hand-composed row anatomy
+    // (`NavbarRowContent`), which only exists because `asChild` makes the
+    // library's own `icon`/`chevron` props no-ops. It is also the branch no
+    // screenshot review looks at twice: the label is hidden but must stay in
+    // the DOM, or the row loses its accessible name and its collapsed tooltip.
+    localStorage.setItem(NAV_OPEN_STORAGE_KEY, 'false');
+    renderNavbar();
+    const home = screen.getByRole('link', { name: 'Home' });
+    expect(home.getAttribute('href')).toBe('/admin');
+    expect(home.textContent).toContain('Home');
+  });
 });

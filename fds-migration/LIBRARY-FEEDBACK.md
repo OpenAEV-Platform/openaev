@@ -548,7 +548,7 @@ pin, in a product that has **no Tailwind build of its own**:
 | --- | --- |
 | `w-auto`, `shrink-0`, `flex-1`, `truncate`, `sr-only`, `size-4`, `h-7`, `w-7` | yes |
 | `text-default-primary`, `text-content-caption`, the token sets | yes |
-| `h-3`, `size-3`, `object-cover`, `object-contain`, `object-left` | **no** |
+| `size-3`, `object-cover`, `object-contain`, `object-left` | **no** |
 
 A class that does not exist fails **silently**: no build error, no console
 warning, no visual marker — just no style. This product shipped four inert
@@ -557,10 +557,13 @@ classes without noticing, and one of them mattered: the header logo carried
 **stretched** — natural aspect ratio 5.118 rendered at 4.500, a 12% horizontal
 squash on the product's own logo. It survived several visual checkpoints.
 
-Worse, one inert-looking class *did* work: `h-3` resolves only because an
-unrelated sibling package, `@filigran/chatbot/dist/styles.css`, happens to ship
-it. That is an accidental dependency that would break silently the day that
-package changes.
+Worse, one inert-looking class *did* work: at the pin where this was first
+audited, `h-3` resolved only because an unrelated sibling package,
+`@filigran/chatbot/dist/styles.css`, happened to ship it. (At pin `ad10875` the
+design system ships `h-3` itself, so that one class is no longer borrowed — the
+hazard is not.) A product that audits against "whatever stylesheet is loaded"
+rather than against the design system's own is one sibling-package release away
+from a silent regression it did not cause.
 
 **Consequence.** The product's rule is now: **token-bearing classes from the
 library are fine, geometry is inline.** Product-specific sizing uses inline

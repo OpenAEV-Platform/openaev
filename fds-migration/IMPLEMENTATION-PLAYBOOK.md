@@ -238,20 +238,28 @@ Then, for **every** action or workflow that runs an install:
    before the install step;
 3. update every call site to pass `fds-git-token: ${{ secrets.FDS_GIT_TOKEN }}`.
 
-**Success criterion.** This returns nothing:
+**Success criterion.** Enumerate every install site and confirm each one is
+preceded by the auth step — the grep below is the enumeration, not a pass/fail
+test, so read every hit:
 
 ```bash
-# Every install site must be preceded by the auth step. Inspect each hit.
+# One hit per install site. Open each file and check the auth step sits above it.
 grep -rn "yarn install\|npm ci\|pnpm install" .github/
 ```
+
+You are done when every hit is either preceded by `uses:
+./.github/actions/setup-fds-auth` in the same job, or — for the container steps
+that cannot use a composite action — by the inlined `git config … insteadOf`
+described below.
 
 **Traps.**
 
 - **Miss one install site and CI goes red late**, in a job you were not
   watching. Enumerate them with the grep above and tick them off one by one.
-  In OpenAEV there were eleven, across composite actions, the quality-gate
-  workflow, the nightly build, the release dry-run, and three Alpine-based
-  deploy workflows.
+  In OpenAEV the grep returns **nine** install sites — four composite actions,
+  two steps of the nightly build, and three Alpine-based deploy workflows — and
+  each composite action then has to be handed the secret at **every** call site
+  (the quality-gate workflow, the core pipeline, the release dry-run).
 - **Do not put the token on the command line** (`git config … ${{ secrets.X }}`
   inline). Pass it through the step's `env:` so it is not part of a logged
   command.
@@ -547,34 +555,74 @@ for every class your integration passes to a library component:
 
 ```bash
 CSS=node_modules/@filigran/design-system/packages/filigran-design-system/dist/index.css
-for c in $(grep -rhoE 'className="[^"]+"' src/<your nav dir> \
-           | sed 's/className="//;s/"//' | tr ' ' '\n' | sort -u); do
-  grep -q "\.$(echo "$c" | sed 's/[./[]/\\&/g')[^a-zA-Z0-9_-]" "$CSS" \
-    || echo "INERT: $c"
-done
+# The compiled CSS escapes the characters Tailwind puts in class names: `mr-0.5`
+# is written `.mr-0\.5`, `w-[100px]` is `.w-\[100px\]`. Strip those backslashes
+# once, or every such class is reported INERT when it is not.
+sed 's/\\//g' "$CSS" > /tmp/fds-classes.css
+# Collect class names from every form the code uses: "…", {"…"}, {`…`} and the
+# branches of a ternary inside a template literal. Anything less misses the
+# collapsed-state classes, which are exactly the ones you cannot see by eye.
+grep -rhoE 'className=(\{`[^`]+`\}|"[^"]+"|\{"[^"]+"\})' src/<your nav dir> \
+  | sed -E 's/className=\{?`?"?//; s/`?\}?"?$//' \
+  | tr ' ' '\n' | sed "s/[\${}?:']//g" | grep -E '^[a-zA-Z]' | sort -u \
+  | while read -r c; do
+      needle=$(printf '%s' "$c" | sed 's/[.[]/\\&/g')
+      grep -q "\.$needle[^a-zA-Z0-9_-]" /tmp/fds-classes.css || echo "INERT: $c"
+    done
 ```
+
+Prove the audit before you trust it: feed it a class you know is absent
+(`object-contain`, `object-left`) and check it is reported. An audit that
+reports nothing because its extraction missed your files is worse than none.
+
+Two false alarms to expect, and neither is a bug: your own hook class (here
+`.app-navbar`, which lives in the host stylesheet) and any bare identifier the
+extraction picks out of a ternary. Everything else on that list is a class that
+does nothing.
 
 Two findings worth internalising:
 
-- **A class that "works" may be borrowed.** `h-3` resolved here only because an
-  unrelated sibling package, `@filigran/chatbot/dist/styles.css`, happens to
-  ship it. That is an accidental cross-package dependency that breaks silently
-  the day that package changes.
+- **A class that "works" may be borrowed.** `h-3` resolved at an early pin only
+  because an unrelated sibling package, `@filigran/chatbot/dist/styles.css`,
+  happened to ship it — the design system did not. (It ships it at pin
+  `ad10875`, so that particular class is no longer borrowed; the *category* is
+  the point.) Audit against the design system's stylesheet alone: a class that
+  only exists in a sibling package is an accidental cross-package dependency
+  that breaks silently the day that package changes.
 - **Do not "activate" an inert class when you remove it.** If a checkpoint has
   already approved the rendering, the inert class is part of what was approved.
   Decide deliberately whether the intent (here: stop stretching the logo) is a
   fix to apply or a change to raise.
 
 **The rule that came out of it:** *token-bearing classes from the library are
-fine — geometry is inline.* `text-default-secondary`, `text-content-caption`,
-`shrink-0`, `truncate` are the library's published vocabulary and should be
-used. Product-specific sizing, fitting and positioning goes in a `style` object,
-which is guaranteed to apply and is visible in review:
+fine — geometry you invent is inline.* `text-default-secondary`,
+`text-content-caption`, `shrink-0`, `truncate` are the library's published
+vocabulary and should be used. Product-specific sizing, fitting and positioning
+goes in a `style` object, which is guaranteed to apply and is visible in review:
 
 ```tsx
 <img src={theme.logo} style={{ height: 28, width: '100%',
      objectFit: 'contain', objectPosition: 'left center' }} />
 ```
+
+**The third case, and the one the rule alone will mislead you on.** When
+`asChild` forces you to re-compose a library row's internals
+([Step 7](#step-7--read-the-components-real-api-before-designing-anything)),
+you are not writing geometry — you are *reproducing the library's own row
+anatomy*, layout classes included. Inlining those would desynchronise your row
+from every future restyle. So copy them verbatim from the component's source,
+keep them in one file so the debt stays countable
+(`NavbarRowContent.tsx` here), and let the audit above prove they all exist:
+
+```tsx
+// Reproduced from the library's NavbarItem.tsx — layout classes included,
+// on purpose. Not geometry: the library's published anatomy.
+<span className={`flex-1 truncate text-left ${collapsed ? 'sr-only' : ''}`} />
+```
+
+The three-way test: **the library's token or anatomy → its class; geometry you
+invented → inline style; a class you cannot find in the library's source →
+neither, you made it up.**
 
 Filed upstream as feedback #13 — the ask is that the consumer documentation say
 `index.css` is not a Tailwind runtime, and that slots document the geometry
@@ -1062,12 +1110,13 @@ Run all of these before requesting review.
 | 1 | Types | `yarn check-ts` — compare against the target branch to date pre-existing errors |
 | 2 | Lint | `npx eslint <changed paths>` (`--fix` handles import ordering) |
 | 3 | Unit tests | `npx vitest run <your test folder>` |
-| 4 | Production build | `yarn build` — catches resolution and stylesheet problems the dev server hides |
-| 5 | Migration conformity | `node fds-migration/scripts/check-fds-conformity.mjs` |
-| 6 | No dead legacy code | `grep -rn "<legacy names>" src/ tests_e2e/` returns nothing |
-| 7 | CI green | Every check on the pull request, **including the install job** — that job is the proof the whole method works |
-| 8 | Computed-style diff vs. the documentation site | [Step 5b](#step-5b--diff-against-the-librarys-own-documentation-site) — every measured value identical, or a named cause |
-| 9 | Visual checkpoint | [Step 12](#step-12--run-the-product-for-the-visual-checkpoint) — run the product and verify by hand (list below) |
+| 4 | New user-visible strings | `yarn i18n-checker` — every new `t('…')` key must exist in **all** the product's language files, or the `Frontend Quality` job fails |
+| 5 | Production build | `yarn build` — catches resolution and stylesheet problems the dev server hides |
+| 6 | Migration conformity | `node fds-migration/scripts/check-fds-conformity.mjs` |
+| 7 | No dead legacy code | `grep -rn "<legacy names>" src/ tests_e2e/` returns nothing — **comments included**, a comment naming a file you deleted is a false statement |
+| 8 | CI green | Every check on the pull request, **including the install job** — that job is the proof the whole method works |
+| 9 | Computed-style diff vs. the documentation site | [Step 5b](#step-5b--diff-against-the-librarys-own-documentation-site) — every measured value identical, or a named cause |
+| 10 | Visual checkpoint | [Step 12](#step-12--run-the-product-for-the-visual-checkpoint) — run the product and verify by hand (list below) |
 
 **Visual checkpoint — what to look at, in both light and dark themes:**
 
@@ -1157,6 +1206,8 @@ alone is a legitimate state. Note it, keep the branch green, and do the parts
 that do not depend on the library.
 
 ---
+
+## The pin-bump exercise
 
 Your pin is a snapshot. Library pull requests merge after it, and adopting them
 is a routine chore. Do it deliberately, on its own branch, as its own
