@@ -23,12 +23,12 @@ const legendSectionSx = {
 } as const;
 
 // Full legend of the attack-path canvas (bottom-right): the card kinds, the verdict colours and the
-// special edge/badge colours. Open by default — it is part of reading the map — and folds to a
-// compact verdict key when a side panel needs the room.
+// special edge/badge colours. Collapsed by default to a compact verdict key so it never competes with
+// the map on load — the analyst expands it on demand.
 const AttackPathLegend = ({ collapseSignal }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   // Fold the legend when a panel opens (ignoring the initial mount), without locking it: reopening
   // is still up to the user.
