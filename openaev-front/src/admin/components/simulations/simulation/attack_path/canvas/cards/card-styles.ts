@@ -36,10 +36,12 @@ export const buildCardSx = ({ theme, accent, selected = false, dimmed = false, d
   'transition': 'opacity 0.2s ease, border-color 0.15s ease, box-shadow 0.15s ease',
   '&:hover': {
     borderColor: theme.palette.primary.main,
-    // The shorthand above would repaint all four sides: re-assert the left accent bar so the
-    // verdict colour never disappears under the pointer.
+    // Keep the verdict accent visible under the pointer (the border shorthand would repaint all
+    // four sides).
     borderLeftColor: selected ? theme.palette.primary.main : accent,
-    boxShadow: theme.shadows[4],
+    // A crisp 1px ring around the whole card — even on all four sides regardless of the thicker
+    // left accent — so hovering reads as a FULL outline, not a three-sided one.
+    boxShadow: `0 0 0 1px ${theme.palette.primary.main}, ${theme.shadows[4]}`,
   },
 });
 

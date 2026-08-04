@@ -1,9 +1,11 @@
-import { Close } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, IconButton, Paper, Typography } from '@mui/material';
+import { Close, InfoOutlined } from '@mui/icons-material';
+import { Alert, Box, Button, Chip, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import FindingIcon from '../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../components/i18n';
+import LogicNodeTooltip from '../../../chaining/logic/chaining_flow/NodeTooltip';
+import graphTooltipSlotProps from '../../../chaining/logic/logic-graph/graphTooltipSlotProps';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 import InjectFormSection from '../../../common/injects/form/InjectFormSection';
 
@@ -60,6 +62,24 @@ const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectati
     return theme.palette.text.disabled;
   };
 
+  // Plain-language explanation of each expectation type, so a newcomer understands what the three
+  // badges actually mean rather than facing an unlabelled icon row.
+  const expectationHelp: Record<keyof FindingExpectations, string> = {
+    prevention: t('Prevention checks whether a security control blocked or stopped this technique on the endpoint.'),
+    detection: t('Detection checks whether a security control raised an alert on this technique on the endpoint.'),
+    vulnerability: t('Vulnerability checks whether the endpoint was actually found vulnerable to this technique.'),
+  };
+  const verdictHelp = (verdict: ExpectationVerdict): string => {
+    if (verdict === 'success') {
+      return t('Result: the expectation was met (control effective / target vulnerable).');
+    }
+    if (verdict === 'failed') {
+      return t('Result: the expectation was not met (control ineffective / target not vulnerable).');
+    }
+    return t('Result: not evaluated - no matching control result was reported for this finding.');
+  };
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
   return (
     <Paper
       variant="outlined"
@@ -102,29 +122,43 @@ const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectati
                   >
                     {EXPECTATION_ORDER.map((key) => {
                       const verdict = expectations[key] ?? 'unknown';
-                      const label = `${t(key.charAt(0).toUpperCase() + key.slice(1))}: ${t(verdict.charAt(0).toUpperCase() + verdict.slice(1))}`;
+                      const label = `${t(cap(key))}: ${t(cap(verdict))}`;
                       const color = verdictColor(key, verdict);
                       return (
-                        <Box
+                        <Tooltip
                           key={key}
-                          component="span"
-                          role="img"
-                          aria-label={label}
-                          title={label}
-                          sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 28,
-                            height: 28,
-                            borderRadius: 1,
-                            color,
-                            background: alpha(color, 0.1),
-                            boxShadow: `inset 0 0 12px ${alpha(color, 0.13)}`,
-                          }}
+                          placement="top"
+                          arrow
+                          disableInteractive
+                          slotProps={graphTooltipSlotProps}
+                          title={(
+                            <LogicNodeTooltip
+                              eyebrow={t(cap(key))}
+                              title={t(cap(verdict))}
+                              description={`${expectationHelp[key]} ${verdictHelp(verdict)}`}
+                              accentColor={color}
+                            />
+                          )}
                         >
-                          {expectationIconByType(key, { color })}
-                        </Box>
+                          <Box
+                            component="span"
+                            role="img"
+                            aria-label={label}
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 28,
+                              height: 28,
+                              borderRadius: 1,
+                              color,
+                              background: alpha(color, 0.1),
+                              boxShadow: `inset 0 0 12px ${alpha(color, 0.13)}`,
+                            }}
+                          >
+                            {expectationIconByType(key, { color })}
+                          </Box>
+                        </Tooltip>
                       );
                     })}
                   </Box>
@@ -190,7 +224,37 @@ const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectati
           <Box>
             <Typography variant="body2" noWrap title={endpointLabel}>{endpointLabel}</Typography>
             {endpointSub && (
-              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{endpointSub}</Typography>
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+              }}
+              >
+                <Typography variant="caption" color="text.secondary" noWrap sx={{ minWidth: 0 }}>{endpointSub}</Typography>
+                {/* The IP/platform line is opaque on its own ("Unknown" reads as an error): an info
+                    affordance spells out what it is and what an undetermined platform means. */}
+                <Tooltip
+                  placement="top"
+                  arrow
+                  disableInteractive
+                  slotProps={graphTooltipSlotProps}
+                  title={(
+                    <LogicNodeTooltip
+                      eyebrow={t('Endpoint')}
+                      title={t('Where the finding was discovered')}
+                      description={t('The host this finding was found on, shown as its IP address and platform (operating system family). "Unknown" means the platform could not be determined from the data collected during the run.')}
+                    />
+                  )}
+                >
+                  <InfoOutlined sx={{
+                    fontSize: 13,
+                    color: 'text.disabled',
+                    flexShrink: 0,
+                    cursor: 'help',
+                  }}
+                  />
+                </Tooltip>
+              </Box>
             )}
           </Box>
         </InjectFormSection>

@@ -133,7 +133,12 @@ const GraphTriggerCard = ({
             ? `0 0 0 1px ${theme.palette.warning.main}, ${theme.shadows[4]}`
             : theme.shadows[1],
           'transition': 'opacity 0.2s ease, border-color 0.15s ease, box-shadow 0.15s ease',
-          '&:hover': { boxShadow: theme.shadows[4] },
+          // Crisp 1px ring on all four sides (matching the active state) so hovering reads as a full
+          // outline, not a soft one-shadow glow.
+          '&:hover': {
+            borderColor: theme.palette.warning.main,
+            boxShadow: `0 0 0 1px ${theme.palette.warning.main}, ${theme.shadows[4]}`,
+          },
         }}
       >
         {pathIndex !== undefined && (

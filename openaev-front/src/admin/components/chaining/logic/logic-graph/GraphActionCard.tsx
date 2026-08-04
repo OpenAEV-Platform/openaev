@@ -154,7 +154,9 @@ const GraphActionCard = ({
           'transition': 'opacity 0.2s ease, border-color 0.15s ease, box-shadow 0.15s ease',
           '&:hover': {
             borderColor: theme.palette.primary.main,
-            boxShadow: theme.shadows[4],
+            // Crisp 1px ring on all four sides (matching the selected state) so hovering reads as a
+            // full outline, not a soft one-shadow glow.
+            boxShadow: `0 0 0 1px ${theme.palette.primary.main}, ${theme.shadows[4]}`,
           },
         }}
       >
