@@ -17,7 +17,7 @@ runs:
     - name: Start all services (non-blocking)
       shell: bash
       run: |
-        source .github/versions.env
+        source openaev-dev/versions.env
         docker run -d --name pgsql \
           -p 5432:5432 \
           -e POSTGRES_USER=openaev \

@@ -29,7 +29,7 @@ inputs:
     required: false
     default: "elasticsearch"
   search-engine-image:
-    description: "Docker image for the search engine (default from .github/versions.env)"
+    description: "Docker image for the search engine (default from openaev-dev/versions.env)"
     required: false
     default: ""
   project:
@@ -58,7 +58,7 @@ runs:
     - name: Start all services (non-blocking)
       shell: bash
       run: |
-        source .github/versions.env
+        source openaev-dev/versions.env
         docker run -d --name pgsql \
           -p 5432:5432 \
           -e POSTGRES_USER=openaev \

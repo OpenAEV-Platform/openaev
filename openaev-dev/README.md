@@ -28,6 +28,14 @@ Copy-Item .env.example .env
 
 The default values should work for local development.
 
+Container image tags are not part of `.env` — they live in `versions.env`, which is
+committed and shared with CI. There is nothing to configure: `docker-compose.yml`
+falls back to the exact same tags, and Renovate updates both in one PR.
+
+`.env.example` additionally sets `COMPOSE_ENV_FILES=versions.env,.env`, which makes
+`versions.env` the file Compose actually reads. It is optional — an older `.env`
+without that line just uses the fallbacks.
+
 ### 2. Create the backend dev configuration
 
 Copy the example and fill in your values:
@@ -99,6 +107,7 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 | File | Description |
 |------|-------------|
 | `.env.example` | Example environment variables (copy to `.env`) |
+| `versions.env` | Container image versions, shared with CI (committed) |
 | `docker-compose.yml` | Container composition file (used via `podman compose`) |
 | `rabbitmq.conf` | RabbitMQ configuration |
 | `otlp-config.yaml` | OpenTelemetry Collector configuration (for telemetry) |
