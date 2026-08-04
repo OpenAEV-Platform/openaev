@@ -13,6 +13,7 @@ import useRemainingViewportHeight from '../../../../utils/hooks/useRemainingView
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
 import ComponentStepperDrawer, { type DrawerView } from './drawer/ComponentStepperDrawer';
 import LogicGraph from './logic-graph/LogicGraph';
+import LogicReadOnlyBanner from './LogicReadOnlyBanner';
 import LogicTopBar from './LogicTopBar';
 import OutputProvidersProvider from './OutputProvidersContext';
 import type { ActionMeta, EventMeta } from './types';
@@ -24,13 +25,16 @@ interface LogicProps {
   scenarioId?: string;
   /** Owning exercise id (simulation context) - feeds the inject form's team/document providers. */
   exerciseId?: string;
-  /** Read-only inspection mode (autonomous runs): the AI owns the attack path, so the manual
+  /** Read-only inspection mode (autonomous runs OR a launched simulation, see ADR-005): the manual
    *  authoring affordances (top bar, add-component, node edit/delete) are hidden while pan/zoom
    *  and the trigger spotlight stay available. */
   readOnly?: boolean;
+  /** Message shown in the read-only banner explaining WHY the map is frozen. When omitted, no
+   *  banner is rendered (the read-only affordances are still hidden). */
+  readOnlyMessage?: string;
 }
 
-const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }: LogicProps) => {
+const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, readOnlyMessage }: LogicProps) => {
   // The canvas sizes itself to the exact space left under the page chrome (no page scrollbar).
   const [graphContainerRef, graphHeight] = useRemainingViewportHeight();
   // Fetch computed valid assets (allowlist minus denylist)
@@ -189,6 +193,7 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }
 
   return (
     <OutputProvidersProvider>
+      {readOnly && readOnlyMessage && <LogicReadOnlyBanner message={readOnlyMessage} />}
       <div
         ref={graphContainerRef}
         style={{

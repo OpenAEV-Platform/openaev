@@ -2062,6 +2062,29 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     };
   }, [findingDetail, selectedFindingId, fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]);
 
+  // Whether the finding backing the panel is a real finding or an output-only value (a chaining
+  // output not persisted as a Finding, ADR-004), so the panel renders its degraded banner. Defaults
+  // to a real finding when the flag is absent (older snapshots / non-output nodes).
+  const findingDetailIsFinding = useMemo((): boolean => {
+    if (!findingDetail) {
+      return true;
+    }
+    const matchByTypeValue = (n: AttackPathNodeDTO) => n.type === 'FINDING'
+      && n.typeFindings === findingDetail.type
+      && (n.value ?? n.label) === findingDetail.value;
+    for (const pool of [fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]) {
+      if (!pool) {
+        continue;
+      }
+      const node = (selectedFindingId ? pool.find(n => n.id === selectedFindingId) : undefined)
+        ?? pool.find(matchByTypeValue);
+      if (node && node.isFinding !== undefined) {
+        return node.isFinding !== false;
+      }
+    }
+    return true;
+  }, [findingDetail, selectedFindingId, fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]);
+
   // The clicked endpoint's findings grouped by type for the side panel; secrets (credentials) masked.
   const endpointFindingGroups = useMemo(() => {
     const byType = new Map<string, string[]>();
@@ -2722,6 +2745,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                   endpointLabel={findingEndpoint?.hostname || findingEndpoint?.label || findingEndpoint?.ref || pathFinding?.endpointKey || t('Endpoint')}
                   endpointSub={[findingEndpoint?.ip, findingEndpoint?.platform].filter(Boolean).join(' · ')}
                   expectations={findingExpectations}
+                  isFinding={findingDetailIsFinding}
                   actions={producingActions}
                   activeRef={detailExecutionId}
                   onSelect={openExecutionDetail}

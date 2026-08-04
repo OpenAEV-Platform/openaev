@@ -23,17 +23,31 @@ const FindingCard = ({ data, selected = false }: Props) => {
   const { t } = useFormatter();
   const verdict = data.status ? attackPathStatusColor(theme, data.status) : theme.palette.divider;
   const value = maskFindingValue(data.typeFindings, data.label);
+  // Output-only value (a chaining output not persisted as a Finding, ADR-004): flagged so the
+  // analyst can tell it apart from a real finding and knows its drawer is in a degraded mode.
+  const isOutputOnly = data.isFinding === false;
 
   const tooltip = (
     <LogicNodeTooltip
-      eyebrow={data.typeFindings ?? t('Finding')}
+      eyebrow={isOutputOnly ? t('Output only') : (data.typeFindings ?? t('Finding'))}
       title={value}
-      rows={data.status
-        ? [{
-            label: t('Status'),
-            value: t(attackPathStatusLabel(data.status)),
-          }]
-        : []}
+      description={isOutputOnly
+        ? t('This is an output-only value used by the chaining and not recorded as a finding.')
+        : undefined}
+      rows={[
+        ...(data.typeFindings
+          ? [{
+              label: t('Type'),
+              value: data.typeFindings,
+            }]
+          : []),
+        ...(data.status
+          ? [{
+              label: t('Status'),
+              value: t(attackPathStatusLabel(data.status)),
+            }]
+          : []),
+      ]}
       accentColor={verdict}
     />
   );
@@ -58,8 +72,14 @@ const FindingCard = ({ data, selected = false }: Props) => {
           gap: '1px',
         }}
         >
-          <Typography component="span" sx={EYEBROW_SX}>
-            {data.typeFindings}
+          <Typography
+            component="span"
+            sx={{
+              ...EYEBROW_SX,
+              ...(isOutputOnly ? { fontStyle: 'italic' } : {}),
+            }}
+          >
+            {isOutputOnly ? t('Output only') : data.typeFindings}
           </Typography>
           <Typography
             component="div"

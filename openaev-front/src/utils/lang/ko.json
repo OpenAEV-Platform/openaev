@@ -1,4 +1,12 @@
 {
+  "Output only": "출력 전용",
+  "This is an output-only value used by the chaining and not recorded as a finding.": "체이닝에서 사용되는 출력 전용 값이며 finding으로 기록되지 않습니다.",
+  "This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it, or update the scenario and run it again.": "이 시뮬레이션이 시작되었습니다. 로직 맵은 읽기 전용입니다. 편집하려면 시뮬레이션을 재설정하거나, 시나리오를 수정한 후 다시 실행하세요.",
+  "This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it.": "이 시뮬레이션이 시작되었습니다. 로직 맵은 읽기 전용입니다. 편집하려면 시뮬레이션을 재설정하세요.",
+  "This simulation has been launched. Its scope is read-only. Reset the simulation to edit it, or update the scenario and run it again.": "이 시뮬레이션이 시작되었습니다. 범위는 읽기 전용입니다. 편집하려면 시뮬레이션을 재설정하거나, 시나리오를 수정한 후 다시 실행하세요.",
+  "This simulation has been launched. Its scope is read-only. Reset the simulation to edit it.": "이 시뮬레이션이 시작되었습니다. 범위는 읽기 전용입니다. 편집하려면 시뮬레이션을 재설정하세요.",
+  "This simulation is driven by the autonomous attack path. Its logic map is read-only.": "This simulation is driven by the autonomous attack path. Its logic map is read-only.",
+  "This simulation is driven by the autonomous attack path. Its scope is read-only.": "This simulation is driven by the autonomous attack path. Its scope is read-only.",
   " (coming soon)": "(곧 출시 예정)",
   " Free Trial platform!": "무료 평가판 플랫폼!",
   " is locked until required fields are filled.": "는 필수 필드가 채워질 때까지 잠깁니다.",

@@ -1,4 +1,12 @@
 {
+  "Output only": "Sortie uniquement",
+  "This is an output-only value used by the chaining and not recorded as a finding.": "Il s'agit d'une valeur de sortie utilisée par le chaînage et non enregistrée comme finding.",
+  "This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it, or update the scenario and run it again.": "Cette simulation a été lancée. Sa logique est en lecture seule. Réinitialisez la simulation pour la modifier, ou mettez à jour le scénario et exécutez-le à nouveau.",
+  "This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it.": "Cette simulation a été lancée. Sa logique est en lecture seule. Réinitialisez la simulation pour la modifier.",
+  "This simulation has been launched. Its scope is read-only. Reset the simulation to edit it, or update the scenario and run it again.": "Cette simulation a été lancée. Sa portée est en lecture seule. Réinitialisez la simulation pour la modifier, ou mettez à jour le scénario et exécutez-le à nouveau.",
+  "This simulation has been launched. Its scope is read-only. Reset the simulation to edit it.": "Cette simulation a été lancée. Sa portée est en lecture seule. Réinitialisez la simulation pour la modifier.",
+  "This simulation is driven by the autonomous attack path. Its logic map is read-only.": "This simulation is driven by the autonomous attack path. Its logic map is read-only.",
+  "This simulation is driven by the autonomous attack path. Its scope is read-only.": "This simulation is driven by the autonomous attack path. Its scope is read-only.",
   " (coming soon)": " (bientôt disponible)",
   " Free Trial platform!": "Plateforme d'essai gratuite !",
   " is locked until required fields are filled.": " est bloqué jusqu'à ce que les champs requis soient remplis.",

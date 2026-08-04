@@ -1,4 +1,12 @@
 {
+  "Output only": "仅输出",
+  "This is an output-only value used by the chaining and not recorded as a finding.": "这是链式处理使用的仅输出值，不会记录为 finding。",
+  "This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it, or update the scenario and run it again.": "此模拟已启动。其逻辑图为只读。请重置模拟以进行编辑，或更新场景并重新运行。",
+  "This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it.": "此模拟已启动。其逻辑图为只读。请重置模拟以进行编辑。",
+  "This simulation has been launched. Its scope is read-only. Reset the simulation to edit it, or update the scenario and run it again.": "此模拟已启动。其范围为只读。请重置模拟以进行编辑，或更新场景并重新运行。",
+  "This simulation has been launched. Its scope is read-only. Reset the simulation to edit it.": "此模拟已启动。其范围为只读。请重置模拟以进行编辑。",
+  "This simulation is driven by the autonomous attack path. Its logic map is read-only.": "This simulation is driven by the autonomous attack path. Its logic map is read-only.",
+  "This simulation is driven by the autonomous attack path. Its scope is read-only.": "This simulation is driven by the autonomous attack path. Its scope is read-only.",
   " (coming soon)": " (即将推出）",
   " Free Trial platform!": "免费试用平台！",
   " is locked until required fields are filled.": " 被锁定，直到填写了必填字段。",
