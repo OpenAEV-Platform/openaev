@@ -478,7 +478,7 @@ describe('SimulationAttackPath live delta updates', () => {
     expect((screen.getByPlaceholderText('Search') as HTMLInputElement).value).toBe('admin');
   });
 
-  it('stops polling once the run is terminal and says the attack path is final', async () => {
+  it('stops polling once the run is terminal and retires the live beacon', async () => {
     setup();
     // The run's status comes from the picker metadata, which resolves after the snapshot.
     mocks.fetchSimulationsMetaById.mockResolvedValue({
@@ -496,7 +496,10 @@ describe('SimulationAttackPath live delta updates', () => {
     expect(mocks.fetchAttackPathGraphDelta).toHaveBeenCalledTimes(1);
     await tick(30000);
     expect(mocks.fetchAttackPathGraphDelta).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Run finished')).toBeTruthy();
+    // The transient beacon disappears entirely: the page hero already says the run is finished,
+    // so the header must not repeat it.
+    expect(screen.queryByText('Live')).toBeNull();
+    expect(screen.queryByText('Run finished')).toBeNull();
   });
 
   it('pauses while the tab is hidden and catches up when it comes back', async () => {
