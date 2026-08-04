@@ -105,9 +105,13 @@ public final class AttackPathIds {
    * row copied before the hashing was introduced still resolves to its legacy id, and a re-copy
    * upserts onto the existing row instead of duplicating it. Only when the raw encoding would
    * overflow does the id switch to a variant that hashes the whole {@code value} with SHA-256
-   * (never truncated), under the distinct {@code FINDING_ROW_H} kind so the two namespaces can
-   * never collide (no pre-existing row can carry an overflowing raw id). The real value is kept
-   * untouched in {@code attackpath_finding_value} ({@code text}) for display.
+   * (never truncated), under the distinct {@code FINDING_ROW_H} kind. If that variant still
+   * overflows (the excess length comes from another component, e.g. a very long {@code
+   * endpointKey}), the last resort hashes the whole raw id under the {@code FINDING_ROW_F} kind,
+   * whose length is a constant 78 chars. The three kinds are distinct, so the namespaces can never
+   * collide (and no pre-existing row can carry an overflowing raw id: those inserts failed). Every
+   * variant is a deterministic, collision-free function of the same natural key; the real value is
+   * kept untouched in {@code attackpath_finding_value} ({@code text}) for display.
    */
   public static String findingRow(
       String simulationId, String type, String field, String value, String endpointKey) {
@@ -115,13 +119,20 @@ public final class AttackPathIds {
     if (rawId.length() <= FINDING_ROW_ID_MAX_LENGTH) {
       return rawId;
     }
-    return encode(
-        "FINDING_ROW_H",
-        simulationId,
-        type,
-        field,
-        value == null ? null : hashWithSHA256(value),
-        endpointKey);
+    String hashedValueId =
+        encode(
+            "FINDING_ROW_H",
+            simulationId,
+            type,
+            field,
+            value == null ? null : hashWithSHA256(value),
+            endpointKey);
+    if (hashedValueId.length() <= FINDING_ROW_ID_MAX_LENGTH) {
+      return hashedValueId;
+    }
+    // The overflow comes from another component: hashing the full raw id (already an injective
+    // encoding of the natural key) yields a fixed-size id that can never overflow.
+    return encode("FINDING_ROW_F", hashWithSHA256(rawId));
   }
 
   /** {@code EDGE_ENDPOINT_FINDINGS_TYPE}: an endpoint to one of its finding-type nodes. */

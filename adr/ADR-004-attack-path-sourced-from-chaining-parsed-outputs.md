@@ -133,10 +133,12 @@ Concretely:
   every row copied before this change still resolves to its exact pre-upgrade id and a re-copy
   upserts onto it instead of duplicating it — and only when the raw encoding would overflow does it
   switch to a variant that hashes the whole `value` with SHA-256 (`CryptoHelper.hashWithSHA256`,
-  never truncated), under the distinct `FINDING_ROW_H` kind prefix so the raw and hashed namespaces
-  can never collide (no pre-existing row can carry an overflowing raw id). The same value always
-  yields the same id, preserving the idempotent upsert; the real value is kept untouched in
-  `attackpath_finding_value` (`text`) for display.
+  never truncated), under the distinct `FINDING_ROW_H` kind prefix. If that variant still
+  overflows (the excess length comes from another component, e.g. a very long endpoint key), the
+  last resort hashes the whole raw id under the fixed-size `FINDING_ROW_F` kind. The three kind
+  prefixes are distinct, so the namespaces can never collide (and no pre-existing row can carry an
+  overflowing raw id). The same natural key always yields the same id, preserving the idempotent
+  upsert; the real value is kept untouched in `attackpath_finding_value` (`text`) for display.
 - **Uniqueness on the primary key (no separate natural-key index)**: because the id is a
   deterministic, injective encoding of the full natural key (`simulationId, type, field, value,
   endpointKey`, hashing the value only on overflow as above), the same finding always resolves to

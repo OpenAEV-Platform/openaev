@@ -115,6 +115,26 @@ class AttackPathIdsTest {
   }
 
   @Test
+  @DisplayName("A finding row id stays bounded when the overflow comes from another component")
+  void finding_row_id_is_bounded_when_other_components_overflow() {
+    // Hashing the value cannot shrink an id whose excess length comes from, e.g., a very long
+    // endpoint key: the last resort hashes the whole raw id into the fixed-size FINDING_ROW_F
+    // form, which stays deterministic and distinct per natural key.
+    String longEndpointKey = "k".repeat(300);
+    String id = AttackPathIds.findingRow("sim-1", "port", "text_field", "22", longEndpointKey);
+
+    assertThat(id.length()).isLessThanOrEqualTo(255);
+    assertThat(id).startsWith("FINDING_ROW_F|");
+    assertThat(id)
+        .isEqualTo(AttackPathIds.findingRow("sim-1", "port", "text_field", "22", longEndpointKey));
+    assertThat(id)
+        .isNotEqualTo(
+            AttackPathIds.findingRow("sim-1", "port", "text_field", "23", longEndpointKey))
+        .isNotEqualTo(
+            AttackPathIds.findingRow("sim-1", "port", "text_field", "22", longEndpointKey + "k"));
+  }
+
+  @Test
   @DisplayName("The delimiter inside a component cannot cause a collision (injective encoding)")
   void delimiter_in_component_is_safe() {
     // Without escaping, both would encode to "NODE_FINDING|a|b|c".
