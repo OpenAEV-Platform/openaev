@@ -48,7 +48,6 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   fieldKey,
   fieldLabel,
   value,
-  defaultValue,
   link,
   readOnly = false,
   noLink = false,

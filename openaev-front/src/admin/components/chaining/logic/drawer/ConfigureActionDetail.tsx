@@ -231,14 +231,14 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     () =>
       isPayload
         ? new Set(
-          contractFields
-            .filter(
-              f =>
-                f.key.startsWith('targeted-property-')
-                || f.key.startsWith('targeted-asset-separator-'),
-            )
-            .map(f => f.key),
-        )
+            contractFields
+              .filter(
+                f =>
+                  f.key.startsWith('targeted-property-')
+                  || f.key.startsWith('targeted-asset-separator-'),
+              )
+              .map(f => f.key),
+          )
         : new Set<string>(),
     [isPayload, contractFields],
   );
