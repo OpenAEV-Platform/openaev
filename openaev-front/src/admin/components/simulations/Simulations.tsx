@@ -14,6 +14,7 @@ import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
+import AutonomousAttackCreation from '../autonomous/AutonomousAttackCreation';
 import useAutonomousRunsIndex from '../autonomous/useAutonomousRunsIndex';
 import ToolBar from '../common/ToolBar';
 import ImportUploaderExercise from './ImportUploaderExercise';
@@ -146,6 +147,9 @@ const Simulations = () => {
                 <ImportUploaderExercise />
               </Can>
             </ToggleButtonGroup>
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+              <AutonomousAttackCreation />
+            </Can>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <ExerciseCreation />
             </Can>
