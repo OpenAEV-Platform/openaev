@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Executor;
+import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
@@ -29,6 +30,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class ExecutorServiceTest {
 
   @Mock private ExecutorRepository executorRepository;
+  @Mock private AgentRepository agentRepository;
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private FileService fileService;

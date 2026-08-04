@@ -6,6 +6,7 @@ import static io.openaev.service.FileService.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Executor;
+import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
@@ -38,6 +39,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   @PersistenceContext private EntityManager entityManager;
 
   private final ExecutorRepository executorRepository;
+  private final AgentRepository agentRepository;
   private final ExecutionTraceRepository executionTraceRepository;
 
   private final FileService fileService;
@@ -49,6 +51,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   @Autowired
   public ExecutorService(
       ExecutorRepository executorRepository,
+      AgentRepository agentRepository,
       ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
       ExecutionTraceRepository executionTraceRepository,
       FileService fileService,
@@ -65,6 +68,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
         catalogConnectorMapper);
     this.fileService = fileService;
     this.executorRepository = executorRepository;
+    this.agentRepository = agentRepository;
     this.executionTraceRepository = executionTraceRepository;
     this.executorMapper = executorMapper;
     this.endpointService = endpointService;
@@ -240,6 +244,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executorOptional.ifPresent(
         executor -> {
           endpointService.removeSourceTagsForExecutor(executor.getId(), executor.getTenantId());
+          agentRepository.deleteAll(
+              agentRepository.findByExecutorIdAndTenantId(executor.getId(), executor.getTenantId()));
           executorRepository.deleteByExecutorId(executor.getId());
         });
   }
