@@ -4,7 +4,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.IntegrationInMemory;
 import io.openaev.integration.annotation.QualifiedComponent;
-import io.openaev.secrets.provider.AbstractSecretsProvider;
+import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
@@ -15,7 +15,7 @@ public class LocalSecretsProviderIntegration extends IntegrationInMemory {
   public static final String LOCAL_SECRETS_PROVIDER_ID = "8c703d47-b6a7-472e-ace1-85ce7e216a89";
   public static final String LOCAL_SECRETS_PROVIDER_NAME = "Local Secrets Provider";
 
-  @QualifiedComponent(identifier = AbstractSecretsProvider.SERVICE_NAME)
+  @QualifiedComponent(identifier = SecretsProvider.SERVICE_NAME)
   private LocalSecretsProvider localSecretsProvider;
 
   private final NativeEncryptionService nativeEncryptionService;

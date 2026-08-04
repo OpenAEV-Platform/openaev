@@ -8,15 +8,15 @@ import io.openaev.database.model.HashSecret;
 import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.database.model.UsernamePasswordSecret;
-import io.openaev.secrets.provider.AbstractSecretsProvider;
 import io.openaev.secrets.provider.SecretStoreRequest;
+import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.SecretsProviderType;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import java.util.Objects;
 
-public class LocalSecretsProvider extends AbstractSecretsProvider {
+public class LocalSecretsProvider extends SecretsProvider {
 
   private final NativeEncryptionService nativeEncryptionService;
   private final SecretService secretService;

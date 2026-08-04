@@ -10,7 +10,7 @@ import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.secrets.provider.AbstractSecretsProvider;
+import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -70,17 +70,15 @@ public class SecretsProviderApi extends RestBehavior {
       resourceId = "#secretsProviderId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SECRET_PROVIDER)
-  public AbstractSecretsProvider getSecretsProvider(
-      TxCtx ctx, @PathVariable String secretsProviderId) {
-    AbstractSecretsProvider abstractSecretsProvider =
-        secretsProviderService.getConnectorById(secretsProviderId);
-    if (abstractSecretsProvider == null) {
+  public SecretsProvider getSecretsProvider(TxCtx ctx, @PathVariable String secretsProviderId) {
+    SecretsProvider secretsProvider = secretsProviderService.getConnectorById(secretsProviderId);
+    if (secretsProvider == null) {
       log.warn(
           "Secrets provider with id {} not found - This may be because the integration has never been started yet",
           secretsProviderId);
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Secrets provider not found");
     }
-    return abstractSecretsProvider;
+    return secretsProvider;
   }
 
   @GetMapping("/{secretsProviderId}/related-ids")

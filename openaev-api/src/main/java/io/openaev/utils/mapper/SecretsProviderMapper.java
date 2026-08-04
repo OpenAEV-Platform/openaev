@@ -3,7 +3,7 @@ package io.openaev.utils.mapper;
 import io.openaev.api.secrets_providers.form.SecretsProviderOutput;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.secrets.provider.AbstractSecretsProvider;
+import io.openaev.secrets.provider.SecretsProvider;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +17,7 @@ public class SecretsProviderMapper {
   private final ConnectorInstanceMapper connectorInstanceMapper;
 
   public SecretsProviderOutput toSecretsProviderOutput(
-      AbstractSecretsProvider secretsProvider,
+      SecretsProvider secretsProvider,
       String displayName,
       @Nullable CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,

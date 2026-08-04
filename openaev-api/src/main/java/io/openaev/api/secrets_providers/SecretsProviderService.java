@@ -9,7 +9,7 @@ import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
-import io.openaev.secrets.provider.AbstractSecretsProvider;
+import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class SecretsProviderService
-    extends AbstractConnectorService<AbstractSecretsProvider, SecretsProviderOutput> {
+    extends AbstractConnectorService<SecretsProvider, SecretsProviderOutput> {
 
   private final SecretsProviderMapper secretsProviderMapper;
   private final ManagerFactory managerFactory;
@@ -72,7 +72,7 @@ public class SecretsProviderService
   }
 
   @Override
-  protected List<AbstractSecretsProvider> getAllConnectors() {
+  protected List<SecretsProvider> getAllConnectors() {
     return transactionalTenantScope.currentTenantIds().stream()
         .flatMap(
             tenantId -> {
@@ -80,8 +80,7 @@ public class SecretsProviderService
                 return managerFactory
                     .getManager(tenantId)
                     .requestManyAllStates(
-                        new ComponentRequest(AbstractSecretsProvider.SERVICE_NAME),
-                        AbstractSecretsProvider.class)
+                        new ComponentRequest(SecretsProvider.SERVICE_NAME), SecretsProvider.class)
                     .stream();
               } catch (NoSuchElementException e) {
                 log.debug("No secrets provider registered for tenant {}, skipping.", tenantId, e);
@@ -92,13 +91,13 @@ public class SecretsProviderService
   }
 
   @Override
-  protected AbstractSecretsProvider getConnectorById(String id) {
+  protected SecretsProvider getConnectorById(String id) {
     return getAllConnectors().stream().filter(sp -> id.equals(sp.getId())).findFirst().orElse(null);
   }
 
   @Override
   protected SecretsProviderOutput mapToOutput(
-      AbstractSecretsProvider connector,
+      SecretsProvider connector,
       String displayName,
       CatalogConnector catalogConnector,
       ConnectorInstance instance,
@@ -108,7 +107,7 @@ public class SecretsProviderService
   }
 
   @Override
-  protected AbstractSecretsProvider createNewConnector() {
-    return new AbstractSecretsProvider.Placeholder();
+  protected SecretsProvider createNewConnector() {
+    return new SecretsProvider.Placeholder();
   }
 }

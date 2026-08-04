@@ -1,6 +1,6 @@
 import type { Dispatch } from 'redux';
 
-import { delReferential, getReferential, simpleCall } from '../../utils/Action';
+import { getReferential, simpleCall } from '../../utils/Action';
 import * as schema from '../Schema';
 
 const SECRETS_PROVIDERS_URI = '/api/secrets_providers';
