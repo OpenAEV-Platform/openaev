@@ -71,7 +71,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
             "Bearer " + validJwtJwk.jwtToken(),
             validJwtJwk.jwks(),
             true,
-            "Given valid JWT should authorized"),
+            "Given valid JWT should authorize"),
         Arguments.of(
             "Bearer " + expiredJwtJwk.jwtToken(),
             expiredJwtJwk.jwks(),
@@ -91,7 +91,6 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
       Mockito.doReturn(Optional.of(c))
           .when(openCTIConnectorService)
           .getConnectorBase(TenantContext.getCurrentTenant());
-      Mockito.doReturn(List.of(c)).when(openCTIConnectorService).getRegisterConnectors();
     }
 
     User user =

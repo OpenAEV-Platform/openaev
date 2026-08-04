@@ -15,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+
 @Component
 @Slf4j
 @RequiredArgsConstructor
@@ -28,7 +30,9 @@ public class ConnectorJwtExtractor implements ExtractorBase {
       throws ConnectorError, JwtException {
     Optional<String> tenantId = tenantUriUtils.getTenantIdFromRequestUrl(request);
     if (tenantId.isEmpty()) {
-      throw new ConnectorError("Cannot locate a connector without a tenant ID in the request.");
+      // if no tenant can be found,
+      // backwards compatibility fallback to default tenant ID
+      tenantId = Optional.of(DEFAULT_TENANT_UUID);
     }
 
     Optional<ConnectorBase> connector = openCTIConnectorService.getConnectorBase(tenantId.get());
