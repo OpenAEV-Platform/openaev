@@ -2106,12 +2106,17 @@ export const scopeChainFlowToSeeds = (
   edges: AttackPathFlowEdge[];
 } => {
   const { nodes, edges } = chainFlow;
-  // None of the seeds exist in the causal chain yet (e.g. no full-graph data, or a finding whose
-  // type cluster is still collapsed): show the whole thing rather than an empty focus.
-  if (seedIds.size === 0) {
+  // Keep only the seeds that are actually rendered: a finding whose type cluster is still collapsed
+  // (more than CHAIN_FINDINGS_MAX_PER_TYPE on that endpoint) has no node of its own — only its
+  // `chain-fc|...` cluster does — so seeding on the raw finding id would scope to nothing.
+  const nodeIds = new Set(nodes.map(n => n.id));
+  const presentSeedIds = new Set([...seedIds].filter(id => nodeIds.has(id)));
+  // None of the seeds exist in the causal chain yet (e.g. no full-graph data, or every seed's
+  // cluster is still collapsed): show the whole thing rather than an empty focus.
+  if (presentSeedIds.size === 0) {
     return chainFlow;
   }
-  const scope = new Set(seedIds);
+  const scope = new Set(presentSeedIds);
   for (let pass = 0; pass < 8; pass += 1) {
     for (const e of edges) {
       if (e.source && e.target && scope.has(e.target) && !scope.has(e.source)) {
@@ -2121,7 +2126,7 @@ export const scopeChainFlowToSeeds = (
   }
   for (let pass = 0; pass < 3; pass += 1) {
     for (const e of edges) {
-      if (e.source && e.target && seedIds.has(e.source) && !scope.has(e.target)) {
+      if (e.source && e.target && presentSeedIds.has(e.source) && !scope.has(e.target)) {
         scope.add(e.target);
       }
     }
