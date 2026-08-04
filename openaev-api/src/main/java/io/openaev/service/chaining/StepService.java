@@ -32,6 +32,7 @@ public class StepService {
 
   private final InjectService injectService;
   private final ConditionService conditionService;
+  private final StepAutoLinkService stepAutoLinkService;
   private final QueueChainingService queueChainingService;
   private final SimulationRateLimitService simulationRateLimitService;
 
@@ -42,6 +43,9 @@ public class StepService {
   /**
    * Create a single step template.
    *
+   * <p>When no condition list is provided at all, the contract auto-links are applied. An explicit
+   * list — even empty — means the caller already picked its links and is kept untouched.
+   *
    * @param workflow workflow linked to the step template
    * @param stepInput input to create the step template
    * @return created step template
@@ -49,6 +53,9 @@ public class StepService {
   @Transactional(rollbackFor = Exception.class)
   public Step createStepTemplate(Workflow workflow, StepsCreateInput.StepInput stepInput)
       throws ChainingException {
+    if (stepInput.getConditions() == null) {
+      stepInput.setConditions(stepAutoLinkService.buildAutoLinkConditions(stepInput.getDataStep()));
+    }
     ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
     Step step =
         actionStep

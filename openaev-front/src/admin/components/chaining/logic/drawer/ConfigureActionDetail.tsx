@@ -13,7 +13,6 @@ import type { ContractElement } from '../../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../../utils/Zod';
 import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
-import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import { type ActionDetailData } from '../types';
 import ActionFormButtons from './ActionFormButtons';
 import ActionInjectData from './ActionInjectData';
@@ -28,6 +27,8 @@ import {
   getContractFieldDefaultValue,
   isExpectationInput,
   normalizeFieldLinks,
+  parseContractFields,
+  stripFrontendMetadataKeys,
 } from './ConfigureActionDetail.utils';
 import { type FieldLink } from './InjectDataFieldItem';
 
@@ -66,7 +67,6 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   onSave,
 }) => {
   const { t, tPick } = useFormatter();
-  const { argumentWithDefaultValueTypes } = useArgumentTypes();
 
   const isPayload = !!action?.action_payload;
 
@@ -99,7 +99,8 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       const label = initialData?.inject_title
         ?? (action.action_labels ? tPick(action.action_labels) : '');
       reset({ inject_title: label });
-      setFieldValues(initialData?.inject_content ?? {});
+      // Never keep frontend-only metadata in runtime payload content.
+      setFieldValues(stripFrontendMetadataKeys(initialData?.inject_content ?? {}));
       setFieldLinks(normalizeFieldLinks(initialData?.inject_field_links));
       setContractFields(initialData?.contract_fields ?? []);
 
@@ -108,36 +109,33 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       setLoadingContract(true);
       directFetchInjectorContract(contractId)
         .then((res: { data: { injector_contract_content?: string } }) => {
-          if (res.data?.injector_contract_content) {
-            try {
-              const parsed = JSON.parse(res.data.injector_contract_content);
-              const fields = (parsed.fields ?? []) as ContractElement[];
-              setContractFields(fields);
-              setFieldValues(
-                applyPredefinedExpectations(
-                  (initialData?.inject_content ?? buildContractDefaults(fields)) as Record<
-                    string,
-                    unknown
-                  >,
-                  fields,
-                ),
-              );
-            } catch {
-              setContractFields([]);
-            }
-          }
+          const fields = parseContractFields(res.data?.injector_contract_content);
+          setContractFields(fields);
+          // Use sanitized initial content when editing, otherwise contract defaults.
+          const baseContent = initialData?.inject_content ?? buildContractDefaults(fields);
+          setFieldValues(
+            applyPredefinedExpectations(
+              stripFrontendMetadataKeys(baseContent as Record<string, unknown>) as Record<
+                string,
+                unknown
+              >,
+              fields,
+            ),
+          );
         })
         .catch(() => setContractFields([]))
         .finally(() => setLoadingContract(false));
     }
   }, [action, initialData]);
 
-  // Auto-link payload input fields with their default primitive type when available.
-  // Example: field type "port" -> outputTypes ["port"].
+  // Auto-link action input fields with their default primitive type when available.
+  // Example: field argumentType "ipv4" -> outputTypes ["ipv4"].
   useEffect(() => {
-    if (!isPayload || contractFields.length === 0 || initialData) return;
-    setFieldLinks(prev => applyAutoLinks(contractFields, prev, argumentWithDefaultValueTypes));
-  }, [isPayload, contractFields, argumentWithDefaultValueTypes, initialData]);
+    // In edit mode, preserve persisted links exactly as-is (no auto-link recomputation).
+    if (initialData) return;
+    if (contractFields.length === 0) return;
+    setFieldLinks(prev => applyAutoLinks(contractFields, prev));
+  }, [initialData, contractFields]);
 
   // Resets all input argument fields to contract defaults.
   // Expectations are explicitly restored from current state because they are not part of this reset.
@@ -187,11 +185,16 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
 
   const onSubmit = (formData: FormValues) => {
     if (!action) return;
+    // Final safety: remove frontend-only keys before sending to backend.
+    const contentWithExpectations = applyPredefinedExpectations(
+      stripFrontendMetadataKeys(fieldValues),
+      contractFields,
+    );
     onSave({
       inject_title: formData.inject_title.trim(),
       inject_injector_contract: action.injector_contract_id,
       inject_assets: validAssets.map(a => a.asset_id).filter((id): id is string => !!id),
-      inject_content: applyPredefinedExpectations(fieldValues, contractFields),
+      inject_content: contentWithExpectations,
       inject_field_links: fieldLinks,
       contract_fields: contractFields,
     });

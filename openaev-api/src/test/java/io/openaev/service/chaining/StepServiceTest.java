@@ -41,6 +41,7 @@ class StepServiceTest {
   @Mock private ActionStep actionStep;
   @Mock private WorkflowService workflowService;
   @Mock private ConditionService conditionService;
+  @Mock private StepAutoLinkService stepAutoLinkService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private StepDelayQueueRepository stepDelayQueueRepository;

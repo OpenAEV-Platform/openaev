@@ -34,7 +34,7 @@ export const resolveConditionKeyTypes = (condition: Record<string, unknown>): st
   if (typeof legacyKeyType === 'string' && legacyKeyType.length > 0) {
     return [legacyKeyType];
   }
-  return ['text'];
+  return [];
 };
 
 // Layout design tokens for tactic groups (px)
