@@ -1,6 +1,7 @@
 import { Close } from '@mui/icons-material';
-import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
+import { Box, Button, IconButton, MenuItem, Pagination, Paper, Select, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
@@ -11,6 +12,33 @@ interface FindingGroup {
   type: string;
   values: string[];
 }
+
+const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
+const DEFAULT_PAGE_SIZE = 10;
+
+// A compact "N / page" selector next to a section title — shared by the Findings groups and the
+// Executions list so both windowed lists offer the same control.
+const PageSizeSelect = ({ value, onChange }: {
+  value: number;
+  onChange: (value: number) => void;
+}) => {
+  const { t } = useFormatter();
+  return (
+    <Select
+      size="small"
+      variant="standard"
+      value={value}
+      onChange={e => onChange(Number(e.target.value))}
+      sx={{ fontSize: 12 }}
+    >
+      {PAGE_SIZE_OPTIONS.map(size => (
+        <MenuItem key={size} value={size} sx={{ fontSize: 12 }}>
+          {t('{count} / page', { count: size })}
+        </MenuItem>
+      ))}
+    </Select>
+  );
+};
 
 interface Props {
   endpointLabel: string;
@@ -60,6 +88,20 @@ const EndpointDetailPanel = ({
 }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  // One page per finding-type group (all values are already loaded — this just windows the display);
+  // the page size is shared by every group, like a single control for the whole Findings section.
+  const [groupPages, setGroupPages] = useState<Record<string, number>>({});
+  const [findingsPageSize, setFindingsPageSize] = useState(DEFAULT_PAGE_SIZE);
+  // Executions are windowed the same way. `executions` itself may still be a server-paginated subset
+  // (see totalExecutions/onShowMore below) — this only windows whatever is currently loaded.
+  const [executionsPage, setExecutionsPage] = useState(1);
+  const [executionsPageSize, setExecutionsPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const executionsPageCount = Math.max(1, Math.ceil(executions.length / executionsPageSize));
+  const currentExecutionsPage = Math.min(executionsPage, executionsPageCount);
+  const pagedExecutions = executions.slice(
+    (currentExecutionsPage - 1) * executionsPageSize,
+    currentExecutionsPage * executionsPageSize,
+  );
 
   return (
     <Paper
@@ -94,9 +136,20 @@ const EndpointDetailPanel = ({
       <div style={{ padding: theme.spacing(0, 2.5, 2) }}>
         {!hideFindings && (
           <>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              {t('Findings')}
-            </Typography>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 1,
+            }}
+            >
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                {t('Findings')}
+              </Typography>
+              {findingGroups.some(g => g.values.length > PAGE_SIZE_OPTIONS[0]) && (
+                <PageSizeSelect value={findingsPageSize} onChange={setFindingsPageSize} />
+              )}
+            </Box>
             {findingsLoading && (
               <Box sx={{ minHeight: 60 }}>
                 <Loader variant="inElement" size="sm" />
@@ -114,34 +167,72 @@ const EndpointDetailPanel = ({
                 {t('No findings on this endpoint')}
               </Typography>
             )}
-            {!findingsLoading && findingGroups.map(g => (
-              <Box key={g.type} sx={{ mb: 1 }}>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: 'block',
-                    fontWeight: 600,
-                    color: 'text.secondary',
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.4,
-                  }}
-                >
-                  {`${g.type} (${g.values.length})`}
-                </Typography>
-                {g.values.map((v, i) => (
-                  <Typography key={`${g.type}-${i}`} variant="body2" noWrap title={v}>
-                    {v}
+            {!findingsLoading && findingGroups.map((g) => {
+              const pageCount = Math.max(1, Math.ceil(g.values.length / findingsPageSize));
+              const page = Math.min(groupPages[g.type] ?? 1, pageCount);
+              const pageValues = g.values.slice(
+                (page - 1) * findingsPageSize,
+                page * findingsPageSize,
+              );
+              return (
+                <Box key={g.type} sx={{ mb: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: 'block',
+                      fontWeight: 700,
+                      color: 'text.primary',
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.4,
+                    }}
+                  >
+                    {`${g.type} (${g.values.length})`}
                   </Typography>
-                ))}
-              </Box>
-            ))}
+                  {pageValues.map((v, i) => (
+                    <Typography key={`${g.type}-${i}`} variant="body2" noWrap title={v}>
+                      {v}
+                    </Typography>
+                  ))}
+                  {pageCount > 1 && (
+                    <Pagination
+                      size="small"
+                      count={pageCount}
+                      page={page}
+                      onChange={(_, value) => setGroupPages(prev => ({
+                        ...prev,
+                        [g.type]: value,
+                      }))}
+                      sx={{ mt: 0.5 }}
+                    />
+                  )}
+                </Box>
+              );
+            })}
           </>
         )}
 
-        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: hideFindings ? 0 : 1 }}>
-          {`${t('Executions')} (${executions.length})`}
-        </Typography>
-        {executions.map((e) => {
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1,
+          mt: hideFindings ? 0 : 1,
+        }}
+        >
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            {`${t('Executions')} (${executions.length})`}
+          </Typography>
+          {executions.length > PAGE_SIZE_OPTIONS[0] && (
+            <PageSizeSelect
+              value={executionsPageSize}
+              onChange={(value) => {
+                setExecutionsPageSize(value);
+                setExecutionsPage(1);
+              }}
+            />
+          )}
+        </Box>
+        {pagedExecutions.map((e) => {
           const status = execStatusLabel(e.status);
           const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
           return (
@@ -201,6 +292,15 @@ const EndpointDetailPanel = ({
             </Box>
           );
         })}
+        {executionsPageCount > 1 && (
+          <Pagination
+            size="small"
+            count={executionsPageCount}
+            page={currentExecutionsPage}
+            onChange={(_, value) => setExecutionsPage(value)}
+            sx={{ mt: 0.5 }}
+          />
+        )}
         {/* The list holds one page, so reaching the rest must be an action rather than a dead caption:
             same slot, a text button that fetches the next page (See More precedent). Where the caller
             cannot fetch more (the injector panel reads a bounded set in one go), say what is not shown

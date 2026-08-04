@@ -34,4 +34,8 @@ public record AttackPathExecutionDetailDTO(
     List<AttackPathSecurityPlatformDTO> securityPlatforms,
     // terminal
     String command,
-    String terminalOutput) {}
+    String terminalOutput,
+    // The reconstructed, partially-masked command line of a network injector (NetExec, Nmap…),
+    // which has no `command` snapshot of its own (see AttackPathGraphService#injectorCommandLine).
+    // Null for a Command-payload-backed execution, which already has `command`.
+    String injectorCommandLine) {}
