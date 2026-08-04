@@ -2,9 +2,8 @@ package io.openaev.security.token;
 
 import io.openaev.database.model.User;
 import io.openaev.service.UserService;
-import java.util.Optional;
-
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

@@ -54,7 +54,8 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     this.plainTokenExtractor = plainTokenExtractor;
   }
 
-  private Optional<User> getAuthedUserFromAuthorizationHeader(String value, HttpServletRequest request) {
+  private Optional<User> getAuthedUserFromAuthorizationHeader(
+      String value, HttpServletRequest request) {
     Set<ExtractorBase> extractors =
         Set.of(this.connectorJwtExtractor, this.xtmJwksExtractor, this.plainTokenExtractor);
 

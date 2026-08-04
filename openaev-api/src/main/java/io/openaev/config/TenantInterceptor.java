@@ -1,7 +1,6 @@
 package io.openaev.config;
 
 import static io.openaev.config.SessionHelper.ANONYMOUS_USER;
-import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.config.cache.TenantMembershipCacheManager;
@@ -10,9 +9,6 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.TenantAccessDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.Map;
-import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.AsyncHandlerInterceptor;
 import org.springframework.web.servlet.HandlerMapping;
+import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
  * Interceptor that automatically extracts the {@code tenantId} path variable from any request
@@ -49,22 +46,26 @@ public class TenantInterceptor implements AsyncHandlerInterceptor {
   @SuppressWarnings("unchecked")
   public boolean preHandle(
       HttpServletRequest request, HttpServletResponse response, Object handler) {
-    tenantUriUtils.getTenantIdFromRequestUrl(request).ifPresent(tenantId -> {
-      if (!targetsTenantResource(handler)) {
-        // Validate the authenticated user belongs to this tenant
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null
-                && authentication.isAuthenticated()
-                && !ANONYMOUS_USER.equals(authentication.getPrincipal())) {
-          OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
-          if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(
-                  principal.getId(), tenantId)) {
-            throw new TenantAccessDeniedException(tenantId);
-          }
-        }
-      }
-      TenantContext.setCurrentTenant(tenantId);
-    });
+    tenantUriUtils
+        .getTenantIdFromRequestUrl(request)
+        .ifPresent(
+            tenantId -> {
+              if (!targetsTenantResource(handler)) {
+                // Validate the authenticated user belongs to this tenant
+                Authentication authentication =
+                    SecurityContextHolder.getContext().getAuthentication();
+                if (authentication != null
+                    && authentication.isAuthenticated()
+                    && !ANONYMOUS_USER.equals(authentication.getPrincipal())) {
+                  OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
+                  if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(
+                      principal.getId(), tenantId)) {
+                    throw new TenantAccessDeniedException(tenantId);
+                  }
+                }
+              }
+              TenantContext.setCurrentTenant(tenantId);
+            });
     return true;
   }
 

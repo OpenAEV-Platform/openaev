@@ -20,7 +20,8 @@ class TenantInterceptorTest {
   private final TenantMembershipCacheManager tenantMembershipCacheManager =
       mock(TenantMembershipCacheManager.class);
   private final TenantUriUtils tenantUriUtils = new TenantUriUtils();
-  private final TenantInterceptor interceptor = new TenantInterceptor(tenantMembershipCacheManager, tenantUriUtils);
+  private final TenantInterceptor interceptor =
+      new TenantInterceptor(tenantMembershipCacheManager, tenantUriUtils);
 
   @AfterEach
   void cleanup() {

@@ -4,16 +4,13 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Jwks;
 import io.openaev.config.TenantUriUtils;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.UserService;
-import java.util.List;
-import java.util.Optional;
-
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -27,9 +24,10 @@ public class ConnectorJwtExtractor implements ExtractorBase {
   private final TenantUriUtils tenantUriUtils;
 
   @Override
-  public Optional<User> authUser(String value, HttpServletRequest request) throws ConnectorError, JwtException {
+  public Optional<User> authUser(String value, HttpServletRequest request)
+      throws ConnectorError, JwtException {
     Optional<String> tenantId = tenantUriUtils.getTenantIdFromRequestUrl(request);
-    if(tenantId.isEmpty()) {
+    if (tenantId.isEmpty()) {
       throw new ConnectorError("Cannot locate a connector without a tenant ID in the request.");
     }
 
@@ -53,7 +51,8 @@ public class ConnectorJwtExtractor implements ExtractorBase {
               })
           .build()
           .parseSignedClaims(value);
-      return userService.findByTokenAndTenantId(connector.get().getToken(), connector.get().getTenantId());
+      return userService.findByTokenAndTenantId(
+          connector.get().getToken(), connector.get().getTenantId());
     } catch (Exception e) {
       // No exception needed here because thrown above
     }
