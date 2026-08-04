@@ -4,9 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.DetectionRemediation;
+import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
@@ -42,12 +45,14 @@ import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -288,5 +293,70 @@ class AttackPathExecutionDetailTest extends IntegrationTest {
     AttackPathExecutionDetailDTO d = graphService.executionDetail(SIM, executionId);
 
     assertThat(d.detectionRemediations()).isEmpty();
+  }
+
+  // A network injector's (NetExec, Nmap…) own trace always redacts every flag with a blanket "***";
+  // injectorCommandLine() un-redacts the flags it recognizes from the inject's resolved content,
+  // partially masking password/hash rather than exposing them in full. These tests target the pure
+  // helpers directly (reflection, like InjectExecutionStepTest#getCommand) rather than seeding a
+  // full
+  // Inject/InjectStatus/ExecutionTrace tree through the ORM.
+
+  @Test
+  @DisplayName("findCommandTraceMessage skips the 'published' boilerplate trace")
+  void findCommandTraceMessageSkipsPublishedBoilerplate() {
+    ExecutionTrace published = new ExecutionTrace();
+    published.setMessage("The inject has been published, waiting to be consumed");
+    ExecutionTrace command = new ExecutionTrace();
+    command.setMessage("netexec smb 10.0.0.1 -u admin -p ***");
+
+    String result =
+        ReflectionTestUtils.invokeMethod(
+            graphService, "findCommandTraceMessage", List.of(published, command));
+
+    assertThat(result).isEqualTo("netexec smb 10.0.0.1 -u admin -p ***");
+  }
+
+  @Test
+  @DisplayName("findCommandTraceMessage returns the first trace when it is not the boilerplate")
+  void findCommandTraceMessageReturnsFirstWhenNotBoilerplate() {
+    ExecutionTrace command = new ExecutionTrace();
+    command.setMessage("nmap -p 22,80,443 10.0.0.1");
+
+    String result =
+        ReflectionTestUtils.invokeMethod(graphService, "findCommandTraceMessage", List.of(command));
+
+    assertThat(result).isEqualTo("nmap -p 22,80,443 10.0.0.1");
+  }
+
+  @Test
+  @DisplayName("unmaskCommandLine partially reveals the password and shows the username in full")
+  void unmaskCommandLineRevealsRecognizedFlags() {
+    ObjectNode content = JsonNodeFactory.instance.objectNode();
+    content.put("username", "admin");
+    content.put("password", "secret123");
+
+    String result =
+        ReflectionTestUtils.invokeMethod(
+            graphService, "unmaskCommandLine", "netexec smb 10.0.0.1 -u *** -p ***", content);
+
+    assertThat(result).isEqualTo("netexec smb 10.0.0.1 -u admin -p s*******3");
+    assertThat(result).doesNotContain("secret123");
+  }
+
+  @Test
+  @DisplayName("unmaskCommandLine leaves an unrecognized or unresolved flag exactly as redacted")
+  void unmaskCommandLineLeavesUnresolvedFlagsRedacted() {
+    ObjectNode content = JsonNodeFactory.instance.objectNode();
+    content.put("username", "admin");
+
+    String result =
+        ReflectionTestUtils.invokeMethod(
+            graphService,
+            "unmaskCommandLine",
+            "netexec smb 10.0.0.1 -u *** -p *** --unknown-flag ***",
+            content);
+
+    assertThat(result).isEqualTo("netexec smb 10.0.0.1 -u admin -p *** --unknown-flag ***");
   }
 }

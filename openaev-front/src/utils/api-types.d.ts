@@ -1025,6 +1025,7 @@ export interface AttackPathExecutionDetailDTO {
   executedAt?: string;
   findings?: AttackPathExecutionFindingItemDTO[];
   injectId?: string;
+  injectorCommandLine?: string;
   payloadId?: string;
   payloadName?: string;
   preventionStatus?: string;
