@@ -206,12 +206,9 @@ const AttackPathHeader: FunctionComponent<Props> = ({
   const theme = useTheme();
   const { t } = useFormatter();
   const chokepointColor = attackPathChokepointColor(theme);
-  let beaconColor = theme.palette.success.main;
-  if (freshness === 'reconnecting') {
-    beaconColor = theme.palette.warning.main;
-  } else if (freshness === 'finished') {
-    beaconColor = theme.palette.text.secondary;
-  }
+  // Only two rendered states: live (green) and reconnecting (amber) — the pill is not shown at all
+  // once the run is finished.
+  const beaconColor = freshness === 'reconnecting' ? theme.palette.warning.main : theme.palette.success.main;
   return (
     <Paper
       variant="outlined"
@@ -308,53 +305,57 @@ const AttackPathHeader: FunctionComponent<Props> = ({
         </Button>
       )}
 
-      {/* Live beacon (ExecutionHero's status pill). */}
-      <Tooltip title={freshnessTitle}>
-        <Box
-          role="status"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            height: CONTROL_HEIGHT,
-            padding: theme.spacing(0, 1.5),
-            borderRadius: 1,
-            border: `1px solid ${alpha(beaconColor, 0.3)}`,
-            backgroundColor: alpha(beaconColor, 0.08),
-            flexShrink: 0,
-          }}
-        >
-          <Box sx={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            backgroundColor: beaconColor,
-            ...(freshness === 'live'
-              ? {
-                  'animation': 'attack-path-beacon 2s ease-out infinite',
-                  '@keyframes attack-path-beacon': {
-                    '0%': { boxShadow: `0 0 0 0 ${alpha(beaconColor, 0.5)}` },
-                    '100%': { boxShadow: `0 0 0 7px ${alpha(beaconColor, 0)}` },
-                  },
-                  '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
-                }
-              : {}),
-          }}
-          />
-          <Typography sx={{
-            fontFamily: '"Geologica", sans-serif',
-            fontWeight: 600,
-            fontSize: 11,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: beaconColor,
-            whiteSpace: 'nowrap',
-          }}
+      {/* Live beacon (ExecutionHero's status pill). Only for transient states (live / reconnecting):
+          once the run is over, the page hero already says "Finished" — repeating it here would be a
+          duplicate. */}
+      {freshness !== 'finished' && (
+        <Tooltip title={freshnessTitle}>
+          <Box
+            role="status"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              height: CONTROL_HEIGHT,
+              padding: theme.spacing(0, 1.5),
+              borderRadius: 1,
+              border: `1px solid ${alpha(beaconColor, 0.3)}`,
+              backgroundColor: alpha(beaconColor, 0.08),
+              flexShrink: 0,
+            }}
           >
-            {freshnessLabel}
-          </Typography>
-        </Box>
-      </Tooltip>
+            <Box sx={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor: beaconColor,
+              ...(freshness === 'live'
+                ? {
+                    'animation': 'attack-path-beacon 2s ease-out infinite',
+                    '@keyframes attack-path-beacon': {
+                      '0%': { boxShadow: `0 0 0 0 ${alpha(beaconColor, 0.5)}` },
+                      '100%': { boxShadow: `0 0 0 7px ${alpha(beaconColor, 0)}` },
+                    },
+                    '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+                  }
+                : {}),
+            }}
+            />
+            <Typography sx={{
+              fontFamily: '"Geologica", sans-serif',
+              fontWeight: 600,
+              fontSize: 11,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: beaconColor,
+              whiteSpace: 'nowrap',
+            }}
+            >
+              {freshnessLabel}
+            </Typography>
+          </Box>
+        </Tooltip>
+      )}
 
       {/* Clickable summary stats, hairline-separated (HeroStats language). */}
       <Box sx={{
