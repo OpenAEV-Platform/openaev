@@ -875,6 +875,8 @@
   "DELETE_TENANTS": "删除Tenant",
   "DELETE_THREAT_ARSENALS": "删除威胁库",
   "Deleted": "已删除",
+  "Deleted asset": "已删除的资产",
+  "Deleted asset group": "已删除的资产组",
   "Deleting actions": "正在删除动作",
   "Deleting asset groups": "正在删除资产组",
   "Deleting assets": "正在删除资产",

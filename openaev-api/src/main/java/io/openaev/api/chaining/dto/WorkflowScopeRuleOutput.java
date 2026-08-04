@@ -27,4 +27,10 @@ public class WorkflowScopeRuleOutput {
   @Schema(description = "Selected item value")
   @JsonProperty("workflow_scope_rule_value")
   private String ruleValue;
+
+  @Schema(
+      description =
+          "Display name of the referenced asset/asset group, snapshotted when the rule was created/updated. Null for non-asset sources or if the label could not be resolved.")
+  @JsonProperty("workflow_scope_rule_value_label")
+  private String ruleValueLabel;
 }

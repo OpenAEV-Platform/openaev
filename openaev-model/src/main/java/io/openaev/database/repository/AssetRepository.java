@@ -3,8 +3,10 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.raw.RawIndexedAsset;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -16,6 +18,13 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface AssetRepository
     extends CrudRepository<Asset, String>, JpaSpecificationExecutor<Asset> {
+
+  /**
+   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does not apply to {@code
+   * findById} (filters never apply to primary-key loads), so callers resolving an id received from
+   * user input must use this method to avoid reading another tenant's asset.
+   */
+  Optional<Asset> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   /**
    * Feeds the {@code asset} search index with the whole asset inventory: every asset type except

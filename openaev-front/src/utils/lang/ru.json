@@ -875,6 +875,8 @@
   "DELETE_TENANTS": "Удалить tenant",
   "DELETE_THREAT_ARSENALS": "Удалить арсенал угроз",
   "Deleted": "Удалено",
+  "Deleted asset": "Удалённый актив",
+  "Deleted asset group": "Удалённая группа активов",
   "Deleting actions": "Удаление действий",
   "Deleting asset groups": "Удаление групп активов",
   "Deleting assets": "Удаление активов",

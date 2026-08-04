@@ -875,6 +875,8 @@
   "DELETE_TENANTS": "Eliminare gli tenant",
   "DELETE_THREAT_ARSENALS": "Cancellare l'arsenale delle minacce",
   "Deleted": "Eliminato",
+  "Deleted asset": "Asset eliminato",
+  "Deleted asset group": "Gruppo di asset eliminato",
   "Deleting actions": "Eliminazione delle azioni",
   "Deleting asset groups": "Eliminazione dei gruppi di attività",
   "Deleting assets": "Eliminazione delle attività",

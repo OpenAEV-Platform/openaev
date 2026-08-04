@@ -8,7 +8,10 @@ import com.google.gson.JsonObject;
 import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetGroupRepository;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
@@ -42,6 +45,8 @@ class WorkflowServiceTest {
   @Mock private WorkflowRepository workflowRepository;
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private ScopeVariableRepository scopeVariableRepository;
+  @Mock private AssetRepository assetRepository;
+  @Mock private AssetGroupRepository assetGroupRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
   @Mock private StepDelayQueueService stepDelayQueueService;
@@ -786,6 +791,136 @@ class WorkflowServiceTest {
               .orElseThrow();
       assertEquals(ScopeRuleValueType.ASSET_GROUP_ID, mappedAssetGroupRule.getValueType());
     }
+
+    @Test
+    @DisplayName("should snapshot tenant-scoped asset/asset-group names as rule value labels")
+    void shouldSnapshotRuleValueLabelsTenantScoped() {
+      String tenantId = UUID.randomUUID().toString();
+      TenantContext.setCurrentTenant(tenantId);
+      try {
+        String workflowId = UUID.randomUUID().toString();
+        Workflow workflow =
+            Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+
+        WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+        input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
+
+        Asset asset = new Asset();
+        asset.setName("Endpoint A");
+        AssetGroup assetGroup = new AssetGroup();
+        assetGroup.setName("Group A");
+        // The lookup must be constrained to the caller's tenant: findById would bypass the
+        // Hibernate tenant filter (never applied to primary-key loads).
+        when(assetRepository.findByIdAndTenantId("asset-123", tenantId))
+            .thenReturn(Optional.of(asset));
+        when(assetGroupRepository.findByIdAndTenantId("asset-group-1", tenantId))
+            .thenReturn(Optional.of(assetGroup));
+
+        when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+            .thenReturn(Optional.of(workflow));
+        when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+
+        Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
+
+        WorkflowScopeRule assetRule =
+            result.getWorkflowScopeRules().stream()
+                .filter(r -> "asset-123".equals(r.getRuleValue()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("Endpoint A", assetRule.getRuleValueLabel());
+
+        WorkflowScopeRule assetGroupRule =
+            result.getWorkflowScopeRules().stream()
+                .filter(r -> "asset-group-1".equals(r.getRuleValue()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("Group A", assetGroupRule.getRuleValueLabel());
+
+        // Non-asset sources never get a label
+        WorkflowScopeRule manualRule =
+            result.getWorkflowScopeRules().stream()
+                .filter(r -> "10.10.10.10".equals(r.getRuleValue()))
+                .findFirst()
+                .orElseThrow();
+        assertNull(manualRule.getRuleValueLabel());
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+
+    @Test
+    @DisplayName("should refresh the snapshotted label when an existing rule is updated")
+    void shouldRefreshLabelOnRuleUpdate() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+
+      WorkflowScopeRule existingRule =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-old")
+              .ruleValueLabel("Old name")
+              .valueType(ScopeRuleValueType.ASSET_ID)
+              .workflow(workflow)
+              .build();
+      String ruleId = UUID.randomUUID().toString();
+      org.springframework.test.util.ReflectionTestUtils.setField(existingRule, "id", ruleId);
+      workflow.getWorkflowScopeRules().add(existingRule);
+
+      WorkflowScopeRuleInput ruleInput =
+          WorkflowScopeRuleInput.builder()
+              .id(ruleId)
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-new")
+              .build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(List.of(ruleInput));
+
+      Asset asset = new Asset();
+      asset.setName("New name");
+      when(assetRepository.findByIdAndTenantId(eq("asset-new"), anyString()))
+          .thenReturn(Optional.of(asset));
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+
+      Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      assertEquals(1, result.getWorkflowScopeRules().size());
+      WorkflowScopeRule updated = result.getWorkflowScopeRules().getFirst();
+      assertSame(existingRule, updated);
+      assertEquals("New name", updated.getRuleValueLabel());
+    }
+
+    @Test
+    @DisplayName("should leave the label null when the referenced asset is not in the tenant")
+    void shouldLeaveLabelNullWhenAssetUnresolvable() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+
+      WorkflowScopeRuleInput ruleInput =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-of-another-tenant")
+              .build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(List.of(ruleInput));
+
+      when(assetRepository.findByIdAndTenantId(eq("asset-of-another-tenant"), anyString()))
+          .thenReturn(Optional.empty());
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+
+      Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      assertEquals(1, result.getWorkflowScopeRules().size());
+      assertNull(result.getWorkflowScopeRules().getFirst().getRuleValueLabel());
+    }
   }
 
   @Nested
@@ -969,6 +1104,8 @@ class WorkflowServiceTest {
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
+              assetRepository,
+              assetGroupRepository,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1246,6 +1383,8 @@ class WorkflowServiceTest {
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
+              assetRepository,
+              assetGroupRepository,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1427,6 +1566,8 @@ class WorkflowServiceTest {
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
+              assetRepository,
+              assetGroupRepository,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);

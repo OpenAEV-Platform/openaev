@@ -875,6 +875,8 @@
   "DELETE_TENANTS": "Tenant 삭제",
   "DELETE_THREAT_ARSENALS": "위협 무기고 삭제",
   "Deleted": "삭제됨",
+  "Deleted asset": "삭제된 자산",
+  "Deleted asset group": "삭제된 자산 그룹",
   "Deleting actions": "액션 삭제 중",
   "Deleting asset groups": "자산 그룹 삭제 중",
   "Deleting assets": "자산 삭제 중",

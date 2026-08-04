@@ -49,6 +49,15 @@ public class WorkflowScopeRule implements Base {
   @JsonProperty("workflow_scope_rule_value")
   private String ruleValue;
 
+  /**
+   * Display name of the referenced asset/asset group, snapshotted at the time the rule was
+   * created/updated. Kept so the UI can still show a meaningful label if the referenced asset/asset
+   * group is later deleted. Null for non-asset rule sources (MANUAL, CSV).
+   */
+  @Column(name = "workflow_scope_rule_value_label")
+  @JsonProperty("workflow_scope_rule_value_label")
+  private String ruleValueLabel;
+
   @Column(name = "workflow_scope_rule_value_type")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
@@ -75,6 +84,7 @@ public class WorkflowScopeRule implements Base {
         .selectedMode(source.getSelectedMode())
         .ruleSource(source.getRuleSource())
         .ruleValue(source.getRuleValue())
+        .ruleValueLabel(source.getRuleValueLabel())
         .valueType(source.getValueType())
         .workflow(target)
         .build();

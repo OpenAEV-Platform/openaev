@@ -191,19 +191,21 @@ const ScopeRules = ({ workflowConfiguration, onUpdate, readOnly = false }: Scope
 
   const resolveLabel = (rule: WorkflowScopeRuleOutput): string => {
     const value = rule.workflow_scope_rule_value ?? '';
-    const unresolvedLabel = t('Loading...');
+    const snapshotLabel = rule.workflow_scope_rule_value_label;
 
     switch (rule.workflow_scope_rule_source) {
       case 'ASSET': {
         const endpoint = endpointsMap[value];
-        return endpoint?.asset_name ?? unresolvedLabel;
+        // Prefer the live asset name (keeps up with renames); fall back to the name
+        // snapshotted on the rule, which stays available even after the asset is deleted.
+        return endpoint?.asset_name ?? snapshotLabel ?? t('Deleted asset');
       }
       case 'ASSET_GROUP': {
         const group = assetGroupsMap[value];
-        return group?.asset_group_name ?? unresolvedLabel;
+        return group?.asset_group_name ?? snapshotLabel ?? t('Deleted asset group');
       }
       default:
-        return value || unresolvedLabel;
+        return value || t('Loading...');
     }
   };
 

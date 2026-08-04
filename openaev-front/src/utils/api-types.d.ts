@@ -11551,6 +11551,8 @@ export interface WorkflowScopeRuleOutput {
   workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /** Selected item value */
   workflow_scope_rule_value?: string;
+  /** Display name of the referenced asset/asset group, snapshotted when the rule was created/updated. Null for non-asset sources or if the label could not be resolved. */
+  workflow_scope_rule_value_label?: string;
 }
 
 export interface XtmComposerInstanceOutput {

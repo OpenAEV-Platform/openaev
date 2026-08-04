@@ -875,6 +875,8 @@
   "DELETE_TENANTS": "Borrar tenants",
   "DELETE_THREAT_ARSENALS": "Borrar arsenal de amenazas",
   "Deleted": "Borrado",
+  "Deleted asset": "Activo eliminado",
+  "Deleted asset group": "Grupo de activos eliminado",
   "Deleting actions": "Eliminando acciones",
   "Deleting asset groups": "Eliminando grupos de activos",
   "Deleting assets": "Eliminando activos",

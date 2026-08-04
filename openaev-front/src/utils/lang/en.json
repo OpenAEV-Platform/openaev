@@ -876,6 +876,8 @@
   "DELETE_TENANTS": "Delete tenants",
   "DELETE_THREAT_ARSENALS": "Delete threat arsenal",
   "Deleted": "Deleted",
+  "Deleted asset": "Deleted asset",
+  "Deleted asset group": "Deleted asset group",
   "Deleting actions": "Deleting actions",
   "Deleting asset groups": "Deleting asset groups",
   "Deleting assets": "Deleting assets",

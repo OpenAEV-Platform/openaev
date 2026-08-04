@@ -4,7 +4,10 @@ import com.google.gson.Gson;
 import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetGroupRepository;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
@@ -45,6 +48,8 @@ public class WorkflowService {
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
+  private final AssetRepository assetRepository;
+  private final AssetGroupRepository assetGroupRepository;
 
   private final ScopeMetricCollector scopeMetricCollector;
   private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -715,6 +720,7 @@ public class WorkflowService {
     existing.setRuleSource(input.getRuleSource());
     existing.setRuleValue(input.getRuleValue());
     existing.setValueType(detectValueType(input));
+    existing.setRuleValueLabel(resolveValueLabel(input));
   }
 
   private WorkflowScopeRule buildScopeRule(WorkflowScopeRuleInput input, Workflow workflow) {
@@ -722,9 +728,41 @@ public class WorkflowService {
         .selectedMode(input.getSelectedMode())
         .ruleSource(input.getRuleSource())
         .ruleValue(input.getRuleValue())
+        .ruleValueLabel(resolveValueLabel(input))
         .valueType(detectValueType(input))
         .workflow(workflow)
         .build();
+  }
+
+  /**
+   * Resolves the current display name of an ASSET/ASSET_GROUP rule's referenced entity, so it can
+   * be snapshotted onto the rule. Returns {@code null} for non-asset sources, or if the referenced
+   * asset/asset group can no longer be found (e.g. already deleted) — the frontend then falls back
+   * to a generic placeholder rather than showing a raw ID.
+   *
+   * <p>The lookup is explicitly constrained to the caller's tenant: Hibernate's {@code
+   * tenantFilter} does not apply to primary-key loads, so a plain {@code findById} on a
+   * user-supplied id could snapshot (and later expose) another tenant's asset name. This runs on
+   * the request thread ({@code WorkflowApi}), where {@code TenantInterceptor} has set the tenant.
+   */
+  private String resolveValueLabel(WorkflowScopeRuleInput input) {
+    if (input.getRuleSource() == null || input.getRuleValue() == null) {
+      return null;
+    }
+    String tenantId = TenantContext.getCurrentTenant();
+    return switch (input.getRuleSource()) {
+      case ASSET ->
+          assetRepository
+              .findByIdAndTenantId(input.getRuleValue(), tenantId)
+              .map(Asset::getName)
+              .orElse(null);
+      case ASSET_GROUP ->
+          assetGroupRepository
+              .findByIdAndTenantId(input.getRuleValue(), tenantId)
+              .map(AssetGroup::getName)
+              .orElse(null);
+      default -> null;
+    };
   }
 
   private ScopeRuleValueType detectValueType(WorkflowScopeRuleInput input) {

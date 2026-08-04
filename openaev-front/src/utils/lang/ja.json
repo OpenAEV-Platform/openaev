@@ -875,6 +875,8 @@
   "DELETE_TENANTS": "Tenantの削除",
   "DELETE_THREAT_ARSENALS": "脅威兵器庫の削除",
   "Deleted": "削除",
+  "Deleted asset": "削除されたアセット",
+  "Deleted asset group": "削除されたアセットグループ",
   "Deleting actions": "アクションを削除中",
   "Deleting asset groups": "アセットグループを削除中",
   "Deleting assets": "アセットを削除中",
