@@ -1,17 +1,14 @@
 package io.openaev.api.chaining;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,7 +35,7 @@ class ChainingApiEnterpriseEditionAccessTest extends IntegrationTest {
   @Test
   @WithMockUser(isAdmin = true)
   @DisplayName("Given inactive enterprise license should deny Condition API findById")
-  void given_inactiveEnterpriseLicense_should_denyConditionFindById() {
+  void given_inactiveEnterpriseLicense_should_denyConditionFindById() throws Exception {
     assertEnterpriseEditionDenied(
         get(tenantUri(ConditionApi.TENANT_CONDITION_URI) + "/condition-id"));
   }
@@ -46,7 +43,7 @@ class ChainingApiEnterpriseEditionAccessTest extends IntegrationTest {
   @Test
   @WithMockUser(isAdmin = true)
   @DisplayName("Given inactive enterprise license should deny Condition API findAllByWorkflow")
-  void given_inactiveEnterpriseLicense_should_denyConditionFindAllByWorkflow() {
+  void given_inactiveEnterpriseLicense_should_denyConditionFindAllByWorkflow() throws Exception {
     assertEnterpriseEditionDenied(
         get(tenantUri(ConditionApi.TENANT_CONDITION_URI)).param("workflow_id", "workflow-id"));
   }
@@ -54,14 +51,14 @@ class ChainingApiEnterpriseEditionAccessTest extends IntegrationTest {
   @Test
   @WithMockUser(isAdmin = true)
   @DisplayName("Given inactive enterprise license should deny Step API findById")
-  void given_inactiveEnterpriseLicense_should_denyStepFindById() {
+  void given_inactiveEnterpriseLicense_should_denyStepFindById() throws Exception {
     assertEnterpriseEditionDenied(get(tenantUri(StepApi.TENANT_STEP_URI) + "/step-id"));
   }
 
   @Test
   @WithMockUser(isAdmin = true)
   @DisplayName("Given inactive enterprise license should deny Step API findByWorkflowId")
-  void given_inactiveEnterpriseLicense_should_denyStepFindByWorkflowId() {
+  void given_inactiveEnterpriseLicense_should_denyStepFindByWorkflowId() throws Exception {
     assertEnterpriseEditionDenied(
         get(tenantUri(StepApi.TENANT_STEP_URI)).param("workflow_id", "workflow-id"));
   }
@@ -69,7 +66,7 @@ class ChainingApiEnterpriseEditionAccessTest extends IntegrationTest {
   @Test
   @WithMockUser(isAdmin = true)
   @DisplayName("Given inactive enterprise license should deny Workflow API configuration read")
-  void given_inactiveEnterpriseLicense_should_denyWorkflowConfigurationRead() {
+  void given_inactiveEnterpriseLicense_should_denyWorkflowConfigurationRead() throws Exception {
     assertEnterpriseEditionDenied(
         get(tenantUri(WorkflowApi.TENANT_WORKFLOW_URI) + "/workflow-id/configuration"));
   }
@@ -77,7 +74,7 @@ class ChainingApiEnterpriseEditionAccessTest extends IntegrationTest {
   @Test
   @WithMockUser(isAdmin = true)
   @DisplayName("Given inactive enterprise license should deny Workflow API valid assets read")
-  void given_inactiveEnterpriseLicense_should_denyWorkflowValidAssetsRead() {
+  void given_inactiveEnterpriseLicense_should_denyWorkflowValidAssetsRead() throws Exception {
     assertEnterpriseEditionDenied(
         get(tenantUri(WorkflowApi.TENANT_WORKFLOW_URI) + "/workflow-id/valid-assets"));
   }
@@ -85,14 +82,14 @@ class ChainingApiEnterpriseEditionAccessTest extends IntegrationTest {
   @Test
   @WithMockUser(isAdmin = true)
   @DisplayName("Given inactive enterprise license should deny Chaining API findAll")
-  void given_inactiveEnterpriseLicense_should_denyChainingFindAll() {
+  void given_inactiveEnterpriseLicense_should_denyChainingFindAll() throws Exception {
     assertEnterpriseEditionDenied(get(tenantUri(ChainingApi.TENANT_CHAINING_URI)));
   }
 
-  private void assertEnterpriseEditionDenied(MockHttpServletRequestBuilder request) {
-    ServletException exception = assertThrows(ServletException.class, () -> mvc.perform(request));
-    EnterpriseEditionException cause =
-        assertInstanceOf(EnterpriseEditionException.class, exception.getCause());
-    assertEquals("Enterprise Edition license required", cause.getMessage());
+  private void assertEnterpriseEditionDenied(MockHttpServletRequestBuilder request)
+      throws Exception {
+    mvc.perform(request)
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
   }
 }
