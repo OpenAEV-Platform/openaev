@@ -41,11 +41,16 @@ const SimulationScope = ({ readOnly = false }: { readOnly?: boolean }) => {
   // simulation - the scope is editable only while SCHEDULED (see ADR-005).
   const launched = exercise.exercise_status !== 'SCHEDULED';
   const effectiveReadOnly = readOnly || launched;
-  const readOnlyMessage = readOnly
-    ? t('This simulation is driven by the autonomous attack path. Its scope is read-only.')
-    : (exercise.exercise_scenario
-        ? t('This simulation has been launched. Its scope is read-only. Reset the simulation to edit it, or update the scenario and run it again.')
-        : t('This simulation has been launched. Its scope is read-only. Reset the simulation to edit it.'));
+  const resolveReadOnlyMessage = () => {
+    if (readOnly) {
+      return t('This simulation is driven by the autonomous attack path. Its scope is read-only.');
+    }
+    if (exercise.exercise_scenario) {
+      return t('This simulation has been launched. Its scope is read-only. Reset the simulation to edit it, or update the scenario and run it again.');
+    }
+    return t('This simulation has been launched. Its scope is read-only. Reset the simulation to edit it.');
+  };
+  const readOnlyMessage = resolveReadOnlyMessage();
 
   return (
     <div>

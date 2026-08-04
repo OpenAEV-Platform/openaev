@@ -16,11 +16,16 @@ const SimulationLogic = ({ readOnly = false }: { readOnly?: boolean }) => {
   // (autonomous) flag applies, so the frozen banner never flashes before the status is known.
   const launched = !!exercise && exercise.exercise_status !== 'SCHEDULED';
   const effectiveReadOnly = readOnly || launched;
-  const readOnlyMessage = readOnly
-    ? t('This simulation is driven by the autonomous attack path. Its logic map is read-only.')
-    : (exercise?.exercise_scenario
-        ? t('This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it, or update the scenario and run it again.')
-        : t('This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it.'));
+  const resolveReadOnlyMessage = () => {
+    if (readOnly) {
+      return t('This simulation is driven by the autonomous attack path. Its logic map is read-only.');
+    }
+    if (exercise?.exercise_scenario) {
+      return t('This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it, or update the scenario and run it again.');
+    }
+    return t('This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it.');
+  };
+  const readOnlyMessage = resolveReadOnlyMessage();
   return (
     <Logic
       workflowId={exercise?.exercise_workflow_id}

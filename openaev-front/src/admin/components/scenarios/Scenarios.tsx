@@ -109,9 +109,12 @@ const Scenarios = () => {
       value: (scenario: Scenario) => {
         const isAutonomous = !!autonomousRuns.byScenario(scenario.scenario_id);
         const workflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id;
-        const type: ScenarioTypeValue = isAutonomous
-          ? SCENARIO_TYPE_AUTONOMOUS
-          : (workflowId ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED);
+        let type: ScenarioTypeValue = SCENARIO_TYPE_TIME_BASED;
+        if (isAutonomous) {
+          type = SCENARIO_TYPE_AUTONOMOUS;
+        } else if (workflowId) {
+          type = SCENARIO_TYPE_CHAINED;
+        }
         return <ScenarioType type={type} variant="list" />;
       },
     },

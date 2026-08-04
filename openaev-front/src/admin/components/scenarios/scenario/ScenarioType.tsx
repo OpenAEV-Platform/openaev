@@ -12,10 +12,7 @@ export const SCENARIO_TYPE_TIME_BASED = 'Time-based';
 export const SCENARIO_TYPE_CHAINED = 'Chained';
 export const SCENARIO_TYPE_AUTONOMOUS = 'Autonomous';
 
-export type ScenarioTypeValue =
-  | typeof SCENARIO_TYPE_TIME_BASED
-  | typeof SCENARIO_TYPE_CHAINED
-  | typeof SCENARIO_TYPE_AUTONOMOUS;
+export type ScenarioTypeValue = typeof SCENARIO_TYPE_TIME_BASED | typeof SCENARIO_TYPE_CHAINED | typeof SCENARIO_TYPE_AUTONOMOUS;
 
 const useStyles = makeStyles()(() => ({
   chip: {
@@ -40,7 +37,10 @@ const useStyles = makeStyles()(() => ({
 // - Time-based: a clock (classic scheduled scenario)
 // - Chained: a workflow tree (inject-chaining logic map)
 // - Autonomous: the AI sparkle in AI-purple, matching the Autonomous attack entry point
-const TYPE_STYLES: Record<ScenarioTypeValue, { color: CSSProperties; Icon: typeof ScheduleOutlined }> = {
+const TYPE_STYLES: Record<ScenarioTypeValue, {
+  color: CSSProperties;
+  Icon: typeof ScheduleOutlined;
+}> = {
   [SCENARIO_TYPE_TIME_BASED]: {
     color: colorStyles.blue,
     Icon: ScheduleOutlined,
@@ -71,10 +71,12 @@ const ScenarioType: FunctionComponent<Props> = ({ type, variant }) => {
     <Chip
       classes={{ root: style }}
       style={color}
-      sx={{ '& .MuiChip-icon': {
-        color: 'inherit',
-        fontSize: variant === 'list' ? 14 : 18,
-      } }}
+      sx={{
+        '& .MuiChip-icon': {
+          color: 'inherit',
+          fontSize: variant === 'list' ? 14 : 18,
+        },
+      }}
       icon={<Icon />}
       label={t(type)}
     />
