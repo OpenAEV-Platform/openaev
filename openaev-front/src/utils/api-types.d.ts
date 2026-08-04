@@ -9067,6 +9067,8 @@ export interface PlatformSettings {
   platform_ai_type?: string;
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
+  /** Current platform run mode (normal or safe) */
+  platform_run_mode?: string;
   /** Base URL of the platform */
   platform_base_url?: string;
   /** Definition of the dark theme */
@@ -9309,6 +9311,8 @@ export interface PublicPlatformSettings {
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
+  /** Current platform run mode (normal or safe) */
+  platform_run_mode?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
   /**

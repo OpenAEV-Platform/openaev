@@ -17,6 +17,9 @@ export const computeBannerSettings = (settings: PlatformSettings) => {
       numberOfElements += bannerLevel[1].length;
     }
   }
+  if (settings.platform_run_mode === 'safe') {
+    numberOfElements += 1;
+  }
 
   // The system banner is only rendered when it actually has messages (see
   // SystemBanners), so reserve its height only then to avoid an unexplained

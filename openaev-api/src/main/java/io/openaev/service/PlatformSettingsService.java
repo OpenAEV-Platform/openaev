@@ -245,6 +245,10 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
             .map(Setting::getValue)
             .orElse(PLATFORM_WHITEMARK.defaultValue()));
+    settings.setPlatformRunMode(
+        ofNullable(openAEVConfig.getRunMode())
+            .map(runMode -> runMode.toLowerCase(Locale.ROOT))
+            .orElse("normal"));
   }
 
   /** Return only non-sensitive settings suitable for unauthenticated (public) access. */

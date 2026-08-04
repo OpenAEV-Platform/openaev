@@ -1,19 +1,28 @@
 import { CssBaseline } from '@mui/material';
 import { StyledEngineProvider } from '@mui/material/styles';
 
+import { type LoggedHelper } from '../actions/helper';
 import ConnectedIntlProvider from '../components/AppIntlProvider';
 import ConnectedThemeProvider from '../components/AppThemeProvider';
+import { useHelper } from '../store';
+import { type PlatformSettings } from '../utils/api-types';
+import SystemBanners from './components/systembanners/SystemBanners';
 import Index from './Index';
 
-const Root = () => (
-  <StyledEngineProvider injectFirst={true}>
-    <ConnectedIntlProvider>
-      <ConnectedThemeProvider>
-        <CssBaseline />
-        <Index />
-      </ConnectedThemeProvider>
-    </ConnectedIntlProvider>
-  </StyledEngineProvider>
-);
+const Root = () => {
+  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+
+  return (
+    <StyledEngineProvider injectFirst={true}>
+      <ConnectedIntlProvider>
+        <ConnectedThemeProvider>
+          <CssBaseline />
+          <SystemBanners settings={settings} />
+          <Index />
+        </ConnectedThemeProvider>
+      </ConnectedIntlProvider>
+    </StyledEngineProvider>
+  );
+};
 
 export default Root;

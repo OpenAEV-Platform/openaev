@@ -70,6 +70,10 @@ public class PublicPlatformSettings {
           "Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL)")
   private Map<String, List<String>> platformBannerByLevel;
 
+  @JsonProperty("platform_run_mode")
+  @Schema(description = "Current platform run mode (normal or safe)")
+  private String platformRunMode;
+
   public Map<String, List<String>> getPlatformBannerByLevel() {
     Map<String, List<String>> platformBannerByLevelLowerCase = new HashMap<>();
     if (this.platformBannerByLevel != null) {
