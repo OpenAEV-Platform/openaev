@@ -61,7 +61,7 @@ public class SecretsProviderApi extends RestBehavior {
               required = false)
           @RequestParam(value = "include_next", required = false, defaultValue = "false")
           boolean includeNext) {
-    return secretsProviderService.secretsProviderOutput(includeNext);
+    return secretsProviderService.secretsProviderOutput(ctx, includeNext);
   }
 
   @GetMapping({"/{secretsProviderId}"})
@@ -71,7 +71,8 @@ public class SecretsProviderApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SECRET_PROVIDER)
   public SecretsProvider getSecretsProvider(TxCtx ctx, @PathVariable String secretsProviderId) {
-    SecretsProvider secretsProvider = secretsProviderService.getConnectorById(secretsProviderId);
+    SecretsProvider secretsProvider =
+        secretsProviderService.getConnectorById(ctx, secretsProviderId);
     if (secretsProvider == null) {
       log.warn(
           "Secrets provider with id {} not found - This may be because the integration has never been started yet",
@@ -90,7 +91,7 @@ public class SecretsProviderApi extends RestBehavior {
   @Operation(summary = "Retrieve secrets provider related ids")
   public ConnectorIds getSecretsProviderRelatedIds(
       TxCtx ctx, @PathVariable String secretsProviderId) {
-    return secretsProviderService.getSecretsProviderRelationsId(secretsProviderId);
+    return secretsProviderService.getSecretsProviderRelationsId(ctx, secretsProviderId);
   }
 
   @GetMapping(value = "/{secretProviderType}/image", produces = MediaType.IMAGE_PNG_VALUE)
