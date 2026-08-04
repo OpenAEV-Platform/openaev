@@ -1,5 +1,7 @@
 package io.openaev.api.secrets_providers;
 
+import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromCtx;
+
 import io.openaev.api.secrets_providers.form.SecretsProviderOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.CatalogConnector;
@@ -17,6 +19,7 @@ import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.SecretsProviderMapper;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -91,21 +94,7 @@ public class SecretsProviderService
     return getConnectorRelationsId(getConnectorById(ctx, secretProviderId), secretProviderId);
   }
 
-  /**
-   * Extracts the explicit tenant list from an authorized {@link TxCtx}. {@link TxCtx.Missing}
-   * (fail-closed, no scope) yields an empty list; {@link TxCtx.AllTenants} is an unresolved
-   * background-only intention and must never reach an HTTP read.
-   */
-  private static List<String> tenantIdsFromCtx(TxCtx ctx) {
-    return switch (ctx) {
-      case TxCtx.Missing ignored -> List.of();
-      case TxCtx.Restricted restricted -> restricted.tenantIds();
-      case TxCtx.AllTenants ignored ->
-          throw new IllegalArgumentException("AllTenants is not valid on the HTTP API path");
-    };
-  }
-
-  private List<SecretsProvider> getConnectorsForTenants(List<String> tenantIds) {
+  private List<SecretsProvider> getConnectorsForTenants(Set<String> tenantIds) {
     return tenantIds.stream()
         .flatMap(
             tenantId -> {

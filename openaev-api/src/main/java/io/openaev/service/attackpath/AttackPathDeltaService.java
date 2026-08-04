@@ -87,8 +87,7 @@ public class AttackPathDeltaService {
    *     {@link AttackPathTenantScope}).
    */
   @Transactional(readOnly = true)
-  public AttackPathDeltaDTO buildDelta(
-      String simulationId, long since, Collection<String> tenantIds) {
+  public AttackPathDeltaDTO buildDelta(String simulationId, long since, Set<String> tenantIds) {
     Optional<Long> current = versionService.current(simulationId, tenantIds);
     if (current.isEmpty()) {
       // No counter: either the simulation never produced attack-path data, or its data was deleted.

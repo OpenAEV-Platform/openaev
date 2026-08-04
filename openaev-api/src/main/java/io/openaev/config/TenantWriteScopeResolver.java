@@ -2,6 +2,7 @@ package io.openaev.config;
 
 import io.openaev.context.TxCtx;
 import io.openaev.rest.exception.TenantWriteScopeException;
+import io.openaev.utils.TxCtxScopeUtils;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
@@ -21,16 +22,7 @@ import org.springframework.stereotype.Component;
 public class TenantWriteScopeResolver {
 
   public String tenantForWrite(TxCtx scope, String suppliedTenant) {
-    Set<String> scoped =
-        switch (scope) {
-          case TxCtx.Missing ignored -> Set.of();
-          case TxCtx.Restricted restricted -> Set.copyOf(restricted.tenantIds());
-          // A write is attributed to exactly one tenant; "all tenants" can never attribute a row.
-          case TxCtx.AllTenants ignored ->
-              throw new TenantWriteScopeException(
-                  "A write cannot be attributed to all tenants; provide a single-tenant scope or an"
-                      + " explicit tenant selector.");
-        };
+    Set<String> scoped = TxCtxScopeUtils.tenantIdsFromCtx(scope);
 
     if (suppliedTenant != null && !suppliedTenant.isBlank()) {
       if (!scoped.contains(suppliedTenant)) {
