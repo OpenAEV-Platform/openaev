@@ -1245,6 +1245,19 @@ public class ExerciseService {
   }
 
   /**
+   * Enables, on the given simulation, the members of every targeted team so a human-in-the-loop
+   * inject (email, SMS, credential harvesting, ...) can actually reach them. Delegates to {@link
+   * ExerciseTeamUserService#enableTargetedTeamMembers(String, List)} - the repository-only owner of
+   * this logic - so the chaining execution path can reuse it without a Spring bean cycle.
+   *
+   * @param simulationId the simulation whose audience must carry the targeted teams' players
+   * @param teamIds the ids of the teams targeted by a chained/authored step
+   */
+  public void enableTargetedTeamMembers(String simulationId, List<String> teamIds) {
+    this.exerciseTeamUserService.enableTargetedTeamMembers(simulationId, teamIds);
+  }
+
+  /**
    * Update the simulation and each of the injects to add default asset groups
    *
    * @param simulation simulation to update

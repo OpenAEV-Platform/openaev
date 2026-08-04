@@ -111,7 +111,7 @@ public class AutonomousRun implements TenantBase {
   @Schema(
       description =
           "Authoritative run scope: a mixed list of targetable entities (assets, asset groups,"
-              + " teams). The orchestrator attacks within this perimeter.")
+              + " teams, persons). The orchestrator attacks within this perimeter.")
   private List<AutonomousScopeTarget> scope = new ArrayList<>();
 
   // Internal bookkeeping: maps each step template id authored on the SIMULATION workflow to the

@@ -120,7 +120,7 @@ export interface AutonomousRunCreateInput {
 
 // One entry of an autonomous run's mixed scope. `type` uses the platform target-kind vocabulary;
 // `id` is the entity id of that kind. `name` is a client-side convenience label for the chip UI.
-export type AutonomousScopeTargetType = 'ASSETS' | 'ASSETS_GROUPS' | 'TEAMS';
+export type AutonomousScopeTargetType = 'ASSETS' | 'ASSETS_GROUPS' | 'TEAMS' | 'PLAYERS';
 
 export interface AutonomousScopeTarget {
   type: AutonomousScopeTargetType;

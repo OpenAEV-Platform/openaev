@@ -21,6 +21,8 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.execution.ExecutionContext;
+import io.openaev.execution.ExecutionContextService;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
@@ -92,6 +94,8 @@ public class InjectExecutionStep implements ActionStep {
   private final AttackPathFindingIngestionService attackPathFindingIngestion;
   private final InjectExpectationService injectExpectationService;
   private final ExecutableInjectService executableInjectService;
+  private final ExerciseTeamUserService exerciseTeamUserService;
+  private final ExecutionContextService executionContextService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -204,6 +208,11 @@ public class InjectExecutionStep implements ActionStep {
 
     try {
       readyStep.setData(setInjectId(injectId, readyStep.getData()));
+      // Resolve the audience recipients (email/SMS players) from the inject's targeted teams. The
+      // standard queue path does this via InjectHelper; the chaining path must do it here or the
+      // executor sees zero users and fails with "Email needs at least one user". Asset/IP-centric
+      // injects have no teams, so this yields an empty list and their behavior is unchanged.
+      List<ExecutionContext> users = resolveTeamRecipients(inject);
       ExecutableInject executableInject =
           new ExecutableInject(
               true,
@@ -212,7 +221,7 @@ public class InjectExecutionStep implements ActionStep {
               inject.getTeams(),
               inject.getAssets(),
               inject.getAssetGroups(),
-              List.of(),
+              users,
               true);
 
       // TODO Check add documents? Executable Payloads
@@ -225,6 +234,47 @@ public class InjectExecutionStep implements ActionStep {
       throw new ChainingException(
           "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
     }
+  }
+
+  /**
+   * Resolves the recipient execution contexts for an audience-centric (email/SMS) chaining inject
+   * from its targeted teams.
+   *
+   * <p>A scope team chosen in the chaining Configure-action drawer is only in the workflow
+   * allowlist, not attached to the simulation audience with enabled players, so its members must
+   * first be enabled on the simulation (mirrors the autonomous path). All-teams injects already
+   * target the simulation audience, so only explicitly-targeted teams need enabling. Recipients are
+   * then built from the targeted teams' members (deduplicated by user); resolving from the member
+   * set avoids relying on a possibly-stale {@code exercise_teams_users} collection inside this
+   * transaction, and scope teams have no per-player disable concept, so every member is a valid
+   * recipient.
+   *
+   * <p>Asset/IP-centric injects (nmap, payloads) have no teams and no all-teams flag, so this
+   * returns an empty list and their execution is unchanged. Findings mapped as raw recipients (no
+   * team) are handled downstream by the email executor from the inject content, not here.
+   */
+  private List<ExecutionContext> resolveTeamRecipients(Inject inject) {
+    Exercise exercise = inject.getExercise();
+    if (exercise == null) {
+      return List.of();
+    }
+    List<Team> teams = inject.isAllTeams() ? exercise.getTeams() : inject.getTeams();
+    if (teams == null || teams.isEmpty()) {
+      return List.of();
+    }
+    if (!inject.isAllTeams()) {
+      exerciseTeamUserService.enableTargetedTeamMembers(
+          exercise.getId(), teams.stream().map(Team::getId).toList());
+    }
+    Map<String, ExecutionContext> byUser = new LinkedHashMap<>();
+    for (Team team : teams) {
+      for (User user : team.getUsers()) {
+        byUser.computeIfAbsent(
+            user.getId(),
+            id -> executionContextService.executionContext(user, inject, team.getName()));
+      }
+    }
+    return new ArrayList<>(byUser.values());
   }
 
   /**
@@ -713,6 +763,15 @@ public class InjectExecutionStep implements ActionStep {
       List<ConditionService.ExecutionBatch> batches, Workflow workflowRun, Step stepTemplate) {
 
     String workflowId = workflowRun.getId();
+
+    // Audience-centric injects (email, SMS, ...) target the teams configured on the inject "among
+    // the scope", never the scope's assets or raw IPs. Skip the per-target fan-out entirely so
+    // run() executes a single inject against its configured teams instead of one bogus
+    // asset-targeted inject per scoped asset (which fails email with "needs at least one user").
+    if (!stepSupportsAssetTargeting(stepTemplate)) {
+      return batches;
+    }
+
     List<Asset> validAssets = scopeService.getValidAssets(workflowId);
 
     // Manual (raw IP) targets — including IPv4/IPv6 produced by upstream actions — only apply to
@@ -813,6 +872,99 @@ public class InjectExecutionStep implements ActionStep {
       log.warn(
           "Failed to check payload presence in step data for step ID: {}", stepTemplate.getId());
       return false;
+    }
+  }
+
+  /**
+   * Contract field types that mean "this inject targets assets/IPs": the audience-picking widgets
+   * on the inject form (asset, asset group, network target selector). Mirrors the frontend {@code
+   * INJECTOR_HIDDEN_TYPES} used by the chaining Configure-action drawer.
+   */
+  private static final Set<String> ASSET_TARGET_FIELD_TYPES =
+      Set.of(
+          InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET,
+          InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP,
+          "targeted-asset");
+
+  /** Contract field key that drives network (IP/manual) targeting on external injectors. */
+  private static final String TARGET_SELECTOR_FIELD_KEY = "target_selector";
+
+  /**
+   * Classifies a step template as asset/IP-centric (nmap, nuclei, payload injects, ...) versus
+   * audience-centric (email, SMS, ...) from its serialized injector contract.
+   *
+   * <p>Audience-centric contracts target the teams configured on the inject "among the scope"; the
+   * workflow scope's assets and manual IPs are meaningless to them. Only asset/IP-centric injects
+   * should be fanned out per scope target and receive scope assets. Payload injects always run on
+   * an endpoint, so they are asset-centric by definition; otherwise we inspect the contract fields
+   * the same way the frontend does.
+   *
+   * <p>When the contract cannot be resolved we fall back to {@code true} (asset-centric) to
+   * preserve the historical scope-expansion behavior for existing chains.
+   */
+  private boolean stepSupportsAssetTargeting(Step stepTemplate) {
+    if (hasPayload(stepTemplate)) {
+      return true;
+    }
+    String contractId = contractIdFromStepData(stepTemplate);
+    if (contractId == null) {
+      return true;
+    }
+    try {
+      return supportsAssetTargeting(injectorContractService.injectorContract(contractId));
+    } catch (Exception e) {
+      log.warn(
+          "Failed to resolve injector contract {} while classifying step {} targeting; assuming asset-centric",
+          contractId,
+          stepTemplate.getId());
+      return true;
+    }
+  }
+
+  /**
+   * Returns {@code true} when the injector contract exposes an asset / asset-group / network-target
+   * field, i.e. the inject targets assets or raw IPs rather than an audience of teams.
+   */
+  private boolean supportsAssetTargeting(InjectorContract injectorContract) {
+    if (injectorContract == null || injectorContract.getConvertedContent() == null) {
+      return false;
+    }
+    JsonNode fields =
+        injectorContract.getConvertedContent().get(InjectorContract.CONTRACT_CONTENT_FIELDS);
+    if (fields == null || !fields.isArray()) {
+      return false;
+    }
+    for (JsonNode field : fields) {
+      String type = field.path(InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE).asText("");
+      String key = field.path(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY).asText("");
+      if (ASSET_TARGET_FIELD_TYPES.contains(type) || TARGET_SELECTOR_FIELD_KEY.equals(key)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Reads {@code inject_injector_contract.injector_contract_id} from serialized step data. */
+  private String contractIdFromStepData(Step stepTemplate) {
+    if (stepTemplate.getData() == null) {
+      return null;
+    }
+    try {
+      JsonElement contractElement =
+          JsonParser.parseString(stepTemplate.getData())
+              .getAsJsonObject()
+              .get("inject_injector_contract");
+      if (contractElement == null
+          || contractElement.isJsonNull()
+          || !contractElement.isJsonObject()) {
+        return null;
+      }
+      JsonElement idElement = contractElement.getAsJsonObject().get("injector_contract_id");
+      return (idElement == null || idElement.isJsonNull()) ? null : idElement.getAsString();
+    } catch (Exception e) {
+      log.warn(
+          "Failed to read injector contract id from step data for step {}", stepTemplate.getId());
+      return null;
     }
   }
 
@@ -1090,16 +1242,25 @@ public class InjectExecutionStep implements ActionStep {
           injectorContractContentUtils.setExpectations(injectorContract, updatedContent);
       inject.setContent(contentWithExpectations);
 
-      // Apply the per-target info baked in by ready() (asset or IP from scope).
-      // Expansion sets _chaining_target → one asset per step (external injectors also expand per
-      // manual IP target). If no target was baked in (e.g. no assets in scope), fall back to all
-      // scope assets so the executor can still distribute across every scoped endpoint.
-      boolean targetApplied =
-          applyChainingTarget(inject, step.getData(), injectorContract.getPayload() == null);
-      if (!targetApplied && step.getWorkflow() != null) {
-        List<Asset> scopedAssets = scopeService.getValidAssets(step.getWorkflow().getId());
-        if (scopedAssets != null && !scopedAssets.isEmpty()) {
-          inject.setAssets(scopedAssets);
+      // Apply the per-target info baked in by ready() (asset or IP from scope) — but ONLY for
+      // asset/IP-centric injects. Audience-centric contracts (email, SMS, ...) target the teams
+      // configured on the inject "among the scope"; the workflow scope's assets are irrelevant to
+      // them, and forcing one here rewrites target_selector to "assets" and leaves the inject with
+      // zero recipients ("Email needs at least one user"). Their configured teams round-trip via
+      // inject_teams and must be left untouched.
+      boolean assetCentric =
+          injectorContract.getPayload() != null || supportsAssetTargeting(injectorContract);
+      if (assetCentric) {
+        // Expansion sets _chaining_target → one asset per step (external injectors also expand per
+        // manual IP target). If no target was baked in (e.g. no assets in scope), fall back to all
+        // scope assets so the executor can still distribute across every scoped endpoint.
+        boolean targetApplied =
+            applyChainingTarget(inject, step.getData(), injectorContract.getPayload() == null);
+        if (!targetApplied && step.getWorkflow() != null) {
+          List<Asset> scopedAssets = scopeService.getValidAssets(step.getWorkflow().getId());
+          if (scopedAssets != null && !scopedAssets.isEmpty()) {
+            inject.setAssets(scopedAssets);
+          }
         }
       }
 

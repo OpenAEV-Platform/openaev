@@ -6,15 +6,17 @@ import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 
 import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
+import { findTeams } from '../../../../../actions/teams/team-actions';
 import SwitchFieldController from '../../../../../components/fields/SwitchFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
-import type { ScopeAssetOutput, ScopeTeamOutput, ThreatArsenalAction } from '../../../../../utils/api-types';
+import type { ScopeAssetOutput, ScopeTeamOutput, TeamOutput, ThreatArsenalAction } from '../../../../../utils/api-types';
 import type { ContractElement, ContractType, EnhancedContractElement } from '../../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../../utils/Zod';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import InjectDocumentsList from '../../../common/injects/form/documents/InjectDocumentsList';
 import InjectContentFieldComponent from '../../../common/injects/form/InjectContentFieldComponent';
+import InjectFormSection from '../../../common/injects/form/InjectFormSection';
 import InjectTeamsList from '../../../common/injects/form/teams/InjectTeamsList';
 import { isInjectContentType, isRequiredField, isVisibleField } from '../../../common/injects/utils';
 import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
@@ -231,6 +233,19 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     },
   }));
 
+  const hasTeamField = useMemo(() => !isPayload && contractFields.some(f => f.type === 'team'), [contractFields, isPayload]);
+
+  // Does this contract target assets? Asset targeting is expressed either by an asset-typed field
+  // or by one of the scope-owned targeting keys. Payloads always target assets.
+  const hasAssetTargeting = useMemo(
+    () => contractFields.some(f => INJECTOR_HIDDEN_TYPES.has(f.type) || INJECTOR_HIDDEN_KEYS.has(f.key)),
+    [contractFields],
+  );
+  // The two targeting axes this action actually persists. A team-centric inject (e.g. email) must
+  // never inherit the asset perimeter, otherwise it targets hosts instead of people at execution.
+  const targetsAssets = isPayload || hasAssetTargeting;
+  const targetsTeams = hasTeamField;
+
   const onSubmit = (formData: FormValues) => {
     if (!action) return;
     // Final safety: remove frontend-only keys before sending to backend.
@@ -238,13 +253,18 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       stripFrontendMetadataKeys(formData.inject_content),
       contractFields,
     );
+    const selectedTeams = formData.inject_all_teams ? [] : (formData.inject_teams ?? []);
     onSave({
       inject_title: formData.inject_title.trim(),
       inject_injector_contract: action.injector_contract_id,
-      inject_assets: validAssets.map(a => a.asset_id).filter((id): id is string => !!id),
-      inject_asset_groups: formData.inject_asset_groups ?? [],
-      inject_teams: formData.inject_all_teams ? [] : (formData.inject_teams ?? []),
-      inject_all_teams: formData.inject_all_teams ?? false,
+      // Only asset-centric contracts inherit the scope's asset perimeter; team-centric injects
+      // (e.g. email) must not carry assets, or they target hosts instead of people at execution.
+      inject_assets: targetsAssets
+        ? validAssets.map(a => a.asset_id).filter((id): id is string => !!id)
+        : [],
+      inject_asset_groups: targetsAssets ? (formData.inject_asset_groups ?? []) : [],
+      inject_teams: targetsTeams ? selectedTeams : [],
+      inject_all_teams: targetsTeams ? (formData.inject_all_teams ?? false) : false,
       inject_documents: formData.inject_documents ?? [],
       inject_content: contentWithExpectations,
       inject_field_links: fieldLinks,
@@ -257,9 +277,28 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     [contractFields, watchedValues],
   );
 
-  const hasTeamField = useMemo(() => !isPayload && contractFields.some(f => f.type === 'team'), [contractFields, isPayload]);
   const hasAttachmentField = useMemo(() => !isPayload && contractFields.some(f => f.type === 'attachment'), [contractFields, isPayload]);
   const teamFieldEnhanced = useMemo(() => enhancedFields.find(f => f.type === 'team'), [enhancedFields]);
+
+  // Resolve the selected teams' names so the Initial Target reflects the current team selection.
+  const [selectedTeamOptions, setSelectedTeamOptions] = useState<ScopeTeamOutput[]>([]);
+  const selectedTeamIds = watchedValues?.inject_teams ?? [];
+  const selectedTeamKey = selectedTeamIds.join(',');
+  const allTeamsSelected = !!watchedValues?.inject_all_teams;
+  useEffect(() => {
+    if (!targetsTeams || allTeamsSelected || selectedTeamIds.length === 0) {
+      setSelectedTeamOptions([]);
+      return;
+    }
+    findTeams(selectedTeamIds)
+      .then(res => setSelectedTeamOptions(
+        ((res.data ?? []) as TeamOutput[]).map(team => ({
+          team_id: team.team_id,
+          team_name: team.team_name,
+        })),
+      ))
+      .catch(() => setSelectedTeamOptions([]));
+  }, [targetsTeams, allTeamsSelected, selectedTeamKey]);
 
   // Dynamic content fields (typed widgets), excluding scope-owned targeting + dedicated sections.
   const contentEnhancedFields = useMemo(() => {
@@ -343,69 +382,57 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       >
         <TextFieldController name="inject_title" label={t('Title')} required />
 
-        <ActionScopeChips isPayload={isPayload} validAssets={validAssets} validTeams={validTeams} />
+        <ActionScopeChips
+          isPayload={isPayload}
+          assets={targetsAssets ? validAssets : []}
+          teams={targetsTeams ? selectedTeamOptions : []}
+          allTeams={targetsTeams && allTeamsSelected}
+        />
 
         {hasTeamField && (
-          <Box>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              mb: 1,
-            }}
-            >
-              <Typography variant="subtitle2" fontWeight={600}>{t('Targeted teams')}</Typography>
+          <InjectFormSection
+            title={t('Targeted teams')}
+            helper={t('Who receives this inject.')}
+            action={(
               <SwitchFieldController
                 name="inject_all_teams"
                 label={<strong>{t('All teams')}</strong>}
                 disabled={teamFieldEnhanced?.readOnly}
                 size="small"
               />
-            </Box>
+            )}
+          >
             <InjectTeamsList />
-          </Box>
+          </InjectFormSection>
         )}
 
         {(contentEnhancedFields.length > 0 || loadingContract) && (
-          <Box>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              mb: 1,
-            }}
-            >
-              <Typography variant="subtitle2" fontWeight={600}>{t('Inject data')}</Typography>
+          <InjectFormSection
+            title={t('Inject data')}
+            helper={t('The content and targets specific to this inject.')}
+            action={(
               <Button size="small" startIcon={<RestartAlt />} onClick={handleResetDefaults}>
                 {t('Reset default value')}
               </Button>
-            </Box>
+            )}
+          >
             {loadingContract && (
               <Typography variant="body2" color="text.secondary">
                 {t('Loading contract fields...')}
               </Typography>
             )}
-            <Box sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-            >
-              {contentEnhancedFields.map(renderContentField)}
-            </Box>
-          </Box>
+            {contentEnhancedFields.map(renderContentField)}
+          </InjectFormSection>
         )}
 
         {hasAttachmentField && (
-          <Box>
-            <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>{t('Inject documents')}</Typography>
+          <InjectFormSection title={t('Inject documents')}>
             <InjectDocumentsList hasAttachments />
-          </Box>
+          </InjectFormSection>
         )}
 
         {expectationField && (
-          <Box>
-            <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>{t('Inject expectations')}</Typography>
+          <InjectFormSection title={t('Inject expectations')}>
             <InjectExpectations
               expectationDatas={expectations}
               handleExpectations={updatedExpectations => setValue('inject_content', {
@@ -413,14 +440,13 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
                 [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
               })}
               availableExpectations={expectationField.availableExpectations ?? []}
-              inline
             />
             {expectations.length === 0 && (
               <Typography variant="body2" color="text.secondary">
                 {t('No expectations for this action.')}
               </Typography>
             )}
-          </Box>
+          </InjectFormSection>
         )}
 
         <ActionFormButtons disabled={!isValid} onCancel={onClose} />

@@ -1,4 +1,4 @@
-import { Add, BlockOutlined, DnsOutlined, GroupsOutlined, InfoOutlined, PublicOutlined, TaskAltOutlined } from '@mui/icons-material';
+import { BlockOutlined, DnsOutlined, EditOutlined, GroupsOutlined, InfoOutlined, PersonOutlined, PublicOutlined, TaskAltOutlined } from '@mui/icons-material';
 import { Box, Button, Chip, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
@@ -6,6 +6,7 @@ import { type ReactElement, useState } from 'react';
 
 import type { AssetGroupsHelper } from '../../../actions/asset_groups/assetgroup-helper';
 import type { EndpointHelper } from '../../../actions/assets/asset-helper';
+import type { UserHelper } from '../../../actions/helper';
 import type { TeamsHelper } from '../../../actions/teams/team-helper';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
@@ -34,7 +35,7 @@ interface ScopeRulesProps {
 }
 
 // Visual grouping of scope entries by kind, so a scope with many entries reads as a scannable set of
-// typed sections (Assets / Asset groups / Teams / IPs & hostnames) instead of one long
+// typed sections (Assets / Asset groups / Teams / Persons / IPs & hostnames) instead of one long
 // comma-separated string. Each group carries the same typed icon used in the picker.
 interface ScopeGroupMeta {
   key: string;
@@ -61,6 +62,12 @@ const SCOPE_GROUPS: ScopeGroupMeta[] = [
     label: 'Teams',
     icon: <GroupsOutlined fontSize="small" />,
     matches: source => source === 'TEAM',
+  },
+  {
+    key: 'PLAYER',
+    label: 'Persons',
+    icon: <PersonOutlined fontSize="small" />,
+    matches: source => source === 'PLAYER',
   },
   {
     key: 'MANUAL',
@@ -154,8 +161,8 @@ const ScopeColumn = ({ title, rules, resolveLabel, resolveIcon, onAdd, accent, h
           )}
         </Box>
 
-        <Button size="small" startIcon={<Add />} onClick={onAdd}>
-          {t('Add')}
+        <Button size="small" startIcon={<EditOutlined />} onClick={onAdd}>
+          {t('Define')}
         </Button>
       </Box>
 
@@ -236,8 +243,8 @@ const ScopeColumn = ({ title, rules, resolveLabel, resolveIcon, onAdd, accent, h
           <Typography variant="body2" sx={{ color: 'text.disabled' }}>
             {t('Nothing added yet.')}
           </Typography>
-          <Button size="small" startIcon={<Add />} onClick={onAdd}>
-            {t('Add')}
+          <Button size="small" startIcon={<EditOutlined />} onClick={onAdd}>
+            {t('Define')}
           </Button>
         </Box>
       )}
@@ -257,10 +264,12 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
   const [selectedEndpointIds, setSelectedEndpointIds] = useState<string[]>([]);
   const [selectedAssetGroupIds, setSelectedAssetGroupIds] = useState<string[]>([]);
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [selectedCustomRules, setSelectedCustomRules] = useState<ScopeCustomRule[]>([]);
   const [initialEndpointIds, setInitialEndpointIds] = useState<string[]>([]);
   const [initialAssetGroupIds, setInitialAssetGroupIds] = useState<string[]>([]);
   const [initialTeamIds, setInitialTeamIds] = useState<string[]>([]);
+  const [initialPlayerIds, setInitialPlayerIds] = useState<string[]>([]);
   const [initialCustomRules, setInitialCustomRules] = useState<ScopeCustomRule[]>([]);
 
   const handleOpenDrawer = (mode: ScopeMode) => {
@@ -281,6 +290,10 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
       .filter(r => r.workflow_scope_rule_source === 'TEAM')
       .map(r => r.workflow_scope_rule_value ?? '')
       .filter(Boolean);
+    const playerIds = rulesForMode
+      .filter(r => r.workflow_scope_rule_source === 'PLAYER')
+      .map(r => r.workflow_scope_rule_value ?? '')
+      .filter(Boolean);
     const customRules = rulesForMode
       .filter(r => r.workflow_scope_rule_source === 'MANUAL' || r.workflow_scope_rule_source === 'CSV')
       .map(r => ({
@@ -292,10 +305,12 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
     setSelectedEndpointIds(endpointIds);
     setSelectedAssetGroupIds(assetGroupIds);
     setSelectedTeamIds(teamIds);
+    setSelectedPlayerIds(playerIds);
     setSelectedCustomRules(customRules);
     setInitialEndpointIds(endpointIds);
     setInitialAssetGroupIds(assetGroupIds);
     setInitialTeamIds(teamIds);
+    setInitialPlayerIds(playerIds);
     setInitialCustomRules(customRules);
 
     setDrawerOpen(true);
@@ -334,6 +349,12 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
         workflow_scope_rule_source: 'TEAM' as const,
         workflow_scope_rule_value: id,
       })),
+      ...selectedPlayerIds.map(id => ({
+        workflow_scope_rule_id: existingIdMap.get(`PLAYER:${id}`),
+        workflow_scope_rule_selected_mode: drawerMode,
+        workflow_scope_rule_source: 'PLAYER' as const,
+        workflow_scope_rule_value: id,
+      })),
       ...selectedCustomRules.map(rule => ({
         workflow_scope_rule_id: existingIdMap.get(`${rule.source}:${rule.value}`),
         workflow_scope_rule_selected_mode: drawerMode,
@@ -362,11 +383,12 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
     ? t('Define allowlisted scope')
     : t('Define denylisted scope');
 
-  const { endpointsMap, assetGroupsMap, teamsMap } = useHelper(
-    (helper: EndpointHelper & AssetGroupsHelper & TeamsHelper) => ({
+  const { endpointsMap, assetGroupsMap, teamsMap, usersMap } = useHelper(
+    (helper: EndpointHelper & AssetGroupsHelper & TeamsHelper & UserHelper) => ({
       endpointsMap: helper.getEndpointsMap(),
       assetGroupsMap: helper.getAssetGroupMaps(),
       teamsMap: helper.getTeamsMap(),
+      usersMap: helper.getUsersMap(),
     }),
   );
 
@@ -386,6 +408,12 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
       case 'TEAM': {
         const team = teamsMap[value];
         return team?.team_name ?? unresolvedLabel;
+      }
+      case 'PLAYER': {
+        const user = usersMap[value];
+        if (!user) return unresolvedLabel;
+        const name = `${user.user_firstname ?? ''} ${user.user_lastname ?? ''}`.trim();
+        return name.length > 0 ? name : (user.user_email ?? unresolvedLabel);
       }
       default:
         return value || unresolvedLabel;
@@ -409,6 +437,8 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
         return <SelectGroup sx={{ fontSize: 16 }} />;
       case 'TEAM':
         return <GroupsOutlined sx={{ fontSize: 16 }} />;
+      case 'PLAYER':
+        return <PersonOutlined sx={{ fontSize: 16 }} />;
       default:
         return <PublicOutlined sx={{ fontSize: 16 }} />;
     }
@@ -455,14 +485,17 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
           selectedEndpointIds={selectedEndpointIds}
           selectedAssetGroupIds={selectedAssetGroupIds}
           selectedTeamIds={selectedTeamIds}
+          selectedPlayerIds={selectedPlayerIds}
           selectedCustomRules={selectedCustomRules}
           initialEndpointIds={initialEndpointIds}
           initialAssetGroupIds={initialAssetGroupIds}
           initialTeamIds={initialTeamIds}
+          initialPlayerIds={initialPlayerIds}
           initialCustomRules={initialCustomRules}
           onEndpointIdsChange={setSelectedEndpointIds}
           onAssetGroupIdsChange={setSelectedAssetGroupIds}
           onTeamIdsChange={setSelectedTeamIds}
+          onPlayerIdsChange={setSelectedPlayerIds}
           onCustomRulesChange={setSelectedCustomRules}
           onCancel={handleCloseDrawer}
           onSubmit={handleSubmitScope}

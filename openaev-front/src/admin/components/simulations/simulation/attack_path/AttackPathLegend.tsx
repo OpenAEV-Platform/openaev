@@ -1,28 +1,37 @@
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { IconButton, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Divider, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useRef, useState } from 'react';
 
+import { SECTION_LABEL_SX } from '../../../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../../../components/i18n';
 import { attackPathCausalColor, attackPathChokepointColor } from './attack-path-colors';
 
 interface Props {
-  // Bumped by the parent whenever a side panel/drawer opens, so the legend folds away to avoid
-  // overlapping it. The user can always reopen it manually afterwards.
+  // Bumped by the parent whenever a side panel opens, so the legend folds away to avoid competing
+  // with it. The user can always reopen it manually afterwards.
   collapseSignal?: number;
 }
 
-// Interactive, collapsible legend (bottom-left) explaining the attack-path graph's shapes and colours
-// — mirrors the design's Legend section.
+type LegendShape = 'action' | 'target' | 'finding' | 'cluster';
+
+// Uppercase overline for the legend's sections: the app's shared section-label recipe, without the
+// recipe's block margin (the legend manages its own compact rhythm).
+const legendSectionSx = {
+  ...SECTION_LABEL_SX,
+  marginBottom: 0,
+} as const;
+
+// Full legend of the attack-path canvas (bottom-right): the card kinds, the verdict colours and the
+// special edge/badge colours. Open by default — it is part of reading the map — and folds to a
+// compact verdict key when a side panel needs the room.
 const AttackPathLegend = ({ collapseSignal }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  // Collapsed by default: the graph reads on its own, and the folded state still shows the verdict-colour
-  // key. The analyst expands the full legend on demand.
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
-  // Fold the legend when a panel opens (ignoring the initial mount), without locking it: reopening is
-  // still up to the user.
+  // Fold the legend when a panel opens (ignoring the initial mount), without locking it: reopening
+  // is still up to the user.
   const lastSignal = useRef(collapseSignal);
   useEffect(() => {
     if (collapseSignal !== lastSignal.current) {
@@ -32,24 +41,24 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
   }, [collapseSignal]);
 
   const shapes: {
-    shape: 'square' | 'dashedCircle' | 'pill' | 'circle';
+    shape: LegendShape;
     label: string;
   }[] = [
     {
-      shape: 'square',
-      label: t('Injector — click for the executed action'),
+      shape: 'action',
+      label: t('Action — the tool/injector that ran'),
     },
     {
-      shape: 'dashedCircle',
-      label: t('Endpoint cluster (+N) — click to expand'),
+      shape: 'target',
+      label: t('Target — endpoint, person or team reached'),
     },
     {
-      shape: 'pill',
-      label: t('Finding cluster — click to expand'),
+      shape: 'finding',
+      label: t('Finding — what the action discovered'),
     },
     {
-      shape: 'circle',
-      label: t('Finding — click for details'),
+      shape: 'cluster',
+      label: t('Cluster (+N, dashed) — click to expand'),
     },
   ];
 
@@ -90,49 +99,48 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
     },
   ];
 
-  const renderShape = (shape: 'square' | 'dashedCircle' | 'pill' | 'circle') => {
-    const base = {
-      width: 16,
-      height: 16,
-      flex: '0 0 auto',
-      border: `1.5px solid ${theme.palette.text.secondary}`,
-      background: theme.palette.background.default,
-    };
-    if (shape === 'square') {
-      return (
-        <span style={{
-          ...base,
-          borderRadius: 3,
-        }}
-        />
-      );
-    }
-    if (shape === 'dashedCircle') {
-      return (
-        <span style={{
-          ...base,
-          borderRadius: '50%',
-          borderStyle: 'dashed',
-        }}
-        />
-      );
-    }
-    if (shape === 'pill') {
-      return (
-        <span style={{
-          ...base,
-          width: 24,
-          borderRadius: 8,
-        }}
-        />
-      );
-    }
+  // Miniature card glyphs mirroring the real canvas cards (left accent bar + icon slot + text bar).
+  const renderShape = (shape: LegendShape) => {
+    const accent = shape === 'action' ? theme.palette.primary.main : theme.palette.text.secondary;
     return (
-      <span style={{
-        ...base,
-        borderRadius: '50%',
-      }}
-      />
+      <Box
+        component="span"
+        sx={{
+          width: 30,
+          height: 16,
+          flex: '0 0 auto',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '3px',
+          paddingLeft: '4px',
+          borderRadius: '3px',
+          border: `1px ${shape === 'cluster' ? 'dashed' : 'solid'} ${theme.palette.divider}`,
+          borderLeft: `2px solid ${accent}`,
+          background: theme.palette.background.default,
+        }}
+      >
+        <Box
+          component="span"
+          sx={{
+            width: shape === 'finding' ? 5 : 7,
+            height: shape === 'finding' ? 5 : 7,
+            borderRadius: '2px',
+            background: accent,
+            opacity: 0.7,
+          }}
+        />
+        <Box
+          component="span"
+          sx={{
+            flex: 1,
+            height: 2,
+            marginRight: '4px',
+            borderRadius: 1,
+            background: theme.palette.text.disabled,
+            opacity: 0.5,
+          }}
+        />
+      </Box>
     );
   };
 
@@ -140,98 +148,121 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
     <Paper
       variant="outlined"
       sx={{
-        position: 'absolute',
-        bottom: 12,
-        left: 12,
-        zIndex: 5,
-        width: open ? 260 : 'auto',
-        p: 1,
+        width: 288,
+        p: 1.25,
+        borderRadius: 1,
+        boxShadow: theme.shadows[2],
       }}
     >
-      <div style={{
+      <Box sx={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 8,
+        gap: 1,
       }}
       >
-        <Typography variant="subtitle2">{t('Legend')}</Typography>
-        <IconButton size="small" onClick={() => setOpen(o => !o)} aria-label={t('Toggle legend')}>
+        <Typography sx={legendSectionSx}>
+          {t('Legend')}
+        </Typography>
+        {/* Negative margins swallow the icon button's hit-target padding so the header row stays
+            as compact as the title and the icon centers on the title's baseline. */}
+        <IconButton
+          size="small"
+          onClick={() => setOpen(o => !o)}
+          aria-label={t('Toggle legend')}
+          sx={{
+            my: -0.5,
+            mr: -0.5,
+          }}
+        >
           {open ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
         </IconButton>
-      </div>
+      </Box>
       {!open && (
-        // Minimal verdict-colour key stays visible when the legend is folded (e.g. a side panel open),
-        // so the analyst can still read what a coloured verdict means.
-        <div style={{
+        // Minimal verdict-colour key stays visible when the legend is folded (e.g. a side panel
+        // open), so the analyst can still read what a coloured verdict means.
+        <Box sx={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          marginTop: 4,
+          gap: 1,
+          mt: 0.75,
         }}
         >
           {verdictColors.map(c => (
             <Tooltip key={c.label} title={c.label}>
-              <span style={{
-                width: 12,
-                height: 12,
-                flex: '0 0 auto',
-                borderRadius: '50%',
-                background: c.color,
-              }}
+              <Box
+                component="span"
+                sx={{
+                  width: 12,
+                  height: 12,
+                  flex: '0 0 auto',
+                  borderRadius: '50%',
+                  background: c.color,
+                }}
               />
             </Tooltip>
           ))}
-        </div>
+        </Box>
       )}
       {open && (
-        <div style={{
+        <Box sx={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 6,
-          marginTop: 4,
+          gap: 0.75,
+          mt: 0.75,
         }}
         >
+          <Typography sx={legendSectionSx}>{t('Shapes')}</Typography>
           {shapes.map(s => (
-            <div
+            <Box
               key={s.label}
-              style={{
+              sx={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: 1,
               }}
             >
               {renderShape(s.shape)}
               <Typography variant="caption" color="text.secondary">{s.label}</Typography>
-            </div>
+            </Box>
           ))}
-          <div style={{
-            height: 1,
-            background: theme.palette.divider,
-            margin: '2px 0',
-          }}
-          />
+          <Divider sx={{ my: 0.5 }} />
+          <Typography sx={legendSectionSx}>{t('Colors')}</Typography>
           {colors.map(c => (
-            <div
+            <Box
               key={c.label}
-              style={{
+              sx={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: 1,
               }}
             >
-              <span style={{
-                width: 16,
-                height: 3,
-                flex: '0 0 auto',
-                borderRadius: 2,
-                background: c.color,
-              }}
-              />
+              {/* Swatch centered in the same 30px slot as the shape glyphs, so the label text of
+                  the Shapes and Colors sections shares one left edge. */}
+              <Box
+                component="span"
+                sx={{
+                  width: 30,
+                  flex: '0 0 auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Box
+                  component="span"
+                  sx={{
+                    width: 16,
+                    height: 3,
+                    borderRadius: '2px',
+                    background: c.color,
+                  }}
+                />
+              </Box>
               <Typography variant="caption" color="text.secondary">{c.label}</Typography>
-            </div>
+            </Box>
           ))}
-        </div>
+        </Box>
       )}
     </Paper>
   );

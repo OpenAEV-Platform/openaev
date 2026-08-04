@@ -10,6 +10,7 @@ import {
 } from '../../../actions/chaining/workflow-actions';
 import type { WorkflowConfigurationHelper } from '../../../actions/chaining/workflow-helper';
 import { fetchTeams } from '../../../actions/teams/team-actions';
+import { fetchPlayers } from '../../../actions/users/User';
 import { useHelper } from '../../../store';
 import type { ScopeVariableInput, WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -38,6 +39,7 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
     dispatch(fetchEndpoints());
     dispatch(fetchAssetGroups());
     dispatch(fetchTeams());
+    dispatch(fetchPlayers());
   });
 
   type WorkflowScopeRuleLike = Partial<WorkflowScopeRuleInput> & { get?: (key: keyof WorkflowScopeRuleInput) => unknown };
@@ -51,7 +53,7 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
             ?? (r.get?.('workflow_scope_rule_selected_mode') as 'ALLOWLIST' | 'DENYLIST'),
     workflow_scope_rule_source:
             r.workflow_scope_rule_source
-            ?? (r.get?.('workflow_scope_rule_source') as 'ASSET' | 'ASSET_GROUP' | 'TEAM' | 'MANUAL' | 'CSV'),
+            ?? (r.get?.('workflow_scope_rule_source') as 'ASSET' | 'ASSET_GROUP' | 'TEAM' | 'PLAYER' | 'MANUAL' | 'CSV'),
     workflow_scope_rule_value:
             r.workflow_scope_rule_value ?? (r.get?.('workflow_scope_rule_value') as string),
   });

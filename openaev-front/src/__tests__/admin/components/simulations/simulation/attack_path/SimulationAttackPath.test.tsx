@@ -15,8 +15,8 @@ type FlowProps = {
   onInjectorSelect?: (injectorId: string, label?: string) => void;
 };
 
-// Capture the props AttackPathFlow receives (mocked so ReactFlow is not instantiated), and stub the
-// action layer + i18n + router so the test drives only the drawer and the cross-focus wiring.
+// Capture the props AttackPathCanvas receives (mocked so the canvas is not instantiated), and stub
+// the action layer + i18n + router so the test drives only the panels and the cross-focus wiring.
 const mocks = vi.hoisted(() => ({
   fetchAttackPathGraph: vi.fn(),
   fetchAttackPathGraphDelta: vi.fn(),
@@ -49,29 +49,11 @@ vi.mock('../../../../../../components/i18n', () => ({
   }),
 }));
 
-vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/AttackPathFlow', () => ({
+vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/canvas/AttackPathCanvas', () => ({
   default: (props: FlowProps) => {
     mocks.flowProps.current = props;
     return <div data-testid="attack-path-flow" />;
   },
-}));
-
-// The shared Drawer pulls in useAuth (needs a user context we do not set up here); stub it to render
-// its title and children when open so the findings drawer stays testable.
-vi.mock('../../../../../../components/common/Drawer', () => ({
-  default: ({ open, title, children }: {
-    open: boolean;
-    title: string;
-    children: ReactNode;
-  }) =>
-    (open
-      ? (
-          <div data-testid="shared-drawer">
-            <span>{title}</span>
-            {children}
-          </div>
-        )
-      : null),
 }));
 
 vi.mock('react-router', async (importOriginal) => {
@@ -364,10 +346,11 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     expect(await screen.findByText('CORP-HOST')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Export CSV/ })).toBeTruthy();
 
-    // Clicking the row returns to the graph and focuses that endpoint's path.
+    // Clicking the row opens that endpoint's detail panel inline (its Executions section) and stays
+    // in the table view — a row click must not silently swap the whole view back to the graph.
     fireEvent.click(screen.getByText('CORP-HOST'));
-    await waitFor(() => expect(screen.getByTestId('attack-path-flow')).toBeTruthy());
-    await waitFor(() => expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0));
+    expect(await screen.findByText(/Executions/)).toBeTruthy();
+    expect(screen.queryByTestId('attack-path-flow')).toBeNull();
   });
 });
 
@@ -475,28 +458,24 @@ describe('SimulationAttackPath live delta updates', () => {
     expect(screen.getByTestId('attack-path-flow')).toBeTruthy();
   });
 
-  it('preserves the open drawer, its search and the selection across a delta', async () => {
+  it('preserves the open category panel and its search across a delta', async () => {
     setup();
     await mounted();
 
-    // Open the credentials drawer and narrow it, then select an endpoint on the map.
+    // Open the credentials category panel (inline, in the shared side slot) and narrow it.
     fireEvent.click(screen.getByRole('button', { name: /Credentials/ }));
     await mounted();
     const search = screen.getByPlaceholderText('Search');
     fireEvent.change(search, { target: { value: 'admin' } });
-    await act(async () => {
-      mocks.flowProps.current?.onEndpointClick?.(ENDPOINT_NODE, 'host-x', 'CORP-HOST');
-    });
 
     // A live update lands.
     mocks.fetchAttackPathGraphDelta.mockResolvedValue({ data: deltaWithNewEndpoint });
     await tick();
 
-    // Everything the user owns survived it: the drawer is still open on the same query, and the
-    // endpoint stays selected with its feed loaded (this is a silent refresh, never a reload).
-    expect(screen.getByTestId('shared-drawer')).toBeTruthy();
+    // The panel the user owns survived it: still open on the same query — this is a silent refresh,
+    // never a reload (the panel's hint text is unique to the category panel).
+    expect(screen.getByText('Click any item to highlight it on the attack map and focus the producing action in the feed.')).toBeTruthy();
     expect((screen.getByPlaceholderText('Search') as HTMLInputElement).value).toBe('admin');
-    expect(screen.getAllByText(/CORP-HOST/).length).toBeGreaterThan(0);
   });
 
   it('stops polling once the run is terminal and says the attack path is final', async () => {

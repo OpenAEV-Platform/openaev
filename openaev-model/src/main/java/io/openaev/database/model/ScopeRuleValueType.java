@@ -6,5 +6,6 @@ public enum ScopeRuleValueType {
   DOMAIN,
   ASSET_ID,
   ASSET_GROUP_ID,
-  TEAM_ID
+  TEAM_ID,
+  PLAYER_ID
 }

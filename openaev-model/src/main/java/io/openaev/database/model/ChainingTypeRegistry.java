@@ -184,9 +184,9 @@ public final class ChainingTypeRegistry {
           case DOMAIN -> List.of(PrimitiveType.Domain);
           case ASSET_ID -> List.of(PrimitiveType.AssetId);
           case ASSET_GROUP_ID -> List.of(PrimitiveType.AssetGroupId);
-          // Team scope is an audience axis, not an asset-target primitive: it contributes no
-          // primitive targets to the engine's asset/IP resolution (which stays asset-centric).
-          case TEAM_ID -> List.of();
+          // Team / person scope is an audience axis, not an asset-target primitive: it contributes
+          // no primitive targets to the engine's asset/IP resolution (which stays asset-centric).
+          case TEAM_ID, PLAYER_ID -> List.of();
         });
   }
 

@@ -8,6 +8,7 @@ import ActionTypeIcon from '../ActionTypeIcon';
 import NodePopover from '../chaining_flow/nodes/NodePopover';
 import LogicNodeTooltip, { type TooltipRow } from '../chaining_flow/NodeTooltip';
 import { formatConditionKeyLabel } from '../events/event-types';
+import graphTooltipSlotProps from './graphTooltipSlotProps';
 
 export interface GraphActionCardProps {
   id: string;
@@ -132,7 +133,7 @@ const GraphActionCard = ({
   );
 
   return (
-    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300}>
+    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300} slotProps={graphTooltipSlotProps}>
       <Box
         sx={{
           'position': 'relative',
@@ -313,7 +314,7 @@ const GraphActionCard = ({
         )}
 
         {!readOnly && onConnectStart && (
-          <Tooltip title={t('Drag onto a trigger to gate this action')}>
+          <Tooltip title={t('Drag onto a trigger to gate this action')} slotProps={graphTooltipSlotProps}>
             <Box
               onPointerDown={e => onConnectStart(id, 'action', e)}
               onClick={e => e.stopPropagation()}
@@ -350,7 +351,7 @@ const GraphActionCard = ({
         )}
 
         {!readOnly && onAddTrigger && (
-          <Tooltip title={t('Add a trigger fed by this action')}>
+          <Tooltip title={t('Add a trigger fed by this action')} slotProps={graphTooltipSlotProps}>
             <IconButton
               size="small"
               onPointerDown={e => e.stopPropagation()}

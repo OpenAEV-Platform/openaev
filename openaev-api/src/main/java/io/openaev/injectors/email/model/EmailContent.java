@@ -3,6 +3,8 @@ package io.openaev.injectors.email.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.injectors.common.model.BaseInjectContent;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,8 +31,30 @@ public class EmailContent extends BaseInjectContent {
   @JsonProperty("encrypted")
   private boolean encrypted;
 
+  // Raw recipient addresses for finding-driven chaining: a chaining MAPPER can bind an "email"
+  // finding into this content field so the inject delivers to that address without a team. Held as
+  // a free-text field (a scalar finding value, or an operator-typed comma/semicolon/space separated
+  // list); parsed via getParsedRecipients().
+  @JsonProperty("recipients")
+  private String recipients;
+
   public EmailContent() {
     // For mapper
+  }
+
+  /**
+   * Parses {@link #recipients} into distinct, trimmed raw email addresses (split on comma,
+   * semicolon or whitespace). Empty when no manual recipients were provided/mapped.
+   */
+  public List<String> getParsedRecipients() {
+    if (!StringUtils.hasText(recipients)) {
+      return List.of();
+    }
+    return Arrays.stream(recipients.split("[,;\\s]+"))
+        .map(String::trim)
+        .filter(s -> !s.isEmpty())
+        .distinct()
+        .toList();
   }
 
   public String buildMessage(ExecutableInject injection, String baseUrl) {

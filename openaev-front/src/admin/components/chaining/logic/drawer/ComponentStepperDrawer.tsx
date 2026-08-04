@@ -432,7 +432,7 @@ const ComponentStepperDrawer = ({
         )}
 
         {drawerView === 'actionDetail' && (
-          <InjectTargetsProvider context={context} scenarioId={scenarioId} exerciseId={exerciseId}>
+          <InjectTargetsProvider context={context} scenarioId={scenarioId} exerciseId={exerciseId} validTeams={validTeams}>
             <ConfigureActionDetail
               action={activeAction}
               validAssets={validAssets}

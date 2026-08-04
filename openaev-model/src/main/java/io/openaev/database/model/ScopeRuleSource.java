@@ -4,6 +4,7 @@ public enum ScopeRuleSource {
   ASSET,
   ASSET_GROUP,
   TEAM,
+  PLAYER,
   MANUAL,
   CSV
 }

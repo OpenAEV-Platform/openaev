@@ -1476,7 +1476,7 @@ export interface AutonomousRun {
   autonomous_run_plan_mode: boolean;
   /** Scenario the simulation was created from, if any */
   autonomous_run_scenario_id?: string;
-  /** Authoritative run scope: a mixed list of targetable entities (assets, asset groups, teams). The orchestrator attacks within this perimeter. */
+  /** Authoritative run scope: a mixed list of targetable entities (assets, asset groups, teams, persons). The orchestrator attacks within this perimeter. */
   autonomous_run_scope?: AutonomousScopeTarget[];
   /** Asset group defining the initial in-scope perimeter */
   autonomous_run_scope_asset_group_id?: string;
@@ -1539,17 +1539,17 @@ export interface AutonomousScopeEntry {
   id?: string;
   /** Resolved display name for entities; falls back to the id / raw value */
   name?: string;
-  /** Workflow scope-rule source: ASSET, ASSET_GROUP, TEAM, MANUAL, CSV */
+  /** Workflow scope-rule source: ASSET, ASSET_GROUP, TEAM, PLAYER, MANUAL, CSV */
   source?: string;
-  /** Orchestrator target kind: ASSETS, ASSETS_GROUPS, TEAMS (or MANUAL for a raw IP / CIDR / hostname). Use this kind's ids with the authoring / scope tools. */
+  /** Orchestrator target kind: ASSETS, ASSETS_GROUPS, TEAMS, PLAYERS (or MANUAL for a raw IP / CIDR / hostname). Use this kind's ids with the authoring / scope tools. */
   type?: string;
 }
 
 /** One targetable entity in an autonomous run's scope */
 export interface AutonomousScopeTarget {
-  /** Entity id of that kind (asset / asset-group / team id) */
+  /** Entity id of that kind (asset / asset-group / team / user id) */
   id?: string;
-  /** Target kind: ASSETS, ASSETS_GROUPS or TEAMS */
+  /** Target kind: ASSETS, ASSETS_GROUPS, TEAMS or PLAYERS */
   type?: string;
 }
 
@@ -12264,6 +12264,7 @@ export interface WorkflowScopeRule {
     | "ASSET"
     | "ASSET_GROUP"
     | "TEAM"
+    | "PLAYER"
     | "MANUAL"
     | "CSV";
   /** @format date-time */
@@ -12275,7 +12276,8 @@ export interface WorkflowScopeRule {
     | "DOMAIN"
     | "ASSET_ID"
     | "ASSET_GROUP_ID"
-    | "TEAM_ID";
+    | "TEAM_ID"
+    | "PLAYER_ID";
 }
 
 /** Input for a scope rule used in workflow configuration. */
@@ -12289,6 +12291,7 @@ export interface WorkflowScopeRuleInput {
     | "ASSET"
     | "ASSET_GROUP"
     | "TEAM"
+    | "PLAYER"
     | "MANUAL"
     | "CSV";
   /**
@@ -12309,6 +12312,7 @@ export interface WorkflowScopeRuleOutput {
     | "ASSET"
     | "ASSET_GROUP"
     | "TEAM"
+    | "PLAYER"
     | "MANUAL"
     | "CSV";
   /** Selected item value */

@@ -1,6 +1,6 @@
 import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Button, IconButton, Paper, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
 import { useContext, useEffect, useRef, useState } from 'react';
@@ -184,7 +184,6 @@ const toPlatformRows = (
           id: a.id ?? `${bucket}-alert-${index}-${i}`,
           title: a.title ?? 'Alert',
           date: a.date,
-          link: a.link,
         })),
       };
     });
@@ -311,30 +310,6 @@ const LiveExecutionTerminal = ({ injectId, endpointName }: {
   return <TerminalViewTab injectId={injectId} target={target} />;
 };
 
-// A network injector (NetExec, Nmap…) has no single shell command on the DTO — `command` is only ever
-// resolved for Command-payload-backed injects (see InjectExecutionStep#getCommand on the backend).
-// What it actually ran is instead reconstructed and partially masked server-side (see
-// AttackPathGraphService#injectorCommandLine) from its own redacted execution trace and the inject's
-// resolved content — never sent to the client in the clear, unlike reconstructing it here would.
-const InjectorCommandLine = ({ commandLine }: { commandLine: string }) => {
-  const { t } = useFormatter();
-  return (
-    <Box sx={{ mb: 2 }}>
-      <Typography variant="subtitle2" gutterBottom>{t('Command')}</Typography>
-      <Typography
-        variant="body2"
-        sx={{
-          fontFamily: 'monospace',
-          wordBreak: 'break-all',
-          whiteSpace: 'pre-wrap',
-        }}
-      >
-        {commandLine}
-      </Typography>
-    </Box>
-  );
-};
-
 // Terminal for a network injector's execution (NetExec, Nmap…): these have no per-agent terminal, so the
 // per-target `TerminalViewTab` above shows nothing. Instead render the inject's global execution traces —
 // the very same "Traces" the inject execution-details page shows (the "<tool> succeeded: …" output).
@@ -400,17 +375,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   // Seeded runs carry a frozen command/output snapshot on the DTO; a real inject leaves them empty and
   // is rendered live from execution traces instead (see hasSnapshot below).
   const hasSnapshot = Boolean(detail?.command || detail?.terminalOutput);
-  // A network injector (NetExec, Nmap…) never has a `command` — regardless of whether its terminalOutput
-  // snapshot is populated — so its reconstructed command line (server-side, see
-  // AttackPathGraphService#injectorCommandLine) renders as an extra block ahead of the
-  // traces/snapshot. That extra block isn't accounted for by the snapshot Terminal's own fixed,
-  // internally-scrolling height, so this case must use the outer box's scroll instead (see
-  // injectorTracesView below) to avoid clipping it.
-  const showsCommandParams = !!detail?.injectorCommandLine;
-  // On the terminal tab a network injector shows its execution traces (a plain list that grows) and/or
-  // its command params, unlike the snapshot/payload `Terminal` which is sized to fill and scrolls
-  // internally. Both need the outer box to scroll, otherwise their content is clipped.
-  const injectorTracesView = (!hasSnapshot || showsCommandParams) && !!detail?.injectId && !detail?.payloadId;
+  // On the terminal tab a network injector shows its execution traces (a plain list that grows), unlike
+  // the snapshot/payload `Terminal` which is sized to fill and scrolls internally. The list needs the
+  // outer box to scroll, otherwise long traces are clipped.
+  const injectorTracesView = !hasSnapshot && !!detail?.injectId && !detail?.payloadId;
   const terminalLines: TerminalLine[] = [];
   if (detail?.command) {
     terminalLines.push({
@@ -552,7 +520,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: `${iconColor}1F`,
+              backgroundColor: alpha(iconColor, 0.12),
               color: iconColor,
               flexShrink: 0,
             }}
@@ -566,10 +534,12 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
           >
             <Typography variant="subtitle2">{heading}</Typography>
             <Typography
-              variant="caption"
               sx={{
+                fontFamily: '"Geologica", sans-serif',
+                fontWeight: 600,
+                fontSize: 10,
+                letterSpacing: '0.12em',
                 textTransform: 'uppercase',
-                letterSpacing: '0.08em',
                 color: 'text.secondary',
               }}
             >
@@ -592,7 +562,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: `${iconColor}1F`,
+                backgroundColor: alpha(iconColor, 0.12),
                 color: iconColor,
                 fontSize: 12,
                 fontWeight: 700,
@@ -621,36 +591,51 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
         overflow: 'hidden',
       }}
     >
+      {/* Header in the app Drawer language (h5 + close over the standard divider), consistent with
+          the endpoint/finding master panels this detail view replaces. The title row centers the
+          back and close controls on the h5 line; subtitle and chips flow below, indented under the
+          title so they stay aligned with it when the back arrow is present. */}
       <div style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: theme.spacing(1),
-        padding: theme.spacing(2, 2.5, 1),
+        padding: theme.spacing(2, 2.5, 1.5),
+        borderBottom: `1px solid ${theme.palette.divider}`,
         flexShrink: 0,
       }}
       >
-        {/* Back to the endpoint/finding panel this execution was opened from. */}
-        {onBack && (
-          <IconButton
-            size="small"
-            aria-label={t('Back')}
-            onClick={onBack}
-            sx={{
-              flexShrink: 0,
-              mt: 0.25,
-            }}
-          >
-            <ArrowBack fontSize="small" />
-          </IconButton>
-        )}
         <div style={{
-          minWidth: 0,
-          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing(1),
         }}
         >
-          <Typography variant="h6" noWrap>{detail?.payloadName || t('Execution')}</Typography>
-          <Typography variant="caption" color="text.secondary">
+          {/* Back to the endpoint/finding panel this execution was opened from. */}
+          {onBack && (
+            <IconButton
+              size="small"
+              aria-label={t('Back')}
+              onClick={onBack}
+              sx={{ flexShrink: 0 }}
+            >
+              <ArrowBack fontSize="small" />
+            </IconButton>
+          )}
+          <Typography
+            variant="h5"
+            noWrap
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              margin: 0,
+            }}
+          >
+            {detail?.payloadName || t('Execution')}
+          </Typography>
+          <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
+            <Close fontSize="small" />
+          </IconButton>
+        </div>
+        {/* 38px = the 30px back IconButton + the 8px row gap, so these lines start under the title. */}
+        <div style={{ paddingLeft: onBack ? 38 : 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
             {[detail?.agentName, detail?.agentPrivilege].filter(Boolean).join(' · ')}
           </Typography>
           {/* MITRE ATT&CK technique(s) this action maps to, resolved server-side from the
@@ -659,8 +644,8 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',
-              gap: 4,
-              marginTop: 6,
+              gap: theme.spacing(0.5),
+              marginTop: theme.spacing(0.75),
             }}
             >
               {detail?.attackPatterns?.map(ap => (
@@ -676,13 +661,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
             </div>
           )}
         </div>
-        <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
-          <Close />
-        </IconButton>
       </div>
 
       {loading && (
-        <div style={{ minHeight: 160 }}>
+        <div style={{ minHeight: 120 }}>
           <Loader variant="inElement" size="sm" />
         </div>
       )}
@@ -779,27 +761,17 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               </div>
             )}
 
-            {currentTab === TERMINAL_TAB && (
-              <>
-                {/* A network injector (NetExec, Nmap…) has no `command` regardless of whether its
-                    terminalOutput snapshot is populated — show what was actually sent either way,
-                    ahead of whichever traces/output view renders below. */}
-                {detail.injectorCommandLine && (
-                  <InjectorCommandLine commandLine={detail.injectorCommandLine} />
-                )}
-                {(() => {
-                  // Seeded runs show their frozen snapshot. For a real inject: a payload-backed execution
-                  // runs on an agent and has a per-target terminal (keep it); a network injector has none,
-                  // so show its global execution traces instead.
-                  if (hasSnapshot || !detail.injectId) {
-                    return <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />;
-                  }
-                  return detail.payloadId
-                    ? <LiveExecutionTerminal injectId={detail.injectId} endpointName={endpointLabel || detail.targetHostname || detail.endpointKey} />
-                    : <InjectorExecutionTraces injectId={detail.injectId} />;
-                })()}
-              </>
-            )}
+            {currentTab === TERMINAL_TAB && (() => {
+              // Seeded runs show their frozen snapshot. For a real inject: a payload-backed execution runs
+              // on an agent and has a per-target terminal (keep it); a network injector (NetExec, Nmap…)
+              // has none, so show its global execution traces instead.
+              if (hasSnapshot || !detail.injectId) {
+                return <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />;
+              }
+              return detail.payloadId
+                ? <LiveExecutionTerminal injectId={detail.injectId} endpointName={endpointLabel || detail.targetHostname || detail.endpointKey} />
+                : <InjectorExecutionTraces injectId={detail.injectId} />;
+            })()}
 
             {currentTab === FINDINGS_TAB && detail.injectId && (
               <FindingList
@@ -833,8 +805,8 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 6,
-                      marginBottom: 6,
+                      gap: theme.spacing(0.75),
+                      marginBottom: theme.spacing(0.75),
                     }}
                     >
                       {rem.detection_remediation_security_platform && (

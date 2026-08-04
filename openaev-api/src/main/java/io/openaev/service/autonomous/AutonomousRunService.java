@@ -1047,6 +1047,7 @@ public class AutonomousRunService {
       case ASSET -> "ASSETS";
       case ASSET_GROUP -> "ASSETS_GROUPS";
       case TEAM -> "TEAMS";
+      case PLAYER -> "PLAYERS";
       case MANUAL, CSV -> "MANUAL";
     };
   }
@@ -1061,6 +1062,7 @@ public class AutonomousRunService {
     List<String> assetIds = idsForSource(rules, ScopeRuleSource.ASSET);
     List<String> groupIds = idsForSource(rules, ScopeRuleSource.ASSET_GROUP);
     List<String> teamIds = idsForSource(rules, ScopeRuleSource.TEAM);
+    List<String> playerIds = idsForSource(rules, ScopeRuleSource.PLAYER);
     if (!assetIds.isEmpty()) {
       for (Endpoint endpoint : endpointService.endpoints(assetIds)) {
         names.put(nameKey(ScopeRuleSource.ASSET, endpoint.getId()), endpoint.getName());
@@ -1076,6 +1078,11 @@ public class AutonomousRunService {
         names.put(nameKey(ScopeRuleSource.TEAM, team.getId()), team.getName());
       }
     }
+    if (!playerIds.isEmpty()) {
+      for (User user : userRepository.findAllById(playerIds)) {
+        names.put(nameKey(ScopeRuleSource.PLAYER, user.getId()), scopePlayerName(user));
+      }
+    }
     return names;
   }
 
@@ -1085,6 +1092,14 @@ public class AutonomousRunService {
         .map(WorkflowScopeRule::getRuleValue)
         .distinct()
         .toList();
+  }
+
+  private String scopePlayerName(User user) {
+    String name = user.getName();
+    if (name != null && !name.isBlank()) {
+      return name.trim();
+    }
+    return user.getEmail();
   }
 
   // endregion
@@ -1360,29 +1375,10 @@ public class AutonomousRunService {
    * here.
    */
   private void enableTargetedTeamMembers(String simulationId, List<String> teamIds) {
-    if (teamIds == null || teamIds.isEmpty() || !hasText(simulationId)) {
-      return;
-    }
-    Exercise simulation = exerciseRepository.findById(simulationId).orElse(null);
-    if (simulation == null) {
-      return;
-    }
-    for (String teamId : teamIds.stream().filter(id -> hasText(id)).distinct().toList()) {
-      Team team = teamRepository.findById(teamId).orElse(null);
-      if (team == null) {
-        continue;
-      }
-      List<String> memberIds = team.getUsers().stream().map(User::getId).distinct().toList();
-      if (memberIds.isEmpty()) {
-        continue;
-      }
-      boolean onSimulation = simulation.getTeams().stream().anyMatch(t -> teamId.equals(t.getId()));
-      if (!onSimulation) {
-        team.getExercises().add(simulation);
-        teamRepository.save(team);
-      }
-      exerciseService.enablePlayers(simulationId, team, memberIds);
-    }
+    // Shared with the manual chaining execution path via ExerciseService so both keep one source of
+    // truth (idempotent: attaches each team to the simulation if missing, then enables its
+    // players).
+    exerciseService.enableTargetedTeamMembers(simulationId, teamIds);
   }
 
   /**
@@ -1953,6 +1949,7 @@ public class AutonomousRunService {
             case "ASSETS" -> ScopeRuleSource.ASSET;
             case "ASSETS_GROUPS" -> ScopeRuleSource.ASSET_GROUP;
             case "TEAMS" -> ScopeRuleSource.TEAM;
+            case "PLAYERS" -> ScopeRuleSource.PLAYER;
             default -> null;
           };
       if (source == null) {
@@ -1969,10 +1966,10 @@ public class AutonomousRunService {
   }
 
   /**
-   * Extracts the allow-listed ENTITY targets (asset, asset group, team) from a full scope rule list
-   * so they can be folded into the run's {@link AutonomousScopeTarget} projection. Manual IP / CIDR
-   * / hostname / CSV rules and deny-list rules are intentionally skipped: they are not targetable
-   * entities and live only on the workflow scope, not the run projection.
+   * Extracts the allow-listed ENTITY targets (asset, asset group, team, person) from a full scope
+   * rule list so they can be folded into the run's {@link AutonomousScopeTarget} projection. Manual
+   * IP / CIDR / hostname / CSV rules and deny-list rules are intentionally skipped: they are not
+   * targetable entities and live only on the workflow scope, not the run projection.
    */
   private List<AutonomousScopeTarget> allowlistTargetsFromRules(
       List<WorkflowScopeRuleInput> rules) {
@@ -1992,6 +1989,7 @@ public class AutonomousRunService {
             case ASSET -> "ASSETS";
             case ASSET_GROUP -> "ASSETS_GROUPS";
             case TEAM -> "TEAMS";
+            case PLAYER -> "PLAYERS";
             default -> null;
           };
       if (type != null) {

@@ -1,4 +1,4 @@
-import { type Edge, type Node } from '@xyflow/react';
+import type { CSSProperties } from 'react';
 
 import type { AttackPathAttackPatternDTO, AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
 import { AP_ENDPOINT_SIZE, AP_FINDING_SIZE, AP_INJECTOR_SIZE } from './nodes/node-sizes';
@@ -121,8 +121,29 @@ export interface AttackPathFlowEdgeData {
   [key: string]: unknown;
 }
 
-export type AttackPathFlowNode = Node<AttackPathFlowNodeData>;
-export type AttackPathFlowEdge = Edge<AttackPathFlowEdgeData>;
+// Local structural graph types (formerly @xyflow/react's Node/Edge): the attack-path view renders
+// on its own canvas, so only the fields the builders and the canvas actually use are modeled.
+export interface AttackPathFlowNode {
+  id: string;
+  type?: string;
+  position: {
+    x: number;
+    y: number;
+  };
+  data: AttackPathFlowNodeData;
+  selected?: boolean;
+  style?: CSSProperties;
+}
+
+export interface AttackPathFlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
+  data?: AttackPathFlowEdgeData;
+  selected?: boolean;
+  style?: CSSProperties;
+}
 
 // An endpoint can carry several IPs (comma-separated). The map node shows only the relevant one to
 // stay readable: the asset's seen IP when known, otherwise the first IPv4, otherwise the first

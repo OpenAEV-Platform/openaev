@@ -8,6 +8,7 @@ import type {
   ScopeTeamOutput,
   StepOutput,
 } from '../../../../utils/api-types';
+import useRemainingViewportHeight from '../../../../utils/hooks/useRemainingViewportHeight';
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
 import ComponentStepperDrawer, { type DrawerView } from './drawer/ComponentStepperDrawer';
 import LogicGraph from './logic-graph/LogicGraph';
@@ -29,6 +30,8 @@ interface LogicProps {
 }
 
 const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }: LogicProps) => {
+  // The canvas sizes itself to the exact space left under the page chrome (no page scrollbar).
+  const [graphContainerRef, graphHeight] = useRemainingViewportHeight();
   // Fetch computed valid assets (allowlist minus denylist)
   const [validAssets, setValidAssets] = useState<ScopeAssetOutput[]>([]);
   // Fetch computed valid teams (allowlist minus denylist)
@@ -152,10 +155,11 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }
   return (
     <OutputProvidersProvider>
       <div
+        ref={graphContainerRef}
         style={{
           position: 'relative',
           width: '100%',
-          height: 'calc(100vh - 340px)',
+          height: graphHeight ?? 'calc(100vh - 340px)',
           overflow: 'hidden',
         }}
       >

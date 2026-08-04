@@ -59,6 +59,7 @@ interface ScopeSelection {
   endpointIds: string[];
   assetGroupIds: string[];
   teamIds: string[];
+  playerIds: string[];
   customRules: ScopeCustomRule[];
 }
 
@@ -66,6 +67,7 @@ const EMPTY_SCOPE: ScopeSelection = {
   endpointIds: [],
   assetGroupIds: [],
   teamIds: [],
+  playerIds: [],
   customRules: [],
 };
 
@@ -73,6 +75,7 @@ const scopeSelectionCount = (selection: ScopeSelection): number =>
   selection.endpointIds.length
   + selection.assetGroupIds.length
   + selection.teamIds.length
+  + selection.playerIds.length
   + selection.customRules.length;
 
 const toScopeRule = (
@@ -91,6 +94,7 @@ const selectionToRules = (selection: ScopeSelection, mode: 'ALLOWLIST' | 'DENYLI
   ...selection.endpointIds.map(id => toScopeRule(mode, 'ASSET', id)),
   ...selection.assetGroupIds.map(id => toScopeRule(mode, 'ASSET_GROUP', id)),
   ...selection.teamIds.map(id => toScopeRule(mode, 'TEAM', id)),
+  ...selection.playerIds.map(id => toScopeRule(mode, 'PLAYER', id)),
   ...selection.customRules.map(rule => toScopeRule(mode, rule.source, rule.value)),
 ];
 
@@ -109,10 +113,12 @@ const ScopeStep: FunctionComponent<{
     selectedEndpointIds={selection.endpointIds}
     selectedAssetGroupIds={selection.assetGroupIds}
     selectedTeamIds={selection.teamIds}
+    selectedPlayerIds={selection.playerIds}
     selectedCustomRules={selection.customRules}
     initialEndpointIds={selection.endpointIds}
     initialAssetGroupIds={selection.assetGroupIds}
     initialTeamIds={selection.teamIds}
+    initialPlayerIds={selection.playerIds}
     initialCustomRules={selection.customRules}
     onEndpointIdsChange={ids => onChange({
       ...selection,
@@ -125,6 +131,10 @@ const ScopeStep: FunctionComponent<{
     onTeamIdsChange={ids => onChange({
       ...selection,
       teamIds: ids,
+    })}
+    onPlayerIdsChange={ids => onChange({
+      ...selection,
+      playerIds: ids,
     })}
     onCustomRulesChange={rules => onChange({
       ...selection,
@@ -509,7 +519,7 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
                     marginBottom: theme.spacing(2),
                   }}
                 >
-                  {t('Optional. The perimeter the AI is authorized to attack: add assets, asset groups, teams, or manual IPs / hostnames. Leave empty and the AI will ask you to choose targets before it attacks anything.')}
+                  {t('Optional. The perimeter the AI is authorized to attack: add assets, asset groups, teams, persons, or manual IPs / hostnames. Leave empty and the AI will ask you to choose targets before it attacks anything.')}
                 </Typography>
                 <ScopeStep mode="ALLOWLIST" selection={allowScope} onChange={setAllowScope} />
               </Box>

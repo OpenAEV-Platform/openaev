@@ -7,6 +7,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import NodePopover from '../chaining_flow/nodes/NodePopover';
 import LogicNodeTooltip, { type TooltipRow } from '../chaining_flow/NodeTooltip';
 import { formatConditionKeyLabel } from '../events/event-types';
+import graphTooltipSlotProps from './graphTooltipSlotProps';
 
 export interface GraphTriggerCardProps {
   id: string;
@@ -112,7 +113,7 @@ const GraphTriggerCard = ({
   const active = selected || highlighted;
 
   return (
-    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300}>
+    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300} slotProps={graphTooltipSlotProps}>
       <Box
         sx={{
           'position': 'relative',
@@ -223,7 +224,7 @@ const GraphTriggerCard = ({
         )}
 
         {!readOnly && onConnectStart && (
-          <Tooltip title={t('Drag onto an action to gate it with this trigger')}>
+          <Tooltip title={t('Drag onto an action to gate it with this trigger')} slotProps={graphTooltipSlotProps}>
             <Box
               onPointerDown={e => onConnectStart(id, 'trigger', e)}
               onClick={e => e.stopPropagation()}
@@ -260,7 +261,7 @@ const GraphTriggerCard = ({
         )}
 
         {!readOnly && onAddAction && (
-          <Tooltip title={t('Add an action gated by this trigger')}>
+          <Tooltip title={t('Add an action gated by this trigger')} slotProps={graphTooltipSlotProps}>
             <IconButton
               size="small"
               onPointerDown={e => e.stopPropagation()}

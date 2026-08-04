@@ -1,14 +1,12 @@
-import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, FullscreenExitOutlined, FullscreenOutlined, GroupOutlined, HelpOutline, InsertDriveFileOutlined, LabelOutlined, LocalFireDepartment, PlayArrowOutlined, SearchOutlined, TableRowsOutlined, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, GlobalStyles, IconButton, Pagination, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { AccountTreeOutlined, BugReportOutlined, DnsOutlined, GroupOutlined, InsertDriveFileOutlined, LabelOutlined, PlayArrowOutlined, VpnKeyOutlined } from '@mui/icons-material';
+import { Alert, Box, Button, GlobalStyles, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { ReactFlowProvider } from '@xyflow/react';
 import { FolderNetworkOutline } from 'mdi-material-ui';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
 import { createRunningExerciseFromScenario } from '../../../../../actions/scenarios/scenario-actions';
-import Drawer from '../../../../../components/common/Drawer';
 import { criticalityColor } from '../../../../../components/criticalityColor';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
@@ -16,11 +14,15 @@ import ScoreExplainerDialog, { type ScoreBreakdownRow } from '../../../../../com
 import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
-import attackPathStatusColor, { attackPathChokepointColor } from './attack-path-colors';
+import useRemainingViewportHeight from '../../../../../utils/hooks/useRemainingViewportHeight';
+import attackPathStatusColor from './attack-path-colors';
 import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from './attack-path-flow-helpers';
-import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
+import { AP_GLOBAL_STYLES, AP_PANEL_DEFAULT_WIDTH, AP_PANEL_MAX_WIDTH, AP_PANEL_MIN_WIDTH, AP_VIEW_HEIGHT, AP_VISUALLY_HIDDEN } from './attack-path-styles';
+import AttackPathHeader, { type FindingCard, type SearchOption } from './AttackPathHeader';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
+import AttackPathCanvas, { type AttackPathFocusRequest } from './canvas/AttackPathCanvas';
+import CategoryFindingsPanel from './CategoryFindingsPanel';
 import EndpointDetailPanel from './EndpointDetailPanel';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
 import FindingDetailPanel, { type ExpectationVerdict, type FindingExpectations, type ProducingAction } from './FindingDetailPanel';
@@ -76,40 +78,6 @@ const CRITICALITY_LABEL: Record<string, string> = {
   UNKNOWN: 'Unknown',
 };
 
-// Entrance affordance for nodes a live update just added: a short fade-in, only for users who have not
-// asked for reduced motion (the keyframes live behind the media query, so with the preference set the
-// class simply does nothing).
-const AP_NODE_ENTER_CLASS = 'ap-node-enter';
-const AP_ENTRANCE_STYLES = {
-  '@media (prefers-reduced-motion: no-preference)': {
-    '@keyframes apNodeEnter': {
-      from: {
-        opacity: 0,
-        transform: 'scale(0.94)',
-      },
-      to: {
-        opacity: 1,
-        transform: 'scale(1)',
-      },
-    },
-    [`.${AP_NODE_ENTER_CLASS}`]: { animation: 'apNodeEnter 420ms ease-out' },
-  },
-};
-
-// Off-screen but readable by assistive tech, for the live region that announces each update batch.
-// Same recipe as MUI's `visuallyHidden`, inlined because @mui/utils is not a declared dependency.
-const VISUALLY_HIDDEN = {
-  border: 0,
-  clip: 'rect(0 0 0 0)',
-  height: '1px',
-  margin: '-1px',
-  overflow: 'hidden',
-  padding: 0,
-  position: 'absolute',
-  whiteSpace: 'nowrap',
-  width: '1px',
-} as const;
-
 // Synthetic seeded simulations (POST /attack-path/seed) carry no real date/name; keep them hidden
 // from metadata resolution and fall back to their raw id in the picker.
 const isSeedId = (id?: string) => !!id && id.startsWith('ap-seed-');
@@ -120,10 +88,6 @@ const COVERED_FINDING_TYPES = new Set(['share', 'file', 'credentials', 'username
 
 // Finding categories fetched (with per-finding executionIds) to attribute findings to an injector.
 const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'shares', 'files'];
-
-// Drawer resize bounds (px).
-const PANEL_MIN_WIDTH = 320;
-const PANEL_MAX_WIDTH = 1000;
 
 // Backend prevention/detection status -> a human label (also used for accessibility, so status is
 // never conveyed by colour alone). GREEN = prevented, ORANGE = detected, RED = neither.
@@ -201,25 +165,6 @@ const findingValuesMatch = (type: string, a: string, b: string): boolean => {
   return false;
 };
 
-interface FindingCard {
-  key: AttackPathFindingFilter;
-  label: string;
-  icon: ReactNode;
-  count: number;
-  hint?: string;
-}
-
-// One entry of the graph search box: an endpoint, an injector, or a finding category. Selecting one
-// adapts the graph (focus an endpoint path, highlight an injector, or open a finding-type drawer).
-interface SearchOption {
-  kind: 'endpoint' | 'injector' | 'finding';
-  label: string;
-  sub?: string;
-  nodeId?: string;
-  ref?: string;
-  card?: FindingCard;
-}
-
 /**
  * Attack-path tab (issue 6647), gated by the ATTACK_PATH preview feature. Renders the simulation as a
  * clustered graph: each injector fans out to an aggregate endpoint dot (+N) and one cluster per
@@ -253,6 +198,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   const theme = useTheme();
   const { t, fldt } = useFormatter();
   const navigate = useNavigate();
+
+  // The view sizes itself to the exact space left under the page chrome (no page scrollbar).
+  const [rootRef, viewHeight] = useRemainingViewportHeight();
 
   const [simulationId, setSimulationId] = useState(exerciseId ?? '');
   const [simulations, setSimulations] = useState<AttackPathSimSummaryRow[]>([]);
@@ -432,7 +380,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
 
   // Drawer width, drag-resizable (the graph is flex:1 and reflows as this changes). Dragging the handle
   // on the drawer's left edge leftwards widens it — useful when execution traces overflow.
-  const [panelWidth, setPanelWidth] = useState(560);
+  const [panelWidth, setPanelWidth] = useState(AP_PANEL_DEFAULT_WIDTH);
   const resizeRef = useRef<{
     startX: number;
     startW: number;
@@ -442,7 +390,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       return;
     }
     const next = resizeRef.current.startW + (resizeRef.current.startX - e.clientX);
-    setPanelWidth(Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, next)));
+    setPanelWidth(Math.max(AP_PANEL_MIN_WIDTH, Math.min(AP_PANEL_MAX_WIDTH, next)));
   }, []);
   const onResizeEnd = useCallback(() => {
     resizeRef.current = null;
@@ -1249,8 +1197,22 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         // finding (selectedFindingId) seeds on itself for a tighter focus that skips the endpoint's
         // unrelated siblings; the plain endpoint-only focus (chokepoint click) seeds on the endpoint.
         const fullChain = buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch);
-        raw = selectedFindingId
-          ? scopeChainFlowToSeeds(fullChain, new Set([selectedFindingId]))
+        let seeds: Set<string> | null = null;
+        if (selectedFindingId) {
+          if (fullChain.nodes.some(n => n.id === selectedFindingId)) {
+            seeds = new Set([selectedFindingId]);
+          } else {
+            // The finding is collapsed inside its "+N" type cluster (no node of its own in the
+            // chain): seed on that cluster so the focused path still shows where it lives.
+            const ftype = (fullDto.attackPathNodes ?? []).find(n => n.id === selectedFindingId)?.typeFindings ?? '';
+            const cluster = fullChain.nodes.find(n => n.id.startsWith('chain-fc|') && n.id.endsWith(`|${pathFinding.endpointNodeId}|${ftype}`));
+            if (cluster) {
+              seeds = new Set([cluster.id]);
+            }
+          }
+        }
+        raw = seeds
+          ? scopeChainFlowToSeeds(fullChain, seeds)
           : scopeChainFlowToEndpoint(fullChain, pathFinding.endpointNodeId);
       } else if (pathFinding) {
         raw = buildFindingPathFlow(dto, pathFinding, t, pathContractLabelByInjector, {
@@ -1920,20 +1882,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
 
   // Entrance affordance (issue 6647): the nodes a live update just introduced get a class that fades
   // them in, batched per delta rather than per entity, and disabled entirely under
-  // prefers-reduced-motion (see AP_ENTRANCE_STYLES). Nothing else about the node changes, so its
+  // prefers-reduced-motion (see AP_GLOBAL_STYLES). Nothing else about the node changes, so its
   // position and identity are untouched.
-  const graphNodes = useMemo(() => {
-    if (newNodeIds.length === 0) {
-      return nodes;
-    }
-    const entering = new Set(newNodeIds);
-    return nodes.map(n => (entering.has(n.id)
-      ? {
-          ...n,
-          className: [n.className, AP_NODE_ENTER_CLASS].filter(Boolean).join(' '),
-        }
-      : n));
-  }, [nodes, newNodeIds]);
+  const enterNodeIds = useMemo(() => new Set(newNodeIds), [newNodeIds]);
 
   // One screen-reader announcement per delta batch — a summary of what arrived, never one message per
   // entity (a burst of executions would otherwise flood the live region).
@@ -2193,12 +2144,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     return [...base, ...extras];
   }, [t, effectiveCounters, pathFinding, focusedSharesCount, sharesCount, focusedFilesCount, filesCount, dto, focusedEndpoint]);
 
-  // Click a summary card: focus the graph on that finding type and, for finding categories, open the
-  // right drawer listing the (deduplicated, masked) items. Clicking again clears the focus/drawer.
+  // Click a summary stat: focus the graph on that finding type and, for finding categories, open the
+  // contextual side panel listing the (deduplicated, masked) items. Clicking again clears the focus.
   const onCardClick = (card: FindingCard) => {
     const next = activeCard === card.key ? null : card.key;
     setActiveCard(next);
     if (next && next !== 'endpoints') {
+      // The category panel takes over the side slot, so dismiss whichever detail panel occupied it
+      // (mirrors the old overlay drawer, which visually covered them).
+      setSelectedNodeId(null);
+      setSelectedFindingId(null);
+      setSelectedInjectorId(null);
+      setFindingDetail(null);
+      setDetailExecutionId(null);
       openFindingsDrawer(next, card.label);
     } else {
       setDrawerCategory(null);
@@ -2282,9 +2240,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     selectedRow,
     simId => metaById.get(simId ?? '')?.exercise_start_date ?? '',
   );
-
-  // Chokepoint accent (violet), reserved so it never reads as a prevention/detection verdict.
-  const chokepointColor = attackPathChokepointColor(theme);
 
   // Search entries: every endpoint (by hostname/ip), injector, and finding category present in the
   // graph. Built from the already-loaded DTO — no extra fetch.
@@ -2399,384 +2354,113 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   }, [scenarioId, navigate, t]);
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      // Give the graph as much vertical room as possible (it grows with the endpoint count); the offset
-      // only reserves the page chrome above (header + tabs + the picker/cards strip). Fullscreen lifts it
-      // out of the page flow to cover the viewport (cards strip included) for room to navigate.
-      gap: theme.spacing(1),
-      ...(fullscreen
-        ? {
-            position: 'fixed' as const,
-            inset: 0,
-            zIndex: theme.zIndex.drawer + 2,
-            height: '100vh',
-            padding: theme.spacing(2),
-            background: theme.palette.background.default,
-          }
-        : { height: 'calc(100vh - 200px)' }),
-    }}
+    <Box
+      ref={rootRef}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        // The view fills the viewport exactly (measured, not guessed), so the page never grows a
+        // vertical scrollbar. Fullscreen lifts it out of the page flow to cover the whole screen.
+        gap: 1,
+        ...(fullscreen
+          ? {
+              position: 'fixed',
+              inset: 0,
+              zIndex: theme.zIndex.drawer + 2,
+              height: '100vh',
+              padding: 2,
+              // A real colour (not a theme token string, which raw CSS ignores): fullscreen must be
+              // opaque over the page behind it.
+              backgroundColor: theme.palette.background.default,
+            }
+          : { height: viewHeight ?? AP_VIEW_HEIGHT }),
+      }}
     >
-      <GlobalStyles styles={AP_ENTRANCE_STYLES} />
+      <GlobalStyles styles={AP_GLOBAL_STYLES} />
       {/* Live updates are announced once per batch, off-screen: sighted users see the nodes appear. */}
-      <Box aria-live="polite" aria-atomic="true" sx={VISUALLY_HIDDEN}>
+      <Box aria-live="polite" aria-atomic="true" sx={AP_VISUALLY_HIDDEN}>
         {liveSummary}
       </Box>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing(1),
-        flexWrap: 'wrap',
-      }}
-      >
-        {showPicker && (
-          <Autocomplete
-            size="small"
-            options={pickerOptions}
-            value={selectedRow}
-            isOptionEqualToValue={(o, v) => o.simulationId === v.simulationId}
-            getOptionLabel={o => labelFor(o.simulationId)}
-            onChange={(_, v) => {
-              if (v?.simulationId) {
-                setSimulationId(v.simulationId);
-              }
-            }}
-            renderOption={(props, o) => {
-              const { key, ...rest } = props as { key: string } & Record<string, unknown>;
-              return (
-                <li
-                  key={key}
-                  {...rest}
-                  style={{
-                    display: 'flex',
-                    gap: 8,
-                  }}
-                >
-                  <span>{labelFor(o.simulationId)}</span>
-                  <span style={{
-                    marginLeft: 'auto',
-                    opacity: 0.65,
-                    fontSize: 12,
-                  }}
-                  >
-                    {`${o.endpointCount ?? 0} ${t('endpoints')} · ${o.executionCount ?? 0} ${t('exec.')}`}
-                  </span>
-                </li>
-              );
-            }}
-            renderInput={params => <TextField {...params} label={t('Simulation')} />}
-            sx={{
-              maxWidth: 520,
-              flex: '1 1 320px',
-            }}
-          />
-        )}
-        <div style={{
-          display: 'flex',
-          gap: theme.spacing(1),
-          alignItems: 'center',
-        }}
-        >
-          {activeCard && (
-            <Chip
-              label={t('Clear focus')}
-              size="small"
-              variant="outlined"
-              onDelete={clearFocus}
-              onClick={clearFocus}
-            />
+
+      <AttackPathHeader
+        showPicker={showPicker}
+        pickerOptions={pickerOptions}
+        selectedRow={selectedRow}
+        labelFor={labelFor}
+        onSimulationChange={setSimulationId}
+        hasCardFocus={!!activeCard}
+        onClearFocus={clearFocus}
+        hasPathFocus={!!pathFinding}
+        onClearPathFocus={clearPathFocus}
+        freshness={freshness}
+        freshnessLabel={freshnessLabel}
+        freshnessTitle={freshnessTitle}
+        cards={cards}
+        activeCard={activeCard}
+        onCardClick={onCardClick}
+        chokepointCount={pathFinding ? 0 : chokepoints.length}
+        chokepointOpen={chokepointExplainOpen}
+        onChokepointClick={() => setChokepointExplainOpen(true)}
+        view={view}
+        onViewChange={setView}
+        fullscreen={fullscreen}
+        onToggleFullscreen={() => setFullscreen(f => !f)}
+        searchOptions={searchOptions}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        onSearchSelect={onSearchSelect}
+        searchGroupLabel={searchGroupLabel}
+      />
+      {/* Chokepoint scoring explainer opened by the stats-bar chokepoint card. */}
+      {!pathFinding && chokepoints.length > 0 && (
+        <ScoreExplainerDialog
+          open={chokepointExplainOpen}
+          onClose={() => setChokepointExplainOpen(false)}
+          title={t('How chokepoints are scored')}
+          score={chokepoints[0]?.score ?? null}
+          scoreColor={criticalityColor(chokepoints[0]?.criticality)}
+          bandLabel={t(CRITICALITY_LABEL[chokepoints[0]?.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)}
+          verdict={t('{label} is the most exposed endpoint — fixing its findings closes the most attack paths.', { label: chokepoints[0]?.label ?? '' })}
+          measures={t('A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint\'s findings by its business criticality, so a critical host outranks a noisier but less important one.')}
+          formula={(
+            <>
+              {t('score')}
+              {' = '}
+              {t('findings')}
+              {' × '}
+              {t('criticality weight')}
+            </>
           )}
-          {pathFinding && (
-            <Chip
-              label={t('Back to full graph')}
-              size="small"
-              color="primary"
-              variant="outlined"
-              onDelete={clearPathFocus}
-              onClick={clearPathFocus}
-            />
-          )}
-          <Tooltip title={freshnessTitle}>
-            <Chip
-              size="small"
-              variant="outlined"
-              label={freshnessLabel}
-              color={freshness === 'reconnecting' ? 'warning' : 'default'}
-              // A pulsing dot while the view is updating itself: "Live" alone reads as a static
-              // label, and the whole point is that the graph is following the run. Only on `live` —
-              // a finished run has nothing to pulse about, and `reconnecting` already says it in
-              // words and colour.
-              icon={freshness === 'live'
-                ? (
-                    <Box
-                      component="span"
-                      sx={{
-                        'width': 7,
-                        'height': 7,
-                        'borderRadius': '50%',
-                        'bgcolor': 'success.main',
-                        // `!important` because MUI's `.MuiChip-icon` sets its own margins.
-                        'ml': '8px !important',
-                        'mr': '-2px !important',
-                        'flexShrink': 0,
-                        'animation': 'attackPathLivePulse 1.6s ease-in-out infinite',
-                        // Users who asked the OS for less motion get a steady dot instead.
-                        '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
-                        '@keyframes attackPathLivePulse': {
-                          '0%, 100%': { opacity: 1 },
-                          '50%': { opacity: 0.25 },
-                        },
-                      }}
-                    />
-                  )
-                : undefined}
-              sx={{
-                // Deliberately quiet: it reports a state, it is not an action.
-                opacity: freshness === 'finished' ? 0.6 : 0.85,
-                fontSize: 11,
-              }}
-            />
-          </Tooltip>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={view}
-            onChange={(_, v) => v && setView(v)}
-            aria-label={t('View')}
-            sx={{ ml: 'auto' }}
-          >
-            <ToggleButton value="graph" aria-label={t('Graph')}>
-              <Tooltip title={t('Graph')}><AccountTreeOutlined fontSize="small" /></Tooltip>
-            </ToggleButton>
-            <ToggleButton value="table" aria-label={t('Table')}>
-              <Tooltip title={t('Table')}><TableRowsOutlined fontSize="small" /></Tooltip>
-            </ToggleButton>
-          </ToggleButtonGroup>
-          <Tooltip title={fullscreen ? t('Exit fullscreen') : t('Fullscreen')}>
-            <IconButton
-              size="small"
-              aria-label={fullscreen ? t('Exit fullscreen') : t('Fullscreen')}
-              onClick={() => setFullscreen(f => !f)}
-            >
-              {fullscreen ? <FullscreenExitOutlined fontSize="small" /> : <FullscreenOutlined fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-          <Autocomplete<SearchOption>
-            size="small"
-            options={searchOptions}
-            value={null}
-            inputValue={searchInput}
-            onInputChange={(_, v) => setSearchInput(v)}
-            onChange={(_, v) => {
-              onSearchSelect(v);
-              setSearchInput('');
-            }}
-            blurOnSelect
-            clearOnBlur
-            groupBy={o => searchGroupLabel(o.kind)}
-            getOptionLabel={o => o.label}
-            isOptionEqualToValue={(o, v) => o.nodeId === v.nodeId && o.label === v.label}
-            filterOptions={(opts, state) => {
-              const q = state.inputValue.trim().toLowerCase();
-              if (!q) {
-                return opts;
-              }
-              return opts.filter(o => o.label.toLowerCase().includes(q) || (o.sub ?? '').toLowerCase().includes(q));
-            }}
-            renderOption={(props, o) => {
-              const { key, ...rest } = props as { key: string } & Record<string, unknown>;
-              return (
-                <li key={key} {...rest}>
-                  <div style={{ minWidth: 0 }}>
-                    <Typography variant="body2" noWrap>{o.label}</Typography>
-                    {o.sub && <Typography variant="caption" color="text.secondary" noWrap>{o.sub}</Typography>}
-                  </div>
-                </li>
-              );
-            }}
-            renderInput={params => (
-              <TextField
-                {...params}
-                placeholder={t('Search endpoint, injector, finding…')}
-                InputProps={{
-                  ...params.InputProps,
-                  startAdornment: <SearchOutlined fontSize="small" sx={{ mr: 0.5 }} />,
-                }}
-              />
-            )}
-            sx={{ width: 260 }}
-          />
-        </div>
-      </div>
+          breakdownTitle={t('Most exposed assets')}
+          breakdown={chokepoints.map((c, i): ScoreBreakdownRow => ({
+            key: c.nodeId,
+            label: `${i + 1}. ${c.label}`,
+            valueLabel: `${c.score}`,
+            segments: [{
+              widthPct: Math.min(100, Math.max(6, ((c.score ?? 0) / (chokepoints[0]?.score || 1)) * 100)),
+              color: criticalityColor(c.criticality),
+            }],
+            sublabel: [
+              c.ip,
+              `${c.findings} × ${c.weight} (${t(CRITICALITY_LABEL[c.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)})`,
+            ].filter(Boolean).join(' · '),
+            onClick: () => focusChokepoint(c),
+          }))}
+          bandsTitle={t('Criticality weights')}
+          bands={(['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).map(k => ({
+            range: `×${CRITICALITY_WEIGHT[k]}`,
+            label: t(CRITICALITY_LABEL[k]),
+            color: criticalityColor(k),
+            desc: t('Weighs this endpoint\'s findings ×{weight} in the score.', { weight: `${CRITICALITY_WEIGHT[k]}` }),
+          }))}
+        />
+      )}
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        gap: theme.spacing(1),
-        flexWrap: 'wrap',
-      }}
-      >
-        {cards.filter(c => c.count > 0).map((c) => {
-          const active = activeCard === c.key;
-          const card = (
-            <ButtonBase
-              key={c.key}
-              onClick={() => onCardClick(c)}
-              aria-pressed={active}
-              focusRipple
-              sx={{
-                'flex': '1 1 0',
-                'minWidth': 150,
-                'justifyContent': 'flex-start',
-                'textAlign': 'left',
-                'gap': 1.5,
-                'padding': theme.spacing(1.5),
-                'borderRadius': 1,
-                'border': `1px solid ${active ? theme.palette.primary.main : theme.palette.divider}`,
-                'backgroundColor': active ? theme.palette.action.selected : theme.palette.background.paper,
-                'transition': theme.transitions.create(['border-color', 'background-color']),
-                '&:hover': { borderColor: theme.palette.primary.main },
-              }}
-            >
-              <span style={{
-                color: theme.palette.primary.main,
-                display: 'flex',
-              }}
-              >
-                {c.icon}
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                  {c.label}
-                </Typography>
-                <Typography variant="h6" sx={{ lineHeight: 1.1 }}>
-                  {c.count}
-                </Typography>
-              </div>
-            </ButtonBase>
-          );
-          return c.hint
-            ? (
-                <Tooltip key={c.key} title={c.hint} arrow>
-                  <span style={{
-                    flex: '1 1 0',
-                    display: 'flex',
-                    minWidth: 150,
-                  }}
-                  >
-                    {card}
-                  </span>
-                </Tooltip>
-              )
-            : card;
-        })}
-
-        {/* Top chokepoints: the most-exposed endpoints (most findings). Opens a ranked, clickable list. */}
-        {!pathFinding && chokepoints.length > 0 && (
-          <>
-            <ButtonBase
-              onClick={() => setChokepointExplainOpen(true)}
-              aria-haspopup="dialog"
-              aria-expanded={chokepointExplainOpen}
-              focusRipple
-              sx={{
-                'flex': '1 1 0',
-                'minWidth': 150,
-                'justifyContent': 'flex-start',
-                'textAlign': 'left',
-                'gap': 1.5,
-                'padding': theme.spacing(1.5),
-                'borderRadius': 1,
-                'border': `1px solid ${chokepointExplainOpen ? chokepointColor : theme.palette.divider}`,
-                'backgroundColor': theme.palette.background.paper,
-                'transition': theme.transitions.create(['border-color', 'background-color']),
-                '&:hover': { borderColor: chokepointColor },
-              }}
-            >
-              <span style={{
-                color: chokepointColor,
-                display: 'flex',
-              }}
-              >
-                <LocalFireDepartment fontSize="small" />
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <span style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 3,
-                }}
-                >
-                  <Typography variant="caption" color="text.secondary" noWrap>
-                    {t('Top chokepoints')}
-                  </Typography>
-                  <Tooltip
-                    arrow
-                    title={t('Chokepoints rank endpoints by findings weighted by criticality (score = findings × criticality weight), so the top one is the most findings on the most critical endpoint. Click to see how it is computed.')}
-                  >
-                    <HelpOutline sx={{
-                      fontSize: 13,
-                      color: 'text.disabled',
-                    }}
-                    />
-                  </Tooltip>
-                </span>
-                <Typography variant="h6" sx={{ lineHeight: 1.1 }}>
-                  {chokepoints.length}
-                </Typography>
-              </div>
-            </ButtonBase>
-            <ScoreExplainerDialog
-              open={chokepointExplainOpen}
-              onClose={() => setChokepointExplainOpen(false)}
-              title={t('How chokepoints are scored')}
-              score={chokepoints[0]?.score ?? null}
-              scoreColor={criticalityColor(chokepoints[0]?.criticality)}
-              bandLabel={t(CRITICALITY_LABEL[chokepoints[0]?.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)}
-              verdict={t('{label} is the most exposed endpoint — fixing its findings closes the most attack paths.', { label: chokepoints[0]?.label ?? '' })}
-              measures={t('A chokepoint is the endpoint where fixing findings closes the most attack paths. The score weights an endpoint\'s findings by its business criticality, so a critical host outranks a noisier but less important one.')}
-              formula={(
-                <>
-                  {t('score')}
-                  {' = '}
-                  {t('findings')}
-                  {' × '}
-                  {t('criticality weight')}
-                </>
-              )}
-              breakdownTitle={t('Most exposed assets')}
-              breakdown={chokepoints.map((c, i): ScoreBreakdownRow => ({
-                key: c.nodeId,
-                label: `${i + 1}. ${c.label}`,
-                valueLabel: `${c.score}`,
-                segments: [{
-                  widthPct: Math.min(100, Math.max(6, ((c.score ?? 0) / (chokepoints[0]?.score || 1)) * 100)),
-                  color: criticalityColor(c.criticality),
-                }],
-                sublabel: [
-                  c.ip,
-                  `${c.findings} × ${c.weight} (${t(CRITICALITY_LABEL[c.criticality ?? 'UNKNOWN'] ?? CRITICALITY_LABEL.UNKNOWN)})`,
-                ].filter(Boolean).join(' · '),
-                onClick: () => focusChokepoint(c),
-              }))}
-              bandsTitle={t('Criticality weights')}
-              bands={(['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).map(k => ({
-                range: `×${CRITICALITY_WEIGHT[k]}`,
-                label: t(CRITICALITY_LABEL[k]),
-                color: criticalityColor(k),
-                desc: t('Weighs this endpoint\'s findings ×{weight} in the score.', { weight: `${CRITICALITY_WEIGHT[k]}` }),
-              }))}
-            />
-          </>
-        )}
-      </div>
-
-      <div style={{
+      <Box sx={{
         display: 'flex',
         flex: 1,
         minHeight: 0,
-        gap: theme.spacing(1),
+        gap: 1,
       }}
       >
         {view === 'table' && (
@@ -2793,349 +2477,260 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               rows={tableRows}
               typeColumns={endpointTypeColumns}
               chokepointTopN={CHOKEPOINT_TOP_N}
-              onRowFocus={row => focusChokepoint(row)}
+              onRowOpen={row => onEndpointClick(row.nodeId, row.ref, row.label)}
             />
           </Paper>
         )}
         {view === 'graph' && (
-          <>
-            <Paper
-              variant="outlined"
-              sx={{
-                flex: 1,
-                minWidth: 0,
-                position: 'relative',
-              }}
-            >
-              {(loading || chainLoading) && <Loader />}
-              {!loading && forbidden && (
-                <Alert severity="warning" sx={{ m: 2 }}>
-                  {t('You do not have access to this simulation\'s attack path.')}
-                </Alert>
-              )}
-              {!loading && !forbidden && error && (
-                <Alert severity="error" sx={{ m: 2 }}>
-                  {t('Failed to load the attack-path graph. Check the simulation or reload the page.')}
-                </Alert>
-              )}
-              {!loading && !chainLoading && !forbidden && !error && !graphHasContent && (
-                <Box sx={{
-                  // Fill the (relative) graph Paper and centre both ways so the empty-state is the focal point.
-                  position: 'absolute',
-                  inset: 0,
-                  p: 4,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: theme.spacing(2),
-                  textAlign: 'center',
-                  color: 'text.secondary',
-                }}
-                >
-                  <AccountTreeOutlined sx={{
-                    fontSize: 88,
-                    opacity: 0.4,
-                  }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      maxWidth: 520,
-                      fontWeight: 500,
-                    }}
-                  >
-                    {emptyStateMessage}
-                  </Typography>
-                  {scenarioHasNoSims && scenarioId && !hideLaunchCta && (
-                    <Button
-                      variant="contained"
-                      startIcon={<PlayArrowOutlined />}
-                      onClick={handleLaunchFromScenario}
-                      disabled={launching}
-                    >
-                      {t('Launch a simulation')}
-                    </Button>
-                  )}
-                </Box>
-              )}
-              {!loading && !chainLoading && !forbidden && !error && graphHasContent && (
-                <ReactFlowProvider>
-                  <AttackPathFlow
-                    nodes={graphNodes}
-                    edges={graphEdges}
-                    onEndpointClick={onEndpointClick}
-                    onClusterClick={onClusterClick}
-                    onEndpointClusterClick={onEndpointClusterClick}
-                    onFindingClusterClick={onFindingClusterClick}
-                    onFindingSelect={onFindingSelect}
-                    onInjectorSelect={onInjectorSelect}
-                    focusRequest={focusRequest}
-                    fitRequest={fitNonce}
-                    showMiniMap={!pathFinding && nodes.length > 40}
-                  />
-                  <AttackPathLegend collapseSignal={legendCollapseNonce} />
-                </ReactFlowProvider>
-              )}
-            </Paper>
-
-            {/* Resizable drawer: a single panel shows at a time (mutually exclusive); the handle on its
-                left edge drags the width, and the graph (flex:1) reflows. */}
-            {(!!detailExecutionId || !!findingDetail || !!selectedNodeId || (!pathFinding && !!selectedInjectorId)) && (
-              <div style={{
-                position: 'relative',
-                display: 'flex',
-                flexShrink: 0,
-                width: panelWidth,
-                minWidth: PANEL_MIN_WIDTH,
-              }}
-              >
-                <div
-                  role="separator"
-                  aria-orientation="vertical"
-                  aria-label={t('Resize panel')}
-                  onMouseDown={onResizeStart}
-                  style={{
-                    flex: '0 0 auto',
-                    width: 6,
-                    cursor: 'col-resize',
-                    marginRight: theme.spacing(1),
-                    borderRadius: 3,
-                    background: theme.palette.divider,
-                  }}
-                />
-                <div style={{
-                  flex: 1,
-                  minWidth: 0,
-                  display: 'flex',
-                }}
-                >
-                  {/* Master→detail in a single drawer: while an execution detail is open it REPLACES the
-                endpoint/finding master panel (below), and its back arrow returns here. */}
-                  {findingDetail && !detailExecutionId && (
-                    <FindingDetailPanel
-                      value={maskFindingValue(findingDetail.type, findingDetail.value)}
-                      type={findingDetail.type}
-                      endpointLabel={findingEndpoint?.hostname || findingEndpoint?.label || findingEndpoint?.ref || pathFinding?.endpointKey || t('Endpoint')}
-                      endpointSub={[findingEndpoint?.ip, findingEndpoint?.platform].filter(Boolean).join(' · ')}
-                      expectations={findingExpectations}
-                      actions={producingActions}
-                      activeRef={detailExecutionId}
-                      onSelect={openExecutionDetail}
-                      onClose={() => {
-                        // Clicking a finding in the clustered view also selects its endpoint (to load the
-                        // feed), so clear both here — otherwise closing the finding panel would just reveal
-                        // the endpoint panel and look like it never closed.
-                        setFindingDetail(null);
-                        setSelectedNodeId(null);
-                        setDetailExecutionId(null);
-                      }}
-                    />
-                  )}
-
-                  {!findingDetail && selectedNodeId && !detailExecutionId && (
-                    <EndpointDetailPanel
-                      endpointLabel={selectedLabel || t('Endpoint')}
-                      findingsLoading={endpointFindingsLoading}
-                      findingGroups={endpointFindingGroups}
-                      executions={executions}
-                      totalExecutions={endpointExecTotal}
-                      onShowMore={loadMoreEndpointExecutions}
-                      loadingMore={endpointExecLoadingMore}
-                      highlightedExecutionIds={highlightedExecutionIds}
-                      registerRow={(id, el) => {
-                        if (el) {
-                          feedRowRefs.current.set(id, el);
-                        } else {
-                          feedRowRefs.current.delete(id);
-                        }
-                      }}
-                      onSelectExecution={openExecutionDetail}
-                      execStatusLabel={status => t(statusLabelKey(status))}
-                      onClose={() => {
-                        setSelectedNodeId(null);
-                        setDetailExecutionId(null);
-                      }}
-                    />
-                  )}
-
-                  {/* Injector master panel: the same component as the endpoint panel — its findings (attributed
-                to this injector's executions) and its contracts/executions. One click opens their
-                Result / Execution details / Remediation detail (the global command it ran). */}
-                  {!pathFinding && !findingDetail && !selectedNodeId && selectedInjectorId && !detailExecutionId && (
-                    <EndpointDetailPanel
-                      endpointLabel={injectorPanelLabel || t('Injector')}
-                      findingsLoading={injectorFindingsLoading}
-                      findingGroups={injectorFindingGroups}
-                      executions={injectorExecutions}
-                      totalExecutions={injectorExecTotal}
-                      highlightedExecutionIds={highlightedExecutionIds}
-                      registerRow={() => {}}
-                      onSelectExecution={openExecutionDetail}
-                      execStatusLabel={status => t(statusLabelKey(status))}
-                      onClose={() => {
-                        setSelectedInjectorId(null);
-                        setInjectorExecutions([]);
-                        setInjectorFindingGroups([]);
-                        setDetailExecutionId(null);
-                      }}
-                    />
-                  )}
-
-                  {detailExecutionId && (
-                    <ExecutionResultTerminalPanel
-                      loading={detailLoading}
-                      detail={detail}
-                      endpointLabel={detail?.endpointKey ? endpointLabelByRef.get(detail.endpointKey) : undefined}
-                      // Back returns to the master panel (endpoint/finding/injector) it was opened from; close
-                      // dismisses the whole drawer.
-                      onBack={() => setDetailExecutionId(null)}
-                      onClose={() => {
-                        setDetailExecutionId(null);
-                        setSelectedNodeId(null);
-                        setSelectedInjectorId(null);
-                        setInjectorExecutions([]);
-                        setInjectorFindingGroups([]);
-                        setFindingDetail(null);
-                      }}
-                      onOpenInject={(detail as { injectId?: string } | null)?.injectId
-                      // The inject belongs to the run, not the scenario: a relative `../injects/…` would point
-                      // at the scenario in scenario context (which has no such inject → 404). Always target the
-                      // selected simulation. A payload-backed inject opens on its Overview; a network injector
-                      // (no payload) opens straight on its Execution details, where its traces live.
-                        ? () => {
-                            const d = detail as {
-                              injectId?: string;
-                              payloadId?: string;
-                            };
-                            const base = `${SIMULATION_BASE_URL}/${simulationId}/injects/${d.injectId}`;
-                            navigate(d.payloadId ? base : `${base}/execution_details`);
-                          }
-                        : undefined}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      <Drawer
-        open={drawerCategory !== null}
-        handleClose={() => setDrawerCategory(null)}
-        title={`${drawerLabel} (${drawerFilteredItems.length})`}
-      >
-        <>
-          <Typography
-            variant="caption"
-            color="text.secondary"
+          <Paper
+            variant="outlined"
             sx={{
-              display: 'block',
-              mb: 1.5,
+              flex: 1,
+              minWidth: 0,
+              position: 'relative',
             }}
           >
-            {t('Click any item to highlight it on the attack map and focus the producing action in the feed.')}
-          </Typography>
-          <TextField
-            size="small"
-            fullWidth
-            value={drawerSearch}
-            onChange={(e) => {
-              setDrawerSearch(e.target.value);
-              setDrawerPage(0);
-            }}
-            placeholder={t('Search')}
-            sx={{ mb: 1.5 }}
-          />
-          {findingsLoading && (
-            <Box sx={{ minHeight: 120 }}>
-              <Loader variant="inElement" size="sm" />
-            </Box>
-          )}
-          {!findingsLoading && drawerFilteredItems.length === 0 && (
-            <Alert severity="info">{t('No findings')}</Alert>
-          )}
-          {!findingsLoading && drawerPageItems.map((item, index) => {
-            // Friendly endpoint hostname (never the raw asset id/uuid); undefined when unresolved.
-            const endpointName = item.endpointKey ? endpointLabelByRef.get(item.endpointKey) : undefined;
-            return (
-              <Box
-                key={`${item.endpointKey}-${item.value}-${index}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => onFindingItemClick(item)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onFindingItemClick(item);
-                  }
-                }}
-                sx={{
-                  'py': 0.75,
-                  'px': 0.5,
-                  'borderRadius': 1,
-                  'borderBottom': `1px solid ${theme.palette.divider}`,
-                  'cursor': 'pointer',
-                  '&:hover': { backgroundColor: 'action.hover' },
-                  '&:focus-visible': {
-                    backgroundColor: 'action.hover',
-                    outline: `2px solid ${theme.palette.primary.main}`,
-                    outlineOffset: -2,
-                  },
-                }}
+            {(loading || chainLoading) && <Loader />}
+            {!loading && forbidden && (
+              <Alert severity="warning" sx={{ m: 2 }}>
+                {t('You do not have access to this simulation\'s attack path.')}
+              </Alert>
+            )}
+            {!loading && !forbidden && error && (
+              <Alert severity="error" sx={{ m: 2 }}>
+                {t('Failed to load the attack-path graph. Check the simulation or reload the page.')}
+              </Alert>
+            )}
+            {!loading && !chainLoading && !forbidden && !error && !graphHasContent && (
+              <Box sx={{
+                // Fill the (relative) graph Paper and centre both ways so the empty-state is the focal point.
+                position: 'absolute',
+                inset: 0,
+                p: 4,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: theme.spacing(2),
+                textAlign: 'center',
+                color: 'text.secondary',
+              }}
               >
-                <Typography variant="body2" title={maskFindingValue(item.type, item.value)} sx={{ wordBreak: 'break-all' }}>{maskFindingValue(item.type, item.value)}</Typography>
-                {/* Show the endpoint's friendly hostname, never the raw asset id/uuid. Hidden when it can't
-                  be resolved to a name so no bare id ever surfaces under the value. */}
-                {endpointName && (
-                  <Typography variant="caption" color="text.secondary" noWrap title={endpointName}>
-                    {endpointName}
-                  </Typography>
+                <AccountTreeOutlined sx={{
+                  fontSize: 88,
+                  opacity: 0.4,
+                }}
+                />
+                <Typography
+                  variant="h6"
+                  sx={{
+                    maxWidth: 520,
+                    fontWeight: 500,
+                  }}
+                >
+                  {emptyStateMessage}
+                </Typography>
+                {scenarioHasNoSims && scenarioId && !hideLaunchCta && (
+                  <Button
+                    variant="contained"
+                    startIcon={<PlayArrowOutlined />}
+                    onClick={handleLaunchFromScenario}
+                    disabled={launching}
+                  >
+                    {t('Launch a simulation')}
+                  </Button>
                 )}
               </Box>
-            );
-          })}
-          {/* The drawer holds one server page (clamped to 200) and searches within it, so when the
-              category has more, say so rather than let the pager imply it holds everything —
-              full-set search is a tracked follow-up (spec 003, FR10). */}
-          {!findingsLoading && (findingsPage?.total ?? 0) > (findingsPage?.items ?? []).length && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
+            )}
+            {!loading && !chainLoading && !forbidden && !error && graphHasContent && (
+              <AttackPathCanvas
+                nodes={nodes}
+                edges={graphEdges}
+                enterNodeIds={enterNodeIds}
+                onEndpointClick={onEndpointClick}
+                onClusterClick={onClusterClick}
+                onEndpointClusterClick={onEndpointClusterClick}
+                onFindingClusterClick={onFindingClusterClick}
+                onFindingSelect={onFindingSelect}
+                onInjectorSelect={onInjectorSelect}
+                focusRequest={focusRequest}
+                fitRequest={fitNonce}
+                showMiniMap={!pathFinding && nodes.length > 40}
+                legend={<AttackPathLegend collapseSignal={legendCollapseNonce} />}
+              />
+            )}
+          </Paper>
+        )}
+
+        {/* Resizable side slot, shared by BOTH views: a single panel shows at a time (mutually
+            exclusive); the handle on its left edge drags the width, and the content (flex:1)
+            reflows. A table-row click opens the endpoint panel here without leaving the table. */}
+        {(!!detailExecutionId || !!findingDetail || !!selectedNodeId || (!pathFinding && !!selectedInjectorId) || drawerCategory !== null) && (
+          <Box sx={{
+            position: 'relative',
+            display: 'flex',
+            flexShrink: 0,
+            width: panelWidth,
+            minWidth: `${AP_PANEL_MIN_WIDTH}px`,
+          }}
+          >
+            <Box
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t('Resize panel')}
+              onMouseDown={onResizeStart}
               sx={{
-                display: 'block',
-                pt: 1.5,
-                textAlign: 'center',
+                'flex': '0 0 auto',
+                'width': 6,
+                'cursor': 'col-resize',
+                'marginRight': 1,
+                'borderRadius': 3,
+                'backgroundColor': 'divider',
+                'transition': theme.transitions.create('background-color'),
+                '&:hover': { backgroundColor: 'primary.main' },
               }}
-            >
-              {t('Showing the first {count} of {total}', {
-                count: (findingsPage?.items ?? []).length,
-                total: findingsPage?.total,
-              })}
-            </Typography>
-          )}
-          {!findingsLoading && drawerPageCount > 1 && (
+            />
             <Box sx={{
+              flex: 1,
+              minWidth: 0,
               display: 'flex',
-              justifyContent: 'center',
-              pt: 1.5,
             }}
             >
-              {/* Standard MUI pagination (clickable page numbers), consistent with the rest of the app —
-                  replaces the previous custom Prev/Next chips whose page number was not clickable. */}
-              <Pagination
-                count={drawerPageCount}
-                page={drawerSafePage + 1}
-                onChange={(_, p) => setDrawerPage(p - 1)}
-                size="small"
-                color="primary"
-              />
+              {/* Master→detail in a single drawer: while an execution detail is open it REPLACES the
+                endpoint/finding master panel (below), and its back arrow returns here. */}
+              {findingDetail && !detailExecutionId && (
+                <FindingDetailPanel
+                  value={maskFindingValue(findingDetail.type, findingDetail.value)}
+                  type={findingDetail.type}
+                  endpointLabel={findingEndpoint?.hostname || findingEndpoint?.label || findingEndpoint?.ref || pathFinding?.endpointKey || t('Endpoint')}
+                  endpointSub={[findingEndpoint?.ip, findingEndpoint?.platform].filter(Boolean).join(' · ')}
+                  expectations={findingExpectations}
+                  actions={producingActions}
+                  activeRef={detailExecutionId}
+                  onSelect={openExecutionDetail}
+                  onClose={() => {
+                    // Clicking a finding in the clustered view also selects its endpoint (to load the
+                    // feed), so clear both here — otherwise closing the finding panel would just reveal
+                    // the endpoint panel and look like it never closed.
+                    setFindingDetail(null);
+                    setSelectedNodeId(null);
+                    setDetailExecutionId(null);
+                  }}
+                />
+              )}
+
+              {!findingDetail && selectedNodeId && !detailExecutionId && (
+                <EndpointDetailPanel
+                  endpointLabel={selectedLabel || t('Endpoint')}
+                  findingsLoading={endpointFindingsLoading}
+                  findingGroups={endpointFindingGroups}
+                  executions={executions}
+                  totalExecutions={endpointExecTotal}
+                  onShowMore={loadMoreEndpointExecutions}
+                  loadingMore={endpointExecLoadingMore}
+                  highlightedExecutionIds={highlightedExecutionIds}
+                  registerRow={(id, el) => {
+                    if (el) {
+                      feedRowRefs.current.set(id, el);
+                    } else {
+                      feedRowRefs.current.delete(id);
+                    }
+                  }}
+                  onSelectExecution={openExecutionDetail}
+                  execStatusLabel={status => t(statusLabelKey(status))}
+                  onClose={() => {
+                    setSelectedNodeId(null);
+                    setDetailExecutionId(null);
+                  }}
+                />
+              )}
+
+              {/* Injector master panel: the same component as the endpoint panel — its findings (attributed
+                to this injector's executions) and its contracts/executions. One click opens their
+                Result / Execution details / Remediation detail (the global command it ran). */}
+              {!pathFinding && !findingDetail && !selectedNodeId && selectedInjectorId && !detailExecutionId && (
+                <EndpointDetailPanel
+                  endpointLabel={injectorPanelLabel || t('Injector')}
+                  findingsLoading={injectorFindingsLoading}
+                  findingGroups={injectorFindingGroups}
+                  executions={injectorExecutions}
+                  totalExecutions={injectorExecTotal}
+                  highlightedExecutionIds={highlightedExecutionIds}
+                  registerRow={() => {}}
+                  onSelectExecution={openExecutionDetail}
+                  execStatusLabel={status => t(statusLabelKey(status))}
+                  onClose={() => {
+                    setSelectedInjectorId(null);
+                    setInjectorExecutions([]);
+                    setInjectorFindingGroups([]);
+                    setDetailExecutionId(null);
+                  }}
+                />
+              )}
+
+              {/* Contextual category panel (portscan, credentials, cve...): shows when no
+                      detail panel occupies the slot, so a node click temporarily replaces it and
+                      closing that detail brings the list back. */}
+              {drawerCategory !== null && !findingDetail && !selectedNodeId && !selectedInjectorId && !detailExecutionId && (
+                <CategoryFindingsPanel
+                  label={drawerLabel}
+                  count={drawerFilteredItems.length}
+                  loading={findingsLoading}
+                  items={drawerPageItems}
+                  search={drawerSearch}
+                  onSearchChange={(v) => {
+                    setDrawerSearch(v);
+                    setDrawerPage(0);
+                  }}
+                  page={drawerSafePage}
+                  pageCount={drawerPageCount}
+                  onPageChange={setDrawerPage}
+                  loadedCount={(findingsPage?.items ?? []).length}
+                  totalCount={findingsPage?.total ?? 0}
+                  endpointNameFor={key => (key ? endpointLabelByRef.get(key) : undefined)}
+                  onItemClick={onFindingItemClick}
+                  onClose={clearFocus}
+                />
+              )}
+
+              {detailExecutionId && (
+                <ExecutionResultTerminalPanel
+                  loading={detailLoading}
+                  detail={detail}
+                  endpointLabel={detail?.endpointKey ? endpointLabelByRef.get(detail.endpointKey) : undefined}
+                  // Back returns to the master panel (endpoint/finding/injector) it was opened from; close
+                  // dismisses the whole drawer.
+                  onBack={() => setDetailExecutionId(null)}
+                  onClose={() => {
+                    setDetailExecutionId(null);
+                    setSelectedNodeId(null);
+                    setSelectedInjectorId(null);
+                    setInjectorExecutions([]);
+                    setInjectorFindingGroups([]);
+                    setFindingDetail(null);
+                  }}
+                  onOpenInject={(detail as { injectId?: string } | null)?.injectId
+                  // The inject belongs to the run, not the scenario: a relative `../injects/…` would point
+                  // at the scenario in scenario context (which has no such inject → 404). Always target the
+                  // selected simulation. A payload-backed inject opens on its Overview; a network injector
+                  // (no payload) opens straight on its Execution details, where its traces live.
+                    ? () => {
+                        const d = detail as {
+                          injectId?: string;
+                          payloadId?: string;
+                        };
+                        const base = `${SIMULATION_BASE_URL}/${simulationId}/injects/${d.injectId}`;
+                        navigate(d.payloadId ? base : `${base}/execution_details`);
+                      }
+                    : undefined}
+                />
+              )}
             </Box>
-          )}
-        </>
-      </Drawer>
-    </div>
+          </Box>
+        )}
+      </Box>
+
+    </Box>
   );
 };
 
