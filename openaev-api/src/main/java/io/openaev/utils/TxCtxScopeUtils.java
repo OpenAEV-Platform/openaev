@@ -1,6 +1,7 @@
 package io.openaev.utils;
 
 import io.openaev.context.TxCtx;
+import io.openaev.rest.exception.TenantWriteScopeException;
 import java.util.Objects;
 import java.util.Set;
 
@@ -15,7 +16,8 @@ public final class TxCtxScopeUtils {
       case TxCtx.Missing ignored -> Set.of();
       case TxCtx.Restricted restricted -> Set.copyOf(restricted.tenantIds());
       case TxCtx.AllTenants ignored -> {
-        throw new IllegalArgumentException("AllTenants is not valid on the HTTP API path");
+        throw new TenantWriteScopeException(
+            "AllTenants is not valid - provide a single-tenant scope or an explicit tenant selector.");
       }
     };
   }
