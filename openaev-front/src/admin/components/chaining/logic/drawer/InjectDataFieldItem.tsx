@@ -48,7 +48,6 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   fieldKey,
   fieldLabel,
   value,
-  defaultValue,
   link,
   readOnly = false,
   noLink = false,
@@ -149,11 +148,6 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
             <Typography variant="body2" fontWeight={600}>
               {fieldLabel}
             </Typography>
-            {defaultValue && (
-              <Typography variant="body2" color="text.secondary">
-                {`(default: ${defaultValue})`}
-              </Typography>
-            )}
             <Typography variant="body2" color="text.secondary">-</Typography>
             <LinkOutlined fontSize="small" color="primary" />
             <Typography variant="body2" color="primary">
@@ -201,8 +195,12 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
         </Box>
       )}
 
-      {/* Default value input + Link button: only when no link */}
-      {!link && (
+      {/* Default value input + Link button: shown when there's no link, or when a
+          defined value is already set on a linked field (so it stays editable and can
+          still be used as an extra combination candidate alongside the linked type's
+          resolved pool). Linked fields with no defined value keep the old, collapsed
+          look (just the "(default: ...)" label above). */}
+      {(!link || value) && (
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
@@ -240,7 +238,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                   onChange={e => onValueChange(fieldKey, e.target.value)}
                 />
               )}
-          {!noLink && (
+          {!link && !noLink && (
             <Button
               size="small"
               variant="text"
@@ -289,7 +287,8 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                   label: t(formatPrimitiveTypeLabel(type)),
                 }))}
                 value={normalizedLinkOutputTypes.filter(type => menuItems.includes(type))}
-                onInputChange={() => {}}
+                onInputChange={() => {
+                }}
                 onChange={handleOutputTypesChange}
               />
             )}

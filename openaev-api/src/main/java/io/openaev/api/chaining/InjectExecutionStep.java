@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.gson.*;
@@ -24,6 +25,7 @@ import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -45,6 +47,7 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.*;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -88,6 +91,7 @@ public class InjectExecutionStep implements ActionStep {
   private final AttackPathExecutionIngestionService attackPathIngestion;
   private final AttackPathFindingIngestionService attackPathFindingIngestion;
   private final InjectExpectationService injectExpectationService;
+  private final ExecutableInjectService executableInjectService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -853,14 +857,23 @@ public class InjectExecutionStep implements ActionStep {
       return resolvedCommand;
     }
 
-    for (PayloadArgument arg : args) {
-      if (arg == null || arg.getKey() == null || arg.getKey().isBlank()) {
-        continue;
-      }
-      String value = arg.getDefaultValue() != null ? arg.getDefaultValue() : "";
-      resolvedCommand = resolvedCommand.replace("#{" + arg.getKey() + "}", value);
-    }
-    return resolvedCommand;
+    // Resolve each #{argumentKey} the same way a real execution does (inject content first,
+    // falling back to the payload argument's default value) — see
+    // ExecutableInjectService#resolveArgumentsForDisplay, also used by InjectExecutionResultService
+    // for the live terminal view (#7110). Otherwise the attack-path snapshot freezes the default
+    // value instead of what was actually run.
+    ObjectNode convertedContent = injectorContract.get().getConvertedContent();
+    JsonNode fields = convertedContent == null ? null : convertedContent.get("fields");
+    List<ObjectNode> injectorContractContentFields =
+        fields == null
+            ? List.of()
+            : StreamSupport.stream(fields.spliterator(), false)
+                .map(ObjectNode.class::cast)
+                .toList();
+    ObjectNode injectContent =
+        inject.getContent() != null ? inject.getContent() : JsonNodeFactory.instance.objectNode();
+    return executableInjectService.resolveArgumentsForDisplay(
+        resolvedCommand, args, injectorContractContentFields, injectContent);
   }
 
   /**
@@ -1104,25 +1117,30 @@ public class InjectExecutionStep implements ActionStep {
    * @param inputValues the source JSON containing the values to map
    */
   private void applyMapping(ObjectNode contentNode, Condition mapping, JsonNode inputValues) {
+    String targetJsonKey = mapping.getKey();
+
+    // Prefer the value already resolved for this specific mapper during chaining (see
+    // ConditionService#toResolvedMapper). This is required when several mappers share the same
+    // key type(s): looking the value up from `inputValues` by type alone can't tell them apart and
+    // would collapse them onto the same shared source value. Values only known once the batch is
+    // expanded per target (e.g. "_target"-derived fields) are not resolved at that stage, so they
+    // still fall through to the inputValues lookup below.
+    if (targetJsonKey != null && mapping.getValue() != null && !mapping.getValue().isBlank()) {
+      contentNode.set(targetJsonKey, TextNode.valueOf(mapping.getValue()));
+      return;
+    }
+
     List<String> keyTypes =
         mapping.getKeyTypes() != null && !mapping.getKeyTypes().isEmpty()
             ? mapping.getKeyTypes().stream().map(Enum::name).toList()
             : List.of();
     if (keyTypes.isEmpty()) {
-      if (mapping.getMappingType() == MappingType.DEFAULT) {
-        // DEFAULT mapper with no keyTypes: apply static value directly.
-        // If blank, leave the injector contract default for this field untouched.
-        String targetJsonKey = mapping.getKey();
-        if (targetJsonKey != null && mapping.getValue() != null && !mapping.getValue().isBlank()) {
-          contentNode.set(targetJsonKey, TextNode.valueOf(mapping.getValue()));
-        }
-        return;
+      if (mapping.getMappingType() != MappingType.DEFAULT) {
+        log.warn(
+            "[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
       }
-      log.warn(
-          "[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
       return;
     }
-    String targetJsonKey = mapping.getKey();
 
     for (String inputKey : keyTypes) {
       if (inputValues.has(inputKey)) {
@@ -1349,7 +1367,7 @@ public class InjectExecutionStep implements ActionStep {
     if (inject.getPayload().isPresent()) {
       Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
       injectorContractContentUtils
-          .getAllContractOutputs(outputParsers)
+          .getAllContractOutputs(outputParsers, false)
           .forEach(
               out ->
                   typeMappings.put(
