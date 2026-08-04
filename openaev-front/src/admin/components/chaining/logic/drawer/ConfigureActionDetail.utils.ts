@@ -1,6 +1,7 @@
 import type { ConditionCreateInput } from '../../../../../utils/api-types';
 import type { ContractElement, ContractType } from '../../../../../utils/api-types-custom';
 import type { ExpectationInput } from '../../../common/injects/expectations/Expectation';
+import type { ActionDetailData } from '../types';
 import type { FieldLink } from './InjectDataFieldItem';
 
 export const EXPECTATION_FIELD_TYPE = 'expectation';
@@ -51,16 +52,28 @@ export const applyAutoLinks = (
 
 /** Converts linked fields to step mapper conditions. */
 export const mapFieldLinksToStepConditions = (
-  fieldLinks: Record<string, FieldLink>,
+  data: ActionDetailData,
 ): ConditionCreateInput[] => {
+  const fieldLinks: Record<string, FieldLink> = data.inject_field_links;
   return Object.entries(fieldLinks).map(([fieldKey, link], index) => {
     const outputTypes = link.outputTypes ?? [];
     const keyTypes = outputTypes.length > 0 ? outputTypes : [];
+
+    // Carry over the field's own typed value as the MAPPER condition's defined value,
+    // so it keeps participating in the generated input combinations as an extra
+    // candidate alongside the linked type's resolved pool, instead of being dropped
+    // once a primitive type is linked.
+    const rawValue = data.inject_content[fieldKey];
+    const definedValue = rawValue != null && String(rawValue).trim() !== ''
+      ? String(rawValue)
+      : undefined;
+
     return {
       condition_temporary_id: String(index),
       condition_type: 'MAPPER',
       condition_key_types: keyTypes as ConditionCreateInput['condition_key_types'],
       condition_key: fieldKey,
+      condition_value: definedValue,
       condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as ConditionCreateInput['condition_mapping_type'],
     };
   });
