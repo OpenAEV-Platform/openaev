@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 public class TenantWriteScopeResolver {
 
   public String tenantForWrite(TxCtx scope, String suppliedTenant) {
-    Set<String> scoped = TxCtxScopeUtils.tenantIdsFromCtx(scope);
+    Set<String> scoped = TxCtxScopeUtils.tenantIdsFromHTTPCtx(scope);
 
     if (suppliedTenant != null && !suppliedTenant.isBlank()) {
       if (!scoped.contains(suppliedTenant)) {

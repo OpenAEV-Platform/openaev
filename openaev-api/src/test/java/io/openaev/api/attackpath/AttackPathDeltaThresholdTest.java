@@ -12,7 +12,7 @@ import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
-import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,7 +57,7 @@ class AttackPathDeltaThresholdTest extends IntegrationTest {
     write("dc-02");
     write("dc-03");
 
-    AttackPathDeltaDTO delta = deltaService.buildDelta(SIM, v1, List.of(tenant.getId()));
+    AttackPathDeltaDTO delta = deltaService.buildDelta(SIM, v1, Set.of(tenant.getId()));
 
     assertThat(delta.resyncRequired()).isFalse();
     assertThat(delta.attackPathNodes()).isNotEmpty();
@@ -71,7 +71,7 @@ class AttackPathDeltaThresholdTest extends IntegrationTest {
     write("dc-03");
     write("dc-04");
 
-    AttackPathDeltaDTO delta = deltaService.buildDelta(SIM, v1, List.of(tenant.getId()));
+    AttackPathDeltaDTO delta = deltaService.buildDelta(SIM, v1, Set.of(tenant.getId()));
 
     assertThat(delta.resyncRequired()).isTrue();
     assertThat(delta.newVersion()).isGreaterThan(v1);

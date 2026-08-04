@@ -96,7 +96,7 @@ public class AttackPathApi extends RestBehavior {
     requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
     long graphVersion =
-        versionService.current(simulationId, TxCtxScopeUtils.tenantIdsFromCtx(ctx)).orElse(0L);
+        versionService.current(simulationId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx)).orElse(0L);
     return graphService.buildGraph(simulationId, mode, graphVersion);
   }
 
@@ -121,7 +121,7 @@ public class AttackPathApi extends RestBehavior {
       TxCtx ctx, @PathVariable String simulationId, @RequestParam @Min(0) long since) {
     requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
-    return deltaService.buildDelta(simulationId, since, TxCtxScopeUtils.tenantIdsFromCtx(ctx));
+    return deltaService.buildDelta(simulationId, since, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx));
   }
 
   /**

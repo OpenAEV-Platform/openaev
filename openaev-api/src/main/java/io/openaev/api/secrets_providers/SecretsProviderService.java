@@ -1,6 +1,6 @@
 package io.openaev.api.secrets_providers;
 
-import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromCtx;
+import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromHTTPCtx;
 
 import io.openaev.api.secrets_providers.form.SecretsProviderOutput;
 import io.openaev.context.TxCtx;
@@ -64,7 +64,7 @@ public class SecretsProviderService
    * @return List of secrets provider output
    */
   public Iterable<SecretsProviderOutput> secretsProviderOutput(TxCtx ctx, boolean isIncludeNext) {
-    List<SecretsProvider> connectors = getConnectorsForTenants(tenantIdsFromCtx(ctx));
+    List<SecretsProvider> connectors = getConnectorsForTenants(tenantIdsFromHTTPCtx(ctx));
     return buildConnectorsOutput(connectors, isIncludeNext);
   }
 
@@ -76,7 +76,7 @@ public class SecretsProviderService
    * @return the secrets provider if visible in the authorized scope, otherwise {@code null}
    */
   public SecretsProvider getConnectorById(TxCtx ctx, String id) {
-    return getConnectorsForTenants(tenantIdsFromCtx(ctx)).stream()
+    return getConnectorsForTenants(tenantIdsFromHTTPCtx(ctx)).stream()
         .filter(sp -> id.equals(sp.getId()))
         .findFirst()
         .orElse(null);
