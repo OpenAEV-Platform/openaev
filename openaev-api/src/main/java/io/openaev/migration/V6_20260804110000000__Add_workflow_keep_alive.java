@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * on PostgreSQL 11+ (no table rewrite), and {@code IF NOT EXISTS} makes re-running a no-op.
  */
 @Component
-public class V6_20260803110000000__Add_workflow_keep_alive extends BaseJavaMigration {
+public class V6_20260804110000000__Add_workflow_keep_alive extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

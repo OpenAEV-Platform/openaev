@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
  * EXISTS} makes re-running a no-op.
  */
 @Component
-public class V6_20260803150000000__Add_autonomous_plan_mode extends BaseJavaMigration {
+public class V6_20260804150000000__Add_autonomous_plan_mode extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  * no-op.
  */
 @Component
-public class V6_20260803160000000__Add_scenario_autonomous_flag extends BaseJavaMigration {
+public class V6_20260804160000000__Add_scenario_autonomous_flag extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
