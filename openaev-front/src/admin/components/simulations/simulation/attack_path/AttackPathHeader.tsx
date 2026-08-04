@@ -69,6 +69,9 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
         'alignItems': 'center',
         'justifyContent': 'flex-start',
         'gap': 1,
+        // Every stat shares the row equally (flex-basis 0, grow 1): the cards are the same width
+        // regardless of their label length or value, so the band never reads as ragged.
+        'flex': '1 1 0',
         'minWidth': 0,
         'height': CONTROL_HEIGHT,
         'padding': theme.spacing(0, 1),
@@ -116,12 +119,17 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: 0.5,
+            minWidth: 0,
             fontSize: 9.5,
             fontWeight: 600,
             letterSpacing: '0.07em',
             textTransform: 'uppercase',
             color: 'text.secondary',
             whiteSpace: 'nowrap',
+            // Equal-width slots can be narrower than a long caption on a small screen: clip it rather
+            // than letting it bleed past the card edge.
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
           }}
         >
           {label}
