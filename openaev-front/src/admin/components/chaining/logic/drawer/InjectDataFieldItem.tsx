@@ -48,7 +48,6 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   fieldKey,
   fieldLabel,
   value,
-  defaultValue,
   link,
   readOnly = false,
   noLink = false,
@@ -149,11 +148,6 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
             <Typography variant="body2" fontWeight={600}>
               {fieldLabel}
             </Typography>
-            {defaultValue && (
-              <Typography variant="body2" color="text.secondary">
-                {`(default: ${defaultValue})`}
-              </Typography>
-            )}
             <Typography variant="body2" color="text.secondary">-</Typography>
             <LinkOutlined fontSize="small" color="primary" />
             <Typography variant="body2" color="primary">
@@ -289,7 +283,8 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
                   label: t(formatPrimitiveTypeLabel(type)),
                 }))}
                 value={normalizedLinkOutputTypes.filter(type => menuItems.includes(type))}
-                onInputChange={() => {}}
+                onInputChange={() => {
+                }}
                 onChange={handleOutputTypesChange}
               />
             )}

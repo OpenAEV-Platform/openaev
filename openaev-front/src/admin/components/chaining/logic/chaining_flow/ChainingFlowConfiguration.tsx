@@ -8,7 +8,6 @@ import {
 } from '../../../../../actions/chaining/chaining-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import type {
-  ConditionCreateInput,
   InjectInput,
   PayloadSimple,
   ScopeAssetOutput,
@@ -18,6 +17,7 @@ import { MESSAGING$ } from '../../../../../utils/Environment';
 import AddActionList from '../drawer/AddActionList';
 import AddComponentDrawer from '../drawer/AddComponentDrawer';
 import ConfigureActionDetail from '../drawer/ConfigureActionDetail';
+import { mapFieldLinksToStepConditions } from '../drawer/ConfigureActionDetail.utils';
 import ConfigureEventDetail from '../events/ConfigureEventDetail';
 import {
   conditionGroupsToApi,
@@ -157,6 +157,7 @@ const ChainingFlowConfiguration = ({
         ?? action.action_labels?.fr
         ?? 'Untitled action';
 
+      // No step_conditions: the backend applies the contract auto-links.
       return createStep({
         step_workflow_id: workflowId,
         step_action: 'INJECT_EXECUTION' as const,
@@ -204,25 +205,14 @@ const ChainingFlowConfiguration = ({
   const handleSaveActionDetail = async (data: ActionDetailData) => {
     if (!workflowId) return;
 
-    const stepConditions: ConditionCreateInput[] = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => {
-      let keyTypes = link.outputTypes ?? [];
-      if (keyTypes.length === 0) {
-        keyTypes = ['text'];
-      }
-      return {
-        condition_temporary_id: String(i),
-        condition_type: 'MAPPER' as const,
-        condition_key_types: keyTypes as ConditionCreateInput['condition_key_types'],
-        condition_key: fieldKey,
-        condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as ConditionCreateInput['condition_mapping_type'],
-      };
-    });
+    // Always sent, even empty: it tells the backend not to re-apply the contract auto-links.
+    const stepConditions = mapFieldLinksToStepConditions(data.inject_field_links);
 
     const stepPayload = {
       step_workflow_id: workflowId,
       step_action: 'INJECT_EXECUTION' as const,
       step_condition_ids: editingStep?.meta.step_condition_ids ?? (linkToEventId ? [linkToEventId] : []),
-      step_conditions: stepConditions.length > 0 ? stepConditions : undefined,
+      step_conditions: stepConditions,
       step_data_step: {
         inject_title: data.inject_title,
         inject_injector_contract: data.inject_injector_contract,
