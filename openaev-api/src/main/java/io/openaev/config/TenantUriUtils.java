@@ -10,12 +10,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerMapping;
 
 @Component
+@SuppressWarnings("unchecked")
 public final class TenantUriUtils {
 
   public static final String TENANT_ID_PATH_VARIABLE = "tenantId";
   public static final String TENANT_BASE_PATH = "/api/tenants/";
   public static final String TENANT_PREFIX = TENANT_BASE_PATH + "{" + TENANT_ID_PATH_VARIABLE + "}";
-  private final Pattern tenantPattern = Pattern.compile(TENANT_BASE_PATH + "([A-Fa-f0-9-]+)/?");
+  private final Pattern tenantPattern =
+      Pattern.compile("^" + TENANT_BASE_PATH + "([A-Fa-f0-9-]+)/?");
 
   public Optional<String> getTenantIdFromRequestUrl(HttpServletRequest request) {
     Map<String, String> pathVariables =

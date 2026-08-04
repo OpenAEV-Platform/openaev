@@ -43,7 +43,6 @@ public class TenantInterceptor implements AsyncHandlerInterceptor {
   private final TenantUriUtils tenantUriUtils;
 
   @Override
-  @SuppressWarnings("unchecked")
   public boolean preHandle(
       HttpServletRequest request, HttpServletResponse response, Object handler) {
     tenantUriUtils

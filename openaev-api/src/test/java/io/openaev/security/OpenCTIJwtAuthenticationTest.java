@@ -1,6 +1,7 @@
 package io.openaev.security;
 
-import static io.openaev.api.stix_process.StixApi.STIX_URI;
+import static io.openaev.api.stix_process.StixApi.TENANT_STIX_URI;
+import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -22,6 +23,7 @@ import io.openaev.utils.fixtures.composers.TokenComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockConfig.WithMockOpenCTIConfig;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
@@ -62,35 +64,69 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   private Stream<Arguments> authorizationOpenCTI() throws Exception {
     JwtFixture.Bundle validJwtJwk = JwtFixture.generateConnectorJwtBundle(false);
     JwtFixture.Bundle expiredJwtJwk = JwtFixture.generateConnectorJwtBundle(true);
+    String configuredTenantId = TenantContext.getCurrentTenant();
+    String otherTenantId = UUID.randomUUID().toString();
 
     return Stream.of(
-        Arguments.of(null, null, false, "Given no token should get 401 Unauthorized status"),
-        Arguments.of(adminToken, null, true, "Given Admin token should be authorized"),
+        Arguments.of(
+            null,
+            null,
+            false,
+            "Given no token should get 401 Unauthorized status",
+            configuredTenantId,
+            configuredTenantId),
+        Arguments.of(
+            adminToken,
+            null,
+            true,
+            "Given Admin token should be authorized",
+            configuredTenantId,
+            configuredTenantId),
         Arguments.of(
             "Bearer " + validJwtJwk.jwtToken(),
             validJwtJwk.jwks(),
             true,
-            "Given valid JWT should authorize"),
+            "Given valid JWT should authorize",
+            configuredTenantId,
+            configuredTenantId),
+        Arguments.of(
+            "Bearer " + validJwtJwk.jwtToken(),
+            validJwtJwk.jwks(),
+            false,
+            "Given valid JWT for configured tenant, requesting other tenant should fail",
+            configuredTenantId,
+            otherTenantId),
         Arguments.of(
             "Bearer " + expiredJwtJwk.jwtToken(),
             expiredJwtJwk.jwks(),
             false,
-            "Given expired valid JWT should not authorize"));
+            "Given expired valid JWT should not authorize",
+            configuredTenantId,
+            configuredTenantId));
   }
 
   @ParameterizedTest(name = "{3}")
   @MethodSource("authorizationOpenCTI")
   void processBundle_authorizationOpenCti(
-      String authHeader, String jwks, Boolean isAuthorized, String displayName) throws Exception {
+      String authHeader,
+      String jwks,
+      Boolean isAuthorized,
+      String displayName,
+      String configuredTenantId,
+      String requestedTenantId)
+      throws Exception {
     if (jwks != null) {
       SecurityCoverageConnector c = new SecurityCoverageConnector();
       c.setJwks(jwks);
-      c.setOpenCTIConfig(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()));
-      c.setTenantId(TenantContext.getCurrentTenant());
+      c.setOpenCTIConfig(openCTIConfig.getOpencti().get(configuredTenantId));
+      c.setTenantId(configuredTenantId);
       Mockito.doReturn(Optional.of(c))
           .when(openCTIConnectorService)
-          .getConnectorBase(TenantContext.getCurrentTenant());
+          .getConnectorBase(configuredTenantId);
     }
+
+    String urlPrefix =
+        TENANT_STIX_URI.replaceAll("\\{" + TENANT_ID_PATH_VARIABLE + "}", requestedTenantId);
 
     User user =
         userComposer
@@ -102,7 +138,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
     entityManager.flush();
 
     var request =
-        post(STIX_URI + "/process-bundle")
+        post(urlPrefix + "/process-bundle")
             .contentType(MediaType.APPLICATION_JSON)
             .content("")
             .with(csrf());
