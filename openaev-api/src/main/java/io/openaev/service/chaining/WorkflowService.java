@@ -1512,7 +1512,30 @@ public class WorkflowService {
       throws ChainingException {
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
-    stepService.updateInjectStepTemplateData(stepTemplateId, stepInput);
+    Step updated = stepService.updateInjectStepTemplateData(stepTemplateId, stepInput);
+    rearmStepForReExecution(updated);
+  }
+
+  /**
+   * Re-arms an in-place-updated step so its corrected definition re-executes on the next {@link
+   * #evaluateWorkflowProgress}. The data swap alone never re-runs an already-executed step: its
+   * committed execution hashes still mark it fired, so the engine skips it. Clearing those hashes
+   * on the step's live RUN workflow(s) lets it ready again — this is what makes the autonomous
+   * "update a step, evaluate, re-run the corrected version" loop actually re-fire.
+   *
+   * <p>Simulation-scoped by construction: re-fire state lives only on RUN workflows, which exist
+   * only on the simulation. A scenario-owned template (e.g. the autonomous scenario mirror twin,
+   * updated in lock-step) has no simulation and no RUN workflow, so this is a no-op for it — exactly
+   * right, since the mirror never executes.
+   */
+  private void rearmStepForReExecution(Step stepTemplate) {
+    Workflow template = stepTemplate.getWorkflow();
+    if (template == null || template.getSimulation() == null) {
+      return;
+    }
+    for (Workflow runWorkflow : findWorkflowRunBySimulationId(template.getSimulation().getId())) {
+      workflowStateService.clearExecutionHashes(stepTemplate, runWorkflow);
+    }
   }
 
   /**
