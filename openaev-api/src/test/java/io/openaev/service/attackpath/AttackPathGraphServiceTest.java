@@ -668,6 +668,45 @@ class AttackPathGraphServiceTest extends IntegrationTest {
         .persist();
   }
 
+  @Test
+  @DisplayName("A real finding node is flagged is_finding=true")
+  void realFinding_node_isFinding_true() {
+    AttackPathDTO dto = service.buildGraph(SIM);
+    AttackPathNodeDTO node =
+        nodeById(dto, AttackPathIds.findingNode("credentials", "admin:secret"));
+    assertThat(node.getIsFinding()).isTrue();
+  }
+
+  @Test
+  @DisplayName(
+      "An output-only value (is_finding=false) is rendered as a node flagged is_finding=false")
+  void outputOnly_node_isFinding_false() {
+    // A chaining output not persisted as a Finding (ADR-004): still on the map, flagged
+    // output-only.
+    finding("service_banner", "OpenSSH 9.0", "dc-01", exec1Id, false);
+    entityManager.flush();
+
+    AttackPathDTO dto = service.buildGraph(SIM);
+    AttackPathNodeDTO node =
+        nodeById(dto, AttackPathIds.findingNode("service_banner", "OpenSSH 9.0"));
+    assertThat(node.getType()).isEqualTo("FINDING");
+    assertThat(node.getIsFinding()).isFalse();
+  }
+
+  @Test
+  @DisplayName("A (type,value) produced both as a finding and as an output keeps is_finding=true")
+  void mixed_finding_and_output_node_isFinding_true() {
+    // The same (type, value) is produced once as a real finding and once as an output-only value:
+    // the deduped node keeps is_finding=true (a real finding wins, ADR-004).
+    finding("port", "22", "dc-01", exec1Id, true);
+    finding("port", "22", "app-01", exec2Id, false);
+    entityManager.flush();
+
+    AttackPathDTO dto = service.buildGraph(SIM);
+    AttackPathNodeDTO node = nodeById(dto, AttackPathIds.findingNode("port", "22"));
+    assertThat(node.getIsFinding()).isTrue();
+  }
+
   /** An injector run carrying the frozen contract external id and injector type. */
   private String seedInjectorRun(
       String injector,
@@ -763,6 +802,11 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   }
 
   private void finding(String type, String value, String endpointKey, String executionId) {
+    finding(type, value, endpointKey, executionId, true);
+  }
+
+  private void finding(
+      String type, String value, String endpointKey, String executionId, boolean isFinding) {
     AttackPathFinding f = new AttackPathFinding();
     f.setTenant(tenant);
     f.setSimulationId(SIM);
@@ -770,6 +814,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     f.setValue(value);
     f.setEndpointId(endpointKey);
     f.setEndpointKey(endpointKey);
+    f.setFinding(isFinding);
     String findingId = findingRepository.save(f).getId();
 
     AttackPathExecutionFinding link = new AttackPathExecutionFinding();

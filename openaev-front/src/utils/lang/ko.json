@@ -938,6 +938,8 @@
   "Discovered on": "발견 일시",
   "Discovered Shares": "발견된 공유",
   "Discovered Users": "발견된 사용자",
+  "Output only": "출력 전용",
+  "This is an output-only value used by the chaining and not recorded as a finding.": "체이닝에서 사용되는 출력 전용 값이며 finding으로 기록되지 않습니다.",
   "Dismiss": "무시",
   "Display legend": "범례 표시",
   "Display list": "목록 표시",

@@ -77,6 +77,10 @@ export interface AttackPathFlowNodeData {
   // For a finding node: the id of the endpoint (ASSET) node it was discovered on, so a direct click
   // on the finding can open its details panel by focusing that endpoint's path.
   assetNodeId?: string;
+  // For a finding node: false when the node is an output-only value (a chaining output not persisted
+  // as a Finding, ADR-004), true for a real finding. Drives the "Output only" badge and the degraded
+  // drawer. Absent on non-finding nodes.
+  isFinding?: boolean;
   // For an endpoint (ASSET) node: its 1-based rank among the top chokepoints (most findings), used to
   // badge the most-exposed endpoints. Absent when the endpoint is not a top chokepoint.
   chokepointRank?: number;
@@ -147,6 +151,8 @@ const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   stepTemplateId: n.stepTemplateId,
   injectorType: n.injectorType,
   attackPatterns: n.attackPatterns,
+  assetNodeId: n.assetNodeId,
+  isFinding: n.isFinding,
 });
 
 const EDGE_EXECUTIONS = 'EDGE_EXECUTIONS';

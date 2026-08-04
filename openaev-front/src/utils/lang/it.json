@@ -938,6 +938,8 @@
   "Discovered on": "Scoperto il",
   "Discovered Shares": "Condivisioni rilevate",
   "Discovered Users": "Utenti scoperti",
+  "Output only": "Solo output",
+  "This is an output-only value used by the chaining and not recorded as a finding.": "Questo è un valore di solo output utilizzato dal concatenamento e non registrato come finding.",
   "Dismiss": "Ignora",
   "Display legend": "Visualizza la legenda",
   "Display list": "Visualizza elenco",

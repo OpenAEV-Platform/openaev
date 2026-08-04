@@ -31,6 +31,9 @@ interface Props {
   expectations?: FindingExpectations;
   actions: ProducingAction[];
   activeRef: string | null;
+  // false when the node is an output-only value (a chaining output not persisted as a Finding,
+  // ADR-004): the panel renders a degraded banner and omits finding-only affordances. Defaults true.
+  isFinding?: boolean;
   onSelect: (ref: string) => void;
   onClose: () => void;
 }
@@ -42,9 +45,10 @@ const EXPECTATION_ORDER: (keyof FindingExpectations)[] = ['prevention', 'detecti
 // Selecting a producing action opens the Result & Terminal panel next to it, so the finding, its path
 // (highlighted on the map) and the raw execution result can all be inspected at once. All values are
 // rendered as inert text (secrets are masked upstream); nothing here is injected as HTML.
-const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectations, actions, activeRef, onSelect, onClose }: Props) => {
+const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectations, actions, activeRef, isFinding = true, onSelect, onClose }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const isOutputOnly = isFinding === false;
 
   // Colour a verdict per its expectation type: a successful prevention is green, a successful
   // detection is orange, a failed verdict is red, and an unknown one is muted.
@@ -112,6 +116,11 @@ const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectati
       </div>
 
       <div style={{ padding: theme.spacing(0, 2.5, 2) }}>
+        {isOutputOnly && (
+          <Alert severity="info" sx={{ mt: 1 }}>
+            {t('This is an output-only value used by the chaining and not recorded as a finding.')}
+          </Alert>
+        )}
         <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
           {t('Discovered on')}
         </Typography>
