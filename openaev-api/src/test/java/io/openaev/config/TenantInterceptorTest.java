@@ -17,8 +17,10 @@ import org.springframework.web.servlet.HandlerMapping;
 @DisplayName("TenantInterceptor")
 class TenantInterceptorTest {
 
-  private final TenantInterceptor interceptor =
-      new TenantInterceptor(mock(TenantMembershipCacheManager.class));
+  private final TenantMembershipCacheManager tenantMembershipCacheManager =
+      mock(TenantMembershipCacheManager.class);
+  private final TenantUriUtils tenantUriUtils = new TenantUriUtils();
+  private final TenantInterceptor interceptor = new TenantInterceptor(tenantMembershipCacheManager, tenantUriUtils);
 
   @AfterEach
   void cleanup() {

@@ -11,6 +11,8 @@ import io.openaev.rest.exception.TenantAccessDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
+import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -41,32 +43,28 @@ import org.springframework.web.servlet.HandlerMapping;
 public class TenantInterceptor implements AsyncHandlerInterceptor {
 
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final TenantUriUtils tenantUriUtils;
 
   @Override
   @SuppressWarnings("unchecked")
   public boolean preHandle(
       HttpServletRequest request, HttpServletResponse response, Object handler) {
-    Map<String, String> pathVariables =
-        (Map<String, String>) request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
-    if (pathVariables != null && pathVariables.containsKey(TENANT_ID_PATH_VARIABLE)) {
-      String tenantId = pathVariables.get(TENANT_ID_PATH_VARIABLE);
-
+    tenantUriUtils.getTenantIdFromRequestUrl(request).ifPresent(tenantId -> {
       if (!targetsTenantResource(handler)) {
         // Validate the authenticated user belongs to this tenant
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null
-            && authentication.isAuthenticated()
-            && !ANONYMOUS_USER.equals(authentication.getPrincipal())) {
+                && authentication.isAuthenticated()
+                && !ANONYMOUS_USER.equals(authentication.getPrincipal())) {
           OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
           if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(
-              principal.getId(), tenantId)) {
+                  principal.getId(), tenantId)) {
             throw new TenantAccessDeniedException(tenantId);
           }
         }
       }
-
       TenantContext.setCurrentTenant(tenantId);
-    }
+    });
     return true;
   }
 
