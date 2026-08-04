@@ -56,7 +56,8 @@ public class WorkflowApi extends RestBehavior {
   @AccessControl(
       resourceId = "#workflowId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.WORKFLOW)
+      resourceType = ResourceType.WORKFLOW,
+      isEnterpriseEdition = true)
   @LogExecutionTime
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
@@ -76,7 +77,10 @@ public class WorkflowApi extends RestBehavior {
       responseCode = "404",
       description = "Workflow not found or the INJECT_CHAINING feature is disabled")
   @GetMapping("/{workflowId}/valid-assets")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
+  @AccessControl(
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.WORKFLOW,
+      isEnterpriseEdition = true)
   @LogExecutionTime
   public List<ScopeAssetOutput> getValidAssets(@PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
@@ -100,7 +104,8 @@ public class WorkflowApi extends RestBehavior {
   @AccessControl(
       resourceId = "#workflowId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.WORKFLOW)
+      resourceType = ResourceType.WORKFLOW,
+      isEnterpriseEdition = true)
   public WorkflowConfigurationOutput updateWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {
