@@ -15,6 +15,7 @@ import { useHelper } from '../../../store';
 import type { ScopeVariableInput, WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
+import useLivePolling from '../../../utils/hooks/useLivePolling';
 import ScopeExecutionLimits from './ScopeExecutionLimits';
 import ScopeRules from './ScopeRules';
 import ScopeVariables from './ScopeVariables';
@@ -41,6 +42,14 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
     dispatch(fetchTeams());
     dispatch(fetchPlayers());
   });
+
+  // Keep the Scope tab live: the AI edits the allow/deny lists, variables and limits during a run, so
+  // re-read the workflow configuration on a visible cadence (the reference lists rarely move mid-run,
+  // so only the configuration is polled). It flows through the store, so the cards reflect the latest
+  // scope without a manual reload and without disturbing any open edit dialog (that is local state).
+  useLivePolling(() => {
+    dispatch(fetchWorkflowConfiguration(workflowId));
+  }, { enabled: !!workflowId });
 
   type WorkflowScopeRuleLike = Partial<WorkflowScopeRuleInput> & { get?: (key: keyof WorkflowScopeRuleInput) => unknown };
   type ScopeVariableLike = Partial<ScopeVariableInput> & { get?: (key: keyof ScopeVariableInput) => unknown };

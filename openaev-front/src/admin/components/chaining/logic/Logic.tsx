@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchConditions, fetchSteps } from '../../../../actions/chaining/chaining-actions';
 import { fetchValidAssets, fetchValidTeams } from '../../../../actions/chaining/workflow-actions';
@@ -8,6 +8,7 @@ import type {
   ScopeTeamOutput,
   StepOutput,
 } from '../../../../utils/api-types';
+import useLivePolling from '../../../../utils/hooks/useLivePolling';
 import useRemainingViewportHeight from '../../../../utils/hooks/useRemainingViewportHeight';
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
 import ComponentStepperDrawer, { type DrawerView } from './drawer/ComponentStepperDrawer';
@@ -74,30 +75,64 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }
     }
   }, [workflowId]);
 
-  // Check if there are existing steps or events
-  useEffect(() => {
-    if (!workflowId) return;
-    Promise.all([
+  // Fingerprint of the workflow's shape (which steps/triggers exist and when each last changed) so a
+  // live poll can tell a real edit from a no-op tick: it re-draws the graph on an add, a delete or an
+  // in-place edit (the *_updated_at moves), and does nothing at all when the run is quiet.
+  const shapeSignatureRef = useRef<string | null>(null);
+  const shapeSignature = (steps: StepOutput[], events: EventOutput[]) => [
+    steps.map(s => `${s.step_id}:${s.step_updated_at ?? ''}`).sort().join(','),
+    events.map(e => `${e.event_id}:${e.event_updated_at ?? ''}`).sort().join(','),
+  ].join('|');
+
+  // Single loader for the workflow shape, shared by the initial read, the live poll and the mutation
+  // callbacks. It only bumps `refreshKey` (which re-fetches the graph) when the shape actually moved,
+  // so a steady poll never resets the user's pan/zoom or selection — the graph is left strictly alone
+  // until the AI (or the user) changes something. `force` re-draws right after a local mutation.
+  const syncShape = useCallback(async ({ force = false }: { force?: boolean } = {}) => {
+    if (!workflowId) {
+      return;
+    }
+    const [stepsRes, conditionsRes] = await Promise.all([
       fetchSteps(workflowId),
       fetchConditions(workflowId),
-    ]).then(([stepsRes, conditionsRes]) => {
-      const steps: StepOutput[] = stepsRes.data ?? [];
-      const events: EventOutput[] = conditionsRes.data ?? [];
-      setHasExistingData(steps.length > 0 || events.length > 0);
-      setEventCount(events.length);
-    });
-  }, [workflowId, refreshKey]);
+    ]);
+    const steps: StepOutput[] = stepsRes.data ?? [];
+    const events: EventOutput[] = conditionsRes.data ?? [];
+    setHasExistingData(steps.length > 0 || events.length > 0);
+    setEventCount(events.length);
+    const signature = shapeSignature(steps, events);
+    // First read of this workflow just seeds the fingerprint: the graph fetches itself on mount, so
+    // bumping here would be a redundant second fetch.
+    const isFirstRead = shapeSignatureRef.current === null;
+    if (force || (!isFirstRead && signature !== shapeSignatureRef.current)) {
+      setRefreshKey(k => k + 1);
+    }
+    shapeSignatureRef.current = signature;
+  }, [workflowId]);
+
+  // Re-seed and re-read whenever the workflow changes (simulation/scenario switch).
+  useEffect(() => {
+    shapeSignatureRef.current = null;
+    setHasExistingData(null);
+    void syncShape();
+  }, [workflowId, syncShape]);
+
+  // Keep the Logic tab live: while it is open and visible, poll for shape changes the AI (or another
+  // user) commits, so authored steps appear without a manual tab reload. Refreshes on change only.
+  useLivePolling(() => {
+    void syncShape();
+  }, { enabled: !!workflowId });
 
   const handleStepCreated = useCallback(() => {
     setHasExistingData(true);
-    setRefreshKey(k => k + 1);
-  }, []);
+    void syncShape({ force: true });
+  }, [syncShape]);
 
   const handleEventCreated = useCallback(() => {
     setHasExistingData(true);
     setEventCount(c => c + 1);
-    setRefreshKey(k => k + 1);
-  }, []);
+    void syncShape({ force: true });
+  }, [syncShape]);
 
   const handleOpenDrawer = useCallback(() => {
     setCompatibleActionFilter(undefined);
