@@ -746,12 +746,32 @@ public class InjectorContractService implements DependenciesManager {
         tuple.get("payload_type", String.class),
         tuple.get("collector_type", String.class),
         tuple.get("injector_contract_injector_type", String.class),
-        tuple.get("injector_contract_attack_patterns", String[].class),
-        tuple.get("injector_contract_tags", String[].class),
-        tuple.get("injector_contract_domains", String[].class),
+        dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
+        dedupePreservingOrder(tuple.get("injector_contract_tags", String[].class)),
+        dedupePreservingOrder(tuple.get("injector_contract_domains", String[].class)),
         tuple.get("injector_contract_updated_at", Instant.class),
         tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class),
         injectorNames);
+  }
+
+  /**
+   * Deduplicates an array of IDs while preserving first-seen order.
+   *
+   * <p>{@code buildCommonInjectorContractContext} aggregates several independent collections
+   * (domains, attack patterns, tags) via parallel LEFT JOINs under a single GROUP BY that doesn't
+   * cover any of them; when a contract has more than one row in one of those collections, the
+   * cartesian product duplicates every value from the others. Deduplicating here is a query-shape
+   * workaround, not a data fix: the underlying rows are correct, only their cartesian-product
+   * expansion isn't.
+   *
+   * @param values the raw (possibly duplicate-laden) array, or {@code null}
+   * @return a deduplicated array, or {@code null} if the input was {@code null}
+   */
+  private static String[] dedupePreservingOrder(String[] values) {
+    if (values == null) {
+      return null;
+    }
+    return Arrays.stream(values).distinct().toArray(String[]::new);
   }
 
   /**
@@ -931,11 +951,11 @@ public class InjectorContractService implements DependenciesManager {
         tuple.get("injector_contract_updated_at", Instant.class),
         tuple.get("injector_contract_labels", Map.class),
         tuple.get("injector_contract_injector_type", String.class),
-        tuple.get("injector_contract_domains", String[].class),
+        dedupePreservingOrder(tuple.get("injector_contract_domains", String[].class)),
         tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
-        tuple.get("injector_contract_tags", String[].class),
+        dedupePreservingOrder(tuple.get("injector_contract_tags", String[].class)),
         payload,
-        tuple.get("injector_contract_attack_patterns", String[].class),
+        dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
         tuple.get("injector_contract_payload_author", String.class),
         tuple.get("injector_contract_payload_author_name", String.class),
         tuple.get("injector_contract_payload_author_type", String.class));

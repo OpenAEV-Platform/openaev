@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -950,6 +950,70 @@ describe('buildCausalChainFlow', () => {
     const expandedCausal = expandedFlow.edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
     expect(expandedCausal).toHaveLength(5);
     expect(expandedCausal.filter(e => e.data?.label).length).toBe(1);
+
+    // causalSourceByFinding: while collapsed, every one of the 5 findings resolves to the cluster that
+    // represents them (there is no node of their own to resolve to); once expanded, each resolves to
+    // itself. A caller seeding a highlight/focus on a raw finding id must go through this map first, or
+    // it seeds on an id with no matching node at all (see the scopeChainFlowToSeeds fallback test).
+    fids.forEach(v => expect(collapsedFlow.causalSourceByFinding.get(`NODE_FINDING|share|${v}`)).toBe(clusterNodes[0].id));
+    fids.forEach(v => expect(expandedFlow.causalSourceByFinding.get(`NODE_FINDING|share|${v}`)).toBe(`NODE_FINDING|share|${v}`));
+  });
+
+  it('routes findings on overflow-hidden endpoints through the "+N" endpoint cluster in causalSourceByFinding', () => {
+    // 6 distinct endpoints at one depth > cap of 4: ep-5/ep-6 collapse into the `chain-epc|0` endpoint
+    // cluster and their findings never render at all — causalSourceByFinding must resolve those findings
+    // to that cluster (the third resolution case, alongside "itself" and "its type cluster" covered
+    // above), so a seed/highlight on one of them still anchors on something rendered.
+    const eps = ['1', '2', '3', '4', '5', '6'];
+    const overflow: AttackPathDTO = {
+      ...chainDto,
+      attackPathNodes: [
+        {
+          id: 'inj-A',
+          type: 'INJECTOR',
+          label: 'A',
+        },
+        ...eps.map(v => ({
+          id: `ep-${v}`,
+          type: 'ASSET' as const,
+          label: `EP${v}`,
+          ip: `10.0.0.${v}`,
+        })),
+        ...eps.map(v => ({
+          id: `NODE_FINDING|cred|${v}`,
+          type: 'FINDING' as const,
+          typeFindings: 'credentials',
+          value: `cred-${v}`,
+          label: `cred-${v}`,
+        })),
+      ],
+      attackPathExecutions: eps.map(v => ({
+        id: `x${v}`,
+        type: 'EXECUTION' as const,
+        ref: `exec-${v}`,
+        stepTemplateId: 'step-A',
+        findingsNodeIds: [`NODE_FINDING|cred|${v}`],
+        dependsOn: [],
+      })),
+      attackPathEdges: eps.map(v => ({
+        type: 'EDGE_EXECUTIONS' as const,
+        edgeSourceId: 'inj-A',
+        edgeTargetId: `ep-${v}`,
+        executionIds: [`exec-${v}`],
+      })),
+    };
+
+    const flow = buildCausalChainFlow(overflow, tt);
+    const epCluster = flow.nodes.find(n => n.id === 'chain-epc|0');
+    expect(epCluster).toBeDefined();
+    expect(epCluster!.data.count).toBe(2);
+    // The hidden endpoints' findings have no node of their own; they resolve to the endpoint cluster.
+    ['5', '6'].forEach((v) => {
+      expect(flow.nodes.some(n => n.id === `NODE_FINDING|cred|${v}`)).toBe(false);
+      expect(flow.causalSourceByFinding.get(`NODE_FINDING|cred|${v}`)).toBe('chain-epc|0');
+    });
+    // The visible endpoints' findings render individually and resolve to themselves.
+    ['1', '2', '3', '4'].forEach(v => expect(flow.causalSourceByFinding.get(`NODE_FINDING|cred|${v}`)).toBe(`NODE_FINDING|cred|${v}`));
   });
 
   it('anchors the causal edge on the finding of the resolved producer, not another injector sharing the type', () => {
@@ -1290,6 +1354,95 @@ describe('scopeChainFlowToSeeds', () => {
 
     expect(scoped.nodes).toContainEqual(injectorNode);
     expect(scoped.nodes.length).toBeLessThan(chainFlow.nodes.length);
+  });
+
+  it('scopes down correctly, instead of falling back to the full chain, when the seed is resolved through causalSourceByFinding first', () => {
+    // Reproduces picking one of the 5 collapsed findings from a drawer/summary list (not clicking an
+    // already-rendered graph node): the caller must resolve the raw finding id to whatever actually
+    // represents it (its cluster, here) before seeding, exactly as SimulationAttackPath's
+    // effectiveSelectedFindingId does — seeding on the raw id instead is the previous bug, covered by
+    // the "falls back to the full chain" test above.
+    const chainFlow = buildCausalChainFlow(collapsed, tt);
+    const resolvedSeed = chainFlow.causalSourceByFinding.get('NODE_FINDING|share|a');
+    // Assert the mapping itself first (not a silent cast): if causalSourceByFinding ever stops covering
+    // a collapsed finding, this must fail HERE, not as a confusing downstream scoping mismatch.
+    expect(resolvedSeed).toBeDefined();
+
+    const scoped = scopeChainFlowToSeeds(chainFlow, new Set([resolvedSeed!]));
+
+    expect(scoped.nodes.map(n => n.id).sort()).toEqual(['chain-ep|0|ep-1', 'inj-A', resolvedSeed].sort());
+  });
+});
+
+describe('scopeChainFlowToEndpoint', () => {
+  // An endpoint whose execution edge keys it by its REF, not by its graph node id — the shape a
+  // raw-value / re-resolved target takes. The focus click still only knows the node id.
+  const REF = 'ep-ref-1';
+  const NODE_ID = 'NODE_ENDPOINT|ep-ref-1';
+  const refKeyed: AttackPathDTO = {
+    ...chainDto,
+    attackPathNodes: [
+      {
+        id: 'inj-A',
+        type: 'INJECTOR',
+        label: 'A',
+      },
+      {
+        id: NODE_ID,
+        ref: REF,
+        type: 'ASSET',
+        label: 'EP1',
+        ip: '10.0.0.1',
+      },
+      {
+        id: 'NODE_FINDING|share|s1',
+        type: 'FINDING',
+        typeFindings: 'share',
+        value: 's1',
+        label: 's1',
+      },
+    ],
+    attackPathExecutions: [
+      {
+        id: 'xA',
+        type: 'EXECUTION',
+        ref: 'exec-A',
+        stepTemplateId: 'step-A',
+        findingsNodeIds: ['NODE_FINDING|share|s1'],
+        dependsOn: [],
+      },
+    ],
+    attackPathEdges: [
+      {
+        type: 'EDGE_EXECUTIONS',
+        edgeSourceId: 'inj-A',
+        // Keyed by ref — so the chain endpoint node is `chain-ep|0|ep-ref-1`, not `…|NODE_ENDPOINT|…`.
+        edgeTargetId: REF,
+        executionIds: ['exec-A'],
+      },
+    ],
+  };
+
+  it('resolves a ref-keyed endpoint from its node id, keeping the causal chain scoped', () => {
+    const chainFlow = buildCausalChainFlow(refKeyed, tt);
+    // Passing both identifiers (as the focus does) must resolve, so the focus really scopes down
+    // instead of silently returning the whole chain — which would read as "nothing happened".
+    const scoped = scopeChainFlowToEndpoint(chainFlow, [NODE_ID, REF]);
+
+    expect(scoped.nodes.some(n => n.id === `chain-ep|0|${REF}`)).toBe(true);
+    // The producing injector stays in scope: the causal structure is preserved, not flattened away.
+    expect(scoped.nodes.some(n => n.id === 'inj-A')).toBe(true);
+    expect(scoped.edges.length).toBeGreaterThan(0);
+  });
+
+  it('still resolves when only the matching identifier is supplied, and tolerates undefined ones', () => {
+    const chainFlow = buildCausalChainFlow(refKeyed, tt);
+
+    expect(scopeChainFlowToEndpoint(chainFlow, [undefined, REF]).nodes
+      .some(n => n.id === `chain-ep|0|${REF}`)).toBe(true);
+    // A single string keeps working (the original signature).
+    expect(scopeChainFlowToEndpoint(chainFlow, REF).nodes
+      .some(n => n.id === `chain-ep|0|${REF}`)).toBe(true);
   });
 });
 

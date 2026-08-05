@@ -46,6 +46,7 @@ vi.mock('../../../../../../components/i18n', () => ({
   useFormatter: () => ({
     t: (s: string) => s,
     fldt: (d: string) => d,
+    cnsdt: (d: string) => d,
   }),
 }));
 
@@ -232,15 +233,17 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(item);
 
     // Clicking the finding refocuses the map on its attack path (fit requested) and loads the
-    // endpoint's feed for detail.
+    // endpoint's feed, whose relations label the focused layout's injector edges.
     await waitFor(() => {
       // First page of the endpoint's feed; the edges come back whole regardless.
       expect(mocks.fetchEndpointRelations).toHaveBeenCalledWith('sim-1', 'host-x', 0, 50);
       expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
     });
 
-    // The feed panel is titled with the endpoint's friendly hostname, not the raw key.
-    expect(await screen.findByText(/CORP-HOST/)).toBeTruthy();
+    // No side panel is forced open: the click is about the focused graph, and a panel would take back
+    // the width the focus just revealed. The graph stays rendered, the detail is one node click away.
+    expect(await screen.findByTestId('attack-path-flow')).toBeTruthy();
+    expect(screen.queryByText(/Executions/)).toBeNull();
   });
 
   it('opens the result & terminal panel for a clicked execution and focuses its endpoint on the map', async () => {
@@ -338,19 +341,31 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     setup();
     await screen.findByTestId('attack-path-flow');
 
+    // Open the endpoint's panel first (plain node click), so the row click below also proves a focus
+    // request CLOSES a panel left open — not merely that it does not open one.
+    await act(async () => {
+      mocks.flowProps.current?.onEndpointClick?.(ENDPOINT_NODE, 'host-x', 'CORP-HOST');
+    });
+    expect(await screen.findByText(/Executions/)).toBeTruthy();
+
     // Toggle to the table view; the graph is replaced by the sortable endpoint table.
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
 
     // The single exposed endpoint (score 1) is listed with its friendly hostname and total findings,
-    // and the CSV export action is available.
-    expect(await screen.findByText('CORP-HOST')).toBeTruthy();
+    // and the CSV export action is available. The hostname appears twice on purpose here: the table
+    // cell AND the still-open panel's title — the td is the row under test.
+    const rowCell = (await screen.findAllByText('CORP-HOST')).find(el => el.tagName === 'TD');
+    expect(rowCell).toBeTruthy();
     expect(screen.getByRole('button', { name: /Export CSV/ })).toBeTruthy();
 
-    // Clicking the row opens that endpoint's detail panel inline (its Executions section) and stays
-    // in the table view — a row click must not silently swap the whole view back to the graph.
-    fireEvent.click(screen.getByText('CORP-HOST'));
-    expect(await screen.findByText(/Executions/)).toBeTruthy();
-    expect(screen.queryByTestId('attack-path-flow')).toBeNull();
+    // Clicking the row focuses the graph on that endpoint's own causal path (same as a chokepoint card
+    // or a search pick): the table is a way IN to an endpoint, so it lands on the focused graph rather
+    // than leaving the analyst on the list — and without the side panel over it: the previously open
+    // panel closes rather than lingering (stale) over the freshly focused, full-width graph.
+    fireEvent.click(rowCell as HTMLElement);
+    expect(await screen.findByTestId('attack-path-flow')).toBeTruthy();
+    expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
+    expect(screen.queryByText(/Executions/)).toBeNull();
   });
 });
 
@@ -539,5 +554,56 @@ describe('SimulationAttackPath live delta updates', () => {
     // is gone.
     expect(screen.getByText('Reconnecting…')).toBeTruthy();
     expect(screen.getByTestId('attack-path-flow')).toBeTruthy();
+  });
+
+  it('re-frames the camera when a live delta grows the graph, then hands over to pursuit', async () => {
+    // One growth delta per tick, each introducing a distinct endpoint so every one is real growth.
+    const growthDelta = (version: number, host: string) => ({
+      data: {
+        sinceVersion: version - 1,
+        newVersion: version,
+        attackPathNodes: [{
+          id: `NODE_ENDPOINT|${host}`,
+          type: 'ASSET',
+          label: host,
+          hostname: host,
+          ref: host,
+          findingCounts: {},
+        }],
+        attackPathEdges: [{
+          edgeId: `edge-nmap-${host}`,
+          edgeSourceId: 'NODE_INJECTOR|nmap',
+          edgeTargetId: `NODE_ENDPOINT|${host}`,
+          type: 'EDGE_EXECUTIONS',
+          count: 1,
+        }],
+      },
+    });
+
+    setup();
+    // Both initial reads must settle: the collapsed seed AND the causal overlay merged in after it
+    // each bump the structural nonce, and neither is live growth — they are the initial framing.
+    await mounted();
+    await mounted();
+    const afterInitialLoad = mocks.flowProps.current?.fitRequest ?? 0;
+
+    // A live delta introduces an endpoint. It lands outside the framed viewport, so the camera must
+    // re-frame — otherwise the run draws itself off-screen until the user pans by hand.
+    mocks.fetchAttackPathGraphDelta.mockResolvedValue(growthDelta(11, 'host-a'));
+    await tick();
+    const afterFirstGrowth = mocks.flowProps.current?.fitRequest ?? 0;
+    expect(afterFirstGrowth).toBeGreaterThan(afterInitialLoad);
+
+    // The framing budget is AP_MAX_LIVE_FITS (2) LIVE deltas, so the second one still re-frames.
+    mocks.fetchAttackPathGraphDelta.mockResolvedValue(growthDelta(12, 'host-b'));
+    await tick();
+    const afterSecondGrowth = mocks.flowProps.current?.fitRequest ?? 0;
+    expect(afterSecondGrowth).toBeGreaterThan(afterFirstGrowth);
+
+    // Budget spent: the camera now CHASES the newest nodes at the current zoom instead of pulling
+    // back on every delta — so no further re-fit, and the new nodes are handed to pursuit instead.
+    mocks.fetchAttackPathGraphDelta.mockResolvedValue(growthDelta(13, 'host-c'));
+    await tick();
+    expect(mocks.flowProps.current?.fitRequest ?? 0).toBe(afterSecondGrowth);
   });
 });

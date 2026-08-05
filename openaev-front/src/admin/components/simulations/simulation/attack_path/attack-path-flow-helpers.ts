@@ -1595,6 +1595,11 @@ export const buildCausalChainFlow = (
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
+  // Finding node id -> the flow node that actually represents it (itself, or its collapsed type
+  // cluster). Lets a caller that wants to seed/highlight a specific finding (e.g. one picked from a
+  // drawer list) resolve it to whatever is ACTUALLY rendered, instead of a raw finding id that has no
+  // node at all while its cluster is still collapsed.
+  causalSourceByFinding: Map<string, string>;
 } => {
   const dtoNodes = dto.attackPathNodes ?? [];
   // Index by BOTH node id and ref: an execution edge may key an endpoint/injector by either form, and a
@@ -2267,6 +2272,7 @@ export const buildCausalChainFlow = (
   return {
     nodes,
     edges,
+    causalSourceByFinding,
   };
 };
 
@@ -2335,18 +2341,30 @@ export const scopeChainFlowToSeeds = (
 // scopeChainFlowToSeeds, seeded on every depth-instance of one endpoint (the causal chain lays the
 // same physical endpoint out again at each depth it's touched, each a distinct `chain-ep|depth|id`
 // node) — the endpoint-focus case (chokepoint click, endpoint drill-down with no specific finding).
+//
+// `endpointIds` takes every identifier the endpoint is known by (its graph node id AND its ref): a
+// chain endpoint node is keyed by whatever form its execution edge carried, which is not always the
+// form the caller holds. Accepting only one of them left a ref-keyed endpoint unresolvable, and an
+// unresolvable seed falls through to the whole-chain safety net below — the graph comes back
+// unchanged, so the focus click reads as "nothing happened".
 export const scopeChainFlowToEndpoint = (
   chainFlow: {
     nodes: AttackPathFlowNode[];
     edges: AttackPathFlowEdge[];
   },
-  endpointId: string,
+  endpointIds: string | ReadonlyArray<string | undefined>,
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
-} => scopeChainFlowToSeeds(
-  chainFlow,
-  new Set(
-    chainFlow.nodes.filter(n => n.id.startsWith('chain-ep|') && n.id.endsWith(`|${endpointId}`)).map(n => n.id),
-  ),
-);
+} => {
+  const candidates = (typeof endpointIds === 'string' ? [endpointIds] : endpointIds)
+    .filter((id): id is string => !!id);
+  return scopeChainFlowToSeeds(
+    chainFlow,
+    new Set(
+      chainFlow.nodes
+        .filter(n => n.id.startsWith('chain-ep|') && candidates.some(id => n.id.endsWith(`|${id}`)))
+        .map(n => n.id),
+    ),
+  );
+};

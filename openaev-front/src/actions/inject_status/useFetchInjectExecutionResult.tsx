@@ -3,7 +3,10 @@ import { useEffect, useState } from 'react';
 import type { InjectResultPayloadExecutionOutput, InjectTarget } from '../../utils/api-types';
 import { fetchInjectExecutionResult } from './inject-status-action';
 
-const useFetchInjectExecutionResult = (injectId: string, target: InjectTarget) => {
+// `target` may be null while the caller is still resolving which target to show
+// (e.g. the attack-path panel resolves it from a search): the fetch simply waits
+// until a target with an id and type is provided.
+const useFetchInjectExecutionResult = (injectId: string, target: InjectTarget | null) => {
   const [injectExecutionResult, setInjectExecutionResult] = useState<InjectResultPayloadExecutionOutput>();
   const [loading, setLoading] = useState(false);
   const fetch = async () => {

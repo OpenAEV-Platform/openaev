@@ -186,7 +186,9 @@ const CategoryFindingsPanel = ({
                     flex: 1,
                   }}
                   >
-                    <Typography variant="body2" title={maskedValue} sx={{ wordBreak: 'break-all' }}>{maskedValue}</Typography>
+                    {/* One ellipsised line even for huge values (e.g. a raw action output); the
+                        title tooltip keeps the full (masked) value, like the graph's node labels. */}
+                    <Typography variant="body2" noWrap title={maskedValue}>{maskedValue}</Typography>
                     {endpointName && (
                       <Typography variant="caption" color="text.secondary" noWrap title={endpointName} sx={{ display: 'block' }}>
                         {endpointName}

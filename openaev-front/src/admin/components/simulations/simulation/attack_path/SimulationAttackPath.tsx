@@ -200,7 +200,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // Scenario context lists several runs to pick from; simulation context is locked to its own run.
   const showPicker = scenarioExerciseIds !== undefined;
   const theme = useTheme();
-  const { t, fldt } = useFormatter();
+  const { t, fldt, cnsdt } = useFormatter();
   const navigate = useNavigate();
 
   // The view sizes itself to the exact space left under the page chrome (no page scrollbar).
@@ -380,11 +380,18 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           nonce: structuralNonce,
         });
       } else {
-        liveFitCount.current += 1;
         setFitNonce(n => n + 1);
+        // Only LIVE growth spends the framing budget. The initial load also bumps the structural
+        // nonce — once for the collapsed seed, once for the causal overlay merged in after it — and
+        // those carry no batch. Counting them exhausted the budget before the first delta ever
+        // arrived, so pursuit engaged immediately and every growth re-fit was suppressed for the
+        // rest of the run (the graph then drew itself off-screen until the user panned by hand).
         // Only a run still producing deltas graduates to pursuit; a terminal run loads once and fits.
-        if (!runTerminal && liveFitCount.current >= AP_MAX_LIVE_FITS) {
-          setPursuitActive(true);
+        if (newNodeIds.length > 0) {
+          liveFitCount.current += 1;
+          if (!runTerminal && liveFitCount.current >= AP_MAX_LIVE_FITS) {
+            setPursuitActive(true);
+          }
         }
       }
     }
@@ -530,23 +537,34 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   }, [exerciseId, scenarioExerciseIds, showPicker]);
 
   // Readable label for a simulation id: "date · name" for real simulations, raw id for seeds/unknowns.
+  // The date alone identifies the run here: the simulation's name is already on the page header above
+  // the tabs, so repeating it only widened the picker. Compact numeric form (05/08/26 16:06 in fr,
+  // locale-adapted elsewhere) rather than the long prose one ("August 5, 2026 at 4:06:00 PM"). A run
+  // with no start date has nothing to show but its name, so that case still falls back to it.
   const labelFor = useCallback((simId?: string): string => {
     if (!simId) {
       return '';
     }
     const meta = metaById.get(simId);
-    if (meta?.exercise_name) {
-      return meta.exercise_start_date
-        ? `${fldt(meta.exercise_start_date)} · ${meta.exercise_name}`
-        : meta.exercise_name;
+    if (meta?.exercise_start_date) {
+      return cnsdt(meta.exercise_start_date);
     }
-    return simId;
-  }, [metaById, fldt]);
+    return meta?.exercise_name || simId;
+  }, [metaById, cnsdt]);
 
   // Click a real endpoint (only visible once its injector cluster is expanded): load its own findings
   // (grouped in the side panel) and its executions. Stale responses are dropped.
-  const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string) => {
-    setSelectedNodeId(nodeId);
+  //
+  // `openPanel: false` loads the endpoint's data WITHOUT selecting it, so the side panel stays closed.
+  // A focus request (table row, chokepoint, search pick, finding pick) wants the whole width for the
+  // graph it just focused — opening the panel on top of it immediately narrows the view the click was
+  // meant to reveal. The data is still fetched: the focused layout labels its injector edges from those
+  // relations, and the panel is one node click away once the analyst wants the detail.
+  const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string, opts?: { openPanel?: boolean }) => {
+    // On a focus request, CLOSE any panel a previous node click left open (not just skip opening one):
+    // a stale panel would keep covering the freshly focused graph, showing the new endpoint's data
+    // under the old node's selection highlight.
+    setSelectedNodeId(opts?.openPanel !== false ? nodeId : null);
     setSelectedFindingId(null);
     setSelectedInjectorId(null);
     setFindingDetail(null);
@@ -1030,15 +1048,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       // onEndpointClick itself unconditionally clears selectedFindingId/findingDetail, so both must be
       // re-set AFTER it (matches openFindingFromGraph's ordering) — setting them before it here was
       // the bug: onEndpointClick silently clobbered the canonical id back to null on every click.
-      onEndpointClick(item.endpointNodeId, item.endpointKey, label);
+      // No side panel: like every other focus entry point, the click is about the focused graph, and a
+      // panel opening on top of it takes back the width the focus just revealed.
+      onEndpointClick(item.endpointNodeId, item.endpointKey, label, { openPanel: false });
       if (chainMode) {
         setSelectedFindingId(canonicalId ?? null);
       }
-      setFindingDetail({
-        type: item.type ?? '',
-        value: item.value ?? '',
-        endpointNodeId: item.endpointNodeId,
-      });
       setHighlightedExecutionIds(new Set(item.executionIds ?? []));
     },
     [onEndpointClick, dto?.attackPathNodes, fullDto?.attackPathNodes, chainMode],
@@ -1215,6 +1230,28 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     return fullPending && (row?.executionCount ?? 0) > 0;
   }, [fullDto, fullPending, simulations, simulationId]);
 
+  // The unscoped causal chain for the whole run, in chain mode: built once and reused both to scope the
+  // focused view down and to resolve a specific finding's seed id (effectiveSelectedFindingId below) to
+  // whatever node actually represents it.
+  const fullChain = useMemo(
+    () => (chainMode && fullDto ? buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch) : null),
+    [chainMode, fullDto, t, expandedFindingClusters, endpointClusterBatch],
+  );
+
+  // A finding picked from a drawer/summary list (rather than clicked directly on an already-rendered
+  // graph node) may still be hidden inside a collapsed type cluster (more than CHAIN_FINDINGS_MAX_PER_TYPE
+  // findings of that type on that endpoint) — its raw id then matches no node in the chain at all. Resolve
+  // it to the node that ACTUALLY represents it (itself once expanded, its cluster while collapsed) so
+  // seeding/highlighting below has something real to anchor on. Previously, seeding on the unresolved raw
+  // id (e.g. one of several "Captured Files" past the cluster cap) matched nothing, so
+  // scopeChainFlowToSeeds fell back to showing the ENTIRE unscoped graph with nothing highlighted.
+  const effectiveSelectedFindingId = useMemo(() => {
+    if (!selectedFindingId || !fullChain) {
+      return selectedFindingId;
+    }
+    return fullChain.causalSourceByFinding.get(selectedFindingId) ?? selectedFindingId;
+  }, [selectedFindingId, fullChain]);
+
   const baseFlow = useMemo(
     () => {
       if (!dto) {
@@ -1233,26 +1270,16 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         nodes: AttackPathFlowNode[];
         edges: AttackPathFlowEdge[];
       };
-      if (pathFinding && chainMode && fullDto) {
+      if (pathFinding && chainMode && fullChain) {
         // Chain mode has the real kill chain already built for the whole run — scope THAT down
         // instead of falling back to buildFindingPathFlow's flatter, non-causal layout, so the
         // focused view keeps the causal ("Triggered ...") structure between actions. A specific
-        // finding (selectedFindingId) seeds on itself for a tighter focus that skips the endpoint's
-        // unrelated siblings; the plain endpoint-only focus (chokepoint click) seeds on the endpoint.
-        const fullChain = buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch);
+        // finding (effectiveSelectedFindingId — already resolved to its collapsed cluster when the
+        // raw finding has no node of its own) seeds on itself for a tighter focus that skips the
+        // endpoint's unrelated siblings.
         let seeds: Set<string> | null = null;
-        if (selectedFindingId) {
-          if (fullChain.nodes.some(n => n.id === selectedFindingId)) {
-            seeds = new Set([selectedFindingId]);
-          } else {
-            // The finding is collapsed inside its "+N" type cluster (no node of its own in the
-            // chain): seed on that cluster so the focused path still shows where it lives.
-            const ftype = (fullDto.attackPathNodes ?? []).find(n => n.id === selectedFindingId)?.typeFindings ?? '';
-            const cluster = fullChain.nodes.find(n => n.id.startsWith('chain-fc|') && n.id.endsWith(`|${pathFinding.endpointNodeId}|${ftype}`));
-            if (cluster) {
-              seeds = new Set([cluster.id]);
-            }
-          }
+        if (effectiveSelectedFindingId) {
+          seeds = new Set([effectiveSelectedFindingId]);
         } else if (selectedInjectorId && fullChain.nodes.some(n => n.id === selectedInjectorId)) {
           // A clicked action (with no finding selected) seeds the scope on itself, so the WHOLE chain
           // through it — including its downstream consequences (recipient team, follow-on actions) —
@@ -1261,17 +1288,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           // walk found nothing, so the graph read as "nothing highlighted".
           seeds = new Set([selectedInjectorId]);
         }
+        // The plain endpoint-only focus (chokepoint click, no finding/action selected) seeds on the
+        // endpoint itself, matched on EVERY identifier it is known by — its graph node id AND its ref —
+        // because a chain endpoint node is keyed by whatever form its execution edge carried, which is
+        // not always the same form the click hands us. Matching on the node id alone left a
+        // ref-keyed endpoint unresolvable, and an unresolvable seed makes the scoper return the whole
+        // chain (its no-empty-canvas safety net), so the graph came back identical and the click read
+        // as "nothing happened".
         raw = seeds
           ? scopeChainFlowToSeeds(fullChain, seeds)
-          : scopeChainFlowToEndpoint(fullChain, pathFinding.endpointNodeId);
+          : scopeChainFlowToEndpoint(fullChain, [pathFinding.endpointNodeId, pathFinding.endpointKey]);
       } else if (pathFinding) {
         raw = buildFindingPathFlow(dto, pathFinding, t, pathContractLabelByInjector, {
           expanded: expandedFindingClusters,
           findingsByCluster,
           batch: findingBatch,
         });
-      } else if (chainMode && fullDto) {
-        raw = buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch);
+      } else if (fullChain) {
+        raw = fullChain;
       } else {
         raw = buildClusteredAttackPathFlow(dto, endpointBatch, t, {
           expanded: expandedFindingClusters,
@@ -1297,7 +1331,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       };
     },
     [
-      dto, chainMode, fullDto, pathFinding, selectedFindingId, selectedInjectorId, pathContractLabelByInjector, endpointBatch,
+      dto, chainMode, fullChain, pathFinding, effectiveSelectedFindingId, selectedInjectorId, pathContractLabelByInjector, endpointBatch,
       expandedFindingClusters, endpointClusterBatch, findingsByCluster, findingBatch, chokepointRankById, pivotNodeIds, t,
     ],
   );
@@ -1743,7 +1777,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         // The focused finding is highlighted inside its own type cluster (no extracted node), so the
         // default active node is that type's cluster. A leaf finding clicked in place overrides it.
         const defaultId = `path-cl-type|${pathFinding.type}|${pathFinding.endpointKey}`;
-        activeId = selectedFindingId ?? defaultId;
+        // effectiveSelectedFindingId (not the raw selectedFindingId): in chain mode a finding picked
+        // from a drawer/summary list may still be hidden inside a collapsed type cluster, so its own id
+        // has no node to seed on — resolved to that cluster's id instead (see its definition above).
+        activeId = effectiveSelectedFindingId ?? defaultId;
         // Only the injector(s) that actually produced the focused finding light up — not every injector
         // that merely reached the endpoint — so the highlighted path stays scoped to the finding the
         // analyst opened, even after expanding its cluster. Chain mode is exempt: producingInjectorIds
@@ -1845,14 +1882,16 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           }
         }
       }
-    } else if (selectedFindingId && chainMode) {
+    } else if (effectiveSelectedFindingId && chainMode) {
       // Chain view: mirror the selectedInjectorId&&chainMode branch above — a finding several hops
       // into the causal chain (e.g. a captured file dropped by a late-stage action) previously only
       // lit its immediate producing injector, because the restricted walk below (kept for the
       // non-chain/clustered case) explicitly skips causal edges. In chain mode there's no shared-hub
       // ambiguity to guard against, so walk the same unrestricted way: from the first action through
-      // every action that led to this finding.
-      pathSet.add(selectedFindingId);
+      // every action that led to this finding. Seeded on effectiveSelectedFindingId (not the raw
+      // selectedFindingId): a finding picked from a drawer/summary list may be hidden inside a still-
+      // collapsed type cluster, which has no node of its own to seed on.
+      pathSet.add(effectiveSelectedFindingId);
       for (let pass = 0; pass < 8; pass += 1) {
         for (const e of baseFlow.edges) {
           if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source)) {
@@ -1937,7 +1976,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     };
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
   }, [
-    baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId,
+    baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, effectiveSelectedFindingId, selectedInjectorId,
     focus, dto?.attackPathEdges, fullDto?.attackPathEdges, highlightedExecutionIds, chainMode,
   ]);
 
@@ -2360,8 +2399,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   const [searchInput, setSearchInput] = useState('');
 
   // Focus a chokepoint endpoint: redraw the graph as the focused endpoint path (injectors -> endpoint
-  // -> its finding clusters) and open its side panel (findings + executions). Uses the endpoint-focus
-  // mode of buildFindingPathFlow (empty finding type/value).
+  // -> its finding clusters). Shared by the table rows, the chokepoint dialog and the search picks.
+  // The side panel is deliberately NOT opened: the point of the click is the focused graph, and the
+  // panel would immediately take a third of the width back. It stays one node click away.
   const focusChokepoint = (c: {
     nodeId: string;
     ref: string;
@@ -2383,7 +2423,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       value: '',
     });
     setFitNonce(n => n + 1);
-    onEndpointClick(c.nodeId, c.ref, c.label);
+    onEndpointClick(c.nodeId, c.ref, c.label, { openPanel: false });
   };
 
   // Keep the selected value in the options so MUI does not warn when the current simulation has no
@@ -2633,7 +2673,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               rows={tableRows}
               typeColumns={endpointTypeColumns}
               chokepointTopN={CHOKEPOINT_TOP_N}
-              onRowOpen={row => onEndpointClick(row.nodeId, row.ref, row.label)}
+              onRowFocus={row => focusChokepoint(row)}
             />
           </Paper>
         )}
@@ -2781,6 +2821,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
 
               {!findingDetail && selectedNodeId && !detailExecutionId && (
                 <EndpointDetailPanel
+                  simulationId={simulationId}
                   endpointLabel={selectedLabel || t('Endpoint')}
                   emptyFindingsLabel={selectedTargetEmptyFindingsLabel}
                   findingsLoading={endpointFindingsLoading}
@@ -2811,6 +2852,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                 Result / Execution details / Remediation detail (the global command it ran). */}
               {!pathFinding && !findingDetail && !selectedNodeId && selectedInjectorId && !detailExecutionId && (
                 <EndpointDetailPanel
+                  simulationId={simulationId}
                   endpointLabel={injectorPanelLabel || t('Injector')}
                   emptyFindingsLabel={t('No findings from this action')}
                   findingsLoading={injectorFindingsLoading}
