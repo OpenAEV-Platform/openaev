@@ -113,36 +113,44 @@ const FindingTriageControl: FunctionComponent<Props> = ({ findingId, status, var
               <MenuItem key={option} onClick={() => handleSelectOption(option)}>{t(option)}</MenuItem>
             )))}
       </Menu>
-      <DialogConfirmation
-        open={pendingTarget !== null}
-        handleClose={closeDialog}
-        handleSubmit={pendingTarget ? handleConfirm : null}
-        submitLabel={t('Confirm')}
-        text=""
-        disableSubmit={!isJustificationValid}
-        richContent={(
-          <Box sx={{ minWidth: 400 }}>
-            <Box sx={{ mb: 2 }}>
-              {t('Confirm triage change')}
-              {': '}
-              {t(status)}
-              {' → '}
-              {pendingTarget ? t(pendingTarget) : ''}
+      {/* Wrapper stops propagation for every click inside the dialog (justification field,
+          Cancel/Confirm buttons). MUI's Dialog renders its content through a Portal, so it
+          sits elsewhere in the DOM, but React still bubbles the synthetic event up the
+          *component* tree - and this control can be rendered inside a row wrapped in a router
+          Link (FindingList). Without this, typing/clicking here would also trigger that Link's
+          navigation, exactly like the chip click handled in handleOpenMenu above. */}
+      <Box component="span" onClick={(e: MouseEvent) => e.stopPropagation()}>
+        <DialogConfirmation
+          open={pendingTarget !== null}
+          handleClose={closeDialog}
+          handleSubmit={pendingTarget ? handleConfirm : null}
+          submitLabel={t('Confirm')}
+          text=""
+          disableSubmit={!isJustificationValid}
+          richContent={(
+            <Box sx={{ minWidth: 400 }}>
+              <Box sx={{ mb: 2 }}>
+                {t('Confirm triage change')}
+                {': '}
+                {t(status)}
+                {' → '}
+                {pendingTarget ? t(pendingTarget) : ''}
+              </Box>
+              <TextField
+                label={t('Justification')}
+                placeholder={t('Explain your decision (10 to 4000 characters)')}
+                value={justification}
+                onChange={e => setJustification(e.target.value)}
+                multiline
+                minRows={3}
+                fullWidth
+                error={justification.length > 0 && !isJustificationValid}
+                helperText={`${justification.length}/${MAX_JUSTIFICATION_LENGTH}`}
+              />
             </Box>
-            <TextField
-              label={t('Justification')}
-              placeholder={t('Explain your decision (10 to 4000 characters)')}
-              value={justification}
-              onChange={e => setJustification(e.target.value)}
-              multiline
-              minRows={3}
-              fullWidth
-              error={justification.length > 0 && !isJustificationValid}
-              helperText={`${justification.length}/${MAX_JUSTIFICATION_LENGTH}`}
-            />
-          </Box>
-        )}
-      />
+          )}
+        />
+      </Box>
     </>
   );
 };
