@@ -1,4 +1,4 @@
-# RBAC Capability Segregation and No-Escalation — Technical Design (US.1/US.2/US.3)
+# RBAC Capability Segregation and No-Escalation — Technical Design (US.1/US.2/US.3/US.5/US.6)
 
 ## Scope
 
@@ -7,6 +7,8 @@ This design covers:
 1. **US.1**: Extract tenant users/groups/roles permissions from `*_TENANT_SETTINGS` into a dedicated tenant triad.
 2. **US.2**: Enforce tenant no-escalation (cannot grant capabilities you do not hold).
 3. **US.3**: Enforce the same no-escalation rule on platform flows.
+4. **US.5**: Frontend visibility — capabilities the actor does not hold are shown disabled/greyed out wherever role capabilities can be viewed or edited, and cannot be added/removed/toggled.
+5. **US.6**: Frontend blocking — role-to-group and user-to-group assignment is blocked client-side with a clear error message when it would escalate privileges, backend remains the source of truth.
 
 This document intentionally excludes implementation planning details.
 
@@ -15,6 +17,7 @@ This document intentionally excludes implementation planning details.
 1. **Least privilege by capability shape**: tenant settings management must not implicitly grant identity and access administration.
 2. **No privilege escalation**: role/group/user assignment operations cannot increase another user's effective privileges beyond the actor's own effective privileges.
 3. **Parity**: tenant and platform paths use the same authorization model and guard semantics.
+4. **Backend as source of truth, UI as feedback layer**: US.5/US.6 add no new authorization logic — they only reflect the guard rules already enforced server-side (US.2/US.3), so the UI can never be more permissive than the API.
 
 ## Key Decisions
 
@@ -57,6 +60,24 @@ Rationale:
 - Prevents bypass through replacement payload tricks.
 - Keeps behavior deterministic and consistent between create and update.
 - Simplifies reasoning for tenant and platform parity.
+
+### 4. Frontend capability-aware rendering (US.5)
+
+The role/capability editor computes, client-side, the current actor's effective capability set (already returned to the frontend as `user_capabilities` on the session/user object) and cross-references it against the capabilities displayed for a role:
+
+- A capability checkbox/row not present in the actor's effective set is rendered **disabled and greyed out**, with tooltip "Grant capability is disabled because you don't have access to the required capabilities.", regardless of whether the role currently holds it or not.
+- This applies uniformly whether the role being edited already has that capability (e.g. viewing the Admin role) or does not.
+- No new backend endpoint is required: the actor's effective capabilities are already available; this is a pure rendering/interaction rule in the existing capability-editing component(s).
+- This is presentation-only — it does not replace or weaken the backend no-escalation guard (US.2/US.3), which remains authoritative even if a disabled control were somehow bypassed (e.g. direct API call).
+
+### 5. Frontend blocking + error surfacing (US.6)
+
+Before submitting a role-to-group or user-to-group assignment, the frontend pre-checks the same rule the backend guard enforces (US.2/US.3), so the user gets immediate feedback without a round-trip 403:
+
+- **Role-to-group assignment**: if the role being attached contains at least one capability outside the actor's effective set, block submission client-side.
+- **User-to-group assignment**: if the target group's effective capabilities (union of all its roles) contain at least one capability outside the actor's effective set, block submission client-side.
+- **Error message**: "You can't do this operation because you don't have access to the required capabilities."
+- This is a **defense-in-depth / UX layer only**: the backend guard is still invoked and still authoritative. If the frontend pre-check is bypassed or out of sync (e.g. stale client-side capability cache), the backend still returns 403 for the same rule, and the frontend should surface that 403 with the same error message.
 
 ## Authorization Flow Overview
 
@@ -203,6 +224,41 @@ sequenceDiagram
         G-->>SVC: OK
         SVC-->>API: success
         API-->>U: 200/201
+    end
+```
+
+### Flow F — Frontend pre-check blocks unauthorized assignment (US.5 + US.6)
+
+```mermaid
+sequenceDiagram
+    actor U as Tenant/Platform actor (browser)
+    participant UI as Role/Group editor (frontend)
+    participant API as TenantGroupApi / PlatformGroupApi
+    participant SVC as GroupService
+    participant G as EscalationGuard
+
+    Note over UI: On render, UI greys out/disables any capability<br/>not in actor's effective capability set (US.5)
+
+    U->>UI: Attach role R to group / add user to group
+    UI->>UI: Compute target capability set (role R, or group effective capabilities)
+    alt Target set not subset of actor effective capabilities
+        UI-->>U: Block submit, show "You can't do this operation because you don't have access to the required capabilities." (US.6)
+        Note over API,SVC: Request never sent
+    else Client-side check passes (or bypassed, e.g. direct API call)
+        UI->>API: PUT group roles/users
+        API->>SVC: updateGroupRoles / updateUsers
+        SVC->>G: assertCanGrant(actor=U, granted=resulting/effective set)
+        alt Guard denies (authoritative)
+            G-->>SVC: AccessDeniedException
+            SVC-->>API: deny
+            API-->>UI: 403 Forbidden
+            UI-->>U: Show same error message
+        else Guard allows
+            G-->>SVC: OK
+            SVC-->>API: success
+            API-->>UI: 200 OK
+            UI-->>U: Assignment confirmed
+        end
     end
 ```
 

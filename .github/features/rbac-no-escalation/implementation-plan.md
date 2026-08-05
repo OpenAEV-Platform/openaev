@@ -1,4 +1,4 @@
-# Implementation Plan — US.1 / US.2 / US.3 / US.4
+# Implementation Plan — US.1 / US.2 / US.3 / US.4 / US.5 / US.6
 
 ## US.1 — Extract tenant users/groups/roles capability triad out of `MANAGE_TENANT_SETTINGS`
 
@@ -119,3 +119,50 @@
 ## US.4 — Cross-scope test matrix (tenant + platform)
 
 > 🚧🛠 **ToDo** Soumaya to proposed an AI-driven Acceptance criteria test generation agent.
+
+## US.5 — UI improvement for capability triad visibility and restrictions
+
+### Subtasks
+
+1. **Disabled/greyed-out rendering + interaction blocking for capabilities the actor doesn't hold**
+   - In the role capability editor, cross-reference each displayed capability against the current actor's effective capability set (already exposed as `user_capabilities`).
+   - Render any capability outside that set as disabled/greyed out, with tooltip "Grant capability is disabled because you don't have access to the required capabilities.", whether or not the role currently holds it.
+   - Apply consistently everywhere role capabilities can be viewed or edited (role create, role edit, e.g. opening the Admin role).
+   - Ensure disabled capability controls cannot be clicked, checked, unchecked, or otherwise mutated in the role editor state — a capability being greyed out must also be non-interactive.
+   - Cover the case of opening a role that already contains capabilities the actor lacks: those remain visible but immutable.
+   - **Context:** This is presentation-only — no new backend endpoint is needed since the actor's effective capabilities are already available client-side. It does not replace or weaken the backend no-escalation guard (US.2/US.3), which stays authoritative even if a disabled control were bypassed (e.g. a direct API call). Rendering and interaction-blocking are grouped because a capability that is greyed out but still clickable would defeat the purpose — both must ship together.
+   - **DoD:**
+     - Unit test
+     - Integration test (API level)
+     - Under feature flag `rbac-no-escalation`
+
+## US.6 — UI error when assigning unauthorized roles or users
+
+### Subtasks
+
+1. **Client-side pre-check for role-to-group assignment**
+   - Before submitting a role-to-group assignment, compute the role's capability set and compare it against the actor's effective capabilities.
+   - If the role contains at least one capability the actor doesn't hold, block submission client-side instead of relying solely on the server round-trip.
+   - **Context:** This pre-check mirrors the same rule the backend guard enforces server-side (US.2/US.3: `updateGroupRoles` validates the union of resulting role capabilities against the actor). The frontend check is a UX layer only — the backend guard is still invoked on submit and remains authoritative.
+   - **DoD:**
+     - Unit test
+     - Integration test (API level)
+     - Under feature flag `rbac-no-escalation`
+> ❓ Question: do we need a pre-check? handling 403 from BE could be enough
+2. **Client-side pre-check for user-to-group assignment**
+   - Before submitting a user-to-group assignment, compute the group's effective capabilities (union of all its roles) and compare against the actor's effective capabilities.
+   - If the group's effective capabilities contain at least one capability the actor doesn't hold, block submission client-side.
+   - **Context:** Mirrors the backend guard's `updateUsers` check (US.2/US.3: validates the target group's current effective capabilities before adding users). Frontend check only — backend guard remains authoritative on submit.
+   - **DoD:**
+     - Unit test
+     - Integration test (API level)
+     - Under feature flag `rbac-no-escalation`
+> ❓ Question: do we need a pre-check? handling 403 from BE could be enough
+3. **Unified error message and 403 fallback handling**
+   - Display "You can't do this operation because you don't have access to the required capabilities." consistently for both role-to-group and user-to-group flows, whether the block originates from the client-side pre-check or from a backend 403 response.
+   - Ensure the backend remains source of truth: if the client-side pre-check is bypassed or stale (e.g. cached capability set), the backend 403 must still be caught and surfaced with the same message rather than a generic/raw error.
+   - **Context:** Backend restriction is the source of truth (US.2/US.3); this subtask only adds the UI feedback layer for already-covered authorization cases, ensuring the message is identical regardless of whether the block happened client-side or via a 403 from the escalation guard.
+   - **DoD:**
+     - Unit test
+     - Integration test (API level)
+     - Under feature flag `rbac-no-escalation`
