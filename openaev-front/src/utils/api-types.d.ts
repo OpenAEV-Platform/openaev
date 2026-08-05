@@ -9643,7 +9643,7 @@ export interface SecretsProviderOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
   connector_instance?: ConnectorInstanceOutput;
-  existing_secret_provider: boolean;
+  existing_secret_provider?: boolean;
   is_verified?: boolean;
   /**
    * Secrets provider id

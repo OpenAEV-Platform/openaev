@@ -96,7 +96,7 @@ public class SecretsProviderApi extends RestBehavior {
 
   @GetMapping(value = "/{secretProviderType}/image", produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
-  @Operation(summary = "Get injector image by type")
+  @Operation(summary = "Get secrets provider image by type")
   @Transactional
   public ResponseEntity<InputStreamResource> getSecretsProviderImage(
       @PathVariable String secretProviderType) {
