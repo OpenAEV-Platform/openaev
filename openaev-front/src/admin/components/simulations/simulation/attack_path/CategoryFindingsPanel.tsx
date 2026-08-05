@@ -186,7 +186,10 @@ const CategoryFindingsPanel = ({
                     flex: 1,
                   }}
                   >
-                    <Typography variant="body2" title={maskedValue} sx={{ wordBreak: 'break-all' }}>{maskedValue}</Typography>
+                    {/* A single line, ellipsised (never the multi-line wall of text a long output value —
+                        e.g. a captured nmap XML report — would otherwise render as, same as the graph's
+                        own node label): the full value stays available in the title tooltip below. */}
+                    <Typography variant="body2" noWrap title={maskedValue}>{maskedValue}</Typography>
                     {endpointName && (
                       <Typography variant="caption" color="text.secondary" noWrap title={endpointName} sx={{ display: 'block' }}>
                         {endpointName}
