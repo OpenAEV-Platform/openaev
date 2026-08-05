@@ -29,7 +29,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Profile("!test")
-// Engine sync self-registers Quartz jobs, so it must be gated separately from PlatformTriggers.
+// Normal run mode allow execution of engine sync jobs
 @ConditionalOnProperty(name = "openaev.run-mode", havingValue = "normal", matchIfMissing = true)
 @Slf4j
 public class EngineSyncExecutionJob extends SelfConfiguredPlatformJob {
