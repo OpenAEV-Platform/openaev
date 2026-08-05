@@ -394,7 +394,7 @@ public class ExecutionExecutorServiceTest {
       assertThat(event.getResourceId()).isEqualTo(inject.getId());
       assertThat(event.getMessage())
           .isEqualTo(
-              "Inject '%s' queued to '%s' agent(s)"
+              "Inject '%s' executing on '%s' agent(s)"
                   .formatted(inject.getTitle(), executor.getName()));
       assertThat(event.getContextData().get("inject_id")).isEqualTo(inject.getId());
       assertThat(event.getContextData().get("inject_name")).isEqualTo(inject.getTitle());
@@ -407,8 +407,8 @@ public class ExecutionExecutorServiceTest {
 
     @Test
     @DisplayName(
-        "Given active agent without simulation, should log queued event without simulation id")
-    void given_activeAgentWithoutSimulation_should_logQueuedEventWithoutSimulationId()
+        "Given active agent without simulation, should log executing event without simulation id")
+    void given_activeAgentWithoutSimulation_should_logExecutingEventWithoutSimulationId()
         throws Exception {
       // Arrange
       Executor executor = new Executor();

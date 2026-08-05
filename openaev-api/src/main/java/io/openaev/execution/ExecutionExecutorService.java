@@ -91,7 +91,7 @@ public class ExecutionExecutorService {
         agentsByExecutor.entrySet()) {
       io.openaev.database.model.Executor executor = entry.getKey();
       Set<Agent> executorAgents = entry.getValue();
-      logInjectQueuedEvent(inject, executor, executorAgents);
+      logInjectExecutingEvent(inject, executor, executorAgents);
       launchBatchExecutorContextForAgent(
           executorAgents, executor, inject, injectStatus, atLeastOneExecution);
     }
@@ -307,7 +307,7 @@ public class ExecutionExecutorService {
 
   // -- AUDIT LOGGING --
 
-  private void logInjectQueuedEvent(Inject inject, Executor executor, Set<Agent> executorAgents) {
+  private void logInjectExecutingEvent(Inject inject, Executor executor, Set<Agent> executorAgents) {
     if (executorAgents.isEmpty()) {
       return;
     }
@@ -321,7 +321,7 @@ public class ExecutionExecutorService {
                     .resourceType(ResourceType.INJECT)
                     .resourceId(inject.getId())
                     .message(
-                        "Inject '%s' queued to '%s' agent(s)"
+                        "Inject '%s' executing on '%s' agent(s)"
                             .formatted(inject.getTitle(), executor.getName()))
                     .contextData(buildInjectQueuedContextData(inject, executor, executorAgents))
                     .origin(AuditEventOrigin.SYSTEM)
