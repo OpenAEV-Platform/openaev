@@ -668,14 +668,21 @@ public class AutonomousRunService {
    * which reads this CANCELED status - OpenAEV is the source of truth for the run lifecycle - so a
    * userless cross-tenant HTTP push from the watchdog is not needed to clean XTM One up.
    *
-   * <p>The terminal flip is claimed through the same atomic conditional UPDATE as the read-path
+   * <p>The terminal flip is claimed through an atomic conditional UPDATE, like the read-path
    * reconcile: an operator Stop, a racing reconcile and this watchdog can all reach a run at its
    * deadline, and only the claimer narrates the stop - so the timeline gets exactly one terminal
    * event, never a "Run canceled" plus a "Run timed out" for the same run.
+   *
+   * <p>The watchdog's flip is restricted to the two live statuses its decision was based on
+   * (RUNNING / WAITING_INPUT), not merely "not yet terminal": the deadline was read in this
+   * transaction, but the UPDATE may land after a concurrent transition committed. A restart (valid
+   * from any status) resets the run to CREATED with a fresh simulation, and a pause parks it -
+   * neither must be hard-stopped by a stale deadline claim, so a lost race is a silent no-op here
+   * too.
    */
   private void timeoutRun(AutonomousRun run) {
     int changed =
-        runRepository.settleTerminalStatusIfActive(
+        runRepository.settleTerminalStatusIfLive(
             run.getId(), run.getTenant().getId(), AutonomousRunStatus.CANCELED, now());
     if (changed == 0) {
       // Someone else (operator Stop, reconcile) already settled it; nothing left to narrate.
@@ -757,29 +764,28 @@ public class AutonomousRunService {
   // endregion
 
   /**
-   * Restarts a settled run <b>in place</b>: reuses the SAME scenario, tears down the previous
-   * simulation (attack-path rows included) and the run's decision timeline + steering directives,
-   * provisions a fresh simulation from that scenario, and resets the run to {@code CREATED}. The
-   * caller then {@link #start}s it again. This keeps the invariant "one scenario == one run == one
-   * live simulation" instead of spawning a brand-new scenario on every restart, and gives the
-   * cockpit (overview, attack-path graph, reasoning panel) a clean slate to animate from scratch.
+   * Restarts a run <b>in place</b>, from ANY status: reuses the SAME scenario, tears down the
+   * previous simulation (attack-path rows included) and the run's decision timeline + steering
+   * directives, provisions a fresh simulation from that scenario, and resets the run to {@code
+   * CREATED}. The caller then {@link #start}s it again. This keeps the invariant "one scenario ==
+   * one run == one live simulation" instead of spawning a brand-new scenario on every restart, and
+   * gives the cockpit (overview, attack-path graph, reasoning panel) a clean slate to animate from
+   * scratch.
    *
-   * <p>Allowed once a run has settled: a terminal live run (COMPLETED / FAILED / CANCELED) or a
-   * settled dry-run plan (PLANNED). Re-planning a settled plan (e.g. after the operator filled a
-   * capability gap or steered the scope) is the same reset - a plan-mode restart re-provisions the
-   * TEMPLATE workflow so the AI rebuilds the plan from scratch.
+   * <p>Restart is a deliberate, operator-triggered HARD RESET, so it is valid from any status, not
+   * just a settled one: the teardown stops an active run cleanly, and restarting a live run is
+   * simply a stop-then-restart - which is what the operator expects when they click Restart. The
+   * previous "settled only" guard rejected any non-terminal status with a 409, which the cockpit
+   * surfaced as the misleading "The element already exists" toast whenever Restart was offered on a
+   * run the backend still considered active (parked in WAITING_INPUT / RUNNING, or a status desync
+   * after repeated start/stop cycles). Re-planning a settled dry-run plan (e.g. after the operator
+   * filled a capability gap or steered the scope) is the same reset - a plan-mode restart
+   * re-provisions the TEMPLATE workflow so the AI rebuilds the plan from scratch.
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun restart(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
-    if (run.getStatus() != AutonomousRunStatus.COMPLETED
-        && run.getStatus() != AutonomousRunStatus.FAILED
-        && run.getStatus() != AutonomousRunStatus.CANCELED
-        && run.getStatus() != AutonomousRunStatus.PLANNED) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Run can only be restarted once it has settled");
-    }
     // Stop the previous XTM One orchestration before tearing its simulation down, so a lingering
     // decision cycle can't dispatch injects against the simulation we are about to delete. The
     // subsequent start() re-engages the run cleanly (upstream start resets the same execution).
@@ -828,6 +834,12 @@ public class AutonomousRunService {
     run.setStatus(AutonomousRunStatus.CREATED);
     run.setLastError(null);
     run.setXtmSessionId(null);
+    // The previous live window's time budget is void after a hard reset: the follow-up start()
+    // stamps a fresh one, and a CREATED run must never sit with a stale (possibly past) deadline
+    // from the life it just shed.
+    run.setStartedAt(null);
+    run.setDeadlineAt(null);
+    run.setWinddownPhase(null);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         saved.getId(),
