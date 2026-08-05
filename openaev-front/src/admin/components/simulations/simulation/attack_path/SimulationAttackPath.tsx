@@ -200,7 +200,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // Scenario context lists several runs to pick from; simulation context is locked to its own run.
   const showPicker = scenarioExerciseIds !== undefined;
   const theme = useTheme();
-  const { t, fldt, vnsdt } = useFormatter();
+  const { t, fldt, cnsdt } = useFormatter();
   const navigate = useNavigate();
 
   // The view sizes itself to the exact space left under the page chrome (no page scrollbar).
@@ -539,16 +539,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     const meta = metaById.get(simId);
     if (meta?.exercise_name) {
       return meta.exercise_start_date
-        ? `${vnsdt(meta.exercise_start_date)} · ${meta.exercise_name}`
+        ? `${cnsdt(meta.exercise_start_date)} · ${meta.exercise_name}`
         : meta.exercise_name;
     }
     return simId;
-  }, [metaById, vnsdt]);
+  }, [metaById, cnsdt]);
 
   // Click a real endpoint (only visible once its injector cluster is expanded): load its own findings
   // (grouped in the side panel) and its executions. Stale responses are dropped.
-  const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string) => {
-    setSelectedNodeId(nodeId);
+  //
+  // `openPanel: false` loads the endpoint's data WITHOUT selecting it, so the side panel stays closed.
+  // A focus request (table row, chokepoint, search pick, finding pick) wants the whole width for the
+  // graph it just focused — opening the panel on top of it immediately narrows the view the click was
+  // meant to reveal. The data is still fetched: the focused layout labels its injector edges from those
+  // relations, and the panel is one node click away once the analyst wants the detail.
+  const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string, opts?: { openPanel?: boolean }) => {
+    if (opts?.openPanel !== false) {
+      setSelectedNodeId(nodeId);
+    }
     setSelectedFindingId(null);
     setSelectedInjectorId(null);
     setFindingDetail(null);
@@ -1017,15 +1025,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       // onEndpointClick itself unconditionally clears selectedFindingId/findingDetail, so both must be
       // re-set AFTER it (matches openFindingFromGraph's ordering) — setting them before it here was
       // the bug: onEndpointClick silently clobbered the canonical id back to null on every click.
-      onEndpointClick(item.endpointNodeId, item.endpointKey, label);
+      // No side panel: like every other focus entry point, the click is about the focused graph, and a
+      // panel opening on top of it takes back the width the focus just revealed.
+      onEndpointClick(item.endpointNodeId, item.endpointKey, label, { openPanel: false });
       if (chainMode) {
         setSelectedFindingId(canonicalId ?? null);
       }
-      setFindingDetail({
-        type: item.type ?? '',
-        value: item.value ?? '',
-        endpointNodeId: item.endpointNodeId,
-      });
       setHighlightedExecutionIds(new Set(item.executionIds ?? []));
     },
     [onEndpointClick, dto?.attackPathNodes, fullDto?.attackPathNodes, chainMode],
@@ -2367,8 +2372,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   const [searchInput, setSearchInput] = useState('');
 
   // Focus a chokepoint endpoint: redraw the graph as the focused endpoint path (injectors -> endpoint
-  // -> its finding clusters) and open its side panel (findings + executions). Uses the endpoint-focus
-  // mode of buildFindingPathFlow (empty finding type/value).
+  // -> its finding clusters). Shared by the table rows, the chokepoint dialog and the search picks.
+  // The side panel is deliberately NOT opened: the point of the click is the focused graph, and the
+  // panel would immediately take a third of the width back. It stays one node click away.
   const focusChokepoint = (c: {
     nodeId: string;
     ref: string;
@@ -2390,7 +2396,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       value: '',
     });
     setFitNonce(n => n + 1);
-    onEndpointClick(c.nodeId, c.ref, c.label);
+    onEndpointClick(c.nodeId, c.ref, c.label, { openPanel: false });
   };
 
   // Keep the selected value in the options so MUI does not warn when the current simulation has no

@@ -46,7 +46,7 @@ vi.mock('../../../../../../components/i18n', () => ({
   useFormatter: () => ({
     t: (s: string) => s,
     fldt: (d: string) => d,
-    vnsdt: (d: string) => d,
+    cnsdt: (d: string) => d,
   }),
 }));
 
@@ -233,15 +233,17 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(item);
 
     // Clicking the finding refocuses the map on its attack path (fit requested) and loads the
-    // endpoint's feed for detail.
+    // endpoint's feed, whose relations label the focused layout's injector edges.
     await waitFor(() => {
       // First page of the endpoint's feed; the edges come back whole regardless.
       expect(mocks.fetchEndpointRelations).toHaveBeenCalledWith('sim-1', 'host-x', 0, 50);
       expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
     });
 
-    // The feed panel is titled with the endpoint's friendly hostname, not the raw key.
-    expect(await screen.findByText(/CORP-HOST/)).toBeTruthy();
+    // No side panel is forced open: the click is about the focused graph, and a panel would take back
+    // the width the focus just revealed. The graph stays rendered, the detail is one node click away.
+    expect(await screen.findByTestId('attack-path-flow')).toBeTruthy();
+    expect(screen.queryByText(/Executions/)).toBeNull();
   });
 
   it('opens the result & terminal panel for a clicked execution and focuses its endpoint on the map', async () => {
@@ -348,12 +350,12 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     expect(screen.getByRole('button', { name: /Export CSV/ })).toBeTruthy();
 
     // Clicking the row focuses the graph on that endpoint's own causal path (same as a chokepoint card
-    // or a search pick) and opens its detail panel: the table is a way IN to an endpoint, so it lands
-    // on the focused graph rather than leaving the analyst on the list.
+    // or a search pick): the table is a way IN to an endpoint, so it lands on the focused graph rather
+    // than leaving the analyst on the list — and without forcing the side panel open over it.
     fireEvent.click(screen.getByText('CORP-HOST'));
-    expect(await screen.findByText(/Executions/)).toBeTruthy();
     expect(await screen.findByTestId('attack-path-flow')).toBeTruthy();
     expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
+    expect(screen.queryByText(/Executions/)).toBeNull();
   });
 });
 
