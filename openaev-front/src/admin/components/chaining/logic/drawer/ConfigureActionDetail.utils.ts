@@ -57,7 +57,10 @@ export const mapFieldLinksToStepConditions = (
   const fieldLinks: Record<string, FieldLink> = data.inject_field_links;
   return Object.entries(fieldLinks).map(([fieldKey, link], index) => {
     const outputTypes = link.outputTypes ?? [];
-    const keyTypes = outputTypes.length > 0 ? outputTypes : [];
+    // A linked field always carries at least one output type; the 'text' fallback only guards the
+    // degenerate "link with no type" case so the backend never sees a mapper with empty keyTypes
+    // (which would drop the whole step's execution batches — ConditionService line ~1086).
+    const keyTypes = outputTypes.length > 0 ? outputTypes : ['text'];
 
     // Carry over the field's own typed value as the MAPPER condition's defined value,
     // so it keeps participating in the generated input combinations as an extra

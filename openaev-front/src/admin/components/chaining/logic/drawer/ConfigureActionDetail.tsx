@@ -350,7 +350,11 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
 
     return (
       <Box key={ef.key}>
-        {!link && <InjectContentFieldComponent field={ef} />}
+        {/* The defined-value input stays available even once a type is linked: the two are not
+            mutually exclusive — the backend keeps the defined value as one more candidate alongside
+            the linked type's resolved pool (ConditionService#resolveMapperPairs). Only auto-linked
+            fields (e.g. targeted-asset) are system-managed and hide it. */}
+        {!isAutoLinked && <InjectContentFieldComponent field={ef} />}
         {showLink && (
           <FieldOutputLink
             panelOpen={open}
