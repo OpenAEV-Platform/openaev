@@ -17,7 +17,11 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
-import io.openaev.helper.*;
+import io.openaev.helper.CompositeIdResolvableI;
+import io.openaev.helper.MonoIdDeserializerHelper;
+import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
+import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -607,6 +611,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   // -- INJECTOR CONTRACT CONTENT --
 
   public static final String CONTRACT_CONTENT_FIELDS = "fields";
+  public static final String CONTRACT_CONTENT_KEY_CONTRACT_ID = "contract_id";
   public static final String CONTRACT_ELEMENT_CONTENT_KEY = "key";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE = "type";
   public static final String CONTRACT_ELEMENT_CONTENT_CARDINALITY = "cardinality";
@@ -630,7 +635,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY = "targeted-property";
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR =
       "targeted-asset-separator";
-  public static final String CONTRACT_ELEMENT_CONTENT_KEY_CONTRACT_ID = "contract_id";
 
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_ASSET = "asset";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP = "asset-group";

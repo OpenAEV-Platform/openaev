@@ -36,17 +36,18 @@ public class InjectorContractMigrationUtils {
         return;
       }
     }
-    if (!convertedContent.has("fields")) {
+    if (!convertedContent.has(InjectorContract.CONTRACT_CONTENT_FIELDS)) {
       return;
     }
 
-    convertedContent.put(
-        InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_CONTRACT_ID, contract.getId());
+    convertedContent.put(InjectorContract.CONTRACT_CONTENT_KEY_CONTRACT_ID, contract.getId());
     contract.setContent(convertedContent.toString());
 
     ObjectNode expectationsField =
         (ObjectNode)
-            StreamSupport.stream(convertedContent.get("fields").spliterator(), false)
+            StreamSupport.stream(
+                    convertedContent.get(InjectorContract.CONTRACT_CONTENT_FIELDS).spliterator(),
+                    false)
                 .filter(f -> "expectations".equals(f.path("key").asText()))
                 .findFirst()
                 .orElse(null);
