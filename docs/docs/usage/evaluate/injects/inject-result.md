@@ -2,6 +2,12 @@
 
 The Inject result page shows a detailed breakdown of your security posture against a specific executed Inject. Access it by clicking on an Inject in an Atomic Test or Simulation.
 
+## Why review Inject results?
+
+- Understand exactly which defensive controls prevented or detected an attack.
+- Inspect Findings parsed from execution output (open ports, extracted credentials, etc.).
+- Verify that detection and remediation rules match the Threat Arsenal Action.
+
 ## Overview
 
 Results are broken down into four categories:

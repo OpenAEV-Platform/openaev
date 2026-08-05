@@ -2,6 +2,12 @@
 
 Atomic testing lets you execute a single attack technique in isolation and immediately measure your ability to prevent and detect it. Unlike Simulations that run a full Scenario, Atomic Tests focus on one Inject at a time for rapid, targeted validation.
 
+## Why use Atomic Tests?
+
+- Quickly validate whether a specific MITRE ATT&CK technique is detected or prevented.
+- Isolate and troubleshoot individual defensive controls without running a full Scenario.
+- Onboard new Threat Arsenal Actions by testing them before adding them to Scenarios.
+
 ## Atomic testing list
 
 Navigate to **Atomic testing** in the left menu to see all Atomic Tests launched on the platform. The list shows the global score for each test, allowing you to quickly identify which techniques your security stack handles well and which need attention.

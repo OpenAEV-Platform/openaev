@@ -10,6 +10,13 @@ Actions unify what were previously known as **Payloads** and **Injector Contract
 - **Injector-provided :** Automatically inserted by injectors integrated into the platform (e.g. Nuclei). Only domains, attack patterns, and tags can be edited
 - **Collector-provided :** Inserted by collectors (e.g., Atomic Red Team) These Actions are read-only and managed entirely by the collector.
 
+## Why use the Threat Arsenal?
+
+- Build custom attack Actions tailored to your environment and threat landscape.
+- Leverage community and vendor-provided Actions from Injectors and Collectors.
+- Attach output parsers to automatically generate Findings from execution results.
+- Define detection and remediation rules to validate Collector coverage.
+
 ## Threat Arsenal Action — list view
 
 The **Threat Arsenal** view displays all Actions available in the platform. 
@@ -379,3 +386,10 @@ This enables seamless sharing of Threat Arsenal Actions across instances or with
 
 - Share complex Threat Arsenal Actions with teammates or the community
 - Use Threat Arsenal Actions across dev, test, and production environments
+
+## What's next?
+
+- [Domains](domains.md) -- Understand how Domains classify Threat Arsenal Actions by security control
+- [Injects](../../evaluate/injects/inject-overview.md) -- Use Threat Arsenal Actions in Injects
+- [Atomic testing](../../evaluate/atomic-testing/atomic-testing.md) -- Run individual Threat Arsenal Actions as Atomic Tests
+- [Findings](../../evaluate/findings/findings.md) -- View parsed output from Threat Arsenal Action executions

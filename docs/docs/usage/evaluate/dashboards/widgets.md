@@ -2,6 +2,12 @@
 
 Widgets are the building blocks of [custom Dashboards](custom-dashboards.md). Each Widget is configured in three steps: visualization, dimensions, and parameters.
 
+## Why use Widgets?
+
+- Display exactly the data you need with the right visualization type.
+- Filter and group results by Scenario, Simulation, Inject, kill chain phase, or time period.
+- Combine multiple Widgets on a Dashboard to build a tailored security posture overview.
+
 ## 1. Visualization
 
 Select the visualization type that best represents the data you want to display. Available types include Command Center, Exposure Score, Posture Radar, Security Domains, MITRE ATT&CK Coverage, Attack Paths, Vertical Bar, Horizontal Bar, Line, Donut, List, and Heatmap.

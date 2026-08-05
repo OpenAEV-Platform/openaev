@@ -2,6 +2,12 @@
 
 OpenAEV ships with several built-in Injectors that are always available without installing external components. These Injectors cover the most common Simulation needs: email delivery, manual actions, media pressure, challenges, and endpoint execution.
 
+## Why use built-in Injectors?
+
+- Start running Simulations immediately without deploying external integrations.
+- Cover both technical (endpoint execution) and non-technical (email, media pressure) Inject types out of the box.
+- Use the OpenAEV Implant for native command execution on endpoints without requiring third-party agents like Caldera.
+
 ## Email Injector
 
 The email Injector (`openaev_email`) sends emails to Players during a Simulation. It requires an SMTP service to be configured on the platform.

@@ -3,12 +3,19 @@
 ## Introduction
 
 The OpenAEV Agent is an application whose primary role is to enroll an Asset on the OpenAEV platform, retrieve jobs or
-scripts to be executed, and transmit this information to Implants (subject to change) for execution on the host Asset.
+scripts to be executed, and transmit this information to Implants for execution on the host Asset.
 
 The Agent does **not perform direct actions** on the Asset itself, in order to remain neutral with respect to antivirus
-solutions and ensure the full execution of simulations.
+solutions and ensure the full execution of Simulations.
 
 The OpenAEV Agent is compatible with multiple operating systems (Windows, Linux, macOS) and is developed in **Rust**.
+
+## Why use the OpenAEV Agent?
+
+- Deploy a lightweight, open-source Executor on your endpoints without depending on third-party agents.
+- Stay neutral to antivirus solutions — the Agent itself performs no attack actions, so it does not trigger detections.
+- Support multiple installation modes (session, user service, system service) to match different privilege and persistence requirements.
+- Enable automatic upgrades and health checks with minimal operational overhead.
 
 ## Installation
 
@@ -284,3 +291,9 @@ This directory contains:
 
 * The implant executable
 * Execution-specific logs
+
+## What's next?
+
+- [Executors](../../../deployment/ecosystem/executors.md) -- Compare all available Executor types and their deployment options
+- [Injectors](injectors.md) -- Understand which Injectors require an Agent
+- [Assets](../build/assets.md) -- Manage the Endpoints where Agents are installed

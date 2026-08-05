@@ -2,6 +2,12 @@
 
 A Scenario translates a threat context into a reusable sequence of [Injects](../../evaluate/injects/inject-overview.md) that can be simulated repeatedly to track your security posture over time. Scenarios act as templates: define the attack once, then run multiple [Simulations](../../evaluate/simulation/simulation.md) from it.
 
+## Why use Scenarios?
+
+- Model a threat actor's full attack chain and replay it against your infrastructure.
+- Reuse the same Scenario across multiple Simulations to track security posture trends.
+- Combine technical Injects (endpoint commands) and non-technical Injects (phishing, media pressure) in a single timeline.
+
 ## Scenario list
 
 Navigate to **Scenarios** in the left menu to see all Scenarios. Filter by category, main focus, severity, or tags using the quick filters at the top. Use the search bar to find Scenarios by name.

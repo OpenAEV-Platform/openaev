@@ -1,6 +1,11 @@
 # Notifications
 
-Notifications alert users when important events occur on the platform. OpenAEV currently supports one notification type: Scenario score degradation.
+Notifications alert you when important events occur on the platform. OpenAEV currently supports one notification type: Scenario score degradation.
+
+## Why use Notifications?
+
+- Detect regressions in your security posture automatically without manually comparing Simulation runs.
+- Receive email alerts when a Scenario's score drops, so you can investigate and remediate quickly.
 
 ## Scenario score degradation
 

@@ -4,6 +4,12 @@ Domains classify Threat Arsenal Actions by the type of security control they tar
 
 Domains are predefined by the platform and assigned automatically based on the Threat Arsenal Action. They cannot be created or modified by users.
 
+## Why use Domains?
+
+- Group Simulation results by defensive capability (endpoint, network, email, etc.) for targeted analysis.
+- Identify which security control categories need improvement across your infrastructure.
+- Provide operational context to Dashboards and reports by filtering on specific Domains.
+
 ## Available Domains
 
 | Domain | Description |

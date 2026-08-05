@@ -2,6 +2,12 @@
 
 Recreating a timeline of [Injects](../../evaluate/injects/inject-overview.md) that were already defined in a spreadsheet can be a frustrating task. To help users save time, we added the possibility to import Injects as defined in an XLS file into a [Scenario](scenario.md). This is done via a two-step process: [creating a mapper](#how-to-create-a-mapper) and [importing the XLS file using the mapper](#how-to-import-injects-into-a-scenario-using-a-mapper).
 
+## Why use Scenario import?
+
+- Avoid recreating Inject timelines manually when they already exist in a spreadsheet.
+- Reuse mappers across multiple imports to standardize your Inject structure.
+- Quickly populate Scenarios with large numbers of Injects from external planning tools.
+
 ## How to create a mapper?
 
 First of all, to import [Injects](../../evaluate/injects/inject-overview.md) into a [Scenario](scenario.md), you need to create a mapper. To do that, using an admin account, navigate to **Settings > Data ingestion**. You will then be able to see a list of all the mappers but also to create new ones by clicking on the "+" button on the bottom right of the screen.
@@ -117,3 +123,8 @@ Team “AI Desk” already exists and is associated with the Inject “Notify th
 
 ![mapper_import_inject_team.png](../../assets/mapper_import_inject_team.png)
 
+## What's next?
+
+- [Scenarios](scenario.md) -- Manage and configure your Scenarios
+- [Injects](../../evaluate/injects/inject-overview.md) -- Create and configure Injects manually
+- [Simulations](../../evaluate/simulation/simulation.md) -- Launch a Simulation from your Scenario

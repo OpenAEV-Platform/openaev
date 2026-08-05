@@ -2,8 +2,14 @@
 
 ## Overview
 
-OpenAEV can automatically generate scenarios from OpenCTI Security Coverage entities, transforming threat
-intelligence, such as Attack Patterns, Vulnerabilities, Artifacts, and others, into actionable operational scenarios.
+OpenAEV can automatically generate Scenarios from OpenCTI Security Coverage entities, transforming threat
+intelligence, such as Attack Patterns, Vulnerabilities, Artifacts, and others, into actionable operational Scenarios.
+
+## Why use Scenario generation?
+
+- Automatically turn threat intelligence from OpenCTI into executable Scenarios.
+- Eliminate manual Scenario creation when coverage data already exists in your threat intelligence platform.
+- Create a continuous feedback loop between threat intelligence and security validation.
 
 This integration enables organizations to track simulation results and security coverage directly within OpenCTI,
 creating a complete feedback loop between threat intelligence and security validation.
@@ -136,7 +142,8 @@ This creates a complete feedback loop between threat intelligence and security v
 
 ## What’s next?
 
-The next step is to expand the integration between OpenCTI and OpenAEV by incorporating additional threat intelligence
-data, such as Observables, Artifacts, Malware, and more.
+- [Security Coverage enrichment (XTM Suite)](../../evaluate/xtm-suite-connector.md) -- Push Simulation results back to OpenCTI automatically
+- [Scenarios](scenario.md) -- Create and manage Scenarios manually
+- [Injects](../../evaluate/injects/inject-overview.md) -- Understand how Injects are created and executed
 
 

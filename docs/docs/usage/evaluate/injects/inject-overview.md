@@ -74,7 +74,7 @@ connectors.
 ## What's next?
 
 - [Inject tests](inject-tests.md) -- Dry-run email and SMS Injects before launching a Simulation.
-- [Inject status](inject-status.md): understand execution traces, trace statuses, and how statuses are computed.
-- [Expectations](../expectations/expectations.md): define success criteria.
-- [Findings](../findings/findings.md): see parsed results after execution.
+- [Inject status](inject-status.md) -- Understand execution traces, trace statuses, and how statuses are computed
+- [Expectations](../expectations/expectations.md) -- Define success criteria
+- [Findings](../findings/findings.md) -- See parsed results after execution
 - [Inject results](inject-result.md): full breakdown of your security posture against a test.

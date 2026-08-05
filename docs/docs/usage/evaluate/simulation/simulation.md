@@ -2,6 +2,13 @@
 
 A Simulation is a concrete execution of a [Scenario](../../build/scenario/scenario.md) against your infrastructure. It produces measurable results across four axes: prevention, detection, vulnerability, and human response. Run Simulations once or schedule them for recurrence to track your security posture over time.
 
+## Why use Simulations?
+
+- Validate your defenses against realistic attack Scenarios on real infrastructure.
+- Measure prevention, detection, vulnerability, and human response in a single run.
+- Schedule recurring Simulations to track security posture trends over time.
+- Compare results across runs to identify regressions and improvements.
+
 ## Simulation list
 
 Navigate to **Simulations** in the left menu to see all Simulations. Filter by tag (e.g., a specific threat actor) and sort by status, date, or score. The list shows the latest global scores for each Simulation.
