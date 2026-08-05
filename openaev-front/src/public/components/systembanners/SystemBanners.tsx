@@ -57,20 +57,21 @@ const SystemBanners = (settings: { settings: PlatformSettings }) => {
   // Standard hooks
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const effectiveBannerLevel = (settings.settings.platform_banner_by_level ?? {}) as Record<string, string[]>;
+  const bannerLevel = settings.settings.platform_banner_by_level as BannerMessage;
 
   let numberOfElements = 0;
-  for (const currentBannerLevel of recordEntries(effectiveBannerLevel)) {
-    numberOfElements += currentBannerLevel[1].length;
+  if (bannerLevel !== undefined) {
+    for (const currentBannerLevel of recordEntries(bannerLevel)) {
+      numberOfElements += currentBannerLevel[1].length;
+    }
   }
-
-  if (isEmptyField(effectiveBannerLevel) || numberOfElements === 0) {
+  if (isEmptyField(bannerLevel) || numberOfElements === 0) {
     return <></>;
   }
 
   return (
     <div>
-      {recordKeys(effectiveBannerLevel as BannerMessage).map((key) => {
+      {recordKeys(bannerLevel).map((key) => {
         const topBannerClasses = [
           classes.banner,
           classes.bannerTop,
@@ -79,7 +80,7 @@ const SystemBanners = (settings: { settings: PlatformSettings }) => {
 
         return (
           <div key={key} className={topBannerClasses}>
-            {effectiveBannerLevel[key].map((message: string) => {
+            {bannerLevel[key].map((message: string) => {
               const isSafeModeMessage = message === SAFE_MODE_MESSAGE_KEY;
               return (
                 <div key={`${key}.${message}`} className={classes.container}>
