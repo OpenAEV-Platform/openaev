@@ -14,9 +14,9 @@ import org.springframework.stereotype.Service;
 /**
  * Server-side watchdog that enforces the OpenAEV-owned autonomous-run timeout. Invoked periodically
  * by {@code AutonomousTimeoutJob}, it sweeps every tenant's live runs and, for each whose deadline
- * is near or passed, delegates to {@link AutonomousRunService#enforceDeadline(String)} to queue a
- * winddown steering nudge (5 min / 1 min before) or hard-stop the run (exactly like an operator
- * Stop).
+ * is near or passed, delegates to {@link AutonomousRunService#enforceDeadline(String, String)} to
+ * queue a winddown steering nudge (5 min / 1 min before) or hard-stop the run (exactly like an
+ * operator Stop).
  *
  * <p>This is the missing OpenAEV-side liveness guarantee: because an autonomous simulation is a
  * keep-alive chaining workflow, every native engine terminal condition (workflow END, the workflow
@@ -62,7 +62,8 @@ public class AutonomousTimeoutService {
                 // the tenant's outer sweep transaction or its siblings (see TenantScopedTransaction
                 // poisoning rule).
                 tenantTx.executeNew(
-                    TxCtx.forTenant(tenantId), () -> autonomousRunService.enforceDeadline(runId));
+                    TxCtx.forTenant(tenantId),
+                    () -> autonomousRunService.enforceDeadline(runId, tenantId));
               } catch (RuntimeException e) {
                 log.warn("[Autonomous] Timeout enforcement failed for run {}", runId, e);
               }

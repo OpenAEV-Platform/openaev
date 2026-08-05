@@ -28,6 +28,16 @@ public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, St
   List<AutonomousRun> findAllByOrderByCreatedAtDesc();
 
   /**
+   * Tenant-scoped primary-key lookup. Hibernate tenant {@code @Filter}s do not apply to {@code
+   * find()} by primary key, so a bare {@code findById} proves nothing about scoping; paths that
+   * already hold the owning tenant id (the reconciliation writer, the timeout watchdog) read
+   * through this instead, keeping the read consistent with their tenant-predicated writes.
+   */
+  @Query("SELECT r FROM AutonomousRun r WHERE r.id = :id AND r.tenant.id = :tenantId")
+  Optional<AutonomousRun> findByIdAndTenantId(
+      @Param("id") String id, @Param("tenantId") String tenantId);
+
+  /**
    * Ids of the given tenant's live runs whose OpenAEV-enforced deadline is at or within {@code
    * threshold} (i.e. already passed, or close enough that a winddown nudge is due). The explicit
    * {@code tenant_id} predicate keeps a per-tenant sweep correct whether or not {@code

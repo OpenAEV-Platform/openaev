@@ -49,7 +49,9 @@ public class AutonomousRunReconciliationWriter {
       String runId, String tenantId, AutonomousRunStatus target, String reasonDetail) {
     int changed =
         runRepository.settleTerminalStatusIfActive(runId, tenantId, target, Instant.now());
-    AutonomousRun run = runRepository.findById(runId).orElse(null);
+    // Tenant-scoped re-load, consistent with the tenant-predicated UPDATE above: @Filter does not
+    // protect PK lookups, so a bare findById could read a cross-tenant row the write just refused.
+    AutonomousRun run = runRepository.findByIdAndTenantId(runId, tenantId).orElse(null);
     if (run == null) {
       return null;
     }

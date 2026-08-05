@@ -635,11 +635,13 @@ public class AutonomousRunService {
    * ({@code AutonomousTimeoutJob}) inside the run's tenant scope. Depending on how much time is
    * left it either queues a winddown steering nudge (5 min / 1 min before, once each) or hard-stops
    * the run at the deadline. Only acts on live runs (RUNNING / WAITING_INPUT) that carry a
-   * deadline.
+   * deadline. The load is tenant-scoped ({@code @Filter} does not protect PK lookups): the caller
+   * already resolved {@code runId} from a tenant-predicated query, and the read must stay
+   * consistent with that scope.
    */
   @Transactional(rollbackFor = Exception.class)
-  public void enforceDeadline(String runId) {
-    AutonomousRun run = runRepository.findById(runId).orElse(null);
+  public void enforceDeadline(String runId, String tenantId) {
+    AutonomousRun run = runRepository.findByIdAndTenantId(runId, tenantId).orElse(null);
     if (run == null || run.getDeadlineAt() == null) {
       return;
     }

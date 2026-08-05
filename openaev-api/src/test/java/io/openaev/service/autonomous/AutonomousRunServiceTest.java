@@ -148,9 +148,9 @@ class AutonomousRunServiceTest {
   void enforceDeadlineIgnoresSettledRun() {
     AutonomousRun run = liveRun(Instant.now().minusSeconds(10));
     run.setStatus(AutonomousRunStatus.CANCELED);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
 
-    service.enforceDeadline("run-1");
+    service.enforceDeadline("run-1", "tenant-1");
 
     verifyNoInteractions(directiveRepository, eventService, exerciseService);
   }
@@ -159,12 +159,12 @@ class AutonomousRunServiceTest {
   @DisplayName("enforceDeadline queues the 5-minute winddown nudge at most once")
   void enforceDeadlineQueuesWinddownOnce() {
     AutonomousRun run = liveRun(Instant.now().plusSeconds(200));
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
 
-    service.enforceDeadline("run-1");
+    service.enforceDeadline("run-1", "tenant-1");
     // Second sweep in the same window (the job fires every 30s): the persisted phase must
     // suppress a duplicate nudge.
-    service.enforceDeadline("run-1");
+    service.enforceDeadline("run-1", "tenant-1");
 
     assertThat(run.getWinddownPhase()).isEqualTo("WINDDOWN_5M");
     verify(directiveRepository, times(1)).save(any(AutonomousDirective.class));
@@ -184,9 +184,9 @@ class AutonomousRunServiceTest {
   void enforceDeadlineEscalatesToFinalWinddown() {
     AutonomousRun run = liveRun(Instant.now().plusSeconds(30));
     run.setWinddownPhase("WINDDOWN_5M");
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
 
-    service.enforceDeadline("run-1");
+    service.enforceDeadline("run-1", "tenant-1");
 
     assertThat(run.getWinddownPhase()).isEqualTo("WINDDOWN_1M");
     verify(directiveRepository, times(1)).save(any(AutonomousDirective.class));
@@ -199,9 +199,9 @@ class AutonomousRunServiceTest {
     // redelivery) must not re-nudge.
     AutonomousRun run = liveRun(Instant.now().plusSeconds(200));
     run.setWinddownPhase("WINDDOWN_1M");
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
 
-    service.enforceDeadline("run-1");
+    service.enforceDeadline("run-1", "tenant-1");
 
     verifyNoInteractions(directiveRepository, eventService, exerciseService);
   }
@@ -210,12 +210,12 @@ class AutonomousRunServiceTest {
   @DisplayName("enforceDeadline hard-stops a run past its deadline, exactly like an operator Stop")
   void enforceDeadlineHardStopsPastDeadline() throws Exception {
     AutonomousRun run = liveRun(Instant.now().minusSeconds(5));
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
     when(runRepository.settleTerminalStatusIfActive(
             eq("run-1"), eq("tenant-1"), eq(AutonomousRunStatus.CANCELED), any(Instant.class)))
         .thenReturn(1);
 
-    service.enforceDeadline("run-1");
+    service.enforceDeadline("run-1", "tenant-1");
 
     verify(exerciseService).changeExerciseStatus(ExerciseStatus.CANCELED, "sim-1");
     verify(eventService)
@@ -233,14 +233,14 @@ class AutonomousRunServiceTest {
   @DisplayName("the hard stop is claimed once: a lost race with cancel/reconcile stays silent")
   void enforceDeadlineHardStopClaimedOnce() {
     AutonomousRun run = liveRun(Instant.now().minusSeconds(5));
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
     // An operator Stop or a read-path reconcile settled the run first: the conditional UPDATE
     // matches no row, so this watchdog must not narrate a second terminal event.
     when(runRepository.settleTerminalStatusIfActive(
             eq("run-1"), eq("tenant-1"), eq(AutonomousRunStatus.CANCELED), any(Instant.class)))
         .thenReturn(0);
 
-    service.enforceDeadline("run-1");
+    service.enforceDeadline("run-1", "tenant-1");
 
     verifyNoInteractions(eventService, exerciseService, directiveRepository);
   }
