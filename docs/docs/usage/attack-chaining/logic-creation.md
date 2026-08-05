@@ -115,6 +115,17 @@ field directly from the banner.
 
 ![Warning banner listing Events that reference fields not yet provisioned by any Action, each with an Add Compatible Action shortcut](assets/logic-creation-warning-banner.png)
 
+Clicking **Add Compatible Action** opens the same **Add actions** panel used for adding any Action to the canvas,
+but pre-filtered with a **Providing** filter set to the missing field (for example `group_name`), so only Actions
+from the Threat Arsenal that actually produce that field are listed:
+
+![Add actions panel pre-filtered by the missing field, listing only Actions from the Threat Arsenal that can provide it](assets/logic-creation-add-compatible-action.png)
+
+Selecting one or more Actions and clicking **Add actions** drops them onto the canvas as new, unconnected Action
+nodes — it does not automatically wire them into the graph. You still need to connect the new Action(s) to the
+Event yourself (and to any upstream Action(s) they should depend on) for the warning to clear, since the platform
+only confirms the field is *available* on the canvas, not that it is actually wired into that Event's condition.
+
 ### Reading the links between components
 
 Once your graph has Actions and Events connected, click an Event to inspect it: the canvas draws two different kinds
