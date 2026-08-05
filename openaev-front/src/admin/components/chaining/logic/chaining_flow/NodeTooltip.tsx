@@ -59,6 +59,12 @@ const LogicNodeTooltip = ({
         fontWeight: 700,
         lineHeight: 1.35,
         wordBreak: 'break-word',
+        // Most titles are one short line, but a finding's title can be a raw output value (ADR-004,
+        // e.g. XML/JSON): clamp it so the tooltip stays a popup, not a full-content dump.
+        display: '-webkit-box',
+        WebkitLineClamp: 8,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
       }}
     >
       {title}

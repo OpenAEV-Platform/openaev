@@ -100,8 +100,9 @@ export interface AttackPathFlowNodeData {
   // and, when it hangs off one endpoint, that endpoint's ref so a click fetches only its findings.
   clusterId?: string;
   endpointRef?: string;
-  // Endpoint cluster role: 'header' (the "+N" toggle) or 'overflow' (the "+rest" batch loader).
-  clusterKind?: 'header' | 'overflow';
+  // Endpoint cluster role: 'header' (the "+N" toggle), 'overflow' (the "+rest" batch loader) or
+  // 'typeOverflow' (the "+N other types" toggle capping how many finding TYPES a column shows).
+  clusterKind?: 'header' | 'overflow' | 'typeOverflow';
   // Header endpoint cluster: whether it is currently expanded (drives the collapse affordance).
   expanded?: boolean;
   [key: string]: unknown;
@@ -297,6 +298,18 @@ export const ENDPOINT_BATCH_SIZE = 10;
 // Same batching for revealing individual findings under a finding cluster.
 export const FINDING_BATCH_SIZE = 10;
 
+// How many finding TYPES a column shows before the rest collapse into one "+N other types" chip.
+// A column stacks one ~100px row per type, so an endpoint exposing ten types (portscan, port, share,
+// file, action_output, credentials, …) would sprawl over a full screen height and push its
+// neighbours out of view. The chip expands in place, exactly like a finding cluster.
+export const MAX_VISIBLE_FINDING_TYPES = 4;
+
+// Stable id prefix of a column's "+N other types" chip. Suffixed with the endpoint id for a
+// per-endpoint column; bare for the global aggregate one. Shares the finding-cluster expansion set,
+// so the container toggles it with the same handler. The '|' separator keeps it out of the
+// `cl-ft-<type>` id space: a finding type literally named "more" must not collide with the chip.
+export const AP_TYPE_OVERFLOW_ID = 'cl-ft|more';
+
 // Aggregate a set of prevention/detection statuses into one worst-case verdict: RED beats ORANGE beats
 // GREEN — one bad execution among several (e.g. one endpoint undetected while the rest were prevented)
 // must not read as fully green just because it's a minority.
@@ -354,12 +367,34 @@ const layoutFindingColumn = (
   statusForType: (type: string) => string | undefined,
   keyOf: (type: string) => string,
   findingExpansion?: FindingExpansion,
+  // This column's "+N other types" chip id. Omitted for columns that must never be capped (the
+  // focused finding-path view already scopes itself to one type).
+  typeOverflowId?: string,
+  // Finding types the cap must never hide — the type the user is focusing on.
+  pinnedTypes: ReadonlySet<string> = new Set(),
 ): {
   items: FindingColItem[];
   height: number;
+  typeOverflow?: {
+    id: string;
+    hiddenCount: number;
+    expanded: boolean;
+    y: number;
+  };
 } => {
+  // Most numerous types first, name as a tie-break so the order (and therefore which types the cap
+  // hides) is stable across renders instead of following Object.entries insertion order. Then pinned
+  // types to the front (sort is stable, so the count order holds within each group): the type the user
+  // is focusing on must survive the cap, whatever its count.
+  const sorted = [...types]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .sort((a, b) => Number(pinnedTypes.has(b[0])) - Number(pinnedTypes.has(a[0])));
+  const hasTypeOverflow = !!typeOverflowId && sorted.length > MAX_VISIBLE_FINDING_TYPES;
+  const typesExpanded = hasTypeOverflow && (findingExpansion?.expanded.has(typeOverflowId) ?? false);
+  const visibleTypes = hasTypeOverflow && !typesExpanded ? sorted.slice(0, MAX_VISIBLE_FINDING_TYPES) : sorted;
+
   let fH = 0;
-  const items = types.map(([type, count]) => {
+  const items = visibleTypes.map(([type, count]) => {
     const fcId = keyOf(type);
     const typeStatus = statusForType(type);
     const isExpanded = findingExpansion?.expanded.has(fcId) ?? false;
@@ -388,21 +423,35 @@ const layoutFindingColumn = (
       overflowY,
     };
   });
+  // The "+N other types" chip closes the column, on its own row, so expanding it pushes nothing.
+  const typeOverflow = hasTypeOverflow && typeOverflowId
+    ? {
+        id: typeOverflowId,
+        hiddenCount: sorted.length - MAX_VISIBLE_FINDING_TYPES,
+        expanded: typesExpanded,
+        y: fH,
+      }
+    : undefined;
+  if (typeOverflow) {
+    fH += CLUSTER_FINDING_ROW_H + CLUSTER_FINDING_GAP;
+  }
   return {
     items,
     height: Math.max(0, fH - CLUSTER_FINDING_GAP),
+    typeOverflow,
   };
 };
 
 // Emit a finding column's nodes/edges: one finding-cluster node per type (its edge labelled
-// "<type> found"), plus revealed individual findings and an overflow loader. {@code srcId} is the
-// node the column hangs off (the endpoint cluster header in the collapsed view, or the endpoint node
-// when endpoints are expanded). {@code endpointRef} is set for a per-endpoint column so a click
-// fetches that one endpoint's findings; absent for the injector aggregate.
+// "<type> found"), plus revealed individual findings, an overflow loader and — when the column caps
+// its types — the "+N other types" chip. {@code srcId} is the node the column hangs off (the endpoint
+// cluster header in the collapsed view, or the endpoint node when endpoints are expanded).
+// {@code endpointRef} is set for a per-endpoint column so a click fetches that one endpoint's
+// findings; absent for the injector aggregate.
 const pushFindingColumn = (
   nodes: AttackPathFlowNode[],
   edges: AttackPathFlowEdge[],
-  items: FindingColItem[],
+  column: ReturnType<typeof layoutFindingColumn>,
   srcId: string,
   topY: number,
   injId: string,
@@ -412,7 +461,7 @@ const pushFindingColumn = (
   endpointNodeId: string | undefined,
   t: ApTranslate,
 ): void => {
-  items.forEach((e) => {
+  column.items.forEach((e) => {
     nodes.push({
       id: e.fcId,
       type: AP_FLOW_NODE_TYPE.findingCluster,
@@ -457,6 +506,7 @@ const pushFindingColumn = (
           typeFindings: e.type,
           assetNodeId: f.assetNodeId ?? endpointNodeId,
           status: e.typeStatus,
+          isFinding: f.isFinding,
         },
       });
       edges.push({
@@ -502,6 +552,39 @@ const pushFindingColumn = (
       });
     }
   });
+
+  // The capped types: one chip hanging off the same source as the type clusters it stands for, so
+  // expanding it fans the remaining types into the column in place.
+  const to = column.typeOverflow;
+  if (to) {
+    nodes.push({
+      id: to.id,
+      type: AP_FLOW_NODE_TYPE.findingCluster,
+      position: {
+        x: CLUSTER_FINDING_X,
+        y: topY + to.y,
+      },
+      data: {
+        count: to.hiddenCount,
+        label: to.id,
+        injectorId: injId,
+        clusterId: to.id,
+        endpointRef,
+        clusterKind: 'typeOverflow',
+        expanded: to.expanded,
+      },
+    });
+    edges.push({
+      id: `${srcId}-${to.id}`,
+      source: srcId,
+      target: to.id,
+      type: AP_FLOW_EDGE_TYPE,
+      data: {
+        count: to.hiddenCount,
+        label: `+${to.hiddenCount} ${t('other types')}`,
+      },
+    });
+  }
 };
 
 export const buildClusteredAttackPathFlow = (
@@ -511,6 +594,8 @@ export const buildClusteredAttackPathFlow = (
   endpointBatch: Map<string, number>,
   t: ApTranslate,
   findingExpansion?: FindingExpansion,
+  // Finding types the type cap must never hide — the type the user is focusing on.
+  pinnedTypes: ReadonlySet<string> = new Set(),
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -596,6 +681,8 @@ export const buildClusteredAttackPathFlow = (
     type => aggregateStatus(reachedAssets.filter(a => (a?.findingCounts?.[type] ?? 0) > 0).map(a => a?.status)),
     type => `cl-ft-${type}`,
     findingExpansion,
+    AP_TYPE_OVERFLOW_ID,
+    pinnedTypes,
   );
 
   // Expanded: each revealed (deduped) endpoint fans out to its OWN finding column.
@@ -604,7 +691,7 @@ export const buildClusteredAttackPathFlow = (
     ? shownAssetIds.map((assetId) => {
         const asset = assetById.get(assetId);
         const epTypes = (Object.entries(asset?.findingCounts ?? {}).filter(([, v]) => (v ?? 0) > 0)) as Array<[string, number]>;
-        const epCol = layoutFindingColumn(epTypes, () => asset?.status, type => `cl-ft-${type}-${assetId}`, findingExpansion);
+        const epCol = layoutFindingColumn(epTypes, () => asset?.status, type => `cl-ft-${type}-${assetId}`, findingExpansion, `${AP_TYPE_OVERFLOW_ID}-${assetId}`, pinnedTypes);
         return {
           assetId,
           asset,
@@ -705,7 +792,7 @@ export const buildClusteredAttackPathFlow = (
         },
       });
       // The endpoint's own finding column, vertically centred against its block.
-      pushFindingColumn(nodes, edges, epCol.items, assetId, epY + (epBlockH - epCol.height) / 2, AP_ALL_ENDPOINTS, asset.ref ?? assetId, assetId, t);
+      pushFindingColumn(nodes, edges, epCol, assetId, epY + (epBlockH - epCol.height) / 2, AP_ALL_ENDPOINTS, asset.ref ?? assetId, assetId, t);
       epY += epBlockH;
     });
     if (total > shown) {
@@ -737,7 +824,7 @@ export const buildClusteredAttackPathFlow = (
       });
     }
   } else {
-    pushFindingColumn(nodes, edges, agg.items, clusterId, centerY - agg.height / 2, AP_ALL_ENDPOINTS, undefined, undefined, t);
+    pushFindingColumn(nodes, edges, agg, clusterId, centerY - agg.height / 2, AP_ALL_ENDPOINTS, undefined, undefined, t);
   }
 
   return {
@@ -1022,6 +1109,7 @@ export const buildFindingPathFlow = (
           label: f.value ?? f.label,
           typeFindings: f.typeFindings,
           status,
+          isFinding: f.isFinding,
         },
       });
       edges.push({
@@ -1524,6 +1612,10 @@ export const buildCausalChainFlow = (
   // Cluster id (chain-epc|<depth>) -> how many of that depth's hidden endpoints to reveal beyond the
   // always-shown cap, batched by ENDPOINT_BATCH_SIZE per click so a heavy depth reveals progressively.
   endpointClusterBatch: Map<string, number> = new Map(),
+  // Finding types the type cap must never hide: the one the user is focusing on. Without this, picking
+  // a finding whose type happens to fall past the cap (ties are broken by name, so "share" can lose to
+  // "cve") leaves it with no node to focus at all, and the view silently falls back to another path.
+  pinnedTypes: ReadonlySet<string> = new Set(),
   // Render endpoint-local (self-loop) executions as their own ACTION nodes instead of collapsing them
   // into the endpoint. Off by default (the finding-centric BAS chain hides the self-arrow); ON for an
   // AUTONOMOUS run, whose story is the ACTION TIMELINE on a mostly single, already-compromised host, so
@@ -1838,8 +1930,27 @@ export const buildCausalChainFlow = (
         type: string;
         fids: string[];
         clusterId?: string;
+        // Set on the single "+N other types" row standing for the type groups the cap hid.
+        typeOverflowId?: string;
+        hiddenTypeCount?: number;
+        typesExpanded?: boolean;
       }[] = [];
-      for (const [ftype, fids] of findingsByType) {
+      // Cap the number of TYPE groups as well as the findings within one: a type under the per-type cap
+      // emits one row PER finding, so ten sparse types (portscan, port, share, action_output, …) stack
+      // into dozens of rows and bury the endpoint. Most numerous types first, name as a tie-break so
+      // which types the cap hides stays stable across renders.
+      const typeEntries = [...findingsByType.entries()]
+        .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+        // Pinned types first (sort is stable, so the count order holds within each group): the type the
+        // user is focusing on must survive the cap, whatever its count.
+        .sort((a, b) => Number(pinnedTypes.has(b[0])) - Number(pinnedTypes.has(a[0])));
+      const typeOverflowId = `chain-tover|${d}|${epId}`;
+      const hiddenTypeCount = Math.max(0, typeEntries.length - MAX_VISIBLE_FINDING_TYPES);
+      const typesExpanded = expandedChainClusters.has(typeOverflowId);
+      const visibleTypeEntries = hiddenTypeCount > 0 && !typesExpanded
+        ? typeEntries.slice(0, MAX_VISIBLE_FINDING_TYPES)
+        : typeEntries;
+      for (const [ftype, fids] of visibleTypeEntries) {
         const clusterId = `chain-fc|${d}|${epId}|${ftype}`;
         if (fids.length > CHAIN_FINDINGS_MAX_PER_TYPE && !expandedChainClusters.has(clusterId)) {
           findRows.push({
@@ -1855,6 +1966,17 @@ export const buildCausalChainFlow = (
             });
           }
         }
+      }
+      if (hiddenTypeCount > 0) {
+        findRows.push({
+          type: '',
+          // The hidden types' findings, so a downstream causal edge whose producer got collapsed still
+          // resolves to a placed node (the chip) instead of a fid that was never rendered.
+          fids: typeEntries.slice(MAX_VISIBLE_FINDING_TYPES).flatMap(([, fids]) => fids),
+          typeOverflowId,
+          hiddenTypeCount,
+          typesExpanded,
+        });
       }
       const h = Math.max(
         CHAIN_EP_BLOCK_MIN,
@@ -1929,6 +2051,41 @@ export const buildCausalChainFlow = (
       // single finding or a collapsed "+N" cluster for its type.
       findRows.forEach((row, k) => {
         const fY = blockCenter + (k - (findRows.length - 1) / 2) * CHAIN_FIND_ROW;
+        if (row.typeOverflowId) {
+          const toId = row.typeOverflowId;
+          if (!placedClusters.has(toId)) {
+            placedClusters.add(toId);
+            nodes.push({
+              id: toId,
+              type: AP_FLOW_NODE_TYPE.findingCluster,
+              position: {
+                x: x + chainFindDx,
+                y: fY - CHAIN_FIND_HALF,
+              },
+              data: {
+                count: row.hiddenTypeCount,
+                label: toId,
+                clusterId: toId,
+                clusterKind: 'typeOverflow',
+                expanded: row.typesExpanded,
+              },
+            });
+          }
+          edges.push({
+            id: `${epNodeId}-${toId}`,
+            source: epNodeId,
+            target: toId,
+            type: AP_FLOW_EDGE_TYPE,
+            data: {
+              count: row.hiddenTypeCount ?? 0,
+              label: `+${row.hiddenTypeCount ?? 0} ${t('other types')}`,
+            },
+          });
+          if (!row.typesExpanded) {
+            row.fids.forEach(fid => causalSourceByFinding.set(fid, toId));
+          }
+          return;
+        }
         if (row.clusterId) {
           // Worst-of status across the collapsed findings (a missing status is treated as the worst, RED).
           let clusterStatus = 'GREEN';
@@ -1991,6 +2148,7 @@ export const buildCausalChainFlow = (
               typeFindings: fDto?.typeFindings,
               assetNodeId: fDto?.assetNodeId,
               status: fDto?.status ?? 'RED',
+              isFinding: fDto?.isFinding,
             },
           });
         }

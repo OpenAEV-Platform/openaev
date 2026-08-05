@@ -837,9 +837,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // expands/collapses it into its individual findings (fetched once, batched); an overflow reveals the
   // next batch. The cluster carries its own key; an endpoint ref scopes the fetch to that host.
   const onFindingClusterClick = useCallback(
-    (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => {
+    (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow' | 'typeOverflow') => {
       if (kind === 'overflow') {
         setFindingBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + FINDING_BATCH_SIZE));
+        return;
+      }
+      // "+N other types": purely a layout toggle (reveal/hide the type clusters the column capped
+      // away). It fetches nothing — each revealed type cluster loads its own findings when clicked.
+      if (kind === 'typeOverflow') {
+        setExpandedFindingClusters((prev) => {
+          const next = new Set(prev);
+          if (next.has(clusterId)) {
+            next.delete(clusterId);
+          } else {
+            next.add(clusterId);
+          }
+          return next;
+        });
+        setFitNonce(n => n + 1);
         return;
       }
       if (expandedFindingClusters.has(clusterId)) {
@@ -1226,9 +1241,29 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // The unscoped causal chain for the whole run, in chain mode: built once and reused both to scope the
   // focused view down and to resolve a specific finding's seed id (effectiveSelectedFindingId below) to
   // whatever node actually represents it.
+  // The focused finding's own type is pinned past the type cap: ties are broken by name, so a picked
+  // "share" could otherwise lose its slot to a "cve" and end up with no node at all — leaving the
+  // focus with nothing to seed on and silently showing another path instead. The chain-mode focus
+  // entry points (drawer pick, summary-list pick) deliberately leave pathFinding.type empty and carry
+  // the exact finding in selectedFindingId instead, so its type is resolved from the raw full graph
+  // (NOT from fullChain, which itself depends on this pin) and pinned too — otherwise those picks
+  // seeded on the "+N other types" chip whenever the picked type fell past the cap.
+  const pinnedFindingTypes = useMemo(
+    () => {
+      const selectedType = selectedFindingId
+        ? (fullDto?.attackPathNodes ?? []).find(n => n.id === selectedFindingId)?.typeFindings
+        : undefined;
+      return new Set(
+        [pathFinding?.type, findingDetail?.type, selectedType].filter((v): v is string => !!v),
+      );
+    },
+    [pathFinding?.type, findingDetail?.type, selectedFindingId, fullDto?.attackPathNodes],
+  );
   const fullChain = useMemo(
-    () => (chainMode && fullDto ? buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch, actionCentric) : null),
-    [chainMode, fullDto, t, expandedFindingClusters, endpointClusterBatch, actionCentric],
+    () => (chainMode && fullDto
+      ? buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes, actionCentric)
+      : null),
+    [chainMode, fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes, actionCentric],
   );
 
   // A finding picked from a drawer/summary list (rather than clicked directly on an already-rendered
@@ -1304,7 +1339,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           expanded: expandedFindingClusters,
           findingsByCluster,
           batch: findingBatch,
-        });
+        }, pinnedFindingTypes);
       }
       if (chokepointRankById.size === 0 && pivotNodeIds.size === 0) {
         return raw;
@@ -2296,7 +2331,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       });
     });
     const extras: FindingCard[] = [...extraTotals.entries()]
-      .sort((a, b) => b[1] - a[1])
+      // Count first, type key as a tie-break: the header caps how many of these show inline, so ties
+      // must not fall back to Map insertion order or which types stay visible would shift across
+      // renders.
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([type, count]) => {
         const noun = t(findingCategoryNoun(type));
         return {
@@ -2304,6 +2342,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           label: noun.charAt(0).toUpperCase() + noun.slice(1),
           icon: <LabelOutlined fontSize="small" />,
           count,
+          // Marks a data-driven card so the header can cap how many of them it shows inline and
+          // collapse the rest behind one "+N types" stat (the band divides its width equally between
+          // stats, so an unbounded list of types clips every caption to a single letter).
+          extra: true,
         };
       });
     return [...base, ...extras];

@@ -43,7 +43,7 @@ interface AttackPathCanvasProps {
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
   onClusterClick?: (injectorId: string, kind: 'header' | 'overflow') => void;
   onEndpointClusterClick?: (clusterId: string) => void;
-  onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => void;
+  onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow' | 'typeOverflow') => void;
   onFindingSelect?: (nodeId: string, type?: string, value?: string, assetNodeId?: string) => void;
   onInjectorSelect?: (injectorId: string, label?: string) => void;
   onBackgroundClick?: () => void;
@@ -465,7 +465,10 @@ const AttackPathCanvas = ({
     } else if (node.type === AP_FLOW_NODE_TYPE.endpointCluster && data.clusterId) {
       onEndpointClusterClick?.(data.clusterId);
     } else if (node.type === AP_FLOW_NODE_TYPE.findingCluster && data.clusterId) {
-      onFindingClusterClick?.(data.clusterId, data.typeFindings, data.injectorId, data.endpointRef, data.clusterKind === 'overflow' ? 'overflow' : 'header');
+      const findingClusterKind = data.clusterKind === 'overflow' || data.clusterKind === 'typeOverflow'
+        ? data.clusterKind
+        : 'header';
+      onFindingClusterClick?.(data.clusterId, data.typeFindings, data.injectorId, data.endpointRef, findingClusterKind);
     } else if (node.type === AP_FLOW_NODE_TYPE.finding) {
       onFindingSelect?.(node.id, data.typeFindings, data.label, data.assetNodeId);
     } else if (node.type === AP_FLOW_NODE_TYPE.injector) {

@@ -1,3 +1,4 @@
+import { MoreHorizOutlined } from '@mui/icons-material';
 import { Box, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { memo } from 'react';
@@ -16,25 +17,36 @@ interface Props {
 }
 
 // Aggregate finding cluster: a group of same-type findings ("header", click to expand into
-// individual FindingCards) or the "+rest" overflow batch loader. Dashed while it stands for
-// hidden findings.
+// individual FindingCards), the "+rest" overflow batch loader, or the "+N other types" chip standing
+// for the finding types the column caps away. Dashed while it stands for hidden content.
 const FindingClusterCard = ({ data, selected = false }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const isOverflow = data.clusterKind === 'overflow';
+  const isTypeOverflow = data.clusterKind === 'typeOverflow';
   const expanded = data.expanded ?? false;
   const verdict = data.status ? attackPathStatusColor(theme, data.status) : theme.palette.divider;
-  const countLabel = isOverflow ? `+${data.count ?? 0}` : String(data.count ?? 0);
+  const countLabel = isOverflow || isTypeOverflow ? `+${data.count ?? 0}` : String(data.count ?? 0);
   let action = t('Click to expand the findings');
-  if (isOverflow) {
+  if (isTypeOverflow) {
+    action = expanded ? t('Click to hide the other finding types') : t('Click to reveal the other finding types');
+  } else if (isOverflow) {
     action = t('Click to reveal the next batch');
   } else if (expanded) {
     action = t('Click to collapse the findings');
   }
+  let eyebrow = data.typeFindings ?? t('Findings');
+  if (isTypeOverflow) {
+    eyebrow = t('Other types');
+  } else if (isOverflow) {
+    eyebrow = t('More');
+  }
   const tooltip = (
     <LogicNodeTooltip
-      eyebrow={isOverflow ? t('More') : (data.typeFindings ?? t('Findings'))}
-      title={`${countLabel} ${data.typeFindings ?? t('findings')}`}
+      eyebrow={eyebrow}
+      title={isTypeOverflow
+        ? `${countLabel} ${t('other types')}`
+        : `${countLabel} ${data.typeFindings ?? t('findings')}`}
       description={action}
       rows={data.status
         ? [{
@@ -53,11 +65,13 @@ const FindingClusterCard = ({ data, selected = false }: Props) => {
           accent: verdict,
           selected,
           dimmed: data.dimmed,
-          dashed: isOverflow || !expanded,
+          dashed: isOverflow || isTypeOverflow || !expanded,
         })}
       >
         <Box sx={buildIconBoxSx(theme, verdict, 'small')}>
-          <FindingIcon findingType={data.typeFindings ?? ''} />
+          {isTypeOverflow
+            ? <MoreHorizOutlined sx={{ fontSize: 16 }} />
+            : <FindingIcon findingType={data.typeFindings ?? ''} />}
         </Box>
         <Box sx={{
           flex: 1,
@@ -68,7 +82,7 @@ const FindingClusterCard = ({ data, selected = false }: Props) => {
         }}
         >
           <Typography component="span" sx={EYEBROW_SX}>
-            {isOverflow ? t('More') : data.typeFindings}
+            {eyebrow}
           </Typography>
           <Typography component="div" sx={TITLE_COMPACT_SX}>
             {countLabel}
