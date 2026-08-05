@@ -6,14 +6,14 @@ import DOMPurify from 'dompurify';
 import { useContext, useEffect, useRef, useState } from 'react';
 
 import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
-import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
+import { getInjectStatusWithGlobalExecutionTraces } from '../../../../../actions/injects/inject-action';
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import Tabs from '../../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../../components/common/tabs/useTabs';
 import Terminal, { type TerminalLine } from '../../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
+import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, InjectStatusOutput } from '../../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -31,6 +31,7 @@ import ExpectationPlatformsTable, {
   type ExpectationPlatformRow,
 } from './ExpectationPlatformsTable';
 import ImageWithFallback from './ImageWithFallback';
+import useResolvedAssetTarget from './useResolvedAssetTarget';
 
 interface Props {
   loading: boolean;
@@ -267,41 +268,14 @@ const CollectorByIdLogo = ({ collectorId, label }: {
 
 // Live terminal for a real execution: the attack-path DTO only carries `command`/`terminalOutput` on
 // seeded runs, so for a real inject we reuse the shared `TerminalViewTab`, fed by the live
-// `execution_traces` — exactly like the inject detail view. The DTO exposes `injectId` but not the
-// executed target, so we resolve the inject's asset targets and pick the one matching this execution's
-// endpoint (falling back to the first asset), then hand it to `TerminalViewTab`.
+// `execution_traces` — exactly like the inject detail view. The executed target is resolved by the
+// shared hook (also used by the payload execution-status badge), then handed to `TerminalViewTab`.
 const LiveExecutionTerminal = ({ injectId, endpointName }: {
   injectId: string;
   endpointName?: string;
 }) => {
   const { t } = useFormatter();
-  const [target, setTarget] = useState<InjectTarget | null>(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    searchTargets(injectId, 'ASSETS', {
-      filterGroup: {
-        mode: 'and',
-        filters: [],
-      },
-      size: 50,
-      page: 0,
-    })
-      .then((response) => {
-        if (!active) {
-          return;
-        }
-        const targets: InjectTarget[] = response.data?.content ?? [];
-        const match = targets.find(tg => tg.target_name && tg.target_name === endpointName);
-        setTarget(match ?? targets[0] ?? null);
-      })
-      .catch(() => active && setTarget(null))
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-  }, [injectId, endpointName]);
+  const { target, loading } = useResolvedAssetTarget(injectId, endpointName);
 
   if (loading) {
     return <Loader variant="inElement" size="sm" />;

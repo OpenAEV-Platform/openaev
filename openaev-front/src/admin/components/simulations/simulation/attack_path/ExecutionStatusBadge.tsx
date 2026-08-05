@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { fetchExecutionDetail } from '../../../../../actions/attack-path/attack-path-actions';
 import useFetchInjectExecutionResult from '../../../../../actions/inject_status/useFetchInjectExecutionResult';
-import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
-import type { InjectStatus as InjectStatusType, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
+import { getInjectStatusWithGlobalExecutionTraces } from '../../../../../actions/injects/inject-action';
+import type { InjectStatus as InjectStatusType, InjectStatusOutput } from '../../../../../utils/api-types';
 import InjectStatus from '../../../common/injects/status/InjectStatus';
 import TraceStatusChip from '../../../common/injects/status/traces/TraceStatusChip';
 import useAgentStatus from '../../../common/injects/status/traces/useAgentStatus';
+import useResolvedAssetTarget from './useResolvedAssetTarget';
 
 // Per-target execution status for a payload-backed execution (issue 244): the prevention/detection
 // verdicts shown elsewhere answer "was it caught?", never "did it run at all?" — a technical failure
@@ -18,31 +19,8 @@ export const PayloadExecutionStatusBadge = ({ injectId, endpointName }: {
   injectId: string;
   endpointName?: string;
 }) => {
-  const [target, setTarget] = useState<InjectTarget | null>(null);
-  useEffect(() => {
-    let active = true;
-    searchTargets(injectId, 'ASSETS', {
-      filterGroup: {
-        mode: 'and',
-        filters: [],
-      },
-      size: 50,
-      page: 0,
-    })
-      .then((response) => {
-        if (!active) {
-          return;
-        }
-        const targets: InjectTarget[] = response.data?.content ?? [];
-        const match = targets.find(tg => tg.target_name && tg.target_name === endpointName);
-        setTarget(match ?? targets[0] ?? null);
-      })
-      .catch(() => active && setTarget(null));
-    return () => {
-      active = false;
-    };
-  }, [injectId, endpointName]);
-  const { injectExecutionResult } = useFetchInjectExecutionResult(injectId, target ?? ({} as InjectTarget));
+  const { target } = useResolvedAssetTarget(injectId, endpointName);
+  const { injectExecutionResult } = useFetchInjectExecutionResult(injectId, target);
   const allTraces = useMemo(
     () => Object.values(injectExecutionResult?.execution_traces ?? {}).flat(),
     [injectExecutionResult],
