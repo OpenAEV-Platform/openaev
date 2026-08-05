@@ -773,13 +773,15 @@ public class AutonomousRunService {
   public AutonomousRun restart(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
-    if (run.getStatus() != AutonomousRunStatus.COMPLETED
-        && run.getStatus() != AutonomousRunStatus.FAILED
-        && run.getStatus() != AutonomousRunStatus.CANCELED
-        && run.getStatus() != AutonomousRunStatus.PLANNED) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Run can only be restarted once it has settled");
-    }
+    // Restart is a deliberate, operator-triggered HARD RESET: it stops the orchestrator, tears the
+    // current simulation + decision timeline + steering down and re-provisions a fresh simulation
+    // from the same scenario. It is therefore valid from ANY state, not just a settled one - the
+    // teardown below already stops an active run cleanly. The previous "settled only" guard rejected
+    // any non-terminal status with a 409, which the cockpit surfaced as the misleading "The element
+    // already exists" toast whenever the operator's view offered Restart on a run the backend still
+    // considered active (a run parked in WAITING_INPUT / RUNNING, or a status desync after repeated
+    // start/stop cycles) - the exact "Restart does nothing / errors out" report. Restarting a live
+    // run is simply a stop-then-restart, which is what the operator expects when they click Restart.
     // Stop the previous XTM One orchestration before tearing its simulation down, so a lingering
     // decision cycle can't dispatch injects against the simulation we are about to delete. The
     // subsequent start() re-engages the run cleanly (upstream start resets the same execution).
