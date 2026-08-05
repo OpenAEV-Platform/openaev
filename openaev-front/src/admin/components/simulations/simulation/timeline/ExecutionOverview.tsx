@@ -41,6 +41,15 @@ import { useNowTick } from './executionTime';
 // Transient statuses of injects that have been dispatched but not concluded.
 const IN_FLIGHT_STATUSES = new Set(['QUEUING', 'EXECUTING', 'PENDING']);
 
+interface ExecutionOverviewProps {
+  // When embedded outside the simulation route (e.g. the scenario Execution tab), the exercise id is
+  // supplied explicitly instead of read from the URL. Falls back to the route param otherwise.
+  exerciseId?: Exercise['exercise_id'];
+  // The permanent right-hand execution menu (mails / logs / validations) only makes sense inside the
+  // simulation route; embedded contexts drop it and show just the live overview.
+  showMenu?: boolean;
+}
+
 // The Execution tab landing screen: a live operations view of the simulation
 // execution. Top to bottom: the live hero (status beacon, elapsed clock, next
 // inject countdown, headline stats, progress track), the scoping toolbar, the
@@ -48,10 +57,11 @@ const IN_FLIGHT_STATUSES = new Set(['QUEUING', 'EXECUTING', 'PENDING']);
 // and the live execution board where injects flow from "up next" to
 // "completed" in real time. Exposure validation posture intentionally lives
 // on the Overview tab only.
-const ExecutionOverview = () => {
+const ExecutionOverview = ({ exerciseId: exerciseIdProp, showMenu = true }: ExecutionOverviewProps = {}) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
+  const params = useParams() as { exerciseId?: Exercise['exercise_id'] };
+  const exerciseId = (exerciseIdProp ?? params.exerciseId) as Exercise['exercise_id'];
   const { t } = useFormatter();
   const [selectedInjectId, setSelectedInjectId] = useState<string | null>(null);
 
@@ -147,7 +157,7 @@ const ExecutionOverview = () => {
 
   return (
     <div>
-      <ExecutionMenu exerciseId={exerciseId} />
+      {showMenu && <ExecutionMenu exerciseId={exerciseId} />}
       <Box sx={{
         display: 'flex',
         flexDirection: 'column',

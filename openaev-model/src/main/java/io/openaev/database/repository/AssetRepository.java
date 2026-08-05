@@ -3,8 +3,10 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.raw.RawIndexedAsset;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -16,6 +18,14 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface AssetRepository
     extends CrudRepository<Asset, String>, JpaSpecificationExecutor<Asset> {
+
+  /**
+   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does NOT apply to a plain
+   * {@code findById} (primary-key loads bypass entity filters), so a user-supplied id could load
+   * another tenant's asset. Constraining on {@code tenant_id} keeps cross-tenant reads out - used
+   * when snapshotting a scope rule's asset display name.
+   */
+  Optional<Asset> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   /**
    * Feeds the {@code asset} search index with the whole asset inventory: every asset type except
@@ -146,13 +156,14 @@ public interface AssetRepository
   List<Asset> findByTenantId(String tenantId);
 
   /**
-   * Business criticality and display name for a set of asset ids, as {@code [assetId,
-   * AssetCriticality, name]} rows. Used by the attack-path chokepoint score (findings weighted by
-   * criticality) and to label an endpoint node with its asset name. JPQL (not native) so the tenant
-   * filter still applies.
+   * Business criticality, display name and seen IP for a set of asset ids, as {@code [assetId,
+   * AssetCriticality, name, seenIp]} rows. Used by the attack-path chokepoint score (findings
+   * weighted by criticality), to label an endpoint node with its asset name, and to show the
+   * endpoint's seen (primary) IP on the map instead of its full IP list. JPQL (not native) so the
+   * tenant filter still applies.
    */
-  @Query("SELECT a.id, a.criticality, a.name FROM Asset a WHERE a.id IN :ids")
-  List<Object[]> findCriticalityByIds(Set<String> ids);
+  @Query("SELECT a.id, a.criticality, a.name, a.seenIp FROM Asset a WHERE a.id IN :ids")
+  List<Object[]> findCriticalityNameAndSeenIpByIds(Set<String> ids);
 
   /**
    * Name-based option search over EVERY asset type except security platforms (endpoints - agent

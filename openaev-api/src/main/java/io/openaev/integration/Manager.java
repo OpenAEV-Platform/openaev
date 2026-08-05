@@ -54,12 +54,38 @@ public class Manager {
    */
   public <T> T request(ComponentRequest request, Class<T> requestedType)
       throws IllegalStateException, NoSuchElementException {
-    // only consider integrations that are running
+    return requestMany(request, requestedType).getFirst();
+  }
+
+  /**
+   * Returns all components matching the request and requested type across all spawned integrations,
+   * regardless of their current status.
+   *
+   * @param request a request object with the desired matching criteria
+   * @param requestedType a Java class representing the desired type
+   * @return the list of matching components found in all spawned integrations
+   * @param <T> the desired type of the returned objects
+   * @throws NoSuchElementException if no component matching the request and type is found
+   */
+  public <T> List<T> requestManyAllStates(ComponentRequest request, Class<T> requestedType) {
+    return requestManyInternal(
+        getSpawnedIntegrations().values().stream().toList(), request, requestedType);
+  }
+
+  private <T> List<T> requestMany(ComponentRequest request, Class<T> requestedType) {
+    return requestManyInternal(
+        spawnedIntegrations.values().stream()
+            .filter(si -> CURRENT_STATUS_TYPE.started.equals(si.getCurrentStatus()))
+            .toList(),
+        request,
+        requestedType);
+  }
+
+  private <T> List<T> requestManyInternal(
+      List<Integration> integrations, ComponentRequest request, Class<T> requestedType) {
     List<T> candidates = new ArrayList<>();
-    for (Map.Entry<ConnectorInstance, Integration> si : spawnedIntegrations.entrySet()) {
-      if (CURRENT_STATUS_TYPE.started.equals(si.getValue().getCurrentStatus())) {
-        candidates.addAll(si.getValue().requestComponent(request, requestedType));
-      }
+    for (Integration si : integrations) {
+      candidates.addAll(si.requestComponent(request, requestedType));
     }
 
     if (candidates.isEmpty()) {
@@ -69,7 +95,7 @@ public class Manager {
               request.identifier(), requestedType.getCanonicalName()));
     }
 
-    return candidates.getFirst();
+    return candidates;
   }
 
   /**

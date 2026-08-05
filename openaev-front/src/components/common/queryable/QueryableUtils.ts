@@ -50,6 +50,46 @@ export const buildEmptyPage = <T>(input: SearchPaginationInput): { data: Page<T>
   };
 };
 
+// Client-side page for fetchers that resolve a small, already-loaded dataset
+// (e.g. a fixed scope perimeter) without a paginated API: applies the requested
+// page window over the given items and echoes backend-compatible Page metadata,
+// so a list component (search, filters, pagination) behaves as with a real API.
+export const buildClientPage = <T>(items: T[], input: SearchPaginationInput): { data: Page<T> } => {
+  const size = input.size ?? DEFAULT_ROWS_PER_PAGE;
+  const page = input.page ?? 0;
+  const totalElements = items.length;
+  const totalPages = size > 0 ? Math.ceil(totalElements / size) : 0;
+  const offset = page * size;
+  const content = items.slice(offset, offset + size);
+  const sort = {
+    empty: true,
+    sorted: false,
+    unsorted: true,
+  };
+  return {
+    data: {
+      content,
+      empty: totalElements === 0,
+      first: page === 0,
+      last: totalPages === 0 || page >= totalPages - 1,
+      number: page,
+      numberOfElements: content.length,
+      pageable: {
+        offset,
+        pageNumber: page,
+        pageSize: size,
+        paged: true,
+        sort,
+        unpaged: false,
+      },
+      size,
+      sort,
+      totalElements,
+      totalPages,
+    },
+  };
+};
+
 // -- ZOD --
 
 const FilterSchema = z.object({

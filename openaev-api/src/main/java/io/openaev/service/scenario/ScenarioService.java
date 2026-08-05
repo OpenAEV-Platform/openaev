@@ -158,6 +158,14 @@ public class ScenarioService {
   private final WorkflowExportInitializer workflowExportInitializer;
   private final BulkDeleteExecutor bulkDeleteExecutor;
 
+  // Lazy (ObjectProvider) to break the AutonomousRunService -> ScenarioService constructor cycle:
+  // the bulk scenario-delete path uses it to tear down each scenario's autonomous run (single
+  // delete is wired at the API layer), so bulk-deleting an autonomous scenario never orphans its
+  // autonomous_runs row or leaves its XTM One orchestration running.
+  private final org.springframework.beans.factory.ObjectProvider<
+          io.openaev.service.autonomous.AutonomousRunService>
+      autonomousRunServiceProvider;
+
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
     return computeAndCreateScenario(scenario);
@@ -575,7 +583,15 @@ public class ScenarioService {
         bulkDeleteExecutor.deleteInChunks(
             "scenarios",
             scenarioIdsToDelete,
-            chunk -> this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk)));
+            chunk -> {
+              // Tear the autonomous run (simulation + timeline + XTM orchestration) down first,
+              // inside the same chunk transaction, so an autonomous scenario is never left with an
+              // orphaned autonomous_runs row after a bulk delete. No-op for manual scenarios.
+              io.openaev.service.autonomous.AutonomousRunService autonomousRunService =
+                  this.autonomousRunServiceProvider.getObject();
+              chunk.forEach(autonomousRunService::deleteForScenarioForce);
+              this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk));
+            });
     log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
     return deletedIds;
   }

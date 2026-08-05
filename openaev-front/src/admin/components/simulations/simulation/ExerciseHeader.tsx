@@ -10,15 +10,17 @@ import {
   PlayArrowOutlined,
   PlayCircleOutlineOutlined,
   RestartAltOutlined,
+  RouteOutlined,
   TrackChangesOutlined,
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
+import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
 import { fetchExerciseArticles } from '../../../../actions/channels/article-action';
@@ -28,6 +30,8 @@ import { type ExercisesHelper } from '../../../../actions/exercises/exercise-hel
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { fetchExerciseInjectsSimple } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
+import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
@@ -35,10 +39,13 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
+import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -228,10 +235,16 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
   );
 };
 
-const ExerciseHeader = ({ onLoading, isLoading }: {
+const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
+  // Present when this simulation is an autonomous (AI-driven) run. The simulation view is then
+  // observe-only: all manual scope / scheduling / configuration controls AND the run lifecycle
+  // controls are hidden. Full control (pause / resume / stop / restart / steer) lives on the parent
+  // scenario, reached via the "Parent scenario" button; here operators only follow the run live.
+  autonomousRun?: AutonomousRun | null;
 }) => {
+  const isAutonomous = !!autonomousRun;
   // Standard hooks
   const theme = useTheme();
   const { t, fldt } = useFormatter();
@@ -250,6 +263,18 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     };
   });
   const permissions = useSimulationPermissions(exerciseId, exercise);
+  const ability = useContext(AbilityContext);
+
+  // A simulation run from a scenario keeps a pointer to its parent. Autonomous runs carry it on the
+  // run instead of (or as well as) the exercise, so fall back to the run's scenario id. When present
+  // it is surfaced as a single unified "parent scenario" pivot button in the hero (top-right), the
+  // same for manual and autonomous runs.
+  const parentScenarioId = (exercise.exercise_scenario as string | undefined)
+    || autonomousRun?.autonomous_run_scenario_id
+    || undefined;
+  const { parentScenario } = useHelper((helper: ScenariosHelper) => ({ parentScenario: parentScenarioId ? helper.getScenario(parentScenarioId) : undefined }));
+  const canAccessParentScenario = !!parentScenario
+    && ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, parentScenario.scenario_id);
 
   // Challenges are authored inside injects (no configuration tab): as soon as
   // at least one inject uses a challenge, expose the player-facing preview
@@ -260,6 +285,11 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     dispatch(fetchExerciseInjectsSimple(exerciseId));
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchExerciseArticles(exerciseId));
+    // Resolve the parent scenario name for the hero pivot button (it is not embedded in the
+    // SimulationDetails DTO), on every tab where the header lives.
+    if (parentScenarioId) {
+      dispatch(fetchScenario(parentScenarioId));
+    }
   });
   const hasChallenges = challenges.length > 0;
 
@@ -318,9 +348,14 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     setExpectationsDrift(result.data);
   };
 
-  const actions: ExerciseActionPopover[] = isSimulationChaining
-    ? ['Update', 'Export', 'Delete']
-    : ['Update', 'Duplicate', 'Export', 'Delete'];
+  let actions: ExerciseActionPopover[] = ['Update', 'Duplicate', 'Export', 'Delete'];
+  if (isAutonomous) {
+    // Observe-only: no manual edit / duplicate, and deletion (which tears down the run) is a
+    // parent-scenario control, so the simulation overflow offers only a read-only Export.
+    actions = ['Export'];
+  } else if (isSimulationChaining) {
+    actions = ['Update', 'Export', 'Delete'];
+  }
 
   // Headline stats surfaced right in the hero so they are visible on every
   // tab. The hero adapts to how the simulation is actually built: injects are
@@ -386,12 +421,13 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
           )}
           action={(
             <>
-              {/* Contextual configuration alert - self-hides when healthy. */}
-              {permissions.canManage && (
+              {/* Contextual configuration alert - self-hides when healthy. Autonomous runs are
+                  scoped and driven by the AI, so the "configure scope" nudge never applies. */}
+              {permissions.canManage && !isAutonomous && (
                 <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
               )}
               {/* Expectation drift warning - self-hides when aligned or dismissed. */}
-              {permissions.canManage && (
+              {permissions.canManage && !isAutonomous && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
                   variant="simulation"
@@ -418,7 +454,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
               )}
               {/* Dismissed drift downgraded to a discreet icon after Configuration -
                   the drift is acknowledged but still reviewable. */}
-              {permissions.canManage && (
+              {permissions.canManage && !isAutonomous && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
                   variant="simulation"
@@ -446,14 +482,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                   </IconButton>
                 </Tooltip>
               )}
-              {/* Entity-scoped reports - self-hides without the reporting
-                  access capability. */}
-              <EntityReportsPanel
-                contextType="SIMULATION"
-                contextId={exercise.exercise_id}
-                entityName={exercise.exercise_name}
-              />
-              {permissions.canManage && (
+              {permissions.canManage && !isAutonomous && (
                 <>
                   <Tooltip title={t('Modify the scheduling')}>
                     <span style={{ display: 'inline-flex' }}>
@@ -469,14 +498,56 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
                   </Tooltip>
                 </>
               )}
-              {/* Lifecycle CTAs (start / pause / resume / stop / reset). */}
-              <Buttons
-                exerciseId={exercise.exercise_id}
-                exerciseStatus={exercise.exercise_status}
-                exerciseName={exercise.exercise_name}
-                onLoading={onLoading}
-                isLoading={isLoading}
-                isScopeMissing={isScopeMissing}
+              {/* Lifecycle CTAs (start / pause / resume / stop / reset) for a manual simulation. An
+                  autonomous run exposes none of them here: the simulation is observe-only and all
+                  control lives on the parent scenario. */}
+              {!isAutonomous && (
+                <Buttons
+                  exerciseId={exercise.exercise_id}
+                  exerciseStatus={exercise.exercise_status}
+                  exerciseName={exercise.exercise_name}
+                  onLoading={onLoading}
+                  isLoading={isLoading}
+                  isScopeMissing={isScopeMissing}
+                />
+              )}
+              {/* Unified parent-scenario pivot: whenever a simulation was run from a scenario (manual
+                  or autonomous), the top-right hero action is an outlined button carrying the scenario
+                  name. For autonomous runs the parent scenario is also where the full control surface
+                  (pause / resume / stop / restart / steer) lives. */}
+              {parentScenarioId && (
+                <Tooltip title={parentScenario?.scenario_name ?? t('Parent scenario')}>
+                  <span style={{ display: 'inline-flex' }}>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      startIcon={<RouteOutlined />}
+                      component={canAccessParentScenario ? Link : 'button'}
+                      to={canAccessParentScenario ? `${SCENARIO_BASE_URL}/${parentScenarioId}` : undefined}
+                      disabled={!canAccessParentScenario}
+                      sx={{ maxWidth: 220 }}
+                    >
+                      <Box
+                        component="span"
+                        sx={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {parentScenario?.scenario_name ?? t('Parent scenario')}
+                      </Box>
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
+              {/* Entity-scoped reports - self-hides without the reporting access capability. Kept
+                  right next to the overflow menu so the two "meta" actions sit together. */}
+              <EntityReportsPanel
+                contextType="SIMULATION"
+                contextId={exercise.exercise_id}
+                entityName={exercise.exercise_name}
               />
               {/* CRUD actions in one overflow menu. */}
               <ExercisePopover

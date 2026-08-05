@@ -349,7 +349,9 @@ export const applyDelta = (
     noteFindingType(f);
   });
 
-  const countersChanged = delta.counters !== undefined && !sameValue(store.counters, delta.counters);
+  // `null` (a steady-state tick, "keep what you have") arrives as an explicit JSON null, not an
+  // omitted field — `!== undefined` alone lets it through and wipes the last good counters.
+  const countersChanged = delta.counters != null && !sameValue(store.counters, delta.counters);
   if (!touched && !countersChanged) {
     return unchangedResult(store, version);
   }

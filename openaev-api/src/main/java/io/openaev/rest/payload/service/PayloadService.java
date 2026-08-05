@@ -159,6 +159,7 @@ public class PayloadService {
 
   private List<ContractElement> targetedAssetFields(String key, PayloadArgument payloadArgument) {
     ContractElement targetedAssetField = new ContractTargetedAsset(key, key);
+    targetedAssetField.setArgumentType(payloadArgument.getType());
 
     Map<String, String> targetPropertySelectorMap = new HashMap<>();
     for (ContractTargetedProperty property : ContractTargetedProperty.values()) {
@@ -218,20 +219,26 @@ public class PayloadService {
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
                   targetedAssetsFields.forEach(builder::mandatory);
                 } else {
-                  builder.mandatory(
+                  ContractElement textField =
                       textField(
                           payloadArgument.getKey(),
                           payloadArgument.getKey(),
-                          payloadArgument.getDefaultValue()));
+                          payloadArgument.getDefaultValue());
+                  textField.setArgumentType(payloadArgument.getType());
+                  builder.mandatory(textField);
                 }
               });
     }
+    // A payload with no platforms must never crash contract building: Arrays.asList(null) throws an
+    // NPE, turning a bad/partial update into a 500. Treat a missing platform array as "no
+    // platforms".
+    Endpoint.PLATFORM_TYPE[] payloadPlatforms = payload.getPlatforms();
     return executableContract(
         contractConfig,
         contractId,
         Map.of(en, payload.getName(), fr, payload.getName()),
         builder.build(),
-        Arrays.asList(payload.getPlatforms()),
+        payloadPlatforms == null ? List.of() : Arrays.asList(payloadPlatforms),
         true,
         domains);
   }

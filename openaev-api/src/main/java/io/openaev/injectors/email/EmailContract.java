@@ -65,7 +65,8 @@ public class EmailContract extends Contractor {
     // Standard contract
     List<ContractElement> standardInstance =
         contractBuilder()
-            .mandatory(teamField(Multiple))
+            .optional(teamField(Multiple))
+            .optional(textField("recipients", "Recipients"))
             .mandatory(textField("subject", "Subject"))
             .mandatory(richTextareaField("body", "Body"))
             .optional(checkboxField("encrypted", "Encrypted", false))
@@ -85,7 +86,8 @@ public class EmailContract extends Contractor {
     // Global contract
     List<ContractElement> globalInstance =
         contractBuilder()
-            .mandatory(teamField(Multiple))
+            .optional(teamField(Multiple))
+            .optional(textField("recipients", "Recipients"))
             .mandatory(textField("subject", "Subject"))
             .mandatory(richTextareaField("body", "Body"))
             .optional(attachmentField(Multiple))

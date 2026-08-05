@@ -347,6 +347,7 @@ class PayloadApiTest extends IntegrationTest {
 
             if ("URL".equals(key)) {
               assertEquals("targeted-asset", type);
+              assertEquals("targeted-asset", f.get("argumentType").asText());
               fieldsForTargetedAsset.add(f);
             } else if ((CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY + "-URL").equals(key)) {
               assertEquals("select", type);
@@ -440,12 +441,14 @@ class PayloadApiTest extends IntegrationTest {
               "arg_username",
               "arg_cve");
       Map<String, String> keyToContractType = new HashMap<>();
+      Map<String, String> keyToArgumentType = new HashMap<>();
       ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
       contractFields.forEach(
           f -> {
             String key = f.get("key").asText();
             if (argumentKeys.contains(key)) {
               keyToContractType.put(key, f.get("type").asText());
+              keyToArgumentType.put(key, f.get("argumentType").asText());
             }
           });
 
@@ -455,6 +458,67 @@ class PayloadApiTest extends IntegrationTest {
           (key, type) ->
               assertEquals(
                   "text", type, "Argument '" + key + "' must produce a text contract field"));
+      assertEquals("text", keyToArgumentType.get("arg_text"));
+      assertEquals("number", keyToArgumentType.get("arg_number"));
+      assertEquals("port", keyToArgumentType.get("arg_port"));
+      assertEquals("host", keyToArgumentType.get("arg_host"));
+      assertEquals("ipv4", keyToArgumentType.get("arg_ipv4"));
+      assertEquals("ipv6", keyToArgumentType.get("arg_ipv6"));
+      assertEquals("username", keyToArgumentType.get("arg_username"));
+      assertEquals("cve", keyToArgumentType.get("arg_cve"));
+    }
+
+    @Test
+    @DisplayName("Given argument types, should persist them on generated injector contract fields")
+    void given_argumentTypes_should_propagate_to_injectorContract_fields() throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
+      input.setArguments(
+          List.of(
+              PayloadFixture.createPayloadArgument("arg_text", PrimitiveType.Text, "hello", null),
+              PayloadFixture.createPayloadArgument("arg_port", PrimitiveType.Port, "8080", null),
+              PayloadFixture.createPayloadArgument(
+                  "arg_username", PrimitiveType.Username, "admin", null),
+              PayloadFixture.createPayloadArgument(
+                  "arg_targeted_asset", PrimitiveType.TargetedAsset, "hostname", "-u")));
+
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      InjectorContract injectorContract =
+          injectorContractRepository
+              .findOne(byPayloadId(JsonPath.read(response, "$.payload_id")))
+              .orElse(null);
+      assertNotNull(injectorContract);
+
+      Map<String, String> expectedArgumentTypes =
+          Map.of(
+              "arg_text", "text",
+              "arg_port", "port",
+              "arg_username", "username",
+              "arg_targeted_asset", "targeted-asset");
+
+      Map<String, String> actualArgumentTypes = new HashMap<>();
+      ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
+      contractFields.forEach(
+          f -> {
+            String key = f.get("key").asText();
+            if (expectedArgumentTypes.containsKey(key) && f.has("argumentType")) {
+              actualArgumentTypes.put(key, f.get("argumentType").asText());
+            }
+          });
+
+      assertEquals(expectedArgumentTypes, actualArgumentTypes);
     }
 
     /** Primitive argument types are persisted and returned in the payload response. */
@@ -540,6 +604,7 @@ class PayloadApiTest extends IntegrationTest {
       assertNotNull(scanField, "Contract must contain a field for 'scan_result'");
       assertEquals("text", scanField.get("type").asText());
       assertEquals("srv-01", scanField.get("defaultValue").asText());
+      assertEquals("host", scanField.get("argumentType").asText());
     }
   }
 

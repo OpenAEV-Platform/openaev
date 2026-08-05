@@ -106,6 +106,7 @@ public class ScenarioMapper {
                 ? rawScenario.getScenario_all_users_number()
                 : 0)
         .workflowId(rawScenario.getScenario_workflow_id())
+        .autonomous(rawScenario.getScenario_autonomous())
         .build();
   }
 

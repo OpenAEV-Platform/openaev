@@ -127,6 +127,7 @@ public class EngineSyncExecutionJob extends SelfConfiguredPlatformJob {
       }
       consecutiveSkips.remove(modelName);
       try {
+
         log.info("Executing engine sync for model {}", modelName);
         // allTenants(): the sweep indexes every tenant's rows; the primitive resolves it into an
         // explicit tenant list for can_access_tenant (see TxCtx#allTenants).

@@ -22,8 +22,15 @@ const ErrorHandler = () => {
         openDialog();
       } else if (error.status === 403 && error.message === 'TENANT_ACCESS_DENIED') {
         MESSAGING$.notifyError(t('You are not a member of this tenant. Please contact your administrator to request access.'));
+      } else if (error.status === 403 && error.message === 'WORKFLOW_NOT_EDITABLE') {
+        MESSAGING$.notifyError(t('This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it.'));
       } else if (error.status === 409) {
-        MESSAGING$.notifyError(t('The element already exists'));
+        // A 409 is not always a duplicate: several endpoints raise a CONFLICT with an explanatory
+        // reason (e.g. a lifecycle guard). Surface that reason when the backend provides one and
+        // only fall back to the generic "already exists" for a bare conflict, so a real cause is
+        // never masked by a misleading "The element already exists".
+        const conflictMessage = error.message && error.message !== 'Conflict' ? error.message : null;
+        MESSAGING$.notifyError(conflictMessage ? t(conflictMessage) : t('The element already exists'));
       } else if (error.status === 400) {
         if (error.message) {
           MESSAGING$.notifyError(t(error.message));

@@ -1,5 +1,6 @@
 package io.openaev.injector_contract.fields;
 
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.model.LinkedFieldModel;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,6 +87,9 @@ public abstract class ContractElement {
 
   /** Pre-selected values from linked fields. */
   private List<String> linkedValues = new ArrayList<>();
+
+  /** Argument primitive type. */
+  private PrimitiveType argumentType;
 
   /**
    * Creates a new contract element.

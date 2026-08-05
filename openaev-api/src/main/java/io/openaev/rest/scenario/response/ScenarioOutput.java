@@ -145,4 +145,8 @@ public class ScenarioOutput {
   @JsonProperty("scenario_workflow_id")
   @Schema(description = "Workflow ID associated with the scenario")
   private String workflowId;
+
+  @JsonProperty("scenario_autonomous")
+  @Schema(description = "Whether the scenario is an autonomous (AI-driven) attack-path scenario")
+  private boolean autonomous;
 }

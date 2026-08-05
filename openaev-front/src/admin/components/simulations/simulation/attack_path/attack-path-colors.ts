@@ -32,14 +32,17 @@ export const attackPathStatusLabel = (status?: string): string => {
 };
 
 // Chokepoint accent — deliberately OUTSIDE the green/orange/red verdict scale and the primary blue,
-// so "most exposed endpoint" never reads as a prevention/detection verdict. Violet in both themes.
+// so "most exposed endpoint" never reads as a prevention/detection verdict. Uses the design-system
+// "ia" violet token (the platform's canonical off-scale accent) so it tracks the theme instead of a
+// hardcoded hex; falls back to the token's own default violet when the design-system palette is
+// absent (e.g. a bare MUI theme in tests).
 export const attackPathChokepointColor = (theme: Theme): string =>
-  (theme.palette.mode === 'dark' ? '#b388ff' : '#7c4dff');
+  theme.palette.designSystem?.ia?.main ?? (theme.palette.mode === 'dark' ? '#B286FF' : '#5E1AD5');
 
 // Causal / event edge accent (the "Triggered <event>" link between a finding and the action it
 // triggers). A neutral grey — deliberately OUTSIDE the green/orange/red verdict scale (and not a
 // warm hue that could read as red), so a causal link never reads as a prevention/detection verdict.
-export const attackPathCausalColor = (theme: Theme): string =>
-  (theme.palette.mode === 'dark' ? '#9e9e9e' : '#757575');
+// Uses the theme's disabled-text grey so it adapts to light/dark instead of a hardcoded hex.
+export const attackPathCausalColor = (theme: Theme): string => theme.palette.text.disabled;
 
 export default attackPathStatusColor;

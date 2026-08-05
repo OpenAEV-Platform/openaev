@@ -212,6 +212,28 @@ describe('attack-path delta store', () => {
       expect(twice.store).toBe(once.store);
     });
 
+    it('given_aSteadyStateDeltaCarryingAnExplicitNullCounters_should_keepThePreviousCounters', () => {
+      // Arrange: the backend ships a steady-state tick as an explicit JSON null (not an omitted
+      // field) meaning "nothing changed, keep what you have" — never a real reset to empty.
+      const store = fromSnapshot(snapshotV1, 1);
+      // The generated type says `counters?: AttackPathCounters` (omitted, never null) — the cast
+      // below reflects what the wire actually carries for this tick (verified against a live backend).
+      const steadyStateDelta: AttackPathDeltaDTO = {
+        ...aDelta({
+          sinceVersion: 1,
+          newVersion: 1,
+        }),
+        counters: null as unknown as AttackPathDeltaDTO['counters'],
+      };
+
+      // Act
+      const { store: next, changed } = applyDelta(store, steadyStateDelta);
+
+      // Assert: the counters a real snapshot/delta populated must survive a null tick untouched.
+      expect(changed).toBe(false);
+      expect(next.counters).toEqual(snapshotV1.counters);
+    });
+
     it('given_aDelta_should_keepTheIdentityOfUntouchedEntries', () => {
       // Arrange
       const store = fromSnapshot(snapshotV1, 1);

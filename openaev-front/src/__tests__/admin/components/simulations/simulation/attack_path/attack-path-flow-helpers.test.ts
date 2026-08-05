@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -455,6 +455,112 @@ describe('buildClusteredAttackPathFlow', () => {
     const { nodes } = buildClusteredAttackPathFlow(malformedDto, new Map(), tt);
     // Assert: ep2 is NOT counted as reached (pre-existing behavior preserved).
     expect(nodes.find(n => n.id === 'cl-ep-all')?.data.count).toBe(1);
+  });
+
+  // Six finding types on the reached endpoints > cap of 4: the two smallest collapse behind one
+  // "+N other types" chip that expands in place, exactly like a finding cluster.
+  const manyTypesDto: AttackPathDTO = {
+    ...clusteredDto,
+    attackPathNodes: [
+      {
+        id: 'inj',
+        type: 'INJECTOR',
+        label: 'impacket',
+      },
+      {
+        id: 'ep1',
+        type: 'ASSET',
+        label: 'EP1',
+        findingCounts: {
+          portscan: 6,
+          credentials: 5,
+          share: 4,
+          cve: 3,
+          hostname: 2,
+          service: 1,
+        },
+      },
+    ],
+    attackPathEdges: [
+      {
+        edgeId: 'x1',
+        edgeSourceId: 'inj',
+        edgeTargetId: 'ep1',
+        type: 'EDGE_EXECUTIONS',
+        count: 6,
+      },
+    ],
+  };
+
+  it('caps the finding types at 4 and collapses the rest behind a "+N other types" chip', () => {
+    const { nodes, edges } = buildClusteredAttackPathFlow(manyTypesDto, new Map(), tt);
+    // The 4 largest types render, ordered by count; the 2 smallest do not.
+    const y = (id: string) => nodes.find(n => n.id === id)!.position.y;
+    ['portscan', 'credentials', 'share', 'cve'].forEach(type => expect(nodes.find(n => n.id === `cl-ft-${type}`)).toBeDefined());
+    ['hostname', 'service'].forEach(type => expect(nodes.find(n => n.id === `cl-ft-${type}`)).toBeUndefined());
+    expect(y('cl-ft-portscan')).toBeLessThan(y('cl-ft-credentials'));
+    expect(y('cl-ft-credentials')).toBeLessThan(y('cl-ft-share'));
+    expect(y('cl-ft-share')).toBeLessThan(y('cl-ft-cve'));
+    // The chip stands for the hidden TYPES (count 2, not the findings' sum), closes the column, and
+    // hangs off the same hub as the type clusters it stands for.
+    const chip = nodes.find(n => n.id === AP_TYPE_OVERFLOW_ID);
+    expect(chip?.data.clusterKind).toBe('typeOverflow');
+    expect(chip?.data.count).toBe(2);
+    expect(chip?.data.expanded).toBe(false);
+    expect(y('cl-ft-cve')).toBeLessThan(y(AP_TYPE_OVERFLOW_ID));
+    const chipEdge = edges.find(e => e.target === AP_TYPE_OVERFLOW_ID);
+    expect(chipEdge?.source).toBe('cl-ep-all');
+    expect(chipEdge?.data?.label).toBe('+2 other types');
+  });
+
+  it('expands the chip in place, revealing every capped type', () => {
+    const expansion = {
+      expanded: new Set([AP_TYPE_OVERFLOW_ID]),
+      findingsByCluster: new Map(),
+      batch: new Map(),
+    };
+    const { nodes } = buildClusteredAttackPathFlow(manyTypesDto, new Map(), tt, expansion);
+    ['hostname', 'service'].forEach(type => expect(nodes.find(n => n.id === `cl-ft-${type}`)).toBeDefined());
+    // The chip stays, flagged expanded, so the user can re-collapse in place.
+    expect(nodes.find(n => n.id === AP_TYPE_OVERFLOW_ID)?.data.expanded).toBe(true);
+  });
+
+  it('never hides a pinned type: it takes the last visible slot instead', () => {
+    // "service" is the smallest type and would be capped away; pinning it (the type the user is
+    // focusing on) must keep it rendered, displacing the smallest unpinned visible type (cve).
+    const { nodes } = buildClusteredAttackPathFlow(manyTypesDto, new Map(), tt, undefined, new Set(['service']));
+    expect(nodes.find(n => n.id === 'cl-ft-service')).toBeDefined();
+    expect(nodes.find(n => n.id === 'cl-ft-cve')).toBeUndefined();
+    expect(nodes.find(n => n.id === AP_TYPE_OVERFLOW_ID)?.data.count).toBe(2);
+  });
+
+  it('breaks count ties by type name, so which types the cap hides is stable across renders', () => {
+    const tieDto: AttackPathDTO = {
+      ...manyTypesDto,
+      attackPathNodes: [
+        {
+          id: 'inj',
+          type: 'INJECTOR',
+          label: 'impacket',
+        },
+        {
+          id: 'ep1',
+          type: 'ASSET',
+          label: 'EP1',
+          findingCounts: {
+            zeta: 1,
+            alpha: 1,
+            echo: 1,
+            beta: 1,
+            delta: 1,
+            charlie: 1,
+          },
+        },
+      ],
+    };
+    const { nodes } = buildClusteredAttackPathFlow(tieDto, new Map(), tt);
+    ['alpha', 'beta', 'charlie', 'delta'].forEach(type => expect(nodes.find(n => n.id === `cl-ft-${type}`)).toBeDefined());
+    ['echo', 'zeta'].forEach(type => expect(nodes.find(n => n.id === `cl-ft-${type}`)).toBeUndefined());
   });
 });
 
@@ -950,6 +1056,189 @@ describe('buildCausalChainFlow', () => {
     const expandedCausal = expandedFlow.edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
     expect(expandedCausal).toHaveLength(5);
     expect(expandedCausal.filter(e => e.data?.label).length).toBe(1);
+
+    // causalSourceByFinding: while collapsed, every one of the 5 findings resolves to the cluster that
+    // represents them (there is no node of their own to resolve to); once expanded, each resolves to
+    // itself. A caller seeding a highlight/focus on a raw finding id must go through this map first, or
+    // it seeds on an id with no matching node at all (see the scopeChainFlowToSeeds fallback test).
+    fids.forEach(v => expect(collapsedFlow.causalSourceByFinding.get(`NODE_FINDING|share|${v}`)).toBe(clusterNodes[0].id));
+    fids.forEach(v => expect(expandedFlow.causalSourceByFinding.get(`NODE_FINDING|share|${v}`)).toBe(`NODE_FINDING|share|${v}`));
+  });
+
+  it('routes findings on overflow-hidden endpoints through the "+N" endpoint cluster in causalSourceByFinding', () => {
+    // 6 distinct endpoints at one depth > cap of 4: ep-5/ep-6 collapse into the `chain-epc|0` endpoint
+    // cluster and their findings never render at all — causalSourceByFinding must resolve those findings
+    // to that cluster (the third resolution case, alongside "itself" and "its type cluster" covered
+    // above), so a seed/highlight on one of them still anchors on something rendered.
+    const eps = ['1', '2', '3', '4', '5', '6'];
+    const overflow: AttackPathDTO = {
+      ...chainDto,
+      attackPathNodes: [
+        {
+          id: 'inj-A',
+          type: 'INJECTOR',
+          label: 'A',
+        },
+        ...eps.map(v => ({
+          id: `ep-${v}`,
+          type: 'ASSET' as const,
+          label: `EP${v}`,
+          ip: `10.0.0.${v}`,
+        })),
+        ...eps.map(v => ({
+          id: `NODE_FINDING|cred|${v}`,
+          type: 'FINDING' as const,
+          typeFindings: 'credentials',
+          value: `cred-${v}`,
+          label: `cred-${v}`,
+        })),
+      ],
+      attackPathExecutions: eps.map(v => ({
+        id: `x${v}`,
+        type: 'EXECUTION' as const,
+        ref: `exec-${v}`,
+        stepTemplateId: 'step-A',
+        findingsNodeIds: [`NODE_FINDING|cred|${v}`],
+        dependsOn: [],
+      })),
+      attackPathEdges: eps.map(v => ({
+        type: 'EDGE_EXECUTIONS' as const,
+        edgeSourceId: 'inj-A',
+        edgeTargetId: `ep-${v}`,
+        executionIds: [`exec-${v}`],
+      })),
+    };
+
+    const flow = buildCausalChainFlow(overflow, tt);
+    const epCluster = flow.nodes.find(n => n.id === 'chain-epc|0');
+    expect(epCluster).toBeDefined();
+    expect(epCluster!.data.count).toBe(2);
+    // The hidden endpoints' findings have no node of their own; they resolve to the endpoint cluster.
+    ['5', '6'].forEach((v) => {
+      expect(flow.nodes.some(n => n.id === `NODE_FINDING|cred|${v}`)).toBe(false);
+      expect(flow.causalSourceByFinding.get(`NODE_FINDING|cred|${v}`)).toBe('chain-epc|0');
+    });
+    // The visible endpoints' findings render individually and resolve to themselves.
+    ['1', '2', '3', '4'].forEach(v => expect(flow.causalSourceByFinding.get(`NODE_FINDING|cred|${v}`)).toBe(`NODE_FINDING|cred|${v}`));
+  });
+
+  // Six finding TYPES on one endpoint > cap of 4 (equal counts, so the alphabetical tie-break decides):
+  // echo and foxtrot collapse behind the "+N other types" chip. inj-C consumes the foxtrot finding, so
+  // its causal edge must re-route through the chip while collapsed.
+  const manyTypeChain = (() => {
+    const types = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'];
+    const dto: AttackPathDTO = {
+      ...chainDto,
+      attackPathNodes: [
+        {
+          id: 'inj-A',
+          type: 'INJECTOR',
+          label: 'A',
+        },
+        {
+          id: 'inj-C',
+          type: 'INJECTOR',
+          label: 'C',
+        },
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'EP1',
+          ip: '10.0.0.1',
+        },
+        ...types.map(ty => ({
+          id: `NODE_FINDING|${ty}|v`,
+          type: 'FINDING' as const,
+          typeFindings: ty,
+          value: `${ty}-v`,
+          label: `${ty}-v`,
+        })),
+      ],
+      attackPathExecutions: [
+        {
+          id: 'xA',
+          type: 'EXECUTION',
+          ref: 'exec-A',
+          stepTemplateId: 'step-A',
+          findingsNodeIds: types.map(ty => `NODE_FINDING|${ty}|v`),
+          dependsOn: [],
+        },
+        {
+          id: 'xC',
+          type: 'EXECUTION',
+          ref: 'exec-C',
+          stepTemplateId: 'step-C',
+          consumedFindingKeys: [{
+            keyType: 'foxtrot',
+            operator: 'IS_NOT_NULL',
+            value: null as unknown as string,
+            matchedFindingIds: ['NODE_FINDING|foxtrot|v'],
+          }],
+          dependsOn: ['step-A'],
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-A',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-A'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-C',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-C'],
+        },
+      ],
+    };
+    return dto;
+  })();
+
+  it('caps the finding types per endpoint and re-routes causal edges of hidden findings through the chip', () => {
+    const flow = buildCausalChainFlow(manyTypeChain, tt);
+    const chip = flow.nodes.find(n => n.data.clusterKind === 'typeOverflow');
+    expect(chip).toBeDefined();
+    expect(chip!.data.count).toBe(2);
+    ['alpha', 'bravo', 'charlie', 'delta'].forEach(ty => expect(flow.nodes.some(n => n.id === `NODE_FINDING|${ty}|v`)).toBe(true));
+    ['echo', 'foxtrot'].forEach(ty => expect(flow.nodes.some(n => n.id === `NODE_FINDING|${ty}|v`)).toBe(false));
+    // The hidden findings resolve to the chip, so the consumer's causal edge anchors on a node that
+    // was actually placed — not on a fid React Flow would silently drop.
+    ['echo', 'foxtrot'].forEach(ty => expect(flow.causalSourceByFinding.get(`NODE_FINDING|${ty}|v`)).toBe(chip!.id));
+    const causal = flow.edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
+    expect(causal).toHaveLength(1);
+    expect(causal[0].source).toBe(chip!.id);
+    expect(causal[0].target).toBe('inj-C');
+    // No dangling edge endpoints anywhere in the flow.
+    const ids = new Set(flow.nodes.map(n => n.id));
+    flow.edges.forEach((e) => {
+      expect(ids.has(e.source)).toBe(true);
+      expect(ids.has(e.target)).toBe(true);
+    });
+  });
+
+  it('expanding the chip reveals the hidden types and the causal edge lands back on the real finding', () => {
+    const chipId = buildCausalChainFlow(manyTypeChain, tt).nodes.find(n => n.data.clusterKind === 'typeOverflow')!.id;
+    const flow = buildCausalChainFlow(manyTypeChain, tt, new Set([chipId]));
+    ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'].forEach(ty => expect(flow.nodes.some(n => n.id === `NODE_FINDING|${ty}|v`)).toBe(true));
+    expect(flow.causalSourceByFinding.get('NODE_FINDING|foxtrot|v')).toBe('NODE_FINDING|foxtrot|v');
+    const causal = flow.edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
+    expect(causal).toHaveLength(1);
+    expect(causal[0].source).toBe('NODE_FINDING|foxtrot|v');
+    // The chip stays, flagged expanded, so the user can re-collapse in place.
+    expect(flow.nodes.find(n => n.data.clusterKind === 'typeOverflow')?.data.expanded).toBe(true);
+  });
+
+  it('never hides a pinned type behind the chip: the focused finding keeps a node to seed on', () => {
+    const flow = buildCausalChainFlow(manyTypeChain, tt, new Set(), new Map(), new Set(['foxtrot']));
+    // foxtrot (pinned) renders; the smallest unpinned visible type (delta) is displaced instead.
+    expect(flow.nodes.some(n => n.id === 'NODE_FINDING|foxtrot|v')).toBe(true);
+    expect(flow.nodes.some(n => n.id === 'NODE_FINDING|delta|v')).toBe(false);
+    expect(flow.nodes.find(n => n.data.clusterKind === 'typeOverflow')?.data.count).toBe(2);
+    // The focused finding resolves to itself, so a focus/highlight seed lands on it, not the chip.
+    expect(flow.causalSourceByFinding.get('NODE_FINDING|foxtrot|v')).toBe('NODE_FINDING|foxtrot|v');
+    const causal = flow.edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
+    expect(causal[0].source).toBe('NODE_FINDING|foxtrot|v');
   });
 
   it('anchors the causal edge on the finding of the resolved producer, not another injector sharing the type', () => {
@@ -1153,6 +1442,75 @@ describe('buildCausalChainFlow', () => {
     expect(edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
   });
 
+  it('promotes endpoint-local actions to their own action nodes when localActionsAsNodes is set (autonomous action timeline)', () => {
+    // Arrange: two endpoint-local actions on the SAME host, chained (LSASS dump depends on the sweep).
+    // In a finding-centric BAS chain both collapse into the endpoint and the follow-up adds nothing new;
+    // an autonomous run must instead show BOTH as their own action nodes so the timeline never freezes.
+    const localChain: AttackPathDTO = {
+      mode: 'full',
+      attackPathNodes: [
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'WIN-1',
+          ip: '10.0.0.1',
+        },
+        {
+          id: 'NODE_FINDING|username|bob',
+          type: 'FINDING',
+          typeFindings: 'username',
+          value: 'bob',
+          label: 'bob',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'x-sweep',
+          type: 'EXECUTION',
+          ref: 'exec-sweep',
+          stepTemplateId: 'step-sweep',
+          contractName: 'Credential Sweep',
+          injectorType: 'openaev_command',
+          findingsNodeIds: ['NODE_FINDING|username|bob'],
+          dependsOn: [],
+        },
+        {
+          id: 'x-lsass',
+          type: 'EXECUTION',
+          ref: 'exec-lsass',
+          stepTemplateId: 'step-lsass',
+          contractName: 'LSASS Dump',
+          injectorType: 'openaev_command',
+          // Re-dumps the same credential (no NEW distinct finding) — the freeze the fix addresses.
+          findingsNodeIds: ['NODE_FINDING|username|bob'],
+          dependsOn: ['step-sweep'],
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'ep-1',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-sweep', 'exec-lsass'],
+        },
+      ],
+    };
+    // Act: without the flag both local actions are hidden (finding-centric); with it they become nodes.
+    const suppressed = buildCausalChainFlow(localChain, tt);
+    const promoted = buildCausalChainFlow(localChain, tt, new Set(), new Map(), new Set(), true);
+    // Assert: default keeps the tested BAS behaviour — no action nodes for local commands.
+    expect(suppressed.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector)).toHaveLength(0);
+    // With the flag: one action node per authored local step, labelled from its contract, and no self
+    // arrow (the action sits to the left of the endpoint and points at it).
+    const actionNodes = promoted.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector);
+    expect(actionNodes.map(n => n.id).sort()).toEqual(['chain-local|step-lsass', 'chain-local|step-sweep']);
+    expect(actionNodes.map(n => n.data.label).sort()).toEqual(['Credential Sweep', 'LSASS Dump']);
+    expect(promoted.edges.find(e => e.source === 'ep-1' && e.target === 'ep-1')).toBeUndefined();
+    // Every emitted edge still resolves to a placed node.
+    const nodeIds = new Set(promoted.nodes.map(n => n.id));
+    expect(promoted.edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
+  });
+
   it('emits no causal edge into an endpoint-local step (its injector node is suppressed)', () => {
     // Arrange: nmap produces port 445 on ep-1; a LOCAL action on ep-1 consumes it (dependsOn step-A).
     const localConsumer: AttackPathDTO = {
@@ -1226,6 +1584,162 @@ describe('buildCausalChainFlow', () => {
   });
 });
 
+describe('scopeChainFlowToSeeds', () => {
+  // Same "5 shares > cap of 4" shape as the buildCausalChainFlow collapse test above: the 5 findings
+  // never render individually, only their `chain-fc|...` cluster does.
+  const fids = ['a', 'b', 'c', 'd', 'e'];
+  const collapsed: AttackPathDTO = {
+    ...chainDto,
+    attackPathNodes: [
+      {
+        id: 'inj-A',
+        type: 'INJECTOR',
+        label: 'A',
+      },
+      {
+        id: 'ep-1',
+        type: 'ASSET',
+        label: 'EP1',
+        ip: '10.0.0.1',
+      },
+      ...fids.map(v => ({
+        id: `NODE_FINDING|share|${v}`,
+        type: 'FINDING' as const,
+        typeFindings: 'share',
+        value: v,
+        label: v,
+      })),
+    ],
+    attackPathExecutions: [
+      {
+        id: 'xA',
+        type: 'EXECUTION',
+        ref: 'exec-A',
+        stepTemplateId: 'step-A',
+        findingsNodeIds: fids.map(v => `NODE_FINDING|share|${v}`),
+        dependsOn: [],
+      },
+    ],
+    attackPathEdges: [
+      {
+        type: 'EDGE_EXECUTIONS',
+        edgeSourceId: 'inj-A',
+        edgeTargetId: 'ep-1',
+        executionIds: ['exec-A'],
+      },
+    ],
+  };
+
+  it('falls back to the full chain rather than an empty focus when the seed is a collapsed finding', () => {
+    const chainFlow = buildCausalChainFlow(collapsed, tt);
+    // The seed is one of the 5 collapsed findings — it has no node of its own, only its cluster does.
+    const scoped = scopeChainFlowToSeeds(chainFlow, new Set(['NODE_FINDING|share|a']));
+
+    expect(scoped.nodes).not.toHaveLength(0);
+    expect(scoped.nodes).toEqual(chainFlow.nodes);
+    expect(scoped.edges).toEqual(chainFlow.edges);
+  });
+
+  it('scopes down to the seed and its connected nodes when the seed is actually rendered', () => {
+    const chainFlow = buildCausalChainFlow(collapsed, tt);
+    const injectorNode = chainFlow.nodes.find(n => n.id === 'inj-A');
+
+    const scoped = scopeChainFlowToSeeds(chainFlow, new Set(['inj-A']));
+
+    expect(scoped.nodes).toContainEqual(injectorNode);
+    expect(scoped.nodes.length).toBeLessThan(chainFlow.nodes.length);
+  });
+
+  it('scopes down correctly, instead of falling back to the full chain, when the seed is resolved through causalSourceByFinding first', () => {
+    // Reproduces picking one of the 5 collapsed findings from a drawer/summary list (not clicking an
+    // already-rendered graph node): the caller must resolve the raw finding id to whatever actually
+    // represents it (its cluster, here) before seeding, exactly as SimulationAttackPath's
+    // effectiveSelectedFindingId does — seeding on the raw id instead is the previous bug, covered by
+    // the "falls back to the full chain" test above.
+    const chainFlow = buildCausalChainFlow(collapsed, tt);
+    const resolvedSeed = chainFlow.causalSourceByFinding.get('NODE_FINDING|share|a');
+    // Assert the mapping itself first (not a silent cast): if causalSourceByFinding ever stops covering
+    // a collapsed finding, this must fail HERE, not as a confusing downstream scoping mismatch.
+    expect(resolvedSeed).toBeDefined();
+
+    const scoped = scopeChainFlowToSeeds(chainFlow, new Set([resolvedSeed!]));
+
+    expect(scoped.nodes.map(n => n.id).sort()).toEqual(['chain-ep|0|ep-1', 'inj-A', resolvedSeed].sort());
+  });
+});
+
+describe('scopeChainFlowToEndpoint', () => {
+  // An endpoint whose execution edge keys it by its REF, not by its graph node id — the shape a
+  // raw-value / re-resolved target takes. The focus click still only knows the node id.
+  const REF = 'ep-ref-1';
+  const NODE_ID = 'NODE_ENDPOINT|ep-ref-1';
+  const refKeyed: AttackPathDTO = {
+    ...chainDto,
+    attackPathNodes: [
+      {
+        id: 'inj-A',
+        type: 'INJECTOR',
+        label: 'A',
+      },
+      {
+        id: NODE_ID,
+        ref: REF,
+        type: 'ASSET',
+        label: 'EP1',
+        ip: '10.0.0.1',
+      },
+      {
+        id: 'NODE_FINDING|share|s1',
+        type: 'FINDING',
+        typeFindings: 'share',
+        value: 's1',
+        label: 's1',
+      },
+    ],
+    attackPathExecutions: [
+      {
+        id: 'xA',
+        type: 'EXECUTION',
+        ref: 'exec-A',
+        stepTemplateId: 'step-A',
+        findingsNodeIds: ['NODE_FINDING|share|s1'],
+        dependsOn: [],
+      },
+    ],
+    attackPathEdges: [
+      {
+        type: 'EDGE_EXECUTIONS',
+        edgeSourceId: 'inj-A',
+        // Keyed by ref — so the chain endpoint node is `chain-ep|0|ep-ref-1`, not `…|NODE_ENDPOINT|…`.
+        edgeTargetId: REF,
+        executionIds: ['exec-A'],
+      },
+    ],
+  };
+
+  it('resolves a ref-keyed endpoint from its node id, keeping the causal chain scoped', () => {
+    const chainFlow = buildCausalChainFlow(refKeyed, tt);
+    // Passing both identifiers (as the focus does) must resolve, so the focus really scopes down
+    // instead of silently returning the whole chain — which would read as "nothing happened".
+    const scoped = scopeChainFlowToEndpoint(chainFlow, [NODE_ID, REF]);
+
+    expect(scoped.nodes.some(n => n.id === `chain-ep|0|${REF}`)).toBe(true);
+    // The producing injector stays in scope: the causal structure is preserved, not flattened away.
+    expect(scoped.nodes.some(n => n.id === 'inj-A')).toBe(true);
+    expect(scoped.edges.length).toBeGreaterThan(0);
+  });
+
+  it('still resolves when only the matching identifier is supplied, and tolerates undefined ones', () => {
+    const chainFlow = buildCausalChainFlow(refKeyed, tt);
+
+    expect(scopeChainFlowToEndpoint(chainFlow, [undefined, REF]).nodes
+      .some(n => n.id === `chain-ep|0|${REF}`)).toBe(true);
+    // A single string keeps working (the original signature).
+    expect(scopeChainFlowToEndpoint(chainFlow, REF).nodes
+      .some(n => n.id === `chain-ep|0|${REF}`)).toBe(true);
+  });
+});
+
 describe('buildFindingPathFlow', () => {
   const pathDto: AttackPathDTO = {
     mode: 'collapsed',
@@ -1291,5 +1805,39 @@ describe('buildFindingPathFlow', () => {
     expect(nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector)).toHaveLength(0);
     expect(nodes.find(n => n.id === 'ep-1')?.type).toBe(AP_FLOW_NODE_TYPE.asset);
     expect(nodes.find(n => n.id === 'path-cl-type|username|dc-01')?.type).toBe(AP_FLOW_NODE_TYPE.findingCluster);
+  });
+});
+
+// The endpoint node shows a single relevant IP instead of the full comma-separated list (#5048):
+// the asset's live seen IP when known, else the first IPv4 of the frozen list, else its first entry.
+describe('displayIp', () => {
+  it('prefers the seen IP over the frozen list', () => {
+    expect(displayIp('203.0.113.7', '10.0.0.1,10.0.0.2')).toBe('203.0.113.7');
+  });
+
+  it('trims the seen IP', () => {
+    expect(displayIp(' 203.0.113.7 ', undefined)).toBe('203.0.113.7');
+  });
+
+  it('ignores a blank seen IP and falls back to the list', () => {
+    expect(displayIp('   ', '192.168.1.10')).toBe('192.168.1.10');
+  });
+
+  it('falls back to the first IPv4 of a mixed list', () => {
+    expect(displayIp(undefined, 'fe80::1, 2001:db8::1, 192.168.1.10, 10.0.0.2')).toBe('192.168.1.10');
+  });
+
+  it('falls back to the first entry when the list has no IPv4', () => {
+    expect(displayIp(undefined, 'fe80::1, 2001:db8::1')).toBe('fe80::1');
+  });
+
+  it('keeps a single-IP endpoint unchanged', () => {
+    expect(displayIp(undefined, '192.168.1.1')).toBe('192.168.1.1');
+  });
+
+  it('returns undefined when neither a seen IP nor a list is available', () => {
+    expect(displayIp(undefined, undefined)).toBeUndefined();
+    expect(displayIp('', '')).toBeUndefined();
+    expect(displayIp(undefined, ' , ')).toBeUndefined();
   });
 });

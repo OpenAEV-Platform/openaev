@@ -4,6 +4,8 @@ import static io.openaev.api.chaining.ConditionApi.TENANT_CONDITION_URI;
 import static io.openaev.api.chaining.StepApi.TENANT_STEP_URI;
 import static io.openaev.api.chaining.WorkflowApi.TENANT_WORKFLOW_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -18,6 +20,7 @@ import io.openaev.database.model.Grant;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.fixtures.ConditionFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -35,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,6 +69,7 @@ class ChainingRbacIsolationTest extends IntegrationTest {
   @Autowired private ConditionComposer conditionComposer;
   @Autowired private OpenAEVConfig openAEVConfig;
   @Autowired private CacheManager cacheManager;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   private String workflowId;
   private String stepId;
@@ -76,6 +81,8 @@ class ChainingRbacIsolationTest extends IntegrationTest {
   void setUp() {
     originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
     openAEVConfig.setEnabledDevFeatures(PreviewFeature.INJECT_CHAINING.getValue());
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+    when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     clearFeatureCache();
 
     Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();

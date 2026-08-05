@@ -347,6 +347,44 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
+  void given_payloadOutputMarkedAsNonFinding_should_stillBuildTypeMapping() {
+    // Arrange
+    ContractOutputElement outputElement = new ContractOutputElement();
+    outputElement.setKey("output");
+    outputElement.setType(ContractOutputType.ActionOutput);
+    outputElement.setName("output");
+    outputElement.setRule(".*");
+    outputElement.setFinding(false);
+    OutputParser outputParser = new OutputParser();
+    outputParser.setMode(ParserMode.STDOUT);
+    outputParser.setType(ParserType.REGEX);
+    outputParser.addContractOutputElement(outputElement);
+
+    Payload payload = new Payload();
+    payload.addOutputParser(outputParser);
+
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setPayload(payload);
+
+    Inject inject = new Inject();
+    inject.setInjectorContract(injectorContract);
+
+    // Act
+    @SuppressWarnings("unchecked")
+    Map<String, ChainingMappedType> typeMappings =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "buildTypeMappingsFromInject", inject);
+
+    // Assert
+    assertNotNull(typeMappings);
+    assertTrue(typeMappings.containsKey("output"));
+    ChainingMappedType mappedType = typeMappings.get("output");
+    assertNotNull(mappedType);
+    assertEquals(ChainingTypeKind.PRIMITIVE, mappedType.kind());
+    assertEquals(List.of(PrimitiveType.ActionOutput), mappedType.primitiveTypes());
+  }
+
+  @Test
   void create_shouldThrowException_whenStepDataIsNull() {
     StepsCreateInput.StepInput stepInput = new StepsCreateInput.StepInput();
     Workflow workflow = new Workflow();

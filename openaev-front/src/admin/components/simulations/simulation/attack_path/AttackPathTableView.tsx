@@ -3,6 +3,7 @@ import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow, TableSor
 import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 
+import { SECTION_LABEL_SX } from '../../../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../../../components/i18n';
 import { attackPathChokepointColor } from './attack-path-colors';
 
@@ -32,6 +33,9 @@ interface Props {
   typeColumns: string[];
   // Rank threshold (top-N) used to flag chokepoints with the flame, matching the graph badges.
   chokepointTopN: number;
+  // Focus the graph on that endpoint's own attack path (its injectors, and the findings they produced
+  // on it) and open its detail panel — the table is a way IN to an endpoint, so a row click lands on
+  // the same focused causal view a chokepoint card or a search pick does.
   onRowFocus: (row: AttackPathEndpointRow) => void;
 }
 
@@ -71,7 +75,7 @@ const csvField = (v: string | number): string => `"${String(v).replace(/"/g, '""
 
 // A table alternative to the node-link graph: the most-exposed endpoints (chokepoints) and their
 // per-type finding breakdown, sortable and exportable to CSV. Reuses the already-loaded endpoint data
-// (no extra fetch); clicking a row focuses that endpoint's path back on the graph.
+// (no extra fetch); clicking a row focuses the graph on that endpoint's own causal path.
 const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -154,13 +158,18 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
         mb: 1,
       }}
       >
-        <Typography variant="subtitle2" color="text.secondary">
+        <Typography sx={{
+          ...SECTION_LABEL_SX,
+          mb: 0,
+        }}
+        >
           {`${t('Most exposed assets')} (${rows.length})`}
         </Typography>
+        {/* Export is a side action next to the table content — outlined (not filled), primary color. */}
         <Button
           size="small"
           variant="outlined"
-          color="secondary"
+          color="primary"
           startIcon={<FileDownloadOutlined />}
           onClick={exportCsv}
           disabled={rows.length === 0}
@@ -214,13 +223,26 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
                         gap: 0.5,
                       }}
                       >
-                        {(rankByNodeId.get(r.nodeId) ?? Infinity) <= chokepointTopN && (
-                          <LocalFireDepartment sx={{
-                            fontSize: 15,
-                            color: chokepointColor,
+                        {/* Fixed-width flame slot so rank numbers stay column-aligned whether or
+                            not the row is flagged as a chokepoint. */}
+                        <Box
+                          component="span"
+                          sx={{
+                            width: 15,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
                           }}
-                          />
-                        )}
+                        >
+                          {(rankByNodeId.get(r.nodeId) ?? Infinity) <= chokepointTopN && (
+                            <LocalFireDepartment sx={{
+                              fontSize: 15,
+                              color: chokepointColor,
+                            }}
+                            />
+                          )}
+                        </Box>
                         {i + 1}
                       </Box>
                     </TableCell>

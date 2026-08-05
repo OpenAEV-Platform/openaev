@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.*;
@@ -37,14 +38,11 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -186,17 +184,8 @@ public class InjectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get injector image by type")
   @Transactional
-  public ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
-      throws IOException {
-    Optional<InputStream> fileStream = fileService.getInjectorImage(injectorType);
-    if (fileStream.isPresent()) {
-      try (InputStream is = fileStream.get()) {
-        return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-            .body(IOUtils.toByteArray(is));
-      }
-    }
-    return ResponseEntity.notFound().build();
+  public ResponseEntity<InputStreamResource> getInjectorImage(@PathVariable String injectorType) {
+    return this.fileService.getConnectorImage(ConnectorType.INJECTOR, injectorType);
   }
 
   @DeleteMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})

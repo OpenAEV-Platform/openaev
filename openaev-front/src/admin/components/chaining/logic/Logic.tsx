@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchConditions, fetchSteps } from '../../../../actions/chaining/chaining-actions';
-import { fetchValidAssets } from '../../../../actions/chaining/workflow-actions';
+import { fetchValidAssets, fetchValidTeams } from '../../../../actions/chaining/workflow-actions';
 import type {
   EventOutput,
   ScopeAssetOutput,
+  ScopeTeamOutput,
   StepOutput,
 } from '../../../../utils/api-types';
+import useLivePolling from '../../../../utils/hooks/useLivePolling';
+import useRemainingViewportHeight from '../../../../utils/hooks/useRemainingViewportHeight';
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
-import ChainingFlowConfiguration, { type DrawerView } from './chaining_flow/ChainingFlowConfiguration';
-import LogicFlow from './chaining_flow/LogicFlow';
+import ComponentStepperDrawer, { type DrawerView } from './drawer/ComponentStepperDrawer';
+import LogicGraph from './logic-graph/LogicGraph';
 import LogicTopBar from './LogicTopBar';
 import OutputProvidersProvider from './OutputProvidersContext';
 import type { ActionMeta, EventMeta } from './types';
@@ -17,36 +20,45 @@ import type { ActionMeta, EventMeta } from './types';
 interface LogicProps {
   workflowId: string | undefined;
   context: LogicContext;
+  /** Owning scenario id (scenario context) - feeds the inject form's team/document providers. */
+  scenarioId?: string;
+  /** Owning exercise id (simulation context) - feeds the inject form's team/document providers. */
+  exerciseId?: string;
+  /** Read-only inspection mode (autonomous runs OR a launched simulation, see ADR-005): the manual
+   *  authoring affordances (top bar, add-component, node edit/delete) are hidden while pan/zoom
+   *  and the trigger spotlight stay available. */
+  readOnly?: boolean;
 }
 
-const Logic = ({ workflowId, context }: LogicProps) => {
+const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }: LogicProps) => {
+  // The canvas sizes itself to the exact space left under the page chrome (no page scrollbar).
+  const [graphContainerRef, graphHeight] = useRemainingViewportHeight();
   // Fetch computed valid assets (allowlist minus denylist)
   const [validAssets, setValidAssets] = useState<ScopeAssetOutput[]>([]);
+  // Fetch computed valid teams (allowlist minus denylist)
+  const [validTeams, setValidTeams] = useState<ScopeTeamOutput[]>([]);
   // Track whether existing steps/events exist
   const [hasExistingData, setHasExistingData] = useState<boolean | null>(null);
   // Count of existing events (used to generate default names)
   const [eventCount, setEventCount] = useState(0);
-  // Key to force LogicFlow re-mount after adding a step
+  // Key to force the graph to re-fetch after a mutation
   const [refreshKey, setRefreshKey] = useState(0);
-  // Drawer navigation state (shared with ChainingFlowConfiguration)
+  // Drawer navigation state (shared with ComponentStepperDrawer)
   const [drawerView, setDrawerView] = useState<DrawerView>('closed');
   // Step currently being edited
   const [editingStep, setEditingStep] = useState<{
     stepId: string;
     meta: ActionMeta;
   } | null>(null);
-    // Output type required by the "Add Compatible Action" banner (pre-filters the action list)
+  // Output type required by the "Add compatible action" banner (pre-filters the action list)
   const [compatibleActionFilter, setCompatibleActionFilter] = useState<string | undefined>();
-
-  // Event to link a newly created action to (set when adding an action via the event node "+")
+  // Event to link a newly created action to (set when adding an action via a trigger's "+")
   const [linkToEventId, setLinkToEventId] = useState<string | undefined>();
-
   // Event currently being edited
   const [editingEvent, setEditingEvent] = useState<{
     eventId: string;
     meta: EventMeta;
   } | null>(null);
-
   // Latest event metas
   const [eventMetas, setEventMetas] = useState<Record<string, EventMeta>>({});
 
@@ -55,33 +67,70 @@ const Logic = ({ workflowId, context }: LogicProps) => {
       fetchValidAssets(workflowId).then((assets: ScopeAssetOutput[]) => {
         setValidAssets(assets);
       });
+      fetchValidTeams(workflowId).then((teams: ScopeTeamOutput[]) => {
+        setValidTeams(teams);
+      });
     }
   }, [workflowId]);
 
-  // Check if there are existing steps or events
-  useEffect(() => {
-    if (!workflowId) return;
-    Promise.all([
+  // Fingerprint of the workflow's shape (which steps/triggers exist and when each last changed) so a
+  // live poll can tell a real edit from a no-op tick: it re-draws the graph on an add, a delete or an
+  // in-place edit (the *_updated_at moves), and does nothing at all when the run is quiet.
+  const shapeSignatureRef = useRef<string | null>(null);
+  const shapeSignature = (steps: StepOutput[], events: EventOutput[]) => [
+    steps.map(s => `${s.step_id}:${s.step_updated_at ?? ''}`).sort().join(','),
+    events.map(e => `${e.event_id}:${e.event_updated_at ?? ''}`).sort().join(','),
+  ].join('|');
+
+  // Single loader for the workflow shape, shared by the initial read, the live poll and the mutation
+  // callbacks. It only bumps `refreshKey` (which re-fetches the graph) when the shape actually moved,
+  // so a steady poll never resets the user's pan/zoom or selection — the graph is left strictly alone
+  // until the AI (or the user) changes something. `force` re-draws right after a local mutation.
+  const syncShape = useCallback(async ({ force = false }: { force?: boolean } = {}) => {
+    if (!workflowId) {
+      return;
+    }
+    const [stepsRes, conditionsRes] = await Promise.all([
       fetchSteps(workflowId),
       fetchConditions(workflowId),
-    ]).then(([stepsRes, conditionsRes]) => {
-      const steps: StepOutput[] = stepsRes.data ?? [];
-      const events: EventOutput[] = conditionsRes.data ?? [];
-      setHasExistingData(steps.length > 0 || events.length > 0);
-      setEventCount(events.length);
-    });
+    ]);
+    const steps: StepOutput[] = stepsRes.data ?? [];
+    const events: EventOutput[] = conditionsRes.data ?? [];
+    setHasExistingData(steps.length > 0 || events.length > 0);
+    setEventCount(events.length);
+    const signature = shapeSignature(steps, events);
+    // First read of this workflow just seeds the fingerprint: the graph fetches itself on mount, so
+    // bumping here would be a redundant second fetch.
+    const isFirstRead = shapeSignatureRef.current === null;
+    if (force || (!isFirstRead && signature !== shapeSignatureRef.current)) {
+      setRefreshKey(k => k + 1);
+    }
+    shapeSignatureRef.current = signature;
   }, [workflowId]);
+
+  // Re-seed and re-read whenever the workflow changes (simulation/scenario switch).
+  useEffect(() => {
+    shapeSignatureRef.current = null;
+    setHasExistingData(null);
+    void syncShape();
+  }, [workflowId, syncShape]);
+
+  // Keep the Logic tab live: while it is open and visible, poll for shape changes the AI (or another
+  // user) commits, so authored steps appear without a manual tab reload. Refreshes on change only.
+  useLivePolling(() => {
+    void syncShape();
+  }, { enabled: !!workflowId });
 
   const handleStepCreated = useCallback(() => {
     setHasExistingData(true);
-    setRefreshKey(k => k + 1);
-  }, []);
+    void syncShape({ force: true });
+  }, [syncShape]);
 
   const handleEventCreated = useCallback(() => {
     setHasExistingData(true);
     setEventCount(c => c + 1);
-    setRefreshKey(k => k + 1);
-  }, []);
+    void syncShape({ force: true });
+  }, [syncShape]);
 
   const handleOpenDrawer = useCallback(() => {
     setCompatibleActionFilter(undefined);
@@ -89,14 +138,14 @@ const Logic = ({ workflowId, context }: LogicProps) => {
     setDrawerView('choose');
   }, []);
 
-  // Opens the action list directly, optionally pre-filtered by output type
+  // Opens the action list directly, optionally pre-filtered by output type (warning banner)
   const handleOpenActionDrawer = useCallback((field?: string) => {
     setCompatibleActionFilter(field);
     setLinkToEventId(undefined);
     setDrawerView('action');
   }, []);
 
-  // Opens the action list from an event node "+", linking created actions to that event
+  // Inline "+" on a trigger: add an action gated by that trigger
   const handleAddActionToEvent = useCallback((eventId: string) => {
     setCompatibleActionFilter(undefined);
     setLinkToEventId(eventId);
@@ -127,38 +176,48 @@ const Logic = ({ workflowId, context }: LogicProps) => {
   return (
     <OutputProvidersProvider>
       <div
+        ref={graphContainerRef}
         style={{
           position: 'relative',
           width: '100%',
-          height: 'calc(100vh - 340px)',
+          height: graphHeight ?? 'calc(100vh - 340px)',
           overflow: 'hidden',
         }}
       >
         {hasExistingData && workflowId
           ? (
               <>
-                <LogicFlow
+                <LogicGraph
                   reloadTrigger={refreshKey}
                   workflowId={workflowId}
                   onEditStep={handleEditStep}
                   onEditEvent={handleEditEvent}
                   onAddActionToEvent={handleAddActionToEvent}
                   onEventMetasChange={setEventMetas}
+                  readOnly={readOnly}
                 />
-                <LogicTopBar
-                  eventMetas={eventMetas}
-                  onAddCompatibleAction={handleOpenActionDrawer}
-                  onAddComponent={handleOpenDrawer}
-                />
+                {!readOnly && (
+                  <LogicTopBar
+                    eventMetas={eventMetas}
+                    onAddCompatibleAction={handleOpenActionDrawer}
+                    onAddComponent={handleOpenDrawer}
+                  />
+                )}
               </>
             )
           : (
-              <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
+              !readOnly && (
+                <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
+              )
             )}
       </div>
-      <ChainingFlowConfiguration
+      <ComponentStepperDrawer
         workflowId={workflowId}
+        context={context}
+        scenarioId={scenarioId}
+        exerciseId={exerciseId}
         validAssets={validAssets}
+        validTeams={validTeams}
         drawerView={drawerView}
         onDrawerViewChange={setDrawerView}
         editingStep={editingStep}
@@ -169,6 +228,7 @@ const Logic = ({ workflowId, context }: LogicProps) => {
         onEventCreated={handleEventCreated}
         eventCount={eventCount}
         compatibleActionFilter={compatibleActionFilter}
+        onCompatibleActionFilterChange={setCompatibleActionFilter}
         linkToEventId={linkToEventId}
       />
     </OutputProvidersProvider>
