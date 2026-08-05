@@ -9,6 +9,7 @@ import Loader from '../../../../../components/Loader';
 import type { AttackPathNodeDTO } from '../../../../../utils/api-types';
 import InjectFormSection from '../../../common/injects/form/InjectFormSection';
 import AttackPathVerdictPill from './AttackPathVerdictPill';
+import { ExecutionRowStatusBadge } from './ExecutionStatusBadge';
 
 interface FindingGroup {
   type: string;
@@ -43,6 +44,7 @@ const PageSizeSelect = ({ value, onChange }: {
 };
 
 interface Props {
+  simulationId: string;
   endpointLabel: string;
   endpointSub?: string;
   findingsLoading: boolean;
@@ -80,6 +82,7 @@ interface Props {
 // InjectFormSection sections, FindingIcon on each finding group and a verdict pill per execution.
 // Mirrors FindingDetailPanel / ExecutionResultTerminalPanel so the three side panels are consistent.
 const EndpointDetailPanel = ({
+  simulationId,
   endpointLabel,
   endpointSub,
   findingsLoading,
@@ -294,6 +297,13 @@ const EndpointDetailPanel = ({
                       {[e.agentName, e.privilege].filter(Boolean).join(' · ')}
                     </Typography>
                   </Box>
+                  {/* Whether this execution actually ran at all (issue 244), at a glance in the list —
+                      the verdict pill beside it only answers whether it was caught. */}
+                  <ExecutionRowStatusBadge
+                    simulationId={simulationId}
+                    executionRef={e.ref}
+                    endpointName={e.hostname}
+                  />
                   <AttackPathVerdictPill label={status} status={e.status} />
                 </Box>
               );

@@ -2762,6 +2762,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
 
               {!findingDetail && selectedNodeId && !detailExecutionId && (
                 <EndpointDetailPanel
+                  simulationId={simulationId}
                   endpointLabel={selectedLabel || t('Endpoint')}
                   emptyFindingsLabel={selectedTargetEmptyFindingsLabel}
                   findingsLoading={endpointFindingsLoading}
@@ -2792,6 +2793,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                 Result / Execution details / Remediation detail (the global command it ran). */}
               {!pathFinding && !findingDetail && !selectedNodeId && selectedInjectorId && !detailExecutionId && (
                 <EndpointDetailPanel
+                  simulationId={simulationId}
                   endpointLabel={injectorPanelLabel || t('Injector')}
                   emptyFindingsLabel={t('No findings from this action')}
                   findingsLoading={injectorFindingsLoading}

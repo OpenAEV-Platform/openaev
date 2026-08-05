@@ -3,10 +3,9 @@ import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 
 import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
-import useFetchInjectExecutionResult from '../../../../../actions/inject_status/useFetchInjectExecutionResult';
 import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import Tabs from '../../../../../components/common/tabs/Tabs';
@@ -14,7 +13,7 @@ import useTabs from '../../../../../components/common/tabs/useTabs';
 import Terminal, { type TerminalLine } from '../../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, InjectStatus as InjectStatusType, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
+import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -23,12 +22,10 @@ import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import StatusPill from '../../../atomic_testings/atomic_testing/target_result/StatusPill';
 import EEChip from '../../../common/entreprise_edition/EEChip';
 import expectationIconByType from '../../../common/ExpectationIconByType';
-import InjectStatus from '../../../common/injects/status/InjectStatus';
 import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
-import TraceStatusChip from '../../../common/injects/status/traces/TraceStatusChip';
-import useAgentStatus from '../../../common/injects/status/traces/useAgentStatus';
 import FindingList from '../../../findings/FindingList';
+import { InjectorExecutionStatusBadge, PayloadExecutionStatusBadge } from './ExecutionStatusBadge';
 import ExpectationPlatformsTable, {
   type ExpectationPlatformAlert,
   type ExpectationPlatformRow,
@@ -315,52 +312,6 @@ const LiveExecutionTerminal = ({ injectId, endpointName }: {
   return <TerminalViewTab injectId={injectId} target={target} />;
 };
 
-// Per-target execution status for a payload-backed execution (issue 244): the Result tab's
-// prevention/detection verdicts answer "was it caught?", never "did it run at all?" — a technical
-// failure (timeout, access denied…) and a clean run that simply went undetected previously looked
-// identical there. Resolves the same target + traces LiveExecutionTerminal does for the terminal
-// (a second, independent fetch — the two tabs render independently of one another), and renders
-// nothing once resolved without any real traces (a seeded/demo snapshot has no live target to match).
-const PayloadExecutionStatusBadge = ({ injectId, endpointName }: {
-  injectId: string;
-  endpointName?: string;
-}) => {
-  const [target, setTarget] = useState<InjectTarget | null>(null);
-  useEffect(() => {
-    let active = true;
-    searchTargets(injectId, 'ASSETS', {
-      filterGroup: {
-        mode: 'and',
-        filters: [],
-      },
-      size: 50,
-      page: 0,
-    })
-      .then((response) => {
-        if (!active) {
-          return;
-        }
-        const targets: InjectTarget[] = response.data?.content ?? [];
-        const match = targets.find(tg => tg.target_name && tg.target_name === endpointName);
-        setTarget(match ?? targets[0] ?? null);
-      })
-      .catch(() => active && setTarget(null));
-    return () => {
-      active = false;
-    };
-  }, [injectId, endpointName]);
-  const { injectExecutionResult } = useFetchInjectExecutionResult(injectId, target ?? ({} as InjectTarget));
-  const allTraces = useMemo(
-    () => Object.values(injectExecutionResult?.execution_traces ?? {}).flat(),
-    [injectExecutionResult],
-  );
-  const agentStatus = useAgentStatus(allTraces);
-  if (allTraces.length === 0) {
-    return null;
-  }
-  return <TraceStatusChip status={agentStatus.statusName} />;
-};
-
 // A network injector (NetExec, Nmap…) has no single shell command on the DTO — `command` is only ever
 // resolved for Command-payload-backed injects (see InjectExecutionStep#getCommand on the backend).
 // What it actually ran is instead reconstructed and partially masked server-side (see
@@ -411,28 +362,6 @@ const InjectorExecutionTraces = ({ injectId }: { injectId: string }) => {
     return <Typography variant="body2" color="text.secondary">{t('No data available')}</Typography>;
   }
   return <GlobalExecutionTraces injectStatus={injectStatus} />;
-};
-
-// Inject-level execution status for a network injector (NetExec, Nmap…) (issue 244): its own traces have
-// no `execution_agent` (no deployed agent), so GlobalExecutionTraces above routes them through
-// MainTraces, which — unlike AgentTraces — renders no status chip at all. Fetched independently (the
-// Result tab renders regardless of which other tab is active) and rendered in the Result tab instead of
-// alongside the traces, matching where the equivalent payload-side badge above lives.
-const InjectorExecutionStatusBadge = ({ injectId }: { injectId: string }) => {
-  const [statusName, setStatusName] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    getInjectStatusWithGlobalExecutionTraces(injectId)
-      .then((response: { data: InjectStatusOutput }) => active && setStatusName(response.data?.status_name ?? null))
-      .catch(() => active && setStatusName(null));
-    return () => {
-      active = false;
-    };
-  }, [injectId]);
-  if (!statusName) {
-    return null;
-  }
-  return <InjectStatus status={statusName as InjectStatusType['status_name']} />;
 };
 
 // The Result & Terminal panel for one execution (issue 5048): an in-flow panel between the execution
@@ -828,24 +757,50 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 gap: theme.spacing(2),
               }}
               >
-                <div>
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                }}
+                >
                   {/* The friendly endpoint name (kingslanding), not the raw endpoint key/UUID, to stay
                        consistent with the graph node; fall back to the IP only when no name is known. */}
                   <Typography variant="subtitle2">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Typography>
-                </div>
-                {/* Whether the action actually ran at all (issue 244), ahead of the prevention/detection
-                    verdicts below: those answer "was it caught?", never "did it run?" — a technical
-                    failure and a clean-but-undetected run previously looked identical. */}
-                {detail.injectId && (
-                  detail.payloadId
-                    ? (
-                        <PayloadExecutionStatusBadge
-                          injectId={detail.injectId}
-                          endpointName={endpointLabel || detail.targetHostname || detail.endpointKey}
-                        />
-                      )
-                    : <InjectorExecutionStatusBadge injectId={detail.injectId} />
-                )}
+                  {/* Whether the action actually ran at all (issue 244): those verdicts below answer "was
+                      it caught?", never "did it run?" — a technical failure and a clean-but-undetected run
+                      previously looked identical. Sits beside the endpoint name (not its own row) to save
+                      vertical space. */}
+                  {detail.injectId && (
+                    <Box sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.75,
+                      flexShrink: 0,
+                    }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        {t('Status')}
+                        :
+                      </Typography>
+                      {detail.payloadId
+                        ? (
+                            <PayloadExecutionStatusBadge
+                              injectId={detail.injectId}
+                              endpointName={endpointLabel || detail.targetHostname || detail.endpointKey}
+                            />
+                          )
+                        : <InjectorExecutionStatusBadge injectId={detail.injectId} />}
+                    </Box>
+                  )}
+                </Box>
                 {/* Enterprise gate on the attribution itself, not on the verdicts: one chip for the
                     section, offering the upsell path instead of a dead-end sentence per row. Only
                     clickable for a user who could act on the dialog — the licence form it opens
