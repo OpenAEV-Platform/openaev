@@ -15,39 +15,62 @@ during the pilot, the guess is written down here as the answer. Where the
 library's own documentation disagreed with reality, reality is recorded and the
 gap is filed in [`LIBRARY-FEEDBACK.md`](./LIBRARY-FEEDBACK.md).
 
-**What it costs, honestly.** The first integration in a product is measured in
-days, not hours — and most of that time is *not* writing the component. In this
-pilot the rough split was: setting up plumbing that only has to be done once
-(authentication, CI wiring, install, stylesheet, theme bridge) ≈ half a day;
-reading the component's real API and building the product adapter ≈ a day;
-deleting the legacy code and fixing the tests ≈ half a day; and then **several
-rounds of visual checkpoint and style diffing**, which is the part everyone
-underestimates. Once the plumbing exists, adopting the *next* component in the
-same product is a small fraction of that, and a
-[pin bump](#the-pin-bump-exercise) is under twenty minutes.
+**What it costs, honestly — and how honestly the figure is known.** The first
+integration in a product is measured in days, not hours, and most of that time
+is *not* writing the component.
+
+Read the following as a **reconstruction from milestones, not a measurement**.
+Nobody ran a stopwatch during the pilot; the split was rebuilt afterwards from
+commit and checkpoint timestamps, and one block of roughly **44 % of the elapsed
+time is undifferentiated** — it cannot be attributed to a named activity. Any
+finer breakdown you may see quoted is invented. What survives that caveat is the
+**shape**, and the shape is the useful part:
+
+> Roughly **half** the time goes before there is an implementation that
+> validates locally. Roughly **half** goes after — visual verification, style
+> diffing against the documentation site, and converging the end-to-end tests.
+
+That second half is the one this playbook covered worst, and it is where the
+next pilot will lose its time: green types, green lint and green unit tests say
+nothing about a rail that renders 22px wide or a customer accent that stopped
+propagating. Budget for it explicitly instead of treating it as a tail.
+
+As an order of magnitude for the first half: plumbing that only has to be done
+once (authentication, CI wiring, install, stylesheet, theme bridge) ≈ half a
+day; reading the component's real API and building the adapter ≈ a day; deleting
+the legacy code and fixing the tests ≈ half a day. Once the plumbing exists,
+adopting the *next* component in the same product is a small fraction of that,
+and a [pin bump](#the-pin-bump-exercise) is under twenty minutes.
 
 ---
 
 ## Table of contents
 
 1. [Prerequisites](#1-prerequisites)
-2. [Step 1 — Pick and freeze the pin](#step-1--pick-and-freeze-the-pin)
-3. [Step 2 — Make CI able to authenticate](#step-2--make-ci-able-to-authenticate)
-4. [Step 3 — Make CI actually run on your branch](#step-3--make-ci-actually-run-on-your-branch)
-5. [Step 4 — Install the library](#step-4--install-the-library)
-6. [Step 5 — Import the stylesheet and add the host prerequisites](#step-5--import-the-stylesheet-and-add-the-host-prerequisites)
-7. [Step 5b — Diff against the library's own documentation site](#step-5b--diff-against-the-librarys-own-documentation-site)
-8. [Step 6 — Bridge the theme](#step-6--bridge-the-theme)
-9. [Step 7 — Read the component's real API before designing anything](#step-7--read-the-components-real-api-before-designing-anything)
-10. [Step 8 — Build the product adapter](#step-8--build-the-product-adapter)
-11. [Step 9 — Delete the code you replaced](#step-9--delete-the-code-you-replaced)
-12. [Step 10 — Tests](#step-10--tests)
-13. [Step 11 — File what the library is missing](#step-11--file-what-the-library-is-missing)
-14. [Step 12 — Run the product for the visual checkpoint](#step-12--run-the-product-for-the-visual-checkpoint)
-15. [Final verification checklist](#final-verification-checklist)
-16. [The checkpoint loop](#the-checkpoint-loop--a-review-that-changes-its-mind-is-the-process-working)
-17. [The pin-bump exercise](#the-pin-bump-exercise)
-18. [What belongs to the library vs. to the product](#what-belongs-to-the-library-vs-to-the-product)
+2. [Step 0.5 — Read the previous pilot's implementation](#step-05--read-the-previous-pilots-implementation)
+3. [Step 1 — Pick and freeze the pin](#step-1--pick-and-freeze-the-pin)
+4. [Step 2 — Make CI able to authenticate](#step-2--make-ci-able-to-authenticate)
+5. [Step 3 — Make CI actually run on your branch](#step-3--make-ci-actually-run-on-your-branch)
+6. [Step 4 — Install the library](#step-4--install-the-library)
+7. [Step 5 — Import the stylesheet and add the host prerequisites](#step-5--import-the-stylesheet-and-add-the-host-prerequisites)
+8. [Step 5b — Diff against the library's own documentation site](#step-5b--diff-against-the-librarys-own-documentation-site)
+9. [Step 6 — Bridge the theme](#step-6--bridge-the-theme)
+10. [Step 6b — Audit the product's custom theme](#step-6b--audit-the-products-custom-theme)
+11. [Step 7 — Read the component's real API before designing anything](#step-7--read-the-components-real-api-before-designing-anything)
+12. [Step 8 — Build the product adapter](#step-8--build-the-product-adapter)
+13. [Step 9 — Delete the code you replaced](#step-9--delete-the-code-you-replaced)
+14. [Step 10 — Tests](#step-10--tests)
+15. [Step 11 — File what the library is missing](#step-11--file-what-the-library-is-missing)
+16. [Step 12 — Run the product for the visual checkpoint](#step-12--run-the-product-for-the-visual-checkpoint)
+17. [Final verification checklist](#final-verification-checklist)
+18. [The checkpoint loop](#the-checkpoint-loop--a-review-that-changes-its-mind-is-the-process-working)
+19. [The pin-bump exercise](#the-pin-bump-exercise)
+20. [What belongs to the library vs. to the product](#what-belongs-to-the-library-vs-to-the-product)
+
+**Companion files.** [`PLAYBOOK-DEFECTS.md`](./PLAYBOOK-DEFECTS.md) — every
+defect found by running this playbook against a real product, with severities
+and status. [`artifacts/ci-design-system-secret.test.ts`](./artifacts/ci-design-system-secret.test.ts)
+— the CI credential guard to copy into your product's test suite (Step 2).
 
 ---
 
@@ -131,6 +154,91 @@ You will pin an exact library commit. That pin is a snapshot: library work
 continues, and you will bump it later. Read
 [The pin-bump exercise](#the-pin-bump-exercise) **now**, not at the end — it
 changes how you write the code (what you mark as temporary, and how).
+
+---
+
+## Step 0.5 — Read the previous pilot's implementation
+
+Not its playbook: its **source**. The playbook carries the method; the source
+carries the answers to the integration problems the method does not predict.
+Every pilot after the first inherits a body of already-solved problems, and the
+only reason to solve one twice is not having looked.
+
+**Where to look.** The pilot index below gives, for each pilot, the repository,
+the branch, and the exact directory.
+
+| Pilot | Product | Repository / branch | Implementation directory | Feedback filed |
+|---|---|---|---|---|
+| 1 | OpenAEV | `openaev` / `sandyghs-supreme-bassoon` | `openaev-front/src/components/common/menu/navbar/` — `AppNavbar`, `MadeByFiligran`, `NavbarRowContent`, `useNavbarState`, `nav-menu-model` | `fds-migration/LIBRARY-FEEDBACK.md` (14 entries) |
+| 2 | OpenCTI | `opencti` / `fds-navbar`, base `design-system/current` | `opencti-platform/opencti-front/src/private/components/nav/` — `NavBar`, `MadeByFiligran`, `useNavMenu`, `navBarConstants` | `fds-migration/LIBRARY-FEEDBACK.md` (11 entries) |
+
+> **Every pilot adds its own row to this table in the same pull request that
+> ships it** — product, repository, branch, implementation directory, feedback
+> file. A pilot that does not appear here does not exist for the next one.
+> This is checked in the [final verification checklist](#final-verification-checklist),
+> so that forgetting it fails something.
+
+The row names a **directory**, not a pull-request number, on purpose: a number
+ages out of usefulness the moment the branch merges, and a path can be searched.
+
+**What to read, in this order.** For the most recent pilot:
+
+1. the component that hosts the library component
+   (pilot 1: `AppNavbar.tsx`; pilot 2: `NavBar.tsx`) — read its **inline
+   comments first**: every host compensation is documented there with its
+   reason and its removal test;
+2. every sibling file in the same directory (state hooks, menu model, row
+   content, satellite components such as `MadeByFiligran.tsx`);
+3. the host stylesheet
+   (pilot 1: `openaev-front/src/static/css/design-system-host.css`;
+   pilot 2: `opencti-front/src/static/css/design-system-host.css`) — the rules
+   there are the compensations that could not be expressed inline;
+4. `fds-migration/LIBRARY-FEEDBACK.md` — the library gaps already filed, with
+   the compensation each one required;
+5. `fds-migration/IMPLEMENTATION-LOG.md` — the dated reds and the traps found.
+
+**Commands.** The pilot's branch does not need to be checked out:
+
+```bash
+# from the previous pilot's repository
+git fetch origin <branch>
+git ls-tree -r --name-only origin/<branch> -- <implementation directory>
+git show origin/<branch>:<path to a file>
+```
+
+**Success criterion.** You can name, without looking again: the compensations
+the previous pilot had to write, the library entries it filed, and the traps it
+dated. If you cannot, you have not read it.
+
+**Time budget.** 30 to 45 minutes. Pilot 2 skipped this step and paid for it
+with a full checkpoint round trip: three of its four checkpoint findings —
+full-height and fixed rail, signature sizing, collapsed emblem — were already
+solved in pilot 1's source, in the same collection of repositories, and were
+rediscovered from scratch. One of the three was delivered wrong to the reviewer
+before being found.
+
+### Standing rule for the whole implementation
+
+> **Before solving any integration problem, check the previous pilots.**
+> Grep their implementation directory (the index above gives the exact paths)
+> for the symptom, the property, or the API you are fighting with. If a pilot
+> already solved it, apply **its** solution rather than inventing a second one,
+> and cite it in the code comment:
+>
+> ```
+> // Same technique as the OpenAEV pilot
+> // (openaev-front/src/components/common/menu/navbar/AppNavbar.tsx).
+> ```
+>
+> Two different solutions to the same library gap are two things to maintain and
+> two different bug reports. If you deliberately diverge, say why in the comment.
+
+Useful greps, from the previous pilot's repository:
+
+```bash
+git grep -n "<css property, prop name, or symptom>" origin/<branch> -- <implementation directory>
+git grep -n "position: 'sticky'\|100dvh\|z-index\|shrink-0" origin/<branch> -- <implementation directory>
+```
 
 ---
 
@@ -238,31 +346,210 @@ Then, for **every** action or workflow that runs an install:
    before the install step;
 3. update every call site to pass `fds-git-token: ${{ secrets.FDS_GIT_TOKEN }}`.
 
-**Success criterion.** Enumerate every install site and confirm each one is
-preceded by the auth step — the grep below is the enumeration, not a pass/fail
-test, so read every hit:
+**Success criterion.** Every leaf of the call graph that installs is armed, and
+the guard test below is green. Do **not** use a flat grep as your inventory —
+see "Enumerate by walking the call graph" immediately below, which is the part
+of this step that two pilots got wrong.
 
-```bash
-# One hit per install site. Open each file and check the auth step sits above it.
-grep -rn "yarn install\|npm ci\|pnpm install" .github/
+### Enumerate by walking the call graph, not by grepping a directory
+
+A flat `grep -rn "yarn install" .github/` is not an inventory. It is how this
+step was written for the first pilot, and it missed an install site **twice on
+the same repository — once inside its own correction**. That is a structural
+failure, not a typo: the grep answers "which files mention an install", while
+the question is "which leaves of the call graph run one, and does the credential
+reach each of them".
+
+Two whole classes escape a directory grep:
+
+- **Installs that are not in `.github/` at all.** A `Dockerfile` runs
+  `yarn install` inside the image. Scope the grep to `.github/` and you produce
+  a "complete" inventory that omits the builds that actually ship the product.
+- **Installs reached indirectly.** A workflow calls a composite action, which
+  runs the build. The install site is one file; the place the credential must be
+  wired is another; and there is one such place *per caller*.
+
+**Three mechanisms, three different rules.**
+
+| Where the install runs | How the credential gets there | What breaks it |
+|---|---|---|
+| Inside a `Dockerfile` (`RUN yarn install`) | A BuildKit build secret, mounted for that `RUN` only | Host configuration does not cross the image boundary |
+| Inside a `docker run` in a workflow step | An explicit `-e` on that run | The runner's `~/.gitconfig` is not in the container |
+| Directly on the runner | The composite action above, or ordinary `env:` | — |
+
+**Two propagation rules that have nothing to do with each other.**
+
+- A **reusable workflow** (`uses: ./.github/workflows/x.yml`) does not receive
+  the caller's secrets unless the caller writes `secrets: inherit`.
+- A **composite action** (`uses: ./.github/actions/x`) *cannot read the
+  `secrets` context at all*, ever, whatever the caller does. The value must be a
+  declared `input`, wired at **every single caller**, one by one.
+
+The second rule is the trap, because the failure looks like something else:
+
+```
+##[warning]fds_git_token= is not a valid secret
+cat: can't open '/run/secrets/fds_git_token': No such file or directory
 ```
 
-You are done when every hit is either preceded by `uses:
-./.github/actions/setup-fds-auth` in the same job, or — for the container steps
-that cannot use a composite action — by the inlined `git config … insteadOf`
-described below.
+That reads as *the secret does not exist*. It does exist. It was simply not
+handed to that call site. **Before you re-check the secret in repository
+settings, re-check the caller.**
+
+**Walk the graph like this.** Start from the leaves — everything that builds an
+image or launches a container — then climb to every caller:
+
+```bash
+# 1. Leaves: installs inside images. Note: no --include filter, and the search
+#    starts at the repository root, not at .github/.
+grep -rn "yarn install\|npm ci\|pnpm install" --include="Dockerfile*" .
+
+# 2. Leaves: installs on the runner or inside a container launched by a step
+grep -rn "yarn install\|npm ci\|pnpm install" .github/
+
+# 3. Leaves: image builds, wherever they are declared (workflows AND actions)
+grep -rn "docker/build-push-action\|docker run" .github/
+
+# 4. Climb: every caller of every composite action
+for a in $(ls .github/actions); do
+  echo "== $a"; grep -rn "uses: ./.github/actions/$a" .github/workflows/
+done
+
+# 5. Climb: reusable workflows, and whether they inherit secrets
+grep -rn -A6 "uses: ./.github/workflows/" .github/workflows/ | grep "secrets:"
+```
+
+> **A caution about step 1.** Write it exactly as shown. `--include` filters the
+> *whole* search, so appending `--include="Dockerfile*"` to a command that also
+> searches `.github/` silently drops every workflow hit — on OpenCTI, 23 of them,
+> leaving 6. A command that filters out what it claims to search is worse than
+> no command, because it returns confidently. Run the two searches separately.
+
+For step 4, open **each** hit and confirm the credential input is present. Do
+not trust that "the build workflows are wired": the main CI entry point often
+calls the same action with a shorter argument list, and is easy to overlook
+precisely because it is not named like a build workflow. That is the exact file
+that was missed on OpenCTI.
+
+### Arm the containerised install sites
+
+The composite action above covers installs that run **on the runner**. The other
+two mechanisms need their own wiring, and neither inherits anything.
+
+**Inside a `Dockerfile`.** Use a BuildKit build secret, mounted for the single
+`RUN` that installs. It is present during that layer and stored in none:
+
+```dockerfile
+RUN --mount=type=secret,id=fds_git_token \
+    set -eu; \
+    if [ ! -s /run/secrets/fds_git_token ]; then \
+      echo "fds_git_token build secret is missing or empty" >&2; exit 1; \
+    fi; \
+    git config --global url."https://x-access-token:$(cat /run/secrets/fds_git_token)@github.com/".insteadOf "https://github.com/"; \
+    yarn install --frozen-lockfile; \
+    git config --global --unset-all url."https://x-access-token:$(cat /run/secrets/fds_git_token)@github.com/".insteadOf
+```
+
+Note `set -eu`, **not** `set -eux`: with `-x` the shell echoes the expanded
+command, token included, into the build log.
+
+And on the build step:
+
+```yaml
+- uses: docker/build-push-action@v6
+  with:
+    file: platform/Dockerfile
+    secrets: |
+      fds_git_token=${{ secrets.FDS_GIT_TOKEN }}
+```
+
+An unprovided build secret is **no file at all**, not an empty one — hence
+`[ ! -s … ]` rather than a string test.
+
+**Inside a `docker run` launched by a workflow step.** Pass the variable **by
+name**, and keep the script single-quoted:
+
+```yaml
+- run: |
+    docker run --rm -e FDS_GIT_TOKEN -v ${{ github.workspace }}:/src -w /src node:22 \
+      sh -c 'set -eu
+             git config --global url."https://x-access-token:${FDS_GIT_TOKEN}@github.com/".insteadOf "https://github.com/"
+             yarn install --frozen-lockfile'
+  env:
+    FDS_GIT_TOKEN: ${{ secrets.FDS_GIT_TOKEN }}
+```
+
+`-e FDS_GIT_TOKEN` with no value tells Docker to forward the runner's variable.
+Writing `-e FDS_GIT_TOKEN=${{ secrets.… }}`, or double-quoting the `sh -c` body,
+puts the token on a command line that any process on the runner can read.
+
+### Then stop enumerating by hand — ship the guard test
+
+Everything above tells you how to *think* about the problem. It still relies on
+a human being exhaustive, twice, under time pressure. Do not rely on that: the
+enumeration was performed carefully by two pilots and missed a site both times.
+
+Copy `fds-migration/artifacts/ci-design-system-secret.test.ts` into the
+product's own test suite. It walks the call graph and asserts, for every leaf:
+
+1. every image build declares the build secret **exactly when** the Dockerfile
+   it builds needs one — and not otherwise, because a credential handed to a
+   build that does not install is leak surface for nothing;
+2. every caller of a composite action that declares a credential input actually
+   passes it, from `secrets.<NAME>`;
+3. every container run that installs a workspace depending on the private
+   package receives the credential by `-e`.
+
+Adapt the five constants at the top of the file; nothing else is
+product-specific. Put the file where the product's runner will pick it up
+(OpenAEV's vitest only collects `src/__tests__/**`, so it belongs there, not in
+`fds-migration/`).
+
+**Why this replaces the human enumeration.** It was validated by mutation on two
+products with different topologies. On OpenCTI: 30 assertions green, and each of
+three regressions — dropping the secret from the composite build step, dropping
+the input at one caller, dropping `-e` from a container install — produces
+exactly one failure. On OpenAEV, which installs on the runner instead: green,
+and dropping the token at one caller fails.
+
+**Three defects it was built to survive**, each of which made an earlier version
+report success while the wiring was broken. They are worth knowing, because they
+are the ways *any* such check lies:
+
+- **Interpolated values break naive captures.** `file: platform/Dockerfile${{ inputs.suffix }}`
+  contains spaces, so a `(\S+)` capture does not match it at all and the step is
+  dropped from the enumeration in silence. The first version of this guard
+  skipped the composite action that builds the product image — the very site
+  that had been missed twice by hand. Strip `${{ … }}` before parsing paths.
+- **Comments satisfy string checks.** A step whose comment *explains* the wiring
+  ("the token is passed by name, `-e FDS_GIT_TOKEN`") passes a check for
+  `-e FDS_GIT_TOKEN` after the wiring itself has been deleted. Strip comment
+  lines before asserting.
+- **Not every install needs the credential.** `npm install -g corepack` installs
+  nothing from the private registry. Decide "needs the credential" from the
+  manifest of the directory being installed, not from the presence of the word
+  *install*.
 
 **Traps.**
 
-- **Miss one install site and CI goes red late**, in a job you were not
-  watching. Enumerate them with the grep above and tick them off one by one.
-  In OpenAEV the grep returns **nine** install sites — four composite actions,
-  two steps of the nightly build, and three Alpine-based deploy workflows — and
-  each composite action then has to be handed the secret at **every** call site
-  (the quality-gate workflow, the core pipeline, the release dry-run).
 - **Do not put the token on the command line** (`git config … ${{ secrets.X }}`
   inline). Pass it through the step's `env:` so it is not part of a logged
-  command.
+  command. In a `docker run`, pass it **by name** (`-e FDS_GIT_TOKEN`, no value)
+  and keep the `sh -c` body **single-quoted**: double quotes make the *runner*
+  expand it onto the docker command line, where any process can read it.
+- **`set -x` prints the expanded credential.** If the container script already
+  runs `set -eux` — many do — the `git config … insteadOf` line lands in the
+  build log with the token in it. Bracket it with `set +x` … `set -x`.
+- **The image must contain `git`.** A git-hosted dependency is fetched by git,
+  and `node:*-alpine` ships without it. Verify with
+  `docker run --rm <image> git --version`; add `apk --no-cache add git`
+  (Alpine) or `git-core` (UBI/RHEL). Debian-based `node:22` already has it.
+  Install it in the earliest **shared** stage, not the leaf stage, if that stage
+  is exported as an artefact and reused later. Without git the symptom looks
+  like an authentication failure.
+- **Only stages that reach the install need the secret.** Check each build
+  step's `target:`. A `builder` stage that stops before any install needs
+  nothing, and arming it adds leak surface for nothing.
 - **Alpine / container steps cannot use the composite action** — they run with
   a different shell (`shell: alpine.sh`), and a composite action's `shell: bash`
   step will not execute there. Inline the same two lines inside those blocks,
@@ -270,6 +557,16 @@ described below.
 - **Always keep the empty-token guard.** A missing or unpropagated secret
   otherwise surfaces as a confusing "repository not found" from the package
   manager, several minutes into the job.
+- **Prove no token reached the image.** Cheap, and non-negotiable if you used a
+  build secret:
+
+  ```bash
+  docker history --no-trunc <image> | grep -i <token-fragment> || echo "clean: history"
+  docker run --rm --entrypoint sh <image> -c 'cat /root/.gitconfig 2>/dev/null' || echo "clean: gitconfig"
+  ```
+
+  A `RUN --mount=type=secret` never persists; a plain `ARG` or `ENV` always
+  does. This check is what tells the two apart.
 - **A secret that exists is not a secret that works.** The pilot's first CI run
   failed with the token correctly wired and correctly non-empty:
 
@@ -746,10 +1043,89 @@ component follows, **including its tooltips and dropdowns**.
 - **Do not put the class on a container.** The library portals tooltips,
   submenu flyouts and dropdown content directly into `<body>`. A scoped class
   leaves every floating layer unthemed — and you will only notice it on hover.
-- The product may already have a *scoped* theme-class helper for some other
-  purpose. It is deliberately scoped; do not repurpose it.
+- **Find every writer before you add one.** `grep -rn "data-theme" src/` —
+  products often set the theme attribute from more than one place, and the
+  snippet above assumes a single writer of a literal `light`/`dark`. Put the
+  root-class write in the one resolver they all share; if there is none, make
+  one.
+- **Check how the product resolves a theme *name*.** If it branches on
+  `theme.name === 'Light'`, then every custom theme name stored in the database
+  falls silently into the dark branch.
+- If the product already has a *scoped* theme-class helper and it is the only
+  theme-class mechanism it has, **amend it — and its doc comment — rather than
+  adding a second, competing writer.** Two writers of the same class is the
+  failure this trap is really about.
 - Map defensively: anything that is not `'light'` should resolve to `'dark'`,
   so an unexpected theme name does not leave the app unstyled.
+
+---
+
+## Step 6b — Audit the product's custom theme
+
+**Purpose.** Find out, *before writing any adapter code*, which colours the
+component you are replacing takes from a **user-customisable** theme. Adopting
+library tokens for those is not a visual delta — it is a functional loss for
+every customer who set them.
+
+Many products let an administrator store a background colour, an accent, a
+logo. The legacy component reads them at runtime. The library component reads
+its own tokens. Nothing warns you: the result looks right, on your instance,
+with default settings.
+
+**Procedure.**
+
+1. **Enumerate.** For every colour the legacy component paints with, decide
+   whether it is hardcoded or settings-driven. Follow it back to its source —
+   a theme object built from a database record, not a constant file.
+2. **For each customisable colour, choose one of three, explicitly:**
+   - *preserve by inline style* — works when the library component spreads
+     props onto its root element and you can pass the value through;
+   - *preserve by overriding the library custom property* — for values the
+     component reads from a token;
+   - *accept the loss* — legitimate, but **escalate to the sponsor before
+     implementing it**, never after. It is a product decision, not yours.
+3. **Record the decision** where the next reader will find it: an inline
+   comment at the override, and a line in `LIBRARY-FEEDBACK.md` if the library
+   offers no way to honour the value.
+
+### The derived-token trap
+
+This one costs a checkpoint round trip, and it is invisible outside a browser.
+
+Overriding a library custom property through the cascade works for that
+property. It does **not** reach the tokens *derived* from it. Derived tokens are
+declared like this, in the library's own stylesheet:
+
+```css
+:root, :host, .light { --nav-item-bg-selected: color-mix(in oklab, var(--brand-primary) 12%, transparent); }
+```
+
+`color-mix()` is substituted **where the declaration lives** — at `:root`. An
+override you apply on a subtree changes `--brand-primary` for that subtree only,
+long after the derived value has been computed from the original. The symptom is
+partial and looks like a styling bug: on OpenCTI the selected row's left border
+followed the customer's accent while the row's background tint stayed Filigran
+blue.
+
+**So: when you override a library custom property, find every token derived from
+it and override each one too, with the library's own formula.**
+
+```bash
+grep -o -- "--<token>[a-z0-9-]*:[^;}]*" \
+  node_modules/@filigran/design-system/packages/filigran-design-system/dist/index.css \
+  | sort -u
+```
+
+**Success criterion.** Set a non-default custom colour in the product's own
+settings, reload, and confirm in the browser that **every** surface that used to
+follow it still does. Compare the two *sets* of tokens — the ones derived from
+the base token, and the ones you overrode — and check they are equal. A
+substring check ("the accent appears in the stylesheet") passes while three
+derived tokens are still wrong.
+
+**Trap.** Doing this audit after the adapter is written means re-opening code
+you had already validated, and re-running the whole visual checkpoint. It is
+half an hour before, and half a day after.
 
 ---
 
@@ -1117,6 +1493,9 @@ Run all of these before requesting review.
 | 8 | CI green | Every check on the pull request, **including the install job** — that job is the proof the whole method works |
 | 9 | Computed-style diff vs. the documentation site | [Step 5b](#step-5b--diff-against-the-librarys-own-documentation-site) — every measured value identical, or a named cause |
 | 10 | Visual checkpoint | [Step 12](#step-12--run-the-product-for-the-visual-checkpoint) — run the product and verify by hand (list below) |
+| 11 | **Your row is in the pilot index** | [Step 0.5](#step-05--read-the-previous-pilots-implementation) — product, repository, branch, **implementation directory**, feedback file. A pilot missing from that table does not exist for the next one, and nothing else in this list fails when you forget it |
+| 12 | CI secret guard | The [guard test](#then-stop-enumerating-by-hand--ship-the-guard-test) is in the product's own suite and green — not merely copied into a folder the runner never collects |
+| 13 | Custom-theme non-regression | [Step 6b](#step-6b--audit-the-products-custom-theme) — with a non-default custom colour set, every derived token still follows it (compare the two **sets**, not a substring) |
 
 **Visual checkpoint — what to look at, in both light and dark themes:**
 
