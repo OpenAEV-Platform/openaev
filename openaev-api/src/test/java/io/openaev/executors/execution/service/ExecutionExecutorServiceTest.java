@@ -346,6 +346,9 @@ public class ExecutionExecutorServiceTest {
       executor.setExternal(true);
 
       Inject inject = createInjectWithActiveAgent(executor);
+      Exercise exercise = ExerciseFixture.createDefaultCrisisExercise();
+      exercise.setId("simulation-1");
+      inject.setExercise(exercise);
 
       Manager manager = mock(Manager.class);
       when(managerFactory.getManager(anyString())).thenReturn(manager);
@@ -391,11 +394,58 @@ public class ExecutionExecutorServiceTest {
       assertThat(event.getResourceId()).isEqualTo(inject.getId());
       assertThat(event.getMessage())
           .isEqualTo(
-              "Inject '%s' dispatched to '%s' agent(s)"
+              "Inject '%s' queued to '%s' agent(s)"
                   .formatted(inject.getTitle(), executor.getName()));
+      assertThat(event.getContextData().get("inject_id")).isEqualTo(inject.getId());
+      assertThat(event.getContextData().get("inject_name")).isEqualTo(inject.getTitle());
+      assertThat(event.getContextData().get("executor_id")).isEqualTo(executor.getId());
       assertThat(event.getContextData().get("executor_type")).isEqualTo(executor.getType());
       assertThat(event.getContextData().get("agent_ids")).isInstanceOf(List.class);
       assertThat((List<?>) event.getContextData().get("agent_ids")).hasSize(1);
+      assertThat(event.getContextData().get("simulation_id")).isEqualTo(exercise.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "Given active agent without simulation, should log queued event without simulation id")
+    void given_activeAgentWithoutSimulation_should_logQueuedEventWithoutSimulationId()
+        throws Exception {
+      // Arrange
+      Executor executor = new Executor();
+      executor.setId("executor-no-simulation");
+      executor.setName("CrowdStrike");
+      executor.setType("openaev_crowdstrike");
+      executor.setExternal(true);
+
+      Inject inject = createInjectWithActiveAgent(executor);
+      inject.setExercise(null);
+
+      Manager manager = mock(Manager.class);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
+
+      ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+      connectorInstance.setId("instance-no-simulation");
+      stubFindByExecutorId(executor.getId(), connectorInstance);
+
+      ExecutorContextService mockContextService = mock(ExecutorContextService.class);
+      when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
+          .thenReturn(mockContextService);
+      when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
+          .thenReturn(List.of());
+      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+          .thenReturn("token");
+
+      // Act
+      executorService.launchExecutorContext(inject);
+
+      // Assert
+      ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+      verify(auditLogger).logEvent(eventCaptor.capture());
+      AuditEvent event = eventCaptor.getValue();
+      assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_QUEUED);
+      assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
+      assertThat(event.getContextData().get("executor_id")).isEqualTo(executor.getId());
+      assertThat(event.getContextData()).doesNotContainKey("simulation_id");
     }
 
     @Test

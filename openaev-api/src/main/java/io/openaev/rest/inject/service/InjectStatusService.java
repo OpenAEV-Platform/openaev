@@ -480,6 +480,7 @@ public class InjectStatusService {
     ctx.put("previous_status", previousStatus);
     ctx.put("new_status", newStatus);
     if (agent != null && agent.getExecutor() != null) {
+      ctx.put("executor_id", agent.getExecutor().getId());
       ctx.put("executor_type", agent.getExecutor().getType());
     }
     return ctx;
