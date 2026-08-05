@@ -24,11 +24,15 @@ export interface FindingCard {
   extra?: boolean;
 }
 
-// How many data-driven finding-type stats show inline before the rest collapse into one "+N types"
-// stat. Every stat shares the band's width equally, so each extra one narrows all the others: past a
-// handful the uppercase captions clip to a single letter ("13 C", "10 A") and the band reads as
-// noise. The curated stats are never collapsed — they are the fixed vocabulary of the view.
-const MAX_VISIBLE_EXTRA_CARDS = 2;
+// Curated stats stay inline, data-driven finding-type stats collapse behind a single "+N" one. Every
+// stat shares the band's width equally, so each extra one narrows all the others: an open-ended list
+// of types crowds the band (and, before the wrap fix below, clipped every caption to a single letter
+// — "13 C", "10 A"). The curated set is the fixed vocabulary of the view and always keeps its place,
+// which also makes the band's size bounded regardless of what a run discovers.
+//
+// A lone discovered type is the exception: hiding one type behind a "+1" stat costs the same slot and
+// only adds a click, so it stays inline.
+const shouldCollapseExtras = (extraCount: number) => extraCount > 1;
 
 // One entry of the graph search box: an endpoint, an injector, or a finding category. Selecting one
 // adapts the graph (focus an endpoint path, highlight an injector, or open a finding-type panel).
@@ -232,14 +236,15 @@ const AttackPathHeader: FunctionComponent<Props> = ({
   const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
   const moreOpen = !!moreAnchor;
 
-  // Split the stats: everything curated plus the first few finding-type extras stay inline, the rest
-  // collapse behind a single "+N types" stat opening a popover. The extras arrive sorted by count, so
-  // what stays inline is what matters most; the collapsed ones remain reachable from the search box.
+  // Split the stats: the curated ones stay inline, the discovered finding types collapse behind a
+  // single "+N" stat opening a popover (they arrive sorted by count, so the popover reads worst-first).
+  // Collapsed types stay reachable from the graph search box too.
   const shown = cards.filter(c => c.count > 0);
   const inlineCards = shown.filter(c => !c.extra);
   const extraCards = shown.filter(c => c.extra);
-  const visibleExtras = extraCards.slice(0, MAX_VISIBLE_EXTRA_CARDS);
-  const collapsedExtras = extraCards.slice(MAX_VISIBLE_EXTRA_CARDS);
+  const collapse = shouldCollapseExtras(extraCards.length);
+  const visibleExtras = collapse ? [] : extraCards;
+  const collapsedExtras = collapse ? extraCards : [];
   const collapsedActive = collapsedExtras.some(c => c.key === activeCard);
 
   return (
