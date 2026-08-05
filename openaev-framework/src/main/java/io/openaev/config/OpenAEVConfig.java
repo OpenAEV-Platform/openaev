@@ -48,13 +48,8 @@ public class OpenAEVConfig {
   private String applicationLicense;
 
   @JsonIgnore
-  @Value("${openaev.run-mode:normal}")
-  private String runMode;
-
-  @JsonIgnore
-  public RunMode getResolvedRunMode() {
-    return RunMode.fromValue(runMode);
-  }
+  @Value("${openaev.run-mode:NORMAL}")
+  private RunMode runMode = RunMode.NORMAL;
 
   @JsonProperty("application_base_url")
   @Value("${openbas.base-url:${openaev.base-url:#{null}}}")

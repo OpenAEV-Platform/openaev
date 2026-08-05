@@ -12,6 +12,7 @@ import static java.util.Optional.ofNullable;
 import io.openaev.config.EngineConfig;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.config.RunMode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Setting;
@@ -245,7 +246,7 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
             .map(Setting::getValue)
             .orElse(PLATFORM_WHITEMARK.defaultValue()));
-    settings.setPlatformRunMode(openAEVConfig.getResolvedRunMode().value());
+    settings.setPlatformRunMode(ofNullable(openAEVConfig.getRunMode()).orElse(RunMode.NORMAL).value());
   }
 
   /** Return only non-sensitive settings suitable for unauthenticated (public) access. */
