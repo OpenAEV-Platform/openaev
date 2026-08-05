@@ -24,6 +24,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.WorkflowUpdateEvent;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
+import io.openaev.config.SessionHelper;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -79,6 +84,8 @@ public class InjectExpectationService {
   public static final String PENDING = "Pending";
   public static final String COLLECTOR = "collector";
   public static final String SECURITY_PLATFORM = "security-platform";
+  private static final String EXPECTATION_SOURCE_TYPE_AUTOMATIC = "automatic";
+  private static final String EXPECTATION_SOURCE_TYPE_MANUAL = "manual";
 
   /**
    * Upper bound for the collector-polled "not filled" queries. Collectors poll periodically (oldest
@@ -95,6 +102,7 @@ public class InjectExpectationService {
   private final AssetGroupService assetGroupService;
   private final InjectService injectService;
   private final InjectorContractContentUtils injectorContractContentUtils;
+  private final Optional<AuditLogger> auditLogger;
 
   @Resource protected ObjectMapper mapper;
 
@@ -236,6 +244,11 @@ public class InjectExpectationService {
       TableTopInjectExpectation updated =
           this.injectExpectationRepository.save(tableTopInjectExpectation);
       propagateHumanResponseExpectation(updated, result);
+      logExpectationResultEvent(
+          updated,
+          findResultBySourceId(updated.getResults(), input.getSourceId()),
+          AuditEventOrigin.REQUEST,
+          EXPECTATION_SOURCE_TYPE_MANUAL);
       return updated;
 
     } else if (baseInjectExpectation instanceof TechnicalInjectExpectation technicalExpectation
@@ -263,6 +276,19 @@ public class InjectExpectationService {
             e -> computeInjectExpectationForAgentOrAssetAgentless(e, input));
         this.injectExpectationRepository.saveAll(expectationsForAgents);
         propagateTechnicalExpectation(technicalExpectation, isAgentless, null);
+        InjectExpectationResult sourceResult =
+            expectationsForAgents.stream()
+                .map(
+                    expectation ->
+                        findResultBySourceId(expectation.getResults(), input.getSourceId()))
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+        logExpectationResultEvent(
+            technicalExpectation,
+            sourceResult,
+            AuditEventOrigin.REQUEST,
+            EXPECTATION_SOURCE_TYPE_MANUAL);
         return technicalExpectation;
         // Computation on agent or asset agentless
       } else {
@@ -270,6 +296,11 @@ public class InjectExpectationService {
         TechnicalInjectExpectation updated =
             this.injectExpectationRepository.save(technicalExpectation);
         propagateTechnicalExpectation(updated, isAgentless, null);
+        logExpectationResultEvent(
+            updated,
+            findResultBySourceId(updated.getResults(), input.getSourceId()),
+            AuditEventOrigin.REQUEST,
+            EXPECTATION_SOURCE_TYPE_MANUAL);
         return updated;
       }
     }
@@ -617,6 +648,11 @@ public class InjectExpectationService {
     }
     Collector collector = this.collectorService.collector(input.getCollectorId());
     computeTechnicalExpectation(technicalExpectation, collector, input, false);
+    logExpectationResultEvent(
+        technicalExpectation,
+        findResultBySourceId(technicalExpectation.getResults(), collector.getId()),
+        AuditEventOrigin.SYSTEM,
+        EXPECTATION_SOURCE_TYPE_AUTOMATIC);
     return technicalExpectation;
   }
 
@@ -653,6 +689,11 @@ public class InjectExpectationService {
     // Same propagation contract as computeTechnicalExpectation: agentless expectations only
     // propagate asset -> group, agent expectations roll up the full chain.
     propagateTechnicalExpectation(updated, updated.getAgent() == null, null);
+    logExpectationResultEvent(
+        updated,
+        findResultBySourceId(updated.getResults(), securityPlatform.getId()),
+        AuditEventOrigin.SYSTEM,
+        EXPECTATION_SOURCE_TYPE_AUTOMATIC);
     return technicalExpectation;
   }
 
@@ -758,6 +799,14 @@ public class InjectExpectationService {
     }
     List<TechnicalInjectExpectation> saved =
         fromIterable(this.injectExpectationRepository.saveAll(updatedExpectations));
+
+    for (TechnicalInjectExpectation expectation : saved) {
+      logExpectationResultEvent(
+          expectation,
+          findResultBySourceId(expectation.getResults(), collector.getId()),
+          AuditEventOrigin.SYSTEM,
+          EXPECTATION_SOURCE_TYPE_AUTOMATIC);
+    }
 
     // 2) Propagation deduplicated per parent: recomputing an asset (or asset group) score reads
     // all its children, so one pass per distinct parent is equivalent to one pass per item
@@ -2417,5 +2466,63 @@ public class InjectExpectationService {
                       })
               .toList());
     }
+  }
+
+  // -- AUDIT LOGGING --
+
+  private String toExpectationAuditResultStatus(@NotNull BaseInjectExpectation expectation) {
+    BaseInjectExpectation.EXPECTATION_STATUS response = expectation.getResponse();
+    if (response == null) {
+      return "pending";
+    }
+    return switch (response) {
+      case SUCCESS -> "met";
+      case PENDING -> "pending";
+      default -> "not_met";
+    };
+  }
+
+  private void logExpectationResultEvent(
+      @NotNull BaseInjectExpectation expectation,
+      @Nullable InjectExpectationResult sourceResult,
+      @NotNull AuditEventOrigin origin,
+      @NotBlank String sourceType) {
+    auditLogger.ifPresent(
+        logger -> {
+          String injectId =
+              expectation.getInject() != null ? expectation.getInject().getId() : null;
+          String expectationResult = toExpectationAuditResultStatus(expectation);
+          String source =
+              sourceResult != null && sourceResult.getSourceName() != null
+                  ? sourceResult.getSourceName()
+                  : SessionHelper.currentUser().getId();
+          String sourceId = sourceResult != null ? sourceResult.getSourceId() : null;
+          String detectionTimestamp = sourceResult != null ? sourceResult.getDate() : null;
+
+          Map<String, Object> contextData = new LinkedHashMap<>();
+          contextData.put("inject_id", injectId);
+          contextData.put("expectation_id", expectation.getId());
+          contextData.put("expectation_type", expectation.getType().name());
+          contextData.put("result", expectationResult);
+          contextData.put("source", source);
+          contextData.put("source_id", sourceId);
+          contextData.put("source_type", sourceType);
+          contextData.put("execution_timestamp", Instant.now().toString());
+          contextData.put("detection_timestamp", detectionTimestamp);
+
+          logger.logEvent(
+              AuditEvent.builder()
+                  .eventType(EventType.EXECUTION)
+                  .eventScope(AuditEventScope.EXPECTATION_RESULT)
+                  .eventStatus(EventStatus.SUCCESS)
+                  .resourceType(ResourceType.INJECT)
+                  .resourceId(injectId)
+                  .message(
+                      "Expectation '%s' result: %s"
+                          .formatted(expectation.getType().name(), expectationResult))
+                  .contextData(contextData)
+                  .origin(origin)
+                  .build());
+        });
   }
 }
