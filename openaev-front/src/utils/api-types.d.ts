@@ -1276,6 +1276,22 @@ export interface AutonomousAttackPathStepState {
   type?: string;
 }
 
+/** Tenant default additional agents for autonomous runs */
+export interface AutonomousDefaultAgentsInput {
+  /** XTM One agent ids to consult by default. Empty clears the default. */
+  agent_ids?: string[];
+  /** Default discovery mode per agent id (EXISTING_ONLY / SCOPED / EXPANSIVE): how much latitude the agent has to create new assets / findings / persons from recon on the fly. Agents omitted here default to SCOPED. */
+  agent_modes?: Record<string, string>;
+}
+
+/** Tenant default additional agents + per-agent discovery modes */
+export interface AutonomousDefaultAgentsOutput {
+  /** XTM One agent ids consulted by default. */
+  agent_ids?: string[];
+  /** Default discovery mode per agent id (EXISTING_ONLY / SCOPED / EXPANSIVE). */
+  agent_modes?: Record<string, string>;
+}
+
 export interface AutonomousDirective {
   /**
    * When the orchestrator consumed the directive
@@ -1461,6 +1477,10 @@ export interface AutonomousPromotedAssetResult {
 }
 
 export interface AutonomousRun {
+  /** XTM One agent ids the orchestrator may consult as specialist handover targets during this run (in addition to the built-in payload creator). */
+  autonomous_run_agent_ids?: string[];
+  /** Per-agent discovery mode for this run: maps an XTM One agent id (or the orchestrator's own id) to how much latitude it has to bring newly discovered entities into the attack path (EXISTING_ONLY / SCOPED / EXPANSIVE). Enforced at OpenAEV's creation choke points against the acting agent. An agent absent from the map falls back to SCOPED. */
+  autonomous_run_agent_modes?: Record<string, string>;
   /**
    * Creation date
    * @format date-time
@@ -1513,6 +1533,10 @@ export interface AutonomousRun {
 
 /** Input to create an autonomous attack-path run */
 export interface AutonomousRunCreateInput {
+  /** Optional XTM One agent ids the orchestrator may consult as specialist handover targets during the run (in addition to the built-in payload creator). When omitted, the tenant's configured default additional agents are used. */
+  agent_ids?: string[];
+  /** Optional per-agent discovery mode for this run: maps an agent id to EXISTING_ONLY / SCOPED / EXPANSIVE, controlling how much latitude that agent has to create new assets / findings / persons from recon on the fly. When omitted, the tenant's configured default per-agent modes are used; an agent absent from the map falls back to SCOPED. */
+  agent_modes?: Record<string, string>;
   /** Optional orchestrator agent slug override */
   agent_slug?: string;
   /** Optional description for the auto-provisioned run. */
@@ -1606,6 +1630,8 @@ export interface AutonomousStepTrigger {
 
 /** Ensure a targetable team wrapping the given persons */
 export interface AutonomousTargetTeamInput {
+  /** Optional id of the agent on whose behalf this human target is being brought in (the orchestrator itself, or a specialist it consulted). Used to resolve the discovery mode enforced on the recipients: EXISTING_ONLY / SCOPED require them to be inside the run's identity allow-scope; EXPANSIVE may reach beyond it. Omitted -> SCOPED. */
+  acting_agent_id?: string;
   /** Optional team name; a readable default is derived when omitted */
   name?: string;
   /**
@@ -12291,6 +12317,7 @@ export interface WorkflowScopeRule {
   /** @format date-time */
   workflow_scope_rule_updated_at?: string;
   workflow_scope_rule_value?: string;
+  workflow_scope_rule_value_label?: string;
   workflow_scope_rule_value_type?:
     | "IP"
     | "IP_SUBNET"
