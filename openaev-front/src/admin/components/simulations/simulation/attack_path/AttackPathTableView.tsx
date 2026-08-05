@@ -33,9 +33,10 @@ interface Props {
   typeColumns: string[];
   // Rank threshold (top-N) used to flag chokepoints with the flame, matching the graph badges.
   chokepointTopN: number;
-  // Open the endpoint's detail panel inline (same right slot as the graph), WITHOUT leaving the
-  // table — a row click must not silently switch the whole view to the graph.
-  onRowOpen: (row: AttackPathEndpointRow) => void;
+  // Focus the graph on that endpoint's own attack path (its injectors, and the findings they produced
+  // on it) and open its detail panel — the table is a way IN to an endpoint, so a row click lands on
+  // the same focused causal view a chokepoint card or a search pick does.
+  onRowFocus: (row: AttackPathEndpointRow) => void;
 }
 
 type SortKey = 'label' | 'ip' | 'score' | 'chokepoint' | 'criticality' | `type:${string}`;
@@ -74,8 +75,8 @@ const csvField = (v: string | number): string => `"${String(v).replace(/"/g, '""
 
 // A table alternative to the node-link graph: the most-exposed endpoints (chokepoints) and their
 // per-type finding breakdown, sortable and exportable to CSV. Reuses the already-loaded endpoint data
-// (no extra fetch); clicking a row opens that endpoint's detail panel next to the table (no view swap).
-const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowOpen }: Props) => {
+// (no extra fetch); clicking a row focuses the graph on that endpoint's own causal path.
+const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const [sortKey, setSortKey] = useState<SortKey>('chokepoint');
@@ -212,7 +213,7 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowOpen }: P
                   <TableRow
                     key={r.nodeId}
                     hover
-                    onClick={() => onRowOpen(r)}
+                    onClick={() => onRowFocus(r)}
                     sx={{ cursor: 'pointer' }}
                   >
                     <TableCell>

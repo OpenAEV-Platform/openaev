@@ -270,8 +270,20 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             );
           }}
           renderInput={params => <TextField {...params} label={t('Simulation')} />}
+          // The closed field only ever shows a compact date (08/05/26, 04:06 PM), so it is sized for
+          // that instead of the old 300px that also had to fit the simulation name. The dropdown is
+          // let out of that width: its rows carry the date AND the endpoint/exec counts, which would
+          // otherwise be crushed into the narrower field.
+          slotProps={{
+            paper: {
+              sx: {
+                width: 'max-content',
+                minWidth: '100%',
+              },
+            },
+          }}
           sx={{
-            'width': 300,
+            'width': 200,
             '& .MuiOutlinedInput-root': {
               height: CONTROL_HEIGHT,
               paddingBlock: 0,

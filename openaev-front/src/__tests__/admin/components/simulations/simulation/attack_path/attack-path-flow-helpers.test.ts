@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -1371,6 +1371,78 @@ describe('scopeChainFlowToSeeds', () => {
     const scoped = scopeChainFlowToSeeds(chainFlow, new Set([resolvedSeed!]));
 
     expect(scoped.nodes.map(n => n.id).sort()).toEqual(['chain-ep|0|ep-1', 'inj-A', resolvedSeed].sort());
+  });
+});
+
+describe('scopeChainFlowToEndpoint', () => {
+  // An endpoint whose execution edge keys it by its REF, not by its graph node id — the shape a
+  // raw-value / re-resolved target takes. The focus click still only knows the node id.
+  const REF = 'ep-ref-1';
+  const NODE_ID = 'NODE_ENDPOINT|ep-ref-1';
+  const refKeyed: AttackPathDTO = {
+    ...chainDto,
+    attackPathNodes: [
+      {
+        id: 'inj-A',
+        type: 'INJECTOR',
+        label: 'A',
+      },
+      {
+        id: NODE_ID,
+        ref: REF,
+        type: 'ASSET',
+        label: 'EP1',
+        ip: '10.0.0.1',
+      },
+      {
+        id: 'NODE_FINDING|share|s1',
+        type: 'FINDING',
+        typeFindings: 'share',
+        value: 's1',
+        label: 's1',
+      },
+    ],
+    attackPathExecutions: [
+      {
+        id: 'xA',
+        type: 'EXECUTION',
+        ref: 'exec-A',
+        stepTemplateId: 'step-A',
+        findingsNodeIds: ['NODE_FINDING|share|s1'],
+        dependsOn: [],
+      },
+    ],
+    attackPathEdges: [
+      {
+        type: 'EDGE_EXECUTIONS',
+        edgeSourceId: 'inj-A',
+        // Keyed by ref — so the chain endpoint node is `chain-ep|0|ep-ref-1`, not `…|NODE_ENDPOINT|…`.
+        edgeTargetId: REF,
+        executionIds: ['exec-A'],
+      },
+    ],
+  };
+
+  it('resolves a ref-keyed endpoint from its node id, keeping the causal chain scoped', () => {
+    const chainFlow = buildCausalChainFlow(refKeyed, tt);
+    // Passing both identifiers (as the focus does) must resolve, so the focus really scopes down
+    // instead of silently returning the whole chain — which would read as "nothing happened".
+    const scoped = scopeChainFlowToEndpoint(chainFlow, [NODE_ID, REF]);
+
+    expect(scoped.nodes.some(n => n.id === `chain-ep|0|${REF}`)).toBe(true);
+    // The producing injector stays in scope: the causal structure is preserved, not flattened away.
+    expect(scoped.nodes.some(n => n.id === 'inj-A')).toBe(true);
+    expect(scoped.edges.length).toBeGreaterThan(0);
+  });
+
+  it('still resolves when only the matching identifier is supplied, and tolerates undefined ones', () => {
+    const chainFlow = buildCausalChainFlow(refKeyed, tt);
+
+    expect(scopeChainFlowToEndpoint(chainFlow, [undefined, REF]).nodes
+      .some(n => n.id === `chain-ep|0|${REF}`)).toBe(true);
+    // A single string keeps working (the original signature).
+    expect(scopeChainFlowToEndpoint(chainFlow, REF).nodes
+      .some(n => n.id === `chain-ep|0|${REF}`)).toBe(true);
   });
 });
 

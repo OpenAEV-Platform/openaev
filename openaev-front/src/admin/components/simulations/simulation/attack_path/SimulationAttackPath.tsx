@@ -200,7 +200,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // Scenario context lists several runs to pick from; simulation context is locked to its own run.
   const showPicker = scenarioExerciseIds !== undefined;
   const theme = useTheme();
-  const { t, fldt } = useFormatter();
+  const { t, fldt, cnsdt } = useFormatter();
   const navigate = useNavigate();
 
   // The view sizes itself to the exact space left under the page chrome (no page scrollbar).
@@ -537,23 +537,34 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   }, [exerciseId, scenarioExerciseIds, showPicker]);
 
   // Readable label for a simulation id: "date · name" for real simulations, raw id for seeds/unknowns.
+  // The date alone identifies the run here: the simulation's name is already on the page header above
+  // the tabs, so repeating it only widened the picker. Compact numeric form (05/08/26 16:06 in fr,
+  // locale-adapted elsewhere) rather than the long prose one ("August 5, 2026 at 4:06:00 PM"). A run
+  // with no start date has nothing to show but its name, so that case still falls back to it.
   const labelFor = useCallback((simId?: string): string => {
     if (!simId) {
       return '';
     }
     const meta = metaById.get(simId);
-    if (meta?.exercise_name) {
-      return meta.exercise_start_date
-        ? `${fldt(meta.exercise_start_date)} · ${meta.exercise_name}`
-        : meta.exercise_name;
+    if (meta?.exercise_start_date) {
+      return cnsdt(meta.exercise_start_date);
     }
-    return simId;
-  }, [metaById, fldt]);
+    return meta?.exercise_name || simId;
+  }, [metaById, cnsdt]);
 
   // Click a real endpoint (only visible once its injector cluster is expanded): load its own findings
   // (grouped in the side panel) and its executions. Stale responses are dropped.
-  const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string) => {
-    setSelectedNodeId(nodeId);
+  //
+  // `openPanel: false` loads the endpoint's data WITHOUT selecting it, so the side panel stays closed.
+  // A focus request (table row, chokepoint, search pick, finding pick) wants the whole width for the
+  // graph it just focused — opening the panel on top of it immediately narrows the view the click was
+  // meant to reveal. The data is still fetched: the focused layout labels its injector edges from those
+  // relations, and the panel is one node click away once the analyst wants the detail.
+  const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string, opts?: { openPanel?: boolean }) => {
+    // On a focus request, CLOSE any panel a previous node click left open (not just skip opening one):
+    // a stale panel would keep covering the freshly focused graph, showing the new endpoint's data
+    // under the old node's selection highlight.
+    setSelectedNodeId(opts?.openPanel !== false ? nodeId : null);
     setSelectedFindingId(null);
     setSelectedInjectorId(null);
     setFindingDetail(null);
@@ -1022,15 +1033,12 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       // onEndpointClick itself unconditionally clears selectedFindingId/findingDetail, so both must be
       // re-set AFTER it (matches openFindingFromGraph's ordering) — setting them before it here was
       // the bug: onEndpointClick silently clobbered the canonical id back to null on every click.
-      onEndpointClick(item.endpointNodeId, item.endpointKey, label);
+      // No side panel: like every other focus entry point, the click is about the focused graph, and a
+      // panel opening on top of it takes back the width the focus just revealed.
+      onEndpointClick(item.endpointNodeId, item.endpointKey, label, { openPanel: false });
       if (chainMode) {
         setSelectedFindingId(canonicalId ?? null);
       }
-      setFindingDetail({
-        type: item.type ?? '',
-        value: item.value ?? '',
-        endpointNodeId: item.endpointNodeId,
-      });
       setHighlightedExecutionIds(new Set(item.executionIds ?? []));
     },
     [onEndpointClick, dto?.attackPathNodes, fullDto?.attackPathNodes, chainMode],
@@ -1266,10 +1274,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           seeds = new Set([selectedInjectorId]);
         }
         // The plain endpoint-only focus (chokepoint click, no finding/action selected) seeds on the
-        // endpoint itself.
+        // endpoint itself, matched on EVERY identifier it is known by — its graph node id AND its ref —
+        // because a chain endpoint node is keyed by whatever form its execution edge carried, which is
+        // not always the same form the click hands us. Matching on the node id alone left a
+        // ref-keyed endpoint unresolvable, and an unresolvable seed makes the scoper return the whole
+        // chain (its no-empty-canvas safety net), so the graph came back identical and the click read
+        // as "nothing happened".
         raw = seeds
           ? scopeChainFlowToSeeds(fullChain, seeds)
-          : scopeChainFlowToEndpoint(fullChain, pathFinding.endpointNodeId);
+          : scopeChainFlowToEndpoint(fullChain, [pathFinding.endpointNodeId, pathFinding.endpointKey]);
       } else if (pathFinding) {
         raw = buildFindingPathFlow(dto, pathFinding, t, pathContractLabelByInjector, {
           expanded: expandedFindingClusters,
@@ -2367,8 +2380,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   const [searchInput, setSearchInput] = useState('');
 
   // Focus a chokepoint endpoint: redraw the graph as the focused endpoint path (injectors -> endpoint
-  // -> its finding clusters) and open its side panel (findings + executions). Uses the endpoint-focus
-  // mode of buildFindingPathFlow (empty finding type/value).
+  // -> its finding clusters). Shared by the table rows, the chokepoint dialog and the search picks.
+  // The side panel is deliberately NOT opened: the point of the click is the focused graph, and the
+  // panel would immediately take a third of the width back. It stays one node click away.
   const focusChokepoint = (c: {
     nodeId: string;
     ref: string;
@@ -2390,7 +2404,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       value: '',
     });
     setFitNonce(n => n + 1);
-    onEndpointClick(c.nodeId, c.ref, c.label);
+    onEndpointClick(c.nodeId, c.ref, c.label, { openPanel: false });
   };
 
   // Keep the selected value in the options so MUI does not warn when the current simulation has no
@@ -2640,7 +2654,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               rows={tableRows}
               typeColumns={endpointTypeColumns}
               chokepointTopN={CHOKEPOINT_TOP_N}
-              onRowOpen={row => onEndpointClick(row.nodeId, row.ref, row.label)}
+              onRowFocus={row => focusChokepoint(row)}
             />
           </Paper>
         )}
