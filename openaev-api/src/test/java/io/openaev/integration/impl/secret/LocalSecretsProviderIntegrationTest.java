@@ -14,6 +14,7 @@ import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration
 import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegrationFactory;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
+import io.openaev.secrets.provider.impl.handlers.SecretHandler;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.FileService;
@@ -45,12 +46,11 @@ public class LocalSecretsProviderIntegrationTest {
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private ConnectorInstanceService connectorInstanceService;
-  @Autowired private NativeEncryptionService nativeEncryptionService;
   @Autowired private SecretService secretService;
   @Autowired private SecretReferenceService secretReferenceService;
   @Autowired private PreviewFeatureService previewFeatureService;
   @Autowired private FileService fileService;
-  @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private List<SecretHandler> secretHandlers;
 
   private LocalSecretsProviderIntegrationFactory getFactory() {
     return new LocalSecretsProviderIntegrationFactory(
@@ -58,16 +58,11 @@ public class LocalSecretsProviderIntegrationTest {
         catalogConnectorService,
         componentRequestEngine,
         null,
-        nativeEncryptionService,
         secretService,
         secretReferenceService,
         previewFeatureService,
-        fileService);
-  }
-
-  @BeforeEach()
-  void setup() {
-    openAEVConfig.setEnabledDevFeatures("CREDENTIAL_ASSET");
+        fileService,
+        secretHandlers);
   }
 
   @Nested

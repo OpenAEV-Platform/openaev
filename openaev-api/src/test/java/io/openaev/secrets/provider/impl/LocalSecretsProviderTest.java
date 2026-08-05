@@ -13,6 +13,7 @@ import io.openaev.database.model.SecretReference;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.UsernamePasswordSecret;
 import io.openaev.secrets.provider.SecretStoreRequest;
+import io.openaev.secrets.provider.impl.handlers.SecretHandler;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.connector_instances.NativeEncryptionService;
@@ -25,6 +26,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+
 @ExtendWith(MockitoExtension.class)
 @DisplayName("LocalSecretsProvider")
 class LocalSecretsProviderTest {
@@ -32,6 +35,7 @@ class LocalSecretsProviderTest {
   @Mock private NativeEncryptionService nativeEncryptionService;
   @Mock private SecretService secretService;
   @Mock private SecretReferenceService secretReferenceService;
+  @Mock private List<SecretHandler> secretHandlers;
 
   private LocalSecretsProvider localSecretsProvider;
 
@@ -41,9 +45,9 @@ class LocalSecretsProviderTest {
         new LocalSecretsProvider(
             "test-id",
             "Test Local Provider",
-            nativeEncryptionService,
             secretService,
-            secretReferenceService);
+            secretReferenceService,
+            secretHandlers);
   }
 
   @Nested
