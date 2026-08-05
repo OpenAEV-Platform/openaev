@@ -71,6 +71,13 @@ satisfied, it triggers the Action(s) it is linked to. Nothing runs until its ups
             available only for `Equals`, `Not equals`, `Contains`, and `Not contains`.
 4. Save, then connect the Event to the Action(s) it should trigger.
 
+!!! note
+
+    If the value you need isn't in the **Field to Check** list, use the **Action Output** field type instead: it
+    covers the raw CLI output of any Action on the canvas. Combined with the `Contains` operator, this lets you
+    check whether a specific keyword or value shows up anywhere in an Action's output, even if that output isn't
+    exposed as a dedicated field.
+
 ### Local and global Variables
 
 Beyond the [scope Variables](scope-definition.md#variables) you define upfront, any Action argument can be linked to
@@ -100,10 +107,13 @@ field:
 
 ### Validate your graph
 
-The canvas displays a warning banner whenever an Event references a field that no Action currently on the canvas
-produces. Use the **Add Compatible Action** shortcut in the banner to add an Action that provides that field directly.
+You can define an Event whose condition references a field that no Action currently on the canvas actually
+produces — for example, an Event checking a `Port` field when no Action on the graph reports a port. In that case,
+the platform can't guarantee the Event will ever trigger, so it shows a warning banner listing each affected Event,
+the missing field, and an **Add Compatible Action** shortcut that lets you add an Action known to produce that
+field directly from the banner.
 
-![Warning banner: an Event references a field not yet provisioned by any Action, with an Add Compatible Action shortcut](assets/logic-creation-warning-banner.png)
+![Warning banner listing Events that reference fields not yet provisioned by any Action, each with an Add Compatible Action shortcut](assets/logic-creation-warning-banner.png)
 
 ### Reading the links between components
 
