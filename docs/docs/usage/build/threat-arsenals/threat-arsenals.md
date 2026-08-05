@@ -195,7 +195,7 @@ Executables can perform a variety of functions, from establishing a backdoor to 
 
 #### File drop
 
-File Drop Threat Arsenal Actions are designed to deliver files (e.g., scripts, documents, binaries) to the target system without
+Use File Drop Threat Arsenal Actions to deliver files (e.g., scripts, documents, binaries) to the target system without
 immediately executing them.
 
 The goal is typically to simulate scenarios where attackers place files in specific locations for later use, either
@@ -248,7 +248,7 @@ When adding a rule, the following properties must be defined:
 | Type         | The data type being extracted (e.g., Text, Number, Port, IPv4, IPv6, Port Scan, Credentials).                                                                                                                                                                     | Yes       |
 | Tags         |                                                                                                                                                                                                                                                                   | No        |
 | Regex        | A regular expression (REGEX) to extract data from the raw output. Supports capturing groups and line anchors (e.g., ^ for start of line).
-Currently, we use these flags by default: Pattern.MULTILINE, Pattern.CASE_INSENSITIVE, Pattern.UNICODE_CHARACTER_CLASS. | Yes       |
+The parser uses these flags by default: Pattern.MULTILINE, Pattern.CASE_INSENSITIVE, Pattern.UNICODE_CHARACTER_CLASS. | Yes       |
 | Output Value | Map each regex capture group to the corresponding fields based on the selected type.                                                                                                                                                                              | Yes       |
 
 #### Output value mapping

@@ -26,15 +26,15 @@ The list of **available variables** is found in the definition of the inject :
 
 ## Custom variables
 
-In addition to the built-in variables, users can define their own variables within an exercise.
+In addition to built-in variables, you can define your own variables within an exercise.
 
-To define custom variables :
+To define custom variables:
 
-1. Select an exercise
-2. Navigate to the Definition tab
-3. Navigate to the Variables section
+1. Select an exercise.
+2. Navigate to the **Definition** tab.
+3. Navigate to the **Variables** section.
 
-In this section, users can create, update or delete custom variables : 
+From this section, you can create, update, or delete custom variables.
 
 ![Variables section](../../assets/variables_management.png)
 ![Variables section](../../assets/variables_creation.png)

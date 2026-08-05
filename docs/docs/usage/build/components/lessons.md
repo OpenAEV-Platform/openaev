@@ -39,7 +39,7 @@ To create a new question, follow these steps:
 
 ## Use a lesson template
 
-Lesson templates can be utilized in the Lesson Learned tab of a Simulation. Here’s how to use them:
+Use Lesson templates in the **Lesson Learned** tab of a Simulation:
 
 1. Apply a new template.
 2. Add relevant teams to the most pertinent categories.

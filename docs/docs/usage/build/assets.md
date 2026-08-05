@@ -1,12 +1,10 @@
 # Assets
 
-The Assets section provides users with a centralized hub for managing and organizing the entities targeted for testing
-and simulation.
+The Assets section lets you manage and organize the entities targeted for testing and Simulation.
 
-When you click on “Assets” in the left-hand banner, you see all the “Assets” pages. When accessing the Assets section,
-users are directed by default to the Endpoints page, where they can start managing their assets.
+Navigate to **Assets** in the left menu to see all Asset pages. The section opens on the Endpoints page by default.
 
-From the `Assets` section, users can access the following pages:
+From the Assets section, you can access the following pages:
 
 - `Endpoints`: Individual entities, representing any object or terminal that can be connected to a network.
 - `Asset groups`: Group of asset allowing you to organize endpoints into logical groups based on various filters applied
@@ -32,8 +30,7 @@ interconnectivity of digital ecosystems. Below is a non-exhaustive list of termi
   endpoints include smart thermostats, cameras, environmental sensors, smart watches, and health tracking devices, among
   others.
 
-When accessing the Endpoints pages, you see the list of all endpoints imported in your platform. Here, users can manage 
-details specific to each endpoint.
+The Endpoints page lists all Endpoints imported in your platform. Click on any Endpoint to view and manage its details.
 
 !!! note
 
@@ -60,7 +57,7 @@ By clicking on an endpoint, you will be able to access and manage its details:
 | **MAC addresses**   | All MAC addresses detected                                                                                                                                                                                                                                                                                                                                          | Yes*                                    |
 | **Tags**            | OpenAEV tags to identify your machine                                                                                                                                                                                                                                                                                                                               | No                                      |
 
-*IP and MAC addresses can be manually added or removed by the user (but the ones the agents find will always be upserted)
+*You can manually add or remove IP and MAC addresses, but addresses reported by agents are always upserted.
 
 To register new endpoints, you will need to install an agent. You can find detailed instructions on the [agent installation page](../environment/openaev-agent.md).
 

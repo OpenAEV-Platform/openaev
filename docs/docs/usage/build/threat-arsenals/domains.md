@@ -36,7 +36,7 @@ Some Injectors and Collectors define their own Domains. The Domain is attached t
 Injectors and Collectors are updated weekly. During updates:
 
 - Missing Domains are re-added to match the latest Injector or Collector definition
-- Domains manually added by users are preserved
+- Domains you manually added are preserved
 
 ## Security coverage visualization
 

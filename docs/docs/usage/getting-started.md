@@ -1,6 +1,6 @@
 # Getting started
 
-OpenAEV allows you to validate your security posture by simulating real-world adversary techniques. It has been designed as part of the Filigran XTM suite and can be integrated with [OpenCTI](https://filigran.io/solutions/open-cti/) to generate meaningful attack Scenarios based on real threats.
+OpenAEV lets you validate your security posture by simulating real-world adversary techniques. OpenAEV is part of the Filigran XTM suite and integrates with [OpenCTI](https://filigran.io/solutions/open-cti/) to generate meaningful attack Scenarios based on real threats.
 
 This guide introduces the key concepts and workflows behind the platform.
 

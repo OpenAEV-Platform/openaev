@@ -21,23 +21,21 @@ external services for two purposes:
 Those collectors are the most important ones as they are used to evaluate the security posture (response to injects) from
 various detection and response systems and fulfill expectations for detection and prevention.
 
-These collectors will try to fetch data for 45 minutes after the execution of an inject. At the end of
-these 45 minutes, if no data has been found for a given inject, this inject's result will be updated to "Not detected".
+These Collectors fetch data for 45 minutes after an Inject executes. If no data is found after 45 minutes, OpenAEV updates the Inject result to "Not detected".
 
 #### Detection & prevention with EDR
 
-For EDRs, we analyze the tool's logs to identify matches for the hostname and the parent process name associated with
-the attack. If the attack is initiated by the OpenAEV agent, the parent process name will follow this format:
-openaev-implant-INJECT_ID.exe.
+The platform analyzes EDR logs to identify matches for the hostname and the parent process name associated with
+the attack. If the OpenAEV Agent initiates the attack, the parent process name follows this format:
+`openaev-implant-INJECT_ID.exe`.
 
 #### Detection & prevention with SIEM
 
-For SIEMs, we rely on the upstream-deployed EDR, whose logs are collected by the SIEM.  
-If the EDR confirms an expectation of type detection or prevention, we trace this information back in the SIEM to
+For SIEMs, the platform relies on the upstream-deployed EDR, whose logs the SIEM collects.
+If the EDR confirms a detection or prevention Expectation, the platform traces this information back in the SIEM to
 validate it as well.
 
-This means that within the workflow, the EDR collector must first validate the expectation before the SIEM collector can
-perform its task.
+This means the EDR Collector must first validate the Expectation before the SIEM Collector can perform its task.
 
 ### Threat intelligence
 

@@ -12,8 +12,7 @@ People represent the human side of your security posture in OpenAEV. Players, Te
 
 Players are the users that may take part in your Scenarios, to be tested against attack or contextual events.
 
-Players can be created manually with the + button at the bottom right, but we encourage you to activate an integration
-allowing to import them from your IT environment, like with Microsoft Entra integration.
+Create Players manually with the **+** button at the bottom right, or activate an integration to import them from your IT environment (e.g., Microsoft Entra).
 
 Players are defined by:
 
