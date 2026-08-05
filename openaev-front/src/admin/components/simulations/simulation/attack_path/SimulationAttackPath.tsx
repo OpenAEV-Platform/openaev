@@ -1200,6 +1200,28 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     return fullPending && (row?.executionCount ?? 0) > 0;
   }, [fullDto, fullPending, simulations, simulationId]);
 
+  // The unscoped causal chain for the whole run, in chain mode: built once and reused both to scope the
+  // focused view down and to resolve a specific finding's seed id (effectiveSelectedFindingId below) to
+  // whatever node actually represents it.
+  const fullChain = useMemo(
+    () => (chainMode && fullDto ? buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch) : null),
+    [chainMode, fullDto, t, expandedFindingClusters, endpointClusterBatch],
+  );
+
+  // A finding picked from a drawer/summary list (rather than clicked directly on an already-rendered
+  // graph node) may still be hidden inside a collapsed type cluster (more than CHAIN_FINDINGS_MAX_PER_TYPE
+  // findings of that type on that endpoint) — its raw id then matches no node in the chain at all. Resolve
+  // it to the node that ACTUALLY represents it (itself once expanded, its cluster while collapsed) so
+  // seeding/highlighting below has something real to anchor on. Previously, seeding on the unresolved raw
+  // id (e.g. one of several "Captured Files" past the cluster cap) matched nothing, so
+  // scopeChainFlowToSeeds fell back to showing the ENTIRE unscoped graph with nothing highlighted.
+  const effectiveSelectedFindingId = useMemo(() => {
+    if (!selectedFindingId || !fullChain) {
+      return selectedFindingId;
+    }
+    return fullChain.causalSourceByFinding.get(selectedFindingId) ?? selectedFindingId;
+  }, [selectedFindingId, fullChain]);
+
   const baseFlow = useMemo(
     () => {
       if (!dto) {
@@ -1218,26 +1240,16 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         nodes: AttackPathFlowNode[];
         edges: AttackPathFlowEdge[];
       };
-      if (pathFinding && chainMode && fullDto) {
+      if (pathFinding && chainMode && fullChain) {
         // Chain mode has the real kill chain already built for the whole run — scope THAT down
         // instead of falling back to buildFindingPathFlow's flatter, non-causal layout, so the
         // focused view keeps the causal ("Triggered ...") structure between actions. A specific
-        // finding (selectedFindingId) seeds on itself for a tighter focus that skips the endpoint's
-        // unrelated siblings; the plain endpoint-only focus (chokepoint click) seeds on the endpoint.
-        const fullChain = buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch);
+        // finding (effectiveSelectedFindingId — already resolved to its collapsed cluster when the
+        // raw finding has no node of its own) seeds on itself for a tighter focus that skips the
+        // endpoint's unrelated siblings.
         let seeds: Set<string> | null = null;
-        if (selectedFindingId) {
-          if (fullChain.nodes.some(n => n.id === selectedFindingId)) {
-            seeds = new Set([selectedFindingId]);
-          } else {
-            // The finding is collapsed inside its "+N" type cluster (no node of its own in the
-            // chain): seed on that cluster so the focused path still shows where it lives.
-            const ftype = (fullDto.attackPathNodes ?? []).find(n => n.id === selectedFindingId)?.typeFindings ?? '';
-            const cluster = fullChain.nodes.find(n => n.id.startsWith('chain-fc|') && n.id.endsWith(`|${pathFinding.endpointNodeId}|${ftype}`));
-            if (cluster) {
-              seeds = new Set([cluster.id]);
-            }
-          }
+        if (effectiveSelectedFindingId) {
+          seeds = new Set([effectiveSelectedFindingId]);
         } else if (selectedInjectorId && fullChain.nodes.some(n => n.id === selectedInjectorId)) {
           // A clicked action (with no finding selected) seeds the scope on itself, so the WHOLE chain
           // through it — including its downstream consequences (recipient team, follow-on actions) —
@@ -1246,6 +1258,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           // walk found nothing, so the graph read as "nothing highlighted".
           seeds = new Set([selectedInjectorId]);
         }
+        // The plain endpoint-only focus (chokepoint click, no finding/action selected) seeds on the
+        // endpoint itself.
         raw = seeds
           ? scopeChainFlowToSeeds(fullChain, seeds)
           : scopeChainFlowToEndpoint(fullChain, pathFinding.endpointNodeId);
@@ -1255,8 +1269,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           findingsByCluster,
           batch: findingBatch,
         });
-      } else if (chainMode && fullDto) {
-        raw = buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch);
+      } else if (fullChain) {
+        raw = fullChain;
       } else {
         raw = buildClusteredAttackPathFlow(dto, endpointBatch, t, {
           expanded: expandedFindingClusters,
@@ -1282,7 +1296,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       };
     },
     [
-      dto, chainMode, fullDto, pathFinding, selectedFindingId, selectedInjectorId, pathContractLabelByInjector, endpointBatch,
+      dto, chainMode, fullChain, pathFinding, effectiveSelectedFindingId, selectedInjectorId, pathContractLabelByInjector, endpointBatch,
       expandedFindingClusters, endpointClusterBatch, findingsByCluster, findingBatch, chokepointRankById, pivotNodeIds, t,
     ],
   );
@@ -1728,7 +1742,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         // The focused finding is highlighted inside its own type cluster (no extracted node), so the
         // default active node is that type's cluster. A leaf finding clicked in place overrides it.
         const defaultId = `path-cl-type|${pathFinding.type}|${pathFinding.endpointKey}`;
-        activeId = selectedFindingId ?? defaultId;
+        // effectiveSelectedFindingId (not the raw selectedFindingId): in chain mode a finding picked
+        // from a drawer/summary list may still be hidden inside a collapsed type cluster, so its own id
+        // has no node to seed on — resolved to that cluster's id instead (see its definition above).
+        activeId = effectiveSelectedFindingId ?? defaultId;
         // Only the injector(s) that actually produced the focused finding light up — not every injector
         // that merely reached the endpoint — so the highlighted path stays scoped to the finding the
         // analyst opened, even after expanding its cluster. Chain mode is exempt: producingInjectorIds
@@ -1830,14 +1847,16 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           }
         }
       }
-    } else if (selectedFindingId && chainMode) {
+    } else if (effectiveSelectedFindingId && chainMode) {
       // Chain view: mirror the selectedInjectorId&&chainMode branch above — a finding several hops
       // into the causal chain (e.g. a captured file dropped by a late-stage action) previously only
       // lit its immediate producing injector, because the restricted walk below (kept for the
       // non-chain/clustered case) explicitly skips causal edges. In chain mode there's no shared-hub
       // ambiguity to guard against, so walk the same unrestricted way: from the first action through
-      // every action that led to this finding.
-      pathSet.add(selectedFindingId);
+      // every action that led to this finding. Seeded on effectiveSelectedFindingId (not the raw
+      // selectedFindingId): a finding picked from a drawer/summary list may be hidden inside a still-
+      // collapsed type cluster, which has no node of its own to seed on.
+      pathSet.add(effectiveSelectedFindingId);
       for (let pass = 0; pass < 8; pass += 1) {
         for (const e of baseFlow.edges) {
           if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source)) {
@@ -1922,7 +1941,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     };
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
   }, [
-    baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId,
+    baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, effectiveSelectedFindingId, selectedInjectorId,
     focus, dto?.attackPathEdges, fullDto?.attackPathEdges, highlightedExecutionIds, chainMode,
   ]);
 

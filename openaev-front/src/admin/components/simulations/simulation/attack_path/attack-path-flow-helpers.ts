@@ -1517,6 +1517,11 @@ export const buildCausalChainFlow = (
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
+  // Finding node id -> the flow node that actually represents it (itself, or its collapsed type
+  // cluster). Lets a caller that wants to seed/highlight a specific finding (e.g. one picked from a
+  // drawer list) resolve it to whatever is ACTUALLY rendered, instead of a raw finding id that has no
+  // node at all while its cluster is still collapsed.
+  causalSourceByFinding: Map<string, string>;
 } => {
   const dtoNodes = dto.attackPathNodes ?? [];
   // Index by BOTH node id and ref: an execution edge may key an endpoint/injector by either form, and a
@@ -2126,6 +2131,7 @@ export const buildCausalChainFlow = (
   return {
     nodes,
     edges,
+    causalSourceByFinding,
   };
 };
 

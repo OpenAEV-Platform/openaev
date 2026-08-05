@@ -950,6 +950,13 @@ describe('buildCausalChainFlow', () => {
     const expandedCausal = expandedFlow.edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.data?.causalKind === 'finding');
     expect(expandedCausal).toHaveLength(5);
     expect(expandedCausal.filter(e => e.data?.label).length).toBe(1);
+
+    // causalSourceByFinding: while collapsed, every one of the 5 findings resolves to the cluster that
+    // represents them (there is no node of their own to resolve to); once expanded, each resolves to
+    // itself. A caller seeding a highlight/focus on a raw finding id must go through this map first, or
+    // it seeds on an id with no matching node at all (see the scopeChainFlowToSeeds fallback test).
+    fids.forEach(v => expect(collapsedFlow.causalSourceByFinding.get(`NODE_FINDING|share|${v}`)).toBe(clusterNodes[0].id));
+    fids.forEach(v => expect(expandedFlow.causalSourceByFinding.get(`NODE_FINDING|share|${v}`)).toBe(`NODE_FINDING|share|${v}`));
   });
 
   it('anchors the causal edge on the finding of the resolved producer, not another injector sharing the type', () => {
@@ -1290,6 +1297,20 @@ describe('scopeChainFlowToSeeds', () => {
 
     expect(scoped.nodes).toContainEqual(injectorNode);
     expect(scoped.nodes.length).toBeLessThan(chainFlow.nodes.length);
+  });
+
+  it('scopes down correctly, instead of falling back to the full chain, when the seed is resolved through causalSourceByFinding first', () => {
+    // Reproduces picking one of the 5 collapsed findings from a drawer/summary list (not clicking an
+    // already-rendered graph node): the caller must resolve the raw finding id to whatever actually
+    // represents it (its cluster, here) before seeding, exactly as SimulationAttackPath's
+    // effectiveSelectedFindingId does — seeding on the raw id instead is the previous bug, covered by
+    // the "falls back to the full chain" test above.
+    const chainFlow = buildCausalChainFlow(collapsed, tt);
+    const resolvedSeed = chainFlow.causalSourceByFinding.get('NODE_FINDING|share|a');
+
+    const scoped = scopeChainFlowToSeeds(chainFlow, new Set([resolvedSeed as string]));
+
+    expect(scoped.nodes.map(n => n.id).sort()).toEqual(['chain-ep|0|ep-1', 'inj-A', resolvedSeed].sort());
   });
 });
 
