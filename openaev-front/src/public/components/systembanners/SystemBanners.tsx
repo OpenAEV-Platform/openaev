@@ -64,6 +64,7 @@ const SystemBanners = (settings: { settings: PlatformSettings }) => {
     effectiveBannerLevel[currentBannerLevel[0]] = [...currentBannerLevel[1]];
   }
   if (isSafeMode) {
+    // Safe mode is an operator state, so we inject one explicit warning banner message.
     effectiveBannerLevel.warn = [...(effectiveBannerLevel.warn ?? []), SAFE_MODE_MESSAGE_KEY];
   }
 

@@ -246,6 +246,7 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
             .map(Setting::getValue)
             .orElse(PLATFORM_WHITEMARK.defaultValue()));
+    // Run mode is config-driven operational state (normal/safe), not a computed health signal.
     settings.setPlatformRunMode(
         ofNullable(openAEVConfig.getRunMode()).orElse(RunMode.NORMAL).value());
   }

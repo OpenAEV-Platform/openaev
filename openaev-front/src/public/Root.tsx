@@ -17,6 +17,7 @@ const Root = () => {
       <ConnectedIntlProvider>
         <ConnectedThemeProvider>
           <CssBaseline />
+          {/* Keep system banners visible on public/login pages too (safe mode + platform alerts). */}
           <SystemBanners settings={settings} />
           <Index />
         </ConnectedThemeProvider>

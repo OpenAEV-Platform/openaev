@@ -48,6 +48,7 @@ public class OpenAEVConfig {
   private String applicationLicense;
 
   @JsonIgnore
+  // Boot-time run mode (NORMAL by default). Used to gate Quartz startup in safe mode.
   @Value("${openaev.run-mode:NORMAL}")
   private RunMode runMode = RunMode.NORMAL;
 

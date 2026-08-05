@@ -24,6 +24,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
+// Safe mode keeps web/UI available by not registering Quartz triggers at startup.
 @ConditionalOnProperty(name = "openaev.run-mode", havingValue = "normal", matchIfMissing = true)
 public class PlatformTriggers {
 

@@ -49,6 +49,7 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
     return { settings: helper.getPlatformSettings() };
   });
   const colors = TOPBANNER_COLORS[bannerColor];
+  // Keep trial/license banner stacked below all active system/safe-mode messages.
   const topOffset = computeSystemBannerHeight(settings);
 
   return (

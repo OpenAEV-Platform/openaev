@@ -1,5 +1,6 @@
 package io.openaev.config;
 
+/** Startup run mode controlling whether Quartz background processing starts. */
 public enum RunMode {
   NORMAL("normal"),
   SAFE("safe");

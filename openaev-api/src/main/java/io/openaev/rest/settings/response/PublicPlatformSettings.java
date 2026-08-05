@@ -72,6 +72,7 @@ public class PublicPlatformSettings {
 
   @JsonProperty("platform_run_mode")
   @Schema(description = "Current platform run mode (normal or safe)")
+  // Exposed explicitly for frontend UX (safe-mode banner), unlike internal healthcheck states.
   private String platformRunMode;
 
   public Map<String, List<String>> getPlatformBannerByLevel() {

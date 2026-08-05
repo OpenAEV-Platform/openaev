@@ -17,6 +17,7 @@ const computeSystemBannerMessageCount = (settings: PlatformSettings) => {
     }
   }
   if (settings.platform_run_mode === 'safe') {
+    // Reserve one additional line for the synthetic safe-mode warning message.
     numberOfElements += 1;
   }
   return numberOfElements;
