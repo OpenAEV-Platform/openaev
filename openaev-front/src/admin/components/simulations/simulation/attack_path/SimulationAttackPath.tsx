@@ -530,19 +530,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   }, [exerciseId, scenarioExerciseIds, showPicker]);
 
   // Readable label for a simulation id: "date · name" for real simulations, raw id for seeds/unknowns.
-  // The date is the compact numeric form (05/08/2026 14:54 in fr, locale-adapted elsewhere) rather than
-  // the long prose one ("August 5, 2026 at 2:54:00 PM"), which crowded the picker out of the header.
+  // The date alone identifies the run here: the simulation's name is already on the page header above
+  // the tabs, so repeating it only widened the picker. Compact numeric form (05/08/26 16:06 in fr,
+  // locale-adapted elsewhere) rather than the long prose one ("August 5, 2026 at 4:06:00 PM"). A run
+  // with no start date has nothing to show but its name, so that case still falls back to it.
   const labelFor = useCallback((simId?: string): string => {
     if (!simId) {
       return '';
     }
     const meta = metaById.get(simId);
-    if (meta?.exercise_name) {
-      return meta.exercise_start_date
-        ? `${cnsdt(meta.exercise_start_date)} · ${meta.exercise_name}`
-        : meta.exercise_name;
+    if (meta?.exercise_start_date) {
+      return cnsdt(meta.exercise_start_date);
     }
-    return simId;
+    return meta?.exercise_name || simId;
   }, [metaById, cnsdt]);
 
   // Click a real endpoint (only visible once its injector cluster is expanded): load its own findings
