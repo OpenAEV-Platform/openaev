@@ -15,6 +15,11 @@ interface Props {
   selected?: boolean;
 }
 
+// Findings whose displayed value exceeds this many characters are hard-truncated on the card (the
+// full value stays available in the hover tooltip), so a long output value (ADR-004, e.g. raw XML/JSON
+// from an action_output) never renders as a sprawling, unreadable label on the canvas.
+const FINDING_LABEL_MAX_LENGTH = 16;
+
 // A single discovered finding: type icon in a verdict-tinted box and the (masked) value in
 // monospace. The compact single-row variant of the card language — findings are leaves and there
 // can be many of them.
@@ -23,6 +28,11 @@ const FindingCard = ({ data, selected = false }: Props) => {
   const { t } = useFormatter();
   const verdict = data.status ? attackPathStatusColor(theme, data.status) : theme.palette.divider;
   const value = maskFindingValue(data.typeFindings, data.label);
+  // Hard-truncate what is rendered on the card (no word-boundary trimming, so it always keeps
+  // FINDING_LABEL_MAX_LENGTH characters); the full value stays in the tooltip below.
+  const displayValue = value.length > FINDING_LABEL_MAX_LENGTH
+    ? `${value.slice(0, FINDING_LABEL_MAX_LENGTH)}...`
+    : value;
   // Output-only value (a chaining output not persisted as a Finding, ADR-004): flagged so the
   // analyst can tell it apart from a real finding and knows its drawer is in a degraded mode.
   const isOutputOnly = data.isFinding === false;
@@ -89,7 +99,7 @@ const FindingCard = ({ data, selected = false }: Props) => {
               fontSize: '0.6875rem',
             }}
           >
-            {value}
+            {displayValue}
           </Typography>
         </Box>
       </Box>

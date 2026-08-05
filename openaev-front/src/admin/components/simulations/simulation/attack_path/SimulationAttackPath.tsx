@@ -811,9 +811,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // expands/collapses it into its individual findings (fetched once, batched); an overflow reveals the
   // next batch. The cluster carries its own key; an endpoint ref scopes the fetch to that host.
   const onFindingClusterClick = useCallback(
-    (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => {
+    (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow' | 'typeOverflow') => {
       if (kind === 'overflow') {
         setFindingBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + FINDING_BATCH_SIZE));
+        return;
+      }
+      // "+N other types": purely a layout toggle (reveal/hide the type clusters the column capped
+      // away). It fetches nothing — each revealed type cluster loads its own findings when clicked.
+      if (kind === 'typeOverflow') {
+        setExpandedFindingClusters((prev) => {
+          const next = new Set(prev);
+          if (next.has(clusterId)) {
+            next.delete(clusterId);
+          } else {
+            next.add(clusterId);
+          }
+          return next;
+        });
+        setFitNonce(n => n + 1);
         return;
       }
       if (expandedFindingClusters.has(clusterId)) {
@@ -2257,6 +2272,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           label: noun.charAt(0).toUpperCase() + noun.slice(1),
           icon: <LabelOutlined fontSize="small" />,
           count,
+          // Marks a data-driven card so the header can cap how many of them it shows inline and
+          // collapse the rest behind one "+N types" stat (the band divides its width equally between
+          // stats, so an unbounded list of types clips every caption to a single letter).
+          extra: true,
         };
       });
     return [...base, ...extras];

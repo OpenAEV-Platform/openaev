@@ -1,7 +1,7 @@
-import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
-import { Autocomplete, Box, Button, ButtonBase, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, MoreHorizOutlined, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
+import { Autocomplete, Box, Button, ButtonBase, ListItemButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactNode } from 'react';
+import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import type { AttackPathSimSummaryRow } from '../../../../../utils/api-types';
@@ -20,7 +20,15 @@ export interface FindingCard {
   icon: ReactNode;
   count: number;
   hint?: string;
+  /** True for a data-driven finding-type card: only the first few show inline, the rest collapse. */
+  extra?: boolean;
 }
+
+// How many data-driven finding-type stats show inline before the rest collapse into one "+N types"
+// stat. Every stat shares the band's width equally, so each extra one narrows all the others: past a
+// handful the uppercase captions clip to a single letter ("13 C", "10 A") and the band reads as
+// noise. The curated stats are never collapsed — they are the fixed vocabulary of the view.
+const MAX_VISIBLE_EXTRA_CARDS = 2;
 
 // One entry of the graph search box: an endpoint, an injector, or a finding category. Selecting one
 // adapts the graph (focus an endpoint path, highlight an injector, or open a finding-type panel).
@@ -39,7 +47,7 @@ interface HeroStatButtonProps {
   icon: ReactNode;
   accent: string;
   active: boolean;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLElement>) => void;
   labelAdornment?: ReactNode;
   hint?: string;
   hasPopup?: boolean;
@@ -69,9 +77,11 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
         'alignItems': 'center',
         'justifyContent': 'flex-start',
         'gap': 1,
-        // Every stat shares the row equally (flex-basis 0, grow 1): the cards are the same width
-        // regardless of their label length or value, so the band never reads as ragged.
-        'flex': '1 1 0',
+        // Stats grow to share their row evenly (so the band never reads as ragged), but keep their
+        // content as flex-basis: with basis 0 they shrink indefinitely instead of wrapping, which is
+        // what clipped every caption once the row got crowded — the container's flex-wrap could
+        // never trigger. Now a row that no longer fits wraps to the next one.
+        'flex': '1 1 auto',
         'minWidth': 0,
         'height': CONTROL_HEIGHT,
         'padding': theme.spacing(0, 1),
@@ -217,6 +227,21 @@ const AttackPathHeader: FunctionComponent<Props> = ({
   // Only two rendered states: live (green) and reconnecting (amber) — the pill is not shown at all
   // once the run is finished.
   const beaconColor = freshness === 'reconnecting' ? theme.palette.warning.main : theme.palette.success.main;
+  // Anchor of the collapsed finding-types popover (null = closed).
+  const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
+  const moreOpen = !!moreAnchor;
+
+  // Split the stats: everything curated plus the first few finding-type extras stay inline, the rest
+  // collapse behind a single "+N types" stat opening a popover. The extras arrive sorted by count, so
+  // what stays inline is what matters most; the collapsed ones remain reachable from the search box.
+  const shown = cards.filter(c => c.count > 0);
+  const inlineCards = shown.filter(c => !c.extra);
+  const extraCards = shown.filter(c => c.extra);
+  const visibleExtras = extraCards.slice(0, MAX_VISIBLE_EXTRA_CARDS);
+  const collapsedExtras = extraCards.slice(MAX_VISIBLE_EXTRA_CARDS);
+  const collapsedTotal = collapsedExtras.reduce((s, c) => s + c.count, 0);
+  const collapsedActive = collapsedExtras.some(c => c.key === activeCard);
+
   return (
     <Paper
       variant="outlined"
@@ -392,7 +417,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
         },
       }}
       >
-        {cards.filter(c => c.count > 0).map(c => (
+        {[...inlineCards, ...visibleExtras].map(c => (
           <HeroStatButton
             key={c.key}
             label={c.label}
@@ -404,6 +429,20 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             hint={c.hint}
           />
         ))}
+        {/* The finding types that did not fit: one stat opening a popover, so the band stays legible
+            however many types a simulation produces. */}
+        {collapsedExtras.length > 0 && (
+          <HeroStatButton
+            label={`${collapsedExtras.length} ${t('types')}`}
+            value={collapsedTotal}
+            icon={<MoreHorizOutlined fontSize="small" />}
+            accent={theme.palette.primary.main}
+            active={collapsedActive || moreOpen}
+            onClick={e => setMoreAnchor(e.currentTarget)}
+            hasPopup
+            hint={t('Other finding types discovered in this simulation. Click to list them.')}
+          />
+        )}
         {/* Top chokepoints: the most-exposed endpoints. Violet accent (off the verdict scale) and a
             ranked, clickable explainer dialog owned by the container. */}
         {chokepointCount > 0 && (
@@ -431,6 +470,75 @@ const AttackPathHeader: FunctionComponent<Props> = ({
           />
         )}
       </Box>
+
+      {/* Collapsed finding types: same click behaviour as an inline stat (focus the graph on that
+          type and open its panel), just listed instead of squeezed into the band. */}
+      <Popover
+        open={moreOpen}
+        anchorEl={moreAnchor}
+        onClose={() => setMoreAnchor(null)}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              marginTop: 0.5,
+              minWidth: 240,
+              maxHeight: 320,
+            },
+          },
+        }}
+      >
+        <Typography sx={{
+          padding: theme.spacing(1, 1.5, 0.5),
+          fontSize: 9.5,
+          fontWeight: 600,
+          letterSpacing: '0.07em',
+          textTransform: 'uppercase',
+          color: 'text.secondary',
+        }}
+        >
+          {t('Other types')}
+        </Typography>
+        {collapsedExtras.map(c => (
+          <ListItemButton
+            key={c.key}
+            selected={activeCard === c.key}
+            onClick={() => {
+              onCardClick(c);
+              setMoreAnchor(null);
+            }}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              paddingBlock: 0.5,
+            }}
+          >
+            <Box sx={{
+              'display': 'flex',
+              'color': 'text.secondary',
+              '& svg': { fontSize: 16 },
+            }}
+            >
+              {c.icon}
+            </Box>
+            <Typography variant="body2" noWrap sx={{ flex: 1 }}>{c.label}</Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontFamily: '"Geologica", sans-serif',
+                fontVariantNumeric: 'tabular-nums',
+                color: 'text.secondary',
+              }}
+            >
+              {c.count}
+            </Typography>
+          </ListItemButton>
+        ))}
+      </Popover>
 
       <Autocomplete<SearchOption>
         size="small"
