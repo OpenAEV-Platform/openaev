@@ -3024,6 +3024,8 @@
   "Send an email": "이메일 보내기",
   "Send answer": "Send answer",
   "Send email": "이메일 보내기",
+  "This landing page is available as a phishing action in the Threat Arsenal. Add it to an inject to launch a phishing campaign targeting teams and players.": "This landing page is available as a phishing action in the Threat Arsenal. Add it to an inject to launch a phishing campaign targeting teams and players.",
+  "Use the {{phishing_url}} placeholder in the body to insert the per-recipient tracking link that leads to the landing page.": "Use the {{phishing_url}} placeholder in the body to insert the per-recipient tracking link that leads to the landing page.",
   "Send emails to your targets to run phishing and awareness simulations.": "대상에게 이메일을 보내 피싱 및 인식 제고 시뮬레이션을 실행합니다.",
   "Send reset code": "재설정 코드 보내기",
   "Send the lessons learned questionnaire": "교훈을 얻은 설문지 보내기",

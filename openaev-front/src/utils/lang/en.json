@@ -3019,6 +3019,8 @@
   "Send an email": "Send an email",
   "Send answer": "Send answer",
   "Send email": "Send email",
+  "This landing page is available as a phishing action in the Threat Arsenal. Add it to an inject to launch a phishing campaign targeting teams and players.": "This landing page is available as a phishing action in the Threat Arsenal. Add it to an inject to launch a phishing campaign targeting teams and players.",
+  "Use the {{phishing_url}} placeholder in the body to insert the per-recipient tracking link that leads to the landing page.": "Use the {{phishing_url}} placeholder in the body to insert the per-recipient tracking link that leads to the landing page.",
   "Send emails to your targets to run phishing and awareness simulations.": "Send emails to your targets to run phishing and awareness simulations.",
   "Send reset code": "Send reset code",
   "Send the lessons learned questionnaire": "Send the lessons learned questionnaire",

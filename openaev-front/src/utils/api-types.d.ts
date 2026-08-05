@@ -7501,6 +7501,8 @@ export interface NotificationTriggerInput {
     | "CREDENTIAL_ASSET"
     | "DOCUMENT"
     | "CHANNEL"
+    | "PHISHING_LANDING_PAGE"
+    | "PHISHING_EMAIL_TEMPLATE"
     | "FINDING"
     | "DASHBOARD"
     | "REPORT"
@@ -7602,6 +7604,8 @@ export interface NotificationTriggerOutput {
     | "CREDENTIAL_ASSET"
     | "DOCUMENT"
     | "CHANNEL"
+    | "PHISHING_LANDING_PAGE"
+    | "PHISHING_EMAIL_TEMPLATE"
     | "FINDING"
     | "DASHBOARD"
     | "REPORT"
@@ -9008,6 +9012,7 @@ export interface PayloadsDeprecateInput {
 }
 
 export interface PhishingEmailTemplate {
+  listened?: boolean;
   phishing_email_template_add_tracking_pixel?: boolean;
   /** @format date-time */
   phishing_email_template_created_at: string;
@@ -9040,6 +9045,8 @@ export interface PhishingEmailTemplateInput {
 }
 
 export interface PhishingLandingPage {
+  listened?: boolean;
+  logos?: Document[];
   phishing_landing_page_capture_passwords?: boolean;
   phishing_landing_page_capture_submitted_data?: boolean;
   /** @format date-time */
@@ -9076,6 +9083,24 @@ export interface PhishingLandingPageInput {
 export interface PhishingLandingPageLogoInput {
   phishing_landing_page_logo_dark?: string;
   phishing_landing_page_logo_light?: string;
+}
+
+export interface PhishingLandingPageReader {
+  phishing_capture_passwords?: boolean;
+  phishing_capture_submitted_data?: boolean;
+  phishing_landing_page_css?: string;
+  phishing_landing_page_html?: string;
+  phishing_landing_page_logo_dark?: string;
+  phishing_landing_page_logo_light?: string;
+  phishing_landing_page_name?: string;
+  phishing_landing_page_primary_color_dark?: string;
+  phishing_landing_page_primary_color_light?: string;
+}
+
+export interface PhishingSubmitInput {
+  data?: Record<string, string>;
+  password?: string;
+  username?: string;
 }
 
 export interface PlatformGroupInput {
@@ -9137,6 +9162,9 @@ export interface PlatformRoleInput {
     | "ACCESS_CHANNELS"
     | "MANAGE_CHANNELS"
     | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
     | "ACCESS_CHALLENGES"
     | "MANAGE_CHALLENGES"
     | "DELETE_CHALLENGES"
@@ -9949,6 +9977,9 @@ export interface RoleInput {
     | "ACCESS_CHANNELS"
     | "MANAGE_CHANNELS"
     | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
     | "ACCESS_CHALLENGES"
     | "MANAGE_CHALLENGES"
     | "DELETE_CHALLENGES"
@@ -11992,6 +12023,9 @@ export interface User {
     | "ACCESS_CHANNELS"
     | "MANAGE_CHANNELS"
     | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
     | "ACCESS_CHALLENGES"
     | "MANAGE_CHALLENGES"
     | "DELETE_CHALLENGES"

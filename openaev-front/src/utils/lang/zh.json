@@ -3024,6 +3024,8 @@
   "Send an email": "发送邮件",
   "Send answer": "Send answer",
   "Send email": "发送邮件",
+  "This landing page is available as a phishing action in the Threat Arsenal. Add it to an inject to launch a phishing campaign targeting teams and players.": "This landing page is available as a phishing action in the Threat Arsenal. Add it to an inject to launch a phishing campaign targeting teams and players.",
+  "Use the {{phishing_url}} placeholder in the body to insert the per-recipient tracking link that leads to the landing page.": "Use the {{phishing_url}} placeholder in the body to insert the per-recipient tracking link that leads to the landing page.",
   "Send emails to your targets to run phishing and awareness simulations.": "向目标发送电子邮件，开展钓鱼和意识培训模拟。",
   "Send reset code": "发送重置代码",
   "Send the lessons learned questionnaire": "发送经验教训调查问卷",

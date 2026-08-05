@@ -3024,6 +3024,8 @@
   "Send an email": "Envoyer un email",
   "Send answer": "Send answer",
   "Send email": "Envoyer le mail",
+  "This landing page is available as a phishing action in the Threat Arsenal. Add it to an inject to launch a phishing campaign targeting teams and players.": "This landing page is available as a phishing action in the Threat Arsenal. Add it to an inject to launch a phishing campaign targeting teams and players.",
+  "Use the {{phishing_url}} placeholder in the body to insert the per-recipient tracking link that leads to the landing page.": "Use the {{phishing_url}} placeholder in the body to insert the per-recipient tracking link that leads to the landing page.",
   "Send emails to your targets to run phishing and awareness simulations.": "Envoyez des e-mails à vos cibles pour mener des simulations de phishing et de sensibilisation.",
   "Send reset code": "Envoyer le code",
   "Send the lessons learned questionnaire": "Envoyer le questionnaire de retour d'expérience",
