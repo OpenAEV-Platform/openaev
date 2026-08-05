@@ -14,8 +14,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -38,21 +38,17 @@ public class ManagerFactory implements DependenciesManager {
    * One Manager instance is maintained per tenant.
    *
    * <p>Deliberately NOT {@code @Transactional}: a cache hit (the overwhelmingly common case) must
-   * not open a transaction, and — crucially — first-access creation must not run inside the
-   * caller's transaction. Read endpoints (e.g. {@code GET /api/collectors}) run {@code readOnly},
-   * and creation registers built-in injectors (which writes); joining that read-only transaction
-   * made the write fail with "cannot execute DELETE in a read-only transaction" and then aborted
-   * the whole request. Creation is therefore delegated to {@link #createManager} in its own {@code
-   * REQUIRES_NEW} read-write transaction. The in-memory {@link Lock} still serializes concurrent
-   * creation per tenant.
-   *
-   * <p>Creation runs <b>outside</b> {@link ConcurrentHashMap#computeIfAbsent}: that method holds
-   * the map's bin lock for the whole mapping function, and running the {@code REQUIRES_NEW}
-   * transaction (a DB write to the tenant's connector rows) under that lock can deadlock against a
-   * concurrent tenant-creation thread that holds those rows while waiting on the same bin — a cycle
-   * PostgreSQL cannot detect because one side is a JVM lock. The per-tenant {@link Lock} already
-   * guarantees {@link #createManager} runs at most once per tenant, and {@link
-   * ConcurrentHashMap#putIfAbsent} publishes the instance safely.
+   * not open a transaction. On a miss, creation is delegated to {@link #createManager} through the
+   * Spring proxy so its {@code @Transactional} applies: it joins the caller's transaction when one
+   * exists, or opens its own read-write one otherwise. Creation deliberately does NOT use {@code
+   * REQUIRES_NEW}: that opened a second DB session whose connector-row writes blocked forever on
+   * rows the caller's still-uncommitted transaction already held (e.g. {@code @Transactional} API
+   * tests that insert connectors and then hit a read endpoint) — a self-deadlock PostgreSQL cannot
+   * detect because the waiting session's owner is the very thread suspended inside it. When the
+   * joined transaction is read-only, {@link #createManager} skips the registration write instead
+   * (see there). The in-memory {@link Lock} serializes concurrent creation per tenant, and creation
+   * runs outside {@link ConcurrentHashMap#computeIfAbsent} so no map bin lock is held across DB
+   * work; {@link ConcurrentHashMap#putIfAbsent} publishes the instance safely.
    *
    * @param tenantId the tenant identifier
    * @return the Manager for that tenant
@@ -69,26 +65,29 @@ public class ManagerFactory implements DependenciesManager {
   }
 
   /**
-   * Creates a new {@link Manager} for the given tenant. Runs in its own {@code REQUIRES_NEW}
-   * read-write transaction so that registering the tenant's built-in connectors (a write) succeeds
-   * and stays isolated from any read-only caller transaction (see {@link #getManager}).
+   * Creates a new {@link Manager} for the given tenant, joining the caller's transaction when one
+   * exists (never {@code REQUIRES_NEW} — a second DB session deadlocks against the caller's
+   * uncommitted connector rows, see {@link #getManager}).
    *
-   * <p>Integration discovery and startup are handled by the next {@link
-   * io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob} cycle — no immediate {@link
-   * Manager#monitorIntegrations()} call here to avoid connecting to external services (Caldera,
-   * Tanium, etc.) during bean initialization or tenant creation, where those services may not be
-   * reachable.
+   * <p>Registering the tenant's built-in connectors is a write, so it is skipped when the joined
+   * transaction is read-only (e.g. a first-access {@code GET /api/collectors} that runs {@code
+   * readOnly} — previously this failed with "cannot execute DELETE in a read-only transaction").
+   * Built-ins are guaranteed by the read-write paths instead: {@link #createDependencyForTenant} on
+   * tenant creation, and {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob} which calls
+   * {@link #getManager} inside a read-write tenant transaction on every cycle.
    *
-   * <p>Public (not private) so {@link #getManager} can invoke it through the Spring proxy for the
-   * {@code REQUIRES_NEW} transaction to apply. {@link #createDependencyForTenant} deliberately
-   * calls it via {@code this} (self-invocation, proxy bypassed) so it joins the surrounding
-   * tenant-creation transaction and rolls back with it.
+   * <p>Public (not private) so {@link #getManager} can invoke it through the Spring proxy for
+   * {@code @Transactional} to apply when the caller has no transaction. {@link
+   * #createDependencyForTenant} deliberately calls it via {@code this} (self-invocation, proxy
+   * bypassed) so it joins the surrounding tenant-creation transaction and rolls back with it.
    */
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  @Transactional
   public Manager createManager(@NotBlank final String tenantId) {
     try {
-      for (BuiltinTenantRegistrable component : builtinRegistrables) {
-        component.registerForTenant(tenantId);
+      if (!TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
+        for (BuiltinTenantRegistrable component : builtinRegistrables) {
+          component.registerForTenant(tenantId);
+        }
       }
       Manager manager = new Manager(tenantId, factories);
       manager.monitorIntegrations();
