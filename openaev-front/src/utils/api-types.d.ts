@@ -195,6 +195,12 @@ export interface AggregatedFindingOutput {
    * @minLength 1
    */
   finding_id: string;
+  /** Current triage status of the finding (UNTRIAGED if no triage decision has been made yet) */
+  finding_triage_status:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -5385,6 +5391,27 @@ export interface Finding {
   listened?: boolean;
 }
 
+export interface FindingCommentInput {
+  /**
+   * @minLength 0
+   * @maxLength 4000
+   */
+  finding_comment_content: string;
+}
+
+export interface FindingCommentOutput {
+  finding_comment_author_firstname?: string;
+  finding_comment_author_id?: string;
+  finding_comment_author_lastname?: string;
+  finding_comment_content?: string;
+  /** @format date-time */
+  finding_comment_created_at?: string;
+  finding_comment_finding_id?: string;
+  finding_comment_id?: string;
+  /** @format date-time */
+  finding_comment_updated_at?: string;
+}
+
 export interface FindingInput {
   /** @minLength 1 */
   finding_field: string;
@@ -5417,6 +5444,70 @@ export interface FindingInput {
     | "expectation_signature";
   /** @minLength 1 */
   finding_value: string;
+}
+
+export interface FindingTriageBulkInput {
+  /** @minItems 1 */
+  finding_ids: string[];
+  /**
+   * @minLength 10
+   * @maxLength 4000
+   */
+  justification: string;
+  status: "UNTRIAGED" | "CONFIRMED" | "FALSE_POSITIVE" | "RISK_ACCEPTED";
+}
+
+export interface FindingTriageBulkItemOutput {
+  error?: string;
+  finding_id?: string;
+  status?: "UNTRIAGED" | "CONFIRMED" | "FALSE_POSITIVE" | "RISK_ACCEPTED";
+  success?: boolean;
+}
+
+export interface FindingTriageHistoryOutput {
+  finding_triage_history_actor_firstname?: string;
+  finding_triage_history_actor_id?: string;
+  finding_triage_history_actor_lastname?: string;
+  /** @format date-time */
+  finding_triage_history_created_at?: string;
+  finding_triage_history_finding_id?: string;
+  finding_triage_history_from_status?:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
+  finding_triage_history_id?: string;
+  finding_triage_history_is_system?: boolean;
+  finding_triage_history_justification?: string;
+  finding_triage_history_to_status?:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
+  system?: boolean;
+}
+
+export interface FindingTriageInput {
+  /**
+   * @minLength 10
+   * @maxLength 4000
+   */
+  justification: string;
+  status: "UNTRIAGED" | "CONFIRMED" | "FALSE_POSITIVE" | "RISK_ACCEPTED";
+}
+
+export interface FindingTriageOutput {
+  /** @format date-time */
+  finding_triage_created_at?: string;
+  finding_triage_finding_id?: string;
+  finding_triage_id?: string;
+  finding_triage_status?:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
+  /** @format date-time */
+  finding_triage_updated_at?: string;
 }
 
 export interface FlagInput {
@@ -7395,6 +7486,7 @@ export interface NotificationTriggerInput {
     | "DOCUMENT"
     | "CHANNEL"
     | "FINDING"
+    | "FINDING_COMMENT"
     | "DASHBOARD"
     | "REPORT"
     | "PLATFORM_SETTING"
@@ -7495,6 +7587,7 @@ export interface NotificationTriggerOutput {
     | "DOCUMENT"
     | "CHANNEL"
     | "FINDING"
+    | "FINDING_COMMENT"
     | "DASHBOARD"
     | "REPORT"
     | "PLATFORM_SETTING"
@@ -8933,6 +9026,7 @@ export interface PlatformRoleInput {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "MANAGE_FINDING_TRIAGE"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -9494,6 +9588,12 @@ export interface RelatedFindingOutput {
   finding_scenario?: ScenarioSimple;
   /** Simulation linked to inject */
   finding_simulation?: ExerciseSimple;
+  /** Current triage status of the finding (UNTRIAGED if no triage decision has been made yet) */
+  finding_triage_status:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -9743,6 +9843,7 @@ export interface RoleInput {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "MANAGE_FINDING_TRIAGE"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -11785,6 +11886,7 @@ export interface User {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "MANAGE_FINDING_TRIAGE"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"

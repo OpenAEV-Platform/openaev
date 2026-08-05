@@ -34,8 +34,8 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * Service for {@link FindingTriage} (current status) and {@link FindingTriageHistory} (append-only
  * transitions). Deliberately depends on {@link FindingRepository} directly (not {@link
- * FindingService}) to avoid a circular dependency, since {@code FindingService} needs to be able
- * to call into this service.
+ * FindingService}) to avoid a circular dependency, since {@code FindingService} needs to be able to
+ * call into this service.
  *
  * <p><b>Re-detection auto-reset status:</b> both reset hooks (injector-path {@code
  * resetTriageForReDetectedFindings(List)} and agent-path {@code
@@ -47,8 +47,8 @@ import org.springframework.web.server.ResponseStatusException;
  * key can only ever repeat within a single still-open execution, never across a genuinely later
  * run, making both methods' core premise a structural no-op (or worse - liable to reset triage on
  * ordinary in-execution reporting). Re-detection auto-reset is deferred until a real, stable
- * cross-run identity key is found (no such field currently exists on {@code Inject} - unlike
- * {@code Workflow}'s {@code workflow_template_id} precedent).
+ * cross-run identity key is found (no such field currently exists on {@code Inject} - unlike {@code
+ * Workflow}'s {@code workflow_template_id} precedent).
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -80,6 +80,28 @@ public class FindingTriageService {
 
   // -- HTTP-driven single/bulk/history (ambient TenantContext, set by TenantInterceptor) --
 
+  /**
+   * Current triage status for a single finding, for the detail page. Deliberately does NOT fall
+   * back to {@link #getOrCreateTriage}: that helper persists a new row on first access, which would
+   * turn this read into a write (see backend.instructions.md - never mutate a managed entity in a
+   * read path). A finding with no {@link FindingTriage} row yet has simply never been triaged, so a
+   * virtual UNTRIAGED default is returned without persisting anything.
+   */
+  @Transactional(readOnly = true)
+  public FindingTriageOutput getCurrentStatus(@NotBlank final String findingId) {
+    String tenantId = TenantContext.getCurrentTenant();
+    requireFinding(findingId, tenantId);
+    return findingTriageRepository
+        .findByFinding_Id(findingId)
+        .map(FindingTriageOutput::from)
+        .orElseGet(
+            () ->
+                FindingTriageOutput.builder()
+                    .findingId(findingId)
+                    .status(FindingTriageStatus.UNTRIAGED)
+                    .build());
+  }
+
   @Transactional
   public FindingTriageOutput triage(
       @NotBlank final String findingId,
@@ -94,7 +116,8 @@ public class FindingTriageService {
     validateTransition(fromStatus, targetStatus);
     requireAdminIfRevert(targetStatus, currentUser);
 
-    applyTransition(triage, finding, fromStatus, targetStatus, justification, currentUser, tenantId);
+    applyTransition(
+        triage, finding, fromStatus, targetStatus, justification, currentUser, tenantId);
     return FindingTriageOutput.from(triage);
   }
 
@@ -140,9 +163,7 @@ public class FindingTriageService {
   public List<FindingTriageHistoryOutput> history(@NotBlank final String findingId) {
     String tenantId = TenantContext.getCurrentTenant();
     requireFinding(findingId, tenantId);
-    return findingTriageHistoryRepository
-        .findByFinding_IdOrderByCreationDateAsc(findingId)
-        .stream()
+    return findingTriageHistoryRepository.findByFinding_IdOrderByCreationDateAsc(findingId).stream()
         .map(FindingTriageHistoryOutput::from)
         .toList();
   }
@@ -194,7 +215,8 @@ public class FindingTriageService {
     return tenantRepository.getReferenceById(tenantId);
   }
 
-  private void validateTransition(FindingTriageStatus fromStatus, FindingTriageStatus targetStatus) {
+  private void validateTransition(
+      FindingTriageStatus fromStatus, FindingTriageStatus targetStatus) {
     if (fromStatus == targetStatus) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Finding is already in " + targetStatus + " status");
