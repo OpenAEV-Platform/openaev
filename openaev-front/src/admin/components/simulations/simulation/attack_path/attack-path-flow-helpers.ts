@@ -306,8 +306,9 @@ export const MAX_VISIBLE_FINDING_TYPES = 4;
 
 // Stable id prefix of a column's "+N other types" chip. Suffixed with the endpoint id for a
 // per-endpoint column; bare for the global aggregate one. Shares the finding-cluster expansion set,
-// so the container toggles it with the same handler.
-export const AP_TYPE_OVERFLOW_ID = 'cl-ft-more';
+// so the container toggles it with the same handler. The '|' separator keeps it out of the
+// `cl-ft-<type>` id space: a finding type literally named "more" must not collide with the chip.
+export const AP_TYPE_OVERFLOW_ID = 'cl-ft|more';
 
 // Aggregate a set of prevention/detection statuses into one worst-case verdict: RED beats ORANGE beats
 // GREEN — one bad execution among several (e.g. one endpoint undetected while the rest were prevented)

@@ -1235,10 +1235,21 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // whatever node actually represents it.
   // The focused finding's own type is pinned past the type cap: ties are broken by name, so a picked
   // "share" could otherwise lose its slot to a "cve" and end up with no node at all — leaving the
-  // focus with nothing to seed on and silently showing another path instead.
+  // focus with nothing to seed on and silently showing another path instead. The chain-mode focus
+  // entry points (drawer pick, summary-list pick) deliberately leave pathFinding.type empty and carry
+  // the exact finding in selectedFindingId instead, so its type is resolved from the raw full graph
+  // (NOT from fullChain, which itself depends on this pin) and pinned too — otherwise those picks
+  // seeded on the "+N other types" chip whenever the picked type fell past the cap.
   const pinnedFindingTypes = useMemo(
-    () => new Set([pathFinding?.type, findingDetail?.type].filter((v): v is string => !!v)),
-    [pathFinding?.type, findingDetail?.type],
+    () => {
+      const selectedType = selectedFindingId
+        ? (fullDto?.attackPathNodes ?? []).find(n => n.id === selectedFindingId)?.typeFindings
+        : undefined;
+      return new Set(
+        [pathFinding?.type, findingDetail?.type, selectedType].filter((v): v is string => !!v),
+      );
+    },
+    [pathFinding?.type, findingDetail?.type, selectedFindingId, fullDto?.attackPathNodes],
   );
   const fullChain = useMemo(
     () => (chainMode && fullDto
@@ -2312,7 +2323,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       });
     });
     const extras: FindingCard[] = [...extraTotals.entries()]
-      .sort((a, b) => b[1] - a[1])
+      // Count first, type key as a tie-break: the header caps how many of these show inline, so ties
+      // must not fall back to Map insertion order or which types stay visible would shift across
+      // renders.
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([type, count]) => {
         const noun = t(findingCategoryNoun(type));
         return {
