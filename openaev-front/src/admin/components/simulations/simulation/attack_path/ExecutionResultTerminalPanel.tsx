@@ -6,14 +6,14 @@ import DOMPurify from 'dompurify';
 import { useContext, useEffect, useRef, useState } from 'react';
 
 import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
-import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
+import { getInjectStatusWithGlobalExecutionTraces } from '../../../../../actions/injects/inject-action';
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import Tabs from '../../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../../components/common/tabs/useTabs';
 import Terminal, { type TerminalLine } from '../../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
+import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, InjectStatusOutput } from '../../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -25,11 +25,13 @@ import expectationIconByType from '../../../common/ExpectationIconByType';
 import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import FindingList from '../../../findings/FindingList';
+import { InjectorExecutionStatusBadge, PayloadExecutionStatusBadge } from './ExecutionStatusBadge';
 import ExpectationPlatformsTable, {
   type ExpectationPlatformAlert,
   type ExpectationPlatformRow,
 } from './ExpectationPlatformsTable';
 import ImageWithFallback from './ImageWithFallback';
+import useResolvedAssetTarget from './useResolvedAssetTarget';
 
 interface Props {
   loading: boolean;
@@ -266,41 +268,14 @@ const CollectorByIdLogo = ({ collectorId, label }: {
 
 // Live terminal for a real execution: the attack-path DTO only carries `command`/`terminalOutput` on
 // seeded runs, so for a real inject we reuse the shared `TerminalViewTab`, fed by the live
-// `execution_traces` — exactly like the inject detail view. The DTO exposes `injectId` but not the
-// executed target, so we resolve the inject's asset targets and pick the one matching this execution's
-// endpoint (falling back to the first asset), then hand it to `TerminalViewTab`.
+// `execution_traces` — exactly like the inject detail view. The executed target is resolved by the
+// shared hook (also used by the payload execution-status badge), then handed to `TerminalViewTab`.
 const LiveExecutionTerminal = ({ injectId, endpointName }: {
   injectId: string;
   endpointName?: string;
 }) => {
   const { t } = useFormatter();
-  const [target, setTarget] = useState<InjectTarget | null>(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    searchTargets(injectId, 'ASSETS', {
-      filterGroup: {
-        mode: 'and',
-        filters: [],
-      },
-      size: 50,
-      page: 0,
-    })
-      .then((response) => {
-        if (!active) {
-          return;
-        }
-        const targets: InjectTarget[] = response.data?.content ?? [];
-        const match = targets.find(tg => tg.target_name && tg.target_name === endpointName);
-        setTarget(match ?? targets[0] ?? null);
-      })
-      .catch(() => active && setTarget(null))
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-  }, [injectId, endpointName]);
+  const { target, loading } = useResolvedAssetTarget(injectId, endpointName);
 
   if (loading) {
     return <Loader variant="inElement" size="sm" />;
@@ -756,11 +731,50 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 gap: theme.spacing(2),
               }}
               >
-                <div>
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                }}
+                >
                   {/* The friendly endpoint name (kingslanding), not the raw endpoint key/UUID, to stay
                        consistent with the graph node; fall back to the IP only when no name is known. */}
                   <Typography variant="subtitle2">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Typography>
-                </div>
+                  {/* Whether the action actually ran at all (issue 244): those verdicts below answer "was
+                      it caught?", never "did it run?" — a technical failure and a clean-but-undetected run
+                      previously looked identical. Sits beside the endpoint name (not its own row) to save
+                      vertical space. */}
+                  {detail.injectId && (
+                    <Box sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.75,
+                      flexShrink: 0,
+                    }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        {t('Status')}
+                        :
+                      </Typography>
+                      {detail.payloadId
+                        ? (
+                            <PayloadExecutionStatusBadge
+                              injectId={detail.injectId}
+                              endpointName={endpointLabel || detail.targetHostname || detail.endpointKey}
+                            />
+                          )
+                        : <InjectorExecutionStatusBadge injectId={detail.injectId} />}
+                    </Box>
+                  )}
+                </Box>
                 {/* Enterprise gate on the attribution itself, not on the verdicts: one chip for the
                     section, offering the upsell path instead of a dead-end sentence per row. Only
                     clickable for a user who could act on the dialog — the licence form it opens
