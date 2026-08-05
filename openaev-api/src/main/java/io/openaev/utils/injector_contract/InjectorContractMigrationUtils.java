@@ -40,6 +40,13 @@ public class InjectorContractMigrationUtils {
       return;
     }
 
+    if (convertedContent.has(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_CONTACT_ID)) {
+      convertedContent.put(
+          InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_CONTACT_ID, contract.getId());
+      contract.setConvertedContent(convertedContent);
+      contract.setContent(convertedContent.toString());
+    }
+
     ObjectNode expectationsField =
         (ObjectNode)
             StreamSupport.stream(convertedContent.get("fields").spliterator(), false)
@@ -84,6 +91,7 @@ public class InjectorContractMigrationUtils {
 
     expectationsField.set(InjectorContract.AVAILABLE_EXPECTATIONS, available);
     expectationsField.remove(PREDEFINED_EXPECTATIONS_OLD_LIST);
+
     contract.setContent(convertedContent.toString());
   }
 }
