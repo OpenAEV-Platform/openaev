@@ -5,8 +5,6 @@ import { useTheme } from '@mui/material/styles';
 import { type SxProps } from '@mui/system';
 import type React from 'react';
 
-import type { LoggedHelper } from '../../../actions/helper';
-import { useHelper } from '../../../store';
 import { TOP_BANNER_HEIGHT } from './constants';
 
 const TOPBANNER_COLORS = {
@@ -44,9 +42,6 @@ interface TopBannerProps {
 
 const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonStyle, onButtonClick }: TopBannerProps) => {
   const theme = useTheme();
-  const { settings } = useHelper((helper: LoggedHelper) => {
-    return { settings: helper.getPlatformSettings() };
-  });
   const colors = TOPBANNER_COLORS[bannerColor];
   // Trial/license banner is the top-most stripe; system banners stack below it.
   const topOffset = 0;
