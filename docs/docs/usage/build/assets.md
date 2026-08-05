@@ -123,3 +123,10 @@ OpenAEV strives to support as many integrations as possible with the most popula
 security platform integration is not yet available, you can create it manually here.
 
 ![Security platforms](../assets/security-platforms.png)
+
+## What's next?
+
+- [OpenAEV Agent](../environment/openaev-agent.md) -- Install agents on your endpoints
+- [Scenarios](scenario/scenario.md) -- Use your Assets in Scenarios
+- [Injects](../evaluate/injects/inject-overview.md) -- Target Assets with Injects
+- [People](people.md) -- Manage Players and Teams

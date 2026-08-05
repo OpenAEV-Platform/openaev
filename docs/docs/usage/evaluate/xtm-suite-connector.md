@@ -37,7 +37,7 @@ Once the OpenCTI instance is up and running, gather the following information:
 
 #### Step 1: Configure OpenAEV to connect to OpenCTI
 
-Each OpenCTI connection is scoped to an OpenAEV **tenant**, identified by its UUID (`{id}`). This allows each tenant in a [multi-tenant deployment](../administration/multi-tenancy.md) to have its own OpenCTI integration.
+Each OpenCTI connection is scoped to an OpenAEV **tenant**, identified by its UUID (`{id}`). This allows each tenant in a [multi-tenant deployment](../../administration/multi-tenancy.md) to have its own OpenCTI integration.
 
 Set the following parameters in your OpenAEV deployment:
 
@@ -71,7 +71,7 @@ After updating the configuration, restart the OpenAEV platform for the changes t
 
 The connector is now up and running and should be visible in OpenCTI as **OpenAEV Coverage**.
 
-![Active OpenAEV Coverage connector in OpenCTI](assets/active_openaev_connector_in_opencti.png)
+![Active OpenAEV Coverage connector in OpenCTI](../assets/active_openaev_connector_in_opencti.png)
 
 ### Trigger security coverage enrichments from OpenCTI
 
@@ -87,6 +87,6 @@ Once the connector appears in OpenCTI, you can trigger it to run security covera
 
 ## What's next?
 
-- [Scenario Generation from OpenCTI Security Coverage](build/scenario/security-coverage.md) — Automatically create OpenAEV scenarios from OpenCTI Security Coverage objects.
-- [Configuration reference](../deployment/configuration.md#xtm-suite-opencti) — Full list of configuration parameters.
-- [Scenarios and Simulations](foundations/scenarios-and-simulations.md) — Understand how scenarios and simulations work in OpenAEV.
+- [Scenario Generation from OpenCTI Security Coverage](../build/scenario/security-coverage.md) — Automatically create OpenAEV scenarios from OpenCTI Security Coverage objects.
+- [Configuration reference](../../deployment/configuration.md#xtm-suite-opencti) — Full list of configuration parameters.
+- [Scenarios and Simulations](../foundations/scenarios-and-simulations.md) — Understand how scenarios and simulations work in OpenAEV.

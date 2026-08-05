@@ -33,3 +33,9 @@ When clicking on the link the player is redirected to a page with a clickable ca
 ![challenge-admin-answers.png](../../assets/components/challenge-admin-answers.png)
 
 The initiator of the simulation can check the results. On this picture, a player of the team answered correctly while the others have not answered yet. Note that by default, players have a day to respond.
+
+## What's next?
+
+- [Scenarios](../scenario/scenario.md) -- Use Challenges in your Scenarios
+- [Built-in Injects](../../environment/injects-builtin.md) -- Overview of all built-in Injectors including the Challenge Injector
+- [Media pressure](media-pressure.md) -- Simulate media coverage during exercises

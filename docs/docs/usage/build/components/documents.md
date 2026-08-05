@@ -25,3 +25,9 @@ When creating an table-top inject, you can attach documents to provide context o
 include attachments.
 
 Additionally, you can create a File Drop threat arsenal action and include your documents within it.
+
+## What's next?
+
+- [Scenarios](../scenario/scenario.md) -- Attach Documents to your Scenarios
+- [Injects](../../evaluate/injects/inject-overview.md) -- Use Documents in table-top Injects
+- [Threat Arsenal](../threat-arsenals/threat-arsenals.md) -- Create File Drop actions with your Documents

@@ -168,7 +168,7 @@ nav:
         - Widgets: usage/evaluate/dashboards/widgets.md
       - Reporting: usage/evaluate/reporting/reporting.md
       - Autonomous attack path (AI): usage/autonomous-attack-path.md
-      - Security Coverage enrichment (XTM Suite): usage/xtm-suite-connector.md
+      - Security Coverage enrichment (XTM Suite): usage/evaluate/xtm-suite-connector.md
     - Build your own Threat Scenario:
       - Scenario: usage/build/scenario/scenario.md
       - Scenario Generation from OpenCTI Security Coverage: usage/build/scenario/security-coverage.md
@@ -185,8 +185,7 @@ nav:
       - Threat Arsenal:
         - Actions: usage/build/threat-arsenals/threat-arsenals.md
         - Domains: usage/build/threat-arsenals/domains.md
-    - Share and export:
-      - Notifications: usage/notifications.md
+    - Notifications: usage/notifications.md
     - Interact with your environment:
       - Injectors:
         - Overview: usage/environment/injectors.md

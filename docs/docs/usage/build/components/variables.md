@@ -51,5 +51,11 @@ Here is a non-exhaustive list of concerned injects :
 
 In case of a list like `articles`, which is a list of articles with properties such as `id`, `name`, and `uri`, or `${teams}`, you could write:
 
-<#list articles as article> - `${article.name}` </#list>  
+<#list articles as article> - `${article.name}` </#list>
 <#list teams as team> `${team}` </#list>
+
+## What's next?
+
+- [Scenarios](../scenario/scenario.md) -- Define custom Variables for your Scenarios
+- [Injects](../../evaluate/injects/inject-overview.md) -- Use Variables to personalize Inject content
+- [Built-in Injects](../../environment/injects-builtin.md) -- Overview of Injectors that support Variables (Email, SMS)

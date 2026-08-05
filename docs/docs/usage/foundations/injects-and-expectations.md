@@ -23,8 +23,4 @@ The collection and concatenation of Expectations results, broken down per type, 
 
 ## Expectations drift
 
-Injects inherit the predefined Expectations of their Injector contract at creation time and keep them as-is afterwards, even when the contract later evolves (for example when an integration updates the validation requirements of its contracts). This divergence is called expectations drift.
-
-When at least one Inject of a Scenario, a Simulation, or an Atomic Test carries Expectations that no longer match its contract, a warning indicator appears in the header with the number of drifted Injects. A drifted Inject is not an error: Expectations may have been customized on purpose. The indicator only surfaces that the underlying contracts evolved, so you can decide whether to realign.
-
-The **Realign expectations** quick action overwrites the stored Expectations of every drifted Inject with the current predefined Expectations of its contract. For Scenarios and Simulations, the realignment runs as a background operation whose progress is tracked in the header. Customizations made to the drifted Injects' Expectations are replaced by the contract defaults.
+Injector contracts can evolve over time, but Injects keep the Expectations they inherited at creation. When the two diverge, OpenAEV flags the drift so you can decide whether to realign. See [Expectations drift](../evaluate/expectations/expectations.md#expectations-drift) for details.

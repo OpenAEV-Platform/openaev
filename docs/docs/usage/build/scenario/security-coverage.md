@@ -126,7 +126,7 @@ Once the scenario is finalized and scheduled:
 - OpenAEV executes the scenario according to the periodicity.
 - After simulation, the results are compiled into new SROs (STIX Relationship Objects).
 - OpenAEV sends these results back to OpenCTI as part of
-  automated [Enriched Security Posture Assessment](../../xtm-suite-connector.md) in the same **STIX 2.1 bundle**
+  automated [Enriched Security Posture Assessment](../../evaluate/xtm-suite-connector.md) in the same **STIX 2.1 bundle**
   representing the Security Coverage.
 - OpenCTI displays the updated coverage assessment.
 

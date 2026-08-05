@@ -23,3 +23,9 @@ A Channel will then be used in Scenario and in Simulation definition. When you c
 See [Media pressure](media-pressure.md) page to know how to create and add Articles to your Scenarios.
 
 ![Channel selection during Article creation](../../assets/channel_selection_during_creation.png)
+
+## What's next?
+
+- [Media pressure](media-pressure.md) -- Create Articles and publish them through Channels
+- [Scenarios](../scenario/scenario.md) -- Use Channels in your Scenarios
+- [Built-in Injects](../../environment/injects-builtin.md) -- Overview of all built-in Injectors including the Channel Injector
