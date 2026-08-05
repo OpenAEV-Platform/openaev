@@ -10,7 +10,9 @@ import SystemBanners from './components/systembanners/SystemBanners';
 import Index from './Index';
 
 const Root = () => {
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const { settings }: { settings: PlatformSettings } = useHelper(
+    (helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }),
+  );
 
   return (
     <StyledEngineProvider injectFirst={true}>
