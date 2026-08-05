@@ -298,13 +298,32 @@ const EndpointDetailPanel = ({
                     </Typography>
                   </Box>
                   {/* Whether this execution actually ran at all (issue 244), at a glance in the list —
-                      the verdict pill beside it only answers whether it was caught. */}
-                  <ExecutionRowStatusBadge
-                    simulationId={simulationId}
-                    executionRef={e.ref}
-                    endpointName={e.hostname}
-                  />
-                  <AttackPathVerdictPill label={status} status={e.status} />
+                      the verdict pill beside it only answers whether it was caught. Both sit in
+                      fixed-width slots: their labels vary in length ("Executed"/"Timeout",
+                      "DETECTED"/"UNDETECTED"), so intrinsic widths made every row's pair land on a
+                      different x and the column read as ragged. */}
+                  <Box sx={{
+                    flexShrink: 0,
+                    width: 92,
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                  }}
+                  >
+                    <ExecutionRowStatusBadge
+                      simulationId={simulationId}
+                      executionRef={e.ref}
+                      endpointName={e.hostname}
+                    />
+                  </Box>
+                  <Box sx={{
+                    flexShrink: 0,
+                    width: 104,
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                  }}
+                  >
+                    <AttackPathVerdictPill label={status} status={e.status} />
+                  </Box>
                 </Box>
               );
             })}
