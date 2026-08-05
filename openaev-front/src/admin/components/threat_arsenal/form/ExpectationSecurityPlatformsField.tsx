@@ -61,6 +61,7 @@ const ExpectationSecurityPlatformsField = () => {
             <Controller
               name={fieldName}
               control={control}
+              defaultValue={[]}
               render={({ field }) => (
                 <Select
                   labelId={labelId}

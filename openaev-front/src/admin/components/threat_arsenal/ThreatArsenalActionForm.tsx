@@ -122,10 +122,28 @@ const ThreatArsenalActionForm = ({
     // action_domains: z.array(domainZodObject).refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     action_domains: z.string().array().refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     action_expectations: z.enum(['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array(),
-    action_expected_security_platforms: z.record(
-      z.string(),
-      z.enum(['EDR', 'XDR', 'SIEM', 'SOAR', 'NDR', 'ISPM', 'LLM_FIREWALL', 'AI_GATEWAY', 'VULNERABILITY_SCANNER']).array(),
-    ).optional(),
+    // Bound per-expectation by ExpectationSecurityPlatformsField, whose Controllers
+    // may leave freshly mounted entries as `undefined` before the user touches them.
+    // Normalise first (drop undefined/empty scopes) so an untouched form still
+    // validates and an empty scope means "any security platform" (field omitted).
+    action_expected_security_platforms: z.preprocess(
+      (value) => {
+        if (!value || typeof value !== 'object') {
+          return undefined;
+        }
+        const cleaned: Record<string, string[]> = {};
+        Object.entries(value as Record<string, unknown>).forEach(([key, platforms]) => {
+          if (Array.isArray(platforms) && platforms.length > 0) {
+            cleaned[key] = platforms as string[];
+          }
+        });
+        return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+      },
+      z.record(
+        z.string(),
+        z.enum(['EDR', 'XDR', 'SIEM', 'SOAR', 'NDR', 'ISPM', 'LLM_FIREWALL', 'AI_GATEWAY', 'VULNERABILITY_SCANNER']).array(),
+      ).optional(),
+    ),
     action_platforms: z.enum(['Linux', 'Windows', 'MacOS', 'Container', 'Service', 'Generic', 'Internal', 'Unknown']).array().min(1, { error: t('Should not be empty') }).describe('Commands-tab'),
     action_execution_arch: z.enum(['x86_64', 'arm64', 'ALL_ARCHITECTURES'], { error: t('Should not be empty') }).describe('Commands-tab'),
     action_cleanup_command: z.string().optional().nullable().describe('Commands-tab'),
