@@ -959,6 +959,63 @@ describe('buildCausalChainFlow', () => {
     fids.forEach(v => expect(expandedFlow.causalSourceByFinding.get(`NODE_FINDING|share|${v}`)).toBe(`NODE_FINDING|share|${v}`));
   });
 
+  it('routes findings on overflow-hidden endpoints through the "+N" endpoint cluster in causalSourceByFinding', () => {
+    // 6 distinct endpoints at one depth > cap of 4: ep-5/ep-6 collapse into the `chain-epc|0` endpoint
+    // cluster and their findings never render at all — causalSourceByFinding must resolve those findings
+    // to that cluster (the third resolution case, alongside "itself" and "its type cluster" covered
+    // above), so a seed/highlight on one of them still anchors on something rendered.
+    const eps = ['1', '2', '3', '4', '5', '6'];
+    const overflow: AttackPathDTO = {
+      ...chainDto,
+      attackPathNodes: [
+        {
+          id: 'inj-A',
+          type: 'INJECTOR',
+          label: 'A',
+        },
+        ...eps.map(v => ({
+          id: `ep-${v}`,
+          type: 'ASSET' as const,
+          label: `EP${v}`,
+          ip: `10.0.0.${v}`,
+        })),
+        ...eps.map(v => ({
+          id: `NODE_FINDING|cred|${v}`,
+          type: 'FINDING' as const,
+          typeFindings: 'credentials',
+          value: `cred-${v}`,
+          label: `cred-${v}`,
+        })),
+      ],
+      attackPathExecutions: eps.map(v => ({
+        id: `x${v}`,
+        type: 'EXECUTION' as const,
+        ref: `exec-${v}`,
+        stepTemplateId: 'step-A',
+        findingsNodeIds: [`NODE_FINDING|cred|${v}`],
+        dependsOn: [],
+      })),
+      attackPathEdges: eps.map(v => ({
+        type: 'EDGE_EXECUTIONS' as const,
+        edgeSourceId: 'inj-A',
+        edgeTargetId: `ep-${v}`,
+        executionIds: [`exec-${v}`],
+      })),
+    };
+
+    const flow = buildCausalChainFlow(overflow, tt);
+    const epCluster = flow.nodes.find(n => n.id === 'chain-epc|0');
+    expect(epCluster).toBeDefined();
+    expect(epCluster!.data.count).toBe(2);
+    // The hidden endpoints' findings have no node of their own; they resolve to the endpoint cluster.
+    ['5', '6'].forEach((v) => {
+      expect(flow.nodes.some(n => n.id === `NODE_FINDING|cred|${v}`)).toBe(false);
+      expect(flow.causalSourceByFinding.get(`NODE_FINDING|cred|${v}`)).toBe('chain-epc|0');
+    });
+    // The visible endpoints' findings render individually and resolve to themselves.
+    ['1', '2', '3', '4'].forEach(v => expect(flow.causalSourceByFinding.get(`NODE_FINDING|cred|${v}`)).toBe(`NODE_FINDING|cred|${v}`));
+  });
+
   it('anchors the causal edge on the finding of the resolved producer, not another injector sharing the type', () => {
     // Two injectors each produce a `share` finding; a consumer whose event `share_name IS_NOT_NULL` matches
     // BOTH depends (dependsOn, #6985) only on producer A. The edge must anchor on A's finding, never B's.
@@ -1307,8 +1364,11 @@ describe('scopeChainFlowToSeeds', () => {
     // the "falls back to the full chain" test above.
     const chainFlow = buildCausalChainFlow(collapsed, tt);
     const resolvedSeed = chainFlow.causalSourceByFinding.get('NODE_FINDING|share|a');
+    // Assert the mapping itself first (not a silent cast): if causalSourceByFinding ever stops covering
+    // a collapsed finding, this must fail HERE, not as a confusing downstream scoping mismatch.
+    expect(resolvedSeed).toBeDefined();
 
-    const scoped = scopeChainFlowToSeeds(chainFlow, new Set([resolvedSeed as string]));
+    const scoped = scopeChainFlowToSeeds(chainFlow, new Set([resolvedSeed!]));
 
     expect(scoped.nodes.map(n => n.id).sort()).toEqual(['chain-ep|0|ep-1', 'inj-A', resolvedSeed].sort());
   });
