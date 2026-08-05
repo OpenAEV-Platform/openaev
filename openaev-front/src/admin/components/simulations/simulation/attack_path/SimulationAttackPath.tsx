@@ -380,11 +380,18 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           nonce: structuralNonce,
         });
       } else {
-        liveFitCount.current += 1;
         setFitNonce(n => n + 1);
+        // Only LIVE growth spends the framing budget. The initial load also bumps the structural
+        // nonce — once for the collapsed seed, once for the causal overlay merged in after it — and
+        // those carry no batch. Counting them exhausted the budget before the first delta ever
+        // arrived, so pursuit engaged immediately and every growth re-fit was suppressed for the
+        // rest of the run (the graph then drew itself off-screen until the user panned by hand).
         // Only a run still producing deltas graduates to pursuit; a terminal run loads once and fits.
-        if (!runTerminal && liveFitCount.current >= AP_MAX_LIVE_FITS) {
-          setPursuitActive(true);
+        if (newNodeIds.length > 0) {
+          liveFitCount.current += 1;
+          if (!runTerminal && liveFitCount.current >= AP_MAX_LIVE_FITS) {
+            setPursuitActive(true);
+          }
         }
       }
     }
