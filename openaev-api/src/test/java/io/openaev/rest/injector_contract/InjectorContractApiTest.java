@@ -75,6 +75,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private DomainComposer domainComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DomainRepository domainRepository;
+  @Autowired private TagComposer tagComposer;
 
   @Autowired private UserComposer userComposer;
   @Autowired private TenantGroupComposer tenantGroupComposer;
@@ -94,6 +95,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     tenantRoleComposer.reset();
     grantComposer.reset();
     domainComposer.reset();
+    tagComposer.reset();
   }
 
   @Nested
@@ -1443,6 +1445,51 @@ public class InjectorContractApiTest extends IntegrationTest {
         result.andExpect(
             jsonPath("$.totalElements", equalTo(preExistingContractsCount + grantedActionNumber)));
       }
+    }
+
+    @Test
+    @DisplayName(
+        "A contract with one attack pattern and several tags returns that attack pattern only once")
+    void searchDoesNotDuplicateAttackPatternsWhenContractHasSeveralTags() throws Exception {
+      // buildCommonInjectorContractContext aggregates domains/attackPatterns/tags via parallel
+      // LEFT JOINs under a single GROUP BY that covers none of them; more than one tag on the
+      // contract used to fan out the cartesian product and duplicate the single attack pattern.
+      AttackPatternComposer.Composer attackPatternWrapper =
+          attackPatternComposer
+              .forAttackPattern(AttackPatternFixture.createDefaultAttackPattern())
+              .persist();
+      InjectorContract taggedContract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+              .withAttackPattern(attackPatternWrapper)
+              .withTag(tagComposer.forTag(TagFixture.getTagWithText("tag-one")).persist())
+              .withTag(tagComposer.forTag(TagFixture.getTagWithText("tag-two")).persist())
+              .persist()
+              .get();
+      em.flush();
+      em.clear();
+
+      InjectorContractSearchPaginationInput searchInput =
+          new InjectorContractSearchPaginationInput();
+      searchInput.setIncludeFullDetails(true);
+      searchInput.setInjectorContractIdsToProcess(List.of(taggedContract.getId()));
+
+      String response =
+          mvc.perform(
+                  post(INJECTOR_CONTRACT_URL + "/search")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(searchInput))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response)
+          .node("content[0].injector_contract_attack_patterns")
+          .isArray()
+          .isEqualTo(mapper.writeValueAsString(List.of(attackPatternWrapper.get().getId())));
     }
   }
 
