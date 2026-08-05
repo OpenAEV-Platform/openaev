@@ -102,4 +102,13 @@ public class AutonomousRunCreateInput {
               + " decisions) and executes nothing. The operator can review the plan and later run"
               + " it for real. Defaults to false (immediate live run).")
   private boolean planMode = false;
+
+  @JsonProperty("timeout_seconds")
+  @Schema(
+      description =
+          "Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers"
+              + " the orchestrator with winddown signals shortly before it, then hard-stops the run"
+              + " (exactly like an operator Stop) when it is reached. Defaults to 24h when omitted;"
+              + " ignored in plan/dry-run mode.")
+  private Long timeoutSeconds;
 }

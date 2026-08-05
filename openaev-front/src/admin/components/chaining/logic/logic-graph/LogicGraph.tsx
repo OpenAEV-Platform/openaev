@@ -1,4 +1,4 @@
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -65,8 +65,6 @@ interface LogicGraphProps {
   onEditEvent?: (eventId: string, meta: EventMeta) => void;
   /** Inline "+": add an action gated by this trigger. */
   onAddActionToEvent?: (eventId: string) => void;
-  /** Inline "+": add a trigger fed by this action's output types. */
-  onAddTriggerAfterAction?: (stepId: string, outputTypes: string[]) => void;
   /** Reports the latest event metas so the parent can drive the warning banner. */
   onEventMetasChange?: (metas: Record<string, EventMeta>) => void;
   /** Read-only inspection mode (autonomous runs): keeps pan/zoom + spotlight, disables mutation. */
@@ -85,7 +83,6 @@ const LogicGraph = ({
   onEditStep,
   onEditEvent,
   onAddActionToEvent,
-  onAddTriggerAfterAction,
   onEventMetasChange,
   readOnly = false,
 }: LogicGraphProps) => {
@@ -180,13 +177,28 @@ const LogicGraph = ({
     [actionMetas],
   );
 
+  // Tactic name -> kill-chain phase order, so the layout orders the tactic columns by MITRE phase
+  // (keeping the lowest order when a tactic maps to several phases).
+  const tacticOrder = useMemo(() => {
+    const order: Record<string, number> = {};
+    for (const phase of Object.values(killChainPhasesMap as Record<string, KillChainPhase>)) {
+      const name = phase.phase_name;
+      if (!name) continue;
+      const value = phase.phase_order ?? 99;
+      if (order[name] === undefined || value < order[name]) order[name] = value;
+    }
+    return order;
+  }, [killChainPhasesMap]);
+
   const layout = useMemo(
     () => buildLogicGraphLayout({
       actionMetas,
       eventMetas,
       outputProviders,
+      tacticForStep,
+      tacticOrder,
     }),
-    [actionMetas, eventMetas, outputProviders],
+    [actionMetas, eventMetas, outputProviders, tacticForStep, tacticOrder],
   );
 
   // Apply manual overrides on top of the auto-layout positions.
@@ -351,10 +363,6 @@ const LogicGraph = ({
     if (meta) onEditEvent?.(eventId, meta);
   }, [eventMetas, onEditEvent]);
 
-  const handleAddTrigger = useCallback((stepId: string) => {
-    onAddTriggerAfterAction?.(stepId, actionMetas[stepId]?.step_output_types ?? []);
-  }, [actionMetas, onAddTriggerAfterAction]);
-
   // Remove a real gating link: a real edge is `trigger (source) -> action (target)`, so we drop the
   // trigger from that action's condition list without deleting either node.
   const handleDeleteEdge = useCallback((edge: {
@@ -372,21 +380,18 @@ const LogicGraph = ({
   }, [actionMetas, buildStepUpdate, refreshGraph]);
 
   // Gate an action by a trigger (real `trigger -> action` edge) by adding the trigger to the
-  // action's condition list. Accepts the endpoints in either drag order.
+  // action's condition list. Only the trigger -> action direction is accepted: a user can gate an
+  // action with an event, never manually link an action to an event (that relationship exists only
+  // as the automatic, informational inferred edge). The drag can only start from a trigger, so
+  // `aKind` is always 'trigger'; the guard stays as a defensive no-op for any other combination.
   const linkNodes = useCallback((
     aId: string, aKind: 'action' | 'trigger', bId: string, bKind: 'action' | 'trigger',
   ) => {
-    let actionId: string;
-    let triggerId: string;
-    if (aKind === 'action' && bKind === 'trigger') {
-      actionId = aId;
-      triggerId = bId;
-    } else if (aKind === 'trigger' && bKind === 'action') {
-      actionId = bId;
-      triggerId = aId;
-    } else {
+    if (aKind !== 'trigger' || bKind !== 'action') {
       return;
     }
+    const actionId = bId;
+    const triggerId = aId;
     const action = actionMetas[actionId];
     if (!action || action.step_condition_ids.includes(triggerId)) return;
     updateStep(actionId, buildStepUpdate(action, [...action.step_condition_ids, triggerId]))
@@ -482,6 +487,46 @@ const LogicGraph = ({
           onDeleteEdge={handleDeleteEdge}
           readOnly={readOnly}
         />
+        {/* MITRE-tactic column bands: a faint coloured rectangle behind each column's nodes, with the
+            tactic name as a header, so it reads which nodes belong to which tactic. */}
+        {layout.columns.map(col => (
+          <div
+            key={`tactic-col-${col.tactic}`}
+            style={{
+              position: 'absolute',
+              left: col.x,
+              top: col.top,
+              width: col.width,
+              height: col.height,
+              pointerEvents: 'none',
+              borderRadius: 8,
+              backgroundColor: alpha(theme.palette.primary.main, 0.05),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.22)}`,
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: col.headerY - col.top,
+                left: 0,
+                width: '100%',
+                textAlign: 'center',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                padding: '0 8px',
+                boxSizing: 'border-box',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: theme.palette.text.secondary,
+              }}
+            >
+              {col.tactic || t('Other')}
+            </div>
+          </div>
+        ))}
         {positionedNodes.map((node) => {
           const dimmed = isDimmed(node.id);
           if (node.kind === 'action') {
@@ -518,8 +563,6 @@ const LogicGraph = ({
                   readOnly={readOnly}
                   onEdit={handleEditAction}
                   onDelete={setPendingDeleteNodeId}
-                  onAddTrigger={onAddTriggerAfterAction ? handleAddTrigger : undefined}
-                  onConnectStart={handleConnectStart}
                 />
               </div>
             );

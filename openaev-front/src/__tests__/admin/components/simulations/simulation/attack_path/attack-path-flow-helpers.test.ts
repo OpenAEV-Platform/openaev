@@ -1442,6 +1442,75 @@ describe('buildCausalChainFlow', () => {
     expect(edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
   });
 
+  it('promotes endpoint-local actions to their own action nodes when localActionsAsNodes is set (autonomous action timeline)', () => {
+    // Arrange: two endpoint-local actions on the SAME host, chained (LSASS dump depends on the sweep).
+    // In a finding-centric BAS chain both collapse into the endpoint and the follow-up adds nothing new;
+    // an autonomous run must instead show BOTH as their own action nodes so the timeline never freezes.
+    const localChain: AttackPathDTO = {
+      mode: 'full',
+      attackPathNodes: [
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'WIN-1',
+          ip: '10.0.0.1',
+        },
+        {
+          id: 'NODE_FINDING|username|bob',
+          type: 'FINDING',
+          typeFindings: 'username',
+          value: 'bob',
+          label: 'bob',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'x-sweep',
+          type: 'EXECUTION',
+          ref: 'exec-sweep',
+          stepTemplateId: 'step-sweep',
+          contractName: 'Credential Sweep',
+          injectorType: 'openaev_command',
+          findingsNodeIds: ['NODE_FINDING|username|bob'],
+          dependsOn: [],
+        },
+        {
+          id: 'x-lsass',
+          type: 'EXECUTION',
+          ref: 'exec-lsass',
+          stepTemplateId: 'step-lsass',
+          contractName: 'LSASS Dump',
+          injectorType: 'openaev_command',
+          // Re-dumps the same credential (no NEW distinct finding) — the freeze the fix addresses.
+          findingsNodeIds: ['NODE_FINDING|username|bob'],
+          dependsOn: ['step-sweep'],
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'ep-1',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-sweep', 'exec-lsass'],
+        },
+      ],
+    };
+    // Act: without the flag both local actions are hidden (finding-centric); with it they become nodes.
+    const suppressed = buildCausalChainFlow(localChain, tt);
+    const promoted = buildCausalChainFlow(localChain, tt, new Set(), new Map(), new Set(), true);
+    // Assert: default keeps the tested BAS behaviour — no action nodes for local commands.
+    expect(suppressed.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector)).toHaveLength(0);
+    // With the flag: one action node per authored local step, labelled from its contract, and no self
+    // arrow (the action sits to the left of the endpoint and points at it).
+    const actionNodes = promoted.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector);
+    expect(actionNodes.map(n => n.id).sort()).toEqual(['chain-local|step-lsass', 'chain-local|step-sweep']);
+    expect(actionNodes.map(n => n.data.label).sort()).toEqual(['Credential Sweep', 'LSASS Dump']);
+    expect(promoted.edges.find(e => e.source === 'ep-1' && e.target === 'ep-1')).toBeUndefined();
+    // Every emitted edge still resolves to a placed node.
+    const nodeIds = new Set(promoted.nodes.map(n => n.id));
+    expect(promoted.edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
+  });
+
   it('emits no causal edge into an endpoint-local step (its injector node is suppressed)', () => {
     // Arrange: nmap produces port 445 on ep-1; a LOCAL action on ep-1 consumes it (dependsOn step-A).
     const localConsumer: AttackPathDTO = {

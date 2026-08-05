@@ -22,12 +22,17 @@ import ScopeVariables from './ScopeVariables';
 
 interface ScopeDefinitionProps {
   workflowId: string;
-  /** Read-only inspection mode (autonomous runs): the AI owns the scope, so every control is
-   *  rendered but made non-interactive. */
+  /** Read-only inspection mode (autonomous runs OR launched simulations): the scope is rendered but
+   *  made non-interactive. */
   readOnly?: boolean;
+  /** The scope belongs to an autonomous (AI-driven) run: swap the chaining-engine timeout for the
+   *  OpenAEV-owned session timeout and hide the per-step rate limit (it does not apply). */
+  autonomous?: boolean;
+  /** OpenAEV-owned autonomous session timeout in seconds (default 24h). Only used when autonomous. */
+  autonomousTimeoutSeconds?: number | null;
 }
 
-const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps) => {
+const ScopeDefinition = ({ workflowId, readOnly = false, autonomous = false, autonomousTimeoutSeconds }: ScopeDefinitionProps) => {
   // Standard hooks
   const theme = useTheme();
   const dispatch = useAppDispatch();
@@ -129,7 +134,12 @@ const ScopeDefinition = ({ workflowId, readOnly = false }: ScopeDefinitionProps)
       <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
       {/* Row 2: variables | combined execution limits. */}
       <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
-      <ScopeExecutionLimits workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
+      <ScopeExecutionLimits
+        workflowConfiguration={workflowConfiguration}
+        onUpdate={handleUpdate}
+        autonomous={autonomous}
+        autonomousTimeoutSeconds={autonomousTimeoutSeconds}
+      />
     </Box>
   );
 };

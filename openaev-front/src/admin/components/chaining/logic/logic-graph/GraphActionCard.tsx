@@ -1,7 +1,7 @@
-import { AddOutlined, BoltOutlined, GpsFixedOutlined, MoreVert, OutputOutlined } from '@mui/icons-material';
+import { BoltOutlined, GpsFixedOutlined, MoreVert, OutputOutlined } from '@mui/icons-material';
 import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useState } from 'react';
+import { type MouseEvent, type ReactNode, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import ActionTypeIcon from '../ActionTypeIcon';
@@ -32,10 +32,6 @@ export interface GraphActionCardProps {
   readOnly?: boolean;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
-  /** Inline "+": add a trigger fed by this action's outputs (continue the chain). */
-  onAddTrigger?: (id: string) => void;
-  /** Drag from the left handle to an existing trigger to gate this action by it. */
-  onConnectStart?: (id: string, kind: 'action', event: ReactPointerEvent<HTMLElement>) => void;
 }
 
 /** 'openbas_implant' -> 'Openbas implant' */
@@ -62,7 +58,8 @@ const MetaItem = ({ icon, label }: {
 
 /**
  * Card visual for an action (step) in the causal graph. Reuses the shared structured tooltip and the
- * action type icon; carries an inline "+" slot (hidden in read-only) to grow the chain to the right.
+ * action type icon. Deliberately carries no connect handle and no inline "+": an action never
+ * initiates a link or creates a downstream event (see the comments near the end of the render).
  */
 const GraphActionCard = ({
   id,
@@ -81,8 +78,6 @@ const GraphActionCard = ({
   readOnly = false,
   onEdit,
   onDelete,
-  onAddTrigger,
-  onConnectStart,
 }: GraphActionCardProps) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -315,71 +310,14 @@ const GraphActionCard = ({
           </Box>
         )}
 
-        {!readOnly && onConnectStart && (
-          <Tooltip title={t('Drag onto a trigger to gate this action')} slotProps={graphTooltipSlotProps}>
-            <Box
-              onPointerDown={e => onConnectStart(id, 'action', e)}
-              onClick={e => e.stopPropagation()}
-              sx={{
-                'position': 'absolute',
-                'left': -11,
-                'top': '50%',
-                'transform': 'translateY(-50%)',
-                'zIndex': 3,
-                'width': 16,
-                'height': 16,
-                'borderRadius': '50%',
-                'cursor': 'grab',
-                'display': 'flex',
-                'alignItems': 'center',
-                'justifyContent': 'center',
-                'backgroundColor': theme.palette.background.paper,
-                'border': `2px solid ${theme.palette.warning.main}`,
-                'boxShadow': theme.shadows[1],
-                'touchAction': 'none',
-                '&:hover': { backgroundColor: theme.palette.warning.main },
-                '&:active': { cursor: 'grabbing' },
-              }}
-            >
-              <Box sx={{
-                width: 5,
-                height: 5,
-                borderRadius: '50%',
-                backgroundColor: theme.palette.warning.main,
-              }}
-              />
-            </Box>
-          </Tooltip>
-        )}
+        {/* No action-initiated connect handle: an action can never be manually linked to an event.
+            The only action→event relationship is the automatic, informational inferred edge (this
+            action produces output an event listens on); gating is created the other way, by dragging
+            from a trigger/event onto an action (see GraphTriggerCard). */}
 
-        {!readOnly && onAddTrigger && (
-          <Tooltip title={t('Add a trigger fed by this action')} slotProps={graphTooltipSlotProps}>
-            <IconButton
-              size="small"
-              onPointerDown={e => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddTrigger(id);
-              }}
-              sx={{
-                'position': 'absolute',
-                'bottom': -13,
-                'left': '50%',
-                'transform': 'translateX(-50%)',
-                'zIndex': 3,
-                'width': 22,
-                'height': 22,
-                'padding': 0,
-                'color': theme.palette.primary.contrastText,
-                'backgroundColor': theme.palette.primary.main,
-                'boxShadow': theme.shadows[2],
-                '&:hover': { backgroundColor: theme.palette.primary.dark },
-              }}
-            >
-              <AddOutlined sx={{ fontSize: 15 }} />
-            </IconButton>
-          </Tooltip>
-        )}
+        {/* No action-side "+" to add a downstream event: an action never establishes an
+            action→event relationship (that link is only the automatic informational inferred edge).
+            Events are added from an event's own "+" (event→action) or the global add button. */}
 
         {!readOnly && (
           <NodePopover

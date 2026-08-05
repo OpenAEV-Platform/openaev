@@ -175,6 +175,11 @@ public class ThreatArsenalService {
     target.setContent(source.content());
     target.setExecutionArch(source.executionArch());
     target.setExpectations(source.expectations());
+    // Per-expectation security-platform scope (empty/absent = any platform). Keep the input's
+    // non-null default map when the caller omits it so we never null out the payload field.
+    if (source.expectedSecurityPlatforms() != null) {
+      target.setExpectedSecurityPlatforms(source.expectedSecurityPlatforms());
+    }
     target.setExecutableFile(source.executableFile());
     target.setFileDropFile(source.fileDropFile());
     target.setHostname(source.hostname());

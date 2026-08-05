@@ -104,9 +104,15 @@ const PanZoom = ({
     const initial = Math.min(INITIAL_MAX_ZOOM, Math.max(INITIAL_MIN_ZOOM, raw));
     const next = clampZoom(initial);
     setZoom(next);
+    // Anchor on the top-left (with padding) whenever the content is larger than the viewport at this
+    // zoom, so the top of the graph — the tactic column headers — is always in view after a fit; only
+    // content that fully fits is centered. Centering a taller-than-viewport graph pushed its top
+    // (the headers) off-screen.
+    const scaledW = contentWidth * next;
+    const scaledH = contentHeight * next;
     setPan({
-      x: (el.clientWidth - contentWidth * next) / 2,
-      y: (el.clientHeight - contentHeight * next) / 2,
+      x: scaledW > el.clientWidth ? FIT_PADDING : (el.clientWidth - scaledW) / 2,
+      y: scaledH > el.clientHeight ? FIT_PADDING : (el.clientHeight - scaledH) / 2,
     });
     hasFitted.current = true;
   }, [contentWidth, contentHeight, clampZoom]);

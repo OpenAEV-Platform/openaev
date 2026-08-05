@@ -193,9 +193,17 @@ interface SimulationAttackPathProps {
    * simulation" CTA is suppressed and the message points at the live run instead.
    */
   hideLaunchCta?: boolean;
+  /**
+   * Render the causal chain as an ACTION TIMELINE: endpoint-local actions (recon, dumps, local
+   * escalation on the host the agent already owns) render as their own action nodes instead of being
+   * folded into the endpoint they ran on. Enabled for autonomous runs, whose engagement is almost
+   * entirely local steps on a single compromised host — without this the graph looks frozen after the
+   * first finding even though every step executed. Off for manual BAS runs (the finding-centric view).
+   */
+  actionCentric?: boolean;
 }
 
-const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta = false }: SimulationAttackPathProps) => {
+const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta = false, actionCentric = false }: SimulationAttackPathProps) => {
   const { exerciseId } = useParams() as { exerciseId?: string };
   // Scenario context lists several runs to pick from; simulation context is locked to its own run.
   const showPicker = scenarioExerciseIds !== undefined;
@@ -1253,9 +1261,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   );
   const fullChain = useMemo(
     () => (chainMode && fullDto
-      ? buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes)
+      ? buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes, actionCentric)
       : null),
-    [chainMode, fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes],
+    [chainMode, fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes, actionCentric],
   );
 
   // A finding picked from a drawer/summary list (rather than clicked directly on an already-rendered
