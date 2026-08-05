@@ -16,6 +16,7 @@ import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import ContractOutputElementType from './ContractOutputElementType';
+import FindingTriageControl from './FindingTriageControl';
 
 interface Props {
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
@@ -30,11 +31,12 @@ interface Props {
 
 const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '13%' },
-  finding_value: { width: '27%' },
-  finding_assets: { width: '17%' },
+  finding_value: { width: '20%' },
+  finding_assets: { width: '15%' },
   finding_asset_groups: { width: '15%' },
   finding_created_at: { width: '14%' },
   finding_updated_at: { width: '14%' },
+  finding_triage_status: { width: '9%' },
 });
 
 const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
@@ -48,6 +50,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     'finding_updated_at',
     'finding_asset_groups',
     'finding_assets',
+    'finding_triage_status',
   ];
 
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
@@ -171,6 +174,29 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       isSortable: true,
       tooltip: 'finding_last_seen_tooltip',
       value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_updated_at)}</>,
+    },
+    {
+      field: 'finding_triage_status',
+      label: 'Triage status',
+      isSortable: true,
+      value: (finding: AggregatedFindingOutput) => (
+        <FindingTriageControl
+          variant="inList"
+          findingId={finding.finding_id}
+          status={finding.finding_triage_status}
+          onStatusChange={(newStatus) => {
+            // Optimistic local update: avoids a full page refetch for a single-row change.
+            // If a triage-history tab is opened later for this finding, it fetches on mount
+            // (see FindingComments-style tabs), so it will never read stale data from here.
+            setFindings(current => current.map(f => (f.finding_id === finding.finding_id
+              ? {
+                  ...f,
+                  finding_triage_status: newStatus,
+                }
+              : f)));
+          }}
+        />
+      ),
     },
   ];
 

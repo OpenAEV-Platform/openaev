@@ -118,6 +118,21 @@ export const simpleDelCall = (uri: string, config?: AxiosRequestConfig, defaultN
       }
       throw error;
     });
+export const simplePatchCall = (uri: string, data?: unknown, config?: AxiosRequestConfig, defaultNotifyErrorBehavior: boolean = true, defaultSuccessBehavior: boolean = true) =>
+  simpleApi.patch(buildUri(uri), data, config)
+    .then((response) => {
+      if (defaultSuccessBehavior) {
+        notifySuccess('The element has been successfully updated');
+      }
+      return response;
+    })
+    .catch((error) => {
+      checkUnauthorized(error);
+      if (defaultNotifyErrorBehavior) {
+        notifyErrorHandler(error);
+      }
+      throw error;
+    });
 
 export const getReferential = (schema: Schema, uri: string) => (dispatch: Dispatch) => {
   dispatch({ type: Constants.DATA_FETCH_SUBMITTED });

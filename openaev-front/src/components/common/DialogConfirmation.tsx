@@ -13,6 +13,8 @@ interface DialogConfirmationProps {
   text: string;
   submitLabel: string;
   richContent?: React.ReactNode;
+  /** Disables the submit button without touching the loading state (e.g. client-side form validation). */
+  disableSubmit?: boolean;
 }
 
 const isPromiseLike = (value: unknown): value is Promise<void> => {
@@ -26,6 +28,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   text,
   submitLabel,
   richContent,
+  disableSubmit = false,
 }) => {
   const { t } = useFormatter();
   const [loading, setLoading] = useState(false);
@@ -80,7 +83,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
           {t('Cancel')}
         </Button>
         {handleSubmit && (
-          <Button variant="contained" color="primary" loading={loading} onClick={handleLoadingAndSubmit}>
+          <Button variant="contained" color="primary" loading={loading} disabled={disableSubmit} onClick={handleLoadingAndSubmit}>
             {submitLabel}
           </Button>
         )}
