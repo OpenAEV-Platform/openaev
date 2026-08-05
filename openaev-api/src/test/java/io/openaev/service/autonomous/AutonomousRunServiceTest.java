@@ -11,7 +11,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousEventType;
@@ -21,7 +23,10 @@ import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.scenario.ScenarioService;
+import io.openaev.xtmone.XtmOneClient;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -33,11 +38,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Focused unit tests for the dry-run ("plan mode") branches and the OpenAEV-owned timeout policy
- * (deadline stamping, winddown nudges, hard stop) of {@link AutonomousRunService}. Kept as a plain
- * Mockito unit test (no Spring context / Docker) so it verifies the suppression + guard logic in
- * isolation: a plan run never dispatches, only a settled plan can be promoted, each winddown phase
- * fires at most once, and the hard stop is claimed exactly once.
+ * Focused unit tests for the dry-run ("plan mode") branches, the OpenAEV-owned timeout policy
+ * (deadline stamping, winddown nudges, hard stop) and the restart hard-reset contract of {@link
+ * AutonomousRunService}. Kept as a plain Mockito unit test (no Spring context / Docker) so it
+ * verifies the suppression + guard logic in isolation: a plan run never dispatches, only a settled
+ * plan can be promoted, each winddown phase fires at most once, the hard stop is claimed exactly
+ * once, and restart is valid from any status (teardown + fresh simulation + reset to CREATED).
  */
 @ExtendWith(MockitoExtension.class)
 class AutonomousRunServiceTest {
@@ -48,6 +54,9 @@ class AutonomousRunServiceTest {
   @Mock private WorkflowService workflowService;
   @Mock private ExerciseService exerciseService;
   @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private ScenarioService scenarioService;
+  @Mock private ScenarioToExerciseService scenarioToExerciseService;
+  @Mock private XtmOneClient xtmOneClient;
 
   @InjectMocks private AutonomousRunService service;
 
@@ -211,7 +220,7 @@ class AutonomousRunServiceTest {
   void enforceDeadlineHardStopsPastDeadline() throws Exception {
     AutonomousRun run = liveRun(Instant.now().minusSeconds(5));
     when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
-    when(runRepository.settleTerminalStatusIfActive(
+    when(runRepository.settleTerminalStatusIfLive(
             eq("run-1"), eq("tenant-1"), eq(AutonomousRunStatus.CANCELED), any(Instant.class)))
         .thenReturn(1);
 
@@ -234,15 +243,123 @@ class AutonomousRunServiceTest {
   void enforceDeadlineHardStopClaimedOnce() {
     AutonomousRun run = liveRun(Instant.now().minusSeconds(5));
     when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
-    // An operator Stop or a read-path reconcile settled the run first: the conditional UPDATE
-    // matches no row, so this watchdog must not narrate a second terminal event.
-    when(runRepository.settleTerminalStatusIfActive(
+    // An operator Stop / restart or a read-path reconcile moved the run first: the conditional
+    // UPDATE (restricted to the live statuses the sweep acts on) matches no row, so this watchdog
+    // must not narrate a second terminal event nor cancel a freshly-restarted run.
+    when(runRepository.settleTerminalStatusIfLive(
             eq("run-1"), eq("tenant-1"), eq(AutonomousRunStatus.CANCELED), any(Instant.class)))
         .thenReturn(0);
 
     service.enforceDeadline("run-1", "tenant-1");
 
     verifyNoInteractions(eventService, exerciseService, directiveRepository);
+  }
+
+  // endregion
+
+  // region restart: an operator-triggered hard reset, valid from ANY status
+
+  private AutonomousRun restartableRun(AutonomousRunStatus status) {
+    AutonomousRun run = new AutonomousRun();
+    run.setId("run-1");
+    run.setScenarioId("scenario-1");
+    run.setSimulationId("sim-old");
+    run.setStatus(status);
+    run.setPlanMode(false);
+    return run;
+  }
+
+  /** Stubs the collaborators the restart teardown + re-provisioning path touches. */
+  private void stubRestartCollaborators() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    Scenario scenario = new Scenario();
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    Exercise freshSimulation = new Exercise();
+    freshSimulation.setId("sim-new");
+    when(scenarioToExerciseService.toExercise(eq(scenario), any(Instant.class), eq(true)))
+        .thenReturn(freshSimulation);
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+  }
+
+  @Test
+  @DisplayName("restart from RUNNING is a hard reset: stop, teardown, fresh simulation, CREATED")
+  void restartFromRunningIsAHardReset() throws Exception {
+    AutonomousRun run = restartableRun(AutonomousRunStatus.RUNNING);
+    // Leftovers from the live window that must not survive the reset.
+    run.setLastError("previous failure");
+    run.setXtmSessionId("xtm-session-1");
+    run.setStartedAt(Instant.now().minusSeconds(600));
+    run.setDeadlineAt(Instant.now().minusSeconds(5));
+    run.setWinddownPhase("WINDDOWN_1M");
+    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    stubRestartCollaborators();
+
+    AutonomousRun restarted = service.restart("run-1");
+
+    // The previous orchestration is stopped (and its coordination state purged) and the previous
+    // simulation torn down before the fresh one is provisioned from the SAME scenario.
+    verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
+    verify(exerciseService).deleteById("sim-old");
+    verify(workflowService).startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any());
+    // Decision timeline + steering reset so the cockpit starts clean.
+    verify(directiveRepository).deleteByRunId("run-1");
+    verify(eventService).deleteByRun("run-1");
+    assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
+    assertThat(restarted.getSimulationId()).isEqualTo("sim-new");
+    assertThat(restarted.getLastError()).isNull();
+    assertThat(restarted.getXtmSessionId()).isNull();
+    // The stale time budget is void: the follow-up start() stamps a fresh deadline, and the
+    // watchdog must never see a CREATED run carrying the previous window's (past) deadline.
+    assertThat(restarted.getStartedAt()).isNull();
+    assertThat(restarted.getDeadlineAt()).isNull();
+    assertThat(restarted.getWinddownPhase()).isNull();
+  }
+
+  @Test
+  @DisplayName("restart from WAITING_INPUT no longer 409s: the parked run is reset like any other")
+  void restartFromWaitingInputIsAllowed() throws Exception {
+    AutonomousRun run = restartableRun(AutonomousRunStatus.WAITING_INPUT);
+    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    stubRestartCollaborators();
+
+    AutonomousRun restarted = service.restart("run-1");
+
+    verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
+    verify(exerciseService).deleteById("sim-old");
+    verify(workflowService).startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any());
+    assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
+    assertThat(restarted.getSimulationId()).isEqualTo("sim-new");
+  }
+
+  @Test
+  @DisplayName("restart from a settled status keeps working exactly as before")
+  void restartFromSettledStatusStillWorks() throws Exception {
+    AutonomousRun run = restartableRun(AutonomousRunStatus.COMPLETED);
+    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    stubRestartCollaborators();
+
+    AutonomousRun restarted = service.restart("run-1");
+
+    verify(exerciseService).deleteById("sim-old");
+    verify(workflowService).startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any());
+    assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
+    assertThat(restarted.getSimulationId()).isEqualTo("sim-new");
+  }
+
+  @Test
+  @DisplayName("plan-mode restart re-provisions the TEMPLATE workflow only (nothing executes)")
+  void restartOfPlanModeReprovisionsTemplateOnly() throws Exception {
+    AutonomousRun run = restartableRun(AutonomousRunStatus.PLANNED);
+    run.setPlanMode(true);
+    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    stubRestartCollaborators();
+
+    AutonomousRun restarted = service.restart("run-1");
+
+    verify(workflowService).provisionSimulationTemplateWorkflow(eq("scenario-1"), any());
+    verify(workflowService, never()).startWorkflowByScenarioIdAndSimulation(anyString(), any());
+    assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
   }
 
   // endregion

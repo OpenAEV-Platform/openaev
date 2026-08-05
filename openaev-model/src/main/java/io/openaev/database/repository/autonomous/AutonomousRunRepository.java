@@ -83,4 +83,26 @@ public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, St
       @Param("tenantId") String tenantId,
       @Param("target") AutonomousRunStatus target,
       @Param("now") Instant now);
+
+  /**
+   * Watchdog variant of {@link #settleTerminalStatusIfActive}: atomically settles a run to a
+   * terminal status ONLY while it is still in one of the two live statuses the deadline sweep acts
+   * on (RUNNING / WAITING_INPUT). The timeout decision is made on a row read earlier in the
+   * watchdog's transaction and this flip may land after a concurrent transition committed, so the
+   * UPDATE re-asserts the statuses the decision was based on: an operator restart (which resets the
+   * run to CREATED around a fresh simulation) or a pause must not be flipped to CANCELED by a stale
+   * deadline claim. Returns 1 when this call performed the flip, 0 when the run moved on (settled,
+   * restarted, paused), belongs to another tenant, or no longer exists.
+   */
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      "UPDATE AutonomousRun r SET r.status = :target, r.updatedAt = :now "
+          + "WHERE r.id = :id AND r.tenant.id = :tenantId "
+          + "AND (r.status = io.openaev.database.model.autonomous.AutonomousRunStatus.RUNNING "
+          + "OR r.status = io.openaev.database.model.autonomous.AutonomousRunStatus.WAITING_INPUT)")
+  int settleTerminalStatusIfLive(
+      @Param("id") String id,
+      @Param("tenantId") String tenantId,
+      @Param("target") AutonomousRunStatus target,
+      @Param("now") Instant now);
 }

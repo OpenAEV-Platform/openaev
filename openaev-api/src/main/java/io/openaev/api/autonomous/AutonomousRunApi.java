@@ -227,11 +227,11 @@ public class AutonomousRunApi extends RestBehavior {
   }
 
   @Operation(
-      summary = "Restart a terminal run in place",
+      summary = "Restart a run in place (hard reset, valid from any status)",
       description =
-          "Reuses the same scenario: tears the old simulation down, provisions a fresh one, resets"
-              + " the run's timeline / directives to CREATED. The caller then starts it again. No"
-              + " new scenario is ever created on restart.")
+          "Reuses the same scenario: stops the orchestrator, tears the old simulation down,"
+              + " provisions a fresh one, resets the run's timeline / directives to CREATED. The"
+              + " caller then starts it again. No new scenario is ever created on restart.")
   @PostMapping("/{runId}/restart")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
