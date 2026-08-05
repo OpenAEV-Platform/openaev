@@ -33,7 +33,7 @@ OpenAEV then:
 > Attack Patterns
 
 3. Extracts relevant **Attack Patterns references**
-4. Resolves Asset Groups using **Custom Tag Rule** labeled `opencti`, extracting the associated **platforms and architectures** to match compatible threat arsenal actions.
+4. Resolves Asset Groups using **Custom Tag Rule** labeled `opencti`, extracting the associated **platforms and architectures** to match compatible Threat Arsenal Actions.
 5. Generates injects for each extracted entity
 6. Schedules the scenario for execution
 
@@ -76,7 +76,7 @@ After parsing and validating the **Security Coverage STIX** object, OpenAEV foll
           labeled `opencti`**.   
           => **Concrete Inject** is created.
 
-        - If the Attack Pattern does **not** exist in OpenAEV, or no compatible threat arsenal action exists for the resolved
+        - If the Attack Pattern does **not** exist in OpenAEV, or no compatible Threat Arsenal Action exists for the resolved
           platforms/architectures.  
           => **Placeholder Inject** is created to highlight missing coverage.
 
@@ -87,12 +87,12 @@ After parsing and validating the **Security Coverage STIX** object, OpenAEV foll
     **.
 > - Targets are resolved via **Custom Tag Rule labeled `opencti`**, and the corresponding **platforms and architectures
     ** are extracted from these Asset groups.
-> - threat arsenal actions are matched against the Attack Patterns **and** must be compatible with the extracted platforms and
+> - Threat Arsenal Actions are matched against the Attack Patterns **and** must be compatible with the extracted platforms and
     architectures.
 >
 > In other words, inject creation only occurs when:
 > 1. The Attack Pattern exists in OpenAEV, and
-> 2. A threat arsenal action exists that matches both the Attack Pattern **and** the platforms/architectures derived from the Asset groups
+> 2. A Threat Arsenal Action exists that matches both the Attack Pattern **and** the platforms/architectures derived from the Asset groups
      defined in the Custom Tag Rules.
 >
 > If either condition is not met, a **Placeholder Inject** is created to highlight missing coverage.

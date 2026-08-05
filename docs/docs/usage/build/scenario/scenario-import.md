@@ -1,4 +1,4 @@
-# Importing Injects into a Scenario
+# Scenario import
 
 Recreating a timeline of [Injects](../../evaluate/injects/inject-overview.md) that were already defined in a spreadsheet can be a frustrating task. To help users save time, we added the possibility to import Injects as defined in an XLS file into a [Scenario](scenario.md). This is done via a two-step process: [creating a mapper](#how-to-create-a-mapper) and [importing the XLS file using the mapper](#how-to-import-injects-into-a-scenario-using-a-mapper).
 

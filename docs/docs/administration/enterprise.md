@@ -42,29 +42,29 @@ Be able to use AI for content generation including emails, media pressure articl
 
 ### CrowdStrike Falcon agent
 
-The CrowdStrike Falcon agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
+The CrowdStrike Falcon agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
 ### Tanium agent
 
-The Tanium agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
+The Tanium agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
 ### SentinelOne agent
 
-The SentinelOne agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
+The SentinelOne agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
 ### Palo Alto Cortex agent
 
-The Palo Alto Cortex agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
+The Palo Alto Cortex agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
-On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the process that will execute the threat arsenal actions.
+On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the process that will execute the Threat Arsenal Actions.
 
 ### Microsoft Defender for Endpoint (MDE) agent
 
-Microsoft Defender for Endpoint can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
+Microsoft Defender for Endpoint can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
 OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE Executor deployment guide](../deployment/ecosystem/executors.md#mde-agent) for the required Azure app permissions and Live Response setup.
@@ -73,9 +73,9 @@ OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it t
 
 More detail: [CVEs](taxonomies.md) and [Findings view](../usage/evaluate/findings/findings.md).
 
-## Detection remediation in threat arsenal actions and Injects
+## Detection remediation in Threat Arsenal Actions and Injects
 
-More detail: [Detection remediations in threat arsenal actions](../usage/build/threat-arsenals/threat-arsenals.md)
+More detail: [Detection remediations in Threat Arsenal Actions](../usage/build/threat-arsenals/threat-arsenals.md)
 and [Atomic testing remediations](../usage/evaluate/atomic-testing/atomic-testing.md).
 
 ## More to come

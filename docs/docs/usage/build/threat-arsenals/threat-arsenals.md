@@ -1,4 +1,4 @@
-# Threat arsenal
+# Threat Arsenal
 
 The **Threat Arsenal** is the section in OpenAEV where you manage all the Actions available for building injects.
 
@@ -47,7 +47,7 @@ To create a new Action, follow these steps:
 
 1. Click the **"+"** button in the bottom right corner of the screen
 2. In the **General Information** tab, fill in the required details about the Action
-   2.1. Assign a name to your new Action and provide additional general details such as description, attack patterns and tags ![Threat Arsenal Actiongeneral view](assets/threat-arsenal-general-view.png)
+   2.1. Assign a name to your new Action and provide additional general details such as description, attack patterns and tags ![Threat Arsenal Action general view](assets/threat-arsenal-general-view.png)
 3. In the **Commands** tab:   
    3.1. Choose a **Threat Arsenal Action type** based on your needs:
     - **Command Line**: Executes a command using an executor (e.g., PowerShell, Bash, etc.)
@@ -57,12 +57,12 @@ To create a new Action, follow these steps:
 
    3.2. Specify the platform and provide additional command details, such as arguments and prerequisites.
    
-   3.3. Specify a **cleanup executor and cleanup command** to remove any remnants from execution on the asset![Threat Arsenal Actioncommand view](assets/threat-arsenal-command-view.png)
+   3.3. Specify a **cleanup executor and cleanup command** to remove any remnants from execution on the asset![Threat Arsenal Action command view](assets/threat-arsenal-command-view.png)
 
 4. In the **Output Parsers** tab (optional):  
    4.1. Add **[Output Parsers](#output-parsers)** to process the raw output of your execution.
    
-   4.2. Specify whether to generate **[Findings](../../evaluate/findings/findings.md)** from the output ![Threat Arsenal Actionoutput parser view](assets/threat-arsenal-output-parser-view.png)
+   4.2. Specify whether to generate **[Findings](../../evaluate/findings/findings.md)** from the output ![Threat Arsenal Action output parser view](assets/threat-arsenal-output-parser-view.png)
 
 5. In the **Remediation** tab (optional and EE):  
    This section allows Threat Arsenal Action creators to define detection rules to identify Threat Arsenal Actions that were not
@@ -71,7 +71,7 @@ To create a new Action, follow these steps:
    
     5.1 Use Ariane, allows Threat Arsenal Action creators to generate rules using AI, for Threat Arsenal Action of type Command or DnsResolution and for the collector Splunk or Crowdstrike
 
-![Threat Arsenal Actionremediation view](assets/threat-arsenal-detection-remediation-view.png)
+![Threat Arsenal Action remediation view](assets/threat-arsenal-detection-remediation-view.png)
 
 ### Status of detection remediation rules
 
@@ -143,11 +143,11 @@ For targeted asset arguments, you can specify several attributes within the Acti
 - Separator: This is used to separate multiple values when the command is executed, allowing you to format the arguments
   correctly in your script (e.g., using a comma to separate values).
 
-Let's consider a practical example: If I want to create a threat arsenal Action using 'nuclei' for scanning, I would create it
+Let's consider a practical example: If I want to create a Threat Arsenal Action using 'nuclei' for scanning, I would create it
 with a command like nuclei -t #{asset-key}. I'd set up a targeted asset argument with the key "asset-key".
 ![Targeted asset argument](assets/targeted-asset-argument.png)
 
-Next, I would create an inject based on this threat arsenal Action. In this inject, I'd designate a source asset, which is where the
+Next, I would create an inject based on this Threat Arsenal Action. In this inject, I'd designate a source asset, which is where the
 command will execute (such as the asset where 'nuclei' is installed), and define the targeted assets that will serve as
 the scan targets.
 ![Targeted asset argument](assets/text-argument-payload.png)
@@ -167,7 +167,7 @@ the scan targets.
 This Threat Arsenal Action type executes commands directly on the command line interface (CLI) of the target system
 (e.g., Windows Command Prompt, PowerShell, Linux Shell).
 
-Command Line threat arsenal Actions are used for remote command execution to simulate common attacker Actions like privilege
+Command Line Threat Arsenal Actions are used for remote command execution to simulate common attacker Actions like privilege
 escalation or data exfiltration.
 
 | Property         | Description                     |
@@ -282,15 +282,15 @@ references next to each other). The final value of the field will be a compositi
 
 ### Threat Arsenal Action execution workflow
 
-![threat arsenal actionexecution workflow](assets/payload-execution-workflow.png)
+![Threat Arsenal Action execution workflow](assets/payload-execution-workflow.png)
 
 ## Use a Threat Arsenal Action
 
 After creation, a new inject type will automatically appear in the inject types list if the implant you're using
 supports it (the OpenAEV Implant does).
 
-![Threat Arsenal Actioncreation dns](assets/payload-creation-dns.png)
-![Threat Arsenal Actionto inject](assets/payload-to-inject.png)
+![Threat Arsenal Action creation dns](assets/payload-creation-dns.png)
+![Threat Arsenal Action to inject](assets/payload-to-inject.png)
 
 ## Update Threat Arsenal Action
 
@@ -305,7 +305,7 @@ Depending on the source of the Action, the update process may differ:
 
 ## Delete Threat Arsenal Action
 
-The deletion process of a threat arsenal Action depends on its source:
+The deletion process of a Threat Arsenal Action depends on its source:
 
 - **User-created actions** — You can delete them directly from the Threat Arsenal view by clicking on the Action and selecting the delete option.
 - **Actions inserted through injectors or collectors** — These Actions cannot be deleted from the platform.

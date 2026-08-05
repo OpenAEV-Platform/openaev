@@ -35,7 +35,7 @@ OpenAEV supports the following attack pattern models:
 
 - **MITRE ATT&CK Framework (Enterprise, PRE, Mobile, and ICS)**
 
-You can add, edit, or delete attack patterns in the settings page and assign them to threat arsenal actions or Injectors.
+You can add, edit, or delete attack patterns in the settings page and assign them to Threat Arsenal Actions or Injectors.
 
 ## CVEs (Enterprise Edition)
 
@@ -43,7 +43,7 @@ CVEs (Common Vulnerabilities and Exposures) are standardized identifiers for pub
 vulnerabilities. Each CVE provides a unique reference, enabling consistent communication and tracking across tools and
 Teams.
 
-In OpenAEV, CVEs are used to associate known vulnerabilities with Assets, threat arsenal actions, and Injects. This allows users to
+In OpenAEV, CVEs are used to associate known vulnerabilities with Assets, Threat Arsenal Actions, and Injects. This allows users to
 simulate attacks based on real-world flaws, enhancing the relevance and precision of security testing.
 
 You can add, edit, or delete CVEs.

@@ -1,4 +1,4 @@
-# XTM Suite: automated enrichment of security coverage
+# Security Coverage enrichment (XTM Suite)
 
 OpenAEV enables other products from the XTM Suite to benefit from a comprehensive Security Coverage enrichment for a given Adversarial Exposure scenario.
 This means that OpenAEV can be triggered via an XTM Suite product to execute a scenario based on a desired threat profile, and results from the scenario execution — such as Detection rate, Prevention rate — are returned to the triggering product for ingestion.

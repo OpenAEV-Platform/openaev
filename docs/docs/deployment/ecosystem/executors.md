@@ -3,7 +3,7 @@
 ## Introduction
 
 To be able to use the power of the OpenAEV platform on endpoints, you need at least one **neutral executor** that will
-be in charge of executing implants as detached processes. Implants will then execute threat arsenal actions.
+be in charge of executing implants as detached processes. Implants will then execute Threat Arsenal Actions.
 
 The platform manages different executors which can be installed on Windows, Linux and MacOS using x86_64 or arm64
 architectures. This table below summarizes the information about each agent.
@@ -21,7 +21,7 @@ architectures. This table below summarizes the information about each agent.
 ## OpenAEV Agent
 
 The OpenAEV agent is available for Windows, Linux and MacOS, it is the native / default way to execute implants and
-threat arsenal actions on endpoints.
+Threat Arsenal Actions on endpoints.
 
 [Learn More](../../usage/environment/openaev-agent.md)
 
@@ -108,7 +108,7 @@ Endpoints from the selected computer groups should now appear in the **OpenAEV E
 
 !!! success "Installation done"
 
-    You are now ready to leverage your Tanium platform to run OpenAEV threat arsenal actions!
+    You are now ready to leverage your Tanium platform to run OpenAEV Threat Arsenal Actions!
 
 <a id="crowdstrike-falcon-agent"></a>
 
@@ -210,7 +210,7 @@ To create a host group, go to `Host setup and management` > `Host groups`.
 
 #### Create/update response policies for your targeted platforms
 
-As OpenAEV will ask CrowdStrike to create implants in order to execute threat arsenal actions as scripts, you need to
+As OpenAEV will ask CrowdStrike to create implants in order to execute Threat Arsenal Actions as scripts, you need to
 allow the
 execution of custom scripts on your assets. To do so, you need to create a new response policy or update an existing one
 for your assets' platforms.
@@ -263,7 +263,7 @@ Endpoint on the OpenAEV endpoint page.
 
 !!! success "Installation done"
 
-    You are now ready to leverage your CrowdStrike platform to run OpenAEV threat arsenal actions!
+    You are now ready to leverage your CrowdStrike platform to run OpenAEV Threat Arsenal Actions!
 
 <a id="paloaltocortex-agent"></a>
 
@@ -274,7 +274,7 @@ arsenal actions
 according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
 On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the
-process that will execute the threat arsenal actions.
+process that will execute the Threat Arsenal Actions.
 
 ### Configure the Palo Alto Cortex platform
 
@@ -341,7 +341,7 @@ Endpoint on the OpenAEV endpoint page.
 
 !!! success "Installation done"
 
-    You are now ready to leverage your Palo Alto Cortex platform to run OpenAEV threat arsenal actions!
+    You are now ready to leverage your Palo Alto Cortex platform to run OpenAEV Threat Arsenal Actions!
 
 <a id="sentinelone-agent"></a>
 
@@ -425,14 +425,14 @@ Endpoint on the OpenAEV endpoint page.
 
 !!! success "Installation done"
 
-    You are now ready to leverage your SentinelOne platform to run OpenAEV threat arsenal actions!
+    You are now ready to leverage your SentinelOne platform to run OpenAEV Threat Arsenal Actions!
 
 <a id="mde-agent"></a>
 
 ## Microsoft Defender for Endpoint (MDE) Agent
 
 Microsoft Defender for Endpoint (MDE) can be leveraged to execute implants as detached processes that will then execute
-threat arsenal actions according to
+Threat Arsenal Actions according to
 the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
 OpenAEV does **not** install a new agent: it reuses the **MDE sensor already deployed** on your endpoints and drives it
@@ -628,7 +628,7 @@ after the first sync (up to the register interval).
 
 !!! success "Installation done"
 
-    You are now ready to leverage your Microsoft Defender for Endpoint platform to run OpenAEV threat arsenal actions!
+    You are now ready to leverage your Microsoft Defender for Endpoint platform to run OpenAEV Threat Arsenal Actions!
 
 #### Microsoft Defender for Endpoint — troubleshooting
 
@@ -753,7 +753,7 @@ OpenAEV has built-in instruction if you want command line examples to deploy the
 
 !!! warning "Caldera AV (antivirus) detection"
 
-    By default, the Caldera agent "Sandcat" is detected and blocked by antivirus. Here, we are using Caldera as a neutral executor that will execute implants that will execute threat arsenal actions, so you need to add the proper AV exclusions as instructed in the OpenAEV screen.
+    By default, the Caldera agent "Sandcat" is detected and blocked by antivirus. Here, we are using Caldera as a neutral executor that will execute implants that will execute Threat Arsenal Actions, so you need to add the proper AV exclusions as instructed in the OpenAEV screen.
 
     ![Caldera AV exclusion](../assets/caldera-av.png)
 
