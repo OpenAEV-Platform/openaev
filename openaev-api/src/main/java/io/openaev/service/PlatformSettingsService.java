@@ -256,8 +256,7 @@ public class PlatformSettingsService {
             .map(Setting::getValue)
             .orElse(PLATFORM_WHITEMARK.defaultValue()));
     // Run mode is config-driven operational state (normal/safe), not a computed health signal.
-    settings.setPlatformRunMode(
-        ofNullable(openAEVConfig.getRunMode()).orElse(RunMode.NORMAL).value());
+    settings.setPlatformRunMode(ofNullable(openAEVConfig.getRunMode()).orElse(RunMode.NORMAL));
   }
 
   /** Return only non-sensitive settings suitable for unauthenticated (public) access. */

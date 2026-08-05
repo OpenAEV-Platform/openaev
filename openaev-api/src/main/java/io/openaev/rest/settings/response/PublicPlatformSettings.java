@@ -3,6 +3,7 @@ package io.openaev.rest.settings.response;
 import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.config.RunMode;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.form.PolicyInput;
 import io.openaev.rest.settings.form.ThemeInput;
@@ -72,7 +73,7 @@ public class PublicPlatformSettings {
 
   @JsonProperty("platform_run_mode")
   @Schema(description = "Current platform run mode (normal or safe)")
-  private String platformRunMode;
+  private RunMode platformRunMode;
 
   public Map<String, List<String>> getPlatformBannerByLevel() {
     Map<String, List<String>> platformBannerByLevelLowerCase = new HashMap<>();
