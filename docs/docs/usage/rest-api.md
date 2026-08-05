@@ -1,6 +1,6 @@
 # REST API
 
-OpenAEV provides a REST API, allowing users to perform various actions programmatically. The API enables users to interact with OpenAEV's functionality and data, offering a powerful tool for automation, integration, and customization. Any action available through the platform's graphical interface can also be executed via the API.
+OpenAEV provides a REST API that lets you perform any platform action programmatically. You can automate workflows, integrate with external tools, and customize behavior. Any action available through the graphical interface can also be executed via the API.
 
 ## Why use the REST API?
 

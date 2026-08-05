@@ -25,7 +25,7 @@ The first thing to define in this representation is the matching type in the xls
 Once that is done, you can select the inject type among a list of [injects](../../evaluate/injects/inject-overview.md) that are compatible with the xls import. When that selection is done, you will be able to set a column for each of the attribute that can be completed using the import. If you wish to set a default value you can do so by clicking the gear on the right side of the field.
 
 ### Properly setting the trigger time of the Inject
-It should also be noted that the "Trigger Time" field has a second parameter that can be set using the gear button. It can be used to set a custom format for specific dates and or time to be interpreted. The complete format rules are available [here](https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html) but here is a very quick overview :
+The "Trigger Time" field has a second parameter you can set using the gear button. Use it to define a custom format for specific dates and/or times. The complete format rules are available [here](https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html). Quick overview:
 
 | Symbol | Meaning                    | Presentation | Examples            |
 |--------|----------------------------|--------------|---------------------|

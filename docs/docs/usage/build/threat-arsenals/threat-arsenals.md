@@ -2,7 +2,7 @@
 
 The **Threat Arsenal** is the section in OpenAEV where you manage all the Actions available for building injects.
 
-An **Action** defines what happens when an inject is executed on a target, it can be a shell command, an executable, a file drop, or a DNS resolution.
+An **Action** defines what happens when an Inject executes on a target: a shell command, an executable, a file drop, or a DNS resolution.
 
 Actions unify what were previously known as **Payloads** and **Injector Contracts** into a single, simplified interface. Depending on their source, actions can be:
 
@@ -29,7 +29,7 @@ Each entry in the list includes the following columns:
 | **Type**        | The injector type that supports the Action. (User-created Actions are supported by the OpenAEV Implant Injector) |
 | **Name**        | The name assigned to the Action.                                                                                 |                                                                         
 | **Domains**     | The domains on which the Action operates (e.g., Endpoint, Network, Web App, E-mail infiltration...).             |
-| **Platform**    | The platforms that Action supports  (e.g., Windows, Linux, macOS)                                              |
+| **Platform**    | The platforms that Action supports (e.g., Windows, Linux, macOS)                                              |
 | **Tags**        | Tags to help categorize and search for Actions                                                         |
 | **Status**      | The reliability or lifecycle state of the Action (see [**Action Status Logic**](#action-status-logic)).          |
 | **Updated**     | The last modification date                                                                                     |
@@ -119,7 +119,7 @@ Once completed, your new Threat Arsenal Action will appear in the Threat Arsenal
 
 | Property         | Description                                                                          |
 |------------------|--------------------------------------------------------------------------------------|
-| Type             | Type of Threat Arsenal Action such as Command Line, Executable, File Drop or Dns Resolution        |
+| Type             | Type of Threat Arsenal Action such as Command Line, Executable, File Drop or DNS Resolution        |
 | Architecture     | Architecture in which the command can be executed (x86_64, arm64, all architectures) |
 | Platforms        | Compatible platforms (ex. Windows, Linux, MacOS)                                     |
 | Prerequisites    | Prerequisites required to execute the command                                        |
@@ -299,10 +299,10 @@ supports it (the OpenAEV Implant does).
 ![Threat Arsenal Action creation dns](assets/payload-creation-dns.png)
 ![Threat Arsenal Action to inject](assets/payload-to-inject.png)
 
-## Update Threat Arsenal Action
+## Update a Threat Arsenal Action
 
-As described in the [Threat Arsenal Action — list view](#threat-arsenal-action-list-view) section, 
-Threat Arsenal Actions can be created by users, inserted through injectors, or inserted through collectors.
+As described in the [Threat Arsenal Action — list view](#threat-arsenal-action-list-view) section,
+Threat Arsenal Actions can be created by you, inserted through Injectors, or inserted through Collectors.
 
 Depending on the source of the Action, the update process may differ:
 
@@ -310,9 +310,9 @@ Depending on the source of the Action, the update process may differ:
 - **Actions inserted through injectors** — You can only update the domains, attack patterns, and tags linked to the Action.
 - **Actions inserted through collectors** (e.g. Atomic Red Team) — You cannot update them from the platform, as they are managed by the collector.
 
-## Delete Threat Arsenal Action
+## Delete a Threat Arsenal Action
 
-The deletion process of a Threat Arsenal Action depends on its source:
+The deletion process depends on the Action's source:
 
 - **User-created actions** — You can delete them directly from the Threat Arsenal view by clicking on the Action and selecting the delete option.
 - **Actions inserted through injectors or collectors** — These Actions cannot be deleted from the platform.

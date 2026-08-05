@@ -81,12 +81,11 @@ To register new endpoints, you will need to install an agent. You can find detai
 
 ## Agentless endpoints
 
-In order to provide flexibility in environments where agents cannot be deployed or when working with theoretical scenarios or sensitive systems, 
-our platform allows users to manually create endpoints. Since they are manually created, they have the **Agentless** status. 
+In environments where agents cannot be deployed, or when working with theoretical Scenarios or sensitive systems, you can manually create Endpoints. Manually created Endpoints have the **Agentless** status.
 
 ![Endpoints list with agentless](../assets/agentless_list.png)
 
-Users have two ways to create agentless endpoints:
+You can create agentless Endpoints in two ways:
 
 - Use the form : the user clicks on the **+** sign, then a drawer opens with the appropriate form
   ![Endpoints creation with form](../assets/agentless_creation.png)
