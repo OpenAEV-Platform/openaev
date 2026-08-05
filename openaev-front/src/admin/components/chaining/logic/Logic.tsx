@@ -58,8 +58,6 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
   const [compatibleActionFilter, setCompatibleActionFilter] = useState<string | undefined>();
   // Event to link a newly created action to (set when adding an action via a trigger's "+")
   const [linkToEventId, setLinkToEventId] = useState<string | undefined>();
-  // Output types to seed a new trigger with (set when adding a trigger via an action's "+")
-  const [prefillEventFields, setPrefillEventFields] = useState<string[] | undefined>();
   // Event currently being edited
   const [editingEvent, setEditingEvent] = useState<{
     eventId: string;
@@ -141,7 +139,6 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
   const handleOpenDrawer = useCallback(() => {
     setCompatibleActionFilter(undefined);
     setLinkToEventId(undefined);
-    setPrefillEventFields(undefined);
     setDrawerView('choose');
   }, []);
 
@@ -149,24 +146,14 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
   const handleOpenActionDrawer = useCallback((field?: string) => {
     setCompatibleActionFilter(field);
     setLinkToEventId(undefined);
-    setPrefillEventFields(undefined);
     setDrawerView('action');
   }, []);
 
   // Inline "+" on a trigger: add an action gated by that trigger
   const handleAddActionToEvent = useCallback((eventId: string) => {
     setCompatibleActionFilter(undefined);
-    setPrefillEventFields(undefined);
     setLinkToEventId(eventId);
     setDrawerView('action');
-  }, []);
-
-  // Inline "+" on an action: add a trigger fed by that action's output types
-  const handleAddTriggerAfterAction = useCallback((_stepId: string, outputTypes: string[]) => {
-    setEditingEvent(null);
-    setLinkToEventId(undefined);
-    setPrefillEventFields(outputTypes);
-    setDrawerView('event');
   }, []);
 
   const handleEditStep = useCallback((stepId: string, meta: ActionMeta) => {
@@ -182,7 +169,6 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
       eventId,
       meta,
     });
-    setPrefillEventFields(undefined);
     setDrawerView('event');
   }, []);
 
@@ -212,7 +198,6 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
                   onEditStep={handleEditStep}
                   onEditEvent={handleEditEvent}
                   onAddActionToEvent={handleAddActionToEvent}
-                  onAddTriggerAfterAction={handleAddTriggerAfterAction}
                   onEventMetasChange={setEventMetas}
                   readOnly={readOnly}
                 />
@@ -250,7 +235,6 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
         compatibleActionFilter={compatibleActionFilter}
         onCompatibleActionFilterChange={setCompatibleActionFilter}
         linkToEventId={linkToEventId}
-        prefillEventFields={prefillEventFields}
       />
     </OutputProvidersProvider>
   );

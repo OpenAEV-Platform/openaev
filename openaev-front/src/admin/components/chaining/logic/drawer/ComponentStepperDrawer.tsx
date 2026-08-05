@@ -76,8 +76,6 @@ interface ComponentStepperDrawerProps {
   onCompatibleActionFilterChange?: (field?: string) => void;
   /** When set, newly created actions are linked to this event (inline "+" on a trigger). */
   linkToEventId?: string;
-  /** Output types of the action a new trigger is being added after (inline "+" on an action). */
-  prefillEventFields?: string[];
 }
 
 interface ChoiceCardProps {
@@ -158,7 +156,6 @@ const ComponentStepperDrawer = ({
   compatibleActionFilter,
   onCompatibleActionFilterChange,
   linkToEventId,
-  prefillEventFields,
 }: ComponentStepperDrawerProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -446,7 +443,6 @@ const ComponentStepperDrawer = ({
             initialData={editingEvent?.meta.formData}
             submitLabel={editingEvent ? t('Update trigger') : t('Add trigger')}
             defaultName={!editingEvent ? `Event ${eventCount + 1}` : undefined}
-            prefillFields={prefillEventFields}
           />
         )}
       </Box>
