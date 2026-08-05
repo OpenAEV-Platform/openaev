@@ -24,8 +24,8 @@ Once completed, your new challenge will appear in the challenge list.
 
 ## Use a challenge
 
-Challenges can be utilized in Scenarios and Simulations. When creating an inject of type "Publish challenges," you need
-to select a challenge to be sent to your players.
+Challenges can be utilized in Scenarios and Simulations. When creating an Inject of type "Publish challenges," you need
+to select a Challenge to be sent to your Players.
 
 ![challenge-inject.png](../../assets/components/challenge-inject.png)
 

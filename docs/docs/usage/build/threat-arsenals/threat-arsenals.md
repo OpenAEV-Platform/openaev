@@ -138,7 +138,7 @@ For text arguments, you can specify
 
 - Key: This is how you reference the argument in your command using a placeholder.
 - Default Value: During execution, this placeholder is replaced with the argument's value. This default value can be
-  overridden when creating an inject.
+  overridden when creating an Inject.
 
 ![Text argument action](assets/text-argument-payload.png)
 
@@ -154,7 +154,7 @@ Let's consider a practical example: If I want to create a Threat Arsenal Action 
 with a command like nuclei -t #{asset-key}. I'd set up a targeted asset argument with the key "asset-key".
 ![Targeted asset argument](assets/targeted-asset-argument.png)
 
-Next, I would create an inject based on this Threat Arsenal Action. In this inject, I'd designate a source asset, which is where the
+Next, I would create an Inject based on this Threat Arsenal Action. In this Inject, I'd designate a source Asset, which is where the
 command will execute (such as the asset where 'nuclei' is installed), and define the targeted assets that will serve as
 the scan targets.
 ![Targeted asset argument](assets/text-argument-payload.png)

@@ -19,7 +19,7 @@ Examples of built-in variables include:
 - **${teams}**: Represents the list of team name/s for the injection
 
 
-The list of **available variables** is found in the definition of the inject :
+The list of **available variables** is found in the definition of the Inject:
 
 ![Variables section](../../assets/variables_inject_definition.png)
 ![Variables section](../../assets/variables_list.png)
