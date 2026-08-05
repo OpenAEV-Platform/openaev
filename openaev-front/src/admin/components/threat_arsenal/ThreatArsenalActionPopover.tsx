@@ -82,6 +82,7 @@ const buildInitialValues
       action_attack_patterns: action.action_attack_patterns,
       action_tags: action.action_tags as string[] | undefined,
       action_expectations: action.action_expectations ?? ['PREVENTION', 'DETECTION'],
+      action_expected_security_platforms: action.action_expected_security_platforms ?? {},
       action_execution_arch: action.action_execution_arch,
       action_output_parsers: action.action_output_parsers as ThreatArsenalActionCreateCustomInput['action_output_parsers'],
       action_platforms: action.action_platforms,

@@ -9,14 +9,13 @@ import io.openaev.injectors.opencti.OpenCTIExecutor;
 import io.openaev.injectors.opencti.config.OpenCTIInjectorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
-import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j

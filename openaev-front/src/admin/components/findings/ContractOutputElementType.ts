@@ -6,6 +6,7 @@ enum ContractOutputElementType {
   credentials = 'Credentials',
   cve = 'CVE',
   delegation = 'Delegation',
+  email = 'Email',
   file = 'File',
   group = 'Group',
   ipv4 = 'IPv4',

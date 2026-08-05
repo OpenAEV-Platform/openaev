@@ -144,6 +144,17 @@ public class Workflow implements Base {
   @JsonProperty("workflow_safe_mode_enabled")
   private boolean safeModeEnabled;
 
+  // Keep-alive: an autonomous (AI-driven) run builds its chained steps incrementally over the life
+  // of the run, so its workflow starts EMPTY and must NOT be ended by the standard evaluator when
+  // no step templates / active steps exist yet. When true, evaluateWorkflowProgress parks the
+  // workflow in RUN instead of transitioning it to END, and the timeout job leaves it alone
+  // (autonomous provisioning also disables timeoutEnabled). Only ever set on autonomous workflows.
+  @Column(name = "workflow_keep_alive", columnDefinition = "boolean")
+  @JsonProperty("workflow_keep_alive")
+  @Schema(
+      description = "Keep the workflow alive (parked in RUN) while empty/idle - autonomous runs")
+  private boolean keepAlive;
+
   // Rules
   @OneToMany(
       mappedBy = "workflow",

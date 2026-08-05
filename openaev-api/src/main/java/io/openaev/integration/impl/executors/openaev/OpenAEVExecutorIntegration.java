@@ -6,7 +6,7 @@ import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.executors.openaev.service.OpenAEVExecutorContextService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 

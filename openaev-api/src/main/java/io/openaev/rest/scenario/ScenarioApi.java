@@ -38,6 +38,7 @@ import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
@@ -90,6 +91,7 @@ public class ScenarioApi extends RestBehavior {
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
   private final ExpectationsDriftService expectationsDriftService;
+  private final AutonomousRunService autonomousRunService;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -321,6 +323,9 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
   public void deleteScenario(@PathVariable @NotBlank final String scenarioId) {
+    // An autonomous scenario and its single simulation are one unit: tear the run + simulation down
+    // first (409 if the run is still active), then delete the scenario. No-op for manual scenarios.
+    this.autonomousRunService.deleteForScenario(scenarioId);
     this.scenarioService.deleteScenario(scenarioId);
   }
 
@@ -529,6 +534,10 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
   public Scenario updateScenarioRecurrence(
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfScenarioNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
@@ -615,8 +624,11 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  public Exercise createRunningExerciseFromScenario(@PathVariable @NotBlank final String scenarioId)
-      throws ChainingException {
+  public Exercise createRunningExerciseFromScenario(
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfScenarioNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
 
@@ -725,7 +737,9 @@ public class ScenarioApi extends RestBehavior {
       summary = "Get endpoints. Can only be called if the user has access to the given scenario.",
       description = "Get all endpoints used by injects for a given scenario")
   @Transactional
-  public List<Endpoint> endpoints(@PathVariable String scenarioId) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
+  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
     return this.endpointService.endpointsForScenario(scenarioId);
   }
 
@@ -742,7 +756,10 @@ public class ScenarioApi extends RestBehavior {
       summary =
           "Get endpoints by ids. Can only be called if the user has access to the given scenario.",
       description = "Get all endpoints by ids used by injects for a given scenario")
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
   public List<EndpointOutput> endpointsByIds(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @RequestBody @Valid @NotNull final List<String> endpointIds) {
     return this.endpointService.endpointsByIdsForScenario(scenarioId, endpointIds);

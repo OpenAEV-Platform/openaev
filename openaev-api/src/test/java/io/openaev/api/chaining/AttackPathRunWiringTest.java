@@ -156,7 +156,8 @@ class AttackPathRunWiringTest extends IntegrationTest {
 
     // Persist the agent-backed endpoint under the tenant (as the ingestion tenant test does): the
     // fixture must be committed so the run's read-only resolution sees it.
-    agent = AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor());
+    agent =
+        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
     endpoint =
         endpointComposer
             .forEndpoint(EndpointFixture.createEndpoint())

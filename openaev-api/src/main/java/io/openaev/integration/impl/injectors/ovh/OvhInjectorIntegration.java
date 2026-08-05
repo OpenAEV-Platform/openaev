@@ -10,7 +10,7 @@ import io.openaev.injectors.ovh.config.OvhSmsInjectorConfig;
 import io.openaev.injectors.ovh.service.OvhSmsService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;

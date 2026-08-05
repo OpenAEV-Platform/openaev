@@ -558,6 +558,43 @@ public class WorkflowStateService {
   }
 
   /**
+   * Clears the committed execution hashes of a step template on a given RUN workflow, re-arming the
+   * step so the next {@link StepService#createReadySteps} readies and re-executes it.
+   *
+   * <p>Editing an already-executed step in place (the autonomous {@code
+   * update_openaev_attack_path_step}) swaps only the step's baked inject data; its committed
+   * execution hashes stay behind, so the engine would keep treating the step as already-fired and
+   * never run the corrected version. Dropping those hashes is what makes the "fix a step, then
+   * re-run it" loop actually re-execute. Re-firing then replays the step against everything its
+   * trigger has matched so far (a seed re-fires once; a finding-driven step re-fires across the
+   * findings it already consumed), now with the corrected definition.
+   *
+   * <p>Load-only (never builds a state): a step that never executed against this run has no local
+   * state and nothing committed, so this is a no-op and a cosmetic pre-execution edit costs
+   * nothing.
+   *
+   * @param stepTemplate the step template whose re-fire guard should be reset
+   * @param workflowExecution the RUN workflow the step executes under
+   */
+  public void clearExecutionHashes(Step stepTemplate, Workflow workflowExecution) {
+    WorkflowState localState =
+        workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
+            stepTemplate.getId(), workflowExecution.getId());
+    if (localState == null) {
+      return;
+    }
+    WorkflowStateEntries entries =
+        gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
+    Set<String> hashExecution = entries.getHashExecution();
+    if (hashExecution == null || hashExecution.isEmpty()) {
+      return;
+    }
+    hashExecution.clear();
+    localState.setEntries(gson.toJson(entries));
+    save(localState);
+  }
+
+  /**
    * Deletes all workflow states associated with workflows of the given simulation.
    *
    * @param simulationId the ID of the simulation whose workflow states should be cleared

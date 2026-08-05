@@ -41,6 +41,11 @@ public class BatchQueueService<T extends Queueable> {
   private final String exchangeName;
   private final String queueName;
 
+  // ConcurrentHashMap: read/mutated from both the AMQP delivery threads (deliverCallback, on a new
+  // key) and the dedicated scheduler thread (the periodic flush below) with no external locking. A
+  // plain HashMap under that access pattern can throw ConcurrentModificationException inside the
+  // scheduler's task — which, being uncaught in a scheduleAtFixedRate Runnable, silently cancels
+  // every future tick for this instance, permanently stalling the queue with no error logged.
   private final Map<Integer, BlockingQueue<T>> queue;
 
   private final Map<T, DeliveryContext> deliveryTable = new ConcurrentHashMap<>();
@@ -51,7 +56,13 @@ public class BatchQueueService<T extends Queueable> {
   private final ShutdownListener shutdownListener;
 
   private final List<Channel> consumerChannels = new CopyOnWriteArrayList<>();
-  private final Map<Integer, AtomicBoolean> insertInProgress = new HashMap<>();
+  // ConcurrentHashMap for the same reason as `queue` above: computeIfAbsent on a plain HashMap is
+  // not atomic for concurrent callers on a new key, so the AMQP delivery thread's immediate-trigger
+  // path (deliverCallback -> processBufferedBatch) racing the scheduler's periodic call for the
+  // same brand-new workerId can hand two different callers two different AtomicBoolean instances
+  // for what should be one shared guard — desyncing it permanently stuck at true for that worker,
+  // with no exception thrown (compareAndSet just silently keeps returning false).
+  private final Map<Integer, AtomicBoolean> insertInProgress = new ConcurrentHashMap<>();
   private final ExecutorService executor;
 
   /**
@@ -90,17 +101,26 @@ public class BatchQueueService<T extends Queueable> {
         rabbitmqPrefix + String.format(BatchQueueService.QUEUE_NAME, queueConfig.getQueueName());
 
     // The queue that will contain the object we need to process
-    queue = new HashMap<>();
+    queue = new ConcurrentHashMap<>();
     for (int i = 0; i < queueConfig.getWorkerNumber(); i++) {
       queue.put(i, new LinkedBlockingQueue<>());
     }
 
     establishConnection();
 
-    // A scheduler to handle batches that did not reach the critical mass
+    // A scheduler to handle batches that did not reach the critical mass. Wrapped in a try/catch as
+    // a second, independent safeguard: an uncaught exception here would otherwise cancel every
+    // future invocation of this scheduleAtFixedRate task permanently (a standalone JDK footgun,
+    // unrelated to the map's thread-safety above), silently stalling the queue with nothing logged.
     this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
     this.scheduledExecutor.scheduleAtFixedRate(
-        () -> queue.keySet().forEach(this::processBufferedBatch),
+        () -> {
+          try {
+            queue.keySet().forEach(this::processBufferedBatch);
+          } catch (Exception e) {
+            log.error("Error while flushing buffered batches for queue {}", queueName, e);
+          }
+        },
         this.queueConfig.getWorkerFrequency(),
         this.queueConfig.getWorkerFrequency(),
         TimeUnit.MILLISECONDS);

@@ -8,10 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayName("ManagerFactory unit tests")
 class ManagerFactoryTest {
 
@@ -26,7 +23,9 @@ class ManagerFactoryTest {
 
   @BeforeEach
   void setUp() {
-    managerFactory = new ManagerFactory(List.of(), List.of());
+    // Creation goes through a real ManagerCreator with no factories and no built-in registrables,
+    // so this plain unit test never touches the DB and needs no active transaction.
+    managerFactory = new ManagerFactory(new ManagerCreator(List.of(), List.of()));
   }
 
   @Nested

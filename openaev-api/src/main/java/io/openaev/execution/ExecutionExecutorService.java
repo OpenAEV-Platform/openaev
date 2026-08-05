@@ -140,7 +140,8 @@ public class ExecutionExecutorService {
             "{} (id={}) launchBatchExecutorSubprocess error: {}",
             executor.getName(),
             executor.getId(),
-            e.getMessage());
+            e.getMessage(),
+            e);
         saveAgentsErrorTraces(e, agents, injectStatus);
       }
     }

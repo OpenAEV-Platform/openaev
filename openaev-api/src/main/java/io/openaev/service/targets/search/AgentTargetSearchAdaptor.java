@@ -7,6 +7,7 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.service.targets.search.specifications.SearchSpecificationUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.criteria.JoinType;
 import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -74,6 +75,9 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
 
     Specification<Agent> tagsSpec = specificationUtils.compileSpecificationForTags(input, joinPath);
 
+    Specification<Agent> hasExecutorSpec =
+        (root, query, cb) -> cb.isNotNull(root.join("executor", JoinType.LEFT).get("id"));
+
     SearchPaginationInput translatedInput = this.translate(input, scopedInject);
 
     Page<Agent> eps =
@@ -84,24 +88,23 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
                 if (tagsSpec != null) {
                   finalSpec = tagsSpec.and(finalSpec);
                 }
-                return this.agentRepository.findAll(finalSpec, pageable);
+                return this.agentRepository.findAll(finalSpec.and(hasExecutorSpec), pageable);
               }
               Specification<Agent> finalSpec =
                   memberOfAssetGroupSpec.or(specification.and(memberOfAnyTargetGroupSpec));
               if (tagsSpec != null) {
                 finalSpec = tagsSpec.or(finalSpec);
               }
-              return this.agentRepository.findAll(finalSpec, pageable);
+              return this.agentRepository.findAll(finalSpec.and(hasExecutorSpec), pageable);
             },
             translatedInput,
             Agent.class);
 
-    return new PageImpl<>(
+    var content =
         eps.getContent().stream()
             .map(endpoint -> convertFromAgent(endpoint, scopedInject))
-            .toList(),
-        eps.getPageable(),
-        eps.getTotalElements());
+            .toList();
+    return new PageImpl<>(content, eps.getPageable(), eps.getTotalElements());
   }
 
   @Override
@@ -127,7 +130,7 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
                 agent.getExecutedByUser(),
                 Set.of(),
                 agent.getAsset().getId(),
-                agent.getExecutor().getType()),
+                agent.getExecutor() != null ? agent.getExecutor().getType() : null),
         true);
   }
 }

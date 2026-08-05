@@ -34,6 +34,9 @@ public enum ContractOutputType {
   @JsonProperty("username")
   Username("username"),
 
+  @JsonProperty("email")
+  Email("email"),
+
   @JsonProperty("share")
   Share("share"),
 

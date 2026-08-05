@@ -148,6 +148,13 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       // as unregistered (update / duplicate / export disabled in the arsenal).
       assertFalse(importedContract.getInjectors().isEmpty());
       assertNotNull(importedInjectorType);
+      // The contract_id embedded in the contract content must be rewritten to the
+      // persisted contract id: the inject form posts that embedded id as
+      // inject_injector_contract, so a stale exported id 404s at launch (#6516).
+      JsonNode importedContent = objectMapper.readTree(importedContract.getContent());
+      assertEquals(
+          importedActionId,
+          importedContent.get(InjectorContract.CONTRACT_CONTENT_KEY_CONTRACT_ID).asText());
     }
   }
 

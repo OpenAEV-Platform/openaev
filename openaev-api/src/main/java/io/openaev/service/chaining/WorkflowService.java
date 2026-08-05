@@ -1,15 +1,24 @@
 package io.openaev.service.chaining;
 
+import static org.springframework.util.StringUtils.hasText;
+
 import com.google.gson.Gson;
+import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.ScopeVariableInput;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetGroupRepository;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
@@ -45,6 +54,8 @@ public class WorkflowService {
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
+  private final AssetRepository assetRepository;
+  private final AssetGroupRepository assetGroupRepository;
 
   private final ScopeMetricCollector scopeMetricCollector;
   private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -154,6 +165,7 @@ public class WorkflowService {
   public Workflow updateWorkflowConfiguration(
       @NotBlank String workflowId, WorkflowConfigurationInput input) {
     Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+    WorkflowEditability.assertLogicMapEditable(workflow);
     boolean changed = applyConfigurationInput(input, workflow);
     if (changed) {
       boolean workflowExecutedNotEmpty = !workflow.getWorkflowsExecuted().isEmpty();
@@ -161,6 +173,145 @@ public class WorkflowService {
       workflowRepository.save(workflow);
     }
     return workflow;
+  }
+
+  /**
+   * Applies a configuration update directly to the RUN workflow(s) of a simulation, so scope
+   * (allow/deny) and rate-limit edits take effect on a live simulation without stopping it.
+   *
+   * <p>This is the substrate for autonomous-run live steering: the chaining engine reads the
+   * denylist from the RUN workflow on every subsequent step evaluation (see {@code
+   * PrimitiveValidationContextBuilder} / {@code ScopeService}), so a denylist entry added here
+   * walls off the matching assets on the next decision cycle. Only meaningful for autonomous /
+   * chained runs; for a normal run there is at most one RUN workflow.
+   *
+   * @param simulationId the simulation whose RUN workflow(s) should be edited
+   * @param input the new scope / rate-limit configuration
+   * @return the updated RUN workflows
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public List<Workflow> updateRunWorkflowConfiguration(
+      @NotBlank String simulationId, WorkflowConfigurationInput input) {
+    List<Workflow> runs = findWorkflowRunBySimulationId(simulationId);
+    for (Workflow run : runs) {
+      if (applyConfigurationInput(input, run)) {
+        workflowRepository.save(run);
+      }
+    }
+    return runs;
+  }
+
+  /**
+   * Writes ALLOWLIST scope rules onto a scenario's TEMPLATE workflow and its RUN workflow(s)
+   * without touching the rest of the configuration (timeout / rate-limit / keep-alive / denylist),
+   * so an autonomous run can persist its resolved scope onto the workflow it drives. Unlike {@link
+   * #updateWorkflowConfiguration}, this never resets the other config fields to their input
+   * defaults - it only writes the allow-list, which is what seeding / setting a scope requires.
+   *
+   * <p>When {@code replaceExisting} is {@code true} the current ALLOWLIST rules are cleared first
+   * (used when the orchestrator SETS a freshly resolved scope); when {@code false} the rules are
+   * appended idempotently (used to seed a preselected scope at provisioning). Denylist rules are
+   * always preserved. An empty input with {@code replaceExisting=false} is a no-op.
+   *
+   * @param scenarioId the scenario whose TEMPLATE workflow should carry the scope
+   * @param simulationId the simulation whose RUN workflow(s) should carry the scope
+   * @param allowlistRules the allow-list rules to write (each with source + value set)
+   * @param replaceExisting whether to replace the current allow-list or append to it
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void writeAllowlistScope(
+      String scenarioId,
+      String simulationId,
+      List<WorkflowScopeRuleInput> allowlistRules,
+      boolean replaceExisting) {
+    if (!replaceExisting && (allowlistRules == null || allowlistRules.isEmpty())) {
+      return;
+    }
+    List<WorkflowScopeRuleInput> rules = allowlistRules != null ? allowlistRules : List.of();
+    if (hasText(scenarioId)) {
+      try {
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .ifPresent(w -> writeAllowlistRules(w, rules, replaceExisting));
+      } catch (ChainingException e) {
+        log.warn(
+            "[Chaining] Could not write scope on scenario {} template workflow", scenarioId, e);
+      }
+    }
+    if (hasText(simulationId)) {
+      findWorkflowRunBySimulationId(simulationId)
+          .forEach(w -> writeAllowlistRules(w, rules, replaceExisting));
+    }
+  }
+
+  /**
+   * Seeds a full scope definition (ALLOWLIST and/or DENYLIST rules, any source) onto a run's
+   * scenario template and live simulation workflows. Used at autonomous-run creation to mirror the
+   * scope the operator picked in the launch stepper onto the auto-provisioned workflow, so it is
+   * enforced and shown in the Scope tab exactly like a manually chained scenario. Rules are
+   * appended and de-duplicated by (mode, source, value); an empty list is a no-op. Unlike {@link
+   * #writeAllowlistScope} this never clears existing rules and is mode-agnostic.
+   */
+  public void writeScopeRules(
+      String scenarioId, String simulationId, List<WorkflowScopeRuleInput> rules) {
+    if (rules == null || rules.isEmpty()) {
+      return;
+    }
+    if (hasText(scenarioId)) {
+      try {
+        findWorkflowTemplateByScenarioId(scenarioId).ifPresent(w -> appendScopeRules(w, rules));
+      } catch (ChainingException e) {
+        log.warn("[Chaining] Could not seed scope on scenario {} template workflow", scenarioId, e);
+      }
+    }
+    if (hasText(simulationId)) {
+      findWorkflowRunBySimulationId(simulationId).forEach(w -> appendScopeRules(w, rules));
+    }
+  }
+
+  private void appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
+    List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
+    Set<String> existingKeys =
+        existing.stream()
+            .map(r -> r.getSelectedMode() + "|" + r.getRuleSource() + "|" + r.getRuleValue())
+            .collect(Collectors.toSet());
+    boolean changed = false;
+    for (WorkflowScopeRuleInput in : ruleInputs) {
+      if (in == null || in.getSelectedMode() == null || in.getRuleSource() == null) {
+        continue;
+      }
+      String key = in.getSelectedMode() + "|" + in.getRuleSource() + "|" + in.getRuleValue();
+      if (existingKeys.add(key)) {
+        existing.add(buildScopeRule(in, workflow));
+        changed = true;
+      }
+    }
+    if (changed) {
+      workflowRepository.save(workflow);
+    }
+  }
+
+  private void writeAllowlistRules(
+      Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs, boolean replaceExisting) {
+    List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
+    boolean changed = false;
+    if (replaceExisting) {
+      changed = existing.removeIf(r -> ScopeRuleSelectedMode.ALLOWLIST.equals(r.getSelectedMode()));
+    }
+    Set<String> existingKeys =
+        existing.stream()
+            .map(r -> r.getSelectedMode() + "|" + r.getRuleSource() + "|" + r.getRuleValue())
+            .collect(Collectors.toSet());
+    for (WorkflowScopeRuleInput in : ruleInputs) {
+      String key =
+          ScopeRuleSelectedMode.ALLOWLIST + "|" + in.getRuleSource() + "|" + in.getRuleValue();
+      if (existingKeys.add(key)) {
+        existing.add(buildScopeRule(in, workflow));
+        changed = true;
+      }
+    }
+    if (changed) {
+      workflowRepository.save(workflow);
+    }
   }
 
   /**
@@ -235,6 +386,7 @@ public class WorkflowService {
             .timeoutEnabled(workflowTemplateFrom.isTimeoutEnabled())
             .timeoutSeconds(workflowTemplateFrom.getTimeoutSeconds())
             .safeModeEnabled(workflowTemplateFrom.isSafeModeEnabled())
+            .keepAlive(workflowTemplateFrom.isKeepAlive())
             .build();
     copyScopeRules(workflowTemplateFrom, workflowRunTo);
     copyScopeVariables(workflowTemplateFrom, workflowRunTo);
@@ -256,6 +408,7 @@ public class WorkflowService {
             .timeoutEnabled(workflowTemplateScenarioFrom.isTimeoutEnabled())
             .timeoutSeconds(workflowTemplateScenarioFrom.getTimeoutSeconds())
             .safeModeEnabled(workflowTemplateScenarioFrom.isSafeModeEnabled())
+            .keepAlive(workflowTemplateScenarioFrom.isKeepAlive())
             .build();
     copyScopeRules(workflowTemplateScenarioFrom, template);
     copyScopeVariables(workflowTemplateScenarioFrom, template);
@@ -278,6 +431,7 @@ public class WorkflowService {
             .timeoutEnabled(workflowTemplateFrom.isTimeoutEnabled())
             .timeoutSeconds(workflowTemplateFrom.getTimeoutSeconds())
             .safeModeEnabled(workflowTemplateFrom.isSafeModeEnabled())
+            .keepAlive(workflowTemplateFrom.isKeepAlive())
             .build();
     copyScopeRules(workflowTemplateFrom, template);
     copyScopeVariables(workflowTemplateFrom, template);
@@ -516,6 +670,33 @@ public class WorkflowService {
   }
 
   /**
+   * Deletes the given scenario step templates (and their conditions), skipping any already gone.
+   *
+   * <p>Used to clear the steps an autonomous run mirrored onto its scenario before a restart: the
+   * scenario workflow doubles as the seed a fresh simulation is copied from, so stale mirrored
+   * steps must be removed or the restarted simulation would not park empty and the scenario would
+   * accumulate a duplicated attack path. Best-effort per id so a missing step never aborts restart.
+   *
+   * @param scenarioStepTemplateIds step template ids previously mirrored onto the scenario
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteScenarioMirrorSteps(java.util.Collection<String> scenarioStepTemplateIds) {
+    if (scenarioStepTemplateIds == null) {
+      return;
+    }
+    for (String stepId : scenarioStepTemplateIds) {
+      if (!hasText(stepId)) {
+        continue;
+      }
+      try {
+        stepService.deleteStepTemplate(stepId);
+      } catch (Exception e) {
+        log.warn("Failed to delete mirrored scenario step {}: {}", stepId, e.getMessage());
+      }
+    }
+  }
+
+  /**
    * Deletes all workflow states associated with workflows of the given simulation.
    *
    * @param simulationId the ID of the simulation whose workflow states should be cleared
@@ -714,6 +895,14 @@ public class WorkflowService {
     existing.setRuleSource(input.getRuleSource());
     existing.setRuleValue(input.getRuleValue());
     existing.setValueType(detectValueType(input));
+    // Refresh the label snapshot when the referenced asset / group still resolves (keeps up with
+    // renames), but never wipe a previously captured label: if the asset was deleted (resolution
+    // returns null), an unrelated field change (e.g. toggling allow/deny mode) must keep the last
+    // known name so the deleted-asset UX fallback still works.
+    String resolvedLabel = resolveValueLabel(input);
+    if (resolvedLabel != null) {
+      existing.setRuleValueLabel(resolvedLabel);
+    }
   }
 
   private WorkflowScopeRule buildScopeRule(WorkflowScopeRuleInput input, Workflow workflow) {
@@ -721,9 +910,43 @@ public class WorkflowService {
         .selectedMode(input.getSelectedMode())
         .ruleSource(input.getRuleSource())
         .ruleValue(input.getRuleValue())
+        .ruleValueLabel(resolveValueLabel(input))
         .valueType(detectValueType(input))
         .workflow(workflow)
         .build();
+  }
+
+  /**
+   * Snapshots the display name of the asset / asset group referenced by an ASSET / ASSET_GROUP
+   * scope rule, so a past run's scope stays readable after the referenced inventory object is
+   * deleted.
+   *
+   * <p>The lookup is tenant-scoped on purpose: Hibernate's {@code tenantFilter} does not apply to
+   * primary-key loads, so a plain {@code findById} on a user-supplied id could snapshot (and later
+   * expose) another tenant's asset name. Ids that do not resolve within the caller's tenant - or
+   * non-asset rules (MANUAL / CSV / TEAM / PLAYER) - stay {@code null}.
+   */
+  private String resolveValueLabel(WorkflowScopeRuleInput input) {
+    if (input.getRuleSource() == null || !hasText(input.getRuleValue())) {
+      return null;
+    }
+    String tenantId = TenantContext.getCurrentTenant();
+    if (!hasText(tenantId)) {
+      return null;
+    }
+    return switch (input.getRuleSource()) {
+      case ASSET ->
+          assetRepository
+              .findByIdAndTenantId(input.getRuleValue(), tenantId)
+              .map(Asset::getName)
+              .orElse(null);
+      case ASSET_GROUP ->
+          assetGroupRepository
+              .findByIdAndTenantId(input.getRuleValue(), tenantId)
+              .map(AssetGroup::getName)
+              .orElse(null);
+      default -> null;
+    };
   }
 
   private ScopeRuleValueType detectValueType(WorkflowScopeRuleInput input) {
@@ -731,6 +954,8 @@ public class WorkflowService {
       return switch (input.getRuleSource()) {
         case ASSET -> ScopeRuleValueType.ASSET_ID;
         case ASSET_GROUP -> ScopeRuleValueType.ASSET_GROUP_ID;
+        case TEAM -> ScopeRuleValueType.TEAM_ID;
+        case PLAYER -> ScopeRuleValueType.PLAYER_ID;
         default -> resolveValueTypeFromString(input.getRuleValue());
       };
     }
@@ -843,6 +1068,36 @@ public class WorkflowService {
     stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
     startWorkflow(workflowRun);
+  }
+
+  /**
+   * Provisions ONLY the simulation-scoped TEMPLATE workflow (with its step templates) from the
+   * scenario template, WITHOUT creating or starting a RUN workflow. This is the dry-run / plan-mode
+   * counterpart of {@link #startWorkflowByScenarioIdAndSimulation}: a plan must have a real
+   * simulation TEMPLATE workflow to author steps into (otherwise every author call fails with
+   * "Workflow (TEMPLATE) not found") and to mark the simulation as chaining (so the auto-closing
+   * job does not finish the empty simulation out from under the orchestrator). Because no RUN
+   * workflow is created, the chaining engine has nothing to ready or dispatch, so the plan is
+   * designed without ever executing an inject.
+   *
+   * @param scenarioId the autonomous scenario whose TEMPLATE workflow is the design source
+   * @param simulation the plan simulation to attach the TEMPLATE workflow to
+   * @return the created simulation TEMPLATE workflow
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Workflow provisionSimulationTemplateWorkflow(String scenarioId, Exercise simulation)
+      throws ChainingException {
+    Workflow workflowTemplateScenario =
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+
+    Workflow workflowTemplateSimulation =
+        saveWorkflowRun(copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation));
+    stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
+    return workflowTemplateSimulation;
   }
 
   /**
@@ -1001,6 +1256,18 @@ public class WorkflowService {
     List<Step> stepsTemplate = stepService.findAllStepTemplateByWorkflow(workflowTemplateId);
 
     if (stepsTemplate.isEmpty()) {
+      // Autonomous (keep-alive) runs provision an EMPTY workflow and let the AI orchestrator author
+      // steps incrementally. Ending it here would kill the run at launch, before a single step is
+      // built - the exact "attack path is empty / agent fell back to atomic tests" failure. Park it
+      // in RUN instead; the orchestrator's next attack-path/steps + attack-path/evaluate call will
+      // find it live and ready the new template.
+      if (workflowRun.isKeepAlive()) {
+        log.info(
+            "[Chaining] Autonomous workflow {} has no step template yet; keeping it alive (RUN) "
+                + "awaiting the orchestrator.",
+            workflowRun.getId());
+        return workflowRun;
+      }
       log.info(
           "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
@@ -1023,11 +1290,308 @@ public class WorkflowService {
     }
 
     // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
-    // status END
-    if (!hasActiveSteps && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
+    // status END - unless this is an autonomous keep-alive workflow, which must stay parked in RUN
+    // between decision cycles so the orchestrator can keep appending chained steps to a live run.
+    if (!hasActiveSteps
+        && !workflowRun.isKeepAlive()
+        && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
       workflowRun.setStatus(WorkflowStatus.END);
     }
 
     return workflowRun;
   }
+
+  // -- Autonomous authoring facade --
+
+  /**
+   * Marks the scenario's TEMPLATE workflow as keep-alive and disables its timeout, so an autonomous
+   * (AI-driven) run built on top of it survives an empty launch and long idle gaps between decision
+   * cycles. The flag propagates to the simulation TEMPLATE and RUN workflows through the standard
+   * copy chain at launch, so this must be called BEFORE {@link
+   * #startWorkflowByScenarioIdAndSimulation}.
+   *
+   * @param scenarioId the autonomous scenario whose workflow should be kept alive
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void markScenarioWorkflowKeepAlive(String scenarioId) throws ChainingException {
+    Workflow template =
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+    if (!template.isKeepAlive() || template.isTimeoutEnabled()) {
+      template.setKeepAlive(true);
+      // A long-lived incremental build must not be force-ended by WorkflowTimeoutJob.
+      template.setTimeoutEnabled(false);
+      workflowRepository.save(template);
+    }
+  }
+
+  /**
+   * Appends a chained inject step to a live autonomous run and (optionally) makes it depend on a
+   * previously authored step, then returns the created step template id so the orchestrator can
+   * chain the next step onto it.
+   *
+   * <p>The step template is created on the simulation-level TEMPLATE workflow that the RUN workflow
+   * links to - the only place the engine re-reads templates from on re-evaluation. When {@code
+   * parentStepTemplateId} is provided, a {@code DEPEND_ON} condition is attached so the new step
+   * only readies once the parent step template has executed at least once in the run, giving the
+   * attack-path map its kill-chain ordering. A root step (no parent) has no condition and readies
+   * immediately against the run's scope on the next evaluation.
+   *
+   * @param simulationId the run's live simulation
+   * @param injectInput the inject to wrap as a chained step
+   * @param parentStepTemplateId optional step template id this step depends on (null for a root)
+   * @return the id of the created step template
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendChainedStep(
+      String simulationId, InjectInput injectInput, String parentStepTemplateId)
+      throws ChainingException {
+    return doAppendChainedStep(simulationId, injectInput, parentStepTemplateId, List.of());
+  }
+
+  /**
+   * Finding-driven overload of {@link #appendChainedStep(String, InjectInput, String)}. In addition
+   * to the optional {@code DEPEND_ON} parent, the step carries {@code triggerConditions} - a
+   * finding-trigger filter tree and/or {@code MAPPER} bindings - so it readies off findings and
+   * consumes their values (the way a hand-built chained scenario works). A step with no trigger and
+   * no parent is a SEED that readies immediately against the run scope. The engine already persists
+   * arbitrary condition trees, so this simply merges the provided conditions with the DEPEND_ON.
+   *
+   * @param triggerConditions finding-trigger + mapper conditions (empty for a seed /
+   *     DEPEND_ON-only)
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendChainedStep(
+      String simulationId,
+      InjectInput injectInput,
+      String parentStepTemplateId,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    return doAppendChainedStep(simulationId, injectInput, parentStepTemplateId, triggerConditions);
+  }
+
+  // Shared body for both appendChainedStep overloads. Private and non-transactional on purpose: the
+  // public overloads are the @Transactional entry points, and each simply widens its arguments and
+  // delegates here. Delegating to a plain helper (instead of one overload self-invoking the other)
+  // keeps the transactional boundary on the proxied public method - an intra-class call to a
+  // @Transactional method would bypass the Spring proxy (no transaction, no tenant scope).
+  private String doAppendChainedStep(
+      String simulationId,
+      InjectInput injectInput,
+      String parentStepTemplateId,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    Workflow simulationTemplate =
+        findWorkflowTemplateBySimulationId(simulationId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
+
+    StepsCreateInput.StepInput stepInput =
+        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    List<ConditionCreateInput> conditions = new ArrayList<>();
+    if (triggerConditions != null) {
+      conditions.addAll(triggerConditions);
+    }
+    if (hasText(parentStepTemplateId)) {
+      conditions.add(
+          ConditionCreateInput.builder()
+              .type(ConditionType.DEPEND_ON)
+              .value(parentStepTemplateId)
+              .build());
+    }
+    if (!conditions.isEmpty()) {
+      stepInput.setConditions(conditions);
+    }
+
+    // Idempotent authoring: a retried/replayed orchestrator call for the SAME inject + same parent
+    // reuses the existing template instead of minting a duplicate that would materialise as yet
+    // another inject on the next evaluation (root cause of the duplicate-inject storm).
+    Step created =
+        stepService.createInjectStepTemplateIdempotent(
+            simulationTemplate, stepInput, parentStepTemplateId);
+    return created.getId();
+  }
+
+  /**
+   * Mirrors an authored attack-path step onto a SCENARIO workflow template, so the scenario carries
+   * the same attack path the orchestrator built on the simulation and can be exported/reproduced.
+   *
+   * <p>This is the scenario-side twin of {@link #appendChainedStep}: an autonomous run authors its
+   * steps on the simulation template (the only tree the engine executes), but the run's scenario
+   * template stays empty otherwise, which is why an exported autonomous scenario would carry no
+   * attack path. The mirrored step never executes (nothing runs a scenario TEMPLATE), so this is
+   * purely for export/display. {@code parentScenarioStepTemplateId} is the scenario twin of the
+   * simulation parent (resolved by the caller from its sim->scenario mapping), so the {@code
+   * DEPEND_ON} kill-chain ordering is preserved on the scenario side.
+   *
+   * @param scenarioId the run's scenario
+   * @param injectInput the same inject that was authored on the simulation
+   * @param parentScenarioStepTemplateId optional scenario step id this step depends on (null root)
+   * @return the id of the created scenario step template
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendChainedStepToScenario(
+      String scenarioId, InjectInput injectInput, String parentScenarioStepTemplateId)
+      throws ChainingException {
+    return doAppendChainedStepToScenario(
+        scenarioId, injectInput, parentScenarioStepTemplateId, List.of());
+  }
+
+  /**
+   * Finding-driven overload of {@link #appendChainedStepToScenario(String, InjectInput, String)}.
+   * The scenario twin carries the same finding-trigger + mapper conditions as its simulation
+   * original (they are parent-independent, so they copy verbatim), keeping the exported scenario a
+   * faithful reproduction of the finding-driven attack path.
+   *
+   * @param triggerConditions the same finding-trigger + mapper conditions authored on the
+   *     simulation
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendChainedStepToScenario(
+      String scenarioId,
+      InjectInput injectInput,
+      String parentScenarioStepTemplateId,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    return doAppendChainedStepToScenario(
+        scenarioId, injectInput, parentScenarioStepTemplateId, triggerConditions);
+  }
+
+  // Shared body for both appendChainedStepToScenario overloads. See doAppendChainedStep for why
+  // this
+  // is a private, non-transactional helper the public @Transactional overloads delegate to.
+  private String doAppendChainedStepToScenario(
+      String scenarioId,
+      InjectInput injectInput,
+      String parentScenarioStepTemplateId,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    Workflow scenarioTemplate =
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+
+    StepsCreateInput.StepInput stepInput =
+        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    List<ConditionCreateInput> conditions = new ArrayList<>();
+    if (triggerConditions != null) {
+      conditions.addAll(triggerConditions);
+    }
+    if (hasText(parentScenarioStepTemplateId)) {
+      conditions.add(
+          ConditionCreateInput.builder()
+              .type(ConditionType.DEPEND_ON)
+              .value(parentScenarioStepTemplateId)
+              .build());
+    }
+    if (!conditions.isEmpty()) {
+      stepInput.setConditions(conditions);
+    }
+
+    // Idempotent mirror: keep the scenario twin in lock-step with the (now idempotent) simulation
+    // side so a replayed author call never doubles the exported attack path either.
+    Step created =
+        stepService.createInjectStepTemplateIdempotent(
+            scenarioTemplate, stepInput, parentScenarioStepTemplateId);
+    return created.getId();
+  }
+
+  /**
+   * Reads the authored attack path of an autonomous run's simulation as an ordered list of its
+   * INJECT_EXECUTION step templates - the STABLE authoring handles the orchestrator built - each
+   * with its DEPEND_ON parent, its baked inject definition, and the inject ids of the run steps it
+   * has spawned. This is the source of the enriched attack-path state read: it lets the caller
+   * surface step_template_id + parent + target + live status so the orchestrator can chain onto or
+   * update an existing step by id instead of re-authoring a duplicate.
+   *
+   * @param simulationId the autonomous run's live simulation
+   * @return the authored steps in creation order (empty when there is no template workflow yet)
+   */
+  @Transactional(readOnly = true)
+  public List<AuthoredAttackStep> readAuthoredAttackPath(String simulationId) {
+    Optional<Workflow> template = findWorkflowTemplateBySimulationId(simulationId);
+    if (template.isEmpty()) {
+      return List.of();
+    }
+    List<Step> steps =
+        stepService.findAllStepTemplateByWorkflow(template.get().getId()).stream()
+            .filter(s -> StepActionClass.INJECT_EXECUTION.equals(s.getStepAction()))
+            .sorted(
+                Comparator.comparing(
+                    Step::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+            .toList();
+    List<AuthoredAttackStep> authored = new ArrayList<>();
+    for (Step step : steps) {
+      List<String> runInjectIds =
+          step.getStepsExecuted().stream()
+              .map(runStep -> StepService.getField(runStep.getData(), "inject_id"))
+              .filter(id -> id != null && !id.isBlank())
+              .distinct()
+              .toList();
+      authored.add(
+          new AuthoredAttackStep(
+              step.getId(),
+              stepService.dependOnParentTemplateId(step.getId()),
+              step.getData(),
+              runInjectIds));
+    }
+    return authored;
+  }
+
+  /**
+   * Updates an existing chained step's inject definition IN PLACE (same step template id, same
+   * DEPEND_ON parent), so the orchestrator can edit a step it already authored instead of minting a
+   * duplicate. Works for both the simulation template step and its scenario mirror twin - the
+   * caller passes whichever step template id it wants to update.
+   *
+   * @param stepTemplateId the id of the step template to update
+   * @param injectInput the new inject definition
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void updateChainedStep(String stepTemplateId, InjectInput injectInput)
+      throws ChainingException {
+    StepsCreateInput.StepInput stepInput =
+        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    Step updated = stepService.updateInjectStepTemplateData(stepTemplateId, stepInput);
+    rearmStepForReExecution(updated);
+  }
+
+  /**
+   * Re-arms an in-place-updated step so its corrected definition re-executes on the next {@link
+   * #evaluateWorkflowProgress}. The data swap alone never re-runs an already-executed step: its
+   * committed execution hashes still mark it fired, so the engine skips it. Clearing those hashes
+   * on the step's live RUN workflow(s) lets it ready again — this is what makes the autonomous
+   * "update a step, evaluate, re-run the corrected version" loop actually re-fire.
+   *
+   * <p>Simulation-scoped by construction: re-fire state lives only on RUN workflows, which exist
+   * only on the simulation. A scenario-owned template (e.g. the autonomous scenario mirror twin,
+   * updated in lock-step) has no simulation and no RUN workflow, so this is a no-op for it —
+   * exactly right, since the mirror never executes.
+   */
+  private void rearmStepForReExecution(Step stepTemplate) {
+    Workflow template = stepTemplate.getWorkflow();
+    if (template == null || template.getSimulation() == null) {
+      return;
+    }
+    for (Workflow runWorkflow : findWorkflowRunBySimulationId(template.getSimulation().getId())) {
+      workflowStateService.clearExecutionHashes(stepTemplate, runWorkflow);
+    }
+  }
+
+  /**
+   * One authored attack-path step: its stable template id, its DEPEND_ON parent (null for a root),
+   * the baked inject JSON ({@code step_data}), and the inject ids of every run step it has spawned.
+   */
+  public record AuthoredAttackStep(
+      String stepTemplateId,
+      String parentStepTemplateId,
+      String injectDataJson,
+      List<String> runInjectIds) {}
 }

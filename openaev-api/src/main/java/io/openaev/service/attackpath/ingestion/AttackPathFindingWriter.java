@@ -34,10 +34,17 @@ public class AttackPathFindingWriter {
   private final JdbcTemplate jdbcTemplate;
 
   /**
-   * One snapshot finding row to copy. {@code field} must be non-null: the partial unique index that
-   * makes the copy idempotent only covers rows that have one, so a null field would escape the
-   * dedup and could duplicate. A copied finding always carries one ({@code Finding.field} is
-   * {@code @NotBlank}). {@code endpointId} may be null (a discovered target has no asset id).
+   * One snapshot finding row to copy. {@code field} must be non-null: a copied finding always
+   * carries one ({@code Finding.field} is {@code @NotBlank}). {@code endpointId} may be null (a
+   * discovered target has no asset id).
+   *
+   * <p>The row {@code id} is a deterministic, injective encoding of the full natural key ({@code
+   * simulationId, type, field, value, endpointKey}, see {@code AttackPathIds.findingRow}), so the
+   * primary key alone enforces natural-key uniqueness: the same finding always resolves to the same
+   * id. A short value keeps the legacy raw encoding (stable across upgrades); only a value whose
+   * raw encoding would overflow the {@code varchar(255)} primary key is hashed inside the id
+   * (ADR-004 lets arbitrarily long parsed outputs reach this table); {@code value} stays {@code
+   * text} for display and is never indexed.
    */
   public record FindingRow(
       String id,
@@ -48,7 +55,8 @@ public class AttackPathFindingWriter {
       String value,
       String endpointId,
       String endpointRaw,
-      String endpointKey) {}
+      String endpointKey,
+      boolean isFinding) {}
 
   /** One (execution, finding) link. */
   public record Link(String executionId, String findingId) {}
@@ -68,10 +76,12 @@ public class AttackPathFindingWriter {
    * otherwise identical row costs one redundant upsert in a client's next delta, which is
    * idempotent.
    *
-   * <p>One constraint the caller must keep: a batch must not carry the same natural key twice,
-   * since {@code DO UPDATE} cannot touch a row twice in one statement (the previous {@code DO
-   * NOTHING} tolerated it). The ingestion dedupes on the row id, which is derived from that very
-   * natural key.
+   * <p>Conflict is resolved on the primary key {@code attackpath_finding_id}, which is a
+   * deterministic, injective encoding of the natural key (hashing the value only when its raw
+   * encoding would overflow the column), so a re-copied finding always collides with itself,
+   * including rows written before the hashing existed. A batch must not carry the same id twice,
+   * since {@code DO UPDATE} cannot touch a row twice in one statement; the ingestion dedupes on the
+   * row id before calling this.
    */
   public void insertFindings(List<FindingRow> rows, long rowVersion) {
     for (int from = 0; from < rows.size(); from += CHUNK) {
@@ -81,15 +91,15 @@ public class AttackPathFindingWriter {
               + " attackpath_finding_simulation_id, attackpath_finding_type,"
               + " attackpath_finding_field, attackpath_finding_value, attackpath_finding_endpoint_id,"
               + " attackpath_finding_endpoint_raw, attackpath_finding_endpoint_key,"
-              + " attackpath_finding_row_version) VALUES "
+              + " attackpath_finding_is_finding, attackpath_finding_row_version) VALUES "
               + String.join(
-                  ", ", Collections.nCopies(chunk.size(), "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
-              + " ON CONFLICT (attackpath_finding_simulation_id, attackpath_finding_type,"
-              + " attackpath_finding_field, attackpath_finding_value,"
-              + " attackpath_finding_endpoint_key) WHERE attackpath_finding_field IS NOT NULL"
+                  ", ", Collections.nCopies(chunk.size(), "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
+              + " ON CONFLICT (attackpath_finding_id)"
               + " DO UPDATE SET attackpath_finding_row_version ="
-              + " EXCLUDED.attackpath_finding_row_version";
-      List<Object> args = new ArrayList<>(chunk.size() * 10);
+              + " EXCLUDED.attackpath_finding_row_version,"
+              + " attackpath_finding_is_finding = attackpath_finding.attackpath_finding_is_finding"
+              + " OR EXCLUDED.attackpath_finding_is_finding";
+      List<Object> args = new ArrayList<>(chunk.size() * 11);
       for (FindingRow r : chunk) {
         args.add(r.id());
         args.add(r.tenantId());
@@ -100,6 +110,7 @@ public class AttackPathFindingWriter {
         args.add(r.endpointId());
         args.add(r.endpointRaw());
         args.add(r.endpointKey());
+        args.add(r.isFinding());
         args.add(rowVersion);
       }
       jdbcTemplate.update(sql, args.toArray());

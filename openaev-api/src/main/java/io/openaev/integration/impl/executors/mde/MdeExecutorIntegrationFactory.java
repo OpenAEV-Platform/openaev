@@ -5,6 +5,7 @@ import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.M
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -45,6 +46,7 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   private final OpenAEVConfig openAEVConfig;
+  private final TenantScopedTransaction tenantTx;
 
   public MdeExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -60,7 +62,8 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      OpenAEVConfig openAEVConfig) {
+      OpenAEVConfig openAEVConfig,
+      TenantScopedTransaction tenantTx) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -75,6 +78,7 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.openAEVConfig = openAEVConfig;
+    this.tenantTx = tenantTx;
   }
 
   @Override
@@ -144,6 +148,7 @@ With the MDE executor, register your endpoints in OpenAEV and enable execution o
         taskScheduler,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        openAEVConfig);
+        openAEVConfig,
+        tenantTx);
   }
 }

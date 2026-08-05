@@ -322,7 +322,7 @@ const InjectorContracts = () => {
                     style={inlineStyles.attack_patterns}
                   >
                     {injectorContract.injector_contract_attack_patterns?.length
-                      ? injectorContract.injector_contract_attack_patterns
+                      ? Array.from(new Set(injectorContract.injector_contract_attack_patterns))
                           .map((n) => {
                             const pattern = attackPatternsMap[n];
                             return pattern

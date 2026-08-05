@@ -4,13 +4,23 @@ import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 
 public class ExecutorHelper {
 
+  private static final String WINDOWS_RUNTIMES_DIRECTORY = "\\runtimes\\";
+  private static final String WINDOWS_PAYLOADS_DIRECTORY = "\\payloads\\";
+
   public static final String WINDOWS_LOCATION_PATH = "$PWD.Path";
   public static final String UNIX_LOCATION_PATH = "$(pwd)";
+  public static final String WINDOWS_PAYLOAD_LOCATION_PATH =
+      "$($PWD.Path.Replace('"
+          + WINDOWS_RUNTIMES_DIRECTORY
+          + "','"
+          + WINDOWS_PAYLOADS_DIRECTORY
+          + "'))";
+  public static final String UNIX_PAYLOAD_LOCATION_PATH = "$(pwd | sed 's#/runtimes/#/payloads/#')";
   public static final String IMPLANT_BASE_NAME = "implant-";
   // Only used in Tanium / CS / Caldera executors, the native OpenAEV agent will determine a
   // relative path at its level
   public static final String IMPLANT_LOCATION_WINDOWS =
-      "\"C:\\Program Files (x86)\\Filigran\\OAEV Agent\\runtimes\\";
+      "\"C:\\Program Files (x86)\\Filigran\\OAEV Agent" + WINDOWS_RUNTIMES_DIRECTORY;
   public static final String IMPLANT_LOCATION_UNIX = "/opt/openaev-agent/runtimes/";
   // Clean payloads older than 24 hours
   public static final String WINDOWS_CLEAN_PAYLOADS_COMMAND =
@@ -60,9 +70,16 @@ public class ExecutorHelper {
           default ->
               throw new IllegalArgumentException("Unsupported platform type: " + platformType);
         };
+    String payloadLocation =
+        platformType == PLATFORM_TYPE.Windows
+            ? WINDOWS_PAYLOAD_LOCATION_PATH
+            : UNIX_PAYLOAD_LOCATION_PATH;
 
     return command
+        .replace("\"#{payload_location}\"", payloadLocation)
+        .replace("#{payload_location}", payloadLocation)
         .replace("\"#{location}\"", location)
+        .replace("#{location}", location)
         .replace("#{inject}", injectId)
         .replace("#{agent}", agentId)
         .replace("#{tenant}", tenantId)

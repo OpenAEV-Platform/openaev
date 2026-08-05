@@ -117,7 +117,11 @@ public class ExerciseFixture {
 
   public static Exercise createPausedAttackExercise(Instant startTime) {
     Exercise exercise = createDefaultExerciseWithName("Draft incident response exercise");
-    exercise.setCurrentPause(startTime.truncatedTo(MINUTES).minus(1, MINUTES));
+    // Exactly 1 minute before start (not truncated) so a resume "now" of startTime yields a
+    // pause duration of exactly 60s: InjectModelHelper.computeInjectDate() rounds pause delays
+    // up to the next full minute, so any non-round duration (e.g. 45s) would push the inject's
+    // computed execution date a whole extra minute later than tests expect.
+    exercise.setCurrentPause(startTime.minus(1, MINUTES));
     exercise.setDescription("An incident response exercise for my enterprise");
     exercise.setSubtitle("An incident response exercise");
     exercise.setFrom("exercise@mail.fr");

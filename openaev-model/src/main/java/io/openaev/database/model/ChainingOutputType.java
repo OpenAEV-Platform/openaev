@@ -25,6 +25,7 @@ public record ChainingOutputType(
     registerPrimitive(ContractOutputType.Port, PrimitiveType.Port);
     registerPrimitive(ContractOutputType.IPv4, PrimitiveType.IPv4);
     registerPrimitive(ContractOutputType.IPv6, PrimitiveType.IPv6);
+    registerPrimitive(ContractOutputType.Email, PrimitiveType.Email);
 
     registerComplex(ContractOutputType.Credentials, ComplexType.Credentials);
     registerComplex(ContractOutputType.PortsScan, ComplexType.PortsScan);

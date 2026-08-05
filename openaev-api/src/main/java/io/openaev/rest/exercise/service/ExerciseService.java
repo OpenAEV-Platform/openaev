@@ -161,6 +161,9 @@ public class ExerciseService {
 
   private final AttackPathExecutionIngestionService attackPathExecutionService;
 
+  private final io.openaev.database.repository.autonomous.AutonomousRunRepository
+      autonomousRunRepository;
+
   // region properties
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -741,8 +744,12 @@ public class ExerciseService {
     // we log the pause date to be able to recompute inject dates.
     if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
+      // Pause/resume of a chained simulation is still blocked in general, but autonomous
+      // (AI-driven) runs need first-class steering, so we lift the block for them: the
+      // orchestrator relies on being able to pause and resume the underlying chained simulation.
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())) {
+          && workflowService.isSimulationChaining(exercise.getId())
+          && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
         throw new ChainingException(
             "Pausing a chained simulation is not allowed yet, please contact support");
       }
@@ -758,7 +765,8 @@ public class ExerciseService {
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())) {
+          && workflowService.isSimulationChaining(exercise.getId())
+          && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
         throw new ChainingException(
             "Pausing a chained simulation is not allowed yet, please contact support");
       }
@@ -784,7 +792,15 @@ public class ExerciseService {
           workflowService.saveAll(run);
           workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
           List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
-          this.injectRepository.deleteAll(injects);
+          // A manual chained simulation is reset on cancel (all injects dropped). An autonomous
+          // (AI-driven) run is different: its executed steps ARE the deliverable, so cancelling
+          // must PRESERVE what already ran - the operator keeps the executed record on the
+          // Execution screen - and only drop the never-started injects the orchestrator had queued
+          // (which are also where the duplicate-inject storms pile up).
+          boolean isAutonomous = autonomousRunRepository.existsBySimulationId(exercise.getId());
+          List<Inject> injectsToDelete =
+              isAutonomous ? injects.stream().filter(Inject::isNotExecuted).toList() : injects;
+          this.injectRepository.deleteAll(injectsToDelete);
         }
       }
     }
@@ -1226,6 +1242,19 @@ public class ExerciseService {
           this.exerciseTeamUserRepository.save(exerciseTeamUser);
         });
     return exercise;
+  }
+
+  /**
+   * Enables, on the given simulation, the members of every targeted team so a human-in-the-loop
+   * inject (email, SMS, credential harvesting, ...) can actually reach them. Delegates to {@link
+   * ExerciseTeamUserService#enableTargetedTeamMembers(String, List)} - the repository-only owner of
+   * this logic - so the chaining execution path can reuse it without a Spring bean cycle.
+   *
+   * @param simulationId the simulation whose audience must carry the targeted teams' players
+   * @param teamIds the ids of the teams targeted by a chained/authored step
+   */
+  public void enableTargetedTeamMembers(String simulationId, List<String> teamIds) {
+    this.exerciseTeamUserService.enableTargetedTeamMembers(simulationId, teamIds);
   }
 
   /**

@@ -5,10 +5,12 @@ import { useHelper } from '../../../../../store';
 import type { Scenario } from '../../../../../utils/api-types';
 import Logic from '../../../chaining/logic/Logic';
 
-const ScenarioLogic = () => {
+const ScenarioLogic = ({ readOnly = false }: { readOnly?: boolean }) => {
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
-  return <Logic workflowId={scenario?.scenario_workflow_id} context="scenario" />;
+  return (
+    <Logic workflowId={scenario?.scenario_workflow_id} context="scenario" scenarioId={scenarioId} readOnly={readOnly} />
+  );
 };
 
 export default ScenarioLogic;

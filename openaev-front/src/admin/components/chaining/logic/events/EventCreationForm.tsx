@@ -57,9 +57,10 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
   const [groupOperators, setGroupOperators] = useState<LogicalOperator[]>(
     initialData?.groupOperators ?? [],
   );
-  const [conditionGroups, setConditionGroups] = useState<ConditionGroup[]>(
-    initialData?.conditionGroups ?? [createEmptyGroup('AND')],
-  );
+  const [conditionGroups, setConditionGroups] = useState<ConditionGroup[]>(() => {
+    if (initialData?.conditionGroups) return initialData.conditionGroups;
+    return [createEmptyGroup('AND')];
+  });
 
   const handleUpdateGroup = useCallback((index: number, updatedGroup: ConditionGroup) => {
     setConditionGroups(prev => prev.map((group, i) => (i === index ? updatedGroup : group)));

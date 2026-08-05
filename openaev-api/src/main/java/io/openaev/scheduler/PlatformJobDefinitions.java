@@ -133,6 +133,14 @@ public class PlatformJobDefinitions {
   }
 
   @Bean
+  public JobDetail autonomousTimeoutJobDetail() {
+    return JobBuilder.newJob(AutonomousTimeoutJob.class)
+        .withIdentity("AutonomousTimeoutJob")
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
   public JobDetail notificationDigestJobDetail() {
     return JobBuilder.newJob(NotificationDigestJob.class)
         .withIdentity(NOTIFICATION_DIGEST_JOB)

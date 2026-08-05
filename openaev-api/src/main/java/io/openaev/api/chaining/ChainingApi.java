@@ -71,7 +71,10 @@ public class ChainingApi extends RestBehavior {
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Chaining data retrieved successfully")
   })
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @AccessControl(
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION_OR_SCENARIO,
+      isEnterpriseEdition = true)
   @GetMapping
   public ChainingOutput findAll() {
     List<EventOutput> conditions =
@@ -86,7 +89,10 @@ public class ChainingApi extends RestBehavior {
   // CREATE SIMULATION
   @PostMapping(SIMULATION_URI)
   @Transactional
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
+  @AccessControl(
+      actionPerformed = Action.CREATE,
+      resourceType = ResourceType.SIMULATION,
+      isEnterpriseEdition = true)
   public Exercise createSimulation(@Valid @RequestBody CreateExerciseInput input)
       throws ChainingException {
 
@@ -121,7 +127,8 @@ public class ChainingApi extends RestBehavior {
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.SIMULATION,
+      isEnterpriseEdition = true)
   @Transactional(rollbackFor = Exception.class)
   public void createInjectForSimulationChaining(
       @PathVariable String simulationId, @Valid @RequestBody InjectInput input)
@@ -153,7 +160,8 @@ public class ChainingApi extends RestBehavior {
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.DUPLICATE,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.SIMULATION,
+      isEnterpriseEdition = true)
   @Transactional(rollbackFor = Exception.class)
   public Exercise duplicateExercise(@PathVariable @NotBlank final String simulationId)
       throws ChainingException {
@@ -175,7 +183,10 @@ public class ChainingApi extends RestBehavior {
   // CREATE SCENARIO
   @PostMapping(SCENARIO_URI)
   @Transactional
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  @AccessControl(
+      actionPerformed = Action.CREATE,
+      resourceType = ResourceType.SCENARIO,
+      isEnterpriseEdition = true)
   public Scenario createScenarioChaining(@Valid @RequestBody final ScenarioInput input)
       throws ChainingException {
 
@@ -208,7 +219,8 @@ public class ChainingApi extends RestBehavior {
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
+      resourceType = ResourceType.SCENARIO,
+      isEnterpriseEdition = true)
   @Transactional(rollbackFor = Exception.class)
   public void createInjectForScenarioChaining(
       @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input)
@@ -239,7 +251,8 @@ public class ChainingApi extends RestBehavior {
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.DUPLICATE,
-      resourceType = ResourceType.SCENARIO)
+      resourceType = ResourceType.SCENARIO,
+      isEnterpriseEdition = true)
   public Scenario duplicateScenarioChaining(@PathVariable @NotBlank final String scenarioId)
       throws ChainingException {
 

@@ -24,6 +24,10 @@ interface Props {
   /** Extra entries prepended into the same kebab (setup actions from the hero),
    *  so the header exposes a single overflow menu instead of a row of icons. */
   leadingEntries?: PopoverEntry[];
+  /** Disable the Delete entry (e.g. an autonomous scenario whose run is still active): the entry
+   *  stays visible but greyed out with an explanatory tooltip. */
+  deleteDisabled?: boolean;
+  deleteDisabledMessage?: string;
 }
 
 const ScenarioPopover: FunctionComponent<Props> = ({
@@ -32,6 +36,8 @@ const ScenarioPopover: FunctionComponent<Props> = ({
   onDelete,
   inList = false,
   leadingEntries = [],
+  deleteDisabled = false,
+  deleteDisabledMessage,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -105,6 +111,8 @@ const ScenarioPopover: FunctionComponent<Props> = ({
     label: 'Delete',
     action: () => handleOpenDelete(),
     userRight: canDelete,
+    disabled: deleteDisabled,
+    disabledMessage: deleteDisabledMessage,
   });
   // Separate the setup group from the CRUD group when both are present. The
   // divider goes on the first CRUD entry the user can actually see (hidden
