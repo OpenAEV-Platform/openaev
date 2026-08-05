@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -63,6 +64,7 @@ public class MdeExecutorIntegration extends Integration {
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   private final OpenAEVConfig openAEVConfig;
+  private final TenantScopedTransaction tenantTx;
 
   public MdeExecutorIntegration(
       ConnectorInstance connectorInstance,
@@ -77,7 +79,8 @@ public class MdeExecutorIntegration extends Integration {
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      OpenAEVConfig openAEVConfig) {
+      OpenAEVConfig openAEVConfig,
+      TenantScopedTransaction tenantTx) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.taskScheduler = taskScheduler;
     this.endpointService = endpointService;
@@ -90,6 +93,7 @@ public class MdeExecutorIntegration extends Integration {
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.openAEVConfig = openAEVConfig;
+    this.tenantTx = tenantTx;
 
     try {
       refresh();
@@ -118,6 +122,7 @@ public class MdeExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            getTenantId(),
             executorId,
             MDE_EXECUTOR_TYPE,
             executorName,
@@ -142,7 +147,7 @@ public class MdeExecutorIntegration extends Integration {
             openAEVConfig);
     mdeExecutorService =
         new MdeExecutorService(
-            executor, client, config, endpointService, agentService, assetGroupService);
+            executor, client, config, endpointService, agentService, assetGroupService, tenantTx);
 
     Integer registerInterval = this.config.getApiRegisterInterval();
     long registerIntervalSeconds =

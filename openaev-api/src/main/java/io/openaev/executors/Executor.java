@@ -100,10 +100,11 @@ public class Executor {
     // Resolve the injector instance from the inject entity directly
     Injector injector = inject.getInjector();
     if (injector == null) {
-      // Fallback for legacy injects that may not have the field populated
+      // Fallback for legacy injects that may not have the field populated.
       injector =
           injectorRepository
-              .findByTypeAndTenantId(inject.getType(), inject.getTenant().getId())
+              .findFirstByContractsCompositeIdIdAndTenantId(
+                  injectorContract.getId(), inject.getTenant().getId())
               .orElseThrow(
                   () ->
                       new IllegalStateException(

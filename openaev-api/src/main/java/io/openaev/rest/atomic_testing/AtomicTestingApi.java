@@ -11,6 +11,7 @@ import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.atomic_testing.form.*;
@@ -199,8 +200,10 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.INJECT)
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (the Enterprise executor gate reads each targeted agent's executor).
   public InjectResultOverviewOutput launchAtomicTesting(
-      @PathVariable @NotBlank final String atomicTestingId) {
+      TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.launch(atomicTestingId);
   }
 
@@ -210,8 +213,10 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.INJECT)
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (the Enterprise executor gate reads each targeted agent's executor).
   public InjectResultOverviewOutput relaunchAtomicTesting(
-      @PathVariable @NotBlank final String atomicTestingId) {
+      TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.relaunch(atomicTestingId);
   }
 
@@ -224,6 +229,9 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.INJECT)
   public InjectResultOverviewOutput updateAtomicTestingRecurrence(
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (see the comment below on the Enterprise executor gate).
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final InjectRecurrenceInput input) {
     // Scheduling is a Community Edition feature, but setting a schedule still goes through the

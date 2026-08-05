@@ -238,6 +238,7 @@ Choosing the right method:
 | one unit of work, one known tenant scope | `execute(ctx, work)` |
 | the same unit of work for every active tenant | `forEachTenant(work)` (see below) |
 | per-tenant work in parallel, on the job's own executor | one `execute(TxCtx.forTenant(id), work)` per task; concurrent scoped transactions are isolated from each other, and the job must await every task before returning |
+| one global bulk job (read / delete / update by predicate) spanning all tenants in one shared transaction | `execute(TxCtx.allTenants(), work)` |
 | isolate a failure, or narrow the scope, inside a running transaction | `executeNew(ctx, work)` |
 
 Where does the tenant id come from in a job? Usually from the data the job processes (an entity
@@ -246,9 +247,10 @@ hands each iteration a ready-made single-tenant scope.
 
 ### `allTenants()`: an intention, never a wildcard
 
-Some jobs are genuinely global: a purge that scans every tenant, an indexing pass. They express
-this with `TxCtx.allTenants()`. The important design property: `allTenants()` is an intention,
-not a usable badge, and no wildcard value ever reaches the database.
+Some jobs are genuinely global: a purge that scans every tenant, an indexing pass. They run as one
+shared transaction with `tenantTx.execute(TxCtx.allTenants(), work)`. The important design
+property: `allTenants()` is an intention, not a usable badge, and no wildcard value ever reaches
+the database.
 
 ```mermaid
 flowchart TD

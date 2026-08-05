@@ -19,6 +19,13 @@ public class TestUserHolder {
     this.currentUserId = user.getId();
   }
 
+  /**
+   * Whether a mock user is currently set (i.e. the test is running under {@code @WithMockUser}).
+   */
+  public boolean isSet() {
+    return currentUserId != null;
+  }
+
   public User get() {
     return userRepository
         .findById(currentUserId)

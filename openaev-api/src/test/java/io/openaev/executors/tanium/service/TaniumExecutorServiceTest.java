@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -50,6 +51,8 @@ public class TaniumExecutorServiceTest {
   @Mock private ExecutorService executorService;
   @Mock private OpenAEVConfig openAEVConfig;
 
+  @Mock private TenantScopedTransaction tenantTx;
+
   @InjectMocks private TaniumExecutorService taniumExecutorService;
 
   @InjectMocks private TaniumExecutorContextService taniumExecutorContextService;
@@ -64,6 +67,15 @@ public class TaniumExecutorServiceTest {
     taniumExecutor.setName(TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME);
     taniumExecutor.setType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE);
     taniumExecutor.setTenantId(TenantContext.getCurrentTenant());
+    // The service wraps run() in tenantTx.execute(...): make the mock actually invoke the
+    // supplied work, otherwise doRun() never happens and the tests below have nothing to verify.
+    lenient()
+        .when(tenantTx.execute(any(), any(java.util.function.Supplier.class)))
+        .thenAnswer(
+            invocation -> {
+              java.util.function.Supplier<?> work = invocation.getArgument(1);
+              return work.get();
+            });
   }
 
   @Test

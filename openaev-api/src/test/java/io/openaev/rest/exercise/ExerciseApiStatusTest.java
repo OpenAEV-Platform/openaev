@@ -46,10 +46,22 @@ import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
+// Disable Quartz's live cron triggers for this class only: three tests below now commit real rows
+// (see the @Transactional(propagation = NOT_SUPPORTED) tests) so that
+// InjectHelper.getInjectsToRun()
+// - which opens its own TenantScopedTransaction - can see them. Without this, the real
+// InjectsExecutionJob (cron "every minute on the clock", see PlatformTriggers) can concurrently
+// pick up and execute the very same fixtures the assertions below count, causing intermittent
+// off-by-one failures depending on wall-clock timing.
+@TestPropertySource(properties = "spring.quartz.auto-startup=false")
 @TestInstance(PER_CLASS)
 @Transactional
 public class ExerciseApiStatusTest extends IntegrationTest {
@@ -62,6 +74,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   static Inject SAVED_INJECT5;
   static LessonsAnswer LESSON_ANSWER;
   static Instant REFERENCE_TIME;
+  static Team TEAM;
+  static User USER;
 
   @Autowired private MockMvc mvc;
 
@@ -92,9 +106,23 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
+  @Autowired private PlatformTransactionManager transactionManager;
+
+  // Runs work in its own transaction: participates in the framework's test transaction when one
+  // is active (no behavior change for the @Transactional tests), or opens (and commits) a real
+  // transaction when the caller runs with @Transactional(propagation = NOT_SUPPORTED) - needed so
+  // entityManager.flush() and the InjectHelper.getInjectsToRun() call later in those tests both
+  // have a transaction to work with.
+  private void inTransaction(Runnable work) {
+    new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
+  }
 
   @BeforeEach
   void beforeAll() {
+    inTransaction(this::createFixtures);
+  }
+
+  private void createFixtures() {
     REFERENCE_TIME =
         Instant.now(Clock.fixed(Instant.parse("2024-12-17T10:30:45Z"), ZoneId.of("UTC")));
     Exercise scheduledExercise = ExerciseFixture.createDefaultAttackExercise(REFERENCE_TIME);
@@ -141,7 +169,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     PAUSED_EXERCISE = exerciseRepository.save(pausedExercise);
     FINISHED_EXERCISE = exerciseRepository.save(finishedExercise);
     CANCELED_EXERCISE = exerciseRepository.save(canceledExercise);
-    teamRepository.save(team);
+    TEAM = teamRepository.save(team);
+    USER = user;
 
     inject1.setTeams(new ArrayList<>(List.of(team)));
     inject2.setTeams(new ArrayList<>(List.of(team)));
@@ -181,57 +210,82 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     entityManager.clear();
   }
 
+  // Cleanup for the tests that suspend the framework's test transaction
+  // (@Transactional(propagation = NOT_SUPPORTED)) in order to call InjectHelper.getInjectsToRun(),
+  // which opens its own TenantScopedTransaction and refuses to run inside an already-active
+  // transaction. Those tests genuinely commit the @BeforeEach fixtures instead of relying on the
+  // framework's automatic rollback, so they must clean up manually. FK cascades (ON DELETE
+  // CASCADE) take care of injects, inject statuses, pauses and lessons hanging off each exercise.
+  private void cleanupSharedFixtures() {
+    exerciseRepository.deleteById(SCHEDULED_EXERCISE.getId());
+    exerciseRepository.deleteById(RUNNING_EXERCISE.getId());
+    exerciseRepository.deleteById(PAUSED_EXERCISE.getId());
+    exerciseRepository.deleteById(CANCELED_EXERCISE.getId());
+    exerciseRepository.deleteById(FINISHED_EXERCISE.getId());
+    teamRepository.deleteById(TEAM.getId());
+    userRepository.deleteById(USER.getId());
+  }
+
   @DisplayName("Start an exercise manually")
   @Test
   @WithMockUser(isAdmin = true)
+  // InjectHelper.getInjectsToRun() opens its own TenantScopedTransaction, which refuses to run
+  // inside an already-active transaction. Suspend the framework's test transaction so the
+  // fixtures created in @BeforeEach are genuinely committed and visible to it, and clean them up
+  // manually afterwards since they are no longer rolled back automatically.
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void manualStartExerciseTest() throws Exception {
-    // -- PREPARE--
-    ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
-    input.setStatus(ExerciseStatus.RUNNING);
-    Instant instantBeforeSetRun = REFERENCE_TIME;
-    Instant instantAfterSetRun = REFERENCE_TIME.plus(1, MINUTES);
-    Clock clock = Clock.fixed(REFERENCE_TIME, ZoneId.of("UTC"));
+    try {
+      // -- PREPARE--
+      ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+      input.setStatus(ExerciseStatus.RUNNING);
+      Instant instantBeforeSetRun = REFERENCE_TIME;
+      Instant instantAfterSetRun = REFERENCE_TIME.plus(1, MINUTES);
+      Clock clock = Clock.fixed(REFERENCE_TIME, ZoneId.of("UTC"));
 
-    try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      try (MockedStatic<Clock> mockedClock = mockStatic(Clock.class, CALLS_REAL_METHODS)) {
+      try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
+        try (MockedStatic<Clock> mockedClock = mockStatic(Clock.class, CALLS_REAL_METHODS)) {
 
-        mockedInstant.when(Instant::now).thenReturn(instantBeforeSetRun);
-        // we need this other mock because the production code
-        // inconsistently calls Instant.now() and LocalDateTime.now()
-        mockedClock.when(Clock::systemDefaultZone).thenReturn(clock);
+          mockedInstant.when(Instant::now).thenReturn(instantBeforeSetRun);
+          // we need this other mock because the production code
+          // inconsistently calls Instant.now() and LocalDateTime.now()
+          mockedClock.when(Clock::systemDefaultZone).thenReturn(clock);
 
-        // -- EXECUTE --
-        String response =
-            mvc.perform(
-                    put(EXERCISE_URI + "/" + SCHEDULED_EXERCISE.getId() + "/status")
-                        .content(asJsonString(input))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+          // -- EXECUTE --
+          String response =
+              mvc.perform(
+                      put(EXERCISE_URI + "/" + SCHEDULED_EXERCISE.getId() + "/status")
+                          .content(asJsonString(input))
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf()))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
 
-        // -- ASSERT --
+          // -- ASSERT --
 
-        // NOTE: we are changing the time of Instant.now() here to fast forward in the future
-        mockedInstant.when(Instant::now).thenReturn(instantAfterSetRun);
+          // NOTE: we are changing the time of Instant.now() here to fast forward in the future
+          mockedInstant.when(Instant::now).thenReturn(instantAfterSetRun);
 
-        List<ExecutableInject> injects = injectHelper.getInjectsToRun();
-        Instant expectedStartTime = instantBeforeSetRun.truncatedTo(MINUTES).plus(1, MINUTES);
-        assertEquals(
-            expectedStartTime.toString(), JsonPath.read(response, "$.exercise_start_date"));
-        assertEquals(
-            Arrays.asList(ExerciseStatus.CANCELED.name(), ExerciseStatus.PAUSED.name()),
-            JsonPath.read(response, "$.exercise_next_possible_status"));
-        assertEquals(
-            1,
-            injects.stream()
-                .filter((ij) -> SCHEDULED_EXERCISE.getId().equals(ij.getExerciseId()))
-                .toList()
-                .size());
+          List<ExecutableInject> injects = injectHelper.getInjectsToRun();
+          Instant expectedStartTime = instantBeforeSetRun.truncatedTo(MINUTES).plus(1, MINUTES);
+          assertEquals(
+              expectedStartTime.toString(), JsonPath.read(response, "$.exercise_start_date"));
+          assertEquals(
+              Arrays.asList(ExerciseStatus.CANCELED.name(), ExerciseStatus.PAUSED.name()),
+              JsonPath.read(response, "$.exercise_next_possible_status"));
+          assertEquals(
+              1,
+              injects.stream()
+                  .filter((ij) -> SCHEDULED_EXERCISE.getId().equals(ij.getExerciseId()))
+                  .toList()
+                  .size());
+        }
       }
+    } finally {
+      cleanupSharedFixtures();
     }
   }
 
@@ -331,108 +385,126 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @DisplayName("Check an exercise from pause to running")
   @Test
   @WithMockUser(isAdmin = true)
+  // InjectHelper.getInjectsToRun() opens its own TenantScopedTransaction, which refuses to run
+  // inside an already-active transaction. Suspend the framework's test transaction so the
+  // fixtures created in @BeforeEach are genuinely committed and visible to it, and clean them up
+  // manually afterwards since they are no longer rolled back automatically.
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void runExerciseAfterPauseTest() throws Exception {
-    // --PREPARE--
-    ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
-    input.setStatus(ExerciseStatus.RUNNING);
-    Instant instantBeforeSetRun = REFERENCE_TIME;
-    Instant instantAfterSetRun = REFERENCE_TIME.plus(1, MINUTES);
-    Clock clock = Clock.fixed(REFERENCE_TIME, ZoneId.of("UTC"));
+    try {
+      // --PREPARE--
+      ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+      input.setStatus(ExerciseStatus.RUNNING);
+      Instant instantBeforeSetRun = REFERENCE_TIME;
+      Instant instantAfterSetRun = REFERENCE_TIME.plus(1, MINUTES);
+      Clock clock = Clock.fixed(REFERENCE_TIME, ZoneId.of("UTC"));
 
-    try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      try (MockedStatic<Clock> mockedClock = mockStatic(Clock.class, CALLS_REAL_METHODS)) {
+      try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
+        try (MockedStatic<Clock> mockedClock = mockStatic(Clock.class, CALLS_REAL_METHODS)) {
 
-        mockedInstant.when(Instant::now).thenReturn(instantBeforeSetRun);
-        // we need this other mock because the production code
-        // inconsistently calls Instant.now() and LocalDateTime.now()
-        mockedClock.when(Clock::systemDefaultZone).thenReturn(clock);
+          mockedInstant.when(Instant::now).thenReturn(instantBeforeSetRun);
+          // we need this other mock because the production code
+          // inconsistently calls Instant.now() and LocalDateTime.now()
+          mockedClock.when(Clock::systemDefaultZone).thenReturn(clock);
 
-        // --EXECUTE--
-        String response =
-            mvc.perform(
-                    put(EXERCISE_URI + "/" + PAUSED_EXERCISE.getId() + "/status")
-                        .content(asJsonString(input))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+          // --EXECUTE--
+          String response =
+              mvc.perform(
+                      put(EXERCISE_URI + "/" + PAUSED_EXERCISE.getId() + "/status")
+                          .content(asJsonString(input))
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf()))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
 
-        // --ASSERT--
-        // NOTE: we are changing the time of Instant.now() here to fast forward in the future
-        mockedInstant.when(Instant::now).thenReturn(instantAfterSetRun);
+          // --ASSERT--
+          // NOTE: we are changing the time of Instant.now() here to fast forward in the future
+          mockedInstant.when(Instant::now).thenReturn(instantAfterSetRun);
 
-        List<ExecutableInject> injects = injectHelper.getInjectsToRun();
-        List<Pause> pauses = pauseRepository.findAllForExercise(PAUSED_EXERCISE.getId());
-        Optional<Exercise> exercise =
-            exerciseRepository.findById(JsonPath.read(response, "$.exercise_id"));
-        if (exercise.isPresent()) {
-          Exercise responseExercise = exercise.get();
-          assertEquals(Optional.empty(), responseExercise.getCurrentPause());
+          List<ExecutableInject> injects = injectHelper.getInjectsToRun();
+          List<Pause> pauses = pauseRepository.findAllForExercise(PAUSED_EXERCISE.getId());
+          Optional<Exercise> exercise =
+              exerciseRepository.findById(JsonPath.read(response, "$.exercise_id"));
+          if (exercise.isPresent()) {
+            Exercise responseExercise = exercise.get();
+            assertEquals(Optional.empty(), responseExercise.getCurrentPause());
+          }
+          assertEquals(1, pauses.size());
+          assertEquals(
+              Arrays.asList(ExerciseStatus.CANCELED.name(), ExerciseStatus.PAUSED.name()),
+              JsonPath.read(response, "$.exercise_next_possible_status"));
+          assertEquals(2, injects.size());
+
+          // --CLEAN--
+          pauseRepository.delete(pauses.getFirst());
         }
-        assertEquals(1, pauses.size());
-        assertEquals(
-            Arrays.asList(ExerciseStatus.CANCELED.name(), ExerciseStatus.PAUSED.name()),
-            JsonPath.read(response, "$.exercise_next_possible_status"));
-        assertEquals(2, injects.size());
-
-        // --CLEAN--
-        pauseRepository.delete(pauses.getFirst());
       }
+    } finally {
+      cleanupSharedFixtures();
     }
   }
 
   @DisplayName("Check an exercise from running to paused")
   @Test
   @WithMockUser(isAdmin = true)
+  // InjectHelper.getInjectsToRun() opens its own TenantScopedTransaction, which refuses to run
+  // inside an already-active transaction. Suspend the framework's test transaction so the
+  // fixtures created in @BeforeEach are genuinely committed and visible to it, and clean them up
+  // manually afterwards since they are no longer rolled back automatically.
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void pauseAnExerciseTest() throws Exception {
-    // --PREPARE--
-    ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
-    input.setStatus(ExerciseStatus.PAUSED);
+    try {
+      // --PREPARE--
+      ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+      input.setStatus(ExerciseStatus.PAUSED);
 
-    Instant mockInstant = REFERENCE_TIME;
-    Clock clock = Clock.fixed(REFERENCE_TIME, ZoneId.of("UTC"));
+      Instant mockInstant = REFERENCE_TIME;
+      Clock clock = Clock.fixed(REFERENCE_TIME, ZoneId.of("UTC"));
 
-    try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      try (MockedStatic<Clock> mockedClock = mockStatic(Clock.class, CALLS_REAL_METHODS)) {
+      try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
+        try (MockedStatic<Clock> mockedClock = mockStatic(Clock.class, CALLS_REAL_METHODS)) {
 
-        mockedInstant.when(Instant::now).thenReturn(mockInstant);
-        // we need this other mock because the production code
-        // inconsistently calls Instant.now() and LocalDateTime.now()
-        mockedClock.when(Clock::systemDefaultZone).thenReturn(clock);
+          mockedInstant.when(Instant::now).thenReturn(mockInstant);
+          // we need this other mock because the production code
+          // inconsistently calls Instant.now() and LocalDateTime.now()
+          mockedClock.when(Clock::systemDefaultZone).thenReturn(clock);
 
-        // --EXECUTE--
-        String response =
-            mvc.perform(
-                    put(EXERCISE_URI + "/" + RUNNING_EXERCISE.getId() + "/status")
-                        .content(asJsonString(input))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+          // --EXECUTE--
+          String response =
+              mvc.perform(
+                      put(EXERCISE_URI + "/" + RUNNING_EXERCISE.getId() + "/status")
+                          .content(asJsonString(input))
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf()))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
 
-        List<ExecutableInject> injects = injectHelper.getInjectsToRun();
+          List<ExecutableInject> injects = injectHelper.getInjectsToRun();
 
-        // --ASSERT--
-        Optional<Exercise> exercise =
-            exerciseRepository.findById(JsonPath.read(response, "$.exercise_id"));
-        if (exercise.isPresent()) {
-          Exercise responseExercise = exercise.get();
-          Optional<Instant> pauseOpt = responseExercise.getCurrentPause();
-          pauseOpt.ifPresent(
-              instant ->
-                  assertEquals(instant.truncatedTo(MINUTES), mockInstant.truncatedTo(MINUTES)));
+          // --ASSERT--
+          Optional<Exercise> exercise =
+              exerciseRepository.findById(JsonPath.read(response, "$.exercise_id"));
+          if (exercise.isPresent()) {
+            Exercise responseExercise = exercise.get();
+            Optional<Instant> pauseOpt = responseExercise.getCurrentPause();
+            pauseOpt.ifPresent(
+                instant ->
+                    assertEquals(instant.truncatedTo(MINUTES), mockInstant.truncatedTo(MINUTES)));
+          }
+          assertEquals(
+              Arrays.asList(ExerciseStatus.CANCELED.name(), ExerciseStatus.RUNNING.name()),
+              JsonPath.read(response, "$.exercise_next_possible_status"));
+          assertEquals(0, injects.size());
         }
-        assertEquals(
-            Arrays.asList(ExerciseStatus.CANCELED.name(), ExerciseStatus.RUNNING.name()),
-            JsonPath.read(response, "$.exercise_next_possible_status"));
-        assertEquals(0, injects.size());
       }
+    } finally {
+      cleanupSharedFixtures();
     }
   }
 
