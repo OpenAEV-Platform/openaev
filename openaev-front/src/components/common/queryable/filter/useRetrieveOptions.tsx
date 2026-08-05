@@ -199,6 +199,12 @@ const useRetrieveOptions = () => {
           label: ContractOutputElementType[id as keyof typeof ContractOutputElementType] ?? id,
         })));
         break;
+      case 'finding_triage_status':
+        setOptions(ids.map(id => ({
+          id,
+          label: id,
+        })));
+        break;
       case 'finding_simulation':
         searchExerciseByIdAsOption(ids).then((response) => {
           setOptions(response.data);

@@ -24,6 +24,7 @@ import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '..
 import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
 import { type AssetOptionOutput, type InjectorContract } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
+import { FINDING_TRIAGE_STATUS_KEYS } from '../../../../utils/statusUtils';
 import { useFormatter } from '../../../i18n';
 import { initSorting, type Page } from '../Page';
 import { CUSTOM_DASHBOARD, SCENARIO_SIMULATIONS, SCENARIOS, SIMULATIONS } from './constants';
@@ -251,6 +252,17 @@ const useSearchOptions = () => {
           }))
           .sort((a, b) => t(a.label).localeCompare(t(b.label)));
         setOptions(typeOptions);
+        break;
+      }
+      case 'finding_triage_status': {
+        const triageStatusOptions = FINDING_TRIAGE_STATUS_KEYS
+          .filter(status => !search || t(status).toLowerCase().includes(search.toLowerCase()))
+          .map(status => ({
+            id: status,
+            label: status,
+          }))
+          .sort((a, b) => t(a.label).localeCompare(t(b.label)));
+        setOptions(triageStatusOptions);
         break;
       }
       case 'finding_simulation':

@@ -97,6 +97,23 @@ public class Finding implements TenantBase {
   @Queryable(filterable = true, dynamicValues = true, sortable = true, path = "inject.id")
   private Inject inject;
 
+  // Read-only navigation side of the 1:1 relation owned by FindingTriage#finding. Exists solely so
+  // the generic @Queryable filter engine (FilterUtilsJpa) can join through it to filter by
+  // finding_triage_status; the actual status shown to clients is resolved via
+  // FindingTriageService/FindingMapper, since a Finding with no FindingTriage row is virtually
+  // UNTRIAGED rather than having a real DB value (see FindingTriageService#getCurrentStatus
+  // javadoc). FindingDistinctSearchService special-cases the UNTRIAGED filter value to also match
+  // findings with no row at all - a plain equality on this path would silently miss them.
+  @JsonIgnore
+  @OneToOne(mappedBy = "finding", fetch = FetchType.LAZY)
+  @JsonProperty("finding_triage_status")
+  @Queryable(
+      filterable = true,
+      path = "triage.status",
+      refEnumClazz = FindingTriageStatus.class,
+      label = "triage status")
+  private FindingTriage triage;
+
   // -- AUDIT --
 
   @Queryable(filterable = true, sortable = true, label = "created at")

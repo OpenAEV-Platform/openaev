@@ -2,7 +2,13 @@ import { type Theme } from '@mui/material';
 
 import { HUMAN_EXPECTATION } from '../admin/components/common/injects/expectations/ExpectationUtils';
 import colorStyles from '../components/Color';
+import { type AggregatedFindingOutput } from './api-types';
 import { capitalize } from './String';
+
+// Exported for the finding_triage_status filter picker (useSearchOptions/useRetrieveOptions),
+// which needs the full list of possible values since - unlike finding_type - there's no separate
+// enum/label lookup module for it.
+export const FINDING_TRIAGE_STATUS_KEYS: NonNullable<AggregatedFindingOutput['finding_triage_status']>[] = ['UNTRIAGED', 'CONFIRMED', 'FALSE_POSITIVE', 'RISK_ACCEPTED'];
 
 const injectExpectationMap = {
   SUCCESS: {
