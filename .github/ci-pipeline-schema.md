@@ -1,191 +1,166 @@
 # CI Pipeline Schema
 
-## Overview
+Both **Core CI** (`core-ci.yml`) and **Nightly CI** (`nightly-ci.yml`) are thin callers.
+All the work lives in one reusable workflow, `_ci-pipeline.yml`, and the callers differ
+only in three inputs: `api-matrix`, `e2e-matrix` and `snyk-fail-on-error`.
 
-Both **Core CI** and **Nightly CI** invoke the same reusable workflow (`_ci-pipeline.yml`) with different matrix sizes.
+![OpenAEV CI pipeline — Core and Nightly](ci-pipeline-schema.svg)
 
----
+The diagram is generated, not hand-drawn. Source: [`ci-pipeline-schema.d2`](ci-pipeline-schema.d2).
 
-## Job Dependency Graph
-
-```mermaid
-graph TD
-    %% ─── Pre-flight ───
-    MG[🔎 Migrations Guard]
-
-    %% ─── Build Stage ───
-    BC[🔨 Backend Compile]
-    FB[🎨 Frontend Build]
-    PBA[📦 Prepare Bundled Assets]
-
-    %% ─── Static Quality ───
-    SC[🔍 Spotless Check]
-    FQ[🧪 Frontend Quality & Unit Tests]
-
-    %% ─── Packaging ───
-    BP[📦 Backend Package glibc]
-    BPM[📦 Backend Package musl]
-
-    %% ─── Docker ───
-    DB[🐳 Docker Build - 4 variants]
-    DM[🐳 Docker Merge Platforms]
-    SD[🔒 Snyk Container Scan]
-
-    %% ─── Tests ───
-    AT[🧪 API Tests - sharded]
-    ATC[🔎 API Types Check]
-    E2E[🧪 E2E Tests - matrix]
-
-    %% ─── Aggregation ───
-    COV[📊 Coverage Merge & Upload]
-    GATE[✅ Pipeline Gate]
-
-    %% ─── Build → Packaging ───
-    FB --> BP
-    BC --> BP
-    PBA --> BP
-    FB --> BPM
-    BC --> BPM
-
-    %% ─── Build → Docker ───
-    PBA --> DB
-    DB --> DM
-    DB --> SD
-
-    %% ─── Docker → E2E (artifact polling, not `needs`) ───
-    DB -.->|"polls for image artifact"| E2E
-
-    %% ─── Tests → Coverage ───
-    AT --> COV
-    FQ --> COV
-    E2E --> COV
-    ATC --> COV
-
-    %% ─── Pipeline Gate (depends on all required jobs; Snyk is policy-driven) ───
-    MG --> GATE
-    BC --> GATE
-    FB --> GATE
-    PBA --> GATE
-    SC --> GATE
-    FQ --> GATE
-    AT --> GATE
-    E2E --> GATE
-    ATC --> GATE
-    BP --> GATE
-    BPM --> GATE
-    DB --> GATE
-    DM --> GATE
-    COV --> GATE
-
-    %% Styling
-    classDef build fill:#e3f2fd,stroke:#1565c0
-    classDef quality fill:#f3e5f5,stroke:#6a1b9a
-    classDef test fill:#e8f5e9,stroke:#2e7d32
-    classDef docker fill:#fff3e0,stroke:#e65100
-    classDef gate fill:#fce4ec,stroke:#b71c1c
-
-    classDef preflight fill:#fffde7,stroke:#f9a825
-    class MG preflight
-    class BC,FB,PBA build
-    class SC,FQ quality
-    class AT,ATC,E2E test
-    class DB,DM,SD,BP,BPM docker
-    class COV,GATE gate
+```bash
+d2 --layout elk --pad 60 ci-pipeline-schema.d2 ci-pipeline-schema.svg
 ```
 
----
-
-## Dependency Legend
-
-| Arrow | Meaning |
-|-------|---------|
-| `→` (solid) | Hard `needs:` dependency — job won't start until upstream succeeds |
-| `⇢` (dashed) | Implicit runtime dependency — E2E polls for Docker image artifact via GH API, no `needs:` in YAML |
+> Keep the source free of `|md` blocks. d2 renders markdown into `<foreignObject>`,
+> which browsers refuse to draw when an SVG is embedded as an `<img>` — the legend
+> would silently disappear on GitHub.
 
 ---
 
-## Detailed Job Descriptions
+## The one thing to understand
 
-### Pre-flight (no dependencies, runs in parallel with everything)
+Almost nothing in this pipeline waits. Of the 16 job definitions in `_ci-pipeline.yml`,
+**12 launch at t = 0 with no `needs:` at all**; only 4 declare a dependency.
 
-| Job | Purpose |
-|-----|---------|
-| **Migrations Guard** | Verifies new DB migrations are strictly appended after the last release tag |
+`needs:` waits for the *entire* upstream job to finish — including the artifact
+gzip / validate / upload tail, roughly 2.5 min the consumer never actually reads. So
+wherever only the *payload* matters, the consumer starts immediately, boots its service
+containers in parallel, and polls the GitHub API or GHCR until the payload appears.
 
-### Build Stage (no dependencies, run in parallel)
+Every polling loop also watches the upstream job's conclusion and aborts the moment it
+reports `failure` or `cancelled`, so a broken build fails fast instead of burning the
+full timeout.
 
-| Job | Purpose |
-|-----|---------|
-| **Backend Compile** | `mvn compile` — produces compiled `.class` artifacts |
-| **Frontend Build** | Yarn build of `openaev-front` — produces static assets |
-| **Prepare Bundled Assets** | Downloads agent/implant binaries from JFrog, patches catalog version (`catalog-integrators.json`), uploads as `release-assets` artifact |
+### The four real `needs:` edges
 
-### Static Quality (no dependencies, run in parallel)
+| Job | `needs:` | Why a hard dependency is correct |
+|-----|----------|----------------------------------|
+| **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Needs all three outputs on disk before packaging |
+| **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Same, inside an Alpine Maven container |
+| **Coverage Merge & Upload** | API Tests, Frontend Quality, E2E Tests, API Types Check | Must see every shard's result; runs `if: !cancelled()` |
+| **Pipeline Gate** | 14 jobs (see below) | Aggregates results; runs `if: always()` |
 
-| Job | Purpose |
-|-----|---------|
-| **Spotless Check** | Java formatting validation |
-| **Frontend Quality** | ESLint + Vitest unit tests + coverage |
+### The five polling waits
 
-### Packaging
+None of these appear as `needs:` in the YAML.
 
-| Job | Depends On | Purpose |
-|-----|-----------|---------|
-| **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Produces fat JAR for standard Linux |
-| **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Produces fat JAR for Alpine |
+| Consumer | Waits for | Loop | Aborts when |
+|----------|-----------|------|-------------|
+| **API Tests** | artifact `api-build-output` | 120 × 5s = 10 min | Backend Compile is `failure`/`cancelled` |
+| **API Types Check** | artifact `openaev-api-jar` | 180 × 5s = 15 min | Backend Compile is `failure`/`cancelled` |
+| **E2E Tests** | GHCR image tag, falling back to the image artifact | 180 × 5s = 15 min | the arch-matched Docker Build cell fails |
+| **Docker Merge** | both `amd64` and `arm64` images of its variant | 180 × 5s = 15 min each | any Docker Build cell fails |
+| **Snyk Container Scan** | `standard-amd64` and `ubi9-amd64` images | 180 × 5s = 15 min each | any Docker Build cell fails |
 
-### Docker
+E2E additionally tolerates a flaky control plane: after 10 consecutive GitHub API errors
+it stops polling and attempts the download directly.
 
-| Job | Depends On | Purpose |
-|-----|-----------|---------|
-| **Docker Build** (×4) | Prepare Bundled Assets | Builds `standard/amd64`, `standard/arm64`, `ubi9/amd64`, `ubi9/arm64` images |
-| **Docker Merge** (×2) | Docker Build | Combines amd64+arm64 into multi-arch manifest |
-| **Snyk Container Scan** | Docker Build | CVE scan on amd64 images; advisory in Core CI and enforcing in Nightly CI |
+### Docker Build has no upstream at all
 
-### Tests
+It deliberately does **not** `needs:` Prepare Bundled Assets. It re-runs the same
+composite action inline with `upload-artifact: false`, which removes ~1.4 min of serial
+wait from the head of the critical path. This is why the job checks out with
+`fetch-depth: 0` — the asset version comes from `git describe`.
 
-| Job | Depends On | Purpose |
-|-----|-----------|---------|
-| **API Tests** (sharded) | _(none)_ | Spring Boot integration tests against PostgreSQL + search engine |
-| **API Types Check** | _(none)_ | Validates generated TS types match API schema |
-| **E2E Tests** (matrix) | _(none in YAML)_ ← **polls Docker Build artifact** | Playwright tests against running Docker container |
+---
 
-> **E2E ↔ Docker Build link**: E2E tests have NO `needs:` on `docker-build` in the workflow YAML.
-> Instead, the `e2e-tests` composite action **polls the GitHub API** for up to 15 minutes waiting for
-> the Docker image artifact to become available. This allows E2E setup (service containers, Node.js,
-> Playwright browsers) to proceed in parallel with the Docker build. If the Docker Build job fails or
-> is cancelled, E2E detects this via the API and aborts immediately.
+## Job reference
 
-### Aggregation
+### Launched at t = 0
 
-| Job | Depends On | Purpose |
-|-----|-----------|---------|
-| **Coverage Merge & Upload** | API Tests, Frontend Quality, E2E Tests, API Types Check | Merges JaCoCo + Vitest + Playwright coverage → Codecov |
-| **Pipeline Gate** ⚠️ | All required jobs except Snyk (Migrations Guard, Backend Compile, Frontend Build, Prepare Bundled Assets, Spotless Check, Frontend Quality, API Tests, E2E Tests, API Types Check, Backend Package, Backend Package musl, Docker Build, Docker Merge, Coverage) | **Branch protection status check** — gates PR merge |
+| Job | Timeout | Purpose |
+|-----|---------|---------|
+| 🔎 **Migrations Guard** | 3 min | New DB migrations must be strictly appended after the last release tag |
+| 🔨 **Backend Compile** | 10 min | `mvn compile`; uploads `backend-compiled` and `api-build-output` |
+| 🎨 **Frontend Build** | 15 min | Yarn build of `openaev-front` |
+| 📦 **Prepare Bundled Assets** | 10 min | Agent/implant binaries from JFrog, patches `catalog-integrators.json`, uploads `release-assets` |
+| 🔍 **Spotless Check** | 10 min | Java formatting |
+| 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + Vitest + coverage |
+| 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
+| 🐳 **Merge Platforms** ×2 | 20 min | Multi-arch OCI index per variant, assembled server-side in the registry |
+| 🔒 **Snyk Container Scan** | 25 min | CVE scan of both amd64 images, threshold `high` |
+| 🧪 **API Tests** | 30 min | Spring Boot integration tests vs PostgreSQL + search engine. `fail-fast: false` |
+| 🔎 **API Types Check** | 20 min | Generated TS types must match the live API schema |
+| 🧪 **E2E Tests** | 45 min | Playwright against the built container. `fail-fast: false` |
+
+### Gated by `needs:`
+
+| Job | Timeout | Purpose |
+|-----|---------|---------|
+| 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
+| 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
+| 📊 **Coverage Merge & Upload** | 15 min | Merges JaCoCo shards + Vitest + Playwright → Codecov |
+| ✅ **Pipeline Gate** | 10 min | Branch-protection status check |
+
+---
+
+## Pipeline Gate
+
+⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
+If the caller's job key changes, the branch-protection rule must be updated.
+
+It `needs:` these 14 jobs:
+
+`migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
+`spotless-check`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
+`backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `snyk-docker`
+
+**Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must
+never hold a merge.
+
+The gate evaluates `needs` results itself in a shell loop rather than relying on
+job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocumented.
 
 ### Snyk enforcement policy
 
-- **Core CI:** scan findings and scanner errors are reported through logs and artifacts but never fail the required Pipeline Gate.
-- **Nightly CI:** high/critical findings and scanner execution errors fail the nightly workflow.
+| | Core CI | Nightly CI |
+|-|---------|------------|
+| `snyk-fail-on-error` | `false` | `true` |
+| Findings and scanner errors | Reported in logs and artifacts, marked ⚠️ advisory, never fail the gate | High/critical findings and scanner execution errors ❌ fail the gate |
 
 ---
 
-## Core CI vs Nightly CI — Matrix Differences
+## Core CI vs Nightly CI
 
-### API Tests
-
-| | Core CI | Nightly CI |
-|-|---------|------------|
-| Elasticsearch shards | 4 (main, rest-1, rest-2, remaining) | 4 |
-| OpenSearch shards | ✗ | 4 (same split) |
-| **Total jobs** | **4** | **8** |
-
-### E2E Tests
+### When they launch
 
 | | Core CI | Nightly CI |
 |-|---------|------------|
-| Browsers | chrome, webkit, chromium | + Firefox, Edge |
-| Images | std-amd64, std-arm64, ubi9-amd64, ubi9-arm64 | same |
-| Search engines | Elasticsearch only | + OpenSearch |
-| Infra tests | chromium only (amd64+arm64) | + chrome, firefox, webkit, edge |
-| **Total jobs** | **10** | **25** |
+| Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → `main` | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
+| Total expanded jobs | ≈ 36 | ≈ 59 |
+
+### API Tests matrix
+
+Shard patterns live in `.github/shards/api-<n>.txt`, balanced from measured per-class
+runtimes. The `remaining` shard runs whatever no shard file claims, so a newly added
+package is never silently untested.
+
+| | Core CI | Nightly CI |
+|-|---------|------------|
+| Elasticsearch | 7 shards + `remaining` | 7 shards + `remaining` |
+| OpenSearch | ✗ | 7 shards + `remaining` |
+| **Total cells** | **8** | **16** |
+
+### E2E Tests matrix
+
+| | Core CI | Nightly CI |
+|-|---------|------------|
+| Images | standard only (amd64 + arm64) | standard + ubi9, amd64 + arm64 |
+| Browsers | chrome (amd64), chromium (arm64) | chrome, chromium, webkit, firefox, edge |
+| Search engines | Elasticsearch only | Elasticsearch + OpenSearch |
+| Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites |
+| Infra tests | 4 cells, `infra-chromium` | 7 cells across chrome, chromium, firefox, webkit, edge |
+| **Total cells** | **10** | **25** |
+
+`ubi9` and `webkit` are nightly-only: they exercise the same JAR and were doubling the
+critical path. `artifact_suffix` must stay unique per cell — the report artifact is named
+`playwright-report-<browser><suffix>` and duplicates fail the upload.
+
+---
+
+## Auto-retry
+
+`ci-retry.yml` watches both workflows via `workflow_run: completed`. When the conclusion
+is `failure` **and** `run_attempt == 1`, it POSTs `rerun-failed-jobs` on the same run.
+It retries exactly once; a second failure stands.
