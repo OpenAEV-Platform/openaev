@@ -540,4 +540,55 @@ describe('SimulationAttackPath live delta updates', () => {
     expect(screen.getByText('Reconnecting…')).toBeTruthy();
     expect(screen.getByTestId('attack-path-flow')).toBeTruthy();
   });
+
+  it('re-frames the camera when a live delta grows the graph, then hands over to pursuit', async () => {
+    // One growth delta per tick, each introducing a distinct endpoint so every one is real growth.
+    const growthDelta = (version: number, host: string) => ({
+      data: {
+        sinceVersion: version - 1,
+        newVersion: version,
+        attackPathNodes: [{
+          id: `NODE_ENDPOINT|${host}`,
+          type: 'ASSET',
+          label: host,
+          hostname: host,
+          ref: host,
+          findingCounts: {},
+        }],
+        attackPathEdges: [{
+          edgeId: `edge-nmap-${host}`,
+          edgeSourceId: 'NODE_INJECTOR|nmap',
+          edgeTargetId: `NODE_ENDPOINT|${host}`,
+          type: 'EDGE_EXECUTIONS',
+          count: 1,
+        }],
+      },
+    });
+
+    setup();
+    // Both initial reads must settle: the collapsed seed AND the causal overlay merged in after it
+    // each bump the structural nonce, and neither is live growth — they are the initial framing.
+    await mounted();
+    await mounted();
+    const afterInitialLoad = mocks.flowProps.current?.fitRequest ?? 0;
+
+    // A live delta introduces an endpoint. It lands outside the framed viewport, so the camera must
+    // re-frame — otherwise the run draws itself off-screen until the user pans by hand.
+    mocks.fetchAttackPathGraphDelta.mockResolvedValue(growthDelta(11, 'host-a'));
+    await tick();
+    const afterFirstGrowth = mocks.flowProps.current?.fitRequest ?? 0;
+    expect(afterFirstGrowth).toBeGreaterThan(afterInitialLoad);
+
+    // The framing budget is AP_MAX_LIVE_FITS (2) LIVE deltas, so the second one still re-frames.
+    mocks.fetchAttackPathGraphDelta.mockResolvedValue(growthDelta(12, 'host-b'));
+    await tick();
+    const afterSecondGrowth = mocks.flowProps.current?.fitRequest ?? 0;
+    expect(afterSecondGrowth).toBeGreaterThan(afterFirstGrowth);
+
+    // Budget spent: the camera now CHASES the newest nodes at the current zoom instead of pulling
+    // back on every delta — so no further re-fit, and the new nodes are handed to pursuit instead.
+    mocks.fetchAttackPathGraphDelta.mockResolvedValue(growthDelta(13, 'host-c'));
+    await tick();
+    expect(mocks.flowProps.current?.fitRequest ?? 0).toBe(afterSecondGrowth);
+  });
 });
