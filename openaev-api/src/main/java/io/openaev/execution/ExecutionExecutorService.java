@@ -321,7 +321,7 @@ public class ExecutionExecutorService {
                     .resourceType(ResourceType.INJECT)
                     .resourceId(inject.getId())
                     .message(
-                        "Inject '%s' dispatched to '%s' agent(s)"
+                        "Inject '%s' queued to '%s' agent(s)"
                             .formatted(inject.getTitle(), executor.getName()))
                     .contextData(buildInjectQueuedContextData(inject, executor, executorAgents))
                     .origin(AuditEventOrigin.SYSTEM)
@@ -333,6 +333,7 @@ public class ExecutionExecutorService {
     Map<String, Object> contextData = new LinkedHashMap<>();
     contextData.put("inject_id", inject.getId());
     contextData.put("inject_name", inject.getTitle());
+    contextData.put("executor_id", executor.getId());
     contextData.put("executor_type", executor.getType());
     contextData.put(
         "agent_ids", executorAgents.stream().map(Agent::getId).filter(Objects::nonNull).toList());
