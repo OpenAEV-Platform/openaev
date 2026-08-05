@@ -9067,8 +9067,6 @@ export interface PlatformSettings {
   platform_ai_type?: string;
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
-  /** Current platform run mode (normal or safe) */
-  platform_run_mode?: string;
   /** Base URL of the platform */
   platform_base_url?: string;
   /** Definition of the dark theme */
@@ -9093,6 +9091,8 @@ export interface PlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
+  /** Current platform run mode (normal or safe) */
+  platform_run_mode?: string;
   /**
    * Idle timeout in milliseconds before the UI locks the screen (0 = disabled). Read-only, driven by server configuration
    * @format int64
@@ -9311,8 +9311,6 @@ export interface PublicPlatformSettings {
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
-  /** Current platform run mode (normal or safe) */
-  platform_run_mode?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
   /**
@@ -9326,6 +9324,8 @@ export interface PublicPlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
+  /** Current platform run mode (normal or safe) */
+  platform_run_mode?: string;
   /**
    * Theme of the platform
    * @minLength 1
