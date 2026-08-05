@@ -62,7 +62,10 @@ export interface LogicGraphBBox {
 /** One MITRE-tactic column: its header label and the coloured band its nodes sit in. */
 export interface LogicGraphColumn {
   tactic: string;
-  /** The band rectangle (world coords): spans the event lane + the action column. */
+  /**
+   * The coloured band rectangle (world coords). Covers the ACTION column only: events carry no TTP,
+   * so they sit in the lane to the LEFT of this band, outside any tactic (see buildLogicGraphLayout).
+   */
   x: number;
   width: number;
   top: number;
