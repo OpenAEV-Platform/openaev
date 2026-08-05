@@ -609,17 +609,25 @@ public class AutonomousRunService {
    * Stamps the live-start instant and computes the OpenAEV-enforced deadline from the run's
    * timeout. Called whenever the run (re)enters RUNNING (start / resume) so a resumed run gets a
    * fresh budget, and resets the winddown bookkeeping so the steering nudges fire again for the new
-   * window. No-op for plan/dry-run mode or a run with no configured timeout (untimed).
+   * window. A plan/dry-run stays untimed (deadline cleared); a LIVE run is never left untimed - a
+   * missing timeout (a promoted plan whose timeout was nulled at create, or a pre-migration row)
+   * falls back to the standard 24h so the watchdog can always hard-stop it. Package-private for
+   * unit tests.
    */
-  private void stampDeadline(AutonomousRun run) {
-    if (run.isPlanMode() || run.getTimeoutSeconds() == null) {
-      run.setStartedAt(now());
-      return;
-    }
+  void stampDeadline(AutonomousRun run) {
     Instant startInstant = now();
     run.setStartedAt(startInstant);
-    run.setDeadlineAt(startInstant.plusSeconds(run.getTimeoutSeconds()));
     run.setWinddownPhase(null);
+    if (run.isPlanMode()) {
+      // A dry-run only designs the path: no enforcement, and no stale deadline left behind from a
+      // previous live window.
+      run.setDeadlineAt(null);
+      return;
+    }
+    if (run.getTimeoutSeconds() == null) {
+      run.setTimeoutSeconds(DEFAULT_TIMEOUT_SECONDS);
+    }
+    run.setDeadlineAt(startInstant.plusSeconds(run.getTimeoutSeconds()));
   }
 
   /**
@@ -657,11 +665,21 @@ public class AutonomousRunService {
    * CANCELED. The XTM One orchestration is stopped and purged by its own next-cycle stop check,
    * which reads this CANCELED status - OpenAEV is the source of truth for the run lifecycle - so a
    * userless cross-tenant HTTP push from the watchdog is not needed to clean XTM One up.
+   *
+   * <p>The terminal flip is claimed through the same atomic conditional UPDATE as the read-path
+   * reconcile: an operator Stop, a racing reconcile and this watchdog can all reach a run at its
+   * deadline, and only the claimer narrates the stop - so the timeline gets exactly one terminal
+   * event, never a "Run canceled" plus a "Run timed out" for the same run.
    */
   private void timeoutRun(AutonomousRun run) {
+    int changed =
+        runRepository.settleTerminalStatusIfActive(
+            run.getId(), run.getTenant().getId(), AutonomousRunStatus.CANCELED, now());
+    if (changed == 0) {
+      // Someone else (operator Stop, reconcile) already settled it; nothing left to narrate.
+      return;
+    }
     transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
-    run.setStatus(AutonomousRunStatus.CANCELED);
-    runRepository.save(run);
     eventService.append(
         run.getId(),
         run.getSimulationId(),
@@ -2703,7 +2721,9 @@ public class AutonomousRunService {
             + (simStatus == null ? "deleted" : simStatus.name())
             + "): an autonomous run and its simulation are always kept in lockstep.";
     try {
-      AutonomousRun settled = reconciliationWriter.settleRunStatus(run.getId(), target, detail);
+      AutonomousRun settled =
+          reconciliationWriter.settleRunStatus(
+              run.getId(), run.getTenant().getId(), target, detail);
       if (settled != null) {
         // The run is now terminal, so stop the orchestrator loop too (purge on cancel so a later
         // restart starts clean). Best-effort, after commit.

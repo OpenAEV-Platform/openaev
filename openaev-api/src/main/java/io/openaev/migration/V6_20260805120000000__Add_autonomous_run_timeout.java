@@ -20,8 +20,14 @@ import org.springframework.stereotype.Component;
  *       queued at most once.
  * </ul>
  *
+ * <p>Also adds a partial index supporting the watchdog sweep ({@code findRunIdsDueForTimeout}
+ * filters by {@code tenant_id} + {@code deadline_at} + live status every 30s): only rows with a
+ * non-null deadline are indexed, so the index stays tiny (plan runs and settled runs carry no
+ * deadline) while keeping the sweep an index scan as the table grows.
+ *
  * <p>Additive, idempotent, and lock-light: nullable {@code ADD COLUMN}s are metadata-only on
- * PostgreSQL 11+ (no table rewrite), and {@code IF NOT EXISTS} makes re-running a no-op.
+ * PostgreSQL 11+ (no table rewrite), the index is partial on a young, small table, and {@code IF
+ * NOT EXISTS} makes re-running a no-op.
  */
 @Component
 public class V6_20260805120000000__Add_autonomous_run_timeout extends BaseJavaMigration {
@@ -41,6 +47,10 @@ public class V6_20260805120000000__Add_autonomous_run_timeout extends BaseJavaMi
       statement.execute(
           "ALTER TABLE autonomous_runs "
               + "ADD COLUMN IF NOT EXISTS autonomous_run_winddown_phase varchar(32);");
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_autonomous_runs_tenant_deadline "
+              + "ON autonomous_runs (tenant_id, autonomous_run_deadline_at) "
+              + "WHERE autonomous_run_deadline_at IS NOT NULL;");
     }
   }
 }

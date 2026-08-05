@@ -124,8 +124,11 @@ const ThreatArsenalActionForm = ({
     action_expectations: z.enum(['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array(),
     // Bound per-expectation by ExpectationSecurityPlatformsField, whose Controllers
     // may leave freshly mounted entries as `undefined` before the user touches them.
-    // Normalise first (drop undefined/empty scopes) so an untouched form still
-    // validates and an empty scope means "any security platform" (field omitted).
+    // Normalise (drop undefined/empty scopes) so an untouched form still validates.
+    // An emptied map is submitted as {} - NOT collapsed to undefined - because the
+    // backend treats an absent field as "keep the existing scopes" (partial update),
+    // so {} is the only way to clear a previously scoped expectation back to "any
+    // security platform".
     action_expected_security_platforms: z.preprocess(
       (value) => {
         if (!value || typeof value !== 'object') {
@@ -137,7 +140,7 @@ const ThreatArsenalActionForm = ({
             cleaned[key] = platforms as string[];
           }
         });
-        return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+        return cleaned;
       },
       z.record(
         z.string(),

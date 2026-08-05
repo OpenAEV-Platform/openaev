@@ -358,9 +358,10 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
           }
         : undefined,
       plan_mode: planMode || undefined,
-      // OpenAEV-enforced run deadline (seconds). Clamp to at least 1 minute; ignored server-side in
+      // OpenAEV-enforced run deadline (seconds). Clamp to the drawer's advertised 1h-720h range
+      // (the HTML min/max only guard the spinner, not typed input); ignored server-side in
       // plan/dry-run mode.
-      timeout_seconds: Math.max(60, Math.round(timeoutHours * 3600)),
+      timeout_seconds: Math.min(720 * 3600, Math.max(3600, Math.round(timeoutHours * 3600))),
     })
       .then((res) => {
         const runId = res.data.autonomous_run_id;

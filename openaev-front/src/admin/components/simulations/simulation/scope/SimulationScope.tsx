@@ -9,10 +9,14 @@ import { type Exercise, type HealthCheck } from '../../../../../utils/api-types'
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
 
-const SimulationScope = ({ readOnly = false, autonomousTimeoutSeconds }: {
+interface Props {
+  /** Read-only inspection mode: the scope belongs to an autonomous (AI-driven) run. */
   readOnly?: boolean;
+  /** OpenAEV-owned autonomous session timeout in seconds, shown instead of the chaining timeout. */
   autonomousTimeoutSeconds?: number | null;
-}) => {
+}
+
+const SimulationScope = ({ readOnly = false, autonomousTimeoutSeconds }: Props) => {
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));

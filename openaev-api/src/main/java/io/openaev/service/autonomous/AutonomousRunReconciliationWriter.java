@@ -4,6 +4,7 @@ import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -38,11 +39,16 @@ public class AutonomousRunReconciliationWriter {
    * reconcile on read) exactly one wins the DB row and records the "Run canceled" / "Run completed"
    * event; the losers stay silent. This is the fix for the duplicated + repeated "Run canceled"
    * timeline spam where every racing reader appended its own identical status event.
+   *
+   * <p>{@code tenantId} is the run's owning tenant, threaded from the caller's loaded entity: the
+   * conditional UPDATE is a bulk JPQL statement, which Hibernate tenant {@code @Filter}s do not
+   * cover, so the write carries its own explicit tenant predicate.
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
   public AutonomousRun settleRunStatus(
-      String runId, AutonomousRunStatus target, String reasonDetail) {
-    int changed = runRepository.settleTerminalStatusIfActive(runId, target);
+      String runId, String tenantId, AutonomousRunStatus target, String reasonDetail) {
+    int changed =
+        runRepository.settleTerminalStatusIfActive(runId, tenantId, target, Instant.now());
     AutonomousRun run = runRepository.findById(runId).orElse(null);
     if (run == null) {
       return null;

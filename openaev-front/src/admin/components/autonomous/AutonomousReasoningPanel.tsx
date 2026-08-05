@@ -40,6 +40,12 @@ const POLL_INTERVAL_MS = 3000;
 // the operator would rather type.
 const MAX_QUESTION_CHOICES = 3;
 
+// Event types that prove the orchestrator is actively WORKING (deciding, acting, analyzing,
+// delegating, narrating) - as opposed to STATUS bookkeeping or an operator QUESTION/DIRECTIVE. The
+// thinking-window caption keys off the latest one of these.
+const ACTIVITY_EVENT_TYPES = ['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const;
+const isActivityType = (type: string | undefined): boolean => (ACTIVITY_EVENT_TYPES as readonly string[]).includes(type ?? '');
+
 interface QuestionChoice {
   id: string;
   label: string;
@@ -563,8 +569,6 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // as it moves (deciding -> acting -> analyzing ...). Crucially, once the operator answers we flip
   // to "Processing your answer" immediately -- the backend status stays WAITING_INPUT until the next
   // 3s poll, so keying off status alone would freeze on "Waiting for your input".
-  const ACTIVITY_EVENT_TYPES = ['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const;
-  const isActivityType = (type: string | undefined): boolean => (ACTIVITY_EVENT_TYPES as readonly string[]).includes(type ?? '');
   const lastActivityType = [...events].reverse().find(
     e => isActivityType(e.autonomous_event_type),
   )?.autonomous_event_type;
