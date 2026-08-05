@@ -1,4 +1,4 @@
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -177,13 +177,28 @@ const LogicGraph = ({
     [actionMetas],
   );
 
+  // Tactic name -> kill-chain phase order, so the layout orders the tactic columns by MITRE phase
+  // (keeping the lowest order when a tactic maps to several phases).
+  const tacticOrder = useMemo(() => {
+    const order: Record<string, number> = {};
+    for (const phase of Object.values(killChainPhasesMap as Record<string, KillChainPhase>)) {
+      const name = phase.phase_name;
+      if (!name) continue;
+      const value = phase.phase_order ?? 99;
+      if (order[name] === undefined || value < order[name]) order[name] = value;
+    }
+    return order;
+  }, [killChainPhasesMap]);
+
   const layout = useMemo(
     () => buildLogicGraphLayout({
       actionMetas,
       eventMetas,
       outputProviders,
+      tacticForStep,
+      tacticOrder,
     }),
-    [actionMetas, eventMetas, outputProviders],
+    [actionMetas, eventMetas, outputProviders, tacticForStep, tacticOrder],
   );
 
   // Apply manual overrides on top of the auto-layout positions.
@@ -472,6 +487,46 @@ const LogicGraph = ({
           onDeleteEdge={handleDeleteEdge}
           readOnly={readOnly}
         />
+        {/* MITRE-tactic column bands: a faint coloured rectangle behind each column's nodes, with the
+            tactic name as a header, so it reads which nodes belong to which tactic. */}
+        {layout.columns.map(col => (
+          <div
+            key={`tactic-col-${col.tactic}`}
+            style={{
+              position: 'absolute',
+              left: col.x,
+              top: col.top,
+              width: col.width,
+              height: col.height,
+              pointerEvents: 'none',
+              borderRadius: 8,
+              backgroundColor: alpha(theme.palette.primary.main, 0.05),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.22)}`,
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: col.headerY - col.top,
+                left: 0,
+                width: '100%',
+                textAlign: 'center',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                padding: '0 8px',
+                boxSizing: 'border-box',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: theme.palette.text.secondary,
+              }}
+            >
+              {col.tactic || t('Other')}
+            </div>
+          </div>
+        ))}
         {positionedNodes.map((node) => {
           const dimmed = isDimmed(node.id);
           if (node.kind === 'action') {
