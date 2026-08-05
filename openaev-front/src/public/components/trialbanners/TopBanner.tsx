@@ -5,7 +5,10 @@ import { useTheme } from '@mui/material/styles';
 import { type SxProps } from '@mui/system';
 import type React from 'react';
 
-import { TOP_BANNER_HEIGHT } from './constants';
+import type { LoggedHelper } from '../../../actions/helper';
+import { useHelper } from '../../../store';
+import { isNotEmptyField } from '../../../utils/utils';
+import { SYSTEM_BANNER_HEIGHT, TOP_BANNER_HEIGHT } from './constants';
 
 const TOPBANNER_COLORS = {
   gradient_blue: {
@@ -42,9 +45,14 @@ interface TopBannerProps {
 
 const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonStyle, onButtonClick }: TopBannerProps) => {
   const theme = useTheme();
+  const { settings } = useHelper((helper: LoggedHelper) => {
+    return { settings: helper.getPlatformSettings() };
+  });
   const colors = TOPBANNER_COLORS[bannerColor];
-  // Trial/license banner is the top-most stripe; system banners stack below it.
-  const topOffset = 0;
+
+  const platformBannerLevel = settings?.platform_banner_level;
+  const platformBannerText = settings?.platform_banner_text;
+  const isPlatformBannerActivated = isNotEmptyField(platformBannerLevel) && isNotEmptyField(platformBannerText);
 
   return (
     <div style={{
@@ -57,7 +65,7 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
       backgroundImage: `linear-gradient(to right, ${colors.from}, ${colors.to})`,
       justifyContent: 'center',
       display: 'flex',
-      top: topOffset,
+      top: isPlatformBannerActivated ? SYSTEM_BANNER_HEIGHT : 0,
       height: TOP_BANNER_HEIGHT,
     }}
     >

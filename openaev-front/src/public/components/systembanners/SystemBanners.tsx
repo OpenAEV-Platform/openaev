@@ -3,9 +3,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../components/i18n';
 import { type PlatformSettings } from '../../../utils/api-types';
-import { isDemoInstance } from '../../../utils/Environment';
 import { isEmptyField, recordEntries, recordKeys } from '../../../utils/utils';
-import { LICENSE_OPTION_TRIAL, TOP_BANNER_HEIGHT } from '../trialbanners/constants';
 import { type BannerMessage } from './utils';
 
 const SAFE_MODE_MESSAGE_KEY = 'Safe mode is active: background processing is disabled.';
@@ -60,10 +58,6 @@ const SystemBanners = (settings: { settings: PlatformSettings }) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
   const isSafeMode = settings.settings.platform_run_mode === 'safe';
-  const hasTopBanner =
-    settings.settings.platform_license?.license_type === LICENSE_OPTION_TRIAL
-    || isDemoInstance(settings.settings);
-  const topOffset = hasTopBanner ? TOP_BANNER_HEIGHT : 0;
   const bannerLevel = (settings.settings.platform_banner_by_level ?? {}) as Record<string, string[]>;
   const effectiveBannerLevel: Record<string, string[]> = {};
   for (const currentBannerLevel of recordEntries(bannerLevel)) {
@@ -93,7 +87,7 @@ const SystemBanners = (settings: { settings: PlatformSettings }) => {
         ].join(' ');
 
         return (
-          <div key={key} className={topBannerClasses} style={{ top: topOffset }}>
+          <div key={key} className={topBannerClasses}>
             {effectiveBannerLevel[key].map((message: string) => {
               const isSafeModeMessage = message === SAFE_MODE_MESSAGE_KEY;
               return (
