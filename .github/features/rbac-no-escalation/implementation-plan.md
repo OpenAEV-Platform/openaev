@@ -125,12 +125,12 @@
 ### Subtasks
 
 1. **Disabled/greyed-out rendering + interaction blocking for capabilities the actor doesn't hold**
-   - In the role capability editor, cross-reference each displayed capability against the current actor's effective capability set (already exposed as `user_capabilities`).
+   - In the role capability editor, cross-reference each displayed capability against the current actor's effective capability set, sourced from `user_capabilities` on the `/me` payload (already fetched at session bootstrap via `root.tsx` -> `PermissionsProvider` -> CASL `AbilityContext`/`useAbility()`) — no new endpoint or additional API call needed.
    - Render any capability outside that set as disabled/greyed out, with tooltip "Grant capability is disabled because you don't have access to the required capabilities.", whether or not the role currently holds it.
    - Apply consistently everywhere role capabilities can be viewed or edited (role create, role edit, e.g. opening the Admin role).
    - Ensure disabled capability controls cannot be clicked, checked, unchecked, or otherwise mutated in the role editor state — a capability being greyed out must also be non-interactive.
    - Cover the case of opening a role that already contains capabilities the actor lacks: those remain visible but immutable.
-   - **Context:** This is presentation-only — no new backend endpoint is needed since the actor's effective capabilities are already available client-side. It does not replace or weaken the backend no-escalation guard (US.2/US.3), which stays authoritative even if a disabled control were bypassed (e.g. a direct API call). Rendering and interaction-blocking are grouped because a capability that is greyed out but still clickable would defeat the purpose — both must ship together.
+   - **Context:** This is presentation-only — no new backend endpoint is needed since the actor's effective capabilities are already available client-side. It does not replace or weaken the backend no-escalation guard (US.2/US.3), which stays authoritative even if a disabled control were bypassed (e.g. a direct API call). Rendering and interaction-blocking are grouped because a capability that is greyed out but still clickable would defeat the purpose — both must ship together. Note: `user_capabilities` is a session-bootstrap snapshot, so it can be momentarily stale if the actor's own role changes mid-session; the backend guard remains authoritative regardless.
    - **DoD:**
      - Unit test
      - Integration test (API level)

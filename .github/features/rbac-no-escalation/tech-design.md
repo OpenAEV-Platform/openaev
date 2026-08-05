@@ -63,12 +63,15 @@ Rationale:
 
 ### 4. Frontend capability-aware rendering (US.5)
 
-The role/capability editor computes, client-side, the current actor's effective capability set (already returned to the frontend as `user_capabilities` on the session/user object) and cross-references it against the capabilities displayed for a role:
+The role/capability editor computes, client-side, the current actor's effective capability set and cross-references it against the capabilities displayed for a role:
 
+- **Where the actor's capabilities come from**: `User.getCapabilities()` (backend) is serialized as `user_capabilities` on the `/me` payload. `root.tsx` reads `me.user_capabilities` and passes it into `PermissionsProvider`, which builds a CASL `AppAbility` (`defineAbility(capabilities, grants, isAdmin)`) exposed app-wide via `AbilityContext`/`useAbility()`. This is already fetched once at session bootstrap — no new endpoint or additional API call is required for US.5/US.6.
+- The role editor consumes this same ability/capability list (already used elsewhere for `Can`/`useAbility` checks) to know which capability enum values the actor holds, then renders any capability **not** in that set as disabled/greyed out.
 - A capability checkbox/row not present in the actor's effective set is rendered **disabled and greyed out**, with tooltip "Grant capability is disabled because you don't have access to the required capabilities.", regardless of whether the role currently holds it or not.
 - This applies uniformly whether the role being edited already has that capability (e.g. viewing the Admin role) or does not.
 - No new backend endpoint is required: the actor's effective capabilities are already available; this is a pure rendering/interaction rule in the existing capability-editing component(s).
 - This is presentation-only — it does not replace or weaken the backend no-escalation guard (US.2/US.3), which remains authoritative even if a disabled control were somehow bypassed (e.g. direct API call).
+- **Staleness caveat**: `user_capabilities` is a snapshot from session bootstrap (or the last `/me` refresh). If the actor's capabilities change mid-session (e.g. an admin edits their role while they're logged in), the UI check can be stale until the next `/me` refresh — this is acceptable since the backend guard (US.2/US.3) is authoritative regardless.
 
 ### 5. Frontend blocking + error surfacing (US.6)
 
