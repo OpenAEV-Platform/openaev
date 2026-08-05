@@ -7,7 +7,6 @@ import type React from 'react';
 
 import type { LoggedHelper } from '../../../actions/helper';
 import { useHelper } from '../../../store';
-import { computeSystemBannerHeight } from '../systembanners/utils';
 import { TOP_BANNER_HEIGHT } from './constants';
 
 const TOPBANNER_COLORS = {
@@ -49,8 +48,8 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
     return { settings: helper.getPlatformSettings() };
   });
   const colors = TOPBANNER_COLORS[bannerColor];
-  // Keep trial/license banner stacked below all active system/safe-mode messages.
-  const topOffset = computeSystemBannerHeight(settings);
+  // Trial/license banner is the top-most stripe; system banners stack below it.
+  const topOffset = 0;
 
   return (
     <div style={{
