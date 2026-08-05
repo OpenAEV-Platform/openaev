@@ -1261,24 +1261,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           seeds = new Set([selectedInjectorId]);
         }
         // The plain endpoint-only focus (chokepoint click, no finding/action selected) seeds on the
-        // endpoint itself.
-        const scoped = seeds
+        // endpoint itself, matched on EVERY identifier it is known by — its graph node id AND its ref —
+        // because a chain endpoint node is keyed by whatever form its execution edge carried, which is
+        // not always the same form the click hands us. Matching on the node id alone left a
+        // ref-keyed endpoint unresolvable, and an unresolvable seed makes the scoper return the whole
+        // chain (its no-empty-canvas safety net), so the graph came back identical and the click read
+        // as "nothing happened".
+        raw = seeds
           ? scopeChainFlowToSeeds(fullChain, seeds)
-          : scopeChainFlowToEndpoint(fullChain, pathFinding.endpointNodeId);
-        // Both scopers deliberately return the WHOLE chain when none of their seeds is a rendered node,
-        // rather than an empty canvas. That safety net is right for the canvas but wrong for a focus
-        // request: the graph comes back byte-identical, so the click reads as "nothing happened" (an
-        // endpoint reached only through a path the chain layout does not lay out — e.g. a raw-value
-        // target, or a step whose source is not an injector — hits exactly that). Degrade to the flatter
-        // buildFindingPathFlow layout instead: it always renders a genuinely focused view for the
-        // endpoint, losing the causal edges but never the focus itself.
-        raw = scoped.nodes.length === fullChain.nodes.length
-          ? buildFindingPathFlow(dto, pathFinding, t, pathContractLabelByInjector, {
-              expanded: expandedFindingClusters,
-              findingsByCluster,
-              batch: findingBatch,
-            })
-          : scoped;
+          : scopeChainFlowToEndpoint(fullChain, [pathFinding.endpointNodeId, pathFinding.endpointKey]);
       } else if (pathFinding) {
         raw = buildFindingPathFlow(dto, pathFinding, t, pathContractLabelByInjector, {
           expanded: expandedFindingClusters,
