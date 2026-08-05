@@ -372,21 +372,18 @@ const LogicGraph = ({
   }, [actionMetas, buildStepUpdate, refreshGraph]);
 
   // Gate an action by a trigger (real `trigger -> action` edge) by adding the trigger to the
-  // action's condition list. Accepts the endpoints in either drag order.
+  // action's condition list. Only the trigger -> action direction is accepted: a user can gate an
+  // action with an event, never manually link an action to an event (that relationship exists only
+  // as the automatic, informational inferred edge). The drag can only start from a trigger, so
+  // `aKind` is always 'trigger'; the guard stays as a defensive no-op for any other combination.
   const linkNodes = useCallback((
     aId: string, aKind: 'action' | 'trigger', bId: string, bKind: 'action' | 'trigger',
   ) => {
-    let actionId: string;
-    let triggerId: string;
-    if (aKind === 'action' && bKind === 'trigger') {
-      actionId = aId;
-      triggerId = bId;
-    } else if (aKind === 'trigger' && bKind === 'action') {
-      actionId = bId;
-      triggerId = aId;
-    } else {
+    if (aKind !== 'trigger' || bKind !== 'action') {
       return;
     }
+    const actionId = bId;
+    const triggerId = aId;
     const action = actionMetas[actionId];
     if (!action || action.step_condition_ids.includes(triggerId)) return;
     updateStep(actionId, buildStepUpdate(action, [...action.step_condition_ids, triggerId]))
@@ -519,7 +516,6 @@ const LogicGraph = ({
                   onEdit={handleEditAction}
                   onDelete={setPendingDeleteNodeId}
                   onAddTrigger={onAddTriggerAfterAction ? handleAddTrigger : undefined}
-                  onConnectStart={handleConnectStart}
                 />
               </div>
             );

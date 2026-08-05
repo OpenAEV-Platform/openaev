@@ -1,7 +1,7 @@
 import { AddOutlined, BoltOutlined, GpsFixedOutlined, MoreVert, OutputOutlined } from '@mui/icons-material';
 import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useState } from 'react';
+import { type MouseEvent, type ReactNode, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import ActionTypeIcon from '../ActionTypeIcon';
@@ -34,8 +34,6 @@ export interface GraphActionCardProps {
   onDelete?: (id: string) => void;
   /** Inline "+": add a trigger fed by this action's outputs (continue the chain). */
   onAddTrigger?: (id: string) => void;
-  /** Drag from the left handle to an existing trigger to gate this action by it. */
-  onConnectStart?: (id: string, kind: 'action', event: ReactPointerEvent<HTMLElement>) => void;
 }
 
 /** 'openbas_implant' -> 'Openbas implant' */
@@ -82,7 +80,6 @@ const GraphActionCard = ({
   onEdit,
   onDelete,
   onAddTrigger,
-  onConnectStart,
 }: GraphActionCardProps) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -315,42 +312,10 @@ const GraphActionCard = ({
           </Box>
         )}
 
-        {!readOnly && onConnectStart && (
-          <Tooltip title={t('Drag onto a trigger to gate this action')} slotProps={graphTooltipSlotProps}>
-            <Box
-              onPointerDown={e => onConnectStart(id, 'action', e)}
-              onClick={e => e.stopPropagation()}
-              sx={{
-                'position': 'absolute',
-                'left': -11,
-                'top': '50%',
-                'transform': 'translateY(-50%)',
-                'zIndex': 3,
-                'width': 16,
-                'height': 16,
-                'borderRadius': '50%',
-                'cursor': 'grab',
-                'display': 'flex',
-                'alignItems': 'center',
-                'justifyContent': 'center',
-                'backgroundColor': theme.palette.background.paper,
-                'border': `2px solid ${theme.palette.warning.main}`,
-                'boxShadow': theme.shadows[1],
-                'touchAction': 'none',
-                '&:hover': { backgroundColor: theme.palette.warning.main },
-                '&:active': { cursor: 'grabbing' },
-              }}
-            >
-              <Box sx={{
-                width: 5,
-                height: 5,
-                borderRadius: '50%',
-                backgroundColor: theme.palette.warning.main,
-              }}
-              />
-            </Box>
-          </Tooltip>
-        )}
+        {/* No action-initiated connect handle: an action can never be manually linked to an event.
+            The only action→event relationship is the automatic, informational inferred edge (this
+            action produces output an event listens on); gating is created the other way, by dragging
+            from a trigger/event onto an action (see GraphTriggerCard). */}
 
         {!readOnly && onAddTrigger && (
           <Tooltip title={t('Add a trigger fed by this action')} slotProps={graphTooltipSlotProps}>

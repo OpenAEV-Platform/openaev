@@ -72,11 +72,11 @@ const GraphTriggerCard = ({
     onDelete?.(id);
   };
 
+  // This card is the EVENT node (kind 'trigger' internally), so its title must read as the event's
+  // name — never the trigger's technical condition-field keys, which made an unnamed event look like
+  // a trigger. The listened-on fields still appear in the tooltip's "Listens on" row below.
   const trimmedName = (name ?? '').trim();
-  const title = trimmedName
-    || (conditionFields.length > 0
-      ? conditionFields.map(formatConditionKeyLabel).join(', ')
-      : t('Trigger'));
+  const title = trimmedName || t('Untitled event');
 
   let summaryLine: ReactNode = t('Waits for a matching finding');
   if (conditionLines.length === 1) {
@@ -101,7 +101,7 @@ const GraphTriggerCard = ({
 
   const tooltip = (
     <LogicNodeTooltip
-      eyebrow={t('Trigger')}
+      eyebrow={t('Event')}
       title={title}
       description={description}
       rows={tooltipRows}
