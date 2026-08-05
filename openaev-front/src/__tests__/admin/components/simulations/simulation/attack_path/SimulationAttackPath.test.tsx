@@ -341,18 +341,28 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     setup();
     await screen.findByTestId('attack-path-flow');
 
+    // Open the endpoint's panel first (plain node click), so the row click below also proves a focus
+    // request CLOSES a panel left open — not merely that it does not open one.
+    await act(async () => {
+      mocks.flowProps.current?.onEndpointClick?.(ENDPOINT_NODE, 'host-x', 'CORP-HOST');
+    });
+    expect(await screen.findByText(/Executions/)).toBeTruthy();
+
     // Toggle to the table view; the graph is replaced by the sortable endpoint table.
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
 
     // The single exposed endpoint (score 1) is listed with its friendly hostname and total findings,
-    // and the CSV export action is available.
-    expect(await screen.findByText('CORP-HOST')).toBeTruthy();
+    // and the CSV export action is available. The hostname appears twice on purpose here: the table
+    // cell AND the still-open panel's title — the td is the row under test.
+    const rowCell = (await screen.findAllByText('CORP-HOST')).find(el => el.tagName === 'TD');
+    expect(rowCell).toBeTruthy();
     expect(screen.getByRole('button', { name: /Export CSV/ })).toBeTruthy();
 
     // Clicking the row focuses the graph on that endpoint's own causal path (same as a chokepoint card
     // or a search pick): the table is a way IN to an endpoint, so it lands on the focused graph rather
-    // than leaving the analyst on the list — and without forcing the side panel open over it.
-    fireEvent.click(screen.getByText('CORP-HOST'));
+    // than leaving the analyst on the list — and without the side panel over it: the previously open
+    // panel closes rather than lingering (stale) over the freshly focused, full-width graph.
+    fireEvent.click(rowCell as HTMLElement);
     expect(await screen.findByTestId('attack-path-flow')).toBeTruthy();
     expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
     expect(screen.queryByText(/Executions/)).toBeNull();

@@ -554,9 +554,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // meant to reveal. The data is still fetched: the focused layout labels its injector edges from those
   // relations, and the panel is one node click away once the analyst wants the detail.
   const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string, opts?: { openPanel?: boolean }) => {
-    if (opts?.openPanel !== false) {
-      setSelectedNodeId(nodeId);
-    }
+    // On a focus request, CLOSE any panel a previous node click left open (not just skip opening one):
+    // a stale panel would keep covering the freshly focused graph, showing the new endpoint's data
+    // under the old node's selection highlight.
+    setSelectedNodeId(opts?.openPanel !== false ? nodeId : null);
     setSelectedFindingId(null);
     setSelectedInjectorId(null);
     setFindingDetail(null);
