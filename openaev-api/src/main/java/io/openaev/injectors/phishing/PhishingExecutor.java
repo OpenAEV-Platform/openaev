@@ -125,7 +125,9 @@ public class PhishingExecutor extends Injector {
         String pixelUrl =
             baseUrl + "/api/phishing/tracking/" + tenantId + "/o/" + result.getToken();
         String message = renderBody(emailTemplate, clickUrl, pixelUrl);
-        emailService.sendEmail(
+        // Lure content is operator-authored and must not be FreeMarker-evaluated (SSTI): the
+        // per-recipient link is already substituted via the literal {{phishing_url}} placeholder.
+        emailService.sendPreRenderedEmail(
             execution,
             List.of(userContext),
             from,

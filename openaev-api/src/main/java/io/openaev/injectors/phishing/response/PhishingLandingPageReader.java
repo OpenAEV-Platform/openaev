@@ -33,12 +33,6 @@ public class PhishingLandingPageReader {
   @JsonProperty("phishing_landing_page_logo_light")
   private final String logoLight;
 
-  @JsonProperty("phishing_capture_submitted_data")
-  private final boolean captureSubmittedData;
-
-  @JsonProperty("phishing_capture_passwords")
-  private final boolean capturePasswords;
-
   public PhishingLandingPageReader(final PhishingLandingPage landingPage) {
     this.name = landingPage.getName();
     this.html = landingPage.getHtml();
@@ -47,7 +41,5 @@ public class PhishingLandingPageReader {
     this.primaryColorLight = landingPage.getPrimaryColorLight();
     this.logoDark = landingPage.getLogoDark() != null ? landingPage.getLogoDark().getId() : null;
     this.logoLight = landingPage.getLogoLight() != null ? landingPage.getLogoLight().getId() : null;
-    this.captureSubmittedData = landingPage.isCaptureSubmittedData();
-    this.capturePasswords = landingPage.isCapturePasswords();
   }
 }

@@ -72,12 +72,75 @@ public class EmailService {
       String message,
       List<DataAttachment> attachments)
       throws Exception {
-    ExecutionContext interpolationContext = (ExecutionContext) usersContext.getFirst().clone();
-    if (usersContext.size() > 1) {
-      interpolationContext.remove("user");
+    sendEmailInternal(
+        execution,
+        usersContext,
+        from,
+        fromName,
+        replyTos,
+        inReplyTo,
+        mustBeEncrypted,
+        true,
+        subject,
+        message,
+        attachments);
+  }
+
+  /**
+   * Sends an already-rendered email, bypassing FreeMarker interpolation of the subject and body.
+   * Used by the phishing injector, whose lure content is operator-authored (and deliberately
+   * attacker-shaped) and must never be evaluated as a template - the per-recipient tracking link is
+   * substituted upstream via a literal placeholder. Skipping interpolation removes the server-side
+   * template-injection sink for this untrusted content.
+   */
+  public void sendPreRenderedEmail(
+      Execution execution,
+      List<ExecutionContext> usersContext,
+      String from,
+      String fromName,
+      List<String> replyTos,
+      String inReplyTo,
+      String subject,
+      String message,
+      List<DataAttachment> attachments)
+      throws Exception {
+    sendEmailInternal(
+        execution,
+        usersContext,
+        from,
+        fromName,
+        replyTos,
+        inReplyTo,
+        false,
+        false,
+        subject,
+        message,
+        attachments);
+  }
+
+  private void sendEmailInternal(
+      Execution execution,
+      List<ExecutionContext> usersContext,
+      String from,
+      String fromName,
+      List<String> replyTos,
+      String inReplyTo,
+      boolean mustBeEncrypted,
+      boolean interpolate,
+      String subject,
+      String message,
+      List<DataAttachment> attachments)
+      throws Exception {
+    String contextualSubject = subject;
+    String contextualBody = message;
+    if (interpolate) {
+      ExecutionContext interpolationContext = (ExecutionContext) usersContext.getFirst().clone();
+      if (usersContext.size() > 1) {
+        interpolationContext.remove("user");
+      }
+      contextualSubject = buildContextualContent(subject, interpolationContext);
+      contextualBody = buildContextualContent(message, interpolationContext);
     }
-    String contextualSubject = buildContextualContent(subject, interpolationContext);
-    String contextualBody = buildContextualContent(message, interpolationContext);
 
     MimeMessage mimeMessage =
         buildMimeMessage(

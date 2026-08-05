@@ -49,12 +49,8 @@ public class PhishingPublicApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public ResponseEntity<byte[]> open(
       @PathVariable String tenantId, @PathVariable String token, HttpServletRequest request) {
-    try {
-      TenantContext.setCurrentTenant(tenantId);
-      phishingTrackingService.markOpened(token, clientIp(request), request.getHeader("User-Agent"));
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    TenantContext.setCurrentTenant(tenantId);
+    phishingTrackingService.markOpened(token, clientIp(request), request.getHeader("User-Agent"));
     return ResponseEntity.ok()
         .contentType(MediaType.IMAGE_GIF)
         .header("Cache-Control", "no-store, no-cache, must-revalidate, private")
@@ -66,13 +62,8 @@ public class PhishingPublicApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Void> click(
       @PathVariable String tenantId, @PathVariable String token, HttpServletRequest request) {
-    try {
-      TenantContext.setCurrentTenant(tenantId);
-      phishingTrackingService.markClicked(
-          token, clientIp(request), request.getHeader("User-Agent"));
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    TenantContext.setCurrentTenant(tenantId);
+    phishingTrackingService.markClicked(token, clientIp(request), request.getHeader("User-Agent"));
     // Hand off to the themed public SPA renderer, which fetches the page content and posts creds.
     return ResponseEntity.status(HttpStatus.FOUND)
         .location(URI.create("/phishing/" + tenantId + "/" + token))
@@ -84,19 +75,15 @@ public class PhishingPublicApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public PhishingLandingPageReader page(
       @PathVariable String tenantId, @PathVariable String token, HttpServletRequest request) {
-    try {
-      TenantContext.setCurrentTenant(tenantId);
-      PhishingResult result = phishingTrackingService.resolveByToken(token).orElse(null);
-      if (result == null || result.getLandingPage() == null) {
-        return null;
-      }
-      // A rendered page is also an open signal (the pixel may be blocked by the mail client).
-      phishingTrackingService.markOpened(token, clientIp(request), request.getHeader("User-Agent"));
-      PhishingLandingPage landingPage = result.getLandingPage();
-      return new PhishingLandingPageReader(landingPage);
-    } finally {
-      TenantContext.clearCurrentTenant();
+    TenantContext.setCurrentTenant(tenantId);
+    PhishingResult result = phishingTrackingService.resolveByToken(token).orElse(null);
+    if (result == null || result.getLandingPage() == null) {
+      return null;
     }
+    // A rendered page is also an open signal (the pixel may be blocked by the mail client).
+    phishingTrackingService.markOpened(token, clientIp(request), request.getHeader("User-Agent"));
+    PhishingLandingPage landingPage = result.getLandingPage();
+    return new PhishingLandingPageReader(landingPage);
   }
 
   @PostMapping(PHISHING_TRACKING_URI + "/{tenantId}/s/{token}")
@@ -107,24 +94,20 @@ public class PhishingPublicApi extends RestBehavior {
       @PathVariable String token,
       @RequestBody PhishingSubmitInput input,
       HttpServletRequest request) {
-    try {
-      TenantContext.setCurrentTenant(tenantId);
-      Optional<PhishingResult> result =
-          phishingTrackingService.markSubmitted(
-              token,
-              resolveUsername(input),
-              resolvePassword(input),
-              clientIp(request),
-              request.getHeader("User-Agent"));
-      String redirectUrl =
-          result
-              .map(PhishingResult::getLandingPage)
-              .map(PhishingLandingPage::getRedirectUrl)
-              .orElse(null);
-      return java.util.Collections.singletonMap("redirect_url", redirectUrl);
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    TenantContext.setCurrentTenant(tenantId);
+    Optional<PhishingResult> result =
+        phishingTrackingService.markSubmitted(
+            token,
+            resolveUsername(input),
+            resolvePassword(input),
+            clientIp(request),
+            request.getHeader("User-Agent"));
+    String redirectUrl =
+        result
+            .map(PhishingResult::getLandingPage)
+            .map(PhishingLandingPage::getRedirectUrl)
+            .orElse(null);
+    return java.util.Collections.singletonMap("redirect_url", redirectUrl);
   }
 
   private String resolveUsername(PhishingSubmitInput input) {

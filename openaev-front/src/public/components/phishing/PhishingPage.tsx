@@ -32,8 +32,6 @@ const PhishingPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const trackingBase = `${APP_BASE_PATH}/api/phishing/tracking/${tenantId}/${token}`;
-
   useEffect(() => {
     let active = true;
     api<PhishingLandingPageReader>()
@@ -58,7 +56,7 @@ const PhishingPage = () => {
     setSubmitting(true);
     try {
       const response = await api<{ redirect_url?: string }>().post(
-        `${trackingBase}/s`,
+        `${APP_BASE_PATH}/api/phishing/tracking/${tenantId}/s/${token}`,
         { data: fields },
       );
       const redirectUrl = response.data?.redirect_url;

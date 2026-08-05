@@ -46,6 +46,12 @@ public class V6_20260805130000000__Add_phishing extends BaseJavaMigration {
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_phishing_landing_pages_tenant "
               + "ON phishing_landing_pages (tenant_id)");
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_phishing_landing_pages_logo_dark "
+              + "ON phishing_landing_pages (phishing_landing_page_logo_dark)");
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_phishing_landing_pages_logo_light "
+              + "ON phishing_landing_pages (phishing_landing_page_logo_light)");
 
       // -- Email templates --
       statement.execute(
@@ -117,6 +123,18 @@ public class V6_20260805130000000__Add_phishing extends BaseJavaMigration {
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_phishing_results_inject "
               + "ON phishing_results (phishing_result_inject)");
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_phishing_results_landing_page "
+              + "ON phishing_results (phishing_result_landing_page)");
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_phishing_results_user "
+              + "ON phishing_results (phishing_result_user)");
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_phishing_results_team "
+              + "ON phishing_results (phishing_result_team)");
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_phishing_results_finding "
+              + "ON phishing_results (phishing_result_finding)");
     }
   }
 }

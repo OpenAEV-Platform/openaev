@@ -77,9 +77,10 @@ public class PhishingTrackingService {
     result.setToken(generateToken());
     result.setInject(inject);
     result.setLandingPage(landingPage);
-    userRepository.findById(userId).ifPresent(result::setUser);
+    // FK-only association: a reference proxy avoids an N+1 SELECT per recipient at send time.
+    result.setUser(userRepository.getReferenceById(userId));
     if (teamId != null) {
-      teamRepository.findById(teamId).ifPresent(result::setTeam);
+      result.setTeam(teamRepository.getReferenceById(teamId));
     }
     result.setSentAt(now());
     return phishingResultRepository.save(result);

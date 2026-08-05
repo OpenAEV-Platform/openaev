@@ -9086,8 +9086,6 @@ export interface PhishingLandingPageLogoInput {
 }
 
 export interface PhishingLandingPageReader {
-  phishing_capture_passwords?: boolean;
-  phishing_capture_submitted_data?: boolean;
   phishing_landing_page_css?: string;
   phishing_landing_page_html?: string;
   phishing_landing_page_logo_dark?: string;
