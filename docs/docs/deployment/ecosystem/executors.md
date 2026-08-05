@@ -23,7 +23,7 @@ architectures. This table below summarizes the information about each agent.
 The OpenAEV agent is available for Windows, Linux and MacOS, it is the native / default way to execute implants and
 threat arsenal actions on endpoints.
 
-[Learn More](../../usage/openaev-agent.md)
+[Learn More](../../usage/environment/openaev-agent.md)
 
 <a id="tanium-agent"></a>
 
@@ -779,14 +779,14 @@ Implants are downloaded into a `runtimes/implant-XXXXX` subdirectory relative to
 
 Each implant directory is unique per inject.
 
-The installation directory path varies depending on the agent type and installation mode. Refer to [installation mode](../../usage/openaev-agent.md#privileges-security_1) for the exact paths.
+The installation directory path varies depending on the agent type and installation mode. Refer to [installation mode](../../usage/environment/openaev-agent.md#privileges-security_1) for the exact paths.
 
 ### Cleanup
 Old implant directories are periodically cleaned up by the platform. At the interval defined by `clean-implant-interval` (default: **8 hours**), the platform sends a cleanup command to each endpoint agent to remove directories in `runtimes/` and `payloads/` that are older than **24 hours**.
 
 !!! note "OpenAEV Agent"
 
-    The OpenAEV Agent has its own built-in garbage collector with different thresholds. See the [OpenAEV Agent documentation](../../usage/openaev-agent.md) for details.
+    The OpenAEV Agent has its own built-in garbage collector with different thresholds. See the [OpenAEV Agent documentation](../../usage/environment/openaev-agent.md) for details.
 
 ## Troubleshooting
 

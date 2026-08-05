@@ -15,7 +15,7 @@ The OpenAEV Agent is compatible with multiple operating systems (Windows, Linux,
 Depending on the operating system, several installation modes are available.
 You can access them from OpenAEV by clicking the blue icon in the top-right corner:
 
-![Agents](../administration/assets/agents.png)
+![Agents](../../administration/assets/agents.png)
 
 !!! note
 
@@ -207,17 +207,17 @@ If any of these requirements are not met, installation **will fail or behave unp
 
 ## Agent installation flow
 
-![img.png](../administration/assets/agent_installation_flow_diagram.png)
+![img.png](../../administration/assets/agent_installation_flow_diagram.png)
 
 ## Network traffic
 
 The installation creates two firewall rules:
 
 **Inbound rule**
-![Inbound rule](../administration/assets/inbound-rule.png)
+![Inbound rule](../../administration/assets/inbound-rule.png)
 
 **Outbound rule**
-![Outbound rule](../administration/assets/outbound-rule.png)
+![Outbound rule](../../administration/assets/outbound-rule.png)
 
 ## Proxy configuration
 

@@ -2,7 +2,7 @@
 
 !!! tip "Tips"
 
-      If you want to learn more about the concept and features of collectors, you can have more info [here](../../usage/collectors.md).
+      If you want to learn more about the concept and features of collectors, you can have more info [here](../../usage/environment/collectors.md).
 
 !!! question "Collectors list"
 

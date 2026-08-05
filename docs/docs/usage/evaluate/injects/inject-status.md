@@ -2,7 +2,7 @@
 
 Every Inject execution produces a **status** that tells you the outcome at a glance: success, failure, or partial
 completion. Statuses are computed automatically from the execution traces reported by
-[OpenAEV Agents](../../openaev-agent.md).
+[OpenAEV Agents](../../environment/openaev-agent.md).
 
 !!! warning "Execution status vs. Expectation results"
 

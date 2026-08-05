@@ -7,7 +7,7 @@ email, command execution, DNS resolution…) that OpenAEV executes against your 
 ## Create an Inject
 
 Creating an Inject means defining **what** to execute, **against whom**, and **what outcome to expect**. Every Inject is
-powered by an [Injector](../../build/injectors.md), the connector that knows how to deliver the action (email, agent command,
+powered by an [Injector](../../environment/injectors.md), the connector that knows how to deliver the action (email, agent command,
 API call, etc.).
 
 ### Benefits

@@ -62,7 +62,7 @@ By clicking on an endpoint, you will be able to access and manage its details:
 
 *IP and MAC addresses can be manually added or removed by the user (but the ones the agents find will always be upserted)
 
-To register new endpoints, you will need to install an agent. You can find detailed instructions on the [agent installation page](../openaev-agent.md).
+To register new endpoints, you will need to install an agent. You can find detailed instructions on the [agent installation page](../environment/openaev-agent.md).
 
 **Agents panel**
 

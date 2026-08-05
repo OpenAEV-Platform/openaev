@@ -43,4 +43,4 @@ To publish an article during a Simulation:
 
 - [Channels](channels.md) -- Define Channel templates for article appearance
 - [Inject overview](../../evaluate/injects/inject-overview.md) -- Create and configure Injects
-- [Built-in Injects](../injects-builtin.md) -- Overview of all built-in Injectors
+- [Built-in Injects](../../environment/injects-builtin.md) -- Overview of all built-in Injectors

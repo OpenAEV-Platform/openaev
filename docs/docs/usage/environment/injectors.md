@@ -20,8 +20,7 @@ Linux and MacOS.
 Some of them :
 
 - Caldera: Facilitates the use of the MITRE Caldera framework, empowering administrators to leverage advanced simulation
-  capabilities. For more information concerning the Caldera injector, please refer to
-  the [dedicated documentation page](../evaluate/injects/inject-caldera.md).
+  capabilities.
 
 ### Communication & social media
 
@@ -30,12 +29,12 @@ messaging etc.
 
 Some of them :
 
-- Challenges: Manages inject "publish challenges". See [Challenges](components/challenges.md) for details.
+- Challenges: Manages inject "publish challenges". See [Challenges](../build/components/challenges.md) for details.
 - Email: Manages the sending of injects' emails, enabling communication and dissemination of simulation-related
     information.
 - Manual: Platform functionality for creating manual action reminders, allowing administrators to prompt specific
   actions to be performed manually.
-- Media pressure: Manages inject "publish channel pressure". See [Media pressure](components/media-pressure.md) for details.
+- Media pressure: Manages inject "publish channel pressure". See [Media pressure](../build/components/media-pressure.md) for details.
 - OVHCloud SMS Platform: Facilitates SMS messaging for injects, providing an additional communication channel for
   simulation participants.
 
@@ -55,13 +54,13 @@ Some of them :
   the [Airbus website](https://www.cyber.airbus.com/cyberrange/).
 - HTTP query: Executes HTTP requests on external services, facilitating interactions with external systems.
 - OpenCTI: Integration with an OpenCTI platform, enhancing simulation capabilities with access to threat intelligence
-  and [automatic scenario generation](scenario/security-coverage.md) based on observed threat activities.
+  and [automatic scenario generation](../build/scenario/security-coverage.md) based on observed threat activities.
 
 ## Agents
 
 !!! tip "Tips"
 
-      If you want to learn more about the concept and features of agents, you can have more info [here](../openaev-agent.md).
+      If you want to learn more about the concept and features of agents, you can have more info [here](openaev-agent.md).
 
 For certain injectors, deploying an agent on the target machine is necessary to facilitate integration with OpenAEV.
 These agents are software programs that connect back to OpenAEV at certain intervals to get instructions.

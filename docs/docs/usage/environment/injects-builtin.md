@@ -35,7 +35,7 @@ The "Publish channel pressure" contract requires:
 - A **Channel** template defining the visual appearance (logo, branding)
 - One or more **Articles** with title, author, and content
 
-Published articles appear in the Player interface during the Simulation. See [Media pressure](components/media-pressure.md) for details on creating articles and channels.
+Published articles appear in the Player interface during the Simulation. See [Media pressure](../build/components/media-pressure.md) for details on creating articles and channels.
 
 ## Challenge Injector
 
@@ -45,10 +45,10 @@ The challenge Injector (`openaev_challenge`) embeds CTF (Capture The Flag)-style
 
 The OpenAEV Implant Injector (`openaev_implant`) executes commands on endpoints through the OpenAEV Agent. It provides native execution capabilities without requiring external tools like Caldera.
 
-See [OpenAEV Agent](../openaev-agent.md) for details on agent architecture and deployment.
+See [OpenAEV Agent](openaev-agent.md) for details on agent architecture and deployment.
 
 ## What's next?
 
 - [Inject overview](../evaluate/injects/inject-overview.md) -- How to create and configure Injects
-- [Media pressure](components/media-pressure.md) -- Create articles and channels
-- [OpenAEV Agent](../openaev-agent.md) -- Deploy and use the native agent
+- [Media pressure](../build/components/media-pressure.md) -- Create articles and channels
+- [OpenAEV Agent](openaev-agent.md) -- Deploy and use the native agent

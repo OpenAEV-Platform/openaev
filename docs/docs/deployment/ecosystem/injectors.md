@@ -2,7 +2,7 @@
 
 !!! tip "Tips"
 
-      If you want to learn more about the concept and features of injectors, you can have more info [here](../../usage/build/injectors.md).
+      If you want to learn more about the concept and features of injectors, you can have more info [here](../../usage/environment/injectors.md).
 
 !!! question "Injectors list"
 
@@ -52,7 +52,7 @@ For instance, to enable the HTTP query injector, you can add a new service to yo
 ```
 Note: Injector images and available versions can be found on Docker Hub.
 
-##### Launch a standalone collector
+##### Launch a standalone injector
 To launch a standalone injector, you can use the `docker-compose.yml` file of the injector itself. Just download the latest [release](https://github.com/OpenAEV-Platform/injectors/releases) and start the injector:
 
 ```

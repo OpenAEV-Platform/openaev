@@ -189,12 +189,10 @@ nav:
       - Notifications: usage/notifications.md
     - Interact with your environment:
       - Injectors:
-        - Overview: usage/build/injectors.md
-        - Built-In Injector: usage/build/injects-builtin.md
-        - Caldera Injector: usage/evaluate/injects/inject-caldera.md
-      - Collectors:
-        - Overview: usage/collectors.md
-      - Agents: usage/openaev-agent.md
+        - Overview: usage/environment/injectors.md
+        - Built-In Injector: usage/environment/injects-builtin.md
+      - Collectors: usage/environment/collectors.md
+      - Agents: usage/environment/openaev-agent.md
     - Rest API: usage/rest-api.md
   - Administration:
     - Introduction: administration/introduction.md
