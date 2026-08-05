@@ -4,6 +4,8 @@ import static io.opentelemetry.api.common.AttributeKey.booleanKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.BaseConnectorEntity;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
@@ -42,6 +44,7 @@ public class InventoryMetricCollector {
   private static final String ATTRIBUTE_TYPE = "type";
 
   private final MetricRegistry metricRegistry;
+  private final TenantScopedTransaction tenantTx;
   private final InjectorRepository injectorRepository;
   private final CollectorRepository collectorRepository;
   private final ExecutorRepository executorRepository;
@@ -66,32 +69,40 @@ public class InventoryMetricCollector {
   private Map<Attributes, Long> collectInventory(
       ConnectorType connectorType,
       Supplier<? extends Iterable<? extends BaseConnectorEntity>> entitiesSupplier) {
-    Map<Attributes, Long> inventory = new HashMap<>();
     try {
-      Map<String, CatalogConnector> catalogByConnectorId = mapCatalogByConnectorId(connectorType);
-      for (BaseConnectorEntity entity : entitiesSupplier.get()) {
-        String type = entity.getType() == null ? "" : entity.getType().trim();
-        if (type.isEmpty()) {
-          continue;
-        }
-        CatalogConnector catalogConnector = catalogByConnectorId.get(entity.getId());
-        boolean managed = catalogConnector != null;
-        String slug = managed ? catalogConnector.getSlug() : type;
-        if (slug == null || slug.isBlank()) {
-          continue;
-        }
-        Attributes attributes =
-            Attributes.of(
-                stringKey(ATTRIBUTE_SLUG),
-                slug.trim().toLowerCase(Locale.ROOT),
-                booleanKey(ATTRIBUTE_MANAGED),
-                managed,
-                stringKey(ATTRIBUTE_TYPE),
-                type);
-        inventory.merge(attributes, 1L, Long::sum);
-      }
+      return tenantTx.execute(
+          TxCtx.allTenants(), () -> collectInventoryScoped(connectorType, entitiesSupplier));
     } catch (Exception e) {
       log.error("Telemetry - Failed to collect connector inventory metrics", e);
+      return Map.of();
+    }
+  }
+
+  private Map<Attributes, Long> collectInventoryScoped(
+      ConnectorType connectorType,
+      Supplier<? extends Iterable<? extends BaseConnectorEntity>> entitiesSupplier) {
+    Map<Attributes, Long> inventory = new HashMap<>();
+    Map<String, CatalogConnector> catalogByConnectorId = mapCatalogByConnectorId(connectorType);
+    for (BaseConnectorEntity entity : entitiesSupplier.get()) {
+      String type = entity.getType() == null ? "" : entity.getType().trim();
+      if (type.isEmpty()) {
+        continue;
+      }
+      CatalogConnector catalogConnector = catalogByConnectorId.get(entity.getId());
+      boolean managed = catalogConnector != null;
+      String slug = managed ? catalogConnector.getSlug() : type;
+      if (slug == null || slug.isBlank()) {
+        continue;
+      }
+      Attributes attributes =
+          Attributes.of(
+              stringKey(ATTRIBUTE_SLUG),
+              slug.trim().toLowerCase(Locale.ROOT),
+              booleanKey(ATTRIBUTE_MANAGED),
+              managed,
+              stringKey(ATTRIBUTE_TYPE),
+              type);
+      inventory.merge(attributes, 1L, Long::sum);
     }
     return inventory;
   }

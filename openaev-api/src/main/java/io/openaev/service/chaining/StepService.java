@@ -53,6 +53,7 @@ public class StepService {
   @Transactional(rollbackFor = Exception.class)
   public Step createStepTemplate(Workflow workflow, StepsCreateInput.StepInput stepInput)
       throws ChainingException {
+    WorkflowEditability.assertLogicMapEditable(workflow);
     if (stepInput.getConditions() == null) {
       stepInput.setConditions(stepAutoLinkService.buildAutoLinkConditions(stepInput.getDataStep()));
     }
@@ -567,6 +568,8 @@ public class StepService {
     // Retrieve the existing step template from a database
     Step existing = findStepTemplateById(stepId);
 
+    WorkflowEditability.assertLogicMapEditable(existing.getWorkflow());
+
     // Resolve the correct ActionStep implementation based on input action type
     ActionStep actionStep = factoryAction(stepInput.getStepAction(), stepId);
 
@@ -625,6 +628,7 @@ public class StepService {
   @Transactional(rollbackFor = Exception.class)
   public void deleteStepTemplate(String stepId) {
     Step step = findStepTemplateById(stepId);
+    WorkflowEditability.assertLogicMapEditable(step.getWorkflow());
     conditionService.deleteAllConditionsByStepId(stepId);
     stepRepository.delete(step);
   }

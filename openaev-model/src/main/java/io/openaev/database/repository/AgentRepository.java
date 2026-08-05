@@ -36,7 +36,15 @@ public interface AgentRepository
 
   List<Agent> findByExecutorId(String executorId);
 
-  List<Agent> findByExecutorIdAndTenantId(String executorId, String tenantId);
+  @Query("SELECT a FROM Agent a WHERE a.executor.id = :executorId AND a.tenant.id = :tenantId")
+  List<Agent> findByExecutorIdAndTenantId(
+      @Param("executorId") String executorId, @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true)
+  @Transactional
+  @Query("DELETE FROM Agent a WHERE a.executor.id = :executorId AND a.tenant.id = :tenantId")
+  void deleteAllByExecutorIdAndTenantId(
+      @Param("executorId") String executorId, @Param("tenantId") String tenantId);
 
   List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
 

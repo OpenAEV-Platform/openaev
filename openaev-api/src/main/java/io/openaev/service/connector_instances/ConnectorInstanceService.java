@@ -442,8 +442,13 @@ public class ConnectorInstanceService {
       String tenantId = connectorInstance.getTenant().getId();
       switch (connectorInstance.getCatalogConnector().getContainerType()) {
         case EXECUTOR -> {
+          // agent_executor_id_fk (composite, ON DELETE CASCADE) already removes the agent rows
+          // in the DB; no in-transaction read of Agent follows this delete, so there is no
+          // Hibernate persistence-context staleness to guard against here (contrast with
+          // ExecutorService#remove, which is exercised by a test that loads an Agent in the same
+          // transaction).
           endpointService.removeSourceTagsForExecutor(connectorId, tenantId);
-          executorRepository.deleteByIdAndTenantId(connectorId, tenantId);
+          executorRepository.deleteByExecutorId(connectorId);
         }
         case INJECTOR -> injectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
         case COLLECTOR -> collectorRepository.deleteByCollectorId(connectorId);

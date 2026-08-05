@@ -16,6 +16,7 @@ import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.scheduler.jobs.QueueChainingJob;
 import java.io.IOException;
 import java.util.*;
@@ -1092,6 +1093,61 @@ class StepServiceTest {
       // Assert
       verify(conditionService).deleteAllConditionsByStepId(stepId);
       verify(stepRepository).delete(template);
+    }
+
+    // -- logic-map freeze (ADR-005): mutations are rejected once the owning simulation is launched.
+
+    private Workflow launchedSimulationWorkflow() {
+      Exercise simulation = new Exercise();
+      simulation.setStatus(ExerciseStatus.RUNNING);
+      Workflow launchedWorkflow = new Workflow();
+      launchedWorkflow.setSimulation(simulation);
+      return launchedWorkflow;
+    }
+
+    @Test
+    void given_runningSimulation_should_rejectCreateStepTemplate() {
+      // Arrange
+      Workflow launchedWorkflow = launchedSimulationWorkflow();
+      StepsCreateInput.StepInput stepInput = mock(StepsCreateInput.StepInput.class);
+
+      // Act + Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> stepService.createStepTemplate(launchedWorkflow, stepInput));
+      verify(stepRepository, never()).save(any());
+    }
+
+    @Test
+    void given_runningSimulation_should_rejectUpdateStepTemplate() {
+      // Arrange
+      String stepId = UUID.randomUUID().toString();
+      Step existing = new Step();
+      existing.setWorkflow(launchedSimulationWorkflow());
+      when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
+          .thenReturn(Optional.of(existing));
+
+      // Act + Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> stepService.updateStepTemplate(stepId, mock(StepInput.class)));
+      verify(stepRepository, never()).save(any());
+    }
+
+    @Test
+    void given_runningSimulation_should_rejectDeleteStepTemplate() {
+      // Arrange
+      String stepId = UUID.randomUUID().toString();
+      Step template = new Step();
+      template.setWorkflow(launchedSimulationWorkflow());
+      when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
+          .thenReturn(Optional.of(template));
+
+      // Act + Assert
+      assertThrows(
+          WorkflowNotEditableException.class, () -> stepService.deleteStepTemplate(stepId));
+      verify(conditionService, never()).deleteAllConditionsByStepId(anyString());
+      verify(stepRepository, never()).delete(any());
     }
 
     @Test

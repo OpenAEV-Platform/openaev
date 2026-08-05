@@ -126,7 +126,10 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Windows);
     endpoint.setTenant(tenant);
 
-    Agent agent = AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor());
+    // executors' PK is composite (executor_id, tenant_id): the executor must be attached to this
+    // test's own tenant, not the default one, or the agent's FK to it fails to resolve.
+    Agent agent =
+        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
     agent.setId("agt-rem-1");
     agent.setAsset(endpoint);
     agent.setExecutedByUser("agent-rem-1");
@@ -215,7 +218,8 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Windows);
     endpoint.setTenant(tenant);
 
-    Agent agent = AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor());
+    Agent agent =
+        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
     agent.setId("agt-1");
     agent.setAsset(endpoint);
     agent.setExecutedByUser("agent-1");
@@ -290,7 +294,8 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Windows);
     endpoint.setTenant(tenant);
 
-    Agent agent = AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor());
+    Agent agent =
+        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
     agent.setId("agt-1");
     agent.setAsset(endpoint);
     agent.setExecutedByUser("agent-1");

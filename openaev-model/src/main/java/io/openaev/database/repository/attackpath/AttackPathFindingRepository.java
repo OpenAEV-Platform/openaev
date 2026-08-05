@@ -25,7 +25,7 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingRow("
-          + "f.id, f.type, f.value, f.endpointId, f.endpointRaw, f.endpointKey, ef.executionId) "
+          + "f.id, f.type, f.value, f.endpointId, f.endpointRaw, f.endpointKey, ef.executionId, f.isFinding) "
           + "FROM AttackPathFinding f "
           + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
           + "WHERE f.simulationId = :simulationId")
@@ -40,7 +40,7 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingRow("
-          + "f.id, f.type, f.value, f.endpointId, f.endpointRaw, f.endpointKey, ef.executionId) "
+          + "f.id, f.type, f.value, f.endpointId, f.endpointRaw, f.endpointKey, ef.executionId, f.isFinding) "
           + "FROM AttackPathFinding f "
           + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
           + "WHERE f.simulationId = :simulationId AND f.rowVersion > :since")
@@ -60,7 +60,7 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingRow("
-          + "f.id, f.type, f.value, f.endpointId, f.endpointRaw, f.endpointKey, ef.executionId) "
+          + "f.id, f.type, f.value, f.endpointId, f.endpointRaw, f.endpointKey, ef.executionId, f.isFinding) "
           + "FROM AttackPathFinding f "
           + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
           + "WHERE f.simulationId = :simulationId AND f.type IN :types")
@@ -109,7 +109,7 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingVerdictRow("
-          + "f.type, f.value, e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus) "
+          + "f.type, f.value, e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, f.isFinding) "
           + "FROM AttackPathFinding f "
           + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
           + "JOIN AttackPathExecution e ON e.id = ef.executionId "

@@ -11,4 +11,5 @@ public record AttackPathEndpointFindingVerdictRow(
     String value,
     String preventionStatus,
     String detectionStatus,
-    String vulnerabilityStatus) {}
+    String vulnerabilityStatus,
+    boolean isFinding) {}

@@ -4,8 +4,12 @@ import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Executor;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
 import io.openaev.service.AgentService;
@@ -20,23 +24,45 @@ public class TaniumGarbageCollectorService implements Runnable {
   private final TaniumExecutorConfig config;
   private final TaniumExecutorContextService taniumExecutorContextService;
   private final AgentService agentService;
-  private final String executorId;
+  private final Executor executor;
+  private final TenantScopedTransaction tenantTx;
 
   public TaniumGarbageCollectorService(
       TaniumExecutorConfig config,
       TaniumExecutorContextService taniumExecutorContextService,
       AgentService agentService,
-      String executorId) {
+      Executor executor,
+      TenantScopedTransaction tenantTx) {
     this.config = config;
     this.taniumExecutorContextService = taniumExecutorContextService;
     this.agentService = agentService;
-    this.executorId = executorId;
+    this.executor = executor;
+    this.tenantTx = tenantTx;
   }
 
   @Override
   public void run() {
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(executor.getTenantId()),
+          () -> {
+            // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still relying on
+            // TenantContext via HibernateFilterTransactionAspect: this Runnable executes on the
+            // shared scheduler thread pool outside any HTTP request, so TenantContext is never
+            // set here otherwise and falls back to the default tenant, silently scoping the v1
+            // Hibernate filter to the wrong tenant.
+            TenantContext.setCurrentTenant(executor.getTenantId());
+            doRun();
+            return null;
+          });
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  private void doRun() {
     List<io.openaev.database.model.Agent> agents =
-        this.agentService.getAgentsByExecutorId(executorId);
+        this.agentService.getAgentsByExecutorId(executor.getId());
     if (!agents.isEmpty()) {
       log.info("Running Tanium executor garbage collector on " + agents.size() + " agents");
       List<TaniumAction> actions = new ArrayList<>();

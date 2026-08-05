@@ -53,6 +53,88 @@ public class AttackPathFindingIngestionService {
         () -> copy(inject.getId(), step.getId(), simulationId, tenantId));
   }
 
+  /**
+   * One output-only value produced by the chaining and NOT persisted as a {@link Finding} ({@code
+   * contract_output_element_is_finding = false}, ADR-004). {@code type} is the contract output type
+   * label, {@code field} the output element key (never blank, so the row carries the full natural
+   * key its deterministic id is derived from).
+   */
+  public record OutputValue(String type, String field, String value) {}
+
+  /**
+   * Copies the run's output-only values onto the attack-path snapshot with {@code is_finding =
+   * false}, so the map shows every output the chaining used, not only the ones persisted as
+   * findings. Same tenant-scoped REQUIRES_NEW boundary, versioning and idempotent writes as {@link
+   * #copyFindings}; a failure here is non-fatal to the run.
+   */
+  public void copyOutputs(Inject inject, Step step, List<OutputValue> outputs) {
+    if (inject.getExercise() == null || outputs.isEmpty()) {
+      return;
+    }
+    String simulationId = inject.getExercise().getId();
+    String tenantId = inject.getTenant().getId();
+    tenantTx.executeNew(
+        TxCtx.forTenant(tenantId),
+        () -> copyOutputsTx(step.getId(), simulationId, tenantId, outputs));
+  }
+
+  private void copyOutputsTx(
+      String stepId, String simulationId, String tenantId, List<OutputValue> outputs) {
+    List<AttackPathExecution> rows = executionRepository.findByStepIdAndTenantId(stepId, tenantId);
+    if (rows.isEmpty()) {
+      return; // no frozen endpoint to attribute an output to yet
+    }
+    // An output value carries no per-value asset, so attribute it only when the step targets a
+    // single endpoint - otherwise there is no signal to pick the right one (as the finding copy's
+    // no-match fallback does).
+    long distinctEndpoints =
+        rows.stream().map(AttackPathExecution::getTargetKey).distinct().count();
+    if (distinctEndpoints != 1) {
+      return;
+    }
+
+    List<FindingRow> findingRows = new ArrayList<>();
+    List<Link> links = new ArrayList<>();
+    Set<String> seenRows = new HashSet<>();
+    Set<String> seenLinks = new HashSet<>();
+
+    for (OutputValue out : outputs) {
+      for (AttackPathExecution row : rows) {
+        String endpointKey = row.getTargetKey();
+        String endpointId = row.getTargetAssetId();
+        String endpointRaw = endpointId != null ? null : endpointKey;
+        String id =
+            AttackPathIds.findingRow(
+                simulationId, out.type(), out.field(), out.value(), endpointKey);
+        if (seenRows.add(id)) {
+          findingRows.add(
+              new FindingRow(
+                  id,
+                  tenantId,
+                  simulationId,
+                  out.type(),
+                  out.field(),
+                  out.value(),
+                  endpointId,
+                  endpointRaw,
+                  endpointKey,
+                  false));
+        }
+        if (seenLinks.add(row.getId() + '\u0000' + id)) {
+          links.add(new Link(row.getId(), id));
+        }
+      }
+    }
+
+    if (findingRows.isEmpty() && links.isEmpty()) {
+      return;
+    }
+    long version = versionService.bump(simulationId, tenantId);
+    findingWriter.insertFindings(findingRows, version);
+    findingWriter.insertLinks(links);
+    versionService.publishChanged(simulationId, tenantId, version);
+  }
+
   private void copy(String injectId, String stepId, String simulationId, String tenantId) {
     List<AttackPathExecution> rows = executionRepository.findByStepIdAndTenantId(stepId, tenantId);
     if (rows.isEmpty()) {
@@ -97,7 +179,8 @@ public class AttackPathFindingIngestionService {
                   value,
                   endpointId,
                   endpointRaw,
-                  endpointKey));
+                  endpointKey,
+                  true));
         }
         if (seenLinks.add(row.getId() + '\u0000' + id)) {
           links.add(new Link(row.getId(), id));

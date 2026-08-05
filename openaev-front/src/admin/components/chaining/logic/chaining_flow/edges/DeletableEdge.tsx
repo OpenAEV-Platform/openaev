@@ -74,33 +74,35 @@ const DeletableEdge = ({
       />
 
       <EdgeLabelRenderer>
-        <div
-          style={{
-            position: 'absolute',
-            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-            pointerEvents: 'all',
-            zIndex: 1000,
-          }}
-          className="nodrag nopan"
-        >
-          <IconButton
-            size="small"
-            onMouseDown={e => e.stopPropagation()}
-            onClick={handleDelete}
-            sx={{
-              'width': 20,
-              'height': 20,
-              'background': theme.palette.background.paper,
-              'border': `1px solid ${theme.palette.divider}`,
-              '&:hover': {
-                background: theme.palette.error.main,
-                color: theme.palette.error.contrastText,
-              },
+        {data?.onDelete && (
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              pointerEvents: 'all',
+              zIndex: 1000,
             }}
+            className="nodrag nopan"
           >
-            <CloseOutlined sx={{ fontSize: 12 }} />
-          </IconButton>
-        </div>
+            <IconButton
+              size="small"
+              onMouseDown={e => e.stopPropagation()}
+              onClick={handleDelete}
+              sx={{
+                'width': 20,
+                'height': 20,
+                'background': theme.palette.background.paper,
+                'border': `1px solid ${theme.palette.divider}`,
+                '&:hover': {
+                  background: theme.palette.error.main,
+                  color: theme.palette.error.contrastText,
+                },
+              }}
+            >
+              <CloseOutlined sx={{ fontSize: 12 }} />
+            </IconButton>
+          </div>
+        )}
       </EdgeLabelRenderer>
     </>
   );

@@ -20,9 +20,10 @@ import type { WorkflowConfigurationInput, WorkflowConfigurationOutput } from '..
 interface Props {
   workflowConfiguration: WorkflowConfigurationOutput | undefined;
   onUpdate: (overrides: Partial<WorkflowConfigurationInput>) => void;
+  readOnly?: boolean;
 }
 
-const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
+const ScopeTimeOut = ({ workflowConfiguration, onUpdate, readOnly = false }: Props) => {
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
@@ -81,6 +82,7 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
         <Switch
           checked={timeoutEnabled}
           onChange={handleToggleTimeout}
+          disabled={readOnly}
           sx={{
             m: 0,
             ml: 'auto',
@@ -97,7 +99,7 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
             alignItems: 'end',
           }}
         >
-          <FormControl size="small" disabled={!timeoutEnabled}>
+          <FormControl size="small" disabled={!timeoutEnabled || readOnly}>
             <InputLabel sx={{ color: theme.palette.grey['500'] }}>
               {t('Hours')}
             </InputLabel>
@@ -114,7 +116,7 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
             </Select>
           </FormControl>
 
-          <FormControl size="small" disabled={!timeoutEnabled}>
+          <FormControl size="small" disabled={!timeoutEnabled || readOnly}>
             <InputLabel sx={{ color: theme.palette.grey['500'] }}>
               {t('Minutes')}
             </InputLabel>

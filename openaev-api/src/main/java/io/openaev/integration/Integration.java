@@ -32,6 +32,11 @@ public abstract class Integration {
     this.connectorInstanceService = connectorInstanceService;
   }
 
+  /** Returns the tenant ID from the underlying persisted connector instance. */
+  protected String getTenantId() {
+    return ((ConnectorInstancePersisted) connectorInstance).getTenant().getId();
+  }
+
   protected abstract void innerStart() throws Exception;
 
   protected abstract void refresh() throws Exception;

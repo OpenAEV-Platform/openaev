@@ -278,6 +278,9 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public Page<InjectTarget> injectTargetSearch(
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (an AGENT target type reads the agent's executor).
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetType,
       @Valid @RequestBody SearchPaginationInput input) {

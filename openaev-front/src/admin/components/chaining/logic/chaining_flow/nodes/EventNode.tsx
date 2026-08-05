@@ -127,6 +127,7 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
           size="small"
           aria-haspopup="true"
           onClick={handleMenuOpen}
+          sx={{ display: (data.onEdit || data.onDelete) ? undefined : 'none' }}
         >
           <MoreVert sx={{
             fontSize: 18,
@@ -161,22 +162,23 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
         marginTop: 1,
       }}
       >
-        <Tooltip title={t('Add an action')}>
-          <Button
-            color="primary"
-            variant="contained"
-            onClick={handleAddAction}
-            sx={{
-              minWidth: 0,
-              width: 24,
-              height: 24,
-              padding: 0,
-            }}
-          >
-            <Add sx={{ fontSize: 16 }} />
-          </Button>
-
-        </Tooltip>
+        {data.onAddAction && (
+          <Tooltip title={t('Add an action')}>
+            <Button
+              color="primary"
+              variant="contained"
+              onClick={handleAddAction}
+              sx={{
+                minWidth: 0,
+                width: 24,
+                height: 24,
+                padding: 0,
+              }}
+            >
+              <Add sx={{ fontSize: 16 }} />
+            </Button>
+          </Tooltip>
+        )}
       </Box>
 
       <NodePopover

@@ -1,6 +1,12 @@
 package io.openaev.service.attackpath;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.ExecutionTrace;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectStatus;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionRemediation;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
@@ -17,6 +23,8 @@ import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.StepConditionRow;
 import io.openaev.database.repository.StepRepository;
@@ -38,6 +46,7 @@ import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingVerdictsDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.service.attackpath.dto.ConsumedFindingKeyDTO;
+import io.openaev.utils.PrimitiveValueMaskingUtils;
 import io.openaev.utils.mapper.PayloadMapper;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,6 +60,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -97,6 +108,35 @@ public class AttackPathGraphService {
   private static final String CATEGORY_CREDENTIALS = "credentials";
   private static final String CREDENTIAL_MASK = "••••";
 
+  /**
+   * Maps a redacted command-line flag to the inject content field it was resolved from, for {@link
+   * #injectorCommandLine}. Mirrors the flags NetExec/Nmap contracts expose.
+   */
+  private static final Map<String, String> COMMAND_FLAG_TO_FIELD_KEY =
+      Map.ofEntries(
+          Map.entry("-u", "username"),
+          Map.entry("--user", "username"),
+          Map.entry("--username", "username"),
+          Map.entry("-p", "password"),
+          Map.entry("--pass", "password"),
+          Map.entry("--password", "password"),
+          Map.entry("-H", "hash"),
+          Map.entry("--hash", "hash"),
+          Map.entry("--ntlm", "hash"),
+          Map.entry("-d", "domain"),
+          Map.entry("--domain", "domain"));
+
+  /** Fields partially masked (rather than shown in full) once unredacted in the command line. */
+  private static final Map<String, PrimitiveType> FIELD_KEY_TO_MASKED_TYPE =
+      Map.of(
+          "password", PrimitiveType.Password,
+          "hash", PrimitiveType.Hash);
+
+  private static final Pattern REDACTED_FLAG_PATTERN =
+      Pattern.compile("(--?[A-Za-z][A-Za-z-]*)(\\s+)(\\*+)");
+
+  private static final String PUBLISHED_TRACE_PREFIX = "the inject has been published";
+
   private static final String SHARE_TYPE = "share";
   private static final String FILE_TYPE = "file";
 
@@ -110,6 +150,8 @@ public class AttackPathGraphService {
   private final AttackPathKillChainResolver killChainResolver;
   private final ConditionRepository conditionRepository;
   private final AssetRepository assetRepository;
+  private final InjectStatusRepository injectStatusRepository;
+  private final InjectRepository injectRepository;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -297,7 +339,92 @@ public class AttackPathGraphService {
         findings,
         securityPlatformResolver.resolve(e.getId(), e.getTenant().getId()),
         maskSecrets(e.getCommand(), secrets),
-        maskSecrets(e.getTerminalOutput(), secrets));
+        maskSecrets(e.getTerminalOutput(), secrets),
+        // A network injector (NetExec, Nmap…) never has its own `command` snapshot; reconstruct one
+        // server-side instead of leaving the client to fetch the raw inject content itself.
+        (injectId != null
+                && e.getPayloadId() == null
+                && (e.getCommand() == null || e.getCommand().isBlank()))
+            ? maskSecrets(injectorCommandLine(injectId), secrets)
+            : null);
+  }
+
+  /**
+   * Reconstructs a network injector's (NetExec, Nmap…) command line for display. Its own execution
+   * trace always redacts every flag value with a blanket "***" (the injector doesn't know which of
+   * its args are safe to print); this un-redacts the flags we recognize using the inject's own
+   * resolved content, applying our own partial-reveal mask (password/hash) instead of the
+   * injector's blanket one. Done entirely server-side so the raw credential value is never sent to
+   * the client, unlike reconstructing it client-side from the raw inject content.
+   *
+   * @return null when there is no matching trace or nothing to unmask
+   */
+  private String injectorCommandLine(String injectId) {
+    List<ExecutionTrace> traces =
+        injectStatusRepository
+            .findInjectStatusWithGlobalExecutionTraces(injectId)
+            .map(InjectStatus::getTraces)
+            .orElse(List.of());
+    String rawCommandLine = findCommandTraceMessage(traces);
+    if (rawCommandLine == null) {
+      return null;
+    }
+    ObjectNode injectContent =
+        injectRepository.findById(injectId).map(Inject::getContent).orElse(null);
+    return injectContent == null
+        ? rawCommandLine
+        : unmaskCommandLine(rawCommandLine, injectContent);
+  }
+
+  /**
+   * The first trace is always the "published, waiting to be consumed" boilerplate; the next one is
+   * the tool invocation itself (then "executed against target…", "succeeded: …", etc.) — this
+   * ordering holds across every injector observed (NetExec, Nmap), there being no structured "this
+   * is the command" marker on a trace to key off instead.
+   */
+  private static String findCommandTraceMessage(List<ExecutionTrace> traces) {
+    if (traces.isEmpty()) {
+      return null;
+    }
+    String first = traces.get(0).getMessage();
+    boolean firstIsBoilerplate =
+        first != null && first.toLowerCase(Locale.ROOT).startsWith(PUBLISHED_TRACE_PREFIX);
+    if (!firstIsBoilerplate) {
+      return first;
+    }
+    return traces.size() > 1 ? traces.get(1).getMessage() : null;
+  }
+
+  /**
+   * Replaces each redacted "-&lt;flag&gt; ***" in the injector's own trace with the real value,
+   * partially revealed by {@link PrimitiveValueMaskingUtils} for the fields we mask, in full for
+   * every other recognized field (e.g. username). Any unrecognized flag, or a recognized flag we
+   * have no resolved value for, is left exactly as the injector logged it.
+   */
+  private static String unmaskCommandLine(String commandLine, ObjectNode injectContent) {
+    Matcher matcher = REDACTED_FLAG_PATTERN.matcher(commandLine);
+    StringBuilder result = new StringBuilder();
+    while (matcher.find()) {
+      String flag = matcher.group(1);
+      String whitespace = matcher.group(2);
+      String fieldKey = COMMAND_FLAG_TO_FIELD_KEY.get(flag);
+      JsonNode fieldValueNode = fieldKey == null ? null : injectContent.get(fieldKey);
+      String fieldValue = fieldValueNode == null ? null : fieldValueNode.asText();
+      String replacement;
+      if (fieldValue == null || fieldValue.isBlank()) {
+        replacement = matcher.group();
+      } else {
+        PrimitiveType maskedType = FIELD_KEY_TO_MASKED_TYPE.get(fieldKey);
+        String displayValue =
+            maskedType == null
+                ? fieldValue
+                : PrimitiveValueMaskingUtils.maskForDisplay(maskedType, fieldValue);
+        replacement = flag + whitespace + displayValue;
+      }
+      matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+    }
+    matcher.appendTail(result);
+    return result.toString();
   }
 
   /** The secret half of a {@code username:password} credential value (never shown in the clear). */
@@ -456,8 +583,13 @@ public class AttackPathGraphService {
       String typeNodeId = AttackPathIds.findingTypeNode(f.type(), endpointKey);
       typeNodes.computeIfAbsent(typeNodeId, id -> findingTypeNode(id, f.type(), assetNodeId));
       String findingNodeId = AttackPathIds.findingNode(f.type(), f.value());
-      findingNodes.computeIfAbsent(
-          findingNodeId, id -> findingNode(id, f.type(), f.value(), typeNodeId, assetNodeId));
+      AttackPathNodeDTO findingDrawerNode =
+          findingNodes.computeIfAbsent(
+              findingNodeId, id -> findingNode(id, f.type(), f.value(), typeNodeId, assetNodeId));
+      // A real finding among the (type, value) producers wins over an output-only one (ADR-004).
+      if (f.isFinding()) {
+        findingDrawerNode.setIsFinding(true);
+      }
       producersByFinding
           .computeIfAbsent(findingNodeId, id -> new ArrayList<>())
           .add(
@@ -594,6 +726,11 @@ public class AttackPathGraphService {
               findingNodeId, id -> findingNode(id, f.type(), f.value(), typeNodeId, assetNodeId));
       if (seenFindingNodes.add(findingNodeId)) {
         staticFindings.add(findingNode);
+      }
+      // A node dedups (type, value) across endpoints and both flags: a real finding among its
+      // producers wins over an output-only one (ADR-004).
+      if (f.isFinding()) {
+        findingNode.setIsFinding(true);
       }
 
       // Accumulate each producing execution's verdict for the cross-endpoint worst-of on the node.
@@ -1339,6 +1476,8 @@ public class AttackPathGraphService {
     node.setTypeFindings(type);
     node.setFindingsTypeNodeId(typeNodeId);
     node.setAssetNodeId(assetNodeId);
+    // Default to output-only; a real finding among the node's producers flips it to true (OR).
+    node.setIsFinding(false);
     return node;
   }
 

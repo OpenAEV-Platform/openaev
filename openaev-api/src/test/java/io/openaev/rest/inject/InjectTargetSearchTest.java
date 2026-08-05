@@ -2,12 +2,15 @@ package io.openaev.rest.inject;
 
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
@@ -1368,6 +1371,102 @@ public class InjectTargetSearchTest extends IntegrationTest {
 
           assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
         }
+      }
+    }
+
+    @Nested
+    @DisplayName("When an agent has no resolved executor")
+    public class WhenAgentHasNoExecutor {
+      @Test
+      @DisplayName(
+          "given_agentsWithAndWithoutExecutor_should_excludeExecutorlessAgentFromContentAndTotalElements")
+      public void
+          given_agentsWithAndWithoutExecutor_should_excludeExecutorlessAgentFromContentAndTotalElements()
+              throws Exception {
+        InjectComposer.Composer injectWrapper = getInjectWrapper();
+
+        // Two agents WITH a resolved executor: valid targets.
+        AgentComposer.Composer agent1Wrapper =
+            agentComposer
+                .forAgent(AgentFixture.createDefaultAgentService())
+                .withExecutor(executorComposer.forExecutor(executorFixture.getDefaultExecutor()));
+        EndpointComposer.Composer ep1Wrapper =
+            endpointComposer
+                .forEndpoint(EndpointFixture.createEndpoint())
+                .withAgent(agent1Wrapper)
+                .persist();
+
+        AgentComposer.Composer agent2Wrapper =
+            agentComposer
+                .forAgent(AgentFixture.createDefaultAgentService())
+                .withExecutor(executorComposer.forExecutor(executorFixture.getDefaultExecutor()));
+        EndpointComposer.Composer ep2Wrapper =
+            endpointComposer
+                .forEndpoint(EndpointFixture.createEndpoint())
+                .withAgent(agent2Wrapper)
+                .persist();
+
+        // One agent WITHOUT a resolved executor: never a valid target. Regression guard for the
+        // pagination-count bug: this agent must be excluded from the SQL query itself, not
+        // filtered from the page content after the fact, so totalElements (and therefore what a
+        // client sees across every page) never counts it either.
+        AgentComposer.Composer agentWithoutExecutorWrapper =
+            agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+        EndpointComposer.Composer ep3Wrapper =
+            endpointComposer
+                .forEndpoint(EndpointFixture.createEndpoint())
+                .withAgent(agentWithoutExecutorWrapper)
+                .persist();
+
+        Inject inject =
+            injectWrapper
+                .withEndpoint(ep1Wrapper)
+                .withEndpoint(ep2Wrapper)
+                .withEndpoint(ep3Wrapper)
+                .persist()
+                .get();
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // Page size 1 forces real pagination across the 2 valid agents: fetch every page and
+        // accumulate content, then compare the accumulated count against totalElements.
+        SearchPaginationInput search =
+            PaginationFixture.simpleSearchWithOrOperator(
+                "target_name", "", Filters.FilterOperator.contains);
+        search.setSize(1);
+
+        List<String> returnedAgentIds = new ArrayList<>();
+        long totalElements = -1;
+        int totalPages = Integer.MAX_VALUE;
+        for (int page = 0; page < totalPages; page++) {
+          search.setPage(page);
+          String response =
+              mvc.perform(
+                      post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(mapper.writeValueAsString(search))
+                          .with(csrf()))
+                  .andExpect(status().isOk())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
+
+          JsonNode node = mapper.readTree(response);
+          totalElements = node.get("totalElements").asLong();
+          totalPages = node.get("totalPages").asInt();
+          node.get("content")
+              .forEach(target -> returnedAgentIds.add(target.get("target_id").asText()));
+        }
+
+        // Only the two agents with a resolved executor are ever valid targets; the executorless
+        // agent must never appear in content, and totalElements must match the real content count
+        // across every page (not the unfiltered row count from the DB query).
+        assertEquals(2, totalElements);
+        assertEquals(2, returnedAgentIds.size());
+        assertThat(returnedAgentIds)
+            .containsExactlyInAnyOrder(agent1Wrapper.get().getId(), agent2Wrapper.get().getId());
+        assertThat(returnedAgentIds).doesNotContain(agentWithoutExecutorWrapper.get().getId());
       }
     }
   }

@@ -1,5 +1,7 @@
 package io.openaev.service.attackpath;
 
+import static io.openaev.helper.CryptoHelper.hashWithSHA256;
+
 /**
  * Deterministic, collision-safe IDs for the attack-path graph (issue 6647). Every node and edge
  * carries a stable string ID built from its columns, so the same inputs always produce the same ID
@@ -14,6 +16,13 @@ package io.openaev.service.attackpath;
 public final class AttackPathIds {
 
   private static final char DELIMITER = '|';
+
+  /**
+   * Capacity of the {@code attackpath_finding_id} column ({@code varchar(255)}): a raw {@code
+   * FINDING_ROW} id at most this long keeps its legacy (un-hashed) form, so ids computed before the
+   * value hashing was introduced stay stable across upgrades.
+   */
+  private static final int FINDING_ROW_ID_MAX_LENGTH = 255;
 
   /**
    * Prefix of a synthetic seed simulation id ({@code AttackPathSeedService} builds ids as {@code
@@ -89,10 +98,41 @@ public final class AttackPathIds {
    * simulationId}, {@code type}, {@code field}, {@code value}, {@code endpointKey}). Deterministic,
    * so re-copying the same finding lands on the same row; the simulation is part of the id, so the
    * same finding in two runs never collides.
+   *
+   * <p>ADR-004 lets arbitrarily long parsed outputs reach {@code attackpath_finding} (unlike short
+   * {@link io.openaev.database.model.Finding} values), and a raw long value overflowed the {@code
+   * varchar(255)} primary key. When the raw encoding fits the column, it is kept as-is - so every
+   * row copied before the hashing was introduced still resolves to its legacy id, and a re-copy
+   * upserts onto the existing row instead of duplicating it. Only when the raw encoding would
+   * overflow does the id switch to a variant that hashes the whole {@code value} with SHA-256
+   * (never truncated), under the distinct {@code FINDING_ROW_H} kind. If that variant still
+   * overflows (the excess length comes from another component, e.g. a very long {@code
+   * endpointKey}), the last resort hashes the whole raw id under the {@code FINDING_ROW_F} kind,
+   * whose length is a constant 78 chars. The three kinds are distinct, so the namespaces can never
+   * collide (and no pre-existing row can carry an overflowing raw id: those inserts failed). Every
+   * variant is a deterministic, collision-free function of the same natural key; the real value is
+   * kept untouched in {@code attackpath_finding_value} ({@code text}) for display.
    */
   public static String findingRow(
       String simulationId, String type, String field, String value, String endpointKey) {
-    return encode("FINDING_ROW", simulationId, type, field, value, endpointKey);
+    String rawId = encode("FINDING_ROW", simulationId, type, field, value, endpointKey);
+    if (rawId.length() <= FINDING_ROW_ID_MAX_LENGTH) {
+      return rawId;
+    }
+    String hashedValueId =
+        encode(
+            "FINDING_ROW_H",
+            simulationId,
+            type,
+            field,
+            value == null ? null : hashWithSHA256(value),
+            endpointKey);
+    if (hashedValueId.length() <= FINDING_ROW_ID_MAX_LENGTH) {
+      return hashedValueId;
+    }
+    // The overflow comes from another component: hashing the full raw id (already an injective
+    // encoding of the natural key) yields a fixed-size id that can never overflow.
+    return encode("FINDING_ROW_F", hashWithSHA256(rawId));
   }
 
   /** {@code EDGE_ENDPOINT_FINDINGS_TYPE}: an endpoint to one of its finding-type nodes. */
