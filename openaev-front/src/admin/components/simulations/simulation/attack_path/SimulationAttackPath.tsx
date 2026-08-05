@@ -1233,9 +1233,18 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // The unscoped causal chain for the whole run, in chain mode: built once and reused both to scope the
   // focused view down and to resolve a specific finding's seed id (effectiveSelectedFindingId below) to
   // whatever node actually represents it.
+  // The focused finding's own type is pinned past the type cap: ties are broken by name, so a picked
+  // "share" could otherwise lose its slot to a "cve" and end up with no node at all — leaving the
+  // focus with nothing to seed on and silently showing another path instead.
+  const pinnedFindingTypes = useMemo(
+    () => new Set([pathFinding?.type, findingDetail?.type].filter((v): v is string => !!v)),
+    [pathFinding?.type, findingDetail?.type],
+  );
   const fullChain = useMemo(
-    () => (chainMode && fullDto ? buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch) : null),
-    [chainMode, fullDto, t, expandedFindingClusters, endpointClusterBatch],
+    () => (chainMode && fullDto
+      ? buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes)
+      : null),
+    [chainMode, fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes],
   );
 
   // A finding picked from a drawer/summary list (rather than clicked directly on an already-rendered
@@ -1311,7 +1320,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           expanded: expandedFindingClusters,
           findingsByCluster,
           batch: findingBatch,
-        });
+        }, pinnedFindingTypes);
       }
       if (chokepointRankById.size === 0 && pivotNodeIds.size === 0) {
         return raw;

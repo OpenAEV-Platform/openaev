@@ -369,6 +369,8 @@ const layoutFindingColumn = (
   // This column's "+N other types" chip id. Omitted for columns that must never be capped (the
   // focused finding-path view already scopes itself to one type).
   typeOverflowId?: string,
+  // Finding types the cap must never hide — the type the user is focusing on.
+  pinnedTypes: ReadonlySet<string> = new Set(),
 ): {
   items: FindingColItem[];
   height: number;
@@ -380,8 +382,12 @@ const layoutFindingColumn = (
   };
 } => {
   // Most numerous types first, name as a tie-break so the order (and therefore which types the cap
-  // hides) is stable across renders instead of following Object.entries insertion order.
-  const sorted = [...types].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  // hides) is stable across renders instead of following Object.entries insertion order. Then pinned
+  // types to the front (sort is stable, so the count order holds within each group): the type the user
+  // is focusing on must survive the cap, whatever its count.
+  const sorted = [...types]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .sort((a, b) => Number(pinnedTypes.has(b[0])) - Number(pinnedTypes.has(a[0])));
   const hasTypeOverflow = !!typeOverflowId && sorted.length > MAX_VISIBLE_FINDING_TYPES;
   const typesExpanded = hasTypeOverflow && (findingExpansion?.expanded.has(typeOverflowId) ?? false);
   const visibleTypes = hasTypeOverflow && !typesExpanded ? sorted.slice(0, MAX_VISIBLE_FINDING_TYPES) : sorted;
@@ -587,6 +593,8 @@ export const buildClusteredAttackPathFlow = (
   endpointBatch: Map<string, number>,
   t: ApTranslate,
   findingExpansion?: FindingExpansion,
+  // Finding types the type cap must never hide — the type the user is focusing on.
+  pinnedTypes: ReadonlySet<string> = new Set(),
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -673,6 +681,7 @@ export const buildClusteredAttackPathFlow = (
     type => `cl-ft-${type}`,
     findingExpansion,
     AP_TYPE_OVERFLOW_ID,
+    pinnedTypes,
   );
 
   // Expanded: each revealed (deduped) endpoint fans out to its OWN finding column.
@@ -681,7 +690,7 @@ export const buildClusteredAttackPathFlow = (
     ? shownAssetIds.map((assetId) => {
         const asset = assetById.get(assetId);
         const epTypes = (Object.entries(asset?.findingCounts ?? {}).filter(([, v]) => (v ?? 0) > 0)) as Array<[string, number]>;
-        const epCol = layoutFindingColumn(epTypes, () => asset?.status, type => `cl-ft-${type}-${assetId}`, findingExpansion, `${AP_TYPE_OVERFLOW_ID}-${assetId}`);
+        const epCol = layoutFindingColumn(epTypes, () => asset?.status, type => `cl-ft-${type}-${assetId}`, findingExpansion, `${AP_TYPE_OVERFLOW_ID}-${assetId}`, pinnedTypes);
         return {
           assetId,
           asset,
@@ -1592,6 +1601,10 @@ export const buildCausalChainFlow = (
   // Cluster id (chain-epc|<depth>) -> how many of that depth's hidden endpoints to reveal beyond the
   // always-shown cap, batched by ENDPOINT_BATCH_SIZE per click so a heavy depth reveals progressively.
   endpointClusterBatch: Map<string, number> = new Map(),
+  // Finding types the type cap must never hide: the one the user is focusing on. Without this, picking
+  // a finding whose type happens to fall past the cap (ties are broken by name, so "share" can lose to
+  // "cve") leaves it with no node to focus at all, and the view silently falls back to another path.
+  pinnedTypes: ReadonlySet<string> = new Set(),
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -1884,7 +1897,10 @@ export const buildCausalChainFlow = (
       // into dozens of rows and bury the endpoint. Most numerous types first, name as a tie-break so
       // which types the cap hides stays stable across renders.
       const typeEntries = [...findingsByType.entries()]
-        .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+        .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+        // Pinned types first (sort is stable, so the count order holds within each group): the type the
+        // user is focusing on must survive the cap, whatever its count.
+        .sort((a, b) => Number(pinnedTypes.has(b[0])) - Number(pinnedTypes.has(a[0])));
       const typeOverflowId = `chain-tover|${d}|${epId}`;
       const hiddenTypeCount = Math.max(0, typeEntries.length - MAX_VISIBLE_FINDING_TYPES);
       const typesExpanded = expandedChainClusters.has(typeOverflowId);
