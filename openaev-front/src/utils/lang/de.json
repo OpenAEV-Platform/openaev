@@ -3455,7 +3455,6 @@
   "TYPE_MANUAL": "Manuell",
   "TYPE_PREVENTION": "Prävention",
   "TYPE_VULNERABILITY": "Schwachstelle",
-  "types": "Typen",
   "Unable to connect to XTM One. Please check the configuration.": "Verbindung zu XTM One kann nicht hergestellt werden. Bitte überprüfen Sie die Konfiguration.",
   "Unable to load relations.": "Beziehungen können nicht geladen werden.",
   "undefined": "undefiniert",

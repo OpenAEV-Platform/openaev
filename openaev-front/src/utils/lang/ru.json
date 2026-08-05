@@ -3455,7 +3455,6 @@
   "TYPE_MANUAL": "Вручную",
   "TYPE_PREVENTION": "Профилактика",
   "TYPE_VULNERABILITY": "Уязвимость",
-  "types": "типов",
   "Unable to connect to XTM One. Please check the configuration.": "Невозможно подключиться к XTM One. Проверьте конфигурацию.",
   "Unable to load relations.": "Невозможно загрузить отношения.",
   "undefined": "undefined",

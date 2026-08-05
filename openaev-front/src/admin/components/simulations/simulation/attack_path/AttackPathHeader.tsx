@@ -43,7 +43,8 @@ export interface SearchOption {
 
 interface HeroStatButtonProps {
   label: string;
-  value: number;
+  /** A raw count, or a pre-formatted string when the stat is an overflow ("+6"). */
+  value: number | string;
   icon: ReactNode;
   accent: string;
   active: boolean;
@@ -239,7 +240,6 @@ const AttackPathHeader: FunctionComponent<Props> = ({
   const extraCards = shown.filter(c => c.extra);
   const visibleExtras = extraCards.slice(0, MAX_VISIBLE_EXTRA_CARDS);
   const collapsedExtras = extraCards.slice(MAX_VISIBLE_EXTRA_CARDS);
-  const collapsedTotal = collapsedExtras.reduce((s, c) => s + c.count, 0);
   const collapsedActive = collapsedExtras.some(c => c.key === activeCard);
 
   return (
@@ -433,8 +433,10 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             however many types a simulation produces. */}
         {collapsedExtras.length > 0 && (
           <HeroStatButton
-            label={`${collapsedExtras.length} ${t('types')}`}
-            value={collapsedTotal}
+            // Counts TYPES, not findings: the number is what the popover lists, and "+N" reads as
+            // "in addition to the stats shown" — the same wording as the graph's own chip.
+            label={t('Other types')}
+            value={`+${collapsedExtras.length}`}
             icon={<MoreHorizOutlined fontSize="small" />}
             accent={theme.palette.primary.main}
             active={collapsedActive || moreOpen}

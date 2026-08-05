@@ -3455,7 +3455,6 @@
   "TYPE_MANUAL": "手册",
   "TYPE_PREVENTION": "预防",
   "TYPE_VULNERABILITY": "脆弱性",
-  "types": "个类型",
   "Unable to connect to XTM One. Please check the configuration.": "无法连接 XTM One。请检查配置。",
   "Unable to load relations.": "无法加载关系。",
   "undefined": "未定义",

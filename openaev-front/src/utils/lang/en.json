@@ -3456,7 +3456,6 @@
   "TYPE_MANUAL": "Manual",
   "TYPE_PREVENTION": "Prevention",
   "TYPE_VULNERABILITY": "Vulnerability",
-  "types": "types",
   "Unable to connect to XTM One. Please check the configuration.": "Unable to connect to XTM One. Please check the configuration.",
   "Unable to load relations.": "Unable to load relations.",
   "undefined": "undefined",

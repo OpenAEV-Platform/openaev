@@ -3455,7 +3455,6 @@
   "TYPE_MANUAL": "マニュアル",
   "TYPE_PREVENTION": "予防",
   "TYPE_VULNERABILITY": "脆弱性",
-  "types": "タイプ",
   "Unable to connect to XTM One. Please check the configuration.": "XTM One に接続できません。設定を確認してください。",
   "Unable to load relations.": "リレーションをロードできない",
   "undefined": "未定義",

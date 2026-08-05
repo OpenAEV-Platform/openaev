@@ -3455,7 +3455,6 @@
   "TYPE_MANUAL": "수동",
   "TYPE_PREVENTION": "예방",
   "TYPE_VULNERABILITY": "취약점",
-  "types": "유형",
   "Unable to connect to XTM One. Please check the configuration.": "XTM One에 연결할 수 없습니다. 구성을 확인하세요.",
   "Unable to load relations.": "관계를 로드할 수 없습니다.",
   "undefined": "정의되지 않음",
