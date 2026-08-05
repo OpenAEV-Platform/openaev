@@ -10,6 +10,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
+import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -46,6 +51,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -59,6 +66,7 @@ class InjectExpectationServiceTest {
   @Mock private InjectExpectationLockService injectExpectationLockService;
   @Mock private CollectorService collectorService;
   @Mock private InjectorContractContentUtils injectorContractContentUtils;
+  @Mock private AuditLogger auditLogger;
 
   // Unstubbed: findByExternalReference defaults to Optional.empty(), so vulnerability verdicts
   // keep the legacy Expectations Vulnerability Manager attribution in these tests.
@@ -75,6 +83,12 @@ class InjectExpectationServiceTest {
     inject = InjectFixture.getDefaultInject();
     inject.setExpectations(List.of(createVulnerabilityInjectExpectation(inject, agent)));
     injectExpectationService.mapper = mapper;
+    ReflectionTestUtils.setField(injectExpectationService, "auditLogger", Optional.of(auditLogger));
+  }
+
+  @org.junit.jupiter.api.AfterEach
+  void clearSecurityContext() {
+    SecurityContextHolder.clearContext();
   }
 
   private void mockExpectation(BaseInjectExpectation expectation) {
@@ -156,6 +170,91 @@ class InjectExpectationServiceTest {
             AssetGroup.class);
     method.setAccessible(true);
     method.invoke(injectExpectationService, expectations, content, assetGroup);
+  }
+
+  private AuditEvent invokeExpectationResultAudit(
+      BaseInjectExpectation expectation,
+      InjectExpectationResult sourceResult,
+      AuditEventOrigin origin,
+      String sourceType)
+      throws Exception {
+    Method method =
+        InjectExpectationService.class.getDeclaredMethod(
+            "logExpectationResultEvent",
+            BaseInjectExpectation.class,
+            InjectExpectationResult.class,
+            AuditEventOrigin.class,
+            String.class);
+    method.setAccessible(true);
+    method.invoke(injectExpectationService, expectation, sourceResult, origin, sourceType);
+
+    ArgumentCaptor<AuditEvent> auditEventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+    verify(auditLogger).logEvent(auditEventCaptor.capture());
+    return auditEventCaptor.getValue();
+  }
+
+  @Nested
+  @DisplayName("Expectation result audit logging")
+  class ExpectationResultAuditLogging {
+
+    @Test
+    @DisplayName("Automatic expectation result emits EXPECTATION_RESULT with SYSTEM origin")
+    void
+        given_automaticExpectationResult_should_emitExpectationResultAuditEvent_withAutomaticSourceAndSystemOrigin()
+            throws Exception {
+      // Arrange
+      BaseInjectExpectation expectation = createVulnerabilityInjectExpectation(inject, agent);
+      expectation.setId("expectation-automatic");
+      expectation.setExpectedScore(50.0);
+      expectation.setScore(75.0);
+      InjectExpectationResult sourceResult =
+          InjectExpectationResult.builder()
+              .sourceId("collector-1")
+              .sourceName("EDR Collector")
+              .date("2026-08-05T10:15:30Z")
+              .build();
+
+      // Act
+      AuditEvent event =
+          invokeExpectationResultAudit(
+              expectation, sourceResult, AuditEventOrigin.SYSTEM, "automatic");
+
+      // Assert
+      assertEquals(AuditEventScope.EXPECTATION_RESULT, event.getEventScope());
+      assertEquals(AuditEventOrigin.SYSTEM, event.getOrigin());
+      assertEquals("automatic", event.getContextData().get("source_type"));
+    }
+
+    @Test
+    @DisplayName("Manual expectation result emits EXPECTATION_RESULT with REQUEST origin and user")
+    void
+        given_manualExpectationResult_should_emitExpectationResultAuditEvent_withManualSourceUserAttributionAndRequestOrigin()
+            throws Exception {
+      // Arrange
+      String userId = "user-42";
+      DefaultOpenAEVPrincipal principal =
+          new DefaultOpenAEVPrincipal(userId, List.of(), false, "en");
+      SecurityContextHolder.getContext()
+          .setAuthentication(new TestingAuthenticationToken(principal, null));
+
+      BaseInjectExpectation expectation = createVulnerabilityInjectExpectation(inject, agent);
+      expectation.setId("expectation-manual");
+      expectation.setExpectedScore(50.0);
+      expectation.setScore(null);
+      InjectExpectationResult sourceResult =
+          InjectExpectationResult.builder().sourceId("manual-source").sourceName(null).build();
+
+      // Act
+      AuditEvent event =
+          invokeExpectationResultAudit(
+              expectation, sourceResult, AuditEventOrigin.REQUEST, "manual");
+
+      // Assert
+      assertEquals(AuditEventScope.EXPECTATION_RESULT, event.getEventScope());
+      assertEquals(AuditEventOrigin.REQUEST, event.getOrigin());
+      assertEquals("manual", event.getContextData().get("source_type"));
+      assertEquals(userId, event.getContextData().get("source"));
+    }
   }
 
   @Test

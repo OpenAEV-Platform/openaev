@@ -51,6 +51,7 @@ class SignatureOutputProcessorTest {
           assetGroupService,
           injectService,
           injectorContractContentUtils,
+          Optional.empty(),
           new ArrayList<>(List.of()));
   private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
   private final SignatureOutputProcessor processor =
