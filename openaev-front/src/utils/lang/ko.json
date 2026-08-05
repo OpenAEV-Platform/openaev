@@ -1458,6 +1458,7 @@
   "finding_tags": "태그",
   "finding_teams": "팀",
   "finding_type": "유형",
+  "finding_triage_status": "트리아지 상태",
   "finding_updated_at": "업데이트 시각",
   "finding_users": "사용자",
   "finding_value": "값",

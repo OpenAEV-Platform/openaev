@@ -1458,6 +1458,7 @@
   "finding_tags": "Tags",
   "finding_teams": "Teams",
   "finding_type": "Typ",
+  "finding_triage_status": "Triage-Status",
   "finding_updated_at": "Aktualisiert am",
   "finding_users": "Benutzer",
   "finding_value": "Wert",
