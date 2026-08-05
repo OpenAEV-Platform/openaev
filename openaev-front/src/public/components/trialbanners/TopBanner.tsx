@@ -7,8 +7,8 @@ import type React from 'react';
 
 import type { LoggedHelper } from '../../../actions/helper';
 import { useHelper } from '../../../store';
-import { isNotEmptyField } from '../../../utils/utils';
-import { SYSTEM_BANNER_HEIGHT, TOP_BANNER_HEIGHT } from './constants';
+import { computeSystemBannerHeight } from '../systembanners/utils';
+import { TOP_BANNER_HEIGHT } from './constants';
 
 const TOPBANNER_COLORS = {
   gradient_blue: {
@@ -49,10 +49,7 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
     return { settings: helper.getPlatformSettings() };
   });
   const colors = TOPBANNER_COLORS[bannerColor];
-
-  const platformBannerLevel = settings?.platform_banner_level;
-  const platformBannerText = settings?.platform_banner_text;
-  const isPlatformBannerActivated = isNotEmptyField(platformBannerLevel) && isNotEmptyField(platformBannerText);
+  const topOffset = computeSystemBannerHeight(settings);
 
   return (
     <div style={{
@@ -65,7 +62,7 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
       backgroundImage: `linear-gradient(to right, ${colors.from}, ${colors.to})`,
       justifyContent: 'center',
       display: 'flex',
-      top: isPlatformBannerActivated ? SYSTEM_BANNER_HEIGHT : 0,
+      top: topOffset,
       height: TOP_BANNER_HEIGHT,
     }}
     >
