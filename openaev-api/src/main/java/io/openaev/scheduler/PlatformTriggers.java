@@ -159,6 +159,20 @@ public class PlatformTriggers {
 
   @Bean
   @Profile("!test")
+  @Conditional(InjectChainingCondition.class)
+  public Trigger autonomousTimeoutTrigger() {
+    SimpleScheduleBuilder every30Seconds =
+        simpleSchedule().withIntervalInSeconds(30).repeatForever();
+
+    return newTrigger()
+        .forJob(this.platformJobs.autonomousTimeoutJobDetail())
+        .withIdentity("AutonomousTimeoutJob")
+        .withSchedule(every30Seconds)
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
   public Trigger executionTraceRetentionTrigger() {
     return newTrigger()
         .forJob(this.platformJobs.executionTraceRetentionJobDetail())

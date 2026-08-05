@@ -337,7 +337,10 @@ const IndexScenarioComponent: FunctionComponent<{
                 <Route
                   path="scope"
                   element={isAutonomous
-                    ? errorWrapper(ScenarioScope)({ readOnly: true })
+                    ? errorWrapper(ScenarioScope)({
+                        readOnly: true,
+                        autonomousTimeoutSeconds: autonomousRun?.autonomous_run_timeout_seconds,
+                      })
                     : errorWrapper(ScenarioScope)()}
                 />
                 <Route

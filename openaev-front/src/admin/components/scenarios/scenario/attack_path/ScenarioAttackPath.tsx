@@ -28,6 +28,10 @@ const ScenarioAttackPath: FunctionComponent = () => {
       scenarioExerciseIds={exerciseIds}
       scenarioId={scenarioId}
       hideLaunchCta={!!autonomousRun}
+      // An autonomous engagement is an ACTION TIMELINE on a mostly single, already-compromised host, so
+      // render its endpoint-local actions (recon, dumps, local escalation) as their own action nodes -
+      // otherwise the live graph looks frozen after the first finding even as the AI keeps executing.
+      actionCentric={!!autonomousRun}
     />
   );
 };
