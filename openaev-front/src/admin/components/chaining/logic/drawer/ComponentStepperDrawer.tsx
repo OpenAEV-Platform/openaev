@@ -30,6 +30,7 @@ import { resolveConditionKeyTypes } from '../logic-flow-helpers';
 import type { ActionDetailData, ActionMeta, EventMeta } from '../types';
 import AddActionList from './AddActionList';
 import ConfigureActionDetail from './ConfigureActionDetail';
+import { mapFieldLinksToStepConditions } from './ConfigureActionDetail.utils';
 import InjectTargetsProvider from './InjectTargetsProvider';
 
 /**
@@ -273,16 +274,10 @@ const ComponentStepperDrawer = ({
 
   const handleSaveActionDetail = async (data: ActionDetailData) => {
     if (!workflowId) return;
-    const stepConditions: ConditionCreateInput[] = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => {
-      const keyTypes = link.outputTypes && link.outputTypes.length > 0 ? link.outputTypes : ['text'];
-      return {
-        condition_temporary_id: String(i),
-        condition_type: 'MAPPER' as const,
-        condition_key_types: keyTypes as ConditionCreateInput['condition_key_types'],
-        condition_key: fieldKey,
-        condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as ConditionCreateInput['condition_mapping_type'],
-      };
-    });
+    // Carries each linked field's own defined value into condition_value alongside its linked
+    // type(s), so a value typed before linking a type is no longer dropped (the backend keeps it as
+    // an extra candidate — ConditionService#resolveMapperPairs).
+    const stepConditions: ConditionCreateInput[] = mapFieldLinksToStepConditions(data);
 
     const stepPayload = {
       step_workflow_id: workflowId,
