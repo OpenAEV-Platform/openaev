@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.BaseConnectorEntity;
 import io.openaev.database.model.SecretReference;
 import io.openaev.database.model.TenantIdBase;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -38,24 +39,24 @@ public abstract class SecretsProvider extends BaseConnectorEntity implements Ten
 
   // -- SecretProvider default implementations  --
 
-  @Override
-  public SecretMetadata getSecretMetada(SecretReference secretReference) {
+  public SecretMetadata getSecretMetada(@NotNull SecretReference secretReference) {
     throw new UnsupportedOperationException(
         "Retrieve secret main information is not supported for this provider");
   }
 
-  @Override
-  public SecretReference store(SecretReference secretReference, SecretStoreRequest request) {
+  public SecretReference store(
+      @NotNull SecretReference secretReference, @NotNull SecretStoreRequest request) {
     throw new UnsupportedOperationException(
         "This secret backend does not support storing secrets.");
   }
 
-  public SecretReference update(SecretReference secretReference, SecretStoreRequest request) {
+  public SecretReference update(
+      @NotNull SecretReference secretReference, @NotNull SecretStoreRequest request) {
     throw new UnsupportedOperationException(
         "This secret backend does not support updating secrets.");
   }
 
-  public void delete(SecretReference secretReference) {
+  public void delete(@NotNull SecretReference secretReference) {
     throw new UnsupportedOperationException(
         "This secret backend does not support deleting secrets.");
   }

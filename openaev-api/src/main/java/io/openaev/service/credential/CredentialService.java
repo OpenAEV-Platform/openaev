@@ -2,11 +2,10 @@ package io.openaev.service.credential;
 
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
-import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.api.credentials.CredentialMapper;
 import io.openaev.api.credentials.form.*;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.TagRepository;
@@ -19,6 +18,7 @@ import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.SecretsProviderType;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
 import io.openaev.service.UserService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SearchPaginationInputMapper;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +26,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -101,13 +102,11 @@ public class CredentialService {
    * Retrieve credential by id within the given tenant.
    *
    * @param credentialId credential identifier
-   * @param tenantId tenant identifier
    * @return matching credential
    */
-  public CredentialSecretReference getCredentialById(
-      @NotBlank final String credentialId, @NotNull final String tenantId) {
+  public CredentialSecretReference getCredentialById(@NotBlank final String credentialId) {
     return credentialSecretReferenceRepository
-        .findByIdAndTenantId(credentialId, tenantId)
+        .findById(credentialId)
         .orElseThrow(() -> new ElementNotFoundException("Credential not found"));
   }
 
@@ -115,51 +114,46 @@ public class CredentialService {
    * Retrieve full credential output enriched with non-sensitive secret metadata.
    *
    * @param credentialId credential identifier
-   * @param tenantId tenant identifier
    * @return full credential output
    */
   public CredentialFullOutput getCredentialFullOutputInformation(
-      @NotBlank final String credentialId, @NotNull final String tenantId) {
-    CredentialSecretReference credential = getCredentialById(credentialId, tenantId);
+      @NotBlank final String credentialId) {
+    CredentialSecretReference credential = getCredentialById(credentialId);
     SecretsProvider secretProvider =
-        resolveProviderByConnectorInstanceId(credential.getConnectorInstanceId());
+        resolveProviderByConnectorInstanceId(
+            credential.getConnectorInstanceId(), credential.getTenant().getId());
     SecretMetadata secretMetadata = secretProvider.getSecretMetada(credential);
     return credentialMapper.toFullOutput(credential, secretMetadata);
   }
 
-  //  private record CredentialAndSecretMetadata(
-  //          CredentialSecretReference credential,
-  //          SecretMetadata secretMetadata) {}
-  //
-  //  private CredentialAndSecretMetadata getCredentialSecretMetadata(@NotBlank final String
-  // credentialId, @NotNull final String tenantId) {
-  //
-  //    return new CredentialAndSecretMetadata(credential, secretMetadata);
-  //  }
-  //
   /**
    * Searches tenant credentials using pageable query input.
    *
+   * @param ctx transaction context carrying tenant scope
    * @param searchPaginationInput pagination and filters
-   * @param tenantId tenant identifier
    * @return page of matching credentials
    */
   public Page<CredentialSecretReference> searchCredentials(
-      @NotNull final SearchPaginationInput searchPaginationInput, @NotNull final String tenantId) {
+      @NotNull final TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     SearchPaginationInput normalizedInput =
         SearchPaginationInputMapper.translateFields(
             searchPaginationInput, CREDENTIAL_QUERY_FIELD_MAPPING);
     return buildPaginationJPA(
-        (specification, pageable) -> findAllByTenant(tenantId, specification, pageable),
+        (specification, pageable) -> findAllByTenantIds(tenantIds, specification, pageable),
         normalizedInput,
         CredentialSecretReference.class);
   }
 
-  private Page<CredentialSecretReference> findAllByTenant(
-      String tenantId, Specification<CredentialSecretReference> specification, Pageable pageable) {
+  private Page<CredentialSecretReference> findAllByTenantIds(
+      Set<String> tenantIds,
+      Specification<CredentialSecretReference> specification,
+      Pageable pageable) {
+    if (tenantIds.isEmpty()) {
+      return Page.empty(pageable);
+    }
     Specification<CredentialSecretReference> tenantSpecification =
-        (root, query, criteriaBuilder) ->
-            criteriaBuilder.equal(root.get("tenant").get("id"), tenantId);
+        (root, query, criteriaBuilder) -> root.get("tenant").get("id").in(tenantIds);
     return credentialSecretReferenceRepository.findAll(
         tenantSpecification.and(specification), pageable);
   }
@@ -172,8 +166,6 @@ public class CredentialService {
    * @return created credential reference
    */
   public CredentialSecretReference createCredential(CredentialInput input, String tenantId) {
-    // Validate credential input schema
-    validateCredentialInputForCreation(input);
     LocalSecretsProvider provider = getLocalProvider(tenantId);
 
     // Build Credential Reference
@@ -185,55 +177,19 @@ public class CredentialService {
         provider.store(credential, convertCredentialInputToSecretStoreRequest(input));
   }
 
-  private void validateCredentialInputForUsernamePassword(CredentialInput input) {
-    if (!hasText(input.credentialUsername())) {
-      throw new IllegalArgumentException(
-          "credentialUsername is required for USERNAME_PASSWORD auth method");
-    }
-    if (!hasText(input.credentialPassword())) {
-      throw new IllegalArgumentException(
-          "credentialPassword is required for USERNAME_PASSWORD auth method");
-    }
-  }
-
-  private void validateCredentialInputForHash(CredentialInput input) {
-    if (!hasText(input.credentialHash())) {
-      throw new IllegalArgumentException("credentialHash is required for HASH auth method");
-    }
-    if (input.credentialHashAlgorithm() == null) {
-      throw new IllegalArgumentException(
-          "credentialHashAlgorithm is required for HASH auth method");
-    }
-  }
-
-  private void validateCredentialInputForCreation(CredentialInput input) {
-    if (!CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY.equals(input.credentialType())) {
-      throw new IllegalArgumentException("Unsupported credential type: " + input.credentialType());
-    }
-
-    switch (input.credentialAuthMethod()) {
-      case USERNAME_PASSWORD -> validateCredentialInputForUsernamePassword(input);
-      case HASH -> validateCredentialInputForHash(input);
-      default ->
-          throw new IllegalArgumentException(
-              "Unsupported credential auth method: " + input.credentialAuthMethod());
-    }
-  }
-
   /**
    * Updates credential metadata and optionally replaces secret payload according to mode.
    *
    * @param credentialId credential identifier
    * @param input credential update payload
-   * @param tenantId tenant identifier
    * @return updated credential full output
    */
-  public CredentialFullOutput updateCredential(
-      String credentialId, CredentialInput input, String tenantId) {
+  public CredentialFullOutput updateCredential(String credentialId, CredentialInput input) {
 
-    CredentialSecretReference credential = getCredentialById(credentialId, tenantId);
+    CredentialSecretReference credential = getCredentialById(credentialId);
     SecretsProvider secretProvider =
-        resolveProviderByConnectorInstanceId(credential.getConnectorInstanceId());
+        resolveProviderByConnectorInstanceId(
+            credential.getConnectorInstanceId(), credential.getTenant().getId());
 
     applyMetadataInputToCredential(credential, input);
     secretProvider.update(credential, convertCredentialInputToSecretStoreRequest(input));
@@ -251,6 +207,7 @@ public class CredentialService {
     applyMetadataInputToCredential(credential, input);
     credential.setConnectorInstanceId(providerId);
     credential.setTenant(new Tenant(tenantId));
+    credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
     credential.setCreatedBy(userService.currentUserOrNull());
   }
 
@@ -275,12 +232,12 @@ public class CredentialService {
    * Deletes a credential and its stored secret.
    *
    * @param credentialId credential identifier
-   * @param tenantId tenant identifier
    */
-  public void deleteCredential(String credentialId, String tenantId) {
-    CredentialSecretReference credential = getCredentialById(credentialId, tenantId);
+  public void deleteCredential(String credentialId) {
+    CredentialSecretReference credential = getCredentialById(credentialId);
     LocalSecretsProvider provider =
-        resolveProviderByConnectorInstanceId(credential.getConnectorInstanceId());
+        resolveProviderByConnectorInstanceId(
+            credential.getConnectorInstanceId(), credential.getTenant().getId());
     provider.delete(credential);
   }
 
@@ -292,7 +249,8 @@ public class CredentialService {
               .requestManyAllStates(
                   new ComponentRequest(SecretsProvider.SERVICE_NAME), SecretsProvider.class)
               .stream()
-              .filter(provider -> provider.getProviderType() == SecretsProviderType.LOCAL)
+              .filter(
+                  provider -> Objects.equals(provider.getType(), SecretsProviderType.LOCAL.type))
               .findFirst()
               .orElseThrow(
                   () ->
@@ -307,14 +265,13 @@ public class CredentialService {
     }
   }
 
-  private LocalSecretsProvider resolveProviderByConnectorInstanceId(String connectorInstanceId) {
+  private LocalSecretsProvider resolveProviderByConnectorInstanceId(
+      String connectorInstanceId, String tenantId) {
     try {
       ConnectorInstanceInMemory instance = new ConnectorInstanceInMemory();
       instance.setId(connectorInstanceId);
       SecretsProvider provider =
-          managerFactory
-              .getManager(TenantContext.getCurrentTenant())
-              .requestForInstance(instance, SecretsProvider.class);
+          managerFactory.getManager(tenantId).requestForInstance(instance, SecretsProvider.class);
       if (provider instanceof LocalSecretsProvider localSecretsProvider) {
         return localSecretsProvider;
       }

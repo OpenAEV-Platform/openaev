@@ -5,6 +5,8 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.credentials.form.*;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.ResourceType;
@@ -31,24 +33,24 @@ public class CredentialApi extends RestBehavior {
 
   private final CredentialService credentialService;
   private final CredentialMapper credentialMapper;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping("/contracts")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CREDENTIAL_ASSET)
   @Operation(summary = "Retrieve credential form contracts")
-  public List<CredentialContractOutput> credentialContracts(@PathVariable String tenantId) {
+  public List<CredentialContractOutput> credentialContracts(TxCtx ctx) {
     return credentialService.credentialContracts();
   }
 
   @LogExecutionTime
   @PostMapping("/search")
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CREDENTIAL_ASSET)
   public Page<CredentialOutput> credentials(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput,
-      @PathVariable String tenantId) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     Page<CredentialSecretReference> credentialPage =
-        credentialService.searchCredentials(searchPaginationInput, tenantId);
+        credentialService.searchCredentials(ctx, searchPaginationInput);
     return credentialPage.map(credentialMapper::toOutput);
   }
 
@@ -59,17 +61,16 @@ public class CredentialApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.CREDENTIAL_ASSET)
   @Operation(summary = "Retrieve a credential")
-  public CredentialFullOutput getCredential(
-      @PathVariable String credentialId, @PathVariable String tenantId) {
-    return credentialService.getCredentialFullOutputInformation(credentialId, tenantId);
+  public CredentialFullOutput getCredential(TxCtx ctx, @PathVariable String credentialId) {
+    return credentialService.getCredentialFullOutputInformation(credentialId);
   }
 
   @PostMapping
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CREDENTIAL_ASSET)
   @Operation(summary = "Create a credential")
-  public CredentialOutput createCredential(
-      @Valid @RequestBody CredentialInput input, @PathVariable String tenantId) {
+  public CredentialOutput createCredential(TxCtx ctx, @Valid @RequestBody CredentialInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return credentialMapper.toOutput(credentialService.createCredential(input, tenantId));
   }
 
@@ -81,10 +82,8 @@ public class CredentialApi extends RestBehavior {
       resourceType = ResourceType.CREDENTIAL_ASSET)
   @Operation(summary = "Update a credential with explicit secret update mode")
   public CredentialFullOutput updateCredential(
-      @PathVariable String credentialId,
-      @Valid @RequestBody CredentialInput input,
-      @PathVariable String tenantId) {
-    return credentialService.updateCredential(credentialId, input, tenantId);
+      TxCtx ctx, @PathVariable String credentialId, @Valid @RequestBody CredentialInput input) {
+    return credentialService.updateCredential(credentialId, input);
   }
 
   @DeleteMapping("/{credentialId}")
@@ -94,7 +93,7 @@ public class CredentialApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CREDENTIAL_ASSET)
   @Operation(summary = "Delete a credential")
-  public void deleteCredential(@PathVariable String credentialId, @PathVariable String tenantId) {
-    credentialService.deleteCredential(credentialId, tenantId);
+  public void deleteCredential(TxCtx ctx, @PathVariable String credentialId) {
+    credentialService.deleteCredential(credentialId);
   }
 }

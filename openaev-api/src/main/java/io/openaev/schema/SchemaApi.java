@@ -33,7 +33,7 @@ public class SchemaApi extends RestBehavior {
   private static final Map<String, String> ENTITY_CLASS_ALIASES =
       Map.of(
           "InjectExpectation", "io.openaev.database.model.BaseInjectExpectation",
-          "Credential", "io.openaev.api.credentials.form.CredentialOutput");
+          "Credential", "io.openaev.database.model.CredentialSecretReference");
 
   private final EngineContext engineContext;
 

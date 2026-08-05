@@ -24,12 +24,13 @@ import type {
   EnhancedContractElement,
 } from '../../../../utils/api-types-custom';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
+import { humanizeEnum } from '../asset-categories';
 
 interface Props {
   onSubmit: SubmitHandler<CredentialInput>;
   handleClose: () => void;
   editing?: boolean;
-  initialValues?: CredentialInput;
+  initialValues?: Partial<CredentialInput>;
 }
 const CredentialForm: FunctionComponent<Props> = ({
   onSubmit,
@@ -248,7 +249,7 @@ const CredentialForm: FunctionComponent<Props> = ({
           required
           items={availableAuthMethods.map(method => ({
             value: method,
-            label: t(`${method}`),
+            label: t(`${humanizeEnum(method)}`),
           }))}
           disabled={isLoadingContracts || availableAuthMethods.length === 0}
         />

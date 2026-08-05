@@ -3,6 +3,7 @@ package io.openaev.api.credentials.form;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.HashSecret;
+import io.openaev.database.model.SecretReference;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -32,7 +33,7 @@ public record CredentialFullOutput(
         @NotNull
         @JsonProperty("credential_created_at")
         Instant createdAt,
-    @Schema(description = "Credential status") @JsonProperty("credential_status") String status,
+    @Schema(description = "Credential status") @JsonProperty("credential_status") SecretReference.SECRET_STATUS status,
     @Schema(description = "Credential description") @JsonProperty("credential_description")
         String description,
     @Schema(description = "Secret username") @JsonProperty("credential_username") String username,

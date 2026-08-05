@@ -14,12 +14,12 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
-import DOTS from '../../../../constants/Strings';
 import { type CredentialFullOutput, type CredentialInput, type CredentialOutput } from '../../../../utils/api-types';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetStatus from '../AssetStatus';
 import CredentialPopover from './CredentialPopover';
+import convertCredentialFullOutputToCredentialInput from './credentialUtils';
 
 const CredentialDetailPage = () => {
   const { t, fldt } = useFormatter();
@@ -34,17 +34,7 @@ const CredentialDetailPage = () => {
       throw new Error('Credential details are not loaded');
     }
 
-    return {
-      credential_name: credential.credential_name,
-      credential_description: credential.credential_description,
-      credential_type: credential.credential_type,
-      credential_auth_method: credential.credential_auth_method,
-      credential_tags: credential.credential_tags_ids,
-      credential_username: credential.credential_username,
-      credential_password: credential.credential_username ? DOTS : '',
-      credential_hash_algorithm: credential.credential_hash_algorithm,
-      credential_hash: credential.credential_hash_algorithm ? DOTS : '',
-    };
+    return convertCredentialFullOutputToCredentialInput(credential);
   };
 
   useEffect(() => {

@@ -2,6 +2,7 @@ package io.openaev.api.credentials.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.CredentialSecretReference;
+import io.openaev.database.model.SecretReference;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.Set;
@@ -16,7 +17,7 @@ public record CredentialOutput(
     @Schema(description = "Credential authentication method")
         @JsonProperty("credential_auth_method")
         CredentialSecretReference.CREDENTIAL_AUTH_METHOD credentialAuthMethod,
-    @Schema(description = "Credential status") @JsonProperty("credential_status") String status,
+    @Schema(description = "Credential status") @JsonProperty("credential_status") SecretReference.SECRET_STATUS status,
     @Schema(description = "Credential creation timestamp") @JsonProperty("credential_created_at")
         Instant createdAt,
     @Schema(description = "User who created the credential") @JsonProperty("credential_created_by")

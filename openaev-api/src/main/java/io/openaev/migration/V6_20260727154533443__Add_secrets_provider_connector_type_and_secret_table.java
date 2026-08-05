@@ -7,20 +7,20 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class V6_20260727154533443__Add_secrets_provider_connector_type_and_secret_table
-        extends BaseJavaMigration {
+    extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
       statement.execute(
-              """
+          """
                     ALTER TYPE connector_type
                     ADD VALUE IF NOT EXISTS 'SECRETS_PROVIDER'
                     AFTER 'EXECUTOR'
                     """);
 
       statement.execute(
-              """
+          """
                   CREATE TABLE IF NOT EXISTS secrets (
                       secret_id          VARCHAR(255) NOT NULL CONSTRAINT secrets_pkey PRIMARY KEY,
                       secret_type        VARCHAR(255) NOT NULL,
@@ -37,7 +37,7 @@ public class V6_20260727154533443__Add_secrets_provider_connector_type_and_secre
       statement.execute("CREATE INDEX IF NOT EXISTS idx_secrets_tenant_id ON secrets (tenant_id)");
 
       statement.execute(
-              """
+          """
                   CREATE TABLE IF NOT EXISTS secret_references (
                       secret_reference_id                       VARCHAR(255) NOT NULL CONSTRAINT secret_references_pkey PRIMARY KEY,
                       secret_reference_type                     VARCHAR(255) NOT NULL,
@@ -57,10 +57,10 @@ public class V6_20260727154533443__Add_secrets_provider_connector_type_and_secre
                   """);
 
       statement.execute(
-              "CREATE INDEX IF NOT EXISTS idx_secret_references_tenant_id ON secret_references (tenant_id)");
+          "CREATE INDEX IF NOT EXISTS idx_secret_references_tenant_id ON secret_references (tenant_id)");
 
       statement.execute(
-              """
+          """
                   CREATE TABLE IF NOT EXISTS secret_reference_tags (
                       secret_reference_id  VARCHAR(255) NOT NULL
                           CONSTRAINT secret_reference_tags_ref_fk

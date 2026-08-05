@@ -17,7 +17,6 @@ const CredentialCreation: FunctionComponent<Props> = ({ onCreate }) => {
   const handleClose = () => setOpen(false);
 
   const onSubmit = (input: CredentialInput) => {
-    console.log('INPUT --', input);
     return createCredential(input).then((result: { data: CredentialOutput }) => {
       onCreate?.(result.data);
       handleClose();
@@ -38,9 +37,9 @@ const CredentialCreation: FunctionComponent<Props> = ({ onCreate }) => {
           handleClose={handleClose}
           initialValues={{
             credential_name: '',
-            credential_type: 'IDENTITY',
             credential_tags: [],
-          } as CredentialInput}
+            credential_type: 'IDENTITY',
+          } as Partial<CredentialInput>}
         />
       </Drawer>
     </>

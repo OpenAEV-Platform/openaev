@@ -5,9 +5,8 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
@@ -39,6 +38,16 @@ public class SecretReference implements TenantBase {
     CREDENTIAL;
 
     public static final String CREDENTIAL_VALUE = "CREDENTIAL";
+  }
+
+  public enum SECRET_STATUS {
+    ACTIVE,
+    INACTIVE,
+    UNSET;
+
+    public static final String ACTIVE_VALUE = "ACTIVE";
+    public static final String INACTIVE_VALUE = "INACTIVE";
+    public static final String UNSET_VALUE = "INACTIVE";
   }
 
   @Id
@@ -73,11 +82,11 @@ public class SecretReference implements TenantBase {
   @JsonProperty("secret_reference_location")
   private String location;
 
-  @Column(name = "secret_reference_status")
   @JsonProperty("secret_reference_status")
   @Queryable(filterable = true)
-  @NotBlank
-  private String status = "ACTIVE";
+  @Enumerated(EnumType.STRING)
+  @Column(name = "secret_reference_status", nullable = false)
+  private SECRET_STATUS status;
 
   @ManyToOne
   @JoinColumn(name = "secret_reference_created_by")

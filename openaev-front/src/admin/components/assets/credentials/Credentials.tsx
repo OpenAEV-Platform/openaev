@@ -17,10 +17,8 @@ import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import DOTS from '../../../../constants/Strings';
 import {
   type CredentialFullOutput,
-  type CredentialInput,
   type CredentialOutput,
   type SearchPaginationInput,
 } from '../../../../utils/api-types';
@@ -31,6 +29,7 @@ import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetStatus from '../AssetStatus';
 import CredentialCreation from './CredentialCreation';
 import CredentialPopover from './CredentialPopover';
+import convertCredentialFullOutputToCredentialInput from './credentialUtils';
 
 const inlineStyles: Record<string, CSSProperties> = {
   credential_name: { width: '12%' },
@@ -61,25 +60,15 @@ const Credentials = () => {
   const resolveCredentialInitialValues = async (credentialId: string) => {
     const result = await fetchCredential(credentialId);
     const detail: CredentialFullOutput = result.data;
-    return {
-      credential_name: detail.credential_name ?? '',
-      credential_description: detail.credential_description ?? '',
-      credential_type: detail.credential_type ?? 'IDENTITY',
-      credential_auth_method: detail.credential_auth_method ?? 'USERNAME_PASSWORD',
-      credential_tags: detail.credential_tags_ids ?? [],
-      credential_username: detail.credential_username,
-      credential_password: detail.credential_username ? DOTS : '',
-      credential_hash_algorithm: detail.credential_hash_algorithm,
-      credential_hash: detail.credential_hash_algorithm ? DOTS : '',
-    };
+    return convertCredentialFullOutputToCredentialInput(detail);
   };
 
   const availableFilterNames = [
-    'credential_type',
-    'credential_auth_method',
-    'credential_status',
-    'credential_created_by',
-    'credential_tags_ids',
+    'secret_reference_credential_type',
+    'secret_reference_credential_auth_method',
+    'secret_reference_status',
+    'secret_reference_created_by',
+    'secret_reference_tags',
   ];
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
@@ -118,7 +107,7 @@ const Credentials = () => {
       field: 'credential_status',
       label: t('Status'),
       isSortable: false,
-      value: (credential: CredentialOutput) => credential.credential_status
+      value: (credential: CredentialOutput) => credential.credential_status == 'ACTIVE' || credential.credential_status == 'INACTIVE'
         ? <AssetStatus variant="list" status={credential.credential_status.toUpperCase() == 'ACTIVE' ? 'Active' : 'Inactive'} />
         : '-',
     },

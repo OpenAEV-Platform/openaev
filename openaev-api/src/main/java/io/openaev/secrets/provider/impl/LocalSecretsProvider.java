@@ -1,24 +1,27 @@
 package io.openaev.secrets.provider.impl;
 
-import io.openaev.database.model.CredentialSecretReference;
-import io.openaev.database.model.HashSecret;
 import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
-import io.openaev.database.model.UsernamePasswordSecret;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.SecretsProviderType;
+import io.openaev.secrets.provider.impl.handlers.HashHandler;
+import io.openaev.secrets.provider.impl.handlers.SecretHandler;
+import io.openaev.secrets.provider.impl.handlers.UsernamePasswordHandler;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.connector_instances.NativeEncryptionService;
+import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 public class LocalSecretsProvider extends SecretsProvider {
 
-  private final NativeEncryptionService nativeEncryptionService;
   private final SecretService secretService;
   private final SecretReferenceService secretReferenceService;
+  private final List<SecretHandler> secretHandlers;
 
   public LocalSecretsProvider(
       String id,
@@ -27,49 +30,52 @@ public class LocalSecretsProvider extends SecretsProvider {
       SecretService secretService,
       SecretReferenceService secretReferenceService) {
     super(id, name, SecretsProviderType.LOCAL.type);
-    this.nativeEncryptionService = nativeEncryptionService;
     this.secretService = secretService;
     this.secretReferenceService = secretReferenceService;
+    this.secretHandlers =
+        List.of(
+            new UsernamePasswordHandler(nativeEncryptionService),
+            new HashHandler(nativeEncryptionService));
   }
 
   @Override
-  public SecretMetadata getSecretMetada(SecretReference secretReference) {
-    SecretReference reference =
-        Objects.requireNonNull(secretReference, "secretReference must not be null");
+  public SecretMetadata getSecretMetada(@NotNull SecretReference secretReference) {
     String secretId =
         Objects.requireNonNull(
-            reference.getLocation(), "secretReference location must not be null");
+            secretReference.getLocation(), "secretReference location must not be null");
 
     Secret secret = secretService.findByIdOrThrow(secretId);
-    return switch (secret) {
-      case UsernamePasswordSecret usernamePasswordSecret ->
-          new SecretMetadata(usernamePasswordSecret.getUsername(), null);
-      case HashSecret hashSecret -> new SecretMetadata(null, hashSecret.getHashAlgorithm());
-      default ->
-          throw new IllegalArgumentException(
-              "Unsupported secret type for main information: " + secret.getClass().getSimpleName());
-    };
+    return resolveHandlerFor(secret).toMetadata(secret);
   }
 
   @Override
-  public SecretReference store(SecretReference secretReference, SecretStoreRequest request) {
-    SecretReference reference =
-        Objects.requireNonNull(secretReference, "secretReference must not be null");
-
-    Secret secret = buildOrUpdateSecret(getAuthMethod(reference), null, request);
-    secret.setTenant(reference.getTenant());
-    return persistSecretAndReference(reference, secret);
+  public SecretReference store(
+      @NotNull SecretReference secretReference, @NotNull SecretStoreRequest request) {
+    SecretHandler handler = resolveHandlerFor(secretReference);
+    Secret secret = handler.buildOrUpdate(null, request);
+    secret.setTenant(secretReference.getTenant());
+    return persistSecretAndReference(secretReference, secret);
   }
 
   @Override
-  public SecretReference update(SecretReference secretReference, SecretStoreRequest request) {
+  public SecretReference update(
+      @NotNull SecretReference secretReference, @NotNull SecretStoreRequest request) {
     String secretId =
         Objects.requireNonNull(
             secretReference.getLocation(), "secretReference location must not be null");
 
     Secret existingSecret = secretService.findByIdOrThrow(secretId);
-    Secret secret = buildOrUpdateSecret(getAuthMethod(secretReference), existingSecret, request);
-    return persistSecretAndReference(secretReference, secret);
+    SecretHandler handler = resolveHandlerFor(secretReference);
+    boolean replacingSecretType = !handler.supports(existingSecret);
+
+    Secret secret = handler.buildOrUpdate(replacingSecretType ? null : existingSecret, request);
+    secret.setTenant(secretReference.getTenant());
+
+    SecretReference persistedReference = persistSecretAndReference(secretReference, secret);
+    if (replacingSecretType) {
+      secretService.deleteById(existingSecret.getId());
+    }
+    return persistedReference;
   }
 
   private SecretReference persistSecretAndReference(SecretReference reference, Secret secret) {
@@ -78,91 +84,38 @@ public class LocalSecretsProvider extends SecretsProvider {
     return secretReferenceService.save(reference);
   }
 
-  private Secret buildOrUpdateSecret(
-      CredentialSecretReference.CREDENTIAL_AUTH_METHOD authMethod,
-      Secret existingSecret,
-      SecretStoreRequest request) {
-    return switch (authMethod) {
-      case HASH -> buildOrUpdateHashSecret(existingSecret, request);
-      case USERNAME_PASSWORD -> buildOrUpdateUsernamePasswordSecret(existingSecret, request);
-    };
+  private SecretHandler resolveHandlerFor(SecretReference reference) {
+    SecretReference nonNullReference =
+        Objects.requireNonNull(reference, "secretReference must not be null");
+    return resolveHandlerFor(
+        nonNullReference,
+        handler -> handler.supports(nonNullReference),
+        "Unsupported secret reference type: ");
   }
 
-  private HashSecret buildOrUpdateHashSecret(Secret existingSecret, SecretStoreRequest request) {
-    HashSecret hashSecret =
-        existingSecret == null ? new HashSecret() : expectHashSecret(existingSecret);
-
-    if (request.hash() != null) {
-      hashSecret.setHash(encryptRequired(request.hash(), "request.hash must not be null"));
-    } else if (existingSecret == null) {
-      throw new IllegalArgumentException("request.hash must not be null");
-    }
-
-    if (request.hashAlgorithm() != null) {
-      hashSecret.setHashAlgorithm(request.hashAlgorithm());
-    } else if (existingSecret == null) {
-      throw new IllegalArgumentException("request.hashAlgorithm must not be null");
-    }
-    return hashSecret;
+  private SecretHandler resolveHandlerFor(Secret secret) {
+    Secret nonNullSecret = Objects.requireNonNull(secret, "secret must not be null");
+    return resolveHandlerFor(
+        nonNullSecret, handler -> handler.supports(nonNullSecret), "Unsupported secret type: ");
   }
 
-  private UsernamePasswordSecret buildOrUpdateUsernamePasswordSecret(
-      Secret existingSecret, SecretStoreRequest request) {
-    UsernamePasswordSecret passwordSecret =
-        existingSecret == null
-            ? new UsernamePasswordSecret()
-            : expectUsernamePasswordSecret(existingSecret);
-
-    if (request.username() != null) {
-      passwordSecret.setUsername(request.username());
-    } else if (existingSecret == null) {
-      throw new IllegalArgumentException("request.username must not be null");
-    }
-
-    if (request.password() != null) {
-      passwordSecret.setPassword(
-          encryptRequired(request.password(), "request.password must not be null"));
-    } else if (existingSecret == null) {
-      throw new IllegalArgumentException("request.password must not be null");
-    }
-    return passwordSecret;
-  }
-
-  private HashSecret expectHashSecret(Secret secret) {
-    if (secret instanceof HashSecret hashSecret) {
-      return hashSecret;
-    }
-    throw new IllegalArgumentException("Secret type mismatch: expected HASH secret");
-  }
-
-  private UsernamePasswordSecret expectUsernamePasswordSecret(Secret secret) {
-    if (secret instanceof UsernamePasswordSecret usernamePasswordSecret) {
-      return usernamePasswordSecret;
-    }
-    throw new IllegalArgumentException("Secret type mismatch: expected USERNAME_PASSWORD secret");
-  }
-
-  private String encryptRequired(String value, String nullMessage) {
-    return nativeEncryptionService.encrypt(Objects.requireNonNull(value, nullMessage));
-  }
-
-  private CredentialSecretReference.CREDENTIAL_AUTH_METHOD getAuthMethod(
-      SecretReference reference) {
-    if (reference instanceof CredentialSecretReference credentialSecretReference) {
-      return credentialSecretReference.getCredentialAuthMethod();
-    }
-    throw new IllegalArgumentException(
-        "LocalSecretsProvider only supports CredentialSecretReference");
+  private SecretHandler resolveHandlerFor(
+      Object target, Predicate<SecretHandler> supportsPredicate, String unsupportedMessagePrefix) {
+    return secretHandlers.stream()
+        .filter(supportsPredicate)
+        .findFirst()
+        .orElseThrow(
+            () ->
+                new IllegalArgumentException(
+                    unsupportedMessagePrefix + target.getClass().getSimpleName()));
   }
 
   @Override
-  public void delete(SecretReference secretReference) {
-    SecretReference reference =
-        Objects.requireNonNull(secretReference, "secretReference must not be null");
+  public void delete(@NotNull SecretReference secretReference) {
     String secretId =
         Objects.requireNonNull(
-            reference.getLocation(), "secretReference location must not be null");
+            secretReference.getLocation(), "secretReference location must not be null");
     secretService.deleteById(secretId);
-    secretReferenceService.delete(reference);
+    secretReferenceService.delete(secretReference);
   }
 }

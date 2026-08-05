@@ -1,7 +1,5 @@
 package io.openaev.secrets.provider.impl;
 
-import static io.openaev.database.model.Secret.SECRET_TYPE.HASH_VALUE;
-import static io.openaev.database.model.Secret.SECRET_TYPE.USERNAME_PASSWORD_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -58,7 +56,8 @@ class LocalSecretsProviderTest {
       // Arrange
       CredentialSecretReference secretReference = new CredentialSecretReference();
       secretReference.setName("test-credential");
-      secretReference.setCredentialAuthMethod(USERNAME_PASSWORD_VALUE);
+      secretReference.setCredentialAuthMethod(
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD);
       secretReference.setTenant(new Tenant("tenant-1"));
 
       when(nativeEncryptionService.encrypt("plain-secret")).thenReturn("encrypted-secret");
@@ -91,7 +90,8 @@ class LocalSecretsProviderTest {
       // Arrange
       CredentialSecretReference secretReference = new CredentialSecretReference();
       secretReference.setName("test-hash");
-      secretReference.setCredentialAuthMethod(HASH_VALUE);
+      secretReference.setCredentialAuthMethod(
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH);
       secretReference.setTenant(new Tenant("tenant-1"));
 
       when(nativeEncryptionService.encrypt("plain-hash")).thenReturn("encrypted-hash");
@@ -108,14 +108,16 @@ class LocalSecretsProviderTest {
       // Act
       SecretReference result =
           localSecretsProvider.store(
-              secretReference, new SecretStoreRequest(null, null, "plain-hash", "NTLM"));
+              secretReference,
+              new SecretStoreRequest(null, null, "plain-hash", HashSecret.HASH_ALGORITHM.NTLM));
 
       // Assert
       assertThat(result.getLocation()).isEqualTo("secret-id-2");
       ArgumentCaptor<HashSecret> secretCaptor = ArgumentCaptor.forClass(HashSecret.class);
       verify(secretService).save(secretCaptor.capture());
       assertThat(secretCaptor.getValue().getHash()).isEqualTo("encrypted-hash");
-      assertThat(secretCaptor.getValue().getHashAlgorithm()).isEqualTo("NTLM");
+      assertThat(secretCaptor.getValue().getHashAlgorithm())
+          .isEqualTo(HashSecret.HASH_ALGORITHM.NTLM);
     }
 
     @Test
@@ -124,15 +126,17 @@ class LocalSecretsProviderTest {
       // Arrange
       CredentialSecretReference secretReference = new CredentialSecretReference();
       secretReference.setName("test-hash");
-      secretReference.setCredentialAuthMethod(HASH_VALUE);
+      secretReference.setCredentialAuthMethod(
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH);
       secretReference.setTenant(new Tenant("tenant-1"));
 
       // Act & Assert
       assertThatThrownBy(
               () ->
                   localSecretsProvider.store(
-                      secretReference, new SecretStoreRequest(null, null, null, "NTLM")))
-          .isInstanceOf(NullPointerException.class)
+                      secretReference,
+                      new SecretStoreRequest(null, null, null, HashSecret.HASH_ALGORITHM.NTLM)))
+          .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("request.hash must not be null");
     }
 
@@ -142,7 +146,8 @@ class LocalSecretsProviderTest {
       // Arrange
       CredentialSecretReference secretReference = new CredentialSecretReference();
       secretReference.setName("test-credential");
-      secretReference.setCredentialAuthMethod(USERNAME_PASSWORD_VALUE);
+      secretReference.setCredentialAuthMethod(
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD);
       secretReference.setTenant(new Tenant("tenant-1"));
 
       // Act & Assert
@@ -150,7 +155,7 @@ class LocalSecretsProviderTest {
               () ->
                   localSecretsProvider.store(
                       secretReference, new SecretStoreRequest("admin", null, null, null)))
-          .isInstanceOf(NullPointerException.class)
+          .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("request.password must not be null");
     }
   }
@@ -164,7 +169,8 @@ class LocalSecretsProviderTest {
     void given_usernamePasswordReference_should_updateExistingSecret_and_reference() {
       // Arrange
       CredentialSecretReference secretReference = new CredentialSecretReference();
-      secretReference.setCredentialAuthMethod(USERNAME_PASSWORD_VALUE);
+      secretReference.setCredentialAuthMethod(
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD);
       secretReference.setName("test-credential");
       secretReference.setLocation("secret-id-1");
       secretReference.setTenant(new Tenant("tenant-1"));
@@ -195,7 +201,8 @@ class LocalSecretsProviderTest {
     void given_hashReference_should_updateExistingHashSecret_and_reference() {
       // Arrange
       CredentialSecretReference secretReference = new CredentialSecretReference();
-      secretReference.setCredentialAuthMethod(HASH_VALUE);
+      secretReference.setCredentialAuthMethod(
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH);
       secretReference.setName("test-hash");
       secretReference.setLocation("secret-id-2");
       secretReference.setTenant(new Tenant("tenant-1"));
@@ -213,12 +220,59 @@ class LocalSecretsProviderTest {
       // Act
       SecretReference result =
           localSecretsProvider.update(
-              secretReference, new SecretStoreRequest(null, null, "next-hash", "SHA256"));
+              secretReference,
+              new SecretStoreRequest(null, null, "next-hash", HashSecret.HASH_ALGORITHM.SHA));
 
       // Assert
       assertThat(result).isSameAs(secretReference);
       assertThat(existingSecret.getHash()).isEqualTo("encrypted-next-hash");
-      assertThat(existingSecret.getHashAlgorithm()).isEqualTo("SHA256");
+      assertThat(existingSecret.getHashAlgorithm()).isEqualTo(HashSecret.HASH_ALGORITHM.SHA);
+    }
+
+    @Test
+    @DisplayName("Switch existing username/password secret to hash and replace previous secret")
+    void given_existingUsernamePasswordSecret_when_switchingToHash_should_replaceSecretType() {
+      // Arrange
+      CredentialSecretReference secretReference = new CredentialSecretReference();
+      secretReference.setCredentialAuthMethod(
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH);
+      secretReference.setName("test-switch-to-hash");
+      secretReference.setLocation("secret-id-legacy");
+      secretReference.setTenant(new Tenant("tenant-1"));
+
+      UsernamePasswordSecret existingSecret = new UsernamePasswordSecret();
+      existingSecret.setId("secret-id-legacy");
+
+      when(secretService.findByIdOrThrow("secret-id-legacy")).thenReturn(existingSecret);
+      when(nativeEncryptionService.encrypt("next-hash")).thenReturn("encrypted-next-hash");
+      when(secretService.save(any(Secret.class)))
+          .thenAnswer(
+              invocation -> {
+                Secret saved = invocation.getArgument(0);
+                saved.setId("secret-id-new-hash");
+                return saved;
+              });
+      when(secretReferenceService.save(any(SecretReference.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      // Act
+      SecretReference result =
+          localSecretsProvider.update(
+              secretReference,
+              new SecretStoreRequest(null, null, "next-hash", HashSecret.HASH_ALGORITHM.SHA));
+
+      // Assert
+      assertThat(result).isSameAs(secretReference);
+      assertThat(result.getLocation()).isEqualTo("secret-id-new-hash");
+
+      ArgumentCaptor<Secret> savedCaptor = ArgumentCaptor.forClass(Secret.class);
+      verify(secretService).save(savedCaptor.capture());
+      assertThat(savedCaptor.getValue()).isInstanceOf(HashSecret.class);
+      HashSecret savedHashSecret = (HashSecret) savedCaptor.getValue();
+      assertThat(savedHashSecret.getHash()).isEqualTo("encrypted-next-hash");
+      assertThat(savedHashSecret.getHashAlgorithm()).isEqualTo(HashSecret.HASH_ALGORITHM.SHA);
+
+      verify(secretService).deleteById("secret-id-legacy");
     }
 
     @Test
@@ -226,7 +280,8 @@ class LocalSecretsProviderTest {
     void given_unknownSecretId_should_throwSecretNotFoundException() {
       // Arrange
       CredentialSecretReference secretReference = new CredentialSecretReference();
-      secretReference.setCredentialAuthMethod(USERNAME_PASSWORD_VALUE);
+      secretReference.setCredentialAuthMethod(
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD);
       secretReference.setName("test-credential");
       secretReference.setLocation("unknown-secret-id");
       secretReference.setTenant(new Tenant("tenant-1"));
@@ -249,7 +304,8 @@ class LocalSecretsProviderTest {
     void given_hashReferenceWithoutNewHash_should_throwNullHashException() {
       // Arrange
       CredentialSecretReference secretReference = new CredentialSecretReference();
-      secretReference.setCredentialAuthMethod(HASH_VALUE);
+      secretReference.setCredentialAuthMethod(
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH);
       secretReference.setName("test-hash");
       secretReference.setLocation("secret-id-2");
       secretReference.setTenant(new Tenant("tenant-1"));
@@ -263,8 +319,9 @@ class LocalSecretsProviderTest {
       assertThatThrownBy(
               () ->
                   localSecretsProvider.update(
-                      secretReference, new SecretStoreRequest(null, null, null, "NTLM")))
-          .isInstanceOf(NullPointerException.class)
+                      secretReference,
+                      new SecretStoreRequest(null, null, null, HashSecret.HASH_ALGORITHM.NTLM)))
+          .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("request.hash must not be null");
     }
 
@@ -273,7 +330,8 @@ class LocalSecretsProviderTest {
     void given_usernamePasswordReferenceWithoutNewPassword_should_throwNullPasswordException() {
       // Arrange
       CredentialSecretReference secretReference = new CredentialSecretReference();
-      secretReference.setCredentialAuthMethod(USERNAME_PASSWORD_VALUE);
+      secretReference.setCredentialAuthMethod(
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD);
       secretReference.setName("test-credential");
       secretReference.setLocation("secret-id-1");
       secretReference.setTenant(new Tenant("tenant-1"));
@@ -288,7 +346,7 @@ class LocalSecretsProviderTest {
               () ->
                   localSecretsProvider.update(
                       secretReference, new SecretStoreRequest("new-user", null, null, null)))
-          .isInstanceOf(NullPointerException.class)
+          .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("request.password must not be null");
     }
   }
