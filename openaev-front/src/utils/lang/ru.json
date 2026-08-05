@@ -12,6 +12,7 @@
   ".": ".",
   "(last 180 days)": "(последние 180 дней)",
   "[{exerciseName}] Lessons learned questionnaire": "[{exerciseName}] Опросник \"Извлеченные уроки",
+  "{count} / page": "{count} / страница",
   "{count} action(s) added successfully.": "{count} действие(и) добавлено(ы) успешно.",
   "{count} actions available": "Доступно действий: {count}",
   "{count} actions selected": "Выбрано действий: {count}",

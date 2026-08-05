@@ -12,6 +12,7 @@
   ".": ".",
   "(last 180 days)": "(지난 180일)",
   "[{exerciseName}] Lessons learned questionnaire": "[{exerciseName}] 교훈을 얻은 설문지",
+  "{count} / page": "{count} / 페이지",
   "{count} action(s) added successfully.": "{count}개의 작업이 성공적으로 추가되었습니다.",
   "{count} actions available": "사용 가능한 액션 {count}개",
   "{count} actions selected": "액션 {count}개 선택됨",
