@@ -5,7 +5,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.connector_instance.dto.*;
@@ -54,8 +53,13 @@ public class ConnectorInstanceApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully created connector instance")
       })
+  // The migration flow (input carries an existing collector/injector/executor ID) validates that
+  // ID against a composite-PK table (collectors, injectors, executors). Without a TxCtx argument
+  // here, TenantScopeTransactionAspect never sets app.current_tenants for this transaction, so
+  // can_access_tenant fails closed and that lookup reports the id "not visible in the current
+  // tenant" even when it legitimately belongs to the caller's tenant.
   public ConnectorInstancePersisted createConnectorInstance(
-      @Valid @RequestBody CreateConnectorInstanceInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody CreateConnectorInstanceInput input) {
     // --- /!\ --- SECURITY START : Encrypt sensitive values before any LOGGING or processing
     ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap =
         this.orchestrationService.getCatalogConnectorWithConfigurationsMap(
@@ -65,9 +69,15 @@ public class ConnectorInstanceApi extends RestBehavior {
             catalogConnectorWithConfigMap, input);
     // --- /!\ --- SECURITY END
 
+    // Derive the write tenant from the same resolved scope used for the migration ID lookup
+    // above, instead of TenantContext (path-only, defaults to DEFAULT_TENANT_UUID off the tenant
+    // path): keeps the v2 inspector scope and the tenant the row is actually created under in
+    // sync, and turns an ambiguous/missing scope into a 400 instead of misattributed data.
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
+
     // only instance managed by XTM Composer can be created through this API
     return orchestrationService.createConnectorInstance(
-        catalogConnectorWithConfigMap, safeInput, TenantContext.getCurrentTenant());
+        catalogConnectorWithConfigMap, safeInput, writeTenant);
   }
 
   @GetMapping(
