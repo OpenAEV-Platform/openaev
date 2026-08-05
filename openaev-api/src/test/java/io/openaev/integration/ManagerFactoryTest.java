@@ -1,6 +1,8 @@
 package io.openaev.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 
 import io.openaev.database.model.Tenant;
 import java.util.List;
@@ -10,6 +12,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ManagerFactory unit tests")
@@ -26,7 +29,14 @@ class ManagerFactoryTest {
 
   @BeforeEach
   void setUp() {
-    managerFactory = new ManagerFactory(List.of(), List.of());
+    // getManager() invokes createManager() through this self-provider so its REQUIRES_NEW
+    // transaction applies in production; here the provider simply returns the instance under test.
+    // Lenient because the createDependencyForTenant path populates the cache directly and never
+    // hits the provider.
+    @SuppressWarnings("unchecked")
+    ObjectProvider<ManagerFactory> self = mock(ObjectProvider.class);
+    managerFactory = new ManagerFactory(List.of(), List.of(), self);
+    lenient().when(self.getObject()).thenReturn(managerFactory);
   }
 
   @Nested
