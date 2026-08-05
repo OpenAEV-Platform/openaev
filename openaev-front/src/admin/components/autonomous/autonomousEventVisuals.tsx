@@ -12,6 +12,7 @@ import {
   PauseCircleOutline,
   PlayCircleOutline,
   SendOutlined,
+  SmartToyOutlined,
   WarningAmberOutlined,
 } from '@mui/icons-material';
 import { Box } from '@mui/material';
@@ -51,6 +52,8 @@ export const eventAccent = (event: AutonomousEvent, theme: Theme): string => {
     case 'TOOL_ACTION':
     case 'HANDOVER':
       return theme.palette.info.main;
+    case 'AGENT_DELEGATION':
+      return theme.palette.ai?.main ?? theme.palette.secondary.main;
     case 'GAP':
     case 'QUESTION':
       return theme.palette.warning.main;
@@ -91,6 +94,8 @@ export const eventTypeLabel = (type?: AutonomousEventType | string | null): stri
       return 'Action';
     case 'HANDOVER':
       return 'Handover';
+    case 'AGENT_DELEGATION':
+      return 'Agent delegation';
     case 'GAP':
       return 'Capability gap';
     case 'STATUS':
@@ -253,6 +258,8 @@ export const eventIcon = (event: AutonomousEvent): ReactNode => {
       return <SendOutlined fontSize="small" />;
     case 'HANDOVER':
       return <AccountTreeOutlined fontSize="small" />;
+    case 'AGENT_DELEGATION':
+      return <SmartToyOutlined fontSize="small" />;
     case 'STATUS':
       switch (statusFlavor(event.autonomous_event_title)) {
         case 'created':

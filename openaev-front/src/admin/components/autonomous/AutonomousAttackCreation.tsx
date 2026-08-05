@@ -21,17 +21,19 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { createAutonomousRun, fetchObjectiveTemplates, startAutonomousRun } from '../../../actions/autonomous/autonomous-actions';
-import { type AutonomousObjectiveTemplate } from '../../../actions/autonomous/autonomous-types';
+import { createAutonomousRun, fetchAvailableAgents, fetchDefaultAgents, fetchObjectiveTemplates, startAutonomousRun } from '../../../actions/autonomous/autonomous-actions';
+import { type AdditionalAgent, type AutonomousDiscoveryMode, type AutonomousObjectiveTemplate, ORCHESTRATOR_AGENT_ID, ORCHESTRATOR_DEFAULT_DISCOVERY_MODE, SPECIALIST_DEFAULT_DISCOVERY_MODE } from '../../../actions/autonomous/autonomous-types';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import { SCENARIO_BASE_URL, SIMULATION_BASE_URL } from '../../../constants/BaseUrls';
 import { type WorkflowScopeRuleInput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
+import { toHttpUrl } from '../../../utils/url-helper';
 import { isFeatureEnabled } from '../../../utils/utils';
 import ScopeForm, { type ScopeCustomRule } from '../chaining/ScopeForm';
 import EEChip from '../common/entreprise_edition/EEChip';
+import AutonomousAgentsSelector from './AutonomousAgentsSelector';
 
 // Maps the objective-template icon tokens seeded server-side (kebab-case, see
 // AutonomousObjectiveTemplateService) to MUI icons. Unknown/empty tokens fall
@@ -50,6 +52,10 @@ const OBJECTIVE_ICONS: Record<string, SvgIconComponent> = {
   'globe': Public,
   'user-check': HowToReg,
 };
+
+// The license-independent built-in specialist the orchestrator always consults; seeded as a default
+// handover in XTM One, so it is shown as always-on and cannot be removed from the per-run picker.
+const BUILTIN_AGENT_SLUG = 'openaev-payload-creator';
 
 // One list (allow or deny) worth of selections, mirroring the state the manual chained-scope editor
 // keeps per drawer (ScopeRules). Reused as-is here so the launch stepper offers the exact same
@@ -180,6 +186,7 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
   const navigate = useNavigate();
   const { settings } = useAuth();
   const featureEnabled = isFeatureEnabled('AUTONOMOUS_ATTACK_PATH');
+  const xtmOneUrl = toHttpUrl(settings.platform_xtm_one_url)?.replace(/\/+$/, '');
   const {
     isValidated: isEnterpriseEdition,
     openDialog: openEnterpriseEditionDialog,
@@ -196,6 +203,11 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
   const [description, setDescription] = useState('');
   const [allowScope, setAllowScope] = useState<ScopeSelection>(EMPTY_SCOPE);
   const [denyScope, setDenyScope] = useState<ScopeSelection>(EMPTY_SCOPE);
+  const [availableAgents, setAvailableAgents] = useState<AdditionalAgent[]>([]);
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
+  const [selectedAgentModes, setSelectedAgentModes] = useState<Record<string, string>>({});
+  const [loadingAgents, setLoadingAgents] = useState(false);
+  const [agentsLoaded, setAgentsLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -208,6 +220,29 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
       .then(res => setTemplates(res.data ?? []))
       .catch(() => setTemplates([]))
       .finally(() => setLoadingTemplates(false));
+  }, [open]);
+
+  // Load the specialist agents the orchestrator can consult and prefill the selection with the
+  // tenant's configured defaults (set in Settings > Customization > Autonomous attack).
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setLoadingAgents(true);
+    Promise.all([fetchAvailableAgents(), fetchDefaultAgents()])
+      .then(([agents, defaults]) => {
+        setAvailableAgents(agents.data ?? []);
+        setSelectedAgentIds(defaults.data?.agent_ids ?? []);
+        setSelectedAgentModes(defaults.data?.agent_modes ?? {});
+        setAgentsLoaded(true);
+      })
+      .catch(() => {
+        setAvailableAgents([]);
+        setSelectedAgentIds([]);
+        setSelectedAgentModes({});
+        setAgentsLoaded(false);
+      })
+      .finally(() => setLoadingAgents(false));
   }, [open]);
 
   // Apply the preset scope (e.g. an asset group's "Autonomous attack") to the allow-list whenever
@@ -241,6 +276,10 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
     setDescription('');
     setAllowScope(EMPTY_SCOPE);
     setDenyScope(EMPTY_SCOPE);
+    setAvailableAgents([]);
+    setSelectedAgentIds([]);
+    setSelectedAgentModes({});
+    setAgentsLoaded(false);
     setError(null);
   };
 
@@ -252,6 +291,29 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
   const canLaunch = objective.trim().length > 0 && !submitting;
   const allowCount = scopeSelectionCount(allowScope);
   const denyCount = scopeSelectionCount(denyScope);
+
+  // Every agent - including the built-in payload creator - is a normal toggle: built-ins are enabled
+  // by default (prefilled from the tenant defaults) but can be turned off or replaced for this run.
+  const toggleAgent = (agentId: string, enabled: boolean) => {
+    setSelectedAgentIds(current => (enabled
+      ? (current.includes(agentId) ? current : [...current, agentId])
+      : current.filter(id => id !== agentId)));
+    // Seed the specialist default (EXPANSIVE) when enabling so the launch payload always carries an
+    // explicit mode; the orchestrator row is pinned and not toggled here.
+    if (enabled) {
+      setSelectedAgentModes(current => (current[agentId] ? current : {
+        ...current,
+        [agentId]: SPECIALIST_DEFAULT_DISCOVERY_MODE,
+      }));
+    }
+  };
+
+  const changeAgentMode = (agentId: string, mode: AutonomousDiscoveryMode) => {
+    setSelectedAgentModes(current => ({
+      ...current,
+      [agentId]: mode,
+    }));
+  };
 
   const scopeRules = useMemo<WorkflowScopeRuleInput[]>(
     () => [...selectionToRules(allowScope, 'ALLOWLIST'), ...selectionToRules(denyScope, 'DENYLIST')],
@@ -272,6 +334,19 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
       name: name.trim() || undefined,
       description: description.trim() || undefined,
       scope_rules: scopeRules.length > 0 ? scopeRules : undefined,
+      // Authoritative selection: send it as soon as the agents loaded (even empty, i.e. the operator
+      // disabled every agent). Only omit it when the fetch failed, so the backend can fall back to
+      // the tenant defaults rather than silently running with no specialist agents.
+      agent_ids: agentsLoaded ? selectedAgentIds : undefined,
+      // Per-agent discovery modes (omit when the fetch failed so the backend falls back to tenant
+      // defaults). Always carries the orchestrator's own mode (keyed by the ORCHESTRATOR_AGENT_ID
+      // sentinel) plus each enabled specialist's mode.
+      agent_modes: agentsLoaded
+        ? {
+            [ORCHESTRATOR_AGENT_ID]: selectedAgentModes[ORCHESTRATOR_AGENT_ID] ?? ORCHESTRATOR_DEFAULT_DISCOVERY_MODE,
+            ...Object.fromEntries(selectedAgentIds.map(id => [id, selectedAgentModes[id] ?? SPECIALIST_DEFAULT_DISCOVERY_MODE])),
+          }
+        : undefined,
       plan_mode: planMode || undefined,
     })
       .then((res) => {
@@ -308,9 +383,10 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
 
   const stepLabels = [
     t('Objective'),
-    denyCount > 0 || allowCount > 0 ? `${t('Allow list')} (${allowCount})` : t('Allow list'),
+    allowCount > 0 ? `${t('Allow list')} (${allowCount})` : t('Allow list'),
     denyCount > 0 ? `${t('Deny list')} (${denyCount})` : t('Deny list'),
   ];
+  const lastStep = stepLabels.length - 1;
 
   return (
     <>
@@ -481,6 +557,27 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
                 </Box>
 
                 <Box>
+                  <AutonomousAgentsSelector
+                    title={t('Agents')}
+                    agents={availableAgents}
+                    enabledIds={selectedAgentIds}
+                    onToggle={toggleAgent}
+                    modes={selectedAgentModes}
+                    onModeChange={changeAgentMode}
+                    orchestrator={{
+                      id: ORCHESTRATOR_AGENT_ID,
+                      name: t('Autonomous orchestrator'),
+                      description: t('Plans and drives the entire attack path, and consults the agents below.'),
+                    }}
+                    builtinSlug={BUILTIN_AGENT_SLUG}
+                    loading={loadingAgents}
+                    disabled={submitting}
+                    createAgentUrl={xtmOneUrl ? `${xtmOneUrl}/agents/new` : undefined}
+                    infoTooltip={t('Specialist agents the orchestrator can consult during the attack (payload creation, code generation, recon, exploitation support). Prefilled from your tenant defaults; built-in agents are enabled by default but can be turned off or replaced for this run. Each agent\'s discovery mode controls how much it may create from recon: enrich existing entities only, stay within scope, or expand the perimeter.')}
+                  />
+                </Box>
+
+                <Box>
                   <Typography variant="h2" gutterBottom>
                     {t('Label (optional)')}
                   </Typography>
@@ -570,7 +667,7 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
                     {t('Back')}
                   </Button>
                 )}
-                {activeStep < 2 && (
+                {activeStep < lastStep && (
                   <Button
                     onClick={() => setActiveStep(step => step + 1)}
                     variant="outlined"

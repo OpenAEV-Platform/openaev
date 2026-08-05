@@ -564,10 +564,32 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // to "Processing your answer" immediately -- the backend status stays WAITING_INPUT until the next
   // 3s poll, so keying off status alone would freeze on "Waiting for your input".
   const lastActivityType = [...events].reverse().find(
-    e => (['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'NARRATION'] as const).includes(
-      e.autonomous_event_type as 'DECISION' | 'TOOL_ACTION' | 'PROOF' | 'GAP' | 'HANDOVER' | 'NARRATION',
+    e => (['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const).includes(
+      e.autonomous_event_type as 'DECISION' | 'TOOL_ACTION' | 'PROOF' | 'GAP' | 'HANDOVER' | 'AGENT_DELEGATION' | 'NARRATION',
     ),
   )?.autonomous_event_type;
+
+  // The latest agent-delegation event drives the "delegating to / waiting for <agent>" caption. A
+  // 'start' phase with no following 'result' reads as waiting (static), mirroring the parked model.
+  const lastDelegation = [...events].reverse().find(
+    e => e.autonomous_event_type === 'AGENT_DELEGATION',
+  );
+  const delegationInfo = (() => {
+    if (!lastDelegation) {
+      return null;
+    }
+    try {
+      const data = lastDelegation.autonomous_event_data
+        ? JSON.parse(lastDelegation.autonomous_event_data) as { agent_name?: string; phase?: string }
+        : null;
+      return {
+        agentName: data?.agent_name,
+        waiting: data?.phase === 'start',
+      };
+    } catch {
+      return { agentName: undefined, waiting: false };
+    }
+  })();
   // A STATUS event is the orchestrator's end-of-cycle "settled state" marker (e.g. "Phishing lure
   // in flight - awaiting human interaction"): the run stays RUNNING but is now PARKED, idle until a
   // human-timescale event or the next cycle. So when the newest event is a STATUS, the orchestrator
@@ -641,6 +663,24 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           color: accent,
           active: true,
         };
+      case 'AGENT_DELEGATION': {
+        const who = delegationInfo?.agentName;
+        const delegationColor = theme.palette.ai?.main ?? accent;
+        if (delegationInfo?.waiting) {
+          return {
+            key: 'delegating-wait',
+            label: who ? `${t('Waiting for')} ${who}` : t('Waiting for a specialist agent'),
+            color: delegationColor,
+            active: false,
+          };
+        }
+        return {
+          key: 'delegating-done',
+          label: who ? `${t('Consulted')} ${who}` : t('Specialist agent consulted'),
+          color: delegationColor,
+          active: true,
+        };
+      }
       case 'NARRATION':
         return {
           key: 'analyzing',

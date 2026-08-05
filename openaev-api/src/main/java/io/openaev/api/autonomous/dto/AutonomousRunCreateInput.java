@@ -5,6 +5,7 @@ import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.autonomous.AutonomousScopeTarget;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -75,6 +76,24 @@ public class AutonomousRunCreateInput {
   @JsonProperty("agent_slug")
   @Schema(description = "Optional orchestrator agent slug override")
   private String agentSlug;
+
+  @JsonProperty("agent_ids")
+  @Schema(
+      description =
+          "Optional XTM One agent ids the orchestrator may consult as specialist handover targets"
+              + " during the run (in addition to the built-in payload creator). When omitted, the"
+              + " tenant's configured default additional agents are used.")
+  private List<String> agentIds;
+
+  @JsonProperty("agent_modes")
+  @Schema(
+      description =
+          "Optional per-agent discovery mode for this run: maps an agent id to EXISTING_ONLY /"
+              + " SCOPED / EXPANSIVE, controlling how much latitude that agent has to create new"
+              + " assets / findings / persons from recon on the fly. When omitted, the tenant's"
+              + " configured default per-agent modes are used; an agent absent from the map falls"
+              + " back to SCOPED.")
+  private Map<String, String> agentModes;
 
   @JsonProperty("plan_mode")
   @Schema(

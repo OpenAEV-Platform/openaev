@@ -13,6 +13,12 @@ public enum AutonomousEventType {
   TOOL_ACTION,
   /** A handover between orchestrator sub-agents (recon -> exploit -> lateral...). */
   HANDOVER,
+  /**
+   * The orchestrator consulting a specialist agent (payload creation, code generation, recon,
+   * exploitation support). Carries structured data {@code {phase: "start"|"result", agent_name,
+   * status}}; a {@code start} with no matching {@code result} renders as "waiting for the agent".
+   */
+  AGENT_DELEGATION,
   /** A capability gap: no installed injector/contract can perform a needed technique. */
   GAP,
   /** A run-status transition (running, paused, waiting-input, completed...). */

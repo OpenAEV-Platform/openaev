@@ -4,6 +4,7 @@ import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepState;
@@ -18,6 +19,7 @@ import io.openaev.api.autonomous.dto.AutonomousTriggerFilter;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.ConditionType;
@@ -31,12 +33,15 @@ import io.openaev.database.model.MappingType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
+import io.openaev.database.model.Setting;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousDirectiveStatus;
+import io.openaev.database.model.autonomous.AutonomousDiscoveryMode;
 import io.openaev.database.model.autonomous.AutonomousEvent;
 import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousObjectiveTemplate;
@@ -47,6 +52,7 @@ import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
@@ -66,10 +72,13 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -100,6 +109,22 @@ public class AutonomousRunService {
   /** Temporary-id anchor for the synthetic AND/OR root of a finding-driven trigger tree. */
   private static final String TRIGGER_ROOT_TMP_ID = "trigger-root";
 
+  /**
+   * Slug of the license-independent built-in specialist (payload creator) the orchestrator consults
+   * by default. Used to resolve its XTM One id when a tenant has not configured its default agents.
+   */
+  private static final String BUILTIN_AGENT_SLUG = "openaev-payload-creator";
+
+  /**
+   * Reserved key for the orchestrator's own entry in a run's per-agent discovery-mode map. The
+   * orchestrator's concrete XTM One id is only resolved at engage time (by the {@code
+   * aev.attack_path_orchestrator} intent), so the UI and this service key its mode under this
+   * sentinel instead. {@link #resolveDiscoveryMode} falls back to it for any creation not attributed
+   * to a known specialist - i.e. the orchestrator acting on its own. Must match {@code
+   * ORCHESTRATOR_AGENT_ID} in the frontend's autonomous-types.
+   */
+  private static final String ORCHESTRATOR_AGENT_ID = "__orchestrator__";
+
   private final AutonomousRunRepository runRepository;
   private final AutonomousDirectiveRepository directiveRepository;
   private final AutonomousEventService eventService;
@@ -119,6 +144,7 @@ public class AutonomousRunService {
   private final UserRepository userRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final ExerciseRepository exerciseRepository;
+  private final SettingRepository settingRepository;
 
   // A dedicated bean persists the read-path reconcile in its OWN transaction (REQUIRES_NEW) through
   // its Spring proxy. It must be a separate class: a same-class call would bypass the proxy, keep
@@ -256,6 +282,24 @@ public class AutonomousRunService {
             .map(AutonomousScopeTarget::getId)
             .toList());
     run.setXtmAgentSlug(input.getAgentSlug());
+    // Specialist agents the orchestrator may consult. The per-run selection is authoritative once the
+    // launcher provides one (a non-null list, even empty, means the operator explicitly chose - up to
+    // disabling every agent including the built-in). Only when the launcher omits it entirely (null)
+    // do we fall back to the tenant's configured default additional agents.
+    List<String> selectedAgentIds = input.getAgentIds();
+    List<String> resolvedAgentIds =
+        selectedAgentIds != null
+            ? new ArrayList<>(selectedAgentIds)
+            : readDefaultAdditionalAgentIds();
+    run.setAgentIds(resolvedAgentIds);
+    // Per-agent discovery mode: authoritative per-run selection when provided, else the tenant
+    // default map; then normalized so every enabled specialist agent has an explicit mode (defaulting
+    // EXPANSIVE - specialists expand the perimeter by default; the orchestrator itself stays SCOPED).
+    Map<String, String> selectedModes = input.getAgentModes();
+    run.setAgentModes(
+        normalizeAgentModes(
+            selectedModes != null ? selectedModes : readDefaultAdditionalAgentModes(),
+            resolvedAgentIds));
     run.setStatus(AutonomousRunStatus.CREATED);
     AutonomousRun saved = runRepository.save(run);
 
@@ -331,6 +375,10 @@ public class AutonomousRunService {
     final String scopeTeamId = run.getScopeTeamId();
     final List<AutonomousScopeTarget> scope =
         run.getScope() != null ? new ArrayList<>(run.getScope()) : new ArrayList<>();
+    final List<String> agentIds =
+        run.getAgentIds() != null ? new ArrayList<>(run.getAgentIds()) : new ArrayList<>();
+    final Map<String, String> agentModes =
+        run.getAgentModes() != null ? new HashMap<>(run.getAgentModes()) : new HashMap<>();
     final String scopeMode = resolveScopeMode(run.getObjectiveTemplateKey());
     final boolean planMode = run.isPlanMode();
     // A promoted real run carries the dry-run's plan summary as guidance ("follow this plan but
@@ -351,7 +399,9 @@ public class AutonomousRunService {
                   scope,
                   scopeMode,
                   planMode,
-                  priorPlan);
+                  priorPlan,
+                  agentIds,
+                  agentModes);
             }
           });
     } else {
@@ -365,7 +415,9 @@ public class AutonomousRunService {
           scope,
           scopeMode,
           planMode,
-          priorPlan);
+          priorPlan,
+          agentIds,
+          agentModes);
     }
   }
 
@@ -385,7 +437,9 @@ public class AutonomousRunService {
       List<AutonomousScopeTarget> scope,
       String scopeMode,
       boolean planMode,
-      String priorPlan) {
+      String priorPlan,
+      List<String> agentIds,
+      Map<String, String> agentModes) {
     try {
       Map<String, Object> handle =
           xtmOneClient.startAutonomousRun(
@@ -399,7 +453,9 @@ public class AutonomousRunService {
               scopeMode,
               planMode,
               priorPlan,
-              openAEVConfig.getBaseUrl());
+              openAEVConfig.getBaseUrl(),
+              agentIds,
+              agentModes);
       String sessionId = handle != null ? asString(handle.get("session_id")) : null;
       String resolvedSlug = handle != null ? asString(handle.get("agent_slug")) : null;
       persistSessionHandle(runId, sessionId, resolvedSlug, null);
@@ -1601,7 +1657,8 @@ public class AutonomousRunService {
    * (lateral movement).
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousPromotedAssetResult promoteFindingToAsset(String runId, String findingId) {
+  public AutonomousPromotedAssetResult promoteFindingToAsset(
+      String runId, String findingId, String actingAgentId) {
     requireFeature();
     AutonomousRun run = require(runId);
     Finding finding =
@@ -1609,6 +1666,24 @@ public class AutonomousRunService {
             .findById(findingId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Finding not found"));
+    // Promotion mints a brand-new endpoint, so it is a discovery-creation gated by the acting
+    // agent's mode: EXISTING_ONLY forbids it outright, SCOPED requires the discovered value to sit
+    // inside the run's allow-scope perimeter, EXPANSIVE allows it anywhere (deny-list still wins).
+    AutonomousDiscoveryMode mode = resolveDiscoveryMode(run, actingAgentId);
+    if (!mode.allowsCreation()) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN,
+          "Discovery mode EXISTING_ONLY forbids promoting a finding into a new asset. Target an"
+              + " existing in-scope endpoint instead.");
+    }
+    if (!isValueWithinScope(run, finding.getValue(), mode)) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN,
+          "Discovery mode SCOPED: '"
+              + finding.getValue()
+              + "' is outside the run's allow-scope perimeter. Widen the scope, or assign this"
+              + " agent the EXPANSIVE mode to let it attack beyond the initial perimeter.");
+    }
     String label = hasText(finding.getName()) ? finding.getName() : finding.getValue();
     EndpointInput input = new EndpointInput();
     input.setName(label);
@@ -1656,7 +1731,7 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousTargetTeamResult ensureTargetTeam(
-      String runId, List<String> playerIds, String name, String teamId) {
+      String runId, List<String> playerIds, String name, String teamId, String actingAgentId) {
     requireFeature();
     AutonomousRun run = require(runId);
     String simulationId = run.getSimulationId();
@@ -1679,6 +1754,25 @@ public class AutonomousRunService {
     if (players.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.NOT_FOUND, "None of the provided player ids resolved to a person");
+    }
+    // Wrapping people the run was not authorized to touch would silently expand the human
+    // perimeter. EXISTING_ONLY and SCOPED both require every recipient to already sit inside the
+    // run's identity allow-scope (an allow-listed person, or a member of an allow-listed team);
+    // only EXPANSIVE may reach beyond it. If the run has no identity perimeter at all, nothing is
+    // constrained (matching OpenAEV's "empty allow-list = no restriction" scope semantics).
+    AutonomousDiscoveryMode teamMode = resolveDiscoveryMode(run, actingAgentId);
+    if (teamMode.requiresInScope() || !teamMode.allowsCreation()) {
+      List<String> outOfScope = playersOutsideAllowScope(run, players);
+      if (!outOfScope.isEmpty()) {
+        throw new ResponseStatusException(
+            HttpStatus.FORBIDDEN,
+            "Discovery mode "
+                + teamMode
+                + ": "
+                + outOfScope.size()
+                + " recipient(s) are outside the run's allow-scope. Add them to the scope, or"
+                + " assign this agent the EXPANSIVE mode to target people beyond the perimeter.");
+      }
     }
     Exercise simulation =
         exerciseRepository
@@ -1741,6 +1835,171 @@ public class AutonomousRunService {
       who = who + " +" + (players.size() - 3);
     }
     return "AI target " + who;
+  }
+
+  // endregion
+
+  // region discovery policy
+
+  /**
+   * Resolves the discovery mode to enforce for a creation attempt, keyed to the agent on whose
+   * behalf the discovery is being recorded (passed by XTM One). An agent absent from the run's
+   * per-agent map - including an unattributed call - resolves to the safe middle ({@link
+   * AutonomousDiscoveryMode#DEFAULT}).
+   */
+  private AutonomousDiscoveryMode resolveDiscoveryMode(AutonomousRun run, String actingAgentId) {
+    Map<String, String> modes = run.getAgentModes();
+    if (modes != null) {
+      if (hasText(actingAgentId)) {
+        String raw = modes.get(actingAgentId.trim());
+        if (hasText(raw)) {
+          return AutonomousDiscoveryMode.fromValue(raw);
+        }
+      }
+      // Unattributed, or attributed to an actor not in the per-agent map, means the orchestrator
+      // itself is recording the discovery (it is the only actor that writes to OpenAEV; specialists
+      // are advisory and always carry their own id). Fall back to the orchestrator's own configured
+      // mode, keyed by the reserved ORCHESTRATOR_AGENT_ID sentinel, when the operator set one.
+      String orchestratorMode = modes.get(ORCHESTRATOR_AGENT_ID);
+      if (hasText(orchestratorMode)) {
+        return AutonomousDiscoveryMode.fromValue(orchestratorMode);
+      }
+    }
+    return AutonomousDiscoveryMode.DEFAULT;
+  }
+
+  /**
+   * True when a discovered network value (IP or hostname) may be brought into the run under {@code
+   * mode}. EXPANSIVE always passes (deny-list still wins); SCOPED requires the value to match the
+   * run's network allow-perimeter when one is defined - if the scope is entity-based only (no
+   * MANUAL/CSV network rules) there is no network perimeter to be inside, so it passes.
+   */
+  private boolean isValueWithinScope(AutonomousRun run, String value, AutonomousDiscoveryMode mode) {
+    if (!mode.requiresInScope()) {
+      // EXPANSIVE: only an explicit deny-list rule blocks the value.
+      return !matchesNetworkRules(readScopeRules(run), ScopeRuleSelectedMode.DENYLIST, value);
+    }
+    List<WorkflowScopeRule> rules = readScopeRules(run);
+    if (matchesNetworkRules(rules, ScopeRuleSelectedMode.DENYLIST, value)) {
+      return false;
+    }
+    boolean hasNetworkAllow =
+        rules.stream()
+            .anyMatch(
+                r ->
+                    r != null
+                        && r.getSelectedMode() == ScopeRuleSelectedMode.ALLOWLIST
+                        && isNetworkSource(r.getRuleSource()));
+    // No network perimeter defined: an entity-based / empty allow-list does not constrain a raw
+    // host, so SCOPED does not block it (mirrors "empty allow-list = no restriction").
+    return !hasNetworkAllow || matchesNetworkRules(rules, ScopeRuleSelectedMode.ALLOWLIST, value);
+  }
+
+  /** The subset of {@code players} that fall outside the run's identity allow-scope, by id. */
+  private List<String> playersOutsideAllowScope(AutonomousRun run, List<User> players) {
+    List<WorkflowScopeRule> rules = readScopeRules(run);
+    List<WorkflowScopeRule> allow =
+        rules.stream()
+            .filter(r -> r != null && r.getSelectedMode() == ScopeRuleSelectedMode.ALLOWLIST)
+            .toList();
+    Set<String> allowPlayerIds = new HashSet<>(idsForSource(allow, ScopeRuleSource.PLAYER));
+    List<String> allowTeamIds = idsForSource(allow, ScopeRuleSource.TEAM);
+    boolean hasIdentityPerimeter = !allowPlayerIds.isEmpty() || !allowTeamIds.isEmpty();
+    if (!hasIdentityPerimeter) {
+      // No identity allow-list at all: no perimeter to be outside of.
+      return List.of();
+    }
+    Set<String> allowedMembers = new HashSet<>(allowPlayerIds);
+    if (!allowTeamIds.isEmpty()) {
+      teamRepository
+          .findAllById(allowTeamIds)
+          .forEach(team -> team.getUsers().forEach(user -> allowedMembers.add(user.getId())));
+    }
+    return players.stream()
+        .map(User::getId)
+        .filter(id -> !allowedMembers.contains(id))
+        .distinct()
+        .toList();
+  }
+
+  private boolean isNetworkSource(ScopeRuleSource source) {
+    return source == ScopeRuleSource.MANUAL || source == ScopeRuleSource.CSV;
+  }
+
+  /** True when {@code value} matches any MANUAL/CSV rule of the given mode (exact or IPv4 CIDR). */
+  private boolean matchesNetworkRules(
+      List<WorkflowScopeRule> rules, ScopeRuleSelectedMode mode, String value) {
+    if (!hasText(value)) {
+      return false;
+    }
+    for (WorkflowScopeRule rule : rules) {
+      if (rule == null
+          || rule.getSelectedMode() != mode
+          || !isNetworkSource(rule.getRuleSource())
+          || !hasText(rule.getRuleValue())) {
+        continue;
+      }
+      if (networkValueMatches(rule.getRuleValue().trim(), value.trim())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Matches a scope rule value against a candidate: case-insensitive exact, or IPv4-in-CIDR. */
+  private boolean networkValueMatches(String ruleValue, String candidate) {
+    if (ruleValue.equalsIgnoreCase(candidate)) {
+      return true;
+    }
+    if (ruleValue.contains("/")) {
+      return ipv4InCidr(candidate, ruleValue);
+    }
+    return false;
+  }
+
+  /** Minimal IPv4 CIDR containment check; returns false for anything it cannot parse as IPv4. */
+  private boolean ipv4InCidr(String ip, String cidr) {
+    try {
+      String[] parts = cidr.split("/");
+      if (parts.length != 2) {
+        return false;
+      }
+      long base = ipv4ToLong(parts[0]);
+      long addr = ipv4ToLong(ip);
+      if (base < 0 || addr < 0) {
+        return false;
+      }
+      int prefix = Integer.parseInt(parts[1].trim());
+      if (prefix < 0 || prefix > 32) {
+        return false;
+      }
+      long mask = prefix == 0 ? 0L : (0xFFFFFFFFL << (32 - prefix)) & 0xFFFFFFFFL;
+      return (base & mask) == (addr & mask);
+    } catch (RuntimeException e) {
+      return false;
+    }
+  }
+
+  /** IPv4 dotted-quad to unsigned long, or -1 when not a valid IPv4 literal. */
+  private long ipv4ToLong(String ip) {
+    String[] octets = ip.trim().split("\\.");
+    if (octets.length != 4) {
+      return -1;
+    }
+    long value = 0;
+    for (String octet : octets) {
+      int n;
+      try {
+        n = Integer.parseInt(octet);
+      } catch (NumberFormatException e) {
+        return -1;
+      }
+      if (n < 0 || n > 255) {
+        return -1;
+      }
+      value = (value << 8) | n;
+    }
+    return value;
   }
 
   // endregion
@@ -1817,6 +2076,169 @@ public class AutonomousRunService {
   public List<AutonomousObjectiveTemplate> objectiveTemplates() {
     requireFeature();
     return templateService.listForCurrentTenant();
+  }
+
+  /**
+   * Specialist agents the orchestrator can consult, sourced from the XTM One {@code
+   * aev.attack_path_additional_agent} intent catalog. Returns an empty list when XTM One is not
+   * configured or exposes no such agents, so the operator UI degrades to a CTA-only state.
+   */
+  @Transactional(readOnly = true)
+  public List<ChatbotAgentOutput> availableAdditionalAgents() {
+    requireFeature();
+    return xtmOneClient.listAdditionalAttackAgents();
+  }
+
+  /** The tenant's default additional agents (ids) attached to every new autonomous run. */
+  @Transactional(readOnly = true)
+  public List<String> defaultAdditionalAgentIds() {
+    requireFeature();
+    return readDefaultAdditionalAgentIds();
+  }
+
+  /** Persists the tenant's default additional agents (ids). */
+  @Transactional(rollbackFor = Exception.class)
+  public List<String> updateDefaultAdditionalAgentIds(List<String> agentIds) {
+    requireFeature();
+    List<String> cleaned = new ArrayList<>();
+    if (agentIds != null) {
+      for (String id : agentIds) {
+        if (hasText(id) && !cleaned.contains(id.trim())) {
+          cleaned.add(id.trim());
+        }
+      }
+    }
+    String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key();
+    Setting setting =
+        settingRepository.findByKeyAndTenantIsNull(key).orElseGet(() -> new Setting(key, "[]"));
+    try {
+      setting.setValue(objectMapper.writeValueAsString(cleaned));
+    } catch (Exception e) {
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to serialize default agents", e);
+    }
+    settingRepository.save(setting);
+    return cleaned;
+  }
+
+  private List<String> readDefaultAdditionalAgentIds() {
+    Optional<Setting> setting =
+        settingRepository.findByKeyAndTenantIsNull(
+            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key());
+    // No row at all: the tenant has never configured this, so the license-independent built-in
+    // payload creator is the enabled-by-default specialist. An existing row (even an empty "[]") is
+    // authoritative - it means the admin explicitly chose the set, up to disabling the built-in.
+    if (setting.isEmpty()) {
+      return resolveBuiltinDefaultAgentIds();
+    }
+    String raw = setting.get().getValue();
+    if (!hasText(raw)) {
+      return new ArrayList<>();
+    }
+    try {
+      List<String> parsed = objectMapper.readValue(raw, new TypeReference<List<String>>() {});
+      return parsed != null ? new ArrayList<>(parsed) : new ArrayList<>();
+    } catch (Exception e) {
+      log.warn("[Autonomous] Invalid default additional agents setting value: {}", raw, e);
+      return new ArrayList<>();
+    }
+  }
+
+  /**
+   * The built-in payload creator's XTM One id, resolved from the additional-attack agent catalog by
+   * its well-known slug. Used as the enabled-by-default specialist when the tenant has never
+   * configured its default agents. Returns an empty list when XTM One is unconfigured or the built-in
+   * is not exposed, so an unconfigured tenant simply runs with no default specialist.
+   */
+  private List<String> resolveBuiltinDefaultAgentIds() {
+    try {
+      return xtmOneClient.listAdditionalAttackAgents().stream()
+          .filter(agent -> BUILTIN_AGENT_SLUG.equals(agent.slug()))
+          .map(ChatbotAgentOutput::id)
+          .filter(id -> id != null && !id.isBlank())
+          .collect(Collectors.toCollection(ArrayList::new));
+    } catch (Exception e) {
+      log.warn("[Autonomous] Unable to resolve the built-in default agent id from XTM One", e);
+      return new ArrayList<>();
+    }
+  }
+
+  /** The tenant's default per-agent discovery modes (agent id -> mode name). */
+  @Transactional(readOnly = true)
+  public Map<String, String> defaultAdditionalAgentModes() {
+    requireFeature();
+    return readDefaultAdditionalAgentModes();
+  }
+
+  /** Persists the tenant's default per-agent discovery modes (canonicalized to valid modes). */
+  @Transactional(rollbackFor = Exception.class)
+  public Map<String, String> updateDefaultAdditionalAgentModes(Map<String, String> agentModes) {
+    requireFeature();
+    Map<String, String> cleaned = normalizeAgentModes(agentModes, null);
+    String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key();
+    Setting setting =
+        settingRepository.findByKeyAndTenantIsNull(key).orElseGet(() -> new Setting(key, "{}"));
+    try {
+      setting.setValue(objectMapper.writeValueAsString(cleaned));
+    } catch (Exception e) {
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to serialize default agent modes", e);
+    }
+    settingRepository.save(setting);
+    return cleaned;
+  }
+
+  private Map<String, String> readDefaultAdditionalAgentModes() {
+    Optional<Setting> setting =
+        settingRepository.findByKeyAndTenantIsNull(
+            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key());
+    if (setting.isEmpty() || !hasText(setting.get().getValue())) {
+      return new HashMap<>();
+    }
+    try {
+      Map<String, String> parsed =
+          objectMapper.readValue(
+              setting.get().getValue(), new TypeReference<Map<String, String>>() {});
+      return parsed != null ? normalizeAgentModes(parsed, null) : new HashMap<>();
+    } catch (Exception e) {
+      log.warn(
+          "[Autonomous] Invalid default additional agent modes setting value: {}",
+          setting.get().getValue(),
+          e);
+      return new HashMap<>();
+    }
+  }
+
+  /**
+   * Canonicalizes a raw per-agent mode map: trims keys, validates every value to a real {@link
+   * AutonomousDiscoveryMode} name, and (when {@code enabledIds} is non-null) guarantees each enabled
+   * (specialist) agent has an explicit mode, defaulting to {@link
+   * AutonomousDiscoveryMode#SPECIALIST_DEFAULT} (EXPANSIVE).
+   */
+  private Map<String, String> normalizeAgentModes(
+      Map<String, String> raw, List<String> enabledIds) {
+    Map<String, String> out = new HashMap<>();
+    if (raw != null) {
+      raw.forEach(
+          (id, mode) -> {
+            if (hasText(id)) {
+              out.put(id.trim(), AutonomousDiscoveryMode.fromValue(mode).name());
+            }
+          });
+    }
+    if (enabledIds != null) {
+      for (String id : enabledIds) {
+        if (hasText(id)) {
+          // enabledIds are specialist / additional agents (never the orchestrator sentinel), so an
+          // agent the operator enabled without picking a mode gets the specialist default (EXPANSIVE)
+          // - they are recon-oriented and expected to expand the perimeter by default. The
+          // orchestrator's own mode is keyed separately under ORCHESTRATOR_AGENT_ID and falls back to
+          // SCOPED via resolveDiscoveryMode.
+          out.putIfAbsent(id.trim(), AutonomousDiscoveryMode.SPECIALIST_DEFAULT.name());
+        }
+      }
+    }
+    return out;
   }
 
   // endregion

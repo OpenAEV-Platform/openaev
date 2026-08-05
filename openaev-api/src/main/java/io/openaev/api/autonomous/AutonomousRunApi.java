@@ -6,6 +6,8 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepInput;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepResult;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepState;
+import io.openaev.api.autonomous.dto.AutonomousDefaultAgentsInput;
+import io.openaev.api.autonomous.dto.AutonomousDefaultAgentsOutput;
 import io.openaev.api.autonomous.dto.AutonomousDirectiveInput;
 import io.openaev.api.autonomous.dto.AutonomousEventInput;
 import io.openaev.api.autonomous.dto.AutonomousPromotedAssetResult;
@@ -18,6 +20,7 @@ import io.openaev.api.autonomous.dto.AutonomousTargetTeamResult;
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousEvent;
@@ -30,6 +33,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -82,6 +86,50 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public List<AutonomousObjectiveTemplate> objectiveTemplates() {
     return autonomousRunService.objectiveTemplates();
+  }
+
+  @Operation(
+      summary = "List specialist agents the orchestrator can consult",
+      description =
+          "Sourced from XTM One's aev.attack_path_additional_agent intent catalog. Returns an empty"
+              + " list when XTM One is not configured or exposes no such agents, so the UI can show"
+              + " a CTA-only state.")
+  @GetMapping("/available-agents")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public List<ChatbotAgentOutput> availableAgents() {
+    return autonomousRunService.availableAdditionalAgents();
+  }
+
+  @Operation(
+      summary = "Get the tenant's default additional agents + per-agent discovery modes",
+      description =
+          "Returns the agent ids consulted by default and each agent's default discovery mode"
+              + " (EXISTING_ONLY / SCOPED / EXPANSIVE).")
+  @GetMapping("/default-agents")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousDefaultAgentsOutput defaultAgents() {
+    return new AutonomousDefaultAgentsOutput(
+        autonomousRunService.defaultAdditionalAgentIds(),
+        autonomousRunService.defaultAdditionalAgentModes());
+  }
+
+  @Operation(
+      summary = "Set the tenant's default additional agents + per-agent discovery modes",
+      description = "Persists both the enabled agent ids and each agent's default discovery mode.")
+  @PutMapping("/default-agents")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousDefaultAgentsOutput setDefaultAgents(
+      @RequestBody AutonomousDefaultAgentsInput input) {
+    List<String> ids =
+        autonomousRunService.updateDefaultAdditionalAgentIds(
+            input != null ? input.getAgentIds() : null);
+    Map<String, String> modes =
+        autonomousRunService.updateDefaultAdditionalAgentModes(
+            input != null ? input.getAgentModes() : null);
+    return new AutonomousDefaultAgentsOutput(ids, modes);
   }
 
   @Operation(
@@ -370,8 +418,10 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousPromotedAssetResult promoteFindingToAsset(
-      @PathVariable String runId, @PathVariable String findingId) {
-    return autonomousRunService.promoteFindingToAsset(runId, findingId);
+      @PathVariable String runId,
+      @PathVariable String findingId,
+      @RequestParam(name = "acting_agent_id", required = false) String actingAgentId) {
+    return autonomousRunService.promoteFindingToAsset(runId, findingId, actingAgentId);
   }
 
   @Operation(
@@ -390,7 +440,7 @@ public class AutonomousRunApi extends RestBehavior {
   public AutonomousTargetTeamResult ensureTargetTeam(
       @PathVariable String runId, @Valid @RequestBody AutonomousTargetTeamInput input) {
     return autonomousRunService.ensureTargetTeam(
-        runId, input.getPlayerIds(), input.getName(), input.getTeamId());
+        runId, input.getPlayerIds(), input.getName(), input.getTeamId(), input.getActingAgentId());
   }
 
   // endregion

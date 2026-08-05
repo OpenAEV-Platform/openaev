@@ -1,7 +1,9 @@
 import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import type { WorkflowConfigurationInput } from '../../utils/api-types';
 import type {
+  AdditionalAgent,
   AutonomousAttackPathStepState,
+  AutonomousDefaultAgents,
   AutonomousDirective,
   AutonomousEvent,
   AutonomousObjectiveTemplate,
@@ -26,6 +28,25 @@ export const resolveCapabilities = (
   input: CapabilityQueryInput,
 ): Promise<{ data: CapabilityReport }> =>
   simplePostCall(`${AUTONOMOUS_URI}/capabilities/resolve`, input, undefined, false);
+
+// -- additional (specialist) agents the orchestrator can consult --
+
+// Specialist agents sourced from XTM One's aev.attack_path_additional_agent intent catalog. Returns
+// an empty list (never a toast) when XTM One is not configured or exposes no such agents, so the UI
+// can degrade to a CTA-only state.
+export const fetchAvailableAgents = (): Promise<{ data: AdditionalAgent[] }> =>
+  simpleCall(`${AUTONOMOUS_URI}/available-agents`, undefined, false);
+
+// The tenant's default additional agents (enabled ids + each agent's default discovery mode)
+// attached to every new autonomous run.
+export const fetchDefaultAgents = (): Promise<{ data: AutonomousDefaultAgents }> =>
+  simpleCall(`${AUTONOMOUS_URI}/default-agents`, undefined, false);
+
+export const updateDefaultAgents = (
+  agentIds: string[],
+  agentModes: Record<string, string>,
+): Promise<{ data: AutonomousDefaultAgents }> =>
+  simplePutCall(`${AUTONOMOUS_URI}/default-agents`, { agent_ids: agentIds, agent_modes: agentModes });
 
 // -- run lifecycle --
 

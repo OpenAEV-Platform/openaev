@@ -50,6 +50,12 @@ public class XtmOneClient {
   private static final String INTENTS_CATALOG_AGENTS_PATH = "/api/v1/intents/catalog";
   private static final int AGENT_LIST_TIMEOUT_SECONDS = 10;
 
+  /**
+   * Intent binding the specialist agents the autonomous attack-path orchestrator may consult (see
+   * XTM One {@code aev.attack_path_additional_agent}). Curated list the operator picks from.
+   */
+  private static final String ADDITIONAL_ATTACK_AGENT_INTENT = "aev.attack_path_additional_agent";
+
   private final XtmOneConfig config;
   private final ObjectMapper objectMapper;
   private final XtmAuthKeyService keyService;
@@ -183,6 +189,26 @@ public class XtmOneClient {
           HttpStatus.INTERNAL_SERVER_ERROR,
           "[XTM One] Unexpected error while listing chat agents",
           e);
+    }
+  }
+
+  /**
+   * Lists the specialist agents the autonomous attack-path orchestrator may consult (the {@code
+   * aev.attack_path_additional_agent} intent catalog). Unlike {@link #listChatAgents(String)}, this
+   * treats "XTM One not configured" and "no agents bound" as an empty list rather than an error, so
+   * the operator UI degrades gracefully to a CTA-only state.
+   */
+  public List<ChatbotAgentOutput> listAdditionalAttackAgents() {
+    if (!config.isConfigured()) {
+      return List.of();
+    }
+    try {
+      return listChatAgents(ADDITIONAL_ATTACK_AGENT_INTENT);
+    } catch (ResponseStatusException e) {
+      if (e.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
+        return List.of();
+      }
+      throw e;
     }
   }
 
@@ -395,6 +421,10 @@ public class XtmOneClient {
    * @param scopeTeamId optional in-scope team (audience) id (first-of-kind projection)
    * @param scope the authoritative mixed scope (assets, asset groups, teams, persons)
    * @param callbackBaseUrl the OpenAEV base URL XTM One should call back
+   * @param agentIds specialist agent ids the orchestrator may consult during the run (sent as {@code
+   *     handover_agent_ids})
+   * @param agentModes per-agent discovery mode (agent id -> EXISTING_ONLY / SCOPED / EXPANSIVE),
+   *     sent as {@code handover_agent_modes} so XTM One can funnel each agent's create tools
    */
   @SuppressWarnings("unchecked")
   public Map<String, Object> startAutonomousRun(
@@ -408,7 +438,9 @@ public class XtmOneClient {
       String scopeMode,
       boolean planMode,
       String priorPlan,
-      String callbackBaseUrl) {
+      String callbackBaseUrl,
+      List<String> agentIds,
+      Map<String, String> agentModes) {
     if (!config.isConfigured()) {
       return null;
     }
@@ -426,6 +458,17 @@ public class XtmOneClient {
       body.put("plan_mode", planMode);
       if (priorPlan != null && !priorPlan.isBlank()) body.put("prior_plan", priorPlan);
       body.put("callback_base_url", callbackBaseUrl);
+      // Specialist agents the orchestrator may CONSULT during the run (see the
+      // aev.attack_path_additional_agent intent). Sent whenever OpenAEV has resolved a selection
+      // (a non-null list, even empty): XTM One then treats it as the authoritative consult set,
+      // which is what lets an operator disable even the built-in payload creator for a run.
+      if (agentIds != null) body.put("handover_agent_ids", agentIds);
+      // Per-agent discovery mode. XTM One uses it to decide which OpenAEV create tools each agent
+      // (the orchestrator and each consulted specialist) is given during the run - the funnel that
+      // keeps recon from silently expanding the perimeter. Sent whenever OpenAEV resolved a map.
+      if (agentModes != null && !agentModes.isEmpty()) {
+        body.put("handover_agent_modes", agentModes);
+      }
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = chatPostBuilder("/api/v1/platform/autonomous/runs", jwt, json);

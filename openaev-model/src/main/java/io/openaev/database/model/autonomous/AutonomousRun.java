@@ -114,6 +114,27 @@ public class AutonomousRun implements TenantBase {
               + " teams, persons). The orchestrator attacks within this perimeter.")
   private List<AutonomousScopeTarget> scope = new ArrayList<>();
 
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "autonomous_run_agent_ids")
+  @JsonProperty("autonomous_run_agent_ids")
+  @Schema(
+      description =
+          "XTM One agent ids the orchestrator may consult as specialist handover targets during"
+              + " this run (in addition to the built-in payload creator).")
+  private List<String> agentIds = new ArrayList<>();
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "autonomous_run_agent_modes")
+  @JsonProperty("autonomous_run_agent_modes")
+  @Schema(
+      description =
+          "Per-agent discovery mode for this run: maps an XTM One agent id (or the orchestrator's"
+              + " own id) to how much latitude it has to bring newly discovered entities into the"
+              + " attack path (EXISTING_ONLY / SCOPED / EXPANSIVE). Enforced at OpenAEV's creation"
+              + " choke points against the acting agent. An agent absent from the map falls back to"
+              + " SCOPED.")
+  private Map<String, String> agentModes = new HashMap<>();
+
   // Internal bookkeeping: maps each step template id authored on the SIMULATION workflow to the
   // twin step template id mirrored onto the SCENARIO workflow. The orchestrator only ever knows
   // the simulation step ids (those are what appendChainedStep returns), so when it authors a step

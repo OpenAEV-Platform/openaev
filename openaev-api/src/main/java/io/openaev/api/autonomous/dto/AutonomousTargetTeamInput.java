@@ -34,4 +34,13 @@ public class AutonomousTargetTeamInput {
       description =
           "Optional existing team id to augment instead of creating a new one (idempotent reuse)")
   private String teamId;
+
+  @JsonProperty("acting_agent_id")
+  @Schema(
+      description =
+          "Optional id of the agent on whose behalf this human target is being brought in (the"
+              + " orchestrator itself, or a specialist it consulted). Used to resolve the discovery"
+              + " mode enforced on the recipients: EXISTING_ONLY / SCOPED require them to be inside"
+              + " the run's identity allow-scope; EXPANSIVE may reach beyond it. Omitted -> SCOPED.")
+  private String actingAgentId;
 }
