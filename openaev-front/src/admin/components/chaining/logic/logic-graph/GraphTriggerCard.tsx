@@ -33,9 +33,10 @@ export interface GraphTriggerCardProps {
 }
 
 /**
- * Card visual for a trigger (event) in the causal graph. The orchestrator often leaves triggers
- * unnamed, so the title falls back to the listened-on fields. Reuses the shared structured tooltip
- * and carries an inline "+" slot (hidden in read-only) to add a gated action.
+ * Card visual for an event (kind 'trigger' internally) in the causal graph. Titled from the event
+ * name, falling back to "Untitled event" (the listened-on fields stay in the tooltip). Reuses the
+ * shared structured tooltip and carries an inline "+" slot (hidden in read-only) to add a gated
+ * action.
  */
 const GraphTriggerCard = ({
   id,

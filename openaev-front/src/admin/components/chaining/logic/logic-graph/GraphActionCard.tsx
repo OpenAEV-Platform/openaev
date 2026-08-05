@@ -58,7 +58,8 @@ const MetaItem = ({ icon, label }: {
 
 /**
  * Card visual for an action (step) in the causal graph. Reuses the shared structured tooltip and the
- * action type icon; carries an inline "+" slot (hidden in read-only) to grow the chain to the right.
+ * action type icon. Deliberately carries no connect handle and no inline "+": an action never
+ * initiates a link or creates a downstream event (see the comments near the end of the render).
  */
 const GraphActionCard = ({
   id,

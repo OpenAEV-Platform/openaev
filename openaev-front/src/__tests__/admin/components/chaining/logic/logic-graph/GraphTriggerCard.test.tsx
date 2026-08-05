@@ -1,5 +1,5 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -38,5 +38,16 @@ describe('GraphTriggerCard title', () => {
     // The event title must not read as the listened-on trigger fields.
     expect(screen.getByText('Untitled event')).toBeTruthy();
     expect(screen.queryByText('Credentials, Hostname')).toBeNull();
+  });
+
+  it('labels the tooltip eyebrow "Event", not "Trigger"', async () => {
+    render(
+      <GraphTriggerCard id="e3" name="Credentials harvested" conditionFields={['credentials']} />,
+      { wrapper },
+    );
+    fireEvent.mouseOver(screen.getByText('Credentials harvested'));
+    // The tooltip opens after its enterDelay; findByText waits for it.
+    expect(await screen.findByText('Event')).toBeTruthy();
+    expect(screen.queryByText('Trigger')).toBeNull();
   });
 });
