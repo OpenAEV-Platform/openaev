@@ -83,7 +83,10 @@ const AutonomousAttackSettings = () => {
   };
 
   const changeMode = (agentId: string, mode: AutonomousDiscoveryMode) => {
-    persist(defaults, { ...modes, [agentId]: mode });
+    persist(defaults, {
+      ...modes,
+      [agentId]: mode,
+    });
   };
 
   return (

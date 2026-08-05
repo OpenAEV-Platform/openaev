@@ -580,14 +580,20 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     }
     try {
       const data = lastDelegation.autonomous_event_data
-        ? JSON.parse(lastDelegation.autonomous_event_data) as { agent_name?: string; phase?: string }
+        ? JSON.parse(lastDelegation.autonomous_event_data) as {
+          agent_name?: string;
+          phase?: string;
+        }
         : null;
       return {
         agentName: data?.agent_name,
         waiting: data?.phase === 'start',
       };
     } catch {
-      return { agentName: undefined, waiting: false };
+      return {
+        agentName: undefined,
+        waiting: false,
+      };
     }
   })();
   // A STATUS event is the orchestrator's end-of-cycle "settled state" marker (e.g. "Phishing lure

@@ -295,16 +295,21 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
   // Every agent - including the built-in payload creator - is a normal toggle: built-ins are enabled
   // by default (prefilled from the tenant defaults) but can be turned off or replaced for this run.
   const toggleAgent = (agentId: string, enabled: boolean) => {
-    setSelectedAgentIds(current => (enabled
-      ? (current.includes(agentId) ? current : [...current, agentId])
-      : current.filter(id => id !== agentId)));
+    setSelectedAgentIds((current) => {
+      if (!enabled) {
+        return current.filter(id => id !== agentId);
+      }
+      return current.includes(agentId) ? current : [...current, agentId];
+    });
     // Seed the specialist default (EXPANSIVE) when enabling so the launch payload always carries an
     // explicit mode; the orchestrator row is pinned and not toggled here.
     if (enabled) {
-      setSelectedAgentModes(current => (current[agentId] ? current : {
-        ...current,
-        [agentId]: SPECIALIST_DEFAULT_DISCOVERY_MODE,
-      }));
+      setSelectedAgentModes(current => (current[agentId]
+        ? current
+        : {
+            ...current,
+            [agentId]: SPECIALIST_DEFAULT_DISCOVERY_MODE,
+          }));
     }
   };
 

@@ -46,7 +46,10 @@ export const updateDefaultAgents = (
   agentIds: string[],
   agentModes: Record<string, string>,
 ): Promise<{ data: AutonomousDefaultAgents }> =>
-  simplePutCall(`${AUTONOMOUS_URI}/default-agents`, { agent_ids: agentIds, agent_modes: agentModes });
+  simplePutCall(`${AUTONOMOUS_URI}/default-agents`, {
+    agent_ids: agentIds,
+    agent_modes: agentModes,
+  });
 
 // -- run lifecycle --
 

@@ -23,8 +23,8 @@ import SortHeadersComponentV2 from '../../../components/common/queryable/sort/So
 import { type SortHelpers } from '../../../components/common/queryable/sort/SortHelpers';
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
 import { type Header } from '../../../components/common/SortHeadersList';
-import SearchInput from '../../../components/SearchFilter';
 import { useFormatter } from '../../../components/i18n';
+import SearchInput from '../../../components/SearchFilter';
 
 interface Props {
   agents: AdditionalAgent[];
@@ -142,16 +142,30 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
           onClick={event => event.stopPropagation()}
           renderValue={value => modeLabel(value as AutonomousDiscoveryMode)}
           MenuProps={{ PaperProps: { sx: { maxWidth: 340 } } }}
-          sx={{ fontSize: 12, color: theme.palette.text.secondary }}
+          sx={{
+            fontSize: 12,
+            color: theme.palette.text.secondary,
+          }}
           inputProps={{ 'aria-label': t('Discovery mode') }}
         >
           {AUTONOMOUS_DISCOVERY_MODES.map(m => (
-            <MenuItem key={m} value={m} sx={{ display: 'block', paddingTop: 0.75, paddingBottom: 0.75 }}>
+            <MenuItem
+              key={m}
+              value={m}
+              sx={{
+                display: 'block',
+                paddingTop: 0.75,
+                paddingBottom: 0.75,
+              }}
+            >
               <Typography variant="body2">{modeLabel(m)}</Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
-                sx={{ display: 'block', whiteSpace: 'normal' }}
+                sx={{
+                  display: 'block',
+                  whiteSpace: 'normal',
+                }}
               >
                 {modeHelp(m)}
               </Typography>
@@ -159,7 +173,12 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
           ))}
         </Select>
         <Tooltip title={modeHelp(mode)}>
-          <InfoOutlined sx={{ fontSize: 14, color: theme.palette.text.secondary, cursor: 'help' }} />
+          <InfoOutlined sx={{
+            fontSize: 14,
+            color: theme.palette.text.secondary,
+            cursor: 'help',
+          }}
+          />
         </Tooltip>
       </Stack>
     );
@@ -225,7 +244,13 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
         isSortable: true,
         value: (agent: AdditionalAgent) => (agent.slug === builtinSlug
           ? (
-              <Chip style={{ ...chipInList, ...colorStyles.grey }} label={t('Built-in')} />
+              <Chip
+                style={{
+                  ...chipInList,
+                  ...colorStyles.grey,
+                }}
+                label={t('Built-in')}
+              />
             )
           : undefined),
       },
@@ -240,7 +265,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
           if (!enabled) {
             return (
               <Typography variant="caption" color="text.disabled">
-                {'-'}
+                -
               </Typography>
             );
           }
@@ -249,7 +274,6 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
       });
     }
     return base;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showModes, enabledIds, modes, disabled, builtinSlug, theme]);
 
   const filtered = useMemo(() => {
@@ -293,7 +317,10 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
   const headerRow = (
     <ListItem
       divider={false}
-      style={{ paddingTop: 0, textTransform: 'uppercase' }}
+      style={{
+        paddingTop: 0,
+        textTransform: 'uppercase',
+      }}
       secondaryAction={<>&nbsp;</>}
     >
       <ListItemIcon />
@@ -356,7 +383,10 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                         {headers.map(header => (
                           <div
                             key={header.field}
-                            style={{ ...bodyItemsStyles.bodyItem, ...inlineStyles[header.field] }}
+                            style={{
+                              ...bodyItemsStyles.bodyItem,
+                              ...inlineStyles[header.field],
+                            }}
                           >
                             <Skeleton variant="text" width="80%" />
                           </div>
@@ -389,21 +419,43 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                   <ListItemText
                     primary={(
                       <div style={bodyItemsStyles.bodyItems}>
-                        <div style={{ ...bodyItemsStyles.bodyItem, ...inlineStyles.agent_name }}>
+                        <div style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.agent_name,
+                        }}
+                        >
                           <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
                             {orchestrator.name}
                           </Typography>
                         </div>
-                        <div style={{ ...bodyItemsStyles.bodyItem, ...inlineStyles.agent_description }}>
+                        <div style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.agent_description,
+                        }}
+                        >
                           <Typography variant="caption" color="text.secondary" noWrap title={orchestrator.description}>
                             {orchestrator.description ?? '-'}
                           </Typography>
                         </div>
-                        <div style={{ ...bodyItemsStyles.bodyItem, ...inlineStyles.agent_built_in }}>
-                          <Chip style={{ ...chipInList, ...colorStyles.purple }} label={t('Orchestrator')} />
+                        <div style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles.agent_built_in,
+                        }}
+                        >
+                          <Chip
+                            style={{
+                              ...chipInList,
+                              ...colorStyles.purple,
+                            }}
+                            label={t('Orchestrator')}
+                          />
                         </div>
                         {showModes && (
-                          <div style={{ ...bodyItemsStyles.bodyItem, ...inlineStyles.agent_mode }}>
+                          <div style={{
+                            ...bodyItemsStyles.bodyItem,
+                            ...inlineStyles.agent_mode,
+                          }}
+                          >
                             {renderModeSelect(orchestrator.id)}
                           </div>
                         )}
@@ -483,7 +535,11 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                     '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.08) },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
+                  <ListItemIcon sx={{
+                    minWidth: 36,
+                    color: 'inherit',
+                  }}
+                  >
                     <AddOutlined fontSize="small" />
                   </ListItemIcon>
                   <ListItemText
