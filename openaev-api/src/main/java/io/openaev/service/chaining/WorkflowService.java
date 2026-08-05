@@ -9,7 +9,10 @@ import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetGroupRepository;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
@@ -51,6 +54,8 @@ public class WorkflowService {
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
+  private final AssetRepository assetRepository;
+  private final AssetGroupRepository assetGroupRepository;
 
   private final ScopeMetricCollector scopeMetricCollector;
   private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -890,6 +895,14 @@ public class WorkflowService {
     existing.setRuleSource(input.getRuleSource());
     existing.setRuleValue(input.getRuleValue());
     existing.setValueType(detectValueType(input));
+    // Refresh the label snapshot when the referenced asset / group still resolves (keeps up with
+    // renames), but never wipe a previously captured label: if the asset was deleted (resolution
+    // returns null), an unrelated field change (e.g. toggling allow/deny mode) must keep the last
+    // known name so the deleted-asset UX fallback still works.
+    String resolvedLabel = resolveValueLabel(input);
+    if (resolvedLabel != null) {
+      existing.setRuleValueLabel(resolvedLabel);
+    }
   }
 
   private WorkflowScopeRule buildScopeRule(WorkflowScopeRuleInput input, Workflow workflow) {
@@ -897,9 +910,42 @@ public class WorkflowService {
         .selectedMode(input.getSelectedMode())
         .ruleSource(input.getRuleSource())
         .ruleValue(input.getRuleValue())
+        .ruleValueLabel(resolveValueLabel(input))
         .valueType(detectValueType(input))
         .workflow(workflow)
         .build();
+  }
+
+  /**
+   * Snapshots the display name of the asset / asset group referenced by an ASSET / ASSET_GROUP scope
+   * rule, so a past run's scope stays readable after the referenced inventory object is deleted.
+   *
+   * <p>The lookup is tenant-scoped on purpose: Hibernate's {@code tenantFilter} does not apply to
+   * primary-key loads, so a plain {@code findById} on a user-supplied id could snapshot (and later
+   * expose) another tenant's asset name. Ids that do not resolve within the caller's tenant - or
+   * non-asset rules (MANUAL / CSV / TEAM / PLAYER) - stay {@code null}.
+   */
+  private String resolveValueLabel(WorkflowScopeRuleInput input) {
+    if (input.getRuleSource() == null || !hasText(input.getRuleValue())) {
+      return null;
+    }
+    String tenantId = TenantContext.getCurrentTenant();
+    if (!hasText(tenantId)) {
+      return null;
+    }
+    return switch (input.getRuleSource()) {
+      case ASSET ->
+          assetRepository
+              .findByIdAndTenantId(input.getRuleValue(), tenantId)
+              .map(Asset::getName)
+              .orElse(null);
+      case ASSET_GROUP ->
+          assetGroupRepository
+              .findByIdAndTenantId(input.getRuleValue(), tenantId)
+              .map(AssetGroup::getName)
+              .orElse(null);
+      default -> null;
+    };
   }
 
   private ScopeRuleValueType detectValueType(WorkflowScopeRuleInput input) {

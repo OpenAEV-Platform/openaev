@@ -392,18 +392,24 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
     }),
   );
 
+  // Live-first, snapshot-fallback resolution. The live inventory lookup keeps the label in sync with
+  // renames; when the referenced asset / group has been deleted the backend-persisted snapshot
+  // (workflow_scope_rule_value_label) keeps a past simulation's scope readable. Only when neither is
+  // available (a pre-migration rule whose asset was already gone) do we show a generic "Deleted"
+  // message rather than the raw id or a permanent "Loading...".
   const resolveLabel = (rule: WorkflowScopeRuleOutput): string => {
     const value = rule.workflow_scope_rule_value ?? '';
+    const snapshotLabel = rule.workflow_scope_rule_value_label ?? undefined;
     const unresolvedLabel = t('Loading...');
 
     switch (rule.workflow_scope_rule_source) {
       case 'ASSET': {
         const endpoint = endpointsMap[value];
-        return endpoint?.asset_name ?? unresolvedLabel;
+        return endpoint?.asset_name ?? snapshotLabel ?? t('Deleted asset');
       }
       case 'ASSET_GROUP': {
         const group = assetGroupsMap[value];
-        return group?.asset_group_name ?? unresolvedLabel;
+        return group?.asset_group_name ?? snapshotLabel ?? t('Deleted asset group');
       }
       case 'TEAM': {
         const team = teamsMap[value];

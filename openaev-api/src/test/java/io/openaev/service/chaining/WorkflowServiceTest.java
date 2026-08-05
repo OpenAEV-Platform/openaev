@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
@@ -33,6 +34,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,6 +44,8 @@ class WorkflowServiceTest {
   @Mock private WorkflowRepository workflowRepository;
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private ScopeVariableRepository scopeVariableRepository;
+  @Mock private io.openaev.database.repository.AssetRepository assetRepository;
+  @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
   @Mock private StepDelayQueueService stepDelayQueueService;
@@ -969,6 +973,8 @@ class WorkflowServiceTest {
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
+              assetRepository,
+              assetGroupRepository,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1246,6 +1252,8 @@ class WorkflowServiceTest {
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
+              assetRepository,
+              assetGroupRepository,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1407,6 +1415,228 @@ class WorkflowServiceTest {
   }
 
   // ========================================================================
+  // Scope rule value-label snapshot Tests (#7164)
+  // ========================================================================
+  @Nested
+  @DisplayName("updateWorkflowConfiguration – scope rule value label snapshot")
+  class ScopeRuleValueLabelTests {
+
+    private static final String TENANT = "tenant-1";
+
+    private WorkflowService service;
+
+    @BeforeEach
+    void setUp() {
+      service =
+          new WorkflowService(
+              stepService,
+              previewFeatureService,
+              workflowStateService,
+              stepDelayQueueService,
+              simulationRateLimitService,
+              workflowRepository,
+              workflowScopeRuleRepository,
+              scopeVariableRepository,
+              assetRepository,
+              assetGroupRepository,
+              scopeMetricCollector,
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
+    }
+
+    private Workflow buildTemplate() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .build();
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      lenient()
+          .when(workflowRepository.save(any(Workflow.class)))
+          .thenAnswer(i -> i.getArgument(0));
+      return workflow;
+    }
+
+    private WorkflowConfigurationInput ruleInput(ScopeRuleSource source, String value) {
+      return WorkflowConfigurationInput.builder()
+          .workflowScopeRules(
+              List.of(
+                  WorkflowScopeRuleInput.builder()
+                      .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                      .ruleSource(source)
+                      .ruleValue(value)
+                      .build()))
+          .build();
+    }
+
+    @Test
+    @DisplayName("should snapshot the tenant-scoped asset name on an ASSET rule")
+    void given_assetRule_should_snapshotAssetName() {
+      Workflow workflow = buildTemplate();
+      Asset asset = mock(Asset.class);
+      when(asset.getName()).thenReturn("Prod DB");
+      when(assetRepository.findByIdAndTenantId("asset-1", TENANT)).thenReturn(Optional.of(asset));
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.ASSET, "asset-1"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertEquals("Prod DB", result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should snapshot the tenant-scoped asset-group name on an ASSET_GROUP rule")
+    void given_assetGroupRule_should_snapshotAssetGroupName() {
+      Workflow workflow = buildTemplate();
+      AssetGroup group = mock(AssetGroup.class);
+      when(group.getName()).thenReturn("Crown jewels");
+      when(assetGroupRepository.findByIdAndTenantId("group-1", TENANT))
+          .thenReturn(Optional.of(group));
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.ASSET_GROUP, "group-1"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertEquals("Crown jewels", result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should leave the label null for a MANUAL rule")
+    void given_manualRule_should_notSnapshotLabel() {
+      Workflow workflow = buildTemplate();
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.MANUAL, "10.0.0.1"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertNull(result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+      verifyNoInteractions(assetRepository, assetGroupRepository);
+    }
+
+    @Test
+    @DisplayName("should leave the label null when the asset id does not resolve within the tenant")
+    void given_crossTenantOrDeletedAsset_should_notSnapshotLabel() {
+      Workflow workflow = buildTemplate();
+      when(assetRepository.findByIdAndTenantId("asset-x", TENANT)).thenReturn(Optional.empty());
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.ASSET, "asset-x"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertNull(result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should refresh the label on update when the asset still resolves")
+    void given_ruleUpdateWithLiveAsset_should_refreshLabel() {
+      Workflow workflow = buildTemplate();
+      WorkflowScopeRule existing =
+          WorkflowScopeRule.builder()
+              .id(UUID.randomUUID().toString())
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .valueType(ScopeRuleValueType.ASSET_ID)
+              .ruleValueLabel("Old name")
+              .workflow(workflow)
+              .build();
+      workflow.getWorkflowScopeRules().add(existing);
+
+      Asset asset = mock(Asset.class);
+      when(asset.getName()).thenReturn("New name");
+      when(assetRepository.findByIdAndTenantId("asset-1", TENANT)).thenReturn(Optional.of(asset));
+
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder()
+              .workflowScopeRules(
+                  List.of(
+                      WorkflowScopeRuleInput.builder()
+                          .id(existing.getId())
+                          .selectedMode(ScopeRuleSelectedMode.DENYLIST)
+                          .ruleSource(ScopeRuleSource.ASSET)
+                          .ruleValue("asset-1")
+                          .build()))
+              .build();
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result = service.updateWorkflowConfiguration(workflow.getId(), input);
+
+        assertEquals(1, result.getWorkflowScopeRules().size());
+        assertEquals("New name", result.getWorkflowScopeRules().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should preserve the previous label on update when the asset was deleted")
+    void given_ruleUpdateWithDeletedAsset_should_preservePreviousLabel() {
+      Workflow workflow = buildTemplate();
+      WorkflowScopeRule existing =
+          WorkflowScopeRule.builder()
+              .id(UUID.randomUUID().toString())
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .valueType(ScopeRuleValueType.ASSET_ID)
+              .ruleValueLabel("Snapshotted name")
+              .workflow(workflow)
+              .build();
+      workflow.getWorkflowScopeRules().add(existing);
+
+      // asset deleted -> tenant-scoped lookup returns empty
+      when(assetRepository.findByIdAndTenantId("asset-1", TENANT)).thenReturn(Optional.empty());
+
+      // only the mode changes; the referenced asset is untouched
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder()
+              .workflowScopeRules(
+                  List.of(
+                      WorkflowScopeRuleInput.builder()
+                          .id(existing.getId())
+                          .selectedMode(ScopeRuleSelectedMode.DENYLIST)
+                          .ruleSource(ScopeRuleSource.ASSET)
+                          .ruleValue("asset-1")
+                          .build()))
+              .build();
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result = service.updateWorkflowConfiguration(workflow.getId(), input);
+
+        assertEquals(1, result.getWorkflowScopeRules().size());
+        assertEquals(
+            "Snapshotted name", result.getWorkflowScopeRules().getFirst().getRuleValueLabel());
+      }
+    }
+  }
+
+  // ========================================================================
   // Safety Policy Metrics Tests
   // ========================================================================
   @Nested
@@ -1427,6 +1657,8 @@ class WorkflowServiceTest {
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
+              assetRepository,
+              assetGroupRepository,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
