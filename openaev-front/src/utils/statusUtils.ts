@@ -109,6 +109,12 @@ export const computeStatusStyle = (status: string | undefined | null) => {
 
     'FINISHED': colorStyles.grey,
     'NOT_PLANNED': colorStyles.grey,
+
+    // -- FindingTriageStatus --
+    'UNTRIAGED': colorStyles.blueGrey,
+    'CONFIRMED': colorStyles.red,
+    'FALSE_POSITIVE': colorStyles.green,
+    'RISK_ACCEPTED': colorStyles.orange,
   };
   return statusMap[normalized] ?? colorStyles.blueGrey;
 };
