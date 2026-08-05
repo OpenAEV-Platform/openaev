@@ -16,6 +16,7 @@ import TabLabelWithEE from '../settings/vulnerabilities/TabLabelWithEE';
 import { type VulnerabilityStatus } from '../settings/vulnerabilities/VulnerabilityDetail';
 import VulnerabilityTabPanel from '../settings/vulnerabilities/VulnerabilityTabPanel';
 import FindingComments from './FindingComments';
+import FindingTriageHistory from './FindingTriageHistory';
 
 interface Props {
   searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
@@ -24,6 +25,10 @@ interface Props {
   additionalFilterNames?: string[];
   contextId?: string;
   onCvssScore?: (score: number) => void;
+  /** See FindingTriageHistory's `refreshKey` prop - bumped by FindingOverview whenever a
+   * triage change is confirmed, so the history tab refreshes immediately if it is already
+   * mounted (not just on next tab switch). */
+  triageRefreshKey?: number;
 }
 
 const FindingDetail = ({
@@ -33,6 +38,7 @@ const FindingDetail = ({
   additionalHeaders = [],
   additionalFilterNames = [],
   onCvssScore,
+  triageRefreshKey,
 }: Props) => {
   const { t } = useFormatter();
 
@@ -77,6 +83,9 @@ const FindingDetail = ({
       }, {
         key: 'Comments',
         label: t('Comments'),
+      }, {
+        key: 'Triage History',
+        label: t('Triage History'),
       }]
     : [{
         key: 'Related Injects',
@@ -84,6 +93,9 @@ const FindingDetail = ({
       }, {
         key: 'Comments',
         label: t('Comments'),
+      }, {
+        key: 'Triage History',
+        label: t('Triage History'),
       }];
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
@@ -115,6 +127,8 @@ const FindingDetail = ({
           : null;
       case 'Comments':
         return <FindingComments findingId={selectedFinding.finding_id} />;
+      case 'Triage History':
+        return <FindingTriageHistory findingId={selectedFinding.finding_id} refreshKey={triageRefreshKey} />;
       default:
         return null;
     }
