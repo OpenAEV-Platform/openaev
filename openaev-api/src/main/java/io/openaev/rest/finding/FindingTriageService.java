@@ -182,6 +182,12 @@ public class FindingTriageService {
     triage.setUpdateDate(Instant.now());
     findingTriageRepository.save(triage);
 
+    // Triage lives in its own table (finding_triage), so Hibernate's @UpdateTimestamp on
+    // Finding#updateDate never fires from the save above - explicitly touch the parent Finding so
+    // "finding_updated_at" (sortable/filterable in the findings list) reflects triage changes too.
+    finding.setUpdateDate(Instant.now());
+    findingRepository.save(finding);
+
     FindingTriageHistory history = new FindingTriageHistory();
     history.setFinding(finding);
     history.setFromStatus(fromStatus);
