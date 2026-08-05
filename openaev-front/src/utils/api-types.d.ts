@@ -2108,7 +2108,11 @@ export interface CatalogConnector {
   /** Connector support version */
   catalog_connector_support_version?: string;
   /** Connector type */
-  catalog_connector_type?: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
+  catalog_connector_type?:
+    | "COLLECTOR"
+    | "INJECTOR"
+    | "EXECUTOR"
+    | "SECRETS_PROVIDER";
   /**
    * Connector use cases
    * @uniqueItems true
@@ -2181,7 +2185,11 @@ export interface CatalogConnectorOutput {
   catalog_connector_subscription_link?: string;
   /** @minLength 1 */
   catalog_connector_title: string;
-  catalog_connector_type: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
+  catalog_connector_type:
+    | "COLLECTOR"
+    | "INJECTOR"
+    | "EXECUTOR"
+    | "SECRETS_PROVIDER";
   /** @uniqueItems true */
   catalog_connector_use_cases?: string[];
   catalog_connector_verified?: boolean;
@@ -7383,6 +7391,7 @@ export interface NotificationTriggerInput {
     | "EVALUATION"
     | "CATALOG"
     | "CONNECTOR_INSTANCE_LOG"
+    | "SECRET_PROVIDER"
     | "TENANT"
     | "TENANT_SETTING"
     | "PLATFORM_ROLE"
@@ -7482,6 +7491,7 @@ export interface NotificationTriggerOutput {
     | "EVALUATION"
     | "CATALOG"
     | "CONNECTOR_INSTANCE_LOG"
+    | "SECRET_PROVIDER"
     | "TENANT"
     | "TENANT_SETTING"
     | "PLATFORM_ROLE"
@@ -8964,6 +8974,7 @@ export interface PlatformSettings {
     | "TENANT_FIELDS_FOR_SECURITY_COVERAGE"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
+    | "CREDENTIAL_ASSET"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
     | "AUTONOMOUS_ATTACK_PATH"
@@ -9260,6 +9271,7 @@ export interface PublicPlatformSettings {
     | "TENANT_FIELDS_FOR_SECURITY_COVERAGE"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
+    | "CREDENTIAL_ASSET"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
     | "AUTONOMOUS_ATTACK_PATH"
@@ -10248,6 +10260,32 @@ export interface SearchPaginationInput {
 
 export interface SearchTerm {
   searchTerm?: string;
+}
+
+export interface SecretsProvider {
+  external?: boolean;
+  listened?: boolean;
+  secrets_provider_id?: string;
+  secrets_provider_name?: string;
+  secrets_provider_type?: string;
+}
+
+/** Secrets provider output */
+export interface SecretsProviderOutput {
+  /** Catalog simple output */
+  catalog?: CatalogConnectorSimpleOutput;
+  connector_instance?: ConnectorInstanceOutput;
+  existing_secret_provider?: boolean;
+  is_verified?: boolean;
+  /**
+   * Secrets provider id
+   * @minLength 1
+   */
+  secrets_provider_id: string;
+  /** @minLength 1 */
+  secrets_provider_name: string;
+  /** @minLength 1 */
+  secrets_provider_type: string;
 }
 
 export interface SecurityPlatform {

@@ -96,7 +96,9 @@ class TenantActiveTableAccessArchTest {
           "collectors",
           "executors",
           "attackpath_execution",
-          "attackpath_finding");
+          "attackpath_finding",
+          "secret_references",
+          "secrets");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {

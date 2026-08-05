@@ -1,7 +1,7 @@
-package io.openaev.integration.impl;
+package io.openaev.integration.impl.executor;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
@@ -15,24 +15,21 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.exception.ExecutorException;
-import io.openaev.executors.tanium.client.TaniumExecutorClient;
-import io.openaev.executors.tanium.config.TaniumExecutorConfig;
+import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
+import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
-import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegrationFactory;
-import io.openaev.integration.migration.TaniumExecutorConfigurationMigration;
-import io.openaev.service.AgentService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.FileService;
+import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration;
+import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegrationFactory;
+import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
+import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
-import io.openaev.utils.mockConfig.executors.WithMockTaniumConfig;
+import io.openaev.utils.mockConfig.executors.WithMockSentinelOneConfig;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
@@ -53,19 +50,19 @@ import org.springframework.transaction.annotation.Transactional;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 // The legacy properties migration only seeds an instance when the legacy config is enabled;
 // these tests exercise the factory around that migrated instance.
-@WithMockTaniumConfig(
+@WithMockSentinelOneConfig(
     enable = true,
-    url = "tanium_url",
-    apiKey = "tanium_api_key",
+    url = "sentinelOne_url",
+    apiKey = "sentinelOne_api_key",
     apiRegisterInterval = 1234,
-    computerGroupId = "tanium_cmptr_group_id",
-    cleanImplantInterval = 4321,
+    accountId = "so_acct_id",
     apiBatchExecutionActionPagination = 5678,
-    actionGroupId = 987,
-    windowsPackageId = 32,
-    unixPackageId = 67)
-public class TaniumExecutorIntegrationTest {
-  @Autowired private TaniumExecutorClient client;
+    windowsScriptId = "so_windows_script_id",
+    unixScriptId = "so_unix_script_id",
+    groupId = "so_group_id",
+    siteId = "so_site_id")
+public class SentinelOneExecutorIntegrationTest {
+  @Autowired private SentinelOneExecutorClient client;
   @Autowired private EndpointService endpointService;
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
@@ -77,24 +74,26 @@ public class TaniumExecutorIntegrationTest {
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
-  @Autowired private TaniumExecutorConfig taniumExecutorConfig;
+  @Autowired private SentinelOneExecutorConfig sentinelOneExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
-  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  @Autowired private PreviewFeatureService previewFeatureService;
   @Autowired private OpenAEVConfig openAEVConfig;
 
-  @Autowired private TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
+  @Autowired
+  private SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
 
   @Autowired private FileService fileService;
   @Autowired private TenantScopedTransaction tenantTx;
 
-  private TaniumExecutorIntegrationFactory getFactory() {
-    return new TaniumExecutorIntegrationFactory(
+  private SentinelOneExecutorIntegrationFactory getFactory() {
+    return new SentinelOneExecutorIntegrationFactory(
         connectorInstanceService,
         catalogConnectorService,
         executorService,
         componentRequestEngine,
-        taniumExecutorConfigurationMigration,
+        sentinelOneExecutorConfigurationMigration,
         agentService,
         endpointService,
         assetGroupService,
@@ -119,7 +118,7 @@ public class TaniumExecutorIntegrationTest {
 
     assertThat(connectors).hasSize(1);
     AssertionsForClassTypes.assertThat(connectors.getFirst().getClassName())
-        .isEqualTo(TaniumExecutorIntegrationFactory.class.getCanonicalName());
+        .isEqualTo(SentinelOneExecutorIntegrationFactory.class.getCanonicalName());
   }
 
   @Test
@@ -139,7 +138,7 @@ public class TaniumExecutorIntegrationTest {
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
-    assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
+    assertThat(syncedIntegrations).first().isInstanceOf(SentinelOneExecutorIntegration.class);
     assertThat(syncedIntegrations)
         .first()
         .satisfies(
@@ -166,14 +165,14 @@ public class TaniumExecutorIntegrationTest {
     List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
 
     assertThat(syncedIntegrations).hasSize(1);
-    assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
+    assertThat(syncedIntegrations).first().isInstanceOf(SentinelOneExecutorIntegration.class);
     assertThat(syncedIntegrations)
         .first()
         .satisfies(
             integration ->
                 assertThat(
                         integration.requestComponent(
-                            new ComponentRequest(TANIUM_EXECUTOR_NAME),
+                            new ComponentRequest(SENTINELONE_EXECUTOR_NAME),
                             ExecutorContextService.class))
                     .isEmpty());
   }
@@ -201,7 +200,7 @@ public class TaniumExecutorIntegrationTest {
                                 & left.getValue().toString().compareTo(right.getValue().toString()),
                         ConnectorInstanceConfiguration.class)
                     .hasSameElementsAs(
-                        taniumExecutorConfig.toInstanceConfigurationSet(
+                        sentinelOneExecutorConfig.toInstanceConfigurationSet(
                             instance,
                             encryptionFactory.getEncryptionService(
                                 instance.getCatalogConnector()))));
@@ -236,7 +235,7 @@ public class TaniumExecutorIntegrationTest {
     // Act & Assert — passing null baseIntegrationConfigurationBuilder causes refresh() to fail
     assertThatThrownBy(
             () ->
-                new TaniumExecutorIntegration(
+                new SentinelOneExecutorIntegration(
                     instance,
                     connectorInstanceService,
                     endpointService,

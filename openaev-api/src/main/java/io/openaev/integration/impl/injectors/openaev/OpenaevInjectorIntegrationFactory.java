@@ -93,8 +93,6 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
         componentRequestEngine,
         instance,
         connectorInstanceService,
-        injectorService,
-        openAEVImplantContract,
         injectorContext,
         injectExpectationService,
         injectService);

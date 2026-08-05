@@ -13,7 +13,6 @@ import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathSeedService;
-import io.openaev.service.attackpath.AttackPathTenantScope;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathDeltaDTO;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
@@ -23,6 +22,7 @@ import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathSeedInput;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
+import io.openaev.utils.TxCtxScopeUtils;
 import jakarta.validation.constraints.Min;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -96,7 +96,7 @@ public class AttackPathApi extends RestBehavior {
     requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
     long graphVersion =
-        versionService.current(simulationId, AttackPathTenantScope.tenantIds(ctx)).orElse(0L);
+        versionService.current(simulationId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx)).orElse(0L);
     return graphService.buildGraph(simulationId, mode, graphVersion);
   }
 
@@ -121,7 +121,7 @@ public class AttackPathApi extends RestBehavior {
       TxCtx ctx, @PathVariable String simulationId, @RequestParam @Min(0) long since) {
     requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
-    return deltaService.buildDelta(simulationId, since, AttackPathTenantScope.tenantIds(ctx));
+    return deltaService.buildDelta(simulationId, since, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx));
   }
 
   /**
