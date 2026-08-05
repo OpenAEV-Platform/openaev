@@ -22,7 +22,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -147,6 +146,6 @@ public class SecretsProviderService
 
   @Override
   protected SecretsProvider createNewConnector() {
-      throw new UnsupportedOperationException("Cannot create abstract secrets provider.");
+    throw new UnsupportedOperationException("Cannot create abstract secrets provider.");
   }
 }

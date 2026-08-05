@@ -128,7 +128,11 @@ class CredentialApiTest extends IntegrationTest {
       credentialSecretReferenceRepository.save(otherCredential);
 
       String createdById =
-          credentialSecretReferenceRepository.findById(matchId).orElseThrow().getCreatedBy().getId();
+          credentialSecretReferenceRepository
+              .findById(matchId)
+              .orElseThrow()
+              .getCreatedBy()
+              .getId();
 
       SearchPaginationInput input = new SearchPaginationInput();
       input.setFilterGroup(
@@ -151,7 +155,8 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_textSearch_should_searchByCredentialName")
     void given_textSearch_should_searchByCredentialName() throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-name");
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-name");
       String matchId =
           createCredential(tenant.getId(), "vpn-admin-credential", "vpn-user", "vpn-pass");
       createCredential(tenant.getId(), "db-reader-credential", "db-user", "db-pass");

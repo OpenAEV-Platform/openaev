@@ -10,7 +10,7 @@ const convertCredentialFullOutputToCredentialInput = (credential: CredentialFull
     credential_tags: credential.credential_tags_ids ?? [],
     credential_username: credential.credential_username ?? '',
     credential_password: credential.credential_username ? DOTS : '',
-    credential_hash_algorithm: credential.credential_hash_algorithm,
+    credential_hash_algorithm: credential.credential_hash_algorithm ?? undefined,
     credential_hash: credential.credential_hash_algorithm ? DOTS : '',
   };
 };

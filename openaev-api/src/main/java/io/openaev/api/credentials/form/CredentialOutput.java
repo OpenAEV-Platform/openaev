@@ -17,7 +17,8 @@ public record CredentialOutput(
     @Schema(description = "Credential authentication method")
         @JsonProperty("credential_auth_method")
         CredentialSecretReference.CREDENTIAL_AUTH_METHOD credentialAuthMethod,
-    @Schema(description = "Credential status") @JsonProperty("credential_status") SecretReference.SECRET_STATUS status,
+    @Schema(description = "Credential status") @JsonProperty("credential_status")
+        SecretReference.SECRET_STATUS status,
     @Schema(description = "Credential creation timestamp") @JsonProperty("credential_created_at")
         Instant createdAt,
     @Schema(description = "User who created the credential") @JsonProperty("credential_created_by")

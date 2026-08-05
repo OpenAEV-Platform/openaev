@@ -7,7 +7,9 @@ import io.openaev.service.connector_instances.NativeEncryptionService;
 import jakarta.annotation.Nullable;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
+@Component
 @RequiredArgsConstructor
 public class UsernamePasswordHandler implements SecretHandler {
 

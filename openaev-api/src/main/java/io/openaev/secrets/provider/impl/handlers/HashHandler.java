@@ -9,7 +9,9 @@ import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
+@Component
 @RequiredArgsConstructor
 public class HashHandler implements SecretHandler {
 

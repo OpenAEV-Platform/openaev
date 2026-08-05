@@ -6,12 +6,9 @@ import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.SecretsProviderType;
-import io.openaev.secrets.provider.impl.handlers.HashHandler;
 import io.openaev.secrets.provider.impl.handlers.SecretHandler;
-import io.openaev.secrets.provider.impl.handlers.UsernamePasswordHandler;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
-import io.openaev.service.connector_instances.NativeEncryptionService;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
@@ -26,16 +23,13 @@ public class LocalSecretsProvider extends SecretsProvider {
   public LocalSecretsProvider(
       String id,
       String name,
-      NativeEncryptionService nativeEncryptionService,
       SecretService secretService,
-      SecretReferenceService secretReferenceService) {
+      SecretReferenceService secretReferenceService,
+      List<SecretHandler> secretHandlers) {
     super(id, name, SecretsProviderType.LOCAL.type);
     this.secretService = secretService;
     this.secretReferenceService = secretReferenceService;
-    this.secretHandlers =
-        List.of(
-            new UsernamePasswordHandler(nativeEncryptionService),
-            new HashHandler(nativeEncryptionService));
+    this.secretHandlers = secretHandlers;
   }
 
   @Override

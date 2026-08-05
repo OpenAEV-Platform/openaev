@@ -3081,7 +3081,7 @@ export interface CredentialFullOutput {
   /** Credential name */
   credential_name: string;
   /** Credential status */
-  credential_status?: string;
+  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
   /**
    * Tag IDs linked to the credential
    * @uniqueItems true
@@ -3126,7 +3126,7 @@ export interface CredentialOutput {
   /** Credential name */
   credential_name?: string;
   /** Credential status */
-  credential_status?: string;
+  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
   /**
    * Tag IDs linked to the credential
    * @uniqueItems true

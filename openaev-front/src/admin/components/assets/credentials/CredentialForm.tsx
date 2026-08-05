@@ -30,7 +30,7 @@ interface Props {
   onSubmit: SubmitHandler<CredentialInput>;
   handleClose: () => void;
   editing?: boolean;
-  initialValues?: Partial<CredentialInput>;
+  initialValues?: CredentialInput;
 }
 const CredentialForm: FunctionComponent<Props> = ({
   onSubmit,

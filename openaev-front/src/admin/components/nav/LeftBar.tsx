@@ -1,6 +1,6 @@
 import {
   DashboardOutlined,
-  DescriptionOutlined, DevicesOther,
+  DescriptionOutlined,
   DnsOutlined,
   DomainOutlined,
   ExtensionOutlined,

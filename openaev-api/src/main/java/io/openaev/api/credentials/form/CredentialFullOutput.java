@@ -33,7 +33,8 @@ public record CredentialFullOutput(
         @NotNull
         @JsonProperty("credential_created_at")
         Instant createdAt,
-    @Schema(description = "Credential status") @JsonProperty("credential_status") SecretReference.SECRET_STATUS status,
+    @Schema(description = "Credential status") @JsonProperty("credential_status")
+        SecretReference.SECRET_STATUS status,
     @Schema(description = "Credential description") @JsonProperty("credential_description")
         String description,
     @Schema(description = "Secret username") @JsonProperty("credential_username") String username,

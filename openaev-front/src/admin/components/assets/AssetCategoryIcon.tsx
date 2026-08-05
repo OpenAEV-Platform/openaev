@@ -2,10 +2,10 @@ import { CategoryOutlined } from '@mui/icons-material';
 import { type SvgIconProps } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
+import { type CredentialOutput } from '../../../utils/api-types';
 import { type AssetCategory } from './asset-categories';
 import ASSET_CATEGORY_ICONS from './assetCategoryIcons';
 import CREDENTIAL_CATEGORY_ICONS from './credentialCategoryIcons';
-import { type CredentialOutput } from '../../../utils/api-types';
 
 type CredentialCategory = NonNullable<CredentialOutput['credential_type']>;
 
