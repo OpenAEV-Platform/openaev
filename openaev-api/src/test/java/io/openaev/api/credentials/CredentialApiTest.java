@@ -1,6 +1,7 @@
 package io.openaev.api.credentials;
 
 import static io.openaev.api.credentials.CredentialApi.TENANT_CREDENTIALS_URI;
+import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,18 +13,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.credentials.form.CredentialInput;
-import io.openaev.database.model.CredentialSecretReference;
-import io.openaev.database.model.Filters;
-import io.openaev.database.model.HashSecret;
-import io.openaev.database.model.Tag;
-import io.openaev.database.model.Tenant;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
+import io.openaev.database.repository.SecretsRepository;
 import io.openaev.database.repository.TagRepository;
-import io.openaev.secrets.service.SecretService;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.CredentialFixture;
+import io.openaev.utils.fixtures.TagFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -46,7 +48,8 @@ class CredentialApiTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private TagRepository tagRepository;
   @Autowired private CredentialSecretReferenceRepository credentialSecretReferenceRepository;
-  @Autowired private SecretService secretService;
+  @Autowired private UserRepository userRepository;
+  @Autowired private SecretsRepository secretRepository;
 
   @Nested
   @DisplayName("GET /contracts")
@@ -78,7 +81,7 @@ class CredentialApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("POST /search")
+  @DisplayName("Search")
   class SearchCredentials {
 
     @Test
@@ -88,15 +91,38 @@ class CredentialApiTest extends IntegrationTest {
       // Arrange
       Tenant tenantA = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-a");
       Tenant tenantB = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-b");
-      String tenantACredentialId = createCredential(tenantA.getId(), "cred-a", "user-a", "pass-a");
-      createCredential(tenantB.getId(), "cred-b", "user-b", "pass-b");
+
+      String tenantACredentialId1 =
+          credentialSecretReferenceRepository
+              .save(CredentialFixture.createDefaultUsernameCredentialReference(tenantA))
+              .getId();
+      String tenantACredentialId2 =
+          credentialSecretReferenceRepository
+              .save(CredentialFixture.createDefaultUsernameCredentialReference(tenantA))
+              .getId();
+      String tenantBCredentialId =
+          credentialSecretReferenceRepository
+              .save(CredentialFixture.createDefaultUsernameCredentialReference(tenantB))
+              .getId();
 
       // Act
-      String responseA = searchCredentials(tenantA.getId());
+      String responseA =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenantA.getId()) + "/search")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(new SearchPaginationInput()))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
       // Assert
       List<String> tenantAIds = JsonPath.read(responseA, "$.content[*].credential_id");
-      assertThat(tenantAIds).containsExactly(tenantACredentialId);
+      assertThat(tenantAIds)
+          .containsExactlyInAnyOrder(tenantACredentialId1, tenantACredentialId2)
+          .doesNotContain(tenantBCredentialId);
     }
 
     @Test
@@ -104,35 +130,39 @@ class CredentialApiTest extends IntegrationTest {
     void given_filters_should_filterByTypeAuthMethodTagsAndCreatedBy() throws Exception {
       // Arrange
       Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-filter");
-      Tag matchTag = createTag(tenant.getId(), "credential-filter-match");
-      Tag otherTag = createTag(tenant.getId(), "credential-filter-other");
+      Tag matchTag = TagFixture.getTagWithText("credential-filter-match");
+      Tag otherTag = TagFixture.getTagWithText("credential-filter-other");
+      tagRepository.saveAll(List.of(matchTag, otherTag));
 
-      String matchId =
-          createHashCredential(
-              tenant.getId(),
-              "hash-credential-match",
-              "match-hash",
-              HashSecret.HASH_ALGORITHM.SHA,
-              List.of(matchTag.getId()));
-      String otherId =
-          createHashCredential(
-              tenant.getId(),
-              "hash-credential-other",
-              "other-hash",
-              HashSecret.HASH_ALGORITHM.NTLM,
-              List.of(otherTag.getId()));
+      User matchUser = UserFixture.getUserWithDefaultEmail();
+      User otherUser = UserFixture.getUserWithDefaultEmail();
+      userRepository.saveAll(List.of(matchUser, otherUser));
 
-      CredentialSecretReference otherCredential =
-          credentialSecretReferenceRepository.findById(otherId).orElseThrow();
-      otherCredential.setCreatedBy(null);
-      credentialSecretReferenceRepository.save(otherCredential);
+      CredentialSecretReference hashReferenceThatMatch =
+          CredentialFixture.createDefaultHashCredential(tenant);
+      hashReferenceThatMatch.setTags(Set.of(matchTag));
+      hashReferenceThatMatch.setCreatedBy(matchUser);
 
-      String createdById =
-          credentialSecretReferenceRepository
-              .findById(matchId)
-              .orElseThrow()
-              .getCreatedBy()
-              .getId();
+      CredentialSecretReference hashReferenceThatDoNotMatch =
+          CredentialFixture.createDefaultHashCredential(tenant);
+      hashReferenceThatDoNotMatch.setTags(Set.of(otherTag));
+      hashReferenceThatDoNotMatch.setCreatedBy(matchUser);
+
+      CredentialSecretReference hashReferenceThatDoNotMatch2 =
+          CredentialFixture.createDefaultHashCredential(tenant);
+      hashReferenceThatDoNotMatch2.setTags(Set.of(matchTag));
+      hashReferenceThatDoNotMatch2.setCreatedBy(otherUser);
+
+      CredentialSecretReference passwordReferenceThatDoNotMatch =
+          CredentialFixture.createDefaultUsernameCredentialReference(tenant);
+      passwordReferenceThatDoNotMatch.setTags(Set.of(matchTag));
+      passwordReferenceThatDoNotMatch.setCreatedBy(matchUser);
+      credentialSecretReferenceRepository.saveAll(
+          List.of(
+              hashReferenceThatMatch,
+              hashReferenceThatDoNotMatch,
+              hashReferenceThatDoNotMatch2,
+              passwordReferenceThatDoNotMatch));
 
       SearchPaginationInput input = new SearchPaginationInput();
       input.setFilterGroup(
@@ -141,14 +171,28 @@ class CredentialApiTest extends IntegrationTest {
                   filter("credential_type", "IDENTITY"),
                   filter("credential_auth_method", "HASH"),
                   filter("credential_tags_ids", matchTag.getId()),
-                  filter("credential_created_by", createdById))));
+                  filter("credential_created_by", matchUser.getId()))));
 
       // Act
-      String response = searchCredentials(tenant.getId(), input);
+      String response =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()) + "/search")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
-      // Assert
       List<String> ids = JsonPath.read(response, "$.content[*].credential_id");
-      assertThat(ids).containsExactly(matchId);
+      assertThat(ids)
+          .containsExactly(hashReferenceThatMatch.getId())
+          .doesNotContain(
+              hashReferenceThatDoNotMatch.getId(),
+              hashReferenceThatDoNotMatch2.getId(),
+              passwordReferenceThatDoNotMatch.getId());
     }
 
     @Test
@@ -157,48 +201,39 @@ class CredentialApiTest extends IntegrationTest {
       // Arrange
       Tenant tenant =
           tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-name");
-      String matchId =
-          createCredential(tenant.getId(), "vpn-admin-credential", "vpn-user", "vpn-pass");
-      createCredential(tenant.getId(), "db-reader-credential", "db-user", "db-pass");
+      String matchCredential1 =
+          credentialSecretReferenceRepository
+              .save(CredentialFixture.createDefaultUsernameCredentialReference("match-01", tenant))
+              .getId();
+      String otherCredential =
+          credentialSecretReferenceRepository
+              .save(CredentialFixture.createDefaultUsernameCredentialReference("test", tenant))
+              .getId();
 
       SearchPaginationInput input = new SearchPaginationInput();
-      input.setTextSearch("vpn-admin");
+      input.setTextSearch("match-01");
 
       // Act
-      String response = searchCredentials(tenant.getId(), input);
+      String response =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()) + "/search")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
       // Assert
       List<String> ids = JsonPath.read(response, "$.content[*].credential_id");
-      assertThat(ids).containsExactly(matchId);
-    }
-
-    @Test
-    @DisplayName("given_twoTenants_when_searchingTenantA_should_notReturnTenantBCredentials")
-    void given_twoTenants_when_searchingTenantA_should_notReturnTenantBCredentials()
-        throws Exception {
-      // Arrange
-      Tenant tenantA =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-iso-a");
-      Tenant tenantB =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-iso-b");
-      String tenantACredentialId =
-          createCredential(tenantA.getId(), "tenant-a-credential", "a-user", "a-pass");
-      createCredential(tenantB.getId(), "tenant-b-credential", "b-user", "b-pass");
-
-      SearchPaginationInput input = new SearchPaginationInput();
-      input.setTextSearch("tenant-");
-
-      // Act
-      String response = searchCredentials(tenantA.getId(), input);
-
-      // Assert
-      List<String> ids = JsonPath.read(response, "$.content[*].credential_id");
-      assertThat(ids).containsExactly(tenantACredentialId);
+      assertThat(ids).containsExactlyInAnyOrder(matchCredential1).doesNotContain(otherCredential);
     }
   }
 
   @Nested
-  @DisplayName("POST /")
+  @DisplayName("Create")
   class CreateCredential {
 
     @Test
@@ -206,18 +241,46 @@ class CredentialApiTest extends IntegrationTest {
     void given_validInput_should_createCredentialInRequestedTenant() throws Exception {
       // Arrange
       Tenant tenantA = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-create-a");
-      Tenant tenantB = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-create-b");
 
       // Act
-      String credentialId = createCredential(tenantA.getId(), "created-credential", "user", "pass");
-      String responseA = searchCredentials(tenantA.getId());
-      String responseB = searchCredentials(tenantB.getId());
+      CredentialInput input =
+          new CredentialInput(
+              "cred-a",
+              CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD,
+              "description-cred-a",
+              "user-a",
+              "pass-a",
+              null,
+              null,
+              List.of());
+
+      String response =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenantA.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
       // Assert
-      List<String> tenantAIds = JsonPath.read(responseA, "$.content[*].credential_id");
-      List<String> tenantBIds = JsonPath.read(responseB, "$.content[*].credential_id");
-      assertThat(tenantAIds).contains(credentialId);
-      assertThat(tenantBIds).doesNotContain(credentialId);
+      CredentialSecretReference credentialSecretReference =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      assertThat(credentialSecretReference.getTenant().getId()).isEqualTo(tenantA.getId());
+      assertThat(credentialSecretReference.getName()).isEqualTo("cred-a");
+
+      Secret secret =
+          secretRepository.findById(credentialSecretReference.getLocation()).orElseThrow();
+      assertThat(secret).isInstanceOf(UsernamePasswordSecret.class);
+      assertThat(secret.getTenant().getId()).isEqualTo(tenantA.getId());
+      UsernamePasswordSecret usernamePasswordSecret = (UsernamePasswordSecret) secret;
+      assertThat(usernamePasswordSecret.getUsername()).isEqualTo("user-a");
     }
 
     @Test
@@ -239,12 +302,19 @@ class CredentialApiTest extends IntegrationTest {
               List.of());
 
       // Act & Assert
-      mvc.perform(
-              post(tenantCredentialsUri(tenant.getId()))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
-          .andExpect(status().is4xxClientError());
+      String errorResponse =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(errorResponse).isNotBlank();
+      assertThat(errorResponse).containsIgnoringCase("hash");
     }
 
     @Test
@@ -266,12 +336,19 @@ class CredentialApiTest extends IntegrationTest {
               List.of());
 
       // Act & Assert
-      mvc.perform(
-              post(tenantCredentialsUri(tenant.getId()))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
-          .andExpect(status().is4xxClientError());
+      String errorResponse =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(errorResponse).isNotBlank();
+      assertThat(errorResponse).containsIgnoringCase("Hash algorithm");
     }
 
     @Test
@@ -293,12 +370,19 @@ class CredentialApiTest extends IntegrationTest {
               List.of());
 
       // Act & Assert
-      mvc.perform(
-              post(tenantCredentialsUri(tenant.getId()))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
-          .andExpect(status().is4xxClientError());
+      String errorResponse =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(errorResponse).isNotBlank();
+      assertThat(errorResponse).containsIgnoringCase("username");
     }
 
     @Test
@@ -320,12 +404,19 @@ class CredentialApiTest extends IntegrationTest {
               List.of());
 
       // Act & Assert
-      mvc.perform(
-              post(tenantCredentialsUri(tenant.getId()))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
-          .andExpect(status().is4xxClientError());
+      String errorResponse =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(errorResponse).isNotBlank();
+      assertThat(errorResponse).containsIgnoringCase("password");
     }
   }
 
@@ -334,38 +425,63 @@ class CredentialApiTest extends IntegrationTest {
   class GetCredential {
 
     @Test
-    @DisplayName("given_credentialFromOtherTenant_should_notReturnIt")
-    void given_credentialFromOtherTenant_should_notReturnIt() throws Exception {
+    @DisplayName("given_credential_should_ReturnIt")
+    void given_credential_should_ReturnIt() throws Exception {
       // Arrange
-      Tenant tenantA = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-get-a");
-      Tenant tenantB = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-get-b");
-      String credentialId =
-          createCredential(tenantA.getId(), "get-credential", "user-get", "pass-get");
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-delete");
+
+      UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
+      initialSecret.setUsername("user");
+      initialSecret.setPassword("pass");
+      Secret secret = secretRepository.save(initialSecret);
+
+      CredentialSecretReference initialPasswordReference =
+          CredentialFixture.createDefaultUsernameCredentialReference(tenant);
+      initialPasswordReference.setLocation(secret.getId());
+      initialPasswordReference.setDescription("Initial description");
+      initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
+      CredentialSecretReference credentialReference =
+          credentialSecretReferenceRepository.save(initialPasswordReference);
 
       // Act
       String ownTenantResponse =
-          mvc.perform(get(tenantCredentialsUri(tenantA.getId()) + "/" + credentialId))
+          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
               .getContentAsString();
 
       // Assert
-      assertThatJson(ownTenantResponse).node("credential_id").isEqualTo(credentialId);
-      mvc.perform(get(tenantCredentialsUri(tenantB.getId()) + "/" + credentialId))
-          .andExpect(status().is4xxClientError());
+      assertThatJson(ownTenantResponse)
+          .node("credential_id")
+          .isEqualTo(credentialReference.getId());
+      assertThatJson(ownTenantResponse)
+          .node("credential_auth_method")
+          .isEqualTo(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD.name());
+      assertThatJson(ownTenantResponse).node("credential_hash").isNull();
+      assertThatJson(ownTenantResponse).node("credential_username").isEqualTo("user");
+      assertThatJson(ownTenantResponse).node("credential_password").isNull();
     }
 
     @Test
     @DisplayName("given_tenantA_when_gettingTenantBCredential_should_fail")
     void given_tenantA_when_gettingTenantBCredential_should_fail() throws Exception {
       // Arrange
-      Tenant tenantA =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-get-cross-a");
-      Tenant tenantB =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-get-cross-b");
+      Tenant tenantA = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-a");
+      Tenant tenantB = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-b");
+
+      UsernamePasswordSecret tenantBSecret = new UsernamePasswordSecret();
+      tenantBSecret.setTenant(tenantB);
+      tenantBSecret.setUsername("tenant-b-user");
+      tenantBSecret.setPassword("tenant-b-pass");
+      Secret persistedTenantBSecret = secretRepository.save(tenantBSecret);
+
+      CredentialSecretReference tenantBCredentialReference =
+          CredentialFixture.createDefaultUsernameCredentialReference(tenantB);
+      tenantBCredentialReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
+      tenantBCredentialReference.setLocation(persistedTenantBSecret.getId());
       String tenantBCredentialId =
-          createCredential(tenantB.getId(), "b-only-credential", "b-user", "b-pass");
+          credentialSecretReferenceRepository.save(tenantBCredentialReference).getId();
 
       // Act & Assert
       mvc.perform(get(tenantCredentialsUri(tenantA.getId()) + "/" + tenantBCredentialId))
@@ -378,87 +494,161 @@ class CredentialApiTest extends IntegrationTest {
   class UpdateCredential {
 
     @Test
-    @DisplayName("given_existingCredential_should_updateIt")
-    void given_existingCredential_should_updateIt() throws Exception {
+    @DisplayName("given_existingCredential_should_updateMetadataAndSecret")
+    void given_existingCredential_should_updateMetadataAndSecret() throws Exception {
       // Arrange
       Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
-      String credentialId =
-          createCredential(tenant.getId(), "before-update", "before-user", "before-pass");
+
+      UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
+      initialSecret.setUsername("initial-user");
+      initialSecret.setPassword("initial-pass");
+      Secret secret = secretRepository.save(initialSecret);
+
+      CredentialSecretReference initialPasswordReference =
+          CredentialFixture.createDefaultUsernameCredentialReference(tenant);
+      initialPasswordReference.setLocation(secret.getId());
+      initialPasswordReference.setDescription("Initial description");
+      initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
+      CredentialSecretReference credentialReference =
+          credentialSecretReferenceRepository.save(initialPasswordReference);
+
       CredentialInput updateInput =
-          usernamePasswordInput("after-update", "after-user", "after-pass", List.of());
+          new CredentialInput(
+              "after-update",
+              CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD,
+              "description-after-update",
+              "after-user",
+              "after-pass",
+              null,
+              null,
+              List.of());
 
       // Act
       mvc.perform(
-              put(tenantCredentialsUri(tenant.getId()) + "/" + credentialId)
+              put(tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId())
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(updateInput)))
           .andExpect(status().is2xxSuccessful());
 
-      String getResponse =
-          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialId))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
       // Assert
-      assertThatJson(getResponse).node("credential_name").isEqualTo("after-update");
-      assertThatJson(getResponse).node("credential_auth_method").isEqualTo("USERNAME_PASSWORD");
+      CredentialSecretReference updatedCredential =
+          credentialSecretReferenceRepository.findById(credentialReference.getId()).orElseThrow();
+      assertThat(updatedCredential.getName()).isEqualTo("after-update");
+      assertThat(updatedCredential.getCredentialAuthMethod())
+          .isEqualTo(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD);
+      assertThat(updatedCredential.getLocation()).isEqualTo(initialSecret.getId());
+
+      Secret updatedSecret =
+          secretRepository.findById(updatedCredential.getLocation()).orElseThrow();
+      assertThat(updatedSecret).isInstanceOf(UsernamePasswordSecret.class);
+      assertThat(((UsernamePasswordSecret) updatedSecret).getUsername()).isEqualTo("after-user");
     }
 
     @Test
     @DisplayName("given_hashCredential_when_updatingToUsernamePassword_should_replaceHashSecret")
-    void given_hashCredential_when_updatingToUsernamePassword_should_replaceHashSecret()
+    void given_usernameCredential_when_updatingToHash_should_replaceUsernameSecret()
         throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update-switch");
-      String credentialId =
-          createHashCredential(
-              tenant.getId(),
-              "hash-before-switch",
-              "old-hash",
-              HashSecret.HASH_ALGORITHM.SHA,
-              List.of());
-      String beforeUpdateResponse =
-          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialId))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String previousSecretId =
-          credentialSecretReferenceRepository.findById(credentialId).orElseThrow().getLocation();
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
 
-      CredentialInput switchInput =
-          usernamePasswordInput("hash-switched-to-userpass", "new-user", "new-password", List.of());
+      UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
+      initialSecret.setUsername("initial-user");
+      initialSecret.setPassword("initial-pass");
+      Secret secret = secretRepository.save(initialSecret);
+
+      CredentialSecretReference initialPasswordReference =
+          CredentialFixture.createDefaultUsernameCredentialReference(tenant);
+      initialPasswordReference.setLocation(secret.getId());
+      initialPasswordReference.setDescription("Initial description");
+      initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
+      CredentialSecretReference credentialReference =
+          credentialSecretReferenceRepository.save(initialPasswordReference);
+
+      CredentialInput updateInput =
+          new CredentialInput(
+              "after-update",
+              CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH,
+              "description-after-update",
+              null,
+              null,
+              HashSecret.HASH_ALGORITHM.SHA,
+              "hash-secret",
+              List.of());
 
       // Act
       mvc.perform(
-              put(tenantCredentialsUri(tenant.getId()) + "/" + credentialId)
+              put(tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId())
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(switchInput)))
+                  .content(asJsonString(updateInput)))
           .andExpect(status().is2xxSuccessful());
 
-      String afterUpdateResponse =
-          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialId))
-              .andExpect(status().isOk())
+      CredentialSecretReference updatedCredential =
+          credentialSecretReferenceRepository.findById(credentialReference.getId()).orElseThrow();
+      assertThat(updatedCredential.getName()).isEqualTo("after-update");
+      assertThat(updatedCredential.getCredentialAuthMethod())
+          .isEqualTo(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH);
+      assertThat(updatedCredential.getLocation()).isNotEqualTo(secret.getId());
+
+      assertThat(secretRepository.findById(secret.getId())).isEmpty();
+
+      Secret updatedSecret =
+          secretRepository.findById(updatedCredential.getLocation()).orElseThrow();
+      assertThat(updatedSecret).isInstanceOf(HashSecret.class);
+      assertThat(((HashSecret) updatedSecret).getHashAlgorithm())
+          .isEqualTo(HashSecret.HASH_ALGORITHM.SHA);
+    }
+
+    @Test
+    @DisplayName(
+        "given_usernameCredential_when_updatingToHashWithoutHashAlgorithm_should_throwError")
+    void given_usernameCredential_when_updatingToHashWithoutHashAlgorithm_should_throwError()
+        throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
+
+      UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
+      initialSecret.setUsername("initial-user");
+      initialSecret.setPassword("initial-pass");
+      Secret secret = secretRepository.save(initialSecret);
+
+      CredentialSecretReference initialPasswordReference =
+          CredentialFixture.createDefaultUsernameCredentialReference(tenant);
+      initialPasswordReference.setLocation(secret.getId());
+      initialPasswordReference.setDescription("Initial description");
+      initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
+      CredentialSecretReference credentialReference =
+          credentialSecretReferenceRepository.save(initialPasswordReference);
+
+      CredentialInput invalidUpdateInput =
+          new CredentialInput(
+              "after-update",
+              CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH,
+              "description-after-update",
+              null,
+              null,
+              null,
+              "hash-secret",
+              List.of());
+
+      // Act
+      String errorResponse =
+          mvc.perform(
+                  put(tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId())
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(invalidUpdateInput)))
+              .andExpect(status().isBadRequest())
               .andReturn()
               .getResponse()
               .getContentAsString();
-      String currentSecretId =
-          credentialSecretReferenceRepository.findById(credentialId).orElseThrow().getLocation();
 
       // Assert
-      assertThatJson(beforeUpdateResponse).node("credential_auth_method").isEqualTo("HASH");
-      assertThatJson(afterUpdateResponse)
-          .node("credential_auth_method")
-          .isEqualTo("USERNAME_PASSWORD");
-      assertThatJson(afterUpdateResponse).node("credential_hash_algorithm").isNull();
-      assertThatJson(afterUpdateResponse).node("credential_username").isEqualTo("new-user");
-      assertThat(currentSecretId).isNotEqualTo(previousSecretId);
-      assertThat(secretService.findByIdOrThrow(currentSecretId)).isNotNull();
+      assertThat(errorResponse).containsIgnoringCase("hash algorithm");
     }
   }
 
@@ -467,95 +657,35 @@ class CredentialApiTest extends IntegrationTest {
   class DeleteCredential {
 
     @Test
-    @DisplayName("given_existingCredential_should_deleteIt")
-    void given_existingCredential_should_deleteIt() throws Exception {
+    @DisplayName("given_existingCredential_should_deleteCredentialAndSecret")
+    void given_existingCredential_should_deleteCredentialAndSecret() throws Exception {
       // Arrange
       Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-delete");
-      String credentialId =
-          createCredential(tenant.getId(), "to-delete", "delete-user", "delete-pass");
+
+      UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
+      initialSecret.setUsername("initial-user");
+      initialSecret.setPassword("initial-pass");
+      Secret secret = secretRepository.save(initialSecret);
+
+      CredentialSecretReference initialPasswordReference =
+          CredentialFixture.createDefaultUsernameCredentialReference(tenant);
+      initialPasswordReference.setLocation(secret.getId());
+      initialPasswordReference.setDescription("Initial description");
+      initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
+      CredentialSecretReference credentialReference =
+          credentialSecretReferenceRepository.save(initialPasswordReference);
 
       // Act
-      mvc.perform(delete(tenantCredentialsUri(tenant.getId()) + "/" + credentialId).with(csrf()))
+      mvc.perform(
+              delete(tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId())
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
-      String searchResponse = searchCredentials(tenant.getId());
 
       // Assert
-      List<String> credentialIds = JsonPath.read(searchResponse, "$.content[*].credential_id");
-      assertThat(credentialIds).doesNotContain(credentialId);
+      assertThat(credentialSecretReferenceRepository.findById(credentialReference.getId()))
+          .isEmpty();
+      assertThat(secretRepository.findById(secret.getId())).isEmpty();
     }
-  }
-
-  private String searchCredentials(String tenantId) throws Exception {
-    return searchCredentials(tenantId, new SearchPaginationInput());
-  }
-
-  private String searchCredentials(String tenantId, SearchPaginationInput input) throws Exception {
-    return mvc.perform(
-            post(tenantCredentialsUri(tenantId) + "/search")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(input))
-                .accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andReturn()
-        .getResponse()
-        .getContentAsString();
-  }
-
-  private String createCredential(String tenantId, String name, String username, String password)
-      throws Exception {
-    CredentialInput input = usernamePasswordInput(name, username, password, List.of());
-    String response =
-        mvc.perform(
-                post(tenantCredentialsUri(tenantId))
-                    .with(csrf())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(input))
-                    .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return JsonPath.read(response, "$.credential_id");
-  }
-
-  private String createHashCredential(
-      String tenantId,
-      String name,
-      String hash,
-      HashSecret.HASH_ALGORITHM hashAlgorithm,
-      List<String> tagIds)
-      throws Exception {
-    CredentialInput input =
-        new CredentialInput(
-            name,
-            CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
-            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH,
-            "description-" + name,
-            null,
-            null,
-            hashAlgorithm,
-            hash,
-            tagIds);
-    String response =
-        mvc.perform(
-                post(tenantCredentialsUri(tenantId))
-                    .with(csrf())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(input))
-                    .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return JsonPath.read(response, "$.credential_id");
-  }
-
-  private Tag createTag(String tenantId, String name) {
-    Tag tag = new Tag();
-    tag.setName(name + "-" + UUID.randomUUID());
-    tag.setColor("#FFFFFF");
-    tag.setTenant(new Tenant(tenantId));
-    return tagRepository.save(tag);
   }
 
   private Filters.Filter filter(String key, String value) {
@@ -566,20 +696,6 @@ class CredentialApiTest extends IntegrationTest {
     filter.setOperator(Filters.FilterOperator.eq);
     filter.setValues(List.of(value));
     return filter;
-  }
-
-  private CredentialInput usernamePasswordInput(
-      String name, String username, String password, List<String> tagIds) {
-    return new CredentialInput(
-        name,
-        CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
-        CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD,
-        "description-" + name,
-        username,
-        password,
-        null,
-        null,
-        tagIds);
   }
 
   private String tenantCredentialsUri(String tenantId) {
