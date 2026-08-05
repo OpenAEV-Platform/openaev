@@ -81,6 +81,68 @@ describe('buildLogicGraphLayout tactic columns', () => {
     }
   });
 
+  it('cascades events sharing a lane down without overlapping', () => {
+    // e1 and e2 both gate a1: same lane, same anchor. The first is centered on a1, the second must
+    // cascade below it (align, then de-overlap) instead of stacking on the same Y.
+    const { nodeById } = buildLogicGraphLayout({
+      actionMetas: { a1: action(['e1', 'e2']) },
+      eventMetas: {
+        e1: event(),
+        e2: event(),
+      },
+      outputProviders: {},
+      tacticForStep: { a1: 'Discovery' },
+      tacticOrder: { Discovery: 1 },
+    });
+    expect(nodeById.e1.x).toBe(nodeById.e2.x);
+    const [first, second] = [nodeById.e1, nodeById.e2].sort((a, b) => a.y - b.y);
+    expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
+  });
+
+  it('sorts a tactic missing from the order map after the known ones', () => {
+    const { columns } = buildLogicGraphLayout({
+      actionMetas: {
+        a1: action(),
+        a2: action(),
+      },
+      eventMetas: {},
+      outputProviders: {},
+      tacticForStep: {
+        a1: 'Alpha Unknown',
+        a2: 'Lateral Movement',
+      },
+      // 'Alpha Unknown' is absent from the order map: it must fall to the end even though it would
+      // come first alphabetically.
+      tacticOrder: { 'Lateral Movement': 8 },
+    });
+    expect(columns.map(c => c.tactic)).toEqual(['Lateral Movement', 'Alpha Unknown']);
+  });
+
+  it('puts an event gating actions in several columns in the leftmost lane', () => {
+    // e1 gates both a2 (second column) and a1 (first column): it must take the FIRST column's lane
+    // (left of a1), keeping the graph reading left to right.
+    const { nodeById } = buildLogicGraphLayout({
+      actionMetas: {
+        a1: action(['e1']),
+        a2: action(['e1']),
+      },
+      eventMetas: { e1: event() },
+      outputProviders: {},
+      tacticForStep: {
+        a1: 'Discovery',
+        a2: 'Lateral Movement',
+      },
+      tacticOrder: {
+        'Discovery': 1,
+        'Lateral Movement': 2,
+      },
+    });
+    expect(nodeById.e1.x).toBeLessThan(nodeById.a1.x);
+    const e1Center = nodeById.e1.y + nodeById.e1.height / 2;
+    const a1Center = nodeById.a1.y + nodeById.a1.height / 2;
+    expect(Math.round(e1Center)).toBe(Math.round(a1Center));
+  });
+
   it('returns an empty layout (no columns) for an empty graph', () => {
     const empty = buildLogicGraphLayout({
       actionMetas: {},
