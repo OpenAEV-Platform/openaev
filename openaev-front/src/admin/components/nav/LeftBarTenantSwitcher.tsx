@@ -12,28 +12,18 @@ import { buildTenantUrl, stripDetailSegments } from '../../../utils/url-helper';
 interface TenantSwitcherProps { navOpen: boolean }
 
 /**
- * Tenant switcher: the row listing the tenants the user can reach.
+ * Tenant switcher. Deliberately split in two paths, because the Enterprise
+ * Edition gate and the menu cannot coexist on one trigger:
  *
- * Fully recomposed on design system primitives, and deliberately split in two
- * paths so neither one has to fight the other:
+ * - **EE not validated** — the row is a plain `NavbarItem` carrying the EE
+ *   chip, and activating it opens the upsell dialog. No menu is mounted, so
+ *   the tenant list cannot be reached without passing the gate.
+ * - **EE validated** — the same row triggers the library's `Menu`, the
+ *   primitive that also backs `ProductSwitcher`.
  *
- * - **Enterprise Edition not validated** — switching is gated, so the row is a
- *   plain `NavbarItem` carrying the EE chip; activating it opens the upsell
- *   dialog. No menu is mounted at all, so there is no way to reach the tenant
- *   list without passing the gate.
- * - **Enterprise Edition validated** — the same row becomes the trigger of the
- *   library's `Menu`, the primitive that also backs `ProductSwitcher`. The
- *   panel is therefore identical to the rest of the design system by
- *   construction rather than by imitation.
- *
- * Each tenant row is a genuine `<a href>` (`MenuItem asChild`), because
- * switching tenant IS a URL navigation (`useTenant.navigateToTenant` assigns
- * `window.location.href`). That keeps ⌘/Ctrl-click "open this tenant in a new
- * tab" working, and it is why the rows are anchors and not buttons.
- *
- * The current tenant is marked with `MenuItem`'s own `selected` state (a check
- * in the trailing slot plus `aria-current`), which is scoped to the panel and
- * never leaks onto the rail row.
+ * Each tenant row is a genuine `<a href>` (`MenuItem asChild`) because
+ * switching tenant IS a URL navigation — that is what keeps ⌘/Ctrl-click
+ * "open this tenant in a new tab" working.
  */
 const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => {
   const { t } = useFormatter();
@@ -55,8 +45,6 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
   // exist in the target tenant.
   const tenantHref = (tenant: TenantOutput) => buildTenantUrl(tenant.tenant_id, stripDetailSegments(location.pathname));
 
-  // Anatomy of the rail row itself, shared by both paths: leading icon,
-  // label, an optional badge, then the double chevron announcing the menu.
   const triggerRow = (badge?: ReactNode) => (
     <>
       <NavbarItemContent

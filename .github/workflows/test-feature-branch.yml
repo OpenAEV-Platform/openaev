@@ -35,6 +35,11 @@ jobs:
           FDS_GIT_TOKEN: ${{ secrets.FDS_GIT_TOKEN }}
         run: |
           export JAVA_HOME=/usr/lib/jvm/default-jvm/
+          # These two lines are inlined on purpose, and duplicated across the
+          # three Alpine workflows: this step runs with `shell: alpine.sh`, and a
+          # composite action's `shell: bash` step cannot execute there — so
+          # ./.github/actions/setup-fds-auth is unusable in this block. Do not
+          # "de-duplicate" this into the composite action: it breaks all three.
           # openaev-front consumes the private XTM-Foundation/filigran-design-system
           # repository as a direct git dependency; yarn cannot clone it anonymously.
           if [ -z "$FDS_GIT_TOKEN" ]; then

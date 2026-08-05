@@ -703,3 +703,37 @@ and the library still be uninstallable, because a library's pipeline builds from
 its workspace and a product installs from its git tree — two different paths.
 Before trusting a pin, know whether the library exercises the consumer path.
 This one now does.
+
+---
+
+## 15. The collapse toggle has no pointer cursor
+
+**Status.** Open — a library fix is in flight. **No product compensation.**
+
+**What happens.** The `Navbar`'s collapse/expand control renders without
+`cursor: pointer`, so the pointer stays an arrow over a control that is
+clickable. Raised in product review of the OpenAEV pilot (PR #7150).
+
+**Why it is a library issue and not a product one.** The control is rendered
+entirely by the library; the product never sees the element. The rule the
+library's own stylesheet applies to its other interactive elements is simply
+missing on this one. A product-side fix would mean reaching into the library's
+internals with a descendant selector in the host stylesheet — a compensation
+that is invisible to the library's own tests, that would silently rot the day
+the class names change, and that every consuming product would have to write
+independently. Nothing is gained by writing it three times.
+
+**What the library should do.** Apply the same pointer affordance the library
+gives its other activatable controls, on the collapse toggle.
+
+**Removal test.** Not applicable — there is nothing to remove product-side.
+**Verification at the next pin bump:** hover the collapse control in both rail
+states and both themes; the cursor is a pointer. If it is not, the pin does not
+carry the fix yet.
+
+**Why this defect survived the computed-style diff.** It is worth recording how
+it was found, because the method missed it. The Step 5b diff compares the
+product against the library's own documentation site — and the documentation
+site has the same defect. **A check that compares against a reference is blind
+to defects present in the reference.** Only interacting with the running product
+surfaces it. That lesson is now in the playbook's visual-verification step.

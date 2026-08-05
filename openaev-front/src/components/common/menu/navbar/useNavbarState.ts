@@ -2,23 +2,15 @@ import { useCallback, useState } from 'react';
 
 import { MESSAGING$ } from '../../../../utils/Environment';
 
-/** localStorage key holding the user's explicit expand/collapse preference. */
 export const NAV_OPEN_STORAGE_KEY = 'navOpen';
 
-/**
- * Below this viewport width the navigation starts collapsed, so small screens
- * are not amputated of ~180px of content before the user has said anything.
- * A stored preference always wins over this default, and the collapse toggle
- * stays active at every width.
- */
+// Below this width the navigation starts collapsed rather than amputating
+// ~180px of content on small screens. A stored preference always wins.
 export const NAV_AUTO_COLLAPSE_BREAKPOINT = 1024;
 
-/**
- * Resolves the initial expanded/collapsed state. Exported (and pure) so the
- * navigation and every other consumer of the same state — the top bar offsets
- * itself by the navigation width — resolve it identically, whatever order
- * they happen to mount in.
- */
+// Exported and pure so that every consumer of this state resolves it
+// identically whatever order they mount in — the top bar offsets itself by the
+// navigation width and must not disagree with the navigation itself.
 export const resolveInitialNavOpen = (
   storedPreference: string | null,
   viewportWidth: number,
@@ -28,17 +20,11 @@ export const resolveInitialNavOpen = (
   return viewportWidth >= NAV_AUTO_COLLAPSE_BREAKPOINT;
 };
 
-/** Reads the current state from the two sources of truth, in priority order. */
 export const readNavOpen = (): boolean => resolveInitialNavOpen(
   localStorage.getItem(NAV_OPEN_STORAGE_KEY),
   window.innerWidth,
 );
 
-/**
- * Owns the navigation's expanded/collapsed state: persisted in localStorage
- * under `navOpen`, broadcast through `MESSAGING$.toggleNav` so the top bar can
- * follow, and defaulted by viewport width on first visit.
- */
 const useNavbarState = (): {
   navOpen: boolean;
   toggleNav: () => void;

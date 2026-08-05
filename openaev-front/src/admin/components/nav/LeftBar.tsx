@@ -197,9 +197,7 @@ const LeftBar = () => {
   ];
   const settingsItems = settingsEntries(ability);
   entries.push(
-    // "Getting Started" sits right under "Settings" and scrolls with the rest
-    // of the menu. The group is always visible because that row is: "Settings"
-    // still hides on its own when the user has no settings right.
+    // Always visible: "Settings" hides itself when the user lacks the right.
     {
       userRight: true,
       items: [

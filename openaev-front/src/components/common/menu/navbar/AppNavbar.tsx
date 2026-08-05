@@ -11,6 +11,17 @@ import { NavbarItemContent, NavbarSubmenuItemContent } from './NavbarRowContent'
 import useNavbarState from './useNavbarState';
 
 /**
+ * Adapter between the product and the design system's `Navbar`.
+ *
+ * Boundary rule for everything in this folder — the library owns the widget,
+ * the product owns the data, the routes and the state. A file here that exists
+ * only to work around a library limitation is debt with a filed gap, not a
+ * candidate for promotion to the library. The reasoning, and the verdict for
+ * each file in this folder, is in fds-migration/IMPLEMENTATION-PLAYBOOK.md,
+ * "What belongs to the library vs. to the product".
+ */
+
+/**
  * Highlight the exact page and any sub-route (e.g. /admin/integrations/deployed).
  * Home ('/admin') is a prefix of every route, so it stays exact-only.
  */
@@ -23,20 +34,12 @@ const isSubItemCurrent = (pathname: string, subItem: NavMenuSubItem): boolean =>
 
 interface Props {
   entries: NavMenuEntries[];
-  /** Product switcher, rendered in the library's dedicated header slot. */
+  /** Rendered in the library's dedicated header slot (above the row list). */
   header?: (navOpen: boolean) => ReactNode;
-  /** Optional first row above the menu groups (the tenant switcher). */
+  /** First row of the list itself, above the menu groups. */
   headerElement?: (navOpen: boolean) => ReactNode;
 }
 
-/**
- * The application's main navigation, built on the design system's `Navbar`.
- *
- * The library owns the chrome (width and its transition, the gradient panel,
- * the collapse toggle, the collapsed tooltips and flyout submenus); this
- * component only maps the product's menu model onto it and keeps the collapse
- * state in sync with the rest of the shell.
- */
 const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerElement }) => {
   const { t } = useFormatter();
   const location = useLocation();

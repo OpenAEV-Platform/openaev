@@ -18,17 +18,6 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { computeTenantBasename } from '../../../utils/url-helper';
 
-/**
- * Header of the navigation: the platform logo plus the Filigran product
- * switcher (OpenCTI / XTM Hub), rendered by the design system's
- * `ProductSwitcher`.
- *
- * Expanded, the wordmark is a link home and the chevron opens the switcher.
- * Collapsed, the library renders `logoCollapsed` in its own 28px square slot
- * and the menu is not reachable — the arbitrated behaviour, identical across
- * Filigran products. The collapse state comes from the library's own Navbar
- * context, so this component takes no props.
- */
 const LeftBarHeader: FunctionComponent = () => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -75,10 +64,8 @@ const LeftBarHeader: FunctionComponent = () => {
         <img
           src={theme.logo}
           alt=""
-          // Inline, not utility classes: the product has no Tailwind build, so
-          // only the utilities the library's own components emit exist at
-          // runtime — `object-contain` is not one of them, and a class here
-          // silently stretched the logo to the slot's width.
+          // Inline geometry: no Tailwind build, see the adapter README rule.
+          // A class here silently stretched the logo to the slot's width.
           style={{
             height: 28,
             width: '100%',
@@ -92,9 +79,8 @@ const LeftBarHeader: FunctionComponent = () => {
           src={theme.logo_collapsed}
           alt=""
           // The library's collapsed slot is a 28px square that clips rather
-          // than scales its child (its inner wrapper is `shrink-0`), and it
-          // gives the child no height of its own — so the asset has to be
-          // sized here. Inline for the same reason as above.
+          // than scales its child, and gives it no height of its own — so the
+          // asset has to be sized here.
           style={{
             height: 28,
             width: 28,

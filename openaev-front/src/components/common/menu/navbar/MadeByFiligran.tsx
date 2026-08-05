@@ -7,29 +7,11 @@ import { useFormatter } from '../../../i18n';
 
 interface Props { collapsed: boolean }
 
-/**
- * Geometry is expressed inline, not with utility classes. The product has no
- * Tailwind build: the only utilities that exist at runtime are those the
- * design system's own components happen to emit into its stylesheet. Sizing
- * and `object-*` utilities are not among them, so a class here would be
- * silently inert. Design *tokens* (the caption typography below) are safe —
- * they are what the library publishes on purpose.
- */
+// Geometry is inline, not utility classes: the product has no Tailwind build,
+// so only the utilities the design system itself emits exist at runtime.
+// Sizing and `object-*` are not among them and would be silently inert.
 const WORDMARK_HEIGHT = 12;
 
-/**
- * "Made by Filigran" footer row: the muted label (expanded only) then the
- * wordmark. Typography mirrors the library's own signature row (caption token
- * set, `text-default-secondary`, 12px wordmark) rather than ad-hoc sizes, so it
- * stays aligned with the design system when those tokens move.
- *
- * Collapsed, it behaves like the header's logo: the label disappears and only
- * the Filigran emblem remains. The emblem is not a separate asset — the
- * wordmark SVG starts with it, so a 12px square box with `object-cover` and a
- * left origin crops the lettering away. That is what the legacy row did, and
- * it keeps a single asset to maintain. The accessible name is carried by
- * `aria-label` and is therefore identical in both states.
- */
 const MadeByFiligran: FunctionComponent<Props> = ({ collapsed }) => {
   const { t } = useFormatter();
   return (
@@ -50,19 +32,17 @@ const MadeByFiligran: FunctionComponent<Props> = ({ collapsed }) => {
           className="shrink-0"
           style={collapsed
             ? {
-                // The emblem is the left edge of the wordmark asset, so a
-                // square box cropped from the left shows it alone — no second
-                // asset to keep in sync with the brand.
+                // The emblem is the left edge of the wordmark asset, so a square
+                // box cropped from the left shows it alone — no second asset to
+                // keep in sync with the brand.
                 width: WORDMARK_HEIGHT,
                 height: WORDMARK_HEIGHT,
                 objectFit: 'cover',
                 objectPosition: 'left center',
                 // A collapsed row is 48px wide but its content box is 46px:
-                // `NavbarItem` reserves a 2px left border for the selected
-                // indicator. Centring inside that box lands 1px off the rail's
-                // optical centre, so the library's own rows offset the icon by
-                // 2px on the right. Same trick here, so the emblem sits on the
-                // exact axis of the icons above it.
+                // NavbarItem reserves 2px for the selected indicator. The
+                // library offsets its own icons by 2px to compensate; without
+                // the same offset the emblem sits 1px off the icon axis.
                 marginRight: 2,
               }
             : {

@@ -1,16 +1,18 @@
 import { type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 
 /**
- * `NavbarItem` / `NavbarSubmenuItem` document that `asChild` ignores their own
- * `icon` / `showIcon` / `chevron` props: Radix's `Slot` cannot inject wrapper
- * elements inside an arbitrary child, so the row's internals have to be
- * composed by the consumer. Every row here IS a router `Link` (so Ctrl/⌘-click
- * and "open in new tab" work), which means every row goes through `asChild` and
- * therefore has to re-declare the anatomy the library would otherwise own.
+ * Why this file exists, and why it is product-side rather than in the library:
+ * `NavbarItem` / `NavbarSubmenuItem` ignore their own `icon` / `showIcon` /
+ * `chevron` props under `asChild`, because Radix's `Slot` cannot inject wrapper
+ * elements into an arbitrary child. Every row here IS a router `Link`, so that
+ * Ctrl/⌘-click and "open in new tab" work — which forces `asChild` on every
+ * row, which in turn forces the consumer to re-declare the row anatomy.
  *
- * The class names below are the library's own — see `NavbarItem.tsx` /
- * `NavbarSubmenu.tsx` — reproduced here rather than invented. Reported upstream:
- * see fds-migration/LIBRARY-FEEDBACK.md, "NavbarItem has no link destination".
+ * The class names below are the library's own, copied from `NavbarItem.tsx` /
+ * `NavbarSubmenu.tsx`, not invented. They are kept in this one file so the debt
+ * stays countable and disappears in one move when the library gains a link
+ * destination — see fds-migration/LIBRARY-FEEDBACK.md, "NavbarItem has no link
+ * destination".
  */
 
 const iconSpanStyle = { display: 'inline-flex' } as const;
@@ -18,11 +20,11 @@ const iconSpanStyle = { display: 'inline-flex' } as const;
 interface RowProps {
   icon?: ReactElement;
   label: ReactNode;
-  /** Ancestor `Navbar` collapse state — the library computes this internally. */
+  /** Ancestor `Navbar` collapse state — not derivable here, the library
+   *  computes it internally and does not expose it to `asChild` children. */
   collapsed: boolean;
 }
 
-/** Anatomy of a `NavbarItem` row (leading icon + truncating label). */
 export const NavbarItemContent: FunctionComponent<RowProps> = ({ icon, label, collapsed }) => (
   <>
     {icon && (

@@ -1018,6 +1018,35 @@ action is different for each:
   the design owner two screenshots of the same element, the two measured values,
   and the options with their costs. That is an arbitration, not a bug.
 
+### What this step structurally cannot find
+
+**A check that compares against a reference is blind to defects present in the
+reference.** If the library's documentation site has the same problem, the diff
+is clean and the defect ships.
+
+That is not hypothetical: the collapse control had no pointer cursor, in the
+product *and* on the documentation site, so every computed-style comparison
+agreed perfectly. It was found by a human moving a mouse, in product review.
+
+Worse, the whole method is biased towards *static* properties. Computed styles
+are read on an element at rest. Anything that only exists during an interaction
+— `:hover`, `cursor`, `:focus-visible` rings, keyboard traversal, the state of a
+control while it is pressed — is not in the comparison at all.
+
+**The counter-measure: the visual verification must include an interaction
+pass**, not only a look. On every interactive element the component renders:
+
+- hover it and check the **cursor** shape, and any hover styling;
+- reach it with `Tab` alone and check the focus ring is visible **on the
+  keyboard path**, in both themes;
+- activate it with `Enter` and with `Space`, and check both do what the mouse
+  does;
+- for anything that opens: check it closes on `Escape` and that focus returns
+  somewhere sensible.
+
+Do this in the running product, in both themes and both rail states. It takes a
+few minutes and it catches the class of defect no diff can.
+
 ---
 
 ## Step 6 — Bridge the theme
@@ -1977,6 +2006,37 @@ them away.
 | Geometry of the product's own content inside a library slot | **Product** | Inline styles, never utility classes — see [5.1](#51-the-stylesheet-is-not-tailwind--do-not-write-utility-classes). |
 | Stacking of portalled surfaces above the host's chrome | **Library** | The host knows its own z-scale; the library must let it be set. Compensated here, filed as entry 12. |
 | A missing component or prop | **Library** | File it. Never fork, never approximate. |
+
+### The question you will be asked in review: "why isn't this in the library?"
+
+Expect it on **every** file you add. It is a good question and it deserves a
+rule rather than a case-by-case answer. Three tests, in order:
+
+1. **Does it know anything about this product?** Routes, permissions, feature
+   flags, a storage key, a domain word like *tenant* — if yes, it stays in the
+   product. The library cannot depend on a product's vocabulary.
+2. **Would every product write the same thing?** If two products would produce
+   the same file byte for byte, it belongs to the library. This is the test that
+   actually promotes code, and the evidence is empirical: if the next pilot
+   re-implements it independently, that is the proof.
+3. **Does it only exist because the library is missing something?** Then the
+   answer is neither: it is **debt to delete**, not code to promote. Moving a
+   workaround into the library freezes the workaround. File the gap instead, and
+   let the file disappear when the gap closes.
+
+Worked answers from this pilot, for the four files review asked about:
+
+| File | Verdict | Why |
+|---|---|---|
+| `MadeByFiligran.tsx` | **Yes — should go to the library** | Filigran branding, identical in every Filigran product, zero product knowledge: an asset, a label, a link. It also carries two non-obvious tricks (the collapsed emblem is the wordmark cropped from the left; a 2px optical offset because a collapsed row reserves 2px for the selection indicator) that should be solved once, not per product. Test 2 is satisfied empirically — the next pilot re-implemented it independently. |
+| `nav-menu-model.ts` | No — product | It is the shape of *this* product's menu: its routes, its permissions, its flags. Fails test 1. There is no generic contract to publish either: the library's `Navbar` is composition-based, not data-driven, so it has no menu model to own. |
+| `NavbarRowContent.tsx` | No — and it should be **deleted, not promoted** | It exists only because `asChild` makes the library's own `icon`/`showIcon` props inert, so the consumer has to re-declare the row anatomy. That is test 3: promoting it would make the workaround permanent. The gap is filed; the day `NavbarItem` accepts a link destination, this file goes away. |
+| `useNavbarState.ts` | No — product | Persistence and cross-component broadcast, bound to the product's own storage key and message bus, and consumed by the product's top bar. The library's `Navbar` is already controlled, which is the correct boundary: the library owns the widget, the product owns where the state lives. Promoting it would force the library to choose a storage key and a messaging mechanism on behalf of every host. |
+
+The short version, worth pasting at the head of your adapter: **the library owns
+the widget, the product owns the data, the routes and the state. Anything that
+exists only to work around the library is debt with a filed gap, not a
+candidate for promotion.**
 
 ---
 
