@@ -18,6 +18,8 @@ import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utils.pagination.SortField;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
@@ -49,12 +51,16 @@ public class FindingDistinctSearchService {
       SearchPaginationInput searchPaginationInput) {
     Specification<Finding> triageStatusSpecification =
         extractTriageStatusSpecification(searchPaginationInput);
+    Specification<Finding> triageStatusOrderSpecification =
+        extractTriageStatusOrderSpecification(searchPaginationInput);
     Page<Finding> page =
         buildPaginationJPA(
             (specification, pageable) ->
                 findingRepository.findAll(
-                    FindingSpecification.distinctTypeValueWithFilter(
-                        withTriageStatus(specification, triageStatusSpecification)),
+                    withTriageStatusOrder(
+                        FindingSpecification.distinctTypeValueWithFilter(
+                            withTriageStatus(specification, triageStatusSpecification)),
+                        triageStatusOrderSpecification),
                     pageable),
             searchPaginationInput,
             Finding.class);
@@ -66,15 +72,19 @@ public class FindingDistinctSearchService {
       String injectId, SearchPaginationInput searchPaginationInput) {
     Specification<Finding> triageStatusSpecification =
         extractTriageStatusSpecification(searchPaginationInput);
+    Specification<Finding> triageStatusOrderSpecification =
+        extractTriageStatusOrderSpecification(searchPaginationInput);
     Page<Finding> page =
         buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.distinctTypeValueWithFilter(
-                        withTriageStatus(
-                            FindingSpecification.findFindingsForInject(injectId)
-                                .and(specification),
-                            triageStatusSpecification)),
+                    withTriageStatusOrder(
+                        FindingSpecification.distinctTypeValueWithFilter(
+                            withTriageStatus(
+                                FindingSpecification.findFindingsForInject(injectId)
+                                    .and(specification),
+                                triageStatusSpecification)),
+                        triageStatusOrderSpecification),
                     pageable),
             searchPaginationInput,
             Finding.class);
@@ -87,15 +97,19 @@ public class FindingDistinctSearchService {
       String simulationId, SearchPaginationInput searchPaginationInput) {
     Specification<Finding> triageStatusSpecification =
         extractTriageStatusSpecification(searchPaginationInput);
+    Specification<Finding> triageStatusOrderSpecification =
+        extractTriageStatusOrderSpecification(searchPaginationInput);
     Page<Finding> page =
         buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.distinctTypeValueWithFilter(
-                        withTriageStatus(
-                            FindingSpecification.findFindingsForSimulation(simulationId)
-                                .and(specification),
-                            triageStatusSpecification)),
+                    withTriageStatusOrder(
+                        FindingSpecification.distinctTypeValueWithFilter(
+                            withTriageStatus(
+                                FindingSpecification.findFindingsForSimulation(simulationId)
+                                    .and(specification),
+                                triageStatusSpecification)),
+                        triageStatusOrderSpecification),
                     pageable),
             searchPaginationInput,
             Finding.class);
@@ -108,15 +122,19 @@ public class FindingDistinctSearchService {
       String scenarioId, SearchPaginationInput searchPaginationInput) {
     Specification<Finding> triageStatusSpecification =
         extractTriageStatusSpecification(searchPaginationInput);
+    Specification<Finding> triageStatusOrderSpecification =
+        extractTriageStatusOrderSpecification(searchPaginationInput);
     Page<Finding> page =
         buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.distinctTypeValueWithFilter(
-                        withTriageStatus(
-                            FindingSpecification.findFindingsForScenario(scenarioId)
-                                .and(specification),
-                            triageStatusSpecification)),
+                    withTriageStatusOrder(
+                        FindingSpecification.distinctTypeValueWithFilter(
+                            withTriageStatus(
+                                FindingSpecification.findFindingsForScenario(scenarioId)
+                                    .and(specification),
+                                triageStatusSpecification)),
+                        triageStatusOrderSpecification),
                     pageable),
             searchPaginationInput,
             Finding.class);
@@ -129,15 +147,19 @@ public class FindingDistinctSearchService {
       String endpointId, SearchPaginationInput searchPaginationInput) {
     Specification<Finding> triageStatusSpecification =
         extractTriageStatusSpecification(searchPaginationInput);
+    Specification<Finding> triageStatusOrderSpecification =
+        extractTriageStatusOrderSpecification(searchPaginationInput);
     Page<Finding> page =
         buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.distinctTypeValueWithFilter(
-                        withTriageStatus(
-                            FindingSpecification.findFindingsForEndpoint(endpointId)
-                                .and(specification),
-                            triageStatusSpecification)),
+                    withTriageStatusOrder(
+                        FindingSpecification.distinctTypeValueWithFilter(
+                            withTriageStatus(
+                                FindingSpecification.findFindingsForEndpoint(endpointId)
+                                    .and(specification),
+                                triageStatusSpecification)),
+                        triageStatusOrderSpecification),
                     pageable),
             searchPaginationInput,
             Finding.class);
@@ -151,6 +173,86 @@ public class FindingDistinctSearchService {
     return triageStatusSpecification == null
         ? specification
         : specification.and(triageStatusSpecification);
+  }
+
+  /**
+   * Combines the given (already distinct-wrapped) specification with the custom {@code
+   * finding_triage_status} ORDER BY built by {@link
+   * #extractTriageStatusOrderSpecification(SearchPaginationInput)}, applied against the OUTER
+   * query's root - never against {@link
+   * io.openaev.database.specification.FindingSpecification#distinctTypeValueWithFilter}'s internal
+   * subquery root, which would reference a join alias absent from the outer query's FROM clause.
+   */
+  private static Specification<Finding> withTriageStatusOrder(
+      Specification<Finding> distinctSpecification,
+      Specification<Finding> triageStatusOrderSpecification) {
+    return triageStatusOrderSpecification == null
+        ? distinctSpecification
+        : distinctSpecification.and(triageStatusOrderSpecification);
+  }
+
+  /**
+   * Extracts and removes any {@code finding_triage_status} sort request from the input's sort list,
+   * returning an equivalent Specification that sets a custom {@code ORDER BY} on the query instead
+   * of relying on the generic {@code SortUtilsJpa}/{@code @Queryable(sortable = true)} mechanism.
+   *
+   * <p>{@link Finding#triage} is the inverse (mappedBy) side of a 1:1 relation with no physical
+   * column on the {@code findings} table, so it cannot be sorted via a plain JPA property path like
+   * a regular column or a ManyToOne association - Hibernate has nothing to order by without an
+   * explicit join. It also needs the same NULL-as-virtual-UNTRIAGED handling as the filter above: a
+   * finding with no {@link FindingTriage} row must sort alongside real UNTRIAGED rows, not be
+   * pushed to one end by SQL's NULL-ordering rules. Both are achieved with a CASE expression
+   * ranking the (possibly absent) status, removing the sort from the generic list so {@code
+   * SortUtilsJpa} never sees - and never rejects - this non-plain-column property.
+   */
+  private Specification<Finding> extractTriageStatusOrderSpecification(
+      SearchPaginationInput searchPaginationInput) {
+    List<SortField> sorts = searchPaginationInput.getSorts();
+    if (sorts == null) {
+      return null;
+    }
+
+    Optional<SortField> sortField =
+        sorts.stream().filter(s -> TRIAGE_STATUS_FILTER_KEY.equals(s.property())).findFirst();
+    if (sortField.isEmpty()) {
+      return null;
+    }
+    // Remove it from the list so the generic SortUtilsJpa mechanism never sees it - it would
+    // otherwise throw InvalidSortPropertyException since this field has no @Queryable(sortable =
+    // true) (see Finding#triage javadoc for why it cannot be marked sortable directly).
+    sorts.removeIf(s -> TRIAGE_STATUS_FILTER_KEY.equals(s.property()));
+
+    boolean descending = "desc".equalsIgnoreCase(sortField.get().direction());
+
+    return (root, query, cb) -> {
+      // The outer query built by FindingSpecification#distinctTypeValueWithFilter sets
+      // query.distinct(true), but its rows are already unique (its WHERE clause is a plain
+      // `root.id IN (subquery of one min-id per type/value group)`, so no join on this outer root
+      // can multiply rows). Postgres rejects `SELECT DISTINCT ... ORDER BY <expr not in SELECT
+      // list>`, which the ranking expression below would otherwise violate since it comes from a
+      // joined entity's column, not one of the root's own selected columns. Turning distinct off
+      // here is safe precisely because it is redundant on this call path, and does not affect any
+      // other query built from FindingSpecification#distinctTypeValueWithFilter elsewhere, since
+      // Criteria mutations are local to this query instance.
+      query.distinct(false);
+      Join<Finding, FindingTriage> triageJoin = root.join("triage", JoinType.LEFT);
+      // Rank mirrors FindingTriageStatus's declared (and native-Postgres-enum) order: a missing
+      // row and a real UNTRIAGED row both rank first, then CONFIRMED, FALSE_POSITIVE,
+      // RISK_ACCEPTED.
+      Expression<Integer> rank =
+          cb.<Integer>selectCase()
+              .when(cb.isNull(triageJoin.get("id")), 0)
+              .when(cb.equal(triageJoin.get("status"), FindingTriageStatus.UNTRIAGED), 0)
+              .when(cb.equal(triageJoin.get("status"), FindingTriageStatus.CONFIRMED), 1)
+              .when(cb.equal(triageJoin.get("status"), FindingTriageStatus.FALSE_POSITIVE), 2)
+              .otherwise(3);
+      // Set the ORDER BY directly on the query rather than returning it via Sort: this
+      // specification is combined into the outer query built by buildPaginationJPA, whose Pageable
+      // now carries an empty Sort (the field was removed above), so Spring Data JPA never calls
+      // query.orderBy() itself and overwrites this one.
+      query.orderBy(descending ? cb.desc(rank) : cb.asc(rank));
+      return cb.conjunction();
+    };
   }
 
   /**
@@ -262,7 +364,8 @@ public class FindingDistinctSearchService {
     List<String> findingIds = page.getContent().stream().map(Finding::getId).toList();
     Map<String, FindingTriageStatus> triageStatusByFindingId =
         findingTriageRepository.findByFinding_IdIn(findingIds).stream()
-            .collect(Collectors.toMap(triage -> triage.getFinding().getId(), FindingTriage::getStatus));
+            .collect(
+                Collectors.toMap(triage -> triage.getFinding().getId(), FindingTriage::getStatus));
 
     // Step 5: Map page findings + grouped assets + triage statuses to AggregatedFindingOutput
     return page.map(

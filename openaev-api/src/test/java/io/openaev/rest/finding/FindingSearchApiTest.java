@@ -14,8 +14,8 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Exercise;
-import io.openaev.database.model.Finding;
 import io.openaev.database.model.Filters;
+import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
@@ -33,7 +33,9 @@ import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utils.pagination.SortField;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +50,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @DisplayName("Finding search tenant isolation tests")
 class FindingSearchApiTest extends IntegrationTest {
-
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
@@ -271,14 +272,13 @@ class FindingSearchApiTest extends IntegrationTest {
 
   /**
    * Covers the {@code finding_triage_status} distinct search filter added in {@link
-   * FindingDistinctSearchService#extractTriageStatusSpecification}. The critical case is
-   * UNTRIAGED: most findings never get a persisted {@code FindingTriage} row (see {@link
-   * FindingTriageService} javadoc), so a naive equality filter would incorrectly exclude them.
+   * FindingDistinctSearchService#extractTriageStatusSpecification}. The critical case is UNTRIAGED:
+   * most findings never get a persisted {@code FindingTriage} row (see {@link FindingTriageService}
+   * javadoc), so a naive equality filter would incorrectly exclude them.
    */
   @Nested
   @DisplayName("Triage status filter")
-  @WithMockUser(
-      withCapabilities = {Capability.ACCESS_FINDINGS, Capability.MANAGE_FINDING_TRIAGE})
+  @WithMockUser(withCapabilities = {Capability.ACCESS_FINDINGS, Capability.MANAGE_FINDING_TRIAGE})
   class TriageStatusFilter {
 
     private Finding createFinding() {
@@ -308,8 +308,7 @@ class FindingSearchApiTest extends IntegrationTest {
     private List<String> searchDistinctByTriageStatus(
         String status, Filters.FilterOperator operator) throws Exception {
       SearchPaginationInput input =
-          PaginationFixture.simpleSearchWithAndOperator(
-              "finding_triage_status", status, operator);
+          PaginationFixture.simpleSearchWithAndOperator("finding_triage_status", status, operator);
       String response =
           mvc.perform(
                   post("/api/findings/search")
@@ -377,7 +376,119 @@ class FindingSearchApiTest extends IntegrationTest {
     }
   }
 
+  /**
+   * Covers the {@code finding_triage_status} distinct search sort added in {@link
+   * FindingDistinctSearchService#extractTriageStatusOrderSpecification}. Unlike a regular
+   * {@code @Queryable(sortable = true)} column, {@link Finding#triage} has no physical column to
+   * sort by (inverse 1:1 side) and needs the same NULL-as-virtual-UNTRIAGED handling as the filter
+   * above, so this is asserted separately from the generic sort coverage elsewhere.
+   */
+  @Nested
+  @DisplayName("Triage status sort")
+  @WithMockUser(withCapabilities = {Capability.ACCESS_FINDINGS, Capability.MANAGE_FINDING_TRIAGE})
+  class TriageStatusSort {
+
+    private Finding createFindingWithValue(String value) {
+      Finding finding = FindingFixture.createDefaultTextFindingWithRandomValue();
+      finding.setValue(value);
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).persist();
+      return findingComposer.forFinding(finding).withInject(injectWrapper).persist().get();
+    }
+
+    private void triage(String findingId, String status) throws Exception {
+      JsonNode body =
+          JsonNodeFactory.instance
+              .objectNode()
+              .put("status", status)
+              .put("justification", "Triaged for finding_triage_status sort test");
+      mvc.perform(
+              patch("/api/findings/{id}/triage", findingId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(body)))
+          .andExpect(status().isOk());
+    }
+
+    private List<String> searchDistinctSortedByTriageStatus(String direction) throws Exception {
+      Filters.Filter valueFilter = new Filters.Filter();
+      valueFilter.setKey("finding_value");
+      valueFilter.setOperator(Filters.FilterOperator.contains);
+      valueFilter.setValues(List.of("triage-sort-test"));
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(valueFilter)));
+
+      SearchPaginationInput input =
+          PaginationFixture.getDefault()
+              .filterGroup(filterGroup)
+              .sorts(
+                  new ArrayList<>(
+                      List.of(
+                          SortField.builder()
+                              .property("finding_triage_status")
+                              .direction(direction)
+                              .build())))
+              .build();
+      String response =
+          mvc.perform(
+                  post("/api/findings/search")
+                      .queryParam("distinct", "true")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.content[*].finding_id");
+    }
+
+    @Test
+    @DisplayName(
+        "Sorting ascending ranks never-triaged (no-row) findings with UNTRIAGED, before CONFIRMED and FALSE_POSITIVE")
+    void given_ascSort_should_rankUntriagedBeforeConfirmedAndFalsePositive() throws Exception {
+      // Arrange - suffix each value so the "finding_value contains" filter isolates this test's
+      // rows from any other finding created elsewhere in the shared test database.
+      Finding falsePositive =
+          createFindingWithValue("triage-sort-test-fp-" + java.util.UUID.randomUUID());
+      Finding confirmed =
+          createFindingWithValue("triage-sort-test-confirmed-" + java.util.UUID.randomUUID());
+      Finding neverTriaged =
+          createFindingWithValue("triage-sort-test-untriaged-" + java.util.UUID.randomUUID());
+      triage(falsePositive.getId(), "FALSE_POSITIVE");
+      triage(confirmed.getId(), "CONFIRMED");
+
+      // Act - no exception (previously an InvalidSortPropertyException, since Finding#triage has
+      // no @Queryable(sortable = true)) and correct ranking.
+      List<String> ids = searchDistinctSortedByTriageStatus("asc");
+
+      // Assert
+      assertThat(ids).contains(neverTriaged.getId(), confirmed.getId(), falsePositive.getId());
+      assertThat(ids.indexOf(neverTriaged.getId())).isLessThan(ids.indexOf(confirmed.getId()));
+      assertThat(ids.indexOf(confirmed.getId())).isLessThan(ids.indexOf(falsePositive.getId()));
+    }
+
+    @Test
+    @DisplayName("Sorting descending reverses the ranking")
+    void given_descSort_should_rankFalsePositiveBeforeConfirmedAndUntriaged() throws Exception {
+      // Arrange
+      Finding falsePositive =
+          createFindingWithValue("triage-sort-test-desc-fp-" + java.util.UUID.randomUUID());
+      Finding neverTriaged =
+          createFindingWithValue("triage-sort-test-desc-untriaged-" + java.util.UUID.randomUUID());
+      triage(falsePositive.getId(), "FALSE_POSITIVE");
+
+      // Act
+      List<String> ids = searchDistinctSortedByTriageStatus("desc");
+
+      // Assert
+      assertThat(ids).contains(falsePositive.getId(), neverTriaged.getId());
+      assertThat(ids.indexOf(falsePositive.getId())).isLessThan(ids.indexOf(neverTriaged.getId()));
+    }
+  }
+
   private record TestData(
       String scenarioId, String simulationId, String injectId, String endpointId) {}
 }
-
