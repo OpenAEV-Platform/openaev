@@ -1,6 +1,6 @@
 # Collectors
 
-!!! question "Collectors list"
+!!! tip "Collectors list"
 
     You are looking for the available collectors? The list is in the [OpenAEV Ecosystem](https://filigran.notion.site/OpenAEV-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
 

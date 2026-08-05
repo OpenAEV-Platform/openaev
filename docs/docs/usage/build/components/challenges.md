@@ -1,9 +1,14 @@
 # Challenges
 
-Challenges are integral to handling CTF (Capture The Flag) activities on the OpenAEV platform. You can define your
-challenge and the flags that need to be found to complete it.
+Challenges embed CTF (Capture The Flag) activities into your Simulations. You define a challenge with one or more flags that Players must find, and OpenAEV tracks who solved it and when.
 
-## Create a challenge
+## Why use Challenges?
+
+- Test Player skills with hands-on security exercises inside a Simulation.
+- Score and rank Player responses automatically.
+- Combine Challenges with other Inject types (email, media pressure) for realistic exercise scenarios.
+
+## Create a Challenge
 
 To create a new challenge, follow these steps:
 

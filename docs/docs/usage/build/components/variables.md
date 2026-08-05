@@ -1,10 +1,17 @@
 # Variables
 
+Variables let you insert dynamic values into Injects so that each Player receives personalized content. OpenAEV provides built-in variables for common fields (email address, exercise name, etc.) and lets you create custom variables for anything else.
+
+## Why use Variables?
+
+- Personalize email and SMS Injects with Player-specific data without duplicating content.
+- Define reusable tokens that keep Scenario definitions clean and maintainable.
+- Combine variables with FreeMarker list syntax to iterate over Teams or articles.
+
 ## Built-in variables
 
-Within certain injects, users can leverage a set of predefined built-in variables to dynamically customize content.
-These variables are designed to streamline the process of personalizing messages.
-Examples of built-in variables include but not limited to :
+Within certain Injects, you can use a set of predefined built-in variables to dynamically customize content.
+Examples of built-in variables include:
 
 - **${user.email}**: Represents the email of the target user
 - **${exercise.name}**: Represents the name of the current exercise
@@ -51,8 +58,10 @@ Here is a non-exhaustive list of concerned injects :
 
 In case of a list like `articles`, which is a list of articles with properties such as `id`, `name`, and `uri`, or `${teams}`, you could write:
 
+```freemarker
 <#list articles as article> - `${article.name}` </#list>
 <#list teams as team> `${team}` </#list>
+```
 
 ## What's next?
 

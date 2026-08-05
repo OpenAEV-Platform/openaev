@@ -1,9 +1,12 @@
 # People
 
-Breach and Attack Simulation involves testing your security posture, and people are an essential part of it!
+People represent the human side of your security posture in OpenAEV. Players, Teams, and Organizations let you organize who participates in [Simulations](../evaluate/simulation/simulation.md) and [Atomic Tests](../evaluate/atomic-testing/atomic-testing.md).
 
-Players, teams, and organizations are where you organize the human aspect of your security posture within OpenAEV. These
-entities are the targets for injects during your [Simulations](../evaluate/simulation/simulation.md) and [Atomic Tests](../evaluate/atomic-testing/atomic-testing.md).
+## Why use People?
+
+- Target specific Players or Teams with Injects (phishing emails, manual actions, challenges).
+- Measure human response alongside technical detection and prevention.
+- Segregate visibility between Organizations so each group only sees its own Players and Teams.
 
 ## Players
 

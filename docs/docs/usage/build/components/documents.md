@@ -1,30 +1,33 @@
 # Documents
 
-Documents serve as resources for adding content to your table-top injects, helping your animation team and players. They
-can also be utilized in Threat Arsenal Actions for file dropping purposes.
+Documents are files you upload to OpenAEV and attach to Injects or Threat Arsenal Actions. They provide context to Players during a Simulation (briefing notes, procedure guides) or serve as payloads for file-drop actions on endpoints.
 
-## Create a document
+## Why use Documents?
+
+- Attach briefing materials or procedure guides to table-top Injects so Players have the information they need.
+- Include file attachments in email Injects.
+- Create File Drop Threat Arsenal Actions that deliver files to target Assets.
+
+## Create a Document
 
 To create a new document, follow these steps:
 
 1. Click the + button in the bottom right corner of the screen.
 2. Select a file to create your document.
-3. Optionally, add a description and tags to provide additional context. You can also link your documents directly to specific simulations or scenarios.
-   specific simulations or scenarios.
+3. Optionally, add a description and tags to provide additional context. You can also link your Documents directly to specific Simulations or Scenarios.
 
 ![Document creation](./assets/document-creation.png)
 
 After completing these steps, your new document will appear in the document list. Clicking on a document in the list
 will allow you to download it.
 
-## Use a document
+## Use a Document
 
-Documents can be added into table-top injects and Threat Arsenal Actions.
+You can add Documents to table-top Injects and Threat Arsenal Actions.
 
-When creating an table-top inject, you can attach documents to provide context or, in the case of email injects, to
-include attachments.
+When creating a table-top Inject, attach Documents to provide context or, in the case of email Injects, to include attachments.
 
-Additionally, you can create a File Drop Threat Arsenal Action and include your documents within it.
+You can also create a File Drop Threat Arsenal Action and include your Documents within it.
 
 ## What's next?
 

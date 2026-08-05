@@ -1,6 +1,6 @@
 # Injectors
 
-!!! question "Injectors list"
+!!! tip "Injectors list"
 
     You are looking for the available injectors? The list is in the [OpenAEV Ecosystem](https://filigran.notion.site/OpenAEV-Ecosystem-30d8eb73d7d04611843e758ddef8941b).
 

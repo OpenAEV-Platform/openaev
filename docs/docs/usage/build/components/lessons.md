@@ -1,9 +1,12 @@
 # Lessons
 
-Lessons in OpenAEV enable you to create customizable surveys for your simulations. These surveys can be composed of
-various categories and questions within those categories. This feature helps in conducting the often overlooked part of
-a Breach and Attack Simulation involving real people, by automating the process and complementing your simulation
-results with qualitative feedback.
+Lessons let you create customizable surveys that collect qualitative feedback from Players after a Simulation. Each survey is composed of categories and questions that you define.
+
+## Why use Lessons?
+
+- Capture qualitative feedback that complements the quantitative results of a Simulation.
+- Identify gaps in processes, communication, or awareness that technical metrics alone cannot reveal.
+- Automate the lessons-learned step that is often overlooked in Breach and Attack Simulations.
 
 ## Create a lesson template
 
@@ -42,5 +45,11 @@ Lesson templates can be utilized in the Lesson Learned tab of a Simulation. Here
 2. Add relevant teams to the most pertinent categories.
 3. Send your survey to collect feedback.
 
-By integrating lesson templates into your simulations, you can gather valuable insights and improve the effectiveness of
+By integrating lesson templates into your Simulations, you can gather valuable insights and improve the effectiveness of
 your Breach and Attack Simulations.
+
+## What's next?
+
+- [Simulations](../../evaluate/simulation/simulation.md) -- Launch Simulations and collect Player feedback
+- [Scenarios](../scenario/scenario.md) -- Build Scenarios that include lessons-learned surveys
+- [People](../people.md) -- Manage the Players and Teams who will respond to surveys
