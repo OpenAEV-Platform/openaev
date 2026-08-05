@@ -58,14 +58,20 @@ public class EmailContent extends BaseInjectContent {
   }
 
   public String buildMessage(ExecutableInject injection, String baseUrl) {
+    // The message header (and the runtime internal-info footer) only make sense for time-based
+    // scenarios/simulations, where the operator can actually configure the header/footer. A chained
+    // run (chaining workflow) exposes no header/footer configuration at all, so the values here are
+    // just the non-configurable Exercise defaults ("SIMULATION HEADER" ...) leaking into the mail.
+    // For a chained execution, send the authored content only - no header, no internal footer.
+    boolean chained = injection.isChainingExecution();
     // String footer = inject.getFooter();
     String header = injection.getInjection().getInject().getHeader();
     StringBuilder data = new StringBuilder();
-    if (StringUtils.hasLength(header)) {
+    if (!chained && StringUtils.hasLength(header)) {
       data.append(HEADER_DIV).append(header).append(END_DIV);
     }
     data.append(START_DIV).append(body).append(END_DIV);
-    if (injection.isRuntime()) {
+    if (!chained && injection.isRuntime()) {
       data.append(START_DIV)
           .append("<br/><br/><br/><br/>")
           .append(
