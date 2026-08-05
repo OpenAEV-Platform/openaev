@@ -22,7 +22,6 @@ import io.openaev.config.ShutdownService;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.FindingTriage;
-import io.openaev.database.model.FindingTriageHistory;
 import io.openaev.database.model.FindingTriageStatus;
 import io.openaev.database.repository.FindingTriageHistoryRepository;
 import io.openaev.database.repository.FindingTriageRepository;
@@ -33,7 +32,6 @@ import io.openaev.utils.fixtures.composers.FindingComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,8 +49,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Manual verification of the FindingTriage feature: valid/invalid transitions, RBAC (non-admin
  * cannot revert, non-capability user gets 403), bulk partial-failure behavior, and GET history.
- * Re-detection auto-reset (both injector-path and agent-path hooks) has been removed pending a
- * real cross-run identity key - see {@code FindingTriageService}'s class javadoc.
+ * Re-detection auto-reset (both injector-path and agent-path hooks) has been removed pending a real
+ * cross-run identity key - see {@code FindingTriageService}'s class javadoc.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -98,6 +96,68 @@ class FindingTriageApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("GET current status")
+  class GetCurrentStatus {
+
+    @Test
+    @DisplayName(
+        "Never-triaged finding -> 200 OK, virtual UNTRIAGED (no FindingTriage row created)")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_FINDINGS})
+    void
+        given_neverTriagedFinding_when_gettingStatus_should_return200AndUntriagedWithoutPersisting()
+            throws Exception {
+      Finding finding = createFinding(createInject());
+
+      mvc.perform(get("/api/findings/{id}/triage", finding.getId()).with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.finding_triage_status").value("UNTRIAGED"));
+
+      // The read must not have created a FindingTriage row - only PATCH does that (see
+      // FindingTriageService#getCurrentStatus javadoc).
+      assertThat(findingTriageRepository.findByFinding_Id(finding.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Previously triaged finding -> 200 OK, current persisted status")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_FINDING_TRIAGE, Capability.ACCESS_FINDINGS})
+    void given_triagedFinding_when_gettingStatus_should_return200AndCurrentStatus()
+        throws Exception {
+      Finding finding = createFinding(createInject());
+      mvc.perform(
+          patch("/api/findings/{id}/triage", finding.getId())
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(
+                  mapper.writeValueAsString(
+                      triageBody("CONFIRMED", "Confirmed after manual review of the evidence"))));
+
+      mvc.perform(get("/api/findings/{id}/triage", finding.getId()).with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.finding_triage_status").value("CONFIRMED"));
+    }
+
+    @Test
+    @DisplayName("Unknown finding id -> 404 Not Found")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_FINDINGS})
+    void given_unknownFindingId_when_gettingStatus_should_return404() throws Exception {
+      mvc.perform(
+              get("/api/findings/{id}/triage", "00000000-0000-0000-0000-000000000000").with(csrf()))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("User without ACCESS_FINDINGS -> 403 Forbidden")
+    @WithMockUser(withCapabilities = {})
+    void given_userWithoutAccessFindingsCapability_when_gettingStatus_should_return403()
+        throws Exception {
+      Finding finding = createFinding(createInject());
+
+      mvc.perform(get("/api/findings/{id}/triage", finding.getId()).with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+  }
+
+  @Nested
   @DisplayName("Valid transitions")
   class ValidTransitions {
 
@@ -113,7 +173,8 @@ class FindingTriageApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(
                       mapper.writeValueAsString(
-                          triageBody("CONFIRMED", "Confirmed after manual review of the evidence"))))
+                          triageBody(
+                              "CONFIRMED", "Confirmed after manual review of the evidence"))))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.finding_triage_status").value("CONFIRMED"));
 
@@ -170,7 +231,9 @@ class FindingTriageApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Same-status transition (UNTRIAGED -> UNTRIAGED) -> 400 Bad Request")
-    @WithMockUser(withCapabilities = {Capability.MANAGE_FINDING_TRIAGE}, isAdmin = true)
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_FINDING_TRIAGE},
+        isAdmin = true)
     void given_untriagedFinding_when_settingSameStatus_should_return400() throws Exception {
       Finding finding = createFinding(createInject());
 
@@ -206,7 +269,9 @@ class FindingTriageApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Non-admin with MANAGE_FINDING_TRIAGE reverting to UNTRIAGED -> 403 Forbidden")
-    @WithMockUser(withCapabilities = {Capability.MANAGE_FINDING_TRIAGE}, isAdmin = false)
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_FINDING_TRIAGE},
+        isAdmin = false)
     void given_nonAdminUser_when_revertingToUntriaged_should_return403() throws Exception {
       Finding finding = createFinding(createInject());
       mvc.perform(
@@ -229,7 +294,9 @@ class FindingTriageApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Admin with MANAGE_FINDING_TRIAGE reverting to UNTRIAGED -> 200 OK")
-    @WithMockUser(withCapabilities = {Capability.MANAGE_FINDING_TRIAGE}, isAdmin = true)
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_FINDING_TRIAGE},
+        isAdmin = true)
     void given_adminUser_when_revertingToUntriaged_should_return200() throws Exception {
       Finding finding = createFinding(createInject());
       mvc.perform(
@@ -287,10 +354,11 @@ class FindingTriageApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(body)))
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$[?(@.finding_id == '" + validFinding.getId() + "')].success")
-              .value(true))
           .andExpect(
-              jsonPath("$[?(@.finding_id == '" + otherFinding.getId() + "')].success").value(false));
+              jsonPath("$[?(@.finding_id == '" + validFinding.getId() + "')].success").value(true))
+          .andExpect(
+              jsonPath("$[?(@.finding_id == '" + otherFinding.getId() + "')].success")
+                  .value(false));
 
       assertThat(
               findingTriageRepository
@@ -335,6 +403,91 @@ class FindingTriageApiTest extends IntegrationTest {
           .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
           .andExpect(jsonPath("$[0].finding_triage_history_to_status").value("CONFIRMED"))
           .andExpect(jsonPath("$[1].finding_triage_history_to_status").value("RISK_ACCEPTED"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant-prefixed routes")
+  class TenantPrefixedRoutes {
+
+    // Regression coverage for the bug where FindingTriageApi only registered the non-tenant
+    // URIs: the frontend's Action.ts always calls through buildTenantApiPath, so every request
+    // in a real browser session hits /api/tenants/{tenantId}/findings/{id}/triage(...) - if only
+    // the bare /api/findings/... mapping exists, that request 404s even though the bare path
+    // works fine in tests/curl. See FindingApi's TENANT_FINDING_URI for the established pattern.
+
+    @Test
+    @DisplayName("GET current status via tenant-prefixed URI -> 200 OK")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_FINDINGS})
+    void given_neverTriagedFinding_when_gettingStatusViaTenantUri_should_return200()
+        throws Exception {
+      Finding finding = createFinding(createInject());
+
+      mvc.perform(
+              get(tenantUri(FindingTriageApi.TENANT_FINDING_TRIAGE_URI), finding.getId())
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.finding_triage_status").value("UNTRIAGED"));
+    }
+
+    @Test
+    @DisplayName("PATCH single triage via tenant-prefixed URI -> 200 OK, status updated")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_FINDING_TRIAGE})
+    void given_untriagedFinding_when_confirmingViaTenantUri_should_return200() throws Exception {
+      Finding finding = createFinding(createInject());
+
+      mvc.perform(
+              patch(tenantUri(FindingTriageApi.TENANT_FINDING_TRIAGE_URI), finding.getId())
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      mapper.writeValueAsString(
+                          triageBody(
+                              "CONFIRMED", "Confirmed after manual review of the evidence"))))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.finding_triage_status").value("CONFIRMED"));
+    }
+
+    @Test
+    @DisplayName("PATCH bulk triage via tenant-prefixed URI -> 200 OK")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_FINDING_TRIAGE})
+    void given_untriagedFinding_when_bulkConfirmingViaTenantUri_should_return200()
+        throws Exception {
+      Finding finding = createFinding(createInject());
+      com.fasterxml.jackson.databind.node.ObjectNode body =
+          instance
+              .objectNode()
+              .put("status", "CONFIRMED")
+              .put("justification", "Bulk confirming via tenant-prefixed URI");
+      body.putArray("finding_ids").add(finding.getId());
+
+      mvc.perform(
+              patch(tenantUri(FindingTriageApi.TENANT_FINDING_TRIAGE_BULK_URI))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(body)))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET history via tenant-prefixed URI -> 200 OK")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_FINDING_TRIAGE})
+    void given_transitionedFinding_when_gettingHistoryViaTenantUri_should_return200()
+        throws Exception {
+      Finding finding = createFinding(createInject());
+      mvc.perform(
+          patch("/api/findings/{id}/triage", finding.getId())
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(
+                  mapper.writeValueAsString(
+                      triageBody("CONFIRMED", "Confirmed after manual review of the evidence"))));
+
+      mvc.perform(
+              get(tenantUri(FindingTriageApi.TENANT_FINDING_TRIAGE_HISTORY_URI), finding.getId())
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)));
     }
   }
 }
