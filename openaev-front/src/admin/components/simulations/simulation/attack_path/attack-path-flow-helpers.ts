@@ -1,4 +1,4 @@
-import { type Edge, type Node } from '@xyflow/react';
+import type { CSSProperties } from 'react';
 
 import type { AttackPathAttackPatternDTO, AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
 import { AP_ENDPOINT_SIZE, AP_FINDING_SIZE, AP_INJECTOR_SIZE } from './nodes/node-sizes';
@@ -63,6 +63,10 @@ export interface AttackPathFlowNodeData {
   ip?: string;
   seenIp?: string;
   platform?: string;
+  // What real entity an ASSET-band node stands for: TEAM / PERSON / ASSET_GROUP for a
+  // human-in-the-loop target (phishing, credential harvesting, ...), else undefined for a plain
+  // endpoint. The AssetNode renderer keys off this to pick the icon.
+  entityKind?: string;
   agents?: string[];
   // For an injector/execution node: the id of the step template it ran. Carried so the kill-chain
   // causal builder can look up execution metadata (dependsOn / consumedFindingKeys) per node. Mirrors
@@ -117,8 +121,29 @@ export interface AttackPathFlowEdgeData {
   [key: string]: unknown;
 }
 
-export type AttackPathFlowNode = Node<AttackPathFlowNodeData>;
-export type AttackPathFlowEdge = Edge<AttackPathFlowEdgeData>;
+// Local structural graph types (formerly @xyflow/react's Node/Edge): the attack-path view renders
+// on its own canvas, so only the fields the builders and the canvas actually use are modeled.
+export interface AttackPathFlowNode {
+  id: string;
+  type?: string;
+  position: {
+    x: number;
+    y: number;
+  };
+  data: AttackPathFlowNodeData;
+  selected?: boolean;
+  style?: CSSProperties;
+}
+
+export interface AttackPathFlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
+  data?: AttackPathFlowEdgeData;
+  selected?: boolean;
+  style?: CSSProperties;
+}
 
 // An endpoint can carry several IPs (comma-separated). The map node shows only the relevant one to
 // stay readable: the asset's seen IP when known, otherwise the first IPv4, otherwise the first
@@ -147,6 +172,7 @@ const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   ip: n.ip,
   seenIp: n.seenIp,
   platform: n.platform,
+  entityKind: n.entityKind,
   agents: n.agents,
   stepTemplateId: n.stepTemplateId,
   injectorType: n.injectorType,
@@ -506,6 +532,14 @@ export const buildClusteredAttackPathFlow = (
     const tgt = e.edgeTargetId;
     // A sourceless edge is malformed and ignored entirely (as before this guard was split).
     if (!src || !tgt || !assetById.has(tgt)) {
+      continue;
+    }
+    // Skip the nested team -> person recipient edge of a human-in-the-loop inject: its source is a
+    // TEAM/PERSON/ASSET_GROUP asset, not an injector, so it must not add the recipient as an endpoint
+    // "reached by" the team (which has no injector node and would render as a phantom action). The team
+    // itself stays — it is the injector-sourced target of the same inject.
+    const srcKind = assetById.get(src)?.entityKind;
+    if (srcKind === 'TEAM' || srcKind === 'PERSON' || srcKind === 'ASSET_GROUP') {
       continue;
     }
     // The endpoint is a reached node even for endpoint-local actions.
@@ -1510,11 +1544,25 @@ export const buildCausalChainFlow = (
   const execByRef = new Map((dto.attackPathExecutions ?? []).filter(e => e.ref).map(e => [e.ref as string, e]));
   const execEdges = (dto.attackPathEdges ?? []).filter(e => e.type === EDGE_EXECUTIONS);
 
+  // A human-in-the-loop inject (email, SMS, …) emits a nested execution edge per enabled recipient:
+  // team -> person (the source is the TEAM asset, the target the PERSON). That edge must NOT start a
+  // step — its source is not an injector — otherwise the team is promoted into a phantom "action" node
+  // (with the fallback icon, since an asset carries no injectorType) that reads as a second send to the
+  // person. Only a real injector source (or an agent/endpoint pivot, entityKind null) starts a step, so
+  // a source whose asset node is a TEAM/PERSON/ASSET_GROUP is dropped here.
+  const isHumanInLoopSource = (id?: string): boolean => {
+    const kind = assetById.get(id ?? '')?.entityKind;
+    return kind === 'TEAM' || kind === 'PERSON' || kind === 'ASSET_GROUP';
+  };
+
   // Each execution edge links one injector (edgeSourceId) to one endpoint (edgeTargetId), carrying the
   // execution refs that ran it — so we recover, per execution, which injector ran it and which endpoint.
   const injByExec = new Map<string, string>();
   const epByExec = new Map<string, string>();
   for (const e of execEdges) {
+    if (isHumanInLoopSource(e.edgeSourceId)) {
+      continue;
+    }
     for (const ref of e.executionIds ?? []) {
       if (e.edgeSourceId) {
         injByExec.set(ref, e.edgeSourceId);

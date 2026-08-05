@@ -9,7 +9,7 @@ import { type HealthCheck, type Scenario } from '../../../../../utils/api-types'
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
 
-const ScenarioScope = () => {
+const ScenarioScope = ({ readOnly = false }: { readOnly?: boolean }) => {
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
 
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
@@ -29,15 +29,18 @@ const ScenarioScope = () => {
 
   if (!scenario?.scenario_workflow_id) return null;
 
+  // The empty-scope shortfall is already surfaced in the hero; drop the duplicate inline banner.
+  const visibleHealthchecks = healthchecks.filter(healthcheck => healthcheck.type !== 'SCOPE_DEFINITION');
+
   return (
     <div>
-      {!!healthchecks?.length && (
+      {!!visibleHealthchecks.length && (
         <Healthchecks
-          healthchecks={healthchecks}
+          healthchecks={visibleHealthchecks}
           scenarioId={scenarioId}
         />
       )}
-      <ScopeDefinition workflowId={scenario.scenario_workflow_id} />
+      <ScopeDefinition workflowId={scenario.scenario_workflow_id} readOnly={readOnly} />
     </div>
   );
 };

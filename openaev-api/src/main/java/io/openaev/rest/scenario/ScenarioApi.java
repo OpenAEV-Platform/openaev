@@ -38,6 +38,7 @@ import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
@@ -90,6 +91,7 @@ public class ScenarioApi extends RestBehavior {
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
   private final ExpectationsDriftService expectationsDriftService;
+  private final AutonomousRunService autonomousRunService;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -321,6 +323,9 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
   public void deleteScenario(@PathVariable @NotBlank final String scenarioId) {
+    // An autonomous scenario and its single simulation are one unit: tear the run + simulation down
+    // first (409 if the run is still active), then delete the scenario. No-op for manual scenarios.
+    this.autonomousRunService.deleteForScenario(scenarioId);
     this.scenarioService.deleteScenario(scenarioId);
   }
 

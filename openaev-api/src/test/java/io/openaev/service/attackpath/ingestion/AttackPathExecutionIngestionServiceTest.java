@@ -11,13 +11,17 @@ import io.openaev.database.model.Agent;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.ExerciseTeamUser;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
+import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionRemediation;
@@ -339,6 +343,81 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
             executionRepository.findById(
                 AttackPathIds.executionNode("exec-idem", endpointId, "agt-1")))
         .isPresent();
+  }
+
+  @Test
+  @DisplayName(
+      "Team-targeted (human-in-the-loop) inject renders the team and each enabled recipient")
+  void teamTargetedInjectRendersTeamAndRecipients() {
+    // Arrange
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-team-target"));
+    TenantContext.setCurrentTenant(tenant.getId());
+
+    Exercise exercise = new Exercise();
+    exercise.setId("SIM-TEAM");
+
+    User recipient = new User();
+    recipient.setId("user-sam");
+    recipient.setEmail("sam@corp.example");
+
+    Team team = new Team();
+    team.setId("team-ai-1");
+    team.setName("AI target sam@corp.example");
+    ExerciseTeamUser etu = new ExerciseTeamUser();
+    etu.setExercise(exercise);
+    etu.setTeam(team);
+    etu.setUser(recipient);
+    team.getExerciseTeamUsers().add(etu);
+
+    Injector injector = new Injector();
+    injector.setId("injector-email");
+    injector.setType("openaev_email");
+    injector.setName("Email");
+
+    // An email injector needs no executor and targets a TEAM (no assets, no target_selector).
+    InjectorContract contract = InjectorContractFixture.createDefaultInjectorContract();
+    contract.setNeedsExecutor(false);
+
+    Inject inject = InjectFixture.getDefaultInject();
+    inject.setId("inject-phish-1");
+    inject.setExercise(exercise);
+    inject.setTenant(tenant);
+    inject.setTitle("Spearphishing link");
+    inject.setInjectorContract(contract);
+    inject.setInjector(injector);
+    inject.setContent(com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode());
+    inject.setTeams(List.of(team));
+
+    Step stepTemplate = StepFixture.getDefaultStepTemplate();
+    stepTemplate.setId("tmpl-team");
+    Step step = StepFixture.getDefaultStepTemplate();
+    step.setId("step-team");
+    step.setStepTemplate(stepTemplate);
+
+    // Act
+    List<AttackPathExecution> rows = ingestionService.getAttackPathExecution(inject, step, null);
+
+    // Assert: one TEAM row (injector -> team) and one PERSON row (team -> recipient).
+    assertThat(rows).hasSize(2);
+
+    AttackPathExecution teamRow =
+        rows.stream().filter(r -> "TEAM".equals(r.getTargetKind())).findFirst().orElseThrow();
+    assertThat(teamRow.getId())
+        .isEqualTo(AttackPathIds.executionNode("inject-phish-1", "team-ai-1", "injector-email"));
+    assertThat(teamRow.getSourceKind()).isEqualTo("INJECTOR");
+    assertThat(teamRow.getTargetKey()).isEqualTo("team-ai-1");
+    assertThat(teamRow.getTargetHostname()).isEqualTo("AI target sam@corp.example");
+    assertThat(teamRow.getSimulationId()).isEqualTo("SIM-TEAM");
+
+    AttackPathExecution personRow =
+        rows.stream().filter(r -> "PERSON".equals(r.getTargetKind())).findFirst().orElseThrow();
+    assertThat(personRow.getId())
+        .isEqualTo(AttackPathIds.executionNode("inject-phish-1", "user-sam", "team-ai-1"));
+    // The person hangs off the team, so the team is this row's SOURCE (injector -> team -> person).
+    assertThat(personRow.getSourceKind()).isEqualTo("TEAM");
+    assertThat(personRow.getSourceAssetId()).isEqualTo("team-ai-1");
+    assertThat(personRow.getTargetKey()).isEqualTo("user-sam");
+    assertThat(personRow.getTargetHostname()).isEqualTo("sam@corp.example");
   }
 
   @Test

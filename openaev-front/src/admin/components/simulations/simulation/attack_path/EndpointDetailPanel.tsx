@@ -1,12 +1,14 @@
 import { Close } from '@mui/icons-material';
-import { Box, Button, IconButton, MenuItem, Pagination, Paper, Select, Typography } from '@mui/material';
+import { Alert, Box, Button, IconButton, MenuItem, Pagination, Paper, Select, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
+import FindingIcon from '../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathNodeDTO } from '../../../../../utils/api-types';
-import attackPathStatusColor from './attack-path-colors';
+import InjectFormSection from '../../../common/injects/form/InjectFormSection';
+import AttackPathVerdictPill from './AttackPathVerdictPill';
 
 interface FindingGroup {
   type: string;
@@ -16,8 +18,8 @@ interface FindingGroup {
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
 const DEFAULT_PAGE_SIZE = 10;
 
-// A compact "N / page" selector next to a section title — shared by the Findings groups and the
-// Executions list so both windowed lists offer the same control.
+// A compact "N / page" selector rendered in the Findings section header: values are all loaded, so
+// this only windows the display of a group that would otherwise render an unbounded list of values.
 const PageSizeSelect = ({ value, onChange }: {
   value: number;
   onChange: (value: number) => void;
@@ -65,11 +67,18 @@ interface Props {
   // When true, the Findings section is omitted — used for the injector panel, which lists the
   // injector's contracts under "Executions" but has no findings of its own.
   hideFindings?: boolean;
+  /**
+   * Empty-state text for the Findings section. The panel serves endpoints, teams, asset groups AND
+   * actions (injector panel), so the caller words it for the actual entity ("No findings on this
+   * team", "No findings from this action", ...). Falls back to a neutral target wording.
+   */
+  emptyFindingsLabel?: string;
 }
 
 // Right-side panel for one endpoint selected in the attack-path graph: its findings grouped by type
-// and the executions that reached it. Mirrors FindingDetailPanel / ExecutionResultTerminalPanel
-// (outlined Paper, width 340, header with a close control) so the three side panels are consistent.
+// and the executions that reached it. Design-system layout: an app-Drawer-style header (h5 + close),
+// InjectFormSection sections, FindingIcon on each finding group and a verdict pill per execution.
+// Mirrors FindingDetailPanel / ExecutionResultTerminalPanel so the three side panels are consistent.
 const EndpointDetailPanel = ({
   endpointLabel,
   endpointSub,
@@ -85,23 +94,14 @@ const EndpointDetailPanel = ({
   execStatusLabel,
   onClose,
   hideFindings = false,
+  emptyFindingsLabel,
 }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  // One page per finding-type group (all values are already loaded — this just windows the display);
-  // the page size is shared by every group, like a single control for the whole Findings section.
+  // One page per finding-type group (values are already loaded — this only windows the display); the
+  // page size is shared by every group, one control for the whole Findings section.
   const [groupPages, setGroupPages] = useState<Record<string, number>>({});
   const [findingsPageSize, setFindingsPageSize] = useState(DEFAULT_PAGE_SIZE);
-  // Executions are windowed the same way. `executions` itself may still be a server-paginated subset
-  // (see totalExecutions/onShowMore below) — this only windows whatever is currently loaded.
-  const [executionsPage, setExecutionsPage] = useState(1);
-  const [executionsPageSize, setExecutionsPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const executionsPageCount = Math.max(1, Math.ceil(executions.length / executionsPageSize));
-  const currentExecutionsPage = Math.min(executionsPage, executionsPageCount);
-  const pagedExecutions = executions.slice(
-    (currentExecutionsPage - 1) * executionsPageSize,
-    currentExecutionsPage * executionsPageSize,
-  );
 
   return (
     <Paper
@@ -114,82 +114,106 @@ const EndpointDetailPanel = ({
         flexDirection: 'column',
       }}
     >
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: theme.spacing(1),
-        padding: theme.spacing(2, 2.5, 1),
+      {/* Header in the app Drawer language: title + close, over the standard divider. The title row
+          centers the close control on the title line; the subtitle flows below it. */}
+      <Box sx={{
+        padding: theme.spacing(2, 2.5, 1.5),
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        flexShrink: 0,
       }}
       >
-        <div style={{ minWidth: 0 }}>
-          <Typography variant="h6" noWrap title={endpointLabel}>{endpointLabel}</Typography>
-          {endpointSub && (
-            <Typography variant="caption" color="text.secondary" noWrap>{endpointSub}</Typography>
-          )}
-        </div>
-        <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
-          <Close />
-        </IconButton>
-      </div>
-
-      <div style={{ padding: theme.spacing(0, 2.5, 2) }}>
-        {!hideFindings && (
-          <>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 1,
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
+        >
+          <Typography
+            variant="h5"
+            noWrap
+            title={endpointLabel}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              margin: 0,
             }}
-            >
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                {t('Findings')}
-              </Typography>
-              {findingGroups.some(g => g.values.length > PAGE_SIZE_OPTIONS[0]) && (
-                <PageSizeSelect value={findingsPageSize} onChange={setFindingsPageSize} />
-              )}
-            </Box>
+          >
+            {endpointLabel}
+          </Typography>
+          <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
+            <Close fontSize="small" />
+          </IconButton>
+        </Box>
+        {endpointSub && (
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{endpointSub}</Typography>
+        )}
+      </Box>
+
+      <Box sx={{
+        padding: theme.spacing(2, 2.5),
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 3,
+      }}
+      >
+        {!hideFindings && (
+          <InjectFormSection
+            title={t('Findings')}
+            action={findingGroups.some(g => g.values.length > PAGE_SIZE_OPTIONS[0])
+              ? <PageSizeSelect value={findingsPageSize} onChange={setFindingsPageSize} />
+              : undefined}
+          >
             {findingsLoading && (
               <Box sx={{ minHeight: 60 }}>
                 <Loader variant="inElement" size="sm" />
               </Box>
             )}
             {!findingsLoading && findingGroups.length === 0 && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  display: 'block',
-                  mb: 1,
-                }}
-              >
-                {t('No findings on this endpoint')}
-              </Typography>
+              <Alert severity="info">{emptyFindingsLabel ?? t('No findings on this target')}</Alert>
             )}
             {!findingsLoading && findingGroups.map((g) => {
               const pageCount = Math.max(1, Math.ceil(g.values.length / findingsPageSize));
               const page = Math.min(groupPages[g.type] ?? 1, pageCount);
-              const pageValues = g.values.slice(
-                (page - 1) * findingsPageSize,
-                page * findingsPageSize,
-              );
+              const pageValues = g.values.slice((page - 1) * findingsPageSize, page * findingsPageSize);
               return (
-                <Box key={g.type} sx={{ mb: 1 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      display: 'block',
-                      fontWeight: 700,
-                      color: 'text.primary',
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.4,
-                    }}
+                <Box key={g.type}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    mb: 0.5,
+                  }}
                   >
-                    {`${g.type} (${g.values.length})`}
-                  </Typography>
+                    <Box sx={{
+                      'display': 'flex',
+                      'alignItems': 'center',
+                      'flexShrink': 0,
+                      '& .MuiSvgIcon-root': { fontSize: 16 },
+                    }}
+                    >
+                      <FindingIcon findingType={g.type} />
+                    </Box>
+                    <Typography
+                      sx={{
+                        fontFamily: '"Geologica", sans-serif',
+                        fontWeight: 600,
+                        fontSize: 10,
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {`${g.type} (${g.values.length})`}
+                    </Typography>
+                  </Box>
                   {pageValues.map((v, i) => (
-                    <Typography key={`${g.type}-${i}`} variant="body2" noWrap title={v}>
+                    <Typography
+                      key={`${g.type}-${i}`}
+                      variant="body2"
+                      noWrap
+                      title={v}
+                      sx={{ pl: 2.75 }}
+                    >
                       {v}
                     </Typography>
                   ))}
@@ -202,142 +226,118 @@ const EndpointDetailPanel = ({
                         ...prev,
                         [g.type]: value,
                       }))}
-                      sx={{ mt: 0.5 }}
+                      sx={{
+                        mt: 0.5,
+                        pl: 2.25,
+                      }}
                     />
                   )}
                 </Box>
               );
             })}
-          </>
+          </InjectFormSection>
         )}
 
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1,
-          mt: hideFindings ? 0 : 1,
-        }}
-        >
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            {`${t('Executions')} (${executions.length})`}
-          </Typography>
-          {executions.length > PAGE_SIZE_OPTIONS[0] && (
-            <PageSizeSelect
-              value={executionsPageSize}
-              onChange={(value) => {
-                setExecutionsPageSize(value);
-                setExecutionsPage(1);
-              }}
-            />
-          )}
-        </Box>
-        {pagedExecutions.map((e) => {
-          const status = execStatusLabel(e.status);
-          const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
-          return (
-            <Box
-              key={e.id}
-              ref={(el: HTMLDivElement | null) => {
-                if (e.id) {
-                  registerRow(e.id, el);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              onClick={() => e.ref && onSelectExecution(e.ref)}
-              onKeyDown={(ev) => {
-                if (e.ref && (ev.key === 'Enter' || ev.key === ' ')) {
-                  ev.preventDefault();
-                  onSelectExecution(e.ref);
-                }
-              }}
-              sx={{
-                'display': 'flex',
-                'alignItems': 'center',
-                'gap': 1,
-                'py': 0.5,
-                'px': 0.5,
-                'borderRadius': 1,
-                'borderBottom': `1px solid ${theme.palette.divider}`,
-                'backgroundColor': highlighted ? 'action.selected' : undefined,
-                // A left accent so the finding's producing execution stands out in the feed.
-                'borderLeft': highlighted ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
-                'cursor': 'pointer',
-                '&:hover': { backgroundColor: 'action.hover' },
-                '&:focus-visible': {
-                  outline: `2px solid ${theme.palette.primary.main}`,
-                  outlineOffset: -2,
-                },
-              }}
-            >
-              <span
-                role="img"
-                aria-label={status}
-                title={status}
-                style={{
-                  flex: '0 0 auto',
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: attackPathStatusColor(theme, e.status),
-                }}
-              />
-              <div style={{ minWidth: 0 }}>
-                <Typography variant="body2" noWrap>{e.payloadName || e.label}</Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {[status, e.agentName, e.privilege].filter(Boolean).join(' · ')}
-                </Typography>
-              </div>
-            </Box>
-          );
-        })}
-        {executionsPageCount > 1 && (
-          <Pagination
-            size="small"
-            count={executionsPageCount}
-            page={currentExecutionsPage}
-            onChange={(_, value) => setExecutionsPage(value)}
-            sx={{ mt: 0.5 }}
-          />
-        )}
-        {/* The list holds one page, so reaching the rest must be an action rather than a dead caption:
-            same slot, a text button that fetches the next page (See More precedent). Where the caller
-            cannot fetch more (the injector panel reads a bounded set in one go), say what is not shown
-            rather than truncate silently. */}
-        {(totalExecutions ?? 0) > executions.length && (
-          onShowMore
-            ? (
-                <Button
-                  size="small"
-                  variant="text"
-                  disabled={loadingMore}
-                  onClick={() => onShowMore()}
+        <InjectFormSection title={`${t('Executions')} (${executions.length})`}>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+          >
+            {executions.map((e) => {
+              const status = execStatusLabel(e.status);
+              const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
+              return (
+                <Box
+                  key={e.id}
+                  ref={(el: HTMLDivElement | null) => {
+                    if (e.id) {
+                      registerRow(e.id, el);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => e.ref && onSelectExecution(e.ref)}
+                  onKeyDown={(ev) => {
+                    if (e.ref && (ev.key === 'Enter' || ev.key === ' ')) {
+                      ev.preventDefault();
+                      onSelectExecution(e.ref);
+                    }
+                  }}
                   sx={{
-                    mt: 1,
-                    textTransform: 'none',
+                    'display': 'flex',
+                    'alignItems': 'center',
+                    'gap': 1,
+                    'py': 0.75,
+                    'px': 0.5,
+                    'borderRadius': 1,
+                    'borderBottom': `1px solid ${theme.palette.divider}`,
+                    'backgroundColor': highlighted ? 'action.selected' : undefined,
+                    // A left accent so the finding's producing execution stands out in the feed.
+                    'borderLeft': highlighted ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
+                    'cursor': 'pointer',
+                    'transition': theme.transitions.create(['background-color', 'border-color']),
+                    '&:hover': { backgroundColor: 'action.hover' },
+                    '&:focus-visible': {
+                      outline: `2px solid ${theme.palette.primary.main}`,
+                      outlineOffset: -2,
+                    },
                   }}
                 >
-                  {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}
-                </Button>
-              )
-            : (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{
-                    display: 'block',
-                    pt: 1,
+                  <Box sx={{
+                    minWidth: 0,
+                    flex: 1,
                   }}
-                >
-                  {t('Showing the first {count} of {total}', {
-                    count: executions.length,
-                    total: totalExecutions,
-                  })}
-                </Typography>
-              )
-        )}
-      </div>
+                  >
+                    <Typography variant="body2" noWrap>{e.payloadName || e.label}</Typography>
+                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                      {[e.agentName, e.privilege].filter(Boolean).join(' · ')}
+                    </Typography>
+                  </Box>
+                  <AttackPathVerdictPill label={status} status={e.status} />
+                </Box>
+              );
+            })}
+            {/* The list holds one page, so reaching the rest must be an action rather than a dead caption:
+                same slot, a text button that fetches the next page (See More precedent). Where the caller
+                cannot fetch more (the injector panel reads a bounded set in one go), say what is not shown
+                rather than truncate silently. */}
+            {(totalExecutions ?? 0) > executions.length && (
+              onShowMore
+                ? (
+                    <Button
+                      size="small"
+                      variant="text"
+                      disabled={loadingMore}
+                      onClick={() => onShowMore()}
+                      sx={{
+                        mt: 1,
+                        alignSelf: 'flex-start',
+                        textTransform: 'none',
+                      }}
+                    >
+                      {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}
+                    </Button>
+                  )
+                : (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        display: 'block',
+                        pt: 1,
+                      }}
+                    >
+                      {t('Showing the first {count} of {total}', {
+                        count: executions.length,
+                        total: totalExecutions,
+                      })}
+                    </Typography>
+                  )
+            )}
+          </Box>
+        </InjectFormSection>
+      </Box>
     </Paper>
   );
 };

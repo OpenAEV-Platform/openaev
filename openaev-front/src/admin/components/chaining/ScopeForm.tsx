@@ -1,3 +1,4 @@
+import { GroupsOutlined, PersonOutlined } from '@mui/icons-material';
 import { Box, Button, Tab, Tabs, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
@@ -15,6 +16,9 @@ import { findAssetGroups, searchAssetGroups } from '../../../actions/asset_group
 import { findEndpoints, searchEndpoints } from '../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../actions/executors/executor-helper';
+import { searchPlayers } from '../../../actions/players/player-actions';
+import { searchTeamByIdAsOption, searchTeams } from '../../../actions/teams/team-actions';
+import { searchPlayerByIdAsOption } from '../../../actions/users/User';
 import ClickableList, { type ClickableListElements } from '../../../components/common/ClickableList';
 import { SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -24,7 +28,7 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
-import type { AssetGroupOutput, EndpointOutput } from '../../../utils/api-types';
+import type { AssetGroupOutput, EndpointOutput, PlayerOutput, TeamOutput } from '../../../utils/api-types';
 import { getActiveMsgTooltip, getExecutorsCount } from '../../../utils/endpoints/utils';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -46,34 +50,58 @@ export interface ScopeCustomRule {
   value: string;
 }
 
+interface ScopeIdOption {
+  id: string;
+  label: string;
+}
+
 interface ScopeFormProps {
   mode: 'ALLOWLIST' | 'DENYLIST';
   selectedEndpointIds: string[];
   selectedAssetGroupIds: string[];
+  selectedTeamIds: string[];
+  selectedPlayerIds: string[];
   selectedCustomRules: ScopeCustomRule[];
   initialEndpointIds: string[];
   initialAssetGroupIds: string[];
+  initialTeamIds: string[];
+  initialPlayerIds: string[];
   initialCustomRules: ScopeCustomRule[];
   onEndpointIdsChange: (ids: string[]) => void;
   onAssetGroupIdsChange: (ids: string[]) => void;
+  onTeamIdsChange: (ids: string[]) => void;
+  onPlayerIdsChange: (ids: string[]) => void;
   onCustomRulesChange: (rules: ScopeCustomRule[]) => void;
-  onCancel: () => void;
-  onSubmit: () => void;
+  onCancel?: () => void;
+  onSubmit?: () => void;
+  /**
+   * Hide the built-in Cancel / Define-scope footer so the picker body (inventory + kind tabs + list)
+   * can be embedded inside another flow that owns its own navigation - e.g. the autonomous launch
+   * stepper, which drives Back / Next / Launch itself and reuses this exact experience per list.
+   */
+  hideFooter?: boolean;
 }
 
 const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   mode,
   selectedEndpointIds,
   selectedAssetGroupIds,
+  selectedTeamIds,
+  selectedPlayerIds,
   selectedCustomRules,
   initialEndpointIds,
   initialAssetGroupIds,
+  initialTeamIds,
+  initialPlayerIds,
   initialCustomRules,
   onEndpointIdsChange,
   onAssetGroupIdsChange,
+  onTeamIdsChange,
+  onPlayerIdsChange,
   onCustomRulesChange,
   onCancel,
   onSubmit,
+  hideFooter = false,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -84,11 +112,13 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   const [currentTab, setCurrentTab] = useState<string>('assets');
 
   const listLabel = mode === 'ALLOWLIST' ? t('Allowlisted') : t('Denylisted');
-  const addLabel = mode === 'ALLOWLIST' ? t('Add asset and asset groups to your allowlist') : t('Add asset and asset groups to your denylist');
+  const addLabel = mode === 'ALLOWLIST' ? t('Add assets, asset groups, teams and persons to your allowlist') : t('Add assets, asset groups, teams and persons to your denylist');
 
   // -- Selected values (inventory) --
   const [selectedEndpoints, setSelectedEndpoints] = useState<EndpointOutput[]>([]);
   const [selectedAssetGroups, setSelectedAssetGroups] = useState<AssetGroupOutput[]>([]);
+  const [selectedTeamOptions, setSelectedTeamOptions] = useState<ScopeIdOption[]>([]);
+  const [selectedPlayerOptions, setSelectedPlayerOptions] = useState<ScopeIdOption[]>([]);
 
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
 
@@ -114,17 +144,38 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
     }
   }, [selectedAssetGroupIds]);
 
-  const totalSelected = selectedEndpointIds.length + selectedAssetGroupIds.length + selectedCustomRules.length;
+  useEffect(() => {
+    if (selectedTeamIds.length > 0) {
+      searchTeamByIdAsOption(selectedTeamIds).then(result => setSelectedTeamOptions(result.data as ScopeIdOption[]));
+    } else {
+      setSelectedTeamOptions([]);
+    }
+  }, [selectedTeamIds]);
+
+  useEffect(() => {
+    if (selectedPlayerIds.length > 0) {
+      searchPlayerByIdAsOption(selectedPlayerIds).then(result => setSelectedPlayerOptions(result.data as ScopeIdOption[]));
+    } else {
+      setSelectedPlayerOptions([]);
+    }
+  }, [selectedPlayerIds]);
+
+  const totalSelected = selectedEndpointIds.length + selectedAssetGroupIds.length
+    + selectedTeamIds.length + selectedPlayerIds.length + selectedCustomRules.length;
 
   const hasChanges = useMemo(() => {
     const sortedCurrent = [
       ...selectedEndpointIds,
       ...selectedAssetGroupIds,
+      ...selectedTeamIds.map(id => `team:${id}`),
+      ...selectedPlayerIds.map(id => `player:${id}`),
       ...selectedCustomRules.map(r => `${r.source}:${r.value.toLowerCase()}`),
     ].sort((a, b) => a.localeCompare(b));
     const sortedInitial = [
       ...initialEndpointIds,
       ...initialAssetGroupIds,
+      ...initialTeamIds.map(id => `team:${id}`),
+      ...initialPlayerIds.map(id => `player:${id}`),
       ...initialCustomRules.map(r => `${r.source}:${r.value.toLowerCase()}`),
     ].sort((a, b) => a.localeCompare(b));
     if (sortedCurrent.length !== sortedInitial.length) return true;
@@ -132,9 +183,13 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   }, [
     selectedEndpointIds,
     selectedAssetGroupIds,
+    selectedTeamIds,
+    selectedPlayerIds,
     selectedCustomRules,
     initialEndpointIds,
     initialAssetGroupIds,
+    initialTeamIds,
+    initialPlayerIds,
     initialCustomRules,
   ]);
 
@@ -292,6 +347,85 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
     />
   );
 
+  // -- Teams tab --
+  const [teams, setTeams] = useState<TeamOutput[]>([]);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+
+  const { queryableHelpers: teamQueryableHelpers, searchPaginationInput: teamSearchPagination }
+    = useQueryable(buildSearchPagination({}));
+
+  const teamElements: ClickableListElements<TeamOutput> = useMemo(() => ({
+    icon: { value: () => <GroupsOutlined color="primary" /> },
+    headers: [
+      {
+        field: 'team_name',
+        value: (team: TeamOutput) => <>{team.team_name}</>,
+        width: 100,
+      },
+    ],
+  }), []);
+
+  const addTeamSelection = (_id: string, team: TeamOutput) => {
+    onTeamIdsChange([...selectedTeamIds, team.team_id]);
+  };
+  const removeTeamSelection = (id: string) => {
+    onTeamIdsChange(selectedTeamIds.filter(tid => tid !== id));
+  };
+
+  const teamPagination = (
+    <PaginationComponentV2
+      fetch={searchTeams}
+      searchPaginationInput={teamSearchPagination}
+      setContent={setTeams}
+      setLoading={setIsLoadingTeams}
+      entityPrefix="team"
+      availableFilterNames={['team_tags']}
+      queryableHelpers={teamQueryableHelpers}
+    />
+  );
+
+  // -- Persons tab --
+  const [players, setPlayers] = useState<PlayerOutput[]>([]);
+  const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
+
+  const { queryableHelpers: playerQueryableHelpers, searchPaginationInput: playerSearchPagination }
+    = useQueryable(buildSearchPagination({}));
+
+  const playerLabel = useCallback((player: PlayerOutput) => {
+    const name = `${player.user_firstname ?? ''} ${player.user_lastname ?? ''}`.trim();
+    return name.length > 0 ? name : player.user_email;
+  }, []);
+
+  const playerElements: ClickableListElements<PlayerOutput> = useMemo(() => ({
+    icon: { value: () => <PersonOutlined color="primary" /> },
+    headers: [
+      {
+        field: 'user_email',
+        value: (player: PlayerOutput) => <>{playerLabel(player)}</>,
+        width: 100,
+      },
+    ],
+  }), [playerLabel]);
+
+  const addPlayerSelection = (_id: string, player: PlayerOutput) => {
+    onPlayerIdsChange([...selectedPlayerIds, player.user_id]);
+  };
+  const removePlayerSelection = (id: string) => {
+    onPlayerIdsChange(selectedPlayerIds.filter(pid => pid !== id));
+  };
+
+  const playerPagination = (
+    <PaginationComponentV2
+      fetch={searchPlayers}
+      searchPaginationInput={playerSearchPagination}
+      setContent={setPlayers}
+      setLoading={setIsLoadingPlayers}
+      entityPrefix="user"
+      availableFilterNames={['user_tags']}
+      queryableHelpers={playerQueryableHelpers}
+    />
+  );
+
   const handleTabChange = useCallback((_e: SyntheticEvent, newValue: string) => {
     setCurrentTab(newValue);
   }, []);
@@ -355,8 +489,10 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   const handleClearAll = useCallback(() => {
     onEndpointIdsChange([]);
     onAssetGroupIdsChange([]);
+    onTeamIdsChange([]);
+    onPlayerIdsChange([]);
     onCustomRulesChange([]);
-  }, [onEndpointIdsChange, onAssetGroupIdsChange, onCustomRulesChange]);
+  }, [onEndpointIdsChange, onAssetGroupIdsChange, onTeamIdsChange, onPlayerIdsChange, onCustomRulesChange]);
 
   const removeCustomRule = useCallback((ruleToRemove: ScopeCustomRule) => {
     onCustomRulesChange(
@@ -379,16 +515,30 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
       onDelete: () => removeAssetGroup(ag.asset_group_id),
     }));
 
+    const teamChips = selectedTeamOptions.map(team => ({
+      key: `team-${team.id}`,
+      label: team.label,
+      onDelete: () => removeTeamSelection(team.id),
+    }));
+
+    const playerChips = selectedPlayerOptions.map(player => ({
+      key: `player-${player.id}`,
+      label: player.label,
+      onDelete: () => removePlayerSelection(player.id),
+    }));
+
     const customRuleChips = selectedCustomRules.map(rule => ({
       key: `custom-${rule.source}-${rule.value}`,
       label: rule.value,
       onDelete: () => removeCustomRule(rule),
     }));
 
-    return [...endpointChips, ...assetGroupChips, ...customRuleChips];
+    return [...endpointChips, ...assetGroupChips, ...teamChips, ...playerChips, ...customRuleChips];
   }, [
     onCustomRulesChange,
     selectedAssetGroups,
+    selectedTeamOptions,
+    selectedPlayerOptions,
     selectedCustomRules,
     selectedEndpoints,
     t,
@@ -419,6 +569,8 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
           <Tabs value={currentTab} onChange={handleTabChange}>
             <Tab value="assets" label={t('Assets')} />
             <Tab value="asset_groups" label={t('Asset groups')} />
+            <Tab value="teams" label={t('Teams')} />
+            <Tab value="persons" label={t('Persons')} />
           </Tabs>
         </Box>
 
@@ -448,32 +600,60 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
               isLoading={isLoadingAssetGroups}
             />
           )}
+
+          {currentTab === 'teams' && (
+            <ClickableList<TeamOutput>
+              values={teams}
+              selectedIds={selectedTeamIds}
+              elements={teamElements}
+              onSelect={addTeamSelection}
+              onDeselect={removeTeamSelection}
+              paginationComponent={teamPagination}
+              getId={el => el.team_id}
+              isLoading={isLoadingTeams}
+            />
+          )}
+
+          {currentTab === 'persons' && (
+            <ClickableList<PlayerOutput>
+              values={players}
+              selectedIds={selectedPlayerIds}
+              elements={playerElements}
+              onSelect={addPlayerSelection}
+              onDeselect={removePlayerSelection}
+              paginationComponent={playerPagination}
+              getId={el => el.user_id}
+              isLoading={isLoadingPlayers}
+            />
+          )}
         </Box>
       </Box>
 
       {/* Footer buttons */}
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: theme.spacing(1),
-      }}
-      >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={onCancel}
+      {!hideFooter && (
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: theme.spacing(1),
+        }}
         >
-          {t('Cancel')}
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={onSubmit}
-          disabled={!hasChanges}
-        >
-          {t('Define scope')}
-        </Button>
-      </Box>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={onCancel}
+          >
+            {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={onSubmit}
+            disabled={!hasChanges}
+          >
+            {t('Define scope')}
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 };

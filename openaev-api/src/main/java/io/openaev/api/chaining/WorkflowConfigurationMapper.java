@@ -46,6 +46,7 @@ public class WorkflowConfigurationMapper {
         .selectedMode(rule.getSelectedMode())
         .ruleSource(rule.getRuleSource())
         .ruleValue(rule.getRuleValue())
+        .ruleValueLabel(rule.getRuleValueLabel())
         .build();
   }
 

@@ -1,7 +1,7 @@
 import type { Dispatch } from 'redux';
 
 import { getReferential, putReferential, simpleCall } from '../../utils/Action';
-import type { ScopeAssetOutput, WorkflowConfigurationInput } from '../../utils/api-types';
+import type { ScopeAssetOutput, ScopeTeamOutput, WorkflowConfigurationInput } from '../../utils/api-types';
 import workflowConfigurationSchema from './workflow-schema';
 
 const WORKFLOW_URI = '/api/workflows';
@@ -18,5 +18,10 @@ export const updateWorkflowConfiguration = (workflowId: string, data: WorkflowCo
 
 export const fetchValidAssets = (workflowId: string): Promise<ScopeAssetOutput[]> => {
   const uri = `${WORKFLOW_URI}/${workflowId}/valid-assets`;
+  return simpleCall(uri).then(response => response.data);
+};
+
+export const fetchValidTeams = (workflowId: string): Promise<ScopeTeamOutput[]> => {
+  const uri = `${WORKFLOW_URI}/${workflowId}/valid-teams`;
   return simpleCall(uri).then(response => response.data);
 };

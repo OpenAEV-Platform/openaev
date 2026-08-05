@@ -14,10 +14,28 @@ import {
   type ConditionGroup,
   createEmptyGroup,
   type EventFormData,
+  generateId,
   isEventFormValid,
   type LogicalOperator,
 } from './event-types';
 import LogicalOperatorSelect from './LogicalOperatorSelect';
+
+/**
+ * Seed one AND group with an "is not null" condition per field, so an "add trigger after action"
+ * insertion starts pre-wired to fire on the upstream action's output types.
+ */
+const buildPrefilledGroups = (fields: string[]): ConditionGroup[] => ([{
+  id: generateId(),
+  operator: 'AND',
+  conditions: fields.map(field => ({
+    id: generateId(),
+    field,
+    operator: 'IS_NOT_NULL' as const,
+    value: '',
+    caseSensitive: true,
+  })),
+  subGroups: [],
+}]);
 
 // Defined outside the component so the resolver reference is stable across renders
 const eventBaseSchema = z.object({
@@ -32,6 +50,8 @@ interface EventCreationFormProps {
   initialData?: EventFormData;
   submitLabel?: string;
   defaultName?: string;
+  /** Output types of an upstream action - seeds the first condition group (inline "add trigger"). */
+  prefillFields?: string[];
 }
 
 const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
@@ -40,6 +60,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
   initialData,
   submitLabel,
   defaultName,
+  prefillFields,
 }) => {
   const { t } = useFormatter();
   const methods = useForm<EventBaseInput>({
@@ -57,9 +78,11 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
   const [groupOperators, setGroupOperators] = useState<LogicalOperator[]>(
     initialData?.groupOperators ?? [],
   );
-  const [conditionGroups, setConditionGroups] = useState<ConditionGroup[]>(
-    initialData?.conditionGroups ?? [createEmptyGroup('AND')],
-  );
+  const [conditionGroups, setConditionGroups] = useState<ConditionGroup[]>(() => {
+    if (initialData?.conditionGroups) return initialData.conditionGroups;
+    if (prefillFields && prefillFields.length > 0) return buildPrefilledGroups(prefillFields);
+    return [createEmptyGroup('AND')];
+  });
 
   const handleUpdateGroup = useCallback((index: number, updatedGroup: ConditionGroup) => {
     setConditionGroups(prev => prev.map((group, i) => (i === index ? updatedGroup : group)));

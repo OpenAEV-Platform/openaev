@@ -600,6 +600,83 @@ class StepServiceTest {
                 eq(Set.of("combo:asset-2", "combo:asset-3")));
       }
     }
+
+    @Nested
+    class NullHashBatchDeduplication {
+
+      /**
+       * Regression test for the duplicate-inject STORM: a no-mapper INJECT_EXECUTION step (any step
+       * the orchestrator chains via a DEPEND_ON parent) whose scope resolves to no asset (a
+       * team-targeted human step, or an inject that bakes its own asset) produces a single batch
+       * with a NULL hash — expandTargetBatches returns it untouched. Before the fix that null hash
+       * was never committed, so the step re-readied and re-executed on EVERY scheduling cycle,
+       * spawning hundreds of duplicate injects. The fix stamps a deterministic fallback hash so the
+       * step readies exactly once per (template, run) and is skipped on the next cycle.
+       */
+      @Test
+      void given_noMapperStepWithNoScopeAsset_should_readyOnce_andNotReReadyNextCycle()
+          throws Exception {
+        // Arrange
+        Step nextStepTemplateToExecute = mock(Step.class);
+        Step persistedTemplate = mock(Step.class);
+        Workflow workflowRun = mock(Workflow.class);
+        ActionStep localActionStep = mock(ActionStep.class);
+
+        String input = "{}";
+        String stepId = UUID.randomUUID().toString();
+
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(persistedTemplate.getId()).thenReturn(stepId);
+        when(persistedTemplate.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+        when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepId))
+            .thenReturn(localActionStep);
+        when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
+            .thenReturn(Optional.of(persistedTemplate));
+
+        // DEPEND_ON-only step -> checkCondition returns a single batch with a NULL hash.
+        when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
+            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, List.of(), null)));
+        // No scope asset -> expandTargetBatches returns the original (null-hash) batch untouched.
+        when(injectExecutionStep.expandTargetBatches(any(), eq(workflowRun), eq(persistedTemplate)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Step stepReady = mock(Step.class);
+        when(localActionStep.ready(persistedTemplate, input, workflowRun))
+            .thenReturn(Optional.of(stepReady));
+        when(stepRepository.save(stepReady)).thenReturn(stepReady);
+
+        // --- First evaluation cycle: nothing committed yet ---
+        when(conditionService.getCommittedHashes(persistedTemplate, workflowRun))
+            .thenReturn(Set.of());
+
+        List<Step> firstCycle =
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+
+        // The step readies once AND commits a stable, NON-EMPTY hash set (the crux of the fix:
+        // before, the null hash meant an empty commit and an endless re-ready storm).
+        assertEquals(1, firstCycle.size());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Set<String>> committedCaptor = ArgumentCaptor.forClass(Set.class);
+        verify(conditionService)
+            .commitHashes(eq(persistedTemplate), eq(workflowRun), committedCaptor.capture());
+        Set<String> committed = committedCaptor.getValue();
+        assertEquals(1, committed.size());
+        String stableHash = committed.iterator().next();
+        assertNotNull(stableHash);
+
+        // --- Second evaluation cycle: the previously committed hash is now present ---
+        when(conditionService.getCommittedHashes(persistedTemplate, workflowRun))
+            .thenReturn(Set.of(stableHash));
+
+        List<Step> secondCycle =
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+
+        // The step is NOT re-readied: the recomputed fallback hash is deterministic and matches the
+        // committed one, so the batch is filtered out. ready() was invoked exactly once overall.
+        assertTrue(secondCycle.isEmpty());
+        verify(localActionStep, times(1)).ready(persistedTemplate, input, workflowRun);
+      }
+    }
   }
 
   /* ============================================================

@@ -11,7 +11,7 @@ import LogicReadOnlyBanner from '../../../chaining/logic/LogicReadOnlyBanner';
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
 
-const SimulationScope = () => {
+const SimulationScope = ({ readOnly = false }: { readOnly?: boolean }) => {
   const { t } = useFormatter();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
@@ -34,22 +34,34 @@ const SimulationScope = () => {
 
   if (!exercise?.exercise_workflow_id) return null;
 
-  // The scope is frozen once the simulation has been launched (see ADR-005).
-  const readOnly = exercise.exercise_status !== 'SCHEDULED';
-  const readOnlyMessage = exercise.exercise_scenario
-    ? t('This simulation has been launched. Its scope is read-only. Reset the simulation to edit it, or update the scenario and run it again.')
-    : t('This simulation has been launched. Its scope is read-only. Reset the simulation to edit it.');
+  // The empty-scope shortfall is already surfaced in the hero; drop the duplicate inline banner.
+  const visibleHealthchecks = healthchecks.filter(healthcheck => healthcheck.type !== 'SCOPE_DEFINITION');
+
+  // Read-only for two independent reasons: an autonomous run (router-provided) OR a launched
+  // simulation - the scope is editable only while SCHEDULED (see ADR-005).
+  const launched = exercise.exercise_status !== 'SCHEDULED';
+  const effectiveReadOnly = readOnly || launched;
+  const resolveReadOnlyMessage = () => {
+    if (readOnly) {
+      return t('This simulation is driven by the autonomous attack path. Its scope is read-only.');
+    }
+    if (exercise.exercise_scenario) {
+      return t('This simulation has been launched. Its scope is read-only. Reset the simulation to edit it, or update the scenario and run it again.');
+    }
+    return t('This simulation has been launched. Its scope is read-only. Reset the simulation to edit it.');
+  };
+  const readOnlyMessage = resolveReadOnlyMessage();
 
   return (
     <div>
-      {readOnly && <LogicReadOnlyBanner message={readOnlyMessage} />}
-      {!!healthchecks?.length && (
+      {effectiveReadOnly && <LogicReadOnlyBanner message={readOnlyMessage} />}
+      {!!visibleHealthchecks.length && (
         <Healthchecks
-          healthchecks={healthchecks}
+          healthchecks={visibleHealthchecks}
           exerciseId={exerciseId}
         />
       )}
-      <ScopeDefinition workflowId={exercise.exercise_workflow_id} readOnly={readOnly} />
+      <ScopeDefinition workflowId={exercise.exercise_workflow_id} readOnly={effectiveReadOnly} />
     </div>
   );
 };

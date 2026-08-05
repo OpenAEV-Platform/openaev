@@ -2,7 +2,7 @@ import type { ConditionCreateInput } from '../../../../../utils/api-types';
 import type { ContractElement, ContractType } from '../../../../../utils/api-types-custom';
 import type { ExpectationInput } from '../../../common/injects/expectations/Expectation';
 import type { ActionDetailData } from '../types';
-import type { FieldLink } from './InjectDataFieldItem';
+import type { FieldLink } from './FieldOutputLink';
 
 export const EXPECTATION_FIELD_TYPE = 'expectation';
 export const EXPECTATIONS_CONTENT_KEY = 'expectations';

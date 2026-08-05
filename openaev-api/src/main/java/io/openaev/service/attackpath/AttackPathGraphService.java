@@ -1036,6 +1036,10 @@ public class AttackPathGraphService {
             AttackPathNodeDTO sourceEndpoint = new AttackPathNodeDTO();
             sourceEndpoint.setId(key);
             sourceEndpoint.setType(TYPE_ASSET);
+            // A TEAM source (a team's persons hang off it, injector -> team -> persons) carries its
+            // kind so the front renders the team icon rather than an endpoint; a plain agent/asset
+            // source stays ENDPOINT (null).
+            sourceEndpoint.setEntityKind("TEAM".equals(e.sourceKind()) ? "TEAM" : null);
             sourceEndpoint.setRef(e.sourceAssetId());
             sourceEndpoint.setHostname(e.sourceHostname());
             sourceEndpoint.setIp(e.sourceIp());
@@ -1048,6 +1052,19 @@ public class AttackPathGraphService {
     return id;
   }
 
+  /**
+   * The real entity an ASSET-typed target node stands for, from its frozen target kind. ASSET /
+   * DISCOVERED endpoints stay ENDPOINT (null, the default) so existing graphs are untouched; a TEAM
+   * / PERSON / ASSET_GROUP target (a human-in-the-loop step) carries its kind so the front picks
+   * the right icon and nests a team's persons.
+   */
+  private static String entityKindFor(String targetKind) {
+    return switch (targetKind == null ? "" : targetKind) {
+      case "TEAM", "PERSON", "ASSET_GROUP" -> targetKind;
+      default -> null;
+    };
+  }
+
   private AttackPathNodeDTO assetNode(
       String id, String targetKey, List<AttackPathExecutionRow> executions) {
     AttackPathExecutionRow representative =
@@ -1057,6 +1074,7 @@ public class AttackPathGraphService {
     AttackPathNodeDTO node = new AttackPathNodeDTO();
     node.setId(id);
     node.setType(TYPE_ASSET);
+    node.setEntityKind(entityKindFor(representative.targetKind()));
     node.setRef(targetKey);
     node.setHostname(representative.targetHostname());
     node.setIp(representative.targetIp());
