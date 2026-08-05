@@ -5,6 +5,7 @@ import io.openaev.database.model.Finding;
 import io.openaev.database.model.FindingComment;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.FindingCommentRepository;
+import io.openaev.database.repository.FindingRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.UserService;
 import jakarta.validation.constraints.NotBlank;
@@ -21,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class FindingCommentService {
 
   private final FindingCommentRepository findingCommentRepository;
+  private final FindingRepository findingRepository;
   private final FindingService findingService;
   private final UserService userService;
 
@@ -37,7 +39,9 @@ public class FindingCommentService {
     comment.setFinding(finding);
     comment.setAuthor(userService.currentUser());
     comment.setContent(content);
-    return findingCommentRepository.save(comment);
+    FindingComment saved = findingCommentRepository.save(comment);
+    touchFinding(finding);
+    return saved;
   }
 
   // Author-only, enforced here in the service layer (not a capability) - mirrors
@@ -48,7 +52,9 @@ public class FindingCommentService {
     requireOwnComment(comment);
     comment.setContent(content);
     comment.setUpdateDate(Instant.now());
-    return findingCommentRepository.save(comment);
+    FindingComment saved = findingCommentRepository.save(comment);
+    touchFinding(comment.getFinding());
+    return saved;
   }
 
   // No ownership check: DELETE_FINDINGS (already enforced by @AccessControl on the controller)
@@ -57,6 +63,7 @@ public class FindingCommentService {
   public FindingComment deleteComment(@NotBlank final String id) {
     FindingComment comment = findById(id);
     findingCommentRepository.delete(comment);
+    touchFinding(comment.getFinding());
     // Returned (not void) so the audit aspect's output snapshot captures the full deleted content.
     return comment;
   }
@@ -66,6 +73,15 @@ public class FindingCommentService {
         .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
         .orElseThrow(
             () -> new ElementNotFoundException("Finding comment not found with id: " + id));
+  }
+
+  // Comments live in their own table (finding_comment), so Hibernate's @UpdateTimestamp on
+  // Finding#updateDate never fires from a comment save/delete - explicitly touch the parent
+  // Finding so "finding_updated_at" (sortable/filterable in the findings list) reflects comment
+  // activity too.
+  private void touchFinding(Finding finding) {
+    finding.setUpdateDate(Instant.now());
+    findingRepository.save(finding);
   }
 
   private void requireOwnComment(FindingComment comment) {
