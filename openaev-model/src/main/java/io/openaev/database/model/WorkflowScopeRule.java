@@ -50,13 +50,13 @@ public class WorkflowScopeRule implements Base {
   private String ruleValue;
 
   /**
-   * Display-name snapshot of the referenced asset / asset group, captured when the rule is created or
-   * updated. A scope rule stores only the referenced id in {@link #ruleValue}; the name shown in the
-   * UI is otherwise resolved against the live inventory. Once that asset / group is deleted the live
-   * lookup returns nothing, so - without this snapshot - a past simulation's scope would render a
-   * permanent "Loading..." placeholder even though the immutable per-run reference is intact.
-   * Nullable: only ASSET / ASSET_GROUP rules carry a label, and it stays {@code null} when the id
-   * cannot be resolved within the owning tenant.
+   * Display-name snapshot of the referenced asset / asset group, captured when the rule is created
+   * or updated. A scope rule stores only the referenced id in {@link #ruleValue}; the name shown in
+   * the UI is otherwise resolved against the live inventory. Once that asset / group is deleted the
+   * live lookup returns nothing, so - without this snapshot - a past simulation's scope would
+   * render a permanent "Loading..." placeholder even though the immutable per-run reference is
+   * intact. Nullable: only ASSET / ASSET_GROUP rules carry a label, and it stays {@code null} when
+   * the id cannot be resolved within the owning tenant.
    */
   @Column(name = "workflow_scope_rule_value_label")
   @JsonProperty("workflow_scope_rule_value_label")

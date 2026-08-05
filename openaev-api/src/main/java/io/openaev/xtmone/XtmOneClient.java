@@ -421,8 +421,8 @@ public class XtmOneClient {
    * @param scopeTeamId optional in-scope team (audience) id (first-of-kind projection)
    * @param scope the authoritative mixed scope (assets, asset groups, teams, persons)
    * @param callbackBaseUrl the OpenAEV base URL XTM One should call back
-   * @param agentIds specialist agent ids the orchestrator may consult during the run (sent as {@code
-   *     handover_agent_ids})
+   * @param agentIds specialist agent ids the orchestrator may consult during the run (sent as
+   *     {@code handover_agent_ids})
    * @param agentModes per-agent discovery mode (agent id -> EXISTING_ONLY / SCOPED / EXPANSIVE),
    *     sent as {@code handover_agent_modes} so XTM One can funnel each agent's create tools
    */

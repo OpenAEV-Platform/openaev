@@ -8,10 +8,10 @@ import org.springframework.stereotype.Component;
 /**
  * Adds the {@code autonomous_run_agent_modes} JSONB column to {@code autonomous_runs}.
  *
- * <p>Stores the per-agent discovery mode for a run, as a JSON object mapping an XTM One agent id (or
- * the orchestrator's own id) to a discovery mode (EXISTING_ONLY / SCOPED / EXPANSIVE). This governs
- * how much latitude each agent has to create new assets / findings / persons from recon on the fly,
- * enforced at OpenAEV's creation choke points. Forwarded to XTM One at engage time.
+ * <p>Stores the per-agent discovery mode for a run, as a JSON object mapping an XTM One agent id
+ * (or the orchestrator's own id) to a discovery mode (EXISTING_ONLY / SCOPED / EXPANSIVE). This
+ * governs how much latitude each agent has to create new assets / findings / persons from recon on
+ * the fly, enforced at OpenAEV's creation choke points. Forwarded to XTM One at engage time.
  *
  * <p>Additive, idempotent, and lock-light: a nullable {@code ADD COLUMN} is metadata-only on
  * PostgreSQL 11+ (no table rewrite), and {@code IF NOT EXISTS} makes re-running a no-op.

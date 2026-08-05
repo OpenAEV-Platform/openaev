@@ -23,9 +23,9 @@ public enum AutonomousDiscoveryMode {
   /**
    * The agent may create new assets / findings / persons, but only WITHIN the run's allow-scope
    * (and never anything on the deny-list). A discovered entity that falls outside the resolved
-   * perimeter is rejected. When the run has no allow-list at all there is no perimeter to be inside,
-   * so creation is unrestricted (matching OpenAEV's existing "empty allow-list = no restriction"
-   * scope semantics).
+   * perimeter is rejected. When the run has no allow-list at all there is no perimeter to be
+   * inside, so creation is unrestricted (matching OpenAEV's existing "empty allow-list = no
+   * restriction" scope semantics).
    */
   SCOPED,
 
@@ -35,23 +35,25 @@ public enum AutonomousDiscoveryMode {
    */
   EXPANSIVE;
 
-  /** Safe middle-ground default when a tenant / run / actor has expressed no explicit preference. */
+  /**
+   * Safe middle-ground default when a tenant / run / actor has expressed no explicit preference.
+   */
   public static final AutonomousDiscoveryMode DEFAULT = SCOPED;
 
   /**
-   * Default for the orchestrator itself. The orchestrator stays inside the operator-defined scope and
-   * asks the operator to widen it rather than expanding the perimeter on its own, so it never brings
-   * in entities beyond what the operator sanctioned. Equal to {@link #DEFAULT} (SCOPED), which is also
-   * what {@code resolveDiscoveryMode} falls back to for any unattributed / orchestrator-authored
-   * creation.
+   * Default for the orchestrator itself. The orchestrator stays inside the operator-defined scope
+   * and asks the operator to widen it rather than expanding the perimeter on its own, so it never
+   * brings in entities beyond what the operator sanctioned. Equal to {@link #DEFAULT} (SCOPED),
+   * which is also what {@code resolveDiscoveryMode} falls back to for any unattributed /
+   * orchestrator-authored creation.
    */
   public static final AutonomousDiscoveryMode ORCHESTRATOR_DEFAULT = SCOPED;
 
   /**
    * Default for consulted specialist / additional agents. These agents are recon- and
-   * discovery-oriented (OSINT, external surface mapping, ...), so by default they are allowed to bring
-   * newly discovered entities into the attack path beyond the initial perimeter (deny-list still
-   * wins). Operators can tighten this per agent, per tenant or per run.
+   * discovery-oriented (OSINT, external surface mapping, ...), so by default they are allowed to
+   * bring newly discovered entities into the attack path beyond the initial perimeter (deny-list
+   * still wins). Operators can tighten this per agent, per tenant or per run.
    */
   public static final AutonomousDiscoveryMode SPECIALIST_DEFAULT = EXPANSIVE;
 

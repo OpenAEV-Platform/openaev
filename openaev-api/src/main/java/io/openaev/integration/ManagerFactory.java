@@ -70,8 +70,8 @@ public class ManagerFactory implements DependenciesManager {
    * reachable.
    *
    * <p>Public (not private) so {@link #getManager} can invoke it through the Spring proxy for the
-   * {@code REQUIRES_NEW} transaction to apply. {@link #createDependencyForTenant} deliberately calls
-   * it via {@code this} (self-invocation, proxy bypassed) so it joins the surrounding
+   * {@code REQUIRES_NEW} transaction to apply. {@link #createDependencyForTenant} deliberately
+   * calls it via {@code this} (self-invocation, proxy bypassed) so it joins the surrounding
    * tenant-creation transaction and rolls back with it.
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)

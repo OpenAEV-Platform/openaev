@@ -917,8 +917,9 @@ public class WorkflowService {
   }
 
   /**
-   * Snapshots the display name of the asset / asset group referenced by an ASSET / ASSET_GROUP scope
-   * rule, so a past run's scope stays readable after the referenced inventory object is deleted.
+   * Snapshots the display name of the asset / asset group referenced by an ASSET / ASSET_GROUP
+   * scope rule, so a past run's scope stays readable after the referenced inventory object is
+   * deleted.
    *
    * <p>The lookup is tenant-scoped on purpose: Hibernate's {@code tenantFilter} does not apply to
    * primary-key loads, so a plain {@code findById} on a user-supplied id could snapshot (and later

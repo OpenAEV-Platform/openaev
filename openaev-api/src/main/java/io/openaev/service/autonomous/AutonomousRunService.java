@@ -119,8 +119,8 @@ public class AutonomousRunService {
    * Reserved key for the orchestrator's own entry in a run's per-agent discovery-mode map. The
    * orchestrator's concrete XTM One id is only resolved at engage time (by the {@code
    * aev.attack_path_orchestrator} intent), so the UI and this service key its mode under this
-   * sentinel instead. {@link #resolveDiscoveryMode} falls back to it for any creation not attributed
-   * to a known specialist - i.e. the orchestrator acting on its own. Must match {@code
+   * sentinel instead. {@link #resolveDiscoveryMode} falls back to it for any creation not
+   * attributed to a known specialist - i.e. the orchestrator acting on its own. Must match {@code
    * ORCHESTRATOR_AGENT_ID} in the frontend's autonomous-types.
    */
   private static final String ORCHESTRATOR_AGENT_ID = "__orchestrator__";
@@ -282,9 +282,12 @@ public class AutonomousRunService {
             .map(AutonomousScopeTarget::getId)
             .toList());
     run.setXtmAgentSlug(input.getAgentSlug());
-    // Specialist agents the orchestrator may consult. The per-run selection is authoritative once the
-    // launcher provides one (a non-null list, even empty, means the operator explicitly chose - up to
-    // disabling every agent including the built-in). Only when the launcher omits it entirely (null)
+    // Specialist agents the orchestrator may consult. The per-run selection is authoritative once
+    // the
+    // launcher provides one (a non-null list, even empty, means the operator explicitly chose - up
+    // to
+    // disabling every agent including the built-in). Only when the launcher omits it entirely
+    // (null)
     // do we fall back to the tenant's configured default additional agents.
     List<String> selectedAgentIds = input.getAgentIds();
     List<String> resolvedAgentIds =
@@ -293,8 +296,10 @@ public class AutonomousRunService {
             : readDefaultAdditionalAgentIds();
     run.setAgentIds(resolvedAgentIds);
     // Per-agent discovery mode: authoritative per-run selection when provided, else the tenant
-    // default map; then normalized so every enabled specialist agent has an explicit mode (defaulting
-    // EXPANSIVE - specialists expand the perimeter by default; the orchestrator itself stays SCOPED).
+    // default map; then normalized so every enabled specialist agent has an explicit mode
+    // (defaulting
+    // EXPANSIVE - specialists expand the perimeter by default; the orchestrator itself stays
+    // SCOPED).
     Map<String, String> selectedModes = input.getAgentModes();
     run.setAgentModes(
         normalizeAgentModes(
@@ -1874,7 +1879,8 @@ public class AutonomousRunService {
    * run's network allow-perimeter when one is defined - if the scope is entity-based only (no
    * MANUAL/CSV network rules) there is no network perimeter to be inside, so it passes.
    */
-  private boolean isValueWithinScope(AutonomousRun run, String value, AutonomousDiscoveryMode mode) {
+  private boolean isValueWithinScope(
+      AutonomousRun run, String value, AutonomousDiscoveryMode mode) {
     if (!mode.requiresInScope()) {
       // EXPANSIVE: only an explicit deny-list rule blocks the value.
       return !matchesNetworkRules(readScopeRules(run), ScopeRuleSelectedMode.DENYLIST, value);
@@ -2147,8 +2153,8 @@ public class AutonomousRunService {
   /**
    * The built-in payload creator's XTM One id, resolved from the additional-attack agent catalog by
    * its well-known slug. Used as the enabled-by-default specialist when the tenant has never
-   * configured its default agents. Returns an empty list when XTM One is unconfigured or the built-in
-   * is not exposed, so an unconfigured tenant simply runs with no default specialist.
+   * configured its default agents. Returns an empty list when XTM One is unconfigured or the
+   * built-in is not exposed, so an unconfigured tenant simply runs with no default specialist.
    */
   private List<String> resolveBuiltinDefaultAgentIds() {
     try {
@@ -2211,8 +2217,8 @@ public class AutonomousRunService {
 
   /**
    * Canonicalizes a raw per-agent mode map: trims keys, validates every value to a real {@link
-   * AutonomousDiscoveryMode} name, and (when {@code enabledIds} is non-null) guarantees each enabled
-   * (specialist) agent has an explicit mode, defaulting to {@link
+   * AutonomousDiscoveryMode} name, and (when {@code enabledIds} is non-null) guarantees each
+   * enabled (specialist) agent has an explicit mode, defaulting to {@link
    * AutonomousDiscoveryMode#SPECIALIST_DEFAULT} (EXPANSIVE).
    */
   private Map<String, String> normalizeAgentModes(
@@ -2230,9 +2236,11 @@ public class AutonomousRunService {
       for (String id : enabledIds) {
         if (hasText(id)) {
           // enabledIds are specialist / additional agents (never the orchestrator sentinel), so an
-          // agent the operator enabled without picking a mode gets the specialist default (EXPANSIVE)
+          // agent the operator enabled without picking a mode gets the specialist default
+          // (EXPANSIVE)
           // - they are recon-oriented and expected to expand the perimeter by default. The
-          // orchestrator's own mode is keyed separately under ORCHESTRATOR_AGENT_ID and falls back to
+          // orchestrator's own mode is keyed separately under ORCHESTRATOR_AGENT_ID and falls back
+          // to
           // SCOPED via resolveDiscoveryMode.
           out.putIfAbsent(id.trim(), AutonomousDiscoveryMode.SPECIALIST_DEFAULT.name());
         }
