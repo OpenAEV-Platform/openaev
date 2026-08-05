@@ -4,7 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.config.RequireTenantSelector;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.connector_instance.dto.*;
@@ -41,6 +41,7 @@ public class ConnectorInstanceApi extends RestBehavior {
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstanceLogService connectorInstanceLogService;
   private final ConnectorOrchestrationService orchestrationService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @PostMapping(value = {CONNECTOR_INSTANCE_URI, TENANT_CONNECTOR_INSTANCE_URI})
   @Transactional
@@ -68,9 +69,15 @@ public class ConnectorInstanceApi extends RestBehavior {
             catalogConnectorWithConfigMap, input);
     // --- /!\ --- SECURITY END
 
+    // Derive the write tenant from the same resolved scope used for the migration ID lookup
+    // above, instead of TenantContext (path-only, defaults to DEFAULT_TENANT_UUID off the tenant
+    // path): keeps the v2 inspector scope and the tenant the row is actually created under in
+    // sync, and turns an ambiguous/missing scope into a 400 instead of misattributed data.
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
+
     // only instance managed by XTM Composer can be created through this API
     return orchestrationService.createConnectorInstance(
-        catalogConnectorWithConfigMap, safeInput, TenantContext.getCurrentTenant());
+        catalogConnectorWithConfigMap, safeInput, writeTenant);
   }
 
   @GetMapping(
