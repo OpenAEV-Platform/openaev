@@ -116,6 +116,7 @@ nav:
   - Deployment & Setup:
     - Platform:
       - Overview: deployment/platform/overview.md
+      - Run modes: deployment/platform/run-modes.md
       - Installation: deployment/installation.md
       - Configuration: deployment/configuration.md
       - Certificate validation: deployment/certificate-validation.md
