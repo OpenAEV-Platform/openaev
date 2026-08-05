@@ -12,7 +12,9 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.ArrayList;
@@ -41,6 +43,7 @@ public class ConditionServiceTest {
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Mock private ConditionRepository conditionRepository;
   @Mock private StepRepository stepRepository;
+  @Mock private WorkflowRepository workflowRepository;
   @Mock private WorkflowStateService workflowStateService;
   @Spy private ConditionUtils conditionUtils;
 
@@ -2234,6 +2237,143 @@ public class ConditionServiceTest {
       assertFalse(
           eventB.getConditions().stream().anyMatch(c -> "valueA".equals(c.getValue())),
           "EventB must not contain EventA's leaf");
+    }
+  }
+
+  /* ============================================================
+   * Logic-map freeze (ADR-005) — create / update / delete guards
+   * ============================================================ */
+  @Nested
+  class LogicMapFreezeTests {
+
+    private Workflow workflowWithSimulation(String workflowId, ExerciseStatus status) {
+      Exercise simulation = new Exercise();
+      simulation.setStatus(status);
+      return Workflow.builder().id(workflowId).simulation(simulation).build();
+    }
+
+    private EventInput singleRootEventInput(String workflowId) {
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+      return EventInput.builder()
+          .name("event")
+          .workflowId(workflowId)
+          .conditions(List.of(rootInput))
+          .build();
+    }
+
+    @Test
+    void given_runningSimulation_should_rejectCreateConditionTree() {
+      // Arrange
+      String workflowId = "wf-running";
+      when(workflowRepository.findById(workflowId))
+          .thenReturn(Optional.of(workflowWithSimulation(workflowId, ExerciseStatus.RUNNING)));
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.createConditionTree(singleRootEventInput(workflowId)));
+      verify(conditionRepository, never()).save(any());
+    }
+
+    @Test
+    void given_scheduledSimulation_should_allowCreateConditionTree() {
+      // Arrange
+      String workflowId = "wf-scheduled";
+      when(workflowRepository.findById(workflowId))
+          .thenReturn(Optional.of(workflowWithSimulation(workflowId, ExerciseStatus.SCHEDULED)));
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // Act & Assert
+      assertDoesNotThrow(
+          () -> conditionService.createConditionTree(singleRootEventInput(workflowId)));
+    }
+
+    @Test
+    void given_persistedRootOnRunningSimulation_should_rejectUpdate_ignoringClientWorkflowId() {
+      // Arrange — the persisted root belongs to a RUNNING simulation, while the client tries to
+      // pass a SCHEDULED workflow id in the payload to bypass the freeze.
+      String rootId = "root-1";
+      String runningWorkflowId = "wf-running";
+      Condition existingRoot = new Condition();
+      existingRoot.setId(rootId);
+      existingRoot.setWorkflowId(runningWorkflowId);
+      existingRoot.setType(ConditionType.OR);
+      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
+      when(workflowRepository.findById(runningWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(runningWorkflowId, ExerciseStatus.RUNNING)));
+
+      EventInput input = singleRootEventInput("wf-scheduled-client-supplied");
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.updateConditionTree(rootId, input));
+    }
+
+    @Test
+    void given_editableRoot_should_rejectUpdate_whenTargetWorkflowIsFrozen() {
+      // Arrange — the persisted root is editable (SCHEDULED), but the client re-points it onto a
+      // launched (RUNNING) workflow via the payload. Both source and target must be editable.
+      String rootId = "root-1";
+      String scheduledWorkflowId = "wf-scheduled-source";
+      String frozenTargetWorkflowId = "wf-running-target";
+      Condition existingRoot = new Condition();
+      existingRoot.setId(rootId);
+      existingRoot.setWorkflowId(scheduledWorkflowId);
+      existingRoot.setType(ConditionType.OR);
+      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
+      when(workflowRepository.findById(scheduledWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(scheduledWorkflowId, ExerciseStatus.SCHEDULED)));
+      when(workflowRepository.findById(frozenTargetWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(frozenTargetWorkflowId, ExerciseStatus.RUNNING)));
+
+      EventInput input = singleRootEventInput(frozenTargetWorkflowId);
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.updateConditionTree(rootId, input));
+    }
+
+    @Test
+    void given_runningSimulation_should_rejectDeleteConditionTree() {
+      // Arrange
+      String conditionRootId = "cond-1";
+      String runningWorkflowId = "wf-running";
+      Condition condition = new Condition();
+      condition.setId(conditionRootId);
+      condition.setWorkflowId(runningWorkflowId);
+      when(conditionRepository.findById(conditionRootId)).thenReturn(Optional.of(condition));
+      when(workflowRepository.findById(runningWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(runningWorkflowId, ExerciseStatus.RUNNING)));
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.deleteConditionTree(conditionRootId));
+      verify(conditionRepository, never()).deleteById(anyString());
+    }
+
+    @Test
+    void given_unknownWorkflow_should_notBlockDelete() {
+      // Arrange — no workflow found: the freeze guard is a no-op (scenario/unknown workflow).
+      String conditionRootId = "cond-2";
+      String workflowId = "wf-unknown";
+      Condition condition = new Condition();
+      condition.setId(conditionRootId);
+      condition.setWorkflowId(workflowId);
+      when(conditionRepository.findById(conditionRootId)).thenReturn(Optional.of(condition));
+      when(workflowRepository.findById(workflowId)).thenReturn(Optional.empty());
+
+      // Act & Assert
+      assertDoesNotThrow(() -> conditionService.deleteConditionTree(conditionRootId));
+      verify(conditionRepository).deleteById(conditionRootId);
     }
   }
 }

@@ -583,8 +583,13 @@ public class AttackPathGraphService {
       String typeNodeId = AttackPathIds.findingTypeNode(f.type(), endpointKey);
       typeNodes.computeIfAbsent(typeNodeId, id -> findingTypeNode(id, f.type(), assetNodeId));
       String findingNodeId = AttackPathIds.findingNode(f.type(), f.value());
-      findingNodes.computeIfAbsent(
-          findingNodeId, id -> findingNode(id, f.type(), f.value(), typeNodeId, assetNodeId));
+      AttackPathNodeDTO findingDrawerNode =
+          findingNodes.computeIfAbsent(
+              findingNodeId, id -> findingNode(id, f.type(), f.value(), typeNodeId, assetNodeId));
+      // A real finding among the (type, value) producers wins over an output-only one (ADR-004).
+      if (f.isFinding()) {
+        findingDrawerNode.setIsFinding(true);
+      }
       producersByFinding
           .computeIfAbsent(findingNodeId, id -> new ArrayList<>())
           .add(
@@ -721,6 +726,11 @@ public class AttackPathGraphService {
               findingNodeId, id -> findingNode(id, f.type(), f.value(), typeNodeId, assetNodeId));
       if (seenFindingNodes.add(findingNodeId)) {
         staticFindings.add(findingNode);
+      }
+      // A node dedups (type, value) across endpoints and both flags: a real finding among its
+      // producers wins over an output-only one (ADR-004).
+      if (f.isFinding()) {
+        findingNode.setIsFinding(true);
       }
 
       // Accumulate each producing execution's verdict for the cross-endpoint worst-of on the node.
@@ -1466,6 +1476,8 @@ public class AttackPathGraphService {
     node.setTypeFindings(type);
     node.setFindingsTypeNodeId(typeNodeId);
     node.setAssetNodeId(assetNodeId);
+    // Default to output-only; a real finding among the node's producers flips it to true (OR).
+    node.setIsFinding(false);
     return node;
   }
 

@@ -47,7 +47,8 @@ public class ConditionApi extends RestBehavior {
   })
   @AccessControl(
       actionPerformed = Action.CREATE,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+      resourceType = ResourceType.SIMULATION_OR_SCENARIO,
+      isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
@@ -67,7 +68,8 @@ public class ConditionApi extends RestBehavior {
   @AccessControl(
       resourceId = "#conditionId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.CONDITION)
+      resourceType = ResourceType.CONDITION,
+      isEnterpriseEdition = true)
   @GetMapping("/{conditionId}")
   public EventOutput findById(@PathVariable String conditionId) {
     return toOutput(conditionService.findConditionRootById(conditionId));
@@ -81,7 +83,8 @@ public class ConditionApi extends RestBehavior {
   @AccessControl(
       resourceId = "#workflowId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.WORKFLOW)
+      resourceType = ResourceType.WORKFLOW,
+      isEnterpriseEdition = true)
   @GetMapping(params = "workflow_id")
   public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
     return conditionService.findEventsByWorkflowId(workflowId);
@@ -100,7 +103,8 @@ public class ConditionApi extends RestBehavior {
   @AccessControl(
       resourceId = "#conditionId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.CONDITION)
+      resourceType = ResourceType.CONDITION,
+      isEnterpriseEdition = true)
   @PutMapping("/{conditionId}")
   @Transactional
   public EventOutput update(
@@ -120,7 +124,8 @@ public class ConditionApi extends RestBehavior {
   @AccessControl(
       resourceId = "#conditionId",
       actionPerformed = Action.DELETE,
-      resourceType = ResourceType.CONDITION)
+      resourceType = ResourceType.CONDITION,
+      isEnterpriseEdition = true)
   @DeleteMapping("/{conditionId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional

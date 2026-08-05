@@ -78,6 +78,63 @@ class AttackPathIdsTest {
   }
 
   @Test
+  @DisplayName("A short finding row id keeps its legacy (un-hashed) form across upgrades")
+  void finding_row_id_keeps_legacy_form_for_short_values() {
+    // Rows copied before the value hashing was introduced carry the raw-value id; a short value
+    // must keep resolving to that exact id so a post-upgrade re-copy upserts onto the existing row
+    // instead of inserting a duplicate (the natural-key index was dropped, the PK is the dedup).
+    assertThat(AttackPathIds.findingRow("sim-1", "cve", "text_field", "CVE-1", "asset-1"))
+        .isEqualTo("FINDING_ROW|sim-1|cve|text_field|CVE-1|asset-1");
+  }
+
+  @Test
+  @DisplayName("A finding row id stays bounded and deterministic even for a very long value")
+  void finding_row_id_is_bounded_for_long_values() {
+    // ADR-004 lets arbitrarily long parsed outputs reach attackpath_finding; when the raw encoding
+    // would overflow the varchar(255) primary key, the value is hashed (FINDING_ROW_H namespace).
+    String longValue = "x".repeat(10_000);
+    String id = AttackPathIds.findingRow("sim-1", "output", "text_field", longValue, "asset-1");
+
+    assertThat(id.length()).isLessThanOrEqualTo(255);
+    assertThat(id).startsWith("FINDING_ROW_H|");
+    // Deterministic: the same long value always yields the same id.
+    assertThat(id)
+        .isEqualTo(AttackPathIds.findingRow("sim-1", "output", "text_field", longValue, "asset-1"));
+    // Two different long values (even sharing a long prefix) yield different ids: the whole value
+    // is hashed, never truncated.
+    assertThat(id)
+        .isNotEqualTo(
+            AttackPathIds.findingRow("sim-1", "output", "text_field", longValue + "y", "asset-1"));
+    // The hashed namespace can never collide with a raw id: a short value crafted to look like the
+    // long value's hashed component still lives under the FINDING_ROW kind.
+    String hashedComponent = id.substring("FINDING_ROW_H|".length());
+    assertThat(
+            AttackPathIds.findingRow("sim-1", "output", "text_field", hashedComponent, "asset-1"))
+        .startsWith("FINDING_ROW|")
+        .isNotEqualTo(id);
+  }
+
+  @Test
+  @DisplayName("A finding row id stays bounded when the overflow comes from another component")
+  void finding_row_id_is_bounded_when_other_components_overflow() {
+    // Hashing the value cannot shrink an id whose excess length comes from, e.g., a very long
+    // endpoint key: the last resort hashes the whole raw id into the fixed-size FINDING_ROW_F
+    // form, which stays deterministic and distinct per natural key.
+    String longEndpointKey = "k".repeat(300);
+    String id = AttackPathIds.findingRow("sim-1", "port", "text_field", "22", longEndpointKey);
+
+    assertThat(id.length()).isLessThanOrEqualTo(255);
+    assertThat(id).startsWith("FINDING_ROW_F|");
+    assertThat(id)
+        .isEqualTo(AttackPathIds.findingRow("sim-1", "port", "text_field", "22", longEndpointKey));
+    assertThat(id)
+        .isNotEqualTo(
+            AttackPathIds.findingRow("sim-1", "port", "text_field", "23", longEndpointKey))
+        .isNotEqualTo(
+            AttackPathIds.findingRow("sim-1", "port", "text_field", "22", longEndpointKey + "k"));
+  }
+
+  @Test
   @DisplayName("The delimiter inside a component cannot cause a collision (injective encoding)")
   void delimiter_in_component_is_safe() {
     // Without escaping, both would encode to "NODE_FINDING|a|b|c".

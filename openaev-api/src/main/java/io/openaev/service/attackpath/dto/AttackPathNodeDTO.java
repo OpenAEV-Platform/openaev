@@ -80,4 +80,8 @@ public class AttackPathNodeDTO {
   // FINDING only: the per-finding verdict triple, worst-of aggregated across the producing
   // executions. Null on every other node type (omitted from the JSON).
   private AttackPathFindingVerdictsDTO verdicts;
+  // FINDING only: false when the node is an output-only value (a chaining output not persisted as a
+  // Finding, ADR-004), true for a real finding. Drives the "Output only" rendering and the degraded
+  // drawer. Null on every other node type (omitted from the JSON).
+  private Boolean isFinding;
 }

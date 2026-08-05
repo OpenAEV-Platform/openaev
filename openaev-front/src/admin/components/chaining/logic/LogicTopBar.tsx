@@ -3,6 +3,7 @@ import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
+import LogicReadOnlyBanner from './LogicReadOnlyBanner';
 import LogicWarningBanner from './LogicWarningBanner';
 import type { EventMeta } from './types';
 
@@ -10,9 +11,11 @@ interface LogicTopBarProps {
   eventMetas: Record<string, EventMeta>;
   onAddCompatibleAction: (field: string) => void;
   onAddComponent: () => void;
+  readOnly?: boolean;
+  readOnlyMessage?: string;
 }
 
-const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent }: LogicTopBarProps) => {
+const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent, readOnly = false, readOnlyMessage }: LogicTopBarProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -34,20 +37,23 @@ const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent }: Logi
         minWidth: 0,
       }}
       >
+        {readOnly && <LogicReadOnlyBanner message={readOnlyMessage} />}
         <LogicWarningBanner
           eventMetas={eventMetas}
           onAddCompatibleAction={onAddCompatibleAction}
         />
       </div>
-      <Button
-        color="primary"
-        startIcon={<Add />}
-        variant="contained"
-        onClick={onAddComponent}
-        sx={{ alignSelf: 'flex-end' }}
-      >
-        {t('Add component')}
-      </Button>
+      {!readOnly && (
+        <Button
+          color="primary"
+          startIcon={<Add />}
+          variant="contained"
+          onClick={onAddComponent}
+          sx={{ alignSelf: 'flex-end' }}
+        >
+          {t('Add component')}
+        </Button>
+      )}
     </div>
   );
 };

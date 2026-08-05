@@ -20,9 +20,10 @@ import type { WorkflowConfigurationInput, WorkflowConfigurationOutput } from '..
 interface ScopeRateLimitProps {
   workflowConfiguration: WorkflowConfigurationOutput | undefined;
   onUpdate: (overrides: Partial<WorkflowConfigurationInput>) => void;
+  readOnly?: boolean;
 }
 
-const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps) => {
+const ScopeRateLimit = ({ workflowConfiguration, onUpdate, readOnly = false }: ScopeRateLimitProps) => {
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
@@ -84,7 +85,7 @@ const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps
             }}
           />
         </Tooltip>
-        <Switch checked={rateLimitEnabled} onChange={handleToggleRateLimit} sx={{ ml: 'auto' }} />
+        <Switch checked={rateLimitEnabled} onChange={handleToggleRateLimit} disabled={readOnly} sx={{ ml: 'auto' }} />
       </Typography>
 
       <Paper sx={{ p: 2 }} variant="outlined">
@@ -96,7 +97,7 @@ const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps
             alignItems: 'end',
           }}
         >
-          <FormControl size="small" disabled={!rateLimitEnabled}>
+          <FormControl size="small" disabled={!rateLimitEnabled || readOnly}>
             <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Max Attempts')}</InputLabel>
             <Select
               value={maxAttempts}
@@ -111,7 +112,7 @@ const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps
             </Select>
           </FormControl>
 
-          <FormControl size="small" disabled={!rateLimitEnabled}>
+          <FormControl size="small" disabled={!rateLimitEnabled || readOnly}>
             <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Minutes')}</InputLabel>
             <Select
               value={minutes}

@@ -122,6 +122,7 @@ const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
         <IconButton
           size="small"
           onClick={handleMenuOpen}
+          sx={{ display: (data.onEdit || data.onDelete) ? undefined : 'none' }}
         >
           <MoreVert sx={{
             fontSize: 18,
