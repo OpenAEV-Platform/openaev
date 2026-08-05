@@ -611,6 +611,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   // -- INJECTOR CONTRACT CONTENT --
 
   public static final String CONTRACT_CONTENT_FIELDS = "fields";
+  public static final String CONTRACT_CONTENT_KEY_CONTRACT_ID = "contract_id";
   public static final String CONTRACT_ELEMENT_CONTENT_KEY = "key";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE = "type";
   public static final String CONTRACT_ELEMENT_CONTENT_CARDINALITY = "cardinality";
