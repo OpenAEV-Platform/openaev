@@ -16,6 +16,25 @@ d2 --layout elk --pad 60 ci-pipeline-schema.d2 ci-pipeline-schema.svg
 > which browsers refuse to draw when an SVG is embedded as an `<img>` — the legend
 > would silently disappear on GitHub.
 
+### Reading the arrows
+
+The legend swatches in the diagram are drawn with the same edge classes as the graph
+itself, so their colour and dash pattern cannot drift from what they describe.
+
+| Arrow | Colour | Meaning |
+|-------|--------|---------|
+| solid | dark slate `#37474F` | A real `needs:` in the YAML. The consumer will not start until the whole upstream job has finished |
+| dashed | orange `#EF6C00` | Polling wait. No `needs:` at all — the consumer starts at t = 0 and polls for the payload |
+| dashed | grey `#78909C` | The workflow launching a job. Not a dependency |
+| dashed | purple `#4527A0` | Auto-retry loop. Fires once, on the first attempt only |
+
+> [!IMPORTANT]
+> **Every duration printed on a job is its `timeout-minutes`, never a measured runtime.**
+> It is the point at which GitHub kills the job, not an indication of how long the job
+> takes — a job labelled "timeout 45 min" normally finishes in a fraction of that.
+> The same applies to the "poll cap" figures on the orange arrows: they are the
+> give-up point of a wait loop, not an expected wait.
+
 ---
 
 ## The one thing to understand
@@ -43,10 +62,11 @@ full timeout.
 
 ### The five polling waits
 
-None of these appear as `needs:` in the YAML.
+None of these appear as `needs:` in the YAML. The cap is the point at which the loop
+gives up and fails the job — not how long the wait normally lasts.
 
-| Consumer | Waits for | Loop | Aborts when |
-|----------|-----------|------|-------------|
+| Consumer | Waits for | Poll cap | Aborts early when |
+|----------|-----------|----------|-------------------|
 | **API Tests** | artifact `api-build-output` | 120 × 5s = 10 min | Backend Compile is `failure`/`cancelled` |
 | **API Types Check** | artifact `openaev-api-jar` | 180 × 5s = 15 min | Backend Compile is `failure`/`cancelled` |
 | **E2E Tests** | GHCR image tag, falling back to the image artifact | 180 × 5s = 15 min | the arch-matched Docker Build cell fails |
@@ -67,10 +87,12 @@ wait from the head of the critical path. This is why the job checks out with
 
 ## Job reference
 
+The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
+
 ### Launched at t = 0
 
-| Job | Timeout | Purpose |
-|-----|---------|---------|
+| Job | `timeout-minutes` | Purpose |
+|-----|-------------------|---------|
 | 🔎 **Migrations Guard** | 3 min | New DB migrations must be strictly appended after the last release tag |
 | 🔨 **Backend Compile** | 10 min | `mvn compile`; uploads `backend-compiled` and `api-build-output` |
 | 🎨 **Frontend Build** | 15 min | Yarn build of `openaev-front` |
@@ -86,8 +108,8 @@ wait from the head of the critical path. This is why the job checks out with
 
 ### Gated by `needs:`
 
-| Job | Timeout | Purpose |
-|-----|---------|---------|
+| Job | `timeout-minutes` | Purpose |
+|-----|-------------------|---------|
 | 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
 | 📊 **Coverage Merge & Upload** | 15 min | Merges JaCoCo shards + Vitest + Playwright → Codecov |
