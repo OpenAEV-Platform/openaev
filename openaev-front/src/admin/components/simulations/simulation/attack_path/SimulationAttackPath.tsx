@@ -200,7 +200,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // Scenario context lists several runs to pick from; simulation context is locked to its own run.
   const showPicker = scenarioExerciseIds !== undefined;
   const theme = useTheme();
-  const { t, fldt } = useFormatter();
+  const { t, fldt, vnsdt } = useFormatter();
   const navigate = useNavigate();
 
   // The view sizes itself to the exact space left under the page chrome (no page scrollbar).
@@ -530,6 +530,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   }, [exerciseId, scenarioExerciseIds, showPicker]);
 
   // Readable label for a simulation id: "date · name" for real simulations, raw id for seeds/unknowns.
+  // The date is the compact numeric form (05/08/2026 14:54 in fr, locale-adapted elsewhere) rather than
+  // the long prose one ("August 5, 2026 at 2:54:00 PM"), which crowded the picker out of the header.
   const labelFor = useCallback((simId?: string): string => {
     if (!simId) {
       return '';
@@ -537,11 +539,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     const meta = metaById.get(simId);
     if (meta?.exercise_name) {
       return meta.exercise_start_date
-        ? `${fldt(meta.exercise_start_date)} · ${meta.exercise_name}`
+        ? `${vnsdt(meta.exercise_start_date)} · ${meta.exercise_name}`
         : meta.exercise_name;
     }
     return simId;
-  }, [metaById, fldt]);
+  }, [metaById, vnsdt]);
 
   // Click a real endpoint (only visible once its injector cluster is expanded): load its own findings
   // (grouped in the side panel) and its executions. Stale responses are dropped.
@@ -1260,9 +1262,23 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         }
         // The plain endpoint-only focus (chokepoint click, no finding/action selected) seeds on the
         // endpoint itself.
-        raw = seeds
+        const scoped = seeds
           ? scopeChainFlowToSeeds(fullChain, seeds)
           : scopeChainFlowToEndpoint(fullChain, pathFinding.endpointNodeId);
+        // Both scopers deliberately return the WHOLE chain when none of their seeds is a rendered node,
+        // rather than an empty canvas. That safety net is right for the canvas but wrong for a focus
+        // request: the graph comes back byte-identical, so the click reads as "nothing happened" (an
+        // endpoint reached only through a path the chain layout does not lay out — e.g. a raw-value
+        // target, or a step whose source is not an injector — hits exactly that). Degrade to the flatter
+        // buildFindingPathFlow layout instead: it always renders a genuinely focused view for the
+        // endpoint, losing the causal edges but never the focus itself.
+        raw = scoped.nodes.length === fullChain.nodes.length
+          ? buildFindingPathFlow(dto, pathFinding, t, pathContractLabelByInjector, {
+              expanded: expandedFindingClusters,
+              findingsByCluster,
+              batch: findingBatch,
+            })
+          : scoped;
       } else if (pathFinding) {
         raw = buildFindingPathFlow(dto, pathFinding, t, pathContractLabelByInjector, {
           expanded: expandedFindingClusters,
@@ -2633,7 +2649,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               rows={tableRows}
               typeColumns={endpointTypeColumns}
               chokepointTopN={CHOKEPOINT_TOP_N}
-              onRowOpen={row => onEndpointClick(row.nodeId, row.ref, row.label)}
+              onRowFocus={row => focusChokepoint(row)}
             />
           </Paper>
         )}

@@ -46,6 +46,7 @@ vi.mock('../../../../../../components/i18n', () => ({
   useFormatter: () => ({
     t: (s: string) => s,
     fldt: (d: string) => d,
+    vnsdt: (d: string) => d,
   }),
 }));
 
@@ -346,11 +347,13 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     expect(await screen.findByText('CORP-HOST')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Export CSV/ })).toBeTruthy();
 
-    // Clicking the row opens that endpoint's detail panel inline (its Executions section) and stays
-    // in the table view — a row click must not silently swap the whole view back to the graph.
+    // Clicking the row focuses the graph on that endpoint's own causal path (same as a chokepoint card
+    // or a search pick) and opens its detail panel: the table is a way IN to an endpoint, so it lands
+    // on the focused graph rather than leaving the analyst on the list.
     fireEvent.click(screen.getByText('CORP-HOST'));
     expect(await screen.findByText(/Executions/)).toBeTruthy();
-    expect(screen.queryByTestId('attack-path-flow')).toBeNull();
+    expect(await screen.findByTestId('attack-path-flow')).toBeTruthy();
+    expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
   });
 });
 
