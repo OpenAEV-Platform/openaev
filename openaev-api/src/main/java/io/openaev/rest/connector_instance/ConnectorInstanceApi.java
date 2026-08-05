@@ -206,8 +206,13 @@ public class ConnectorInstanceApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully deleted connector instance")
       })
-  public void deleteConnectorInstance(@PathVariable @NotBlank final String connectorInstanceId)
+  public void deleteConnectorInstance(
+      @RequireTenantSelector TxCtx ctx, @PathVariable @NotBlank final String connectorInstanceId)
       throws ConnectorStatusException {
+    // Enforce a single-tenant write scope (400 on ambiguous selector) before deleteById tears down
+    // the executor/collector/injector row it owns: those deletes rely on this method's ambient
+    // scope, not an explicit tenant predicate (see ConnectorInstanceService#deleteById).
+    writeScopeResolver.tenantForWrite(ctx, null);
     connectorInstanceService.deleteById(connectorInstanceId);
   }
 }

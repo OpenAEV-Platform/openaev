@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
@@ -63,6 +64,8 @@ public class CalderaExecutorServiceTest {
 
   @Mock private Executor executor;
 
+  @Mock private TenantScopedTransaction tenantTx;
+
   @InjectMocks private CalderaExecutorService calderaExecutorService;
 
   @InjectMocks private CalderaExecutorContextService calderaExecutorContextService;
@@ -94,6 +97,15 @@ public class CalderaExecutorServiceTest {
     randomExecutor.setType("TYPE");
     randomExecutor.setTenantId(TenantContext.getCurrentTenant());
     calderaExecutorService.setExecutor(calderaExecutor);
+    // The service wraps run() in tenantTx.execute(...): make the mock actually invoke the
+    // supplied work, otherwise doRun() never happens and the tests below have nothing to verify.
+    lenient()
+        .when(tenantTx.execute(any(), any(java.util.function.Supplier.class)))
+        .thenAnswer(
+            invocation -> {
+              java.util.function.Supplier<?> work = invocation.getArgument(1);
+              return work.get();
+            });
 
     calderaAgent =
         createAgent(

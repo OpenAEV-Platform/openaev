@@ -107,7 +107,9 @@ public class TenantScopedTransaction {
    * top-level transaction scoped to that tenant. This is the FLAT loop, not a nested one: a tenant
    * that fails is rolled back and cannot poison the others (unlike catching an exception inside a
    * single transaction, which dies at commit). Failures are collected and rethrown as one
-   * aggregate, never swallowed. The work receives its tenant's scope, ready for write attribution.
+   * aggregate, never swallowed. The work receives its tenant id directly; reconstruct the scope
+   * with {@code TxCtx.forTenant(id)} if a nested call needs it explicitly (e.g. a joined
+   * {@code @Transactional} method taking a {@code TxCtx} argument).
    *
    * <p>This is the intended idiom for the common SEQUENTIAL per-tenant job. The package-private
    * resolver keeps the {@code allTenants()} resolution machinery internal; a job with a legitimate
@@ -126,7 +128,7 @@ public class TenantScopedTransaction {
    * marked failed even when most tenants succeeded: read the per-tenant {@code log.warn} and the
    * aggregate's suppressed causes to see what actually happened.
    */
-  public void forEachTenant(Consumer<TxCtx> work) {
+  public void forEachTenant(Consumer<String> work) {
     // Checked upfront: a sequence of top-level transactions cannot run inside an active one. The
     // per-tenant execute() would refuse each tenant anyway, but N aggregated refusals would bury
     // the actual reason.
@@ -141,7 +143,7 @@ public class TenantScopedTransaction {
     for (String tenantId : tenantIds) {
       try {
         TxCtx scope = TxCtx.forTenant(tenantId);
-        execute(scope, () -> work.accept(scope));
+        execute(scope, () -> work.accept(tenantId));
       } catch (RuntimeException failure) {
         failures.put(tenantId, failure);
         log.warn("forEachTenant: tenant {} failed, continuing with the others", tenantId, failure);

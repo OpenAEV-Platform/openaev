@@ -1,10 +1,14 @@
 package io.openaev.executors.crowdstrike.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Executor;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
 import io.openaev.service.AgentService;
@@ -26,14 +30,28 @@ public class CrowdstrikeGarbageCollectorServiceTest {
   @Mock private AgentService agentService;
   @Mock private CrowdStrikeExecutorContextService crowdStrikeExecutorContextService;
   @Mock private CrowdStrikeExecutorConfig config;
+  @Mock private Executor executor;
+  @Mock private TenantScopedTransaction tenantTx;
 
   private CrowdStrikeGarbageCollectorService crowdStrikeGarbageCollectorService;
 
   @BeforeEach
   void setUp() {
+    org.mockito.Mockito.when(executor.getId()).thenReturn(EXECUTOR_ID);
+    // run() wraps doRun() in tenantTx.execute(TxCtx.forTenant(executor.getTenantId()), ...):
+    // stub getTenantId() (TxCtx.forTenant rejects null via List.of) and make the tenantTx mock
+    // actually invoke the supplied work, otherwise doRun() never happens.
+    lenient().when(executor.getTenantId()).thenReturn("test-tenant-id");
+    lenient()
+        .when(tenantTx.execute(any(), any(java.util.function.Supplier.class)))
+        .thenAnswer(
+            invocation -> {
+              java.util.function.Supplier<?> work = invocation.getArgument(1);
+              return work.get();
+            });
     crowdStrikeGarbageCollectorService =
         new CrowdStrikeGarbageCollectorService(
-            config, crowdStrikeExecutorContextService, agentService, EXECUTOR_ID);
+            config, crowdStrikeExecutorContextService, agentService, executor, tenantTx);
   }
 
   @Test

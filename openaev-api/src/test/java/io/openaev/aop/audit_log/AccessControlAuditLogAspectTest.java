@@ -28,7 +28,9 @@ import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.service.LogService;
@@ -37,6 +39,7 @@ import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Map;
 import java.util.logging.Level;
@@ -68,6 +71,8 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TestUserHolder testUserHolder;
 
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoSpyBean private AuditLogProperties auditLogProperties;
@@ -83,6 +88,15 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     // System.exit(). Without this safety net, any test that accidentally triggers
     // prepareLogFailure() (e.g. via a race with the async audit thread) would kill the JVM.
     doNothing().when(shutdownService).initiateShutdown();
+    // /register carries a TxCtx param (v2 write-scope resolution): the mock user needs a
+    // users_tenants row, otherwise the scope resolves to TxCtx.Missing and the write is refused
+    // with 400 regardless of isAdmin/capabilities. Guarded by an active-transaction check because
+    // one test in this class runs with Propagation.NOT_SUPPORTED (no transaction during setup).
+    if (testUserHolder.isSet()
+        && org.springframework.transaction.support.TransactionSynchronizationManager
+            .isActualTransactionActive()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 
   @Nested

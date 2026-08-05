@@ -5,6 +5,7 @@ import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecu
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -47,6 +48,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   private final OpenAEVConfig openAEVConfig;
+  private final TenantScopedTransaction tenantTx;
 
   public SentinelOneExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -63,7 +65,8 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      OpenAEVConfig openAEVConfig) {
+      OpenAEVConfig openAEVConfig,
+      TenantScopedTransaction tenantTx) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
@@ -79,6 +82,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.openAEVConfig = openAEVConfig;
+    this.tenantTx = tenantTx;
   }
 
   @Override
@@ -143,6 +147,7 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
         taskScheduler,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        openAEVConfig);
+        openAEVConfig,
+        tenantTx);
   }
 }

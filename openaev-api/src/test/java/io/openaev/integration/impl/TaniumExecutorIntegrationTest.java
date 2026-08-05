@@ -8,6 +8,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -85,6 +86,7 @@ public class TaniumExecutorIntegrationTest {
   @Autowired private TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
 
   @Autowired private FileService fileService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private TaniumExecutorIntegrationFactory getFactory() {
     return new TaniumExecutorIntegrationFactory(
@@ -102,7 +104,8 @@ public class TaniumExecutorIntegrationTest {
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        openAEVConfig);
+        openAEVConfig,
+        tenantTx);
   }
 
   @Test
@@ -246,7 +249,8 @@ public class TaniumExecutorIntegrationTest {
                     taskScheduler,
                     null,
                     httpClientFactory,
-                    openAEVConfig))
+                    openAEVConfig,
+                    tenantTx))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }

@@ -3,9 +3,11 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantContext;
@@ -87,6 +89,8 @@ class InjectsExecutionJobTenantScopeTest {
   /** The scope the v2 primitive was opened with. */
   private final AtomicReference<TxCtx> primitiveScope = new AtomicReference<>();
 
+  private final AtomicReference<String> tenantDuringFailStatus = new AtomicReference<>();
+
   @BeforeEach
   void setUp() throws Exception {
     ReflectionTestUtils.setField(job, "injectExecutionThreshold", 15);
@@ -122,6 +126,13 @@ class InjectsExecutionJobTenantScopeTest {
               tenantDuringExecution.set(TenantContext.getCurrentTenant());
               return null;
             });
+    doAnswer(
+            invocation -> {
+              tenantDuringFailStatus.set(TenantContext.getCurrentTenant());
+              return null;
+            })
+        .when(injectStatusService)
+        .failInjectStatus(anyString(), anyString());
   }
 
   @AfterEach
@@ -192,5 +203,16 @@ class InjectsExecutionJobTenantScopeTest {
     assertThat(TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null)
         .as("a scope-less thread must leave the sweep scope-less")
         .isNull();
+  }
+
+  @Test
+  @DisplayName("failed inject status update runs under the inject tenant scope")
+  void failedStatusUpdateRunsUnderInjectTenant() throws Exception {
+    when(executor.execute(any())).thenThrow(new RuntimeException("boom"));
+
+    job.execute(null);
+
+    verify(injectStatusService).failInjectStatus(anyString(), anyString());
+    assertThat(tenantDuringFailStatus.get()).isEqualTo(INJECT_TENANT);
   }
 }

@@ -131,7 +131,7 @@ class TenantScopedTransactionIntegrationTest extends IntegrationTest {
                 rawTransaction(TransactionDefinition.PROPAGATION_REQUIRED)
                     .execute(
                         status -> {
-                          tenantTx.forEachTenant(ctx -> {});
+                          tenantTx.forEachTenant(tenantId -> {});
                           return null;
                         }));
     assertTrue(

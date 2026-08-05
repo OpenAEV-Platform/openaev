@@ -13,6 +13,7 @@ import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
@@ -846,7 +847,109 @@ class WorkflowServiceTest {
   }
 
   // ========================================================================
-  // Scope Variables Tests
+  // updateWorkflowConfiguration – logic-map freeze (ADR-005)
+  // ========================================================================
+  @Nested
+  @DisplayName("updateWorkflowConfiguration – logic-map freeze (ADR-005)")
+  class LogicMapFreezeTests {
+
+    private Workflow buildTemplateWithSimulation(ExerciseStatus status) {
+      String workflowId = UUID.randomUUID().toString();
+      Exercise simulation = new Exercise();
+      simulation.setStatus(status);
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .simulation(simulation)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .build();
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      return workflow;
+    }
+
+    @Test
+    @DisplayName("given a SCHEDULED simulation should allow updating the configuration")
+    void given_scheduledSimulation_should_allowUpdate() {
+      // Arrange
+      Workflow workflow = buildTemplateWithSimulation(ExerciseStatus.SCHEDULED);
+
+      // Act & Assert
+      assertDoesNotThrow(
+          () ->
+              workflowService.updateWorkflowConfiguration(
+                  workflow.getId(), new WorkflowConfigurationInput()));
+    }
+
+    @Test
+    @DisplayName("given a RUNNING simulation should reject updating the configuration")
+    void given_runningSimulation_should_rejectUpdate() {
+      // Arrange
+      Workflow workflow = buildTemplateWithSimulation(ExerciseStatus.RUNNING);
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () ->
+              workflowService.updateWorkflowConfiguration(
+                  workflow.getId(), new WorkflowConfigurationInput()));
+    }
+
+    @Test
+    @DisplayName("given a FINISHED simulation should reject updating the configuration")
+    void given_finishedSimulation_should_rejectUpdate() {
+      // Arrange
+      Workflow workflow = buildTemplateWithSimulation(ExerciseStatus.FINISHED);
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () ->
+              workflowService.updateWorkflowConfiguration(
+                  workflow.getId(), new WorkflowConfigurationInput()));
+    }
+
+    @Test
+    @DisplayName("given a CANCELED simulation should reject updating the configuration")
+    void given_canceledSimulation_should_rejectUpdate() {
+      // Arrange
+      Workflow workflow = buildTemplateWithSimulation(ExerciseStatus.CANCELED);
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () ->
+              workflowService.updateWorkflowConfiguration(
+                  workflow.getId(), new WorkflowConfigurationInput()));
+    }
+
+    @Test
+    @DisplayName("given a scenario-owned workflow (no simulation) should allow updating")
+    void given_scenarioWorkflow_should_allowUpdate() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .build();
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+
+      // Act & Assert
+      assertDoesNotThrow(
+          () ->
+              workflowService.updateWorkflowConfiguration(
+                  workflow.getId(), new WorkflowConfigurationInput()));
+    }
+  }
+
+  // ========================================================================
+  // updateWorkflowConfiguration – scope variables
   // ========================================================================
   @Nested
   @DisplayName("updateWorkflowConfiguration – scope variables")

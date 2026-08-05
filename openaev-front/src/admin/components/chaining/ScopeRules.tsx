@@ -22,6 +22,7 @@ type ScopeMode = 'ALLOWLIST' | 'DENYLIST';
 interface ScopeRulesProps {
   workflowConfiguration: WorkflowConfigurationOutput | undefined;
   onUpdate: (overrides: Partial<WorkflowConfigurationInput>) => void;
+  readOnly?: boolean;
 }
 
 interface ScopeColumnProps {
@@ -29,9 +30,10 @@ interface ScopeColumnProps {
   rules: WorkflowScopeRuleOutput[];
   resolveLabel: (rule: WorkflowScopeRuleOutput) => string;
   onAdd: () => void;
+  readOnly?: boolean;
 }
 
-const ScopeColumn = ({ title, rules, resolveLabel, onAdd }: ScopeColumnProps) => {
+const ScopeColumn = ({ title, rules, resolveLabel, onAdd, readOnly = false }: ScopeColumnProps) => {
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
@@ -59,9 +61,11 @@ const ScopeColumn = ({ title, rules, resolveLabel, onAdd }: ScopeColumnProps) =>
           )
         </Typography>
 
-        <Button size="small" startIcon={<Add />} onClick={onAdd}>
-          {t('Add')}
-        </Button>
+        {!readOnly && (
+          <Button size="small" startIcon={<Add />} onClick={onAdd}>
+            {t('Add')}
+          </Button>
+        )}
       </Box>
 
       {rules.length > 0 ? (
@@ -77,7 +81,7 @@ const ScopeColumn = ({ title, rules, resolveLabel, onAdd }: ScopeColumnProps) =>
   );
 };
 
-const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
+const ScopeRules = ({ workflowConfiguration, onUpdate, readOnly = false }: ScopeRulesProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -256,6 +260,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
             rules={allowlisted}
             resolveLabel={resolveLabel}
             onAdd={() => handleOpenDrawer('ALLOWLIST')}
+            readOnly={readOnly}
           />
 
           <Divider
@@ -269,6 +274,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
             rules={denylisted}
             resolveLabel={resolveLabel}
             onAdd={() => handleOpenDrawer('DENYLIST')}
+            readOnly={readOnly}
           />
         </Box>
       </Paper>

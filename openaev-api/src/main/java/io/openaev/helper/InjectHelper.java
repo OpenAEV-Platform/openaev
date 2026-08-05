@@ -4,6 +4,8 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Stream.concat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.specification.InjectSpecification;
@@ -23,7 +25,6 @@ import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
@@ -49,6 +50,7 @@ public class InjectHelper {
   private final InjectRepository injectRepository;
   private final ExecutionContextService executionContextService;
   private final EntityManager entityManager;
+  private final TenantScopedTransaction tenantTx;
 
   /**
    * Retrieves the teams targeted by an inject.
@@ -168,39 +170,46 @@ public class InjectHelper {
    * <p>Combines regular exercise injects and atomic testing injects that are scheduled for now or
    * earlier, converting them to executable form with all necessary context (teams, assets, users).
    *
-   * <p>This method runs in a transaction to ensure consistent data loading.
+   * <p>Genuinely cross-tenant: opens through {@link TenantScopedTransaction#execute} with {@link
+   * TxCtx#allTenants()} instead of a plain {@code @Transactional}. A plain {@code @Transactional}
+   * here leaves {@code app.current_tenants} unset for the whole read, which {@code
+   * can_access_tenant} treats as fail-closed (no rows visible for ANY tenant, not just the wrong
+   * one). The eager {@code Agent.executor} join hits the already-activated (v2) {@code executors}
+   * table, so with no scope set it silently resolves to {@code null} for every agent, regardless of
+   * tenant or executor type — this is what caused "No asset executed" on every launch.
    *
    * @return list of executable injects ready to run, sorted by execution order
    */
-  @Transactional
   public List<ExecutableInject> getInjectsToRun() {
-    // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-    // Get injects whose planned date can already be reached (coarse SQL filter); the exact
-    // pause-aware date check is still applied in memory below
-    List<Inject> injects =
-        this.injectRepository
-            .findAll(
-                InjectSpecification.executable()
-                    .and(InjectSpecification.plannedDateReachable(Instant.now())),
-                PageRequest.ofSize(batchSize))
-            .getContent();
-    Stream<ExecutableInject> executableInjects =
-        injects.stream()
-            .filter(this::isBeforeOrEqualsNow)
-            .sorted(Inject.executionComparator)
-            .map(this::toExecutableInject);
-    // Get atomic testing injects
-    List<Inject> atomicTests =
-        this.injectRepository
-            .findAll(InjectSpecification.forAtomicTesting(), PageRequest.ofSize(batchSize))
-            .getContent();
-    Stream<ExecutableInject> executableAtomicTests =
-        atomicTests.stream()
-            .filter(this::isBeforeOrEqualsNow)
-            .sorted(Inject.executionComparator)
-            .map(this::toExecutableInject);
-    // Combine injects
-    return concat(executableInjects, executableAtomicTests).collect(Collectors.toList());
+    return tenantTx.execute(
+        TxCtx.allTenants(),
+        () -> {
+          // Get injects whose planned date can already be reached (coarse SQL filter); the exact
+          // pause-aware date check is still applied in memory below
+          List<Inject> injects =
+              this.injectRepository
+                  .findAll(
+                      InjectSpecification.executable()
+                          .and(InjectSpecification.plannedDateReachable(Instant.now())),
+                      PageRequest.ofSize(batchSize))
+                  .getContent();
+          Stream<ExecutableInject> executableInjects =
+              injects.stream()
+                  .filter(this::isBeforeOrEqualsNow)
+                  .sorted(Inject.executionComparator)
+                  .map(this::toExecutableInject);
+          // Get atomic testing injects
+          List<Inject> atomicTests =
+              this.injectRepository
+                  .findAll(InjectSpecification.forAtomicTesting(), PageRequest.ofSize(batchSize))
+                  .getContent();
+          Stream<ExecutableInject> executableAtomicTests =
+              atomicTests.stream()
+                  .filter(this::isBeforeOrEqualsNow)
+                  .sorted(Inject.executionComparator)
+                  .map(this::toExecutableInject);
+          // Combine injects
+          return concat(executableInjects, executableAtomicTests).collect(Collectors.toList());
+        });
   }
 }

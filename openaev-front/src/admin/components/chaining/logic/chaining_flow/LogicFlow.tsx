@@ -53,6 +53,8 @@ interface LogicFlowProps {
   onAddActionToEvent?: (eventId: string) => void;
   /** Called after each graph refresh so the parent can drive the warning banner. */
   onEventMetasChange?: (metas: Record<string, EventMeta>) => void;
+  /** When true, the logic map is frozen (launched simulation): no edit/delete/connect. */
+  readOnly?: boolean;
 }
 
 const proOptions = {
@@ -89,6 +91,7 @@ const LogicFlow = ({
   onEditEvent,
   onAddActionToEvent,
   onEventMetasChange,
+  readOnly = false,
 }: LogicFlowProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -387,13 +390,13 @@ const LogicFlow = ({
         },
         data: {
           ...node.data,
-          onEdit: editNode,
-          onDelete: requestDeleteNode,
+          onEdit: readOnly ? undefined : editNode,
+          onDelete: readOnly ? undefined : requestDeleteNode,
           ...(node.type === 'event'
             ? {
                 isSelected: node.id === selectedNodeId,
                 pathIndex: pathIndex[node.id],
-                onAddAction: onAddActionToEvent,
+                onAddAction: readOnly ? undefined : onAddActionToEvent,
               }
             : {}),
           ...(node.type === 'action'
@@ -405,7 +408,7 @@ const LogicFlow = ({
         },
       };
     }),
-    [nodes, editNode, requestDeleteNode, onAddActionToEvent, selectedNodeId, highlightedStepIds, highlightedEventIds, pathIndex],
+    [nodes, editNode, requestDeleteNode, onAddActionToEvent, selectedNodeId, highlightedStepIds, highlightedEventIds, pathIndex, readOnly],
   );
 
   /**
@@ -421,7 +424,7 @@ const LogicFlow = ({
         ...edge,
         data: {
           ...edge.data,
-          onDelete: onDeleteEdgeClick,
+          onDelete: readOnly ? undefined : onDeleteEdgeClick,
           // Real event → step links along the flow are emphasized in blue while its event is selected.
           isHighlighted: inFlow,
           // Faded out when outside the selected event's flow (spotlight backdrop).
@@ -429,7 +432,7 @@ const LogicFlow = ({
         },
       };
     }),
-    [edges, onDeleteEdgeClick, selectedNodeId, triggerEdgeKeys],
+    [edges, onDeleteEdgeClick, selectedNodeId, triggerEdgeKeys, readOnly],
   );
 
   const allEdges = useMemo(
@@ -466,19 +469,21 @@ const LogicFlow = ({
           edges={allEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onEdgesDelete={onEdgesDelete}
-          onConnect={onConnect}
+          onEdgesDelete={readOnly ? undefined : onEdgesDelete}
+          onConnect={readOnly ? undefined : onConnect}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           proOptions={proOptions}
+          nodesConnectable={!readOnly}
+          deleteKeyCode={readOnly ? null : undefined}
           fitView
           style={{ background: 'transparent' }}
           defaultEdgeOptions={{
             type: 'deletable',
             markerEnd: { type: MarkerType.ArrowClosed },
-            data: { onDelete: onDeleteEdgeClick },
+            data: { onDelete: readOnly ? undefined : onDeleteEdgeClick },
           }}
         >
           <StyledControls

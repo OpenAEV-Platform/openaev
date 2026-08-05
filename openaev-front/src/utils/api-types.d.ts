@@ -1091,6 +1091,7 @@ export interface AttackPathNodeDTO {
   id?: string;
   injectorType?: string;
   ip?: string;
+  isFinding?: boolean;
   label?: string;
   payloadName?: string;
   platform?: string;

@@ -83,13 +83,10 @@ public class AtomicTestingService {
             ? injectRepository.findByIdAndTenantId(injectId, tenantId)
             : injectRepository.findWithStatusById(injectId);
 
-    if (injectOpt.isPresent()) {
-      Inject inject = injectOpt.get();
-      List<AssetGroup> computedAssetGroup =
-          inject.getAssetGroups().stream().map(assetGroupService::computeDynamicAssets).toList();
-      inject.getAssetGroups().clear();
-      inject.getAssetGroups().addAll(computedAssetGroup);
-    }
+    // Compute dynamic assets for display, in place on the SAME managed AssetGroup instances
+    // (AssetGroup.dynamicAssets is @Transient: this mutation is never persisted).
+    injectOpt.ifPresent(
+        inject -> inject.getAssetGroups().forEach(assetGroupService::computeDynamicAssets));
     return injectOpt
         .map(injectMapper::toInjectResultOverviewOutput)
         .orElseThrow(ElementNotFoundException::new);

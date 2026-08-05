@@ -228,6 +228,47 @@ Also list child tables (FKs pointing at `{table}`). A child without its own
 `tenant_id` rides along with the parent and is NOT added to `active-tables`.
 A child with its own `tenant_id` is a separate activation; report it.
 
+**Native query shape scan (#7007).** Activating `{table}` does not just gate
+the queries that read `{table}` itself — it pulls into the fail-closed
+`TenantStatementInspector` rewrite EVERY native `@Query` that so much as
+mentions `{table}` in a `JOIN`, however unrelated to the rest of that query's
+predicates. `TenantStatementInspector` only accepts a closed list of
+FROM/JOIN shapes; anything else is refused with `TENANT_FILTERING_REFUSED`,
+even a shape that has nothing to do with tenant isolation. The #6751
+(collectors) activation shipped this exact regression to production: adding
+`collectors` to `active-tables` pulled `findAgentlessExpectationsNotFilledForSource`
+into rewriting because it had `JOIN collectors c`, and its unrelated
+`NOT EXISTS (SELECT 1 FROM jsonb_array_elements(...) r ...)` predicate — a
+table-function FROM item without the `LATERAL` prefix — was refused fail-closed,
+breaking the AI defense collector endpoint on every call (see #7007 / PR #7008).
+
+```bash
+# every native @Query that JOINs {table}, anywhere in the codebase - not just
+# the table's own repository
+grep -rln "JOIN {table}\|join {table}" openaev-model/src/main/java openaev-api/src/main/java --include="*.java"
+```
+
+For every hit, read the FULL query text (not just the `JOIN {table}` line)
+and check every FROM/JOIN item against what `TenantStatementInspector`
+already accepts (see `TenantStatementInspectorTest`). The recurring offender
+is a table-function FROM item (`jsonb_array_elements`, `jsonb_each`,
+`unnest`, ...) missing `LATERAL`: `LATERAL` is a noise word for a
+function-call FROM item in PostgreSQL (identical semantics and plan) but is
+exactly the marker the inspector uses to accept it — add it. If the query
+uses a FROM/JOIN shape the inspector does not cover at all, that is a
+blocker: stop and report (Phase 0), do not attempt to teach the inspector a
+new shape inside a table-activation PR.
+
+Pin the fix with a regression test in `TenantStatementInspectorTest` using
+the REAL production SQL (read the `@Query` value via reflection off the
+repository method, as PR #7008 does), not a hand-simplified paraphrase — the
+whole point is to catch the exact shape that broke in production. Also note
+for the record: `openaev-api/src/test/resources/application.properties`
+ships an EMPTY `openaev.tenant.active-tables`, so `IntegrationTest`-based API
+tests never exercise the rewriter for `{table}` and cannot catch this class
+of regression — `TenantStatementInspectorTest` (constructed directly with
+`{table}` in its active-table set) is the only test layer that does.
+
 **Test compatibility scan.** Adding a `TxCtx` parameter to an endpoint breaks
 tests that the repository grep misses. Three failure modes exist:
 
@@ -856,6 +897,11 @@ Before marking the issue done, write down:
       `createNativeQuery`) are exercised by a test so a fail-closed rewrite
       refusal surfaces in CI, not production; any raw JDBC on the table converted
       to Hibernate (never `@AllowRawJdbc` on a tenant table)
+- [ ] codebase-wide scan for any native `@Query` that `JOIN`s the table (not
+      just its own repository) done and every FROM/JOIN shape in those queries
+      checked against `TenantStatementInspector`'s accepted shapes; any
+      table-function FROM item (`jsonb_array_elements`, `unnest`, ...) carries
+      `LATERAL`; a regression test pins the real production SQL (#7007)
 - [ ] non-admin variant green
 - [ ] arch tests updated and green
 - [ ] go-live is one commit: @Filter removed + allowlist entry + re-enabled test + config guard

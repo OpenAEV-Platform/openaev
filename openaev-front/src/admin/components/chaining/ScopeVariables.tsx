@@ -23,9 +23,10 @@ import ScopeVariableCreateDialog from './ScopeVariableCreateDialog';
 interface ScopeVariablesProps {
   workflowConfiguration: WorkflowConfigurationOutput | undefined;
   onUpdate: (overrides: Partial<WorkflowConfigurationInput>) => void;
+  readOnly?: boolean;
 }
 
-const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps) => {
+const ScopeVariables = ({ workflowConfiguration, onUpdate, readOnly = false }: ScopeVariablesProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -73,14 +74,16 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
         }}
       >
         {t('Variables')}
-        <IconButton
-          color="primary"
-          size="small"
-          onClick={() => setOpen(true)}
-          aria-label={t('Add variable')}
-        >
-          <Add fontSize="small" />
-        </IconButton>
+        {!readOnly && (
+          <IconButton
+            color="primary"
+            size="small"
+            onClick={() => setOpen(true)}
+            aria-label={t('Add variable')}
+          >
+            <Add fontSize="small" />
+          </IconButton>
+        )}
       </Typography>
 
       {/* List */}
@@ -159,6 +162,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                     color="error"
                     onClick={() => handleDelete(variable.scope_variable_id)}
                     aria-label={t('Delete variable')}
+                    sx={{ display: readOnly ? 'none' : undefined }}
                   >
                     <DeleteOutlined fontSize="small" />
                   </IconButton>

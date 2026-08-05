@@ -286,6 +286,86 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
+  /**
+   * Copies the run's output-only values (contract outputs flagged {@code
+   * contract_output_element_is_finding = false}) onto the attack-path snapshot, so the map shows
+   * every output the chaining used, not only the ones persisted as findings (ADR-004). Flag-gated
+   * and non-fatal, mirroring {@link #recordAttackPathFindings}.
+   */
+  private void recordAttackPathOutputs(
+      Step stepRun, Inject inject, List<Map<String, JsonElement>> output) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
+      return;
+    }
+    try {
+      JsonObject parsed = extractDataFromParsed(output);
+      if (parsed.size() == 0) {
+        return;
+      }
+      Map<String, io.openaev.database.model.ContractOutputType> typeByKey = new HashMap<>();
+      Map<String, Boolean> isFindingByKey = new HashMap<>();
+      collectOutputElements(inject, typeByKey, isFindingByKey);
+
+      List<AttackPathFindingIngestionService.OutputValue> values = new ArrayList<>();
+      for (String key : parsed.keySet()) {
+        Boolean isFinding = isFindingByKey.get(key);
+        io.openaev.database.model.ContractOutputType type = typeByKey.get(key);
+        // Only output-only (is_finding=false), typed outputs form a row; findings are handled by
+        // the finding copy, untyped outputs cannot form a (type, field) row.
+        if (isFinding == null || isFinding || type == null) {
+          continue;
+        }
+        JsonElement valuesNode = parsed.get(key);
+        if (valuesNode == null || !valuesNode.isJsonArray()) {
+          continue;
+        }
+        for (JsonElement value : valuesNode.getAsJsonArray()) {
+          if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
+            continue;
+          }
+          values.add(
+              new AttackPathFindingIngestionService.OutputValue(
+                  type.getLabel(), key, value.getAsString()));
+        }
+      }
+      if (!values.isEmpty()) {
+        attackPathFindingIngestion.copyOutputs(inject, stepRun, values);
+      }
+    } catch (Exception e) {
+      log.warn("Attack-path outputs copy skipped for inject {} (non-fatal)", inject.getId(), e);
+    }
+  }
+
+  /**
+   * Collects the inject's contract output elements, indexing their contract output type and their
+   * {@code is_finding} flag by output key. Mirrors {@link #buildTypeMappingsFromInject}: the
+   * payload path uses the non-filtered accessor (so non-finding outputs are included), the
+   * injector-contract path uses {@code isFindingCompatible} as the flag.
+   */
+  private void collectOutputElements(
+      Inject inject,
+      Map<String, io.openaev.database.model.ContractOutputType> typeByKey,
+      Map<String, Boolean> isFindingByKey) {
+    if (inject.getPayload().isPresent()) {
+      Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
+      injectorContractContentUtils
+          .getAllContractOutputs(outputParsers, false)
+          .forEach(
+              out -> {
+                typeByKey.put(out.getKey(), out.getType());
+                isFindingByKey.put(out.getKey(), out.isFinding());
+              });
+    } else if (inject.getInjectorContract().isPresent()) {
+      injectorContractContentUtils
+          .getAllContractOutputs(inject.getInjectorContract().get())
+          .forEach(
+              out -> {
+                typeByKey.put(out.getField(), out.getType());
+                isFindingByKey.put(out.getField(), out.isFindingCompatible());
+              });
+    }
+  }
+
   /** Loads the concrete payload subtype (Command, Executable, etc.) into the injector contract. */
   private void prepareGetStatusPayloadFromInject(InjectorContract injectorContract) {
     if (injectorContract.getPayload() == null) {
@@ -360,6 +440,8 @@ public class InjectExecutionStep implements ActionStep {
       stepRun.setOutput(jsonObject.toString());
       // PROPAGATE state changes into engine if parsed output is present
       processOutputAndStateSync(stepRun, output, inject);
+      // COPY output-only values (is_finding=false) onto the attack-path snapshot
+      recordAttackPathOutputs(stepRun, inject, output);
 
       return Optional.of(stepRun);
     }
