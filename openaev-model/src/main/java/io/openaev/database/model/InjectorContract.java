@@ -630,7 +630,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY = "targeted-property";
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR =
       "targeted-asset-separator";
-  public static final String CONTRACT_ELEMENT_CONTENT_KEY_CONTACT_ID = "contract_id";
+  public static final String CONTRACT_ELEMENT_CONTENT_KEY_CONTRACT_ID = "contract_id";
 
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_ASSET = "asset";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP = "asset-group";
