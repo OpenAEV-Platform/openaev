@@ -23,6 +23,5 @@ public class SecretsProviderOutput extends ConnectorOutput {
   private String type;
 
   @JsonProperty("existing_secret_provider")
-  @NotBlank
   private boolean existing;
 }

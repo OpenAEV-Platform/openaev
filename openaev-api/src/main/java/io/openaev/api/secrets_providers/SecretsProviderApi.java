@@ -98,7 +98,7 @@ public class SecretsProviderApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get injector image by type")
   @Transactional
-  public ResponseEntity<InputStreamResource> getInjectorImage(
+  public ResponseEntity<InputStreamResource> getSecretsProviderImage(
       @PathVariable String secretProviderType) {
     return fileService.getConnectorImage(ConnectorType.SECRETS_PROVIDER, secretProviderType);
   }
