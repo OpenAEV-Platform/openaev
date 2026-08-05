@@ -1,4 +1,4 @@
-import { AddOutlined, BoltOutlined, GpsFixedOutlined, MoreVert, OutputOutlined } from '@mui/icons-material';
+import { BoltOutlined, GpsFixedOutlined, MoreVert, OutputOutlined } from '@mui/icons-material';
 import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type MouseEvent, type ReactNode, useState } from 'react';
@@ -32,8 +32,6 @@ export interface GraphActionCardProps {
   readOnly?: boolean;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
-  /** Inline "+": add a trigger fed by this action's outputs (continue the chain). */
-  onAddTrigger?: (id: string) => void;
 }
 
 /** 'openbas_implant' -> 'Openbas implant' */
@@ -79,7 +77,6 @@ const GraphActionCard = ({
   readOnly = false,
   onEdit,
   onDelete,
-  onAddTrigger,
 }: GraphActionCardProps) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -317,34 +314,9 @@ const GraphActionCard = ({
             action produces output an event listens on); gating is created the other way, by dragging
             from a trigger/event onto an action (see GraphTriggerCard). */}
 
-        {!readOnly && onAddTrigger && (
-          <Tooltip title={t('Add a trigger fed by this action')} slotProps={graphTooltipSlotProps}>
-            <IconButton
-              size="small"
-              onPointerDown={e => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddTrigger(id);
-              }}
-              sx={{
-                'position': 'absolute',
-                'bottom': -13,
-                'left': '50%',
-                'transform': 'translateX(-50%)',
-                'zIndex': 3,
-                'width': 22,
-                'height': 22,
-                'padding': 0,
-                'color': theme.palette.primary.contrastText,
-                'backgroundColor': theme.palette.primary.main,
-                'boxShadow': theme.shadows[2],
-                '&:hover': { backgroundColor: theme.palette.primary.dark },
-              }}
-            >
-              <AddOutlined sx={{ fontSize: 15 }} />
-            </IconButton>
-          </Tooltip>
-        )}
+        {/* No action-side "+" to add a downstream event: an action never establishes an
+            action→event relationship (that link is only the automatic informational inferred edge).
+            Events are added from an event's own "+" (event→action) or the global add button. */}
 
         {!readOnly && (
           <NodePopover

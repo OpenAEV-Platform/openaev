@@ -65,8 +65,6 @@ interface LogicGraphProps {
   onEditEvent?: (eventId: string, meta: EventMeta) => void;
   /** Inline "+": add an action gated by this trigger. */
   onAddActionToEvent?: (eventId: string) => void;
-  /** Inline "+": add a trigger fed by this action's output types. */
-  onAddTriggerAfterAction?: (stepId: string, outputTypes: string[]) => void;
   /** Reports the latest event metas so the parent can drive the warning banner. */
   onEventMetasChange?: (metas: Record<string, EventMeta>) => void;
   /** Read-only inspection mode (autonomous runs): keeps pan/zoom + spotlight, disables mutation. */
@@ -85,7 +83,6 @@ const LogicGraph = ({
   onEditStep,
   onEditEvent,
   onAddActionToEvent,
-  onAddTriggerAfterAction,
   onEventMetasChange,
   readOnly = false,
 }: LogicGraphProps) => {
@@ -351,10 +348,6 @@ const LogicGraph = ({
     if (meta) onEditEvent?.(eventId, meta);
   }, [eventMetas, onEditEvent]);
 
-  const handleAddTrigger = useCallback((stepId: string) => {
-    onAddTriggerAfterAction?.(stepId, actionMetas[stepId]?.step_output_types ?? []);
-  }, [actionMetas, onAddTriggerAfterAction]);
-
   // Remove a real gating link: a real edge is `trigger (source) -> action (target)`, so we drop the
   // trigger from that action's condition list without deleting either node.
   const handleDeleteEdge = useCallback((edge: {
@@ -515,7 +508,6 @@ const LogicGraph = ({
                   readOnly={readOnly}
                   onEdit={handleEditAction}
                   onDelete={setPendingDeleteNodeId}
-                  onAddTrigger={onAddTriggerAfterAction ? handleAddTrigger : undefined}
                 />
               </div>
             );
