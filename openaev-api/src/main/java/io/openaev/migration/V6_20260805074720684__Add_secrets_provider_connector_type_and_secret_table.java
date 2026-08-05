@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260803074720684__Add_secrets_provider_connector_type_and_secret_table
+public class V6_20260805074720684__Add_secrets_provider_connector_type_and_secret_table
     extends BaseJavaMigration {
 
   @Override
