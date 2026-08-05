@@ -82,7 +82,7 @@ public class Contract {
   @JsonProperty("contract_attack_patterns_external_ids")
   private List<String> attackPatternsExternalIds = new ArrayList<>();
 
-  /** Whether this contract can be used for atomic testing. */
+  /** Whether this contract can be used to create an atomic testing inject. */
   @Setter
   @JsonProperty("is_atomic_testing")
   private boolean isAtomicTesting = true;

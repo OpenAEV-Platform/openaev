@@ -461,6 +461,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     this.vulnerabilities = vulnerabilities;
   }
 
+  // Indicates whether this contract can be used to create an atomic testing inject.
   // Fixes a bug due to a new version of jackson and lombok
   // cf: https://github.com/projectlombok/lombok/issues/3978
   @Getter(onMethod_ = @JsonProperty("injector_contract_atomic_testing"))
@@ -469,6 +470,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(filterable = true)
   private boolean isAtomicTesting;
 
+  // Exposes the contract capability used to decide if atomic testing creation is allowed.
   @JsonProperty("injector_contract_atomic_testing")
   public boolean getAtomicTestingEffective() {
     return Boolean.TRUE.equals(isAtomicTesting);
