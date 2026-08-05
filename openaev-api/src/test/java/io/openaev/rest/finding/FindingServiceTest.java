@@ -20,13 +20,17 @@ import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Transactional
 class FindingServiceTest extends IntegrationTest {
@@ -40,6 +44,7 @@ class FindingServiceTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private InjectorContractContentUtils injectorContractContentUtils;
   @Autowired private EntityManager entityManager;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   @Test
   @DisplayName("Should have two assets when finding already exists with one asset")
@@ -377,5 +382,139 @@ class FindingServiceTest extends IntegrationTest {
       switchToTenant(tenantX);
       assertDoesNotThrow(() -> findingService.finding(finding.getId()));
     }
+  }
+
+  /**
+   * Reproduces (does NOT fix) a static-analysis hypothesis: the agent path ({@link
+   * FindingWriter#saveCompleteFinding}) upserts via a native {@code ON CONFLICT ... DO UPDATE}, so
+   * a re-detected finding (same natural key: inject/value/type/field) is silently updated. The
+   * injector-bulk path ({@link FindingService#createFindings}) instead calls {@code
+   * findingRepository.saveAll(...)} on brand-new {@link Finding} entities (id == null) with no
+   * pre-fetch of an existing row sharing the same natural key - {@code
+   * deduplicateFindings} only dedups WITHIN one in-memory batch, never against what is already
+   * persisted. The {@code unique_finding_constraint} added by {@code
+   * V3_81__Add_Unique_constraint_findings} therefore may or may not be hit at runtime, depending
+   * on whether the second occurrence lands in a persistence context that still has the first
+   * occurrence's managed instance (same-batch dirty-checking would hide the issue) or a genuinely
+   * separate one (true second run).
+   *
+   * <p>Each "run" below is executed via a raw {@link TransactionTemplate} configured with {@code
+   * PROPAGATION_REQUIRES_NEW} (see {@link #runInNewTransaction}) so it commits independently, on
+   * its own connection, with a Hibernate persistence context that starts out empty - mirroring two
+   * genuinely separate injector executions of the same inject rather than two calls sharing one
+   * in-memory transaction/session (where Hibernate's first-level cache could paper over the bug).
+   */
+  @Nested
+  @DisplayName("Injector-bulk recurrence: same natural key across two separate executions")
+  class RecurrenceAcrossSeparateExecutions {
+
+    @Test
+    @DisplayName(
+        "createFindings() called twice for the same natural key in two separate transactions")
+    void given_sameNaturalKeyInTwoSeparateExecutions_should_notThrowAndUpdateInPlace() {
+      // -------- Arrange --------
+      String uniqueValue = "test-recurrence-check-" + UUID.randomUUID();
+      String field = "finding_field";
+      ContractOutputType type = ContractOutputType.Text;
+
+      String injectId =
+          runInNewTransaction(() -> injectRepository.save(getDefaultInject()).getId());
+
+      // -------- Act: "run #1" - first injector execution creates the finding --------
+      runInNewTransaction(
+          () -> {
+            findingService.createFindings(List.of(bareFinding(uniqueValue, type, field)), injectId);
+            return null;
+          });
+
+      Optional<Finding> afterFirstRun =
+          findingRepository.findByInjectIdAndValueAndTypeAndKey(injectId, uniqueValue, type, field);
+      assertTrue(afterFirstRun.isPresent(), "Finding should exist after the first run");
+      Instant updatedAtAfterFirstRun = afterFirstRun.get().getUpdateDate();
+
+      // -------- Act: "run #2" - second, later injector execution re-detects the SAME finding,
+      // in a brand-new transaction/persistence context (a new Finding instance, id == null, just
+      // like FindingUtils.createFinding() would build from scratch on a real second run) --------
+      Exception thrownOnSecondRun = null;
+      try {
+        runInNewTransaction(
+            () -> {
+              findingService.createFindings(
+                  List.of(bareFinding(uniqueValue, type, field)), injectId);
+              return null;
+            });
+      } catch (Exception e) {
+        thrownOnSecondRun = e;
+      }
+
+      // -------- Assert --------
+      if (thrownOnSecondRun != null) {
+        // BUG CONFIRMED at runtime: do NOT silence this - fail loudly with the full cause chain
+        // so it surfaces in CI/review, instead of asserting "yes it throws" as if that were the
+        // expected/desired behavior.
+        throw new AssertionError(
+            "BUG CONFIRMED: FindingService.createFindings() threw when the same natural key "
+                + "(inject_id="
+                + injectId
+                + ", value="
+                + uniqueValue
+                + ", type="
+                + type
+                + ", field="
+                + field
+                + ") recurred across two separate executions/persistence contexts. The"
+                + " injector-bulk path has no upsert/pre-fetch, unlike"
+                + " FindingWriter#saveCompleteFinding's native ON CONFLICT DO UPDATE on the agent"
+                + " path.",
+            thrownOnSecondRun);
+      }
+
+      // No exception: verify explicitly whether the unique constraint quietly let a duplicate
+      // row through, or the finding was genuinely updated in place as expected.
+      List<Finding> allMatches = findingRepository.findAllByInjectId(injectId);
+      assertEquals(
+          1,
+          allMatches.size(),
+          "Expected exactly one Finding row for this natural key after both runs, found "
+              + allMatches.size()
+              + " - the unique constraint is not preventing duplicates as expected.");
+
+      Finding afterSecondRun = allMatches.getFirst();
+      assertEquals(uniqueValue, afterSecondRun.getValue());
+      assertTrue(
+          afterSecondRun.getUpdateDate().isAfter(updatedAtAfterFirstRun)
+              || afterSecondRun.getUpdateDate().equals(updatedAtAfterFirstRun),
+          "finding_updated_at should not have gone backwards after the second run");
+    }
+
+    private Finding bareFinding(String value, ContractOutputType type, String field) {
+      Finding finding = new Finding();
+      finding.setValue(value);
+      finding.setType(type);
+      finding.setField(field);
+      finding.setAssets(new ArrayList<>());
+      return finding;
+    }
+  }
+
+  /**
+   * Runs {@code action} in a brand-new, independently-committed transaction (PROPAGATION_REQUIRES_NEW)
+   * on the current thread, suspending whatever ambient (test-rollback) transaction is active. Used
+   * to simulate two genuinely separate injector executions rather than two calls sharing the same
+   * Hibernate persistence context.
+   */
+  private <T> T runInNewTransaction(java.util.concurrent.Callable<T> action) {
+    TransactionTemplate template = new TransactionTemplate(transactionManager);
+    template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    return template.execute(
+        status -> {
+          try {
+            return action.call();
+          } catch (RuntimeException e) {
+            throw e;
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 }
