@@ -3,9 +3,10 @@ import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
+import useFetchInjectExecutionResult from '../../../../../actions/inject_status/useFetchInjectExecutionResult';
 import { getInjectStatusWithGlobalExecutionTraces, searchTargets } from '../../../../../actions/injects/inject-action';
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import Tabs from '../../../../../components/common/tabs/Tabs';
@@ -13,7 +14,7 @@ import useTabs from '../../../../../components/common/tabs/useTabs';
 import Terminal, { type TerminalLine } from '../../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
+import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, InjectStatus as InjectStatusType, InjectStatusOutput, InjectTarget } from '../../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -22,8 +23,11 @@ import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import StatusPill from '../../../atomic_testings/atomic_testing/target_result/StatusPill';
 import EEChip from '../../../common/entreprise_edition/EEChip';
 import expectationIconByType from '../../../common/ExpectationIconByType';
+import InjectStatus from '../../../common/injects/status/InjectStatus';
 import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
+import TraceStatusChip from '../../../common/injects/status/traces/TraceStatusChip';
+import useAgentStatus from '../../../common/injects/status/traces/useAgentStatus';
 import FindingList from '../../../findings/FindingList';
 import ExpectationPlatformsTable, {
   type ExpectationPlatformAlert,
@@ -302,13 +306,33 @@ const LiveExecutionTerminal = ({ injectId, endpointName }: {
     };
   }, [injectId, endpointName]);
 
+  // Whether the payload itself actually ran (issue 244): the prevention/detection verdicts above answer
+  // "was it caught?", never "did it run at all?" — a technical failure (timeout, access denied…) and a
+  // clean run that simply went undetected previously looked identical. Fetched regardless of `target`
+  // (the hook no-ops until target._target_id is set) to keep this a single unconditional hook call.
+  const { injectExecutionResult } = useFetchInjectExecutionResult(injectId, target ?? ({} as InjectTarget));
+  const allTraces = useMemo(
+    () => Object.values(injectExecutionResult?.execution_traces ?? {}).flat(),
+    [injectExecutionResult],
+  );
+  const agentStatus = useAgentStatus(allTraces);
+
   if (loading) {
     return <Loader variant="inElement" size="sm" />;
   }
   if (!target?.target_id || !target.target_type) {
     return <Typography variant="body2" color="text.secondary">{t('No traces on this target.')}</Typography>;
   }
-  return <TerminalViewTab injectId={injectId} target={target} />;
+  return (
+    <>
+      {allTraces.length > 0 && (
+        <Box sx={{ mb: 1.5 }}>
+          <TraceStatusChip status={agentStatus.statusName} />
+        </Box>
+      )}
+      <TerminalViewTab injectId={injectId} target={target} />
+    </>
+  );
 };
 
 // A network injector (NetExec, Nmap…) has no single shell command on the DTO — `command` is only ever
@@ -360,7 +384,19 @@ const InjectorExecutionTraces = ({ injectId }: { injectId: string }) => {
   if (!injectStatus) {
     return <Typography variant="body2" color="text.secondary">{t('No data available')}</Typography>;
   }
-  return <GlobalExecutionTraces injectStatus={injectStatus} />;
+  return (
+    <>
+      {/* Whether the inject itself actually ran (issue 244): its own traces have no `execution_agent`
+          (a network injector like NetExec/Nmap has no deployed agent), so GlobalExecutionTraces routes
+          them through MainTraces, which — unlike AgentTraces — renders no status chip at all. Same gap
+          as LiveExecutionTerminal's payload case above, fixed with the inject's own top-level status
+          instead of a per-target one. */}
+      <Box sx={{ mb: 1.5 }}>
+        <InjectStatus status={injectStatus.status_name as InjectStatusType['status_name']} />
+      </Box>
+      <GlobalExecutionTraces injectStatus={injectStatus} />
+    </>
+  );
 };
 
 // The Result & Terminal panel for one execution (issue 5048): an in-flow panel between the execution
