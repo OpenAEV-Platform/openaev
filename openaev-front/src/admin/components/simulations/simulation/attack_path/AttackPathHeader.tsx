@@ -82,11 +82,9 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
         'alignItems': 'center',
         'justifyContent': 'flex-start',
         'gap': 1,
-        // Stats grow to share their row evenly (so the band never reads as ragged), but keep their
-        // content as flex-basis: with basis 0 they shrink indefinitely instead of wrapping, which is
-        // what clipped every caption once the row got crowded — the container's flex-wrap could
-        // never trigger. Now a row that no longer fits wraps to the next one.
-        'flex': '1 1 auto',
+        // The container is a 4-column grid: fill the cell rather than sizing on content, so every
+        // stat gets the same slot and the rows stay even.
+        'width': '100%',
         'minWidth': 0,
         'height': CONTROL_HEIGHT,
         'padding': theme.spacing(0, 1),
@@ -397,16 +395,21 @@ const AttackPathHeader: FunctionComponent<Props> = ({
 
       {/* Clickable summary stats, hairline-separated (HeroStats language). */}
       <Box sx={{
-        'display': 'flex',
+        // A fixed 4-column grid, not a wrapping flex row: with natural widths the row broke wherever
+        // the captions happened to fit ("5 then 3"), which reads as ragged. Equal columns give the
+        // same slot to every stat and a deterministic 4-per-row layout. The stat set is bounded at 8
+        // (6 curated + the overflow or a lone type + chokepoints), so the band is exactly two rows.
+        'display': 'grid',
+        'gridTemplateColumns': 'repeat(4, minmax(0, 1fr))',
         'alignItems': 'center',
-        'flexWrap': 'wrap',
         'flex': 1,
         'minWidth': 0,
         'columnGap': 1,
         'rowGap': 0.5,
         // Hairline separators between stats: a short, vertically centered rule rather than a
-        // full-height border, so wrapped rows never show floor-to-ceiling dividers.
-        '& > *:not(:last-child)': {
+        // full-height border, so wrapped rows never show floor-to-ceiling dividers. Suppressed at the
+        // end of each row, where the rule would hang in the gutter instead of separating two stats.
+        '& > *:not(:nth-of-type(4n)):not(:last-child)': {
           'position': 'relative',
           'paddingRight': 1,
           '&::after': {
