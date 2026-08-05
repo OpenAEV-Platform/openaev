@@ -30,8 +30,3 @@ The following feature areas are impacted because their Quartz jobs are disabled:
 ```properties
 openaev.run-mode=safe
 ```
-
-## Not to be confused with debug mode
-
-Debug mode (`openaev.debug.*`) is a separate diagnostics feature and is documented in
-[Global debug mode](../../administration/debug-mode.md). It is independent from platform run modes.
