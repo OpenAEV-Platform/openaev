@@ -17,6 +17,8 @@ interface DialogConfirmationProps {
   submitColor?: 'primary' | 'error';
   richContent?: React.ReactNode;
   extraContent?: React.ReactNode;
+  /** Disables the submit button without touching the loading state (e.g. client-side form validation). */
+  disableSubmit?: boolean;
 }
 
 const isPromiseLike = (value: unknown): value is Promise<void> => {
@@ -32,6 +34,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   submitColor = 'primary',
   richContent,
   extraContent,
+  disableSubmit = false,
 }) => {
   const { t } = useFormatter();
   const [loading, setLoading] = useState(false);
@@ -87,7 +90,13 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
           {t('Cancel')}
         </Button>
         {handleSubmit && (
-          <Button variant="contained" color={submitColor} loading={loading} onClick={handleLoadingAndSubmit}>
+          <Button
+            variant="contained"
+            color={submitColor}
+            loading={loading}
+            disabled={disableSubmit}
+            onClick={handleLoadingAndSubmit}
+          >
             {submitLabel}
           </Button>
         )}
