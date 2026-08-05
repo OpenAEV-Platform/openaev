@@ -306,33 +306,59 @@ const LiveExecutionTerminal = ({ injectId, endpointName }: {
     };
   }, [injectId, endpointName]);
 
-  // Whether the payload itself actually ran (issue 244): the prevention/detection verdicts above answer
-  // "was it caught?", never "did it run at all?" — a technical failure (timeout, access denied…) and a
-  // clean run that simply went undetected previously looked identical. Fetched regardless of `target`
-  // (the hook no-ops until target._target_id is set) to keep this a single unconditional hook call.
-  const { injectExecutionResult } = useFetchInjectExecutionResult(injectId, target ?? ({} as InjectTarget));
-  const allTraces = useMemo(
-    () => Object.values(injectExecutionResult?.execution_traces ?? {}).flat(),
-    [injectExecutionResult],
-  );
-  const agentStatus = useAgentStatus(allTraces);
-
   if (loading) {
     return <Loader variant="inElement" size="sm" />;
   }
   if (!target?.target_id || !target.target_type) {
     return <Typography variant="body2" color="text.secondary">{t('No traces on this target.')}</Typography>;
   }
-  return (
-    <>
-      {allTraces.length > 0 && (
-        <Box sx={{ mb: 1.5 }}>
-          <TraceStatusChip status={agentStatus.statusName} />
-        </Box>
-      )}
-      <TerminalViewTab injectId={injectId} target={target} />
-    </>
+  return <TerminalViewTab injectId={injectId} target={target} />;
+};
+
+// Per-target execution status for a payload-backed execution (issue 244): the Result tab's
+// prevention/detection verdicts answer "was it caught?", never "did it run at all?" — a technical
+// failure (timeout, access denied…) and a clean run that simply went undetected previously looked
+// identical there. Resolves the same target + traces LiveExecutionTerminal does for the terminal
+// (a second, independent fetch — the two tabs render independently of one another), and renders
+// nothing once resolved without any real traces (a seeded/demo snapshot has no live target to match).
+const PayloadExecutionStatusBadge = ({ injectId, endpointName }: {
+  injectId: string;
+  endpointName?: string;
+}) => {
+  const [target, setTarget] = useState<InjectTarget | null>(null);
+  useEffect(() => {
+    let active = true;
+    searchTargets(injectId, 'ASSETS', {
+      filterGroup: {
+        mode: 'and',
+        filters: [],
+      },
+      size: 50,
+      page: 0,
+    })
+      .then((response) => {
+        if (!active) {
+          return;
+        }
+        const targets: InjectTarget[] = response.data?.content ?? [];
+        const match = targets.find(tg => tg.target_name && tg.target_name === endpointName);
+        setTarget(match ?? targets[0] ?? null);
+      })
+      .catch(() => active && setTarget(null));
+    return () => {
+      active = false;
+    };
+  }, [injectId, endpointName]);
+  const { injectExecutionResult } = useFetchInjectExecutionResult(injectId, target ?? ({} as InjectTarget));
+  const allTraces = useMemo(
+    () => Object.values(injectExecutionResult?.execution_traces ?? {}).flat(),
+    [injectExecutionResult],
   );
+  const agentStatus = useAgentStatus(allTraces);
+  if (allTraces.length === 0) {
+    return null;
+  }
+  return <TraceStatusChip status={agentStatus.statusName} />;
 };
 
 // A network injector (NetExec, Nmap…) has no single shell command on the DTO — `command` is only ever
@@ -384,19 +410,29 @@ const InjectorExecutionTraces = ({ injectId }: { injectId: string }) => {
   if (!injectStatus) {
     return <Typography variant="body2" color="text.secondary">{t('No data available')}</Typography>;
   }
-  return (
-    <>
-      {/* Whether the inject itself actually ran (issue 244): its own traces have no `execution_agent`
-          (a network injector like NetExec/Nmap has no deployed agent), so GlobalExecutionTraces routes
-          them through MainTraces, which — unlike AgentTraces — renders no status chip at all. Same gap
-          as LiveExecutionTerminal's payload case above, fixed with the inject's own top-level status
-          instead of a per-target one. */}
-      <Box sx={{ mb: 1.5 }}>
-        <InjectStatus status={injectStatus.status_name as InjectStatusType['status_name']} />
-      </Box>
-      <GlobalExecutionTraces injectStatus={injectStatus} />
-    </>
-  );
+  return <GlobalExecutionTraces injectStatus={injectStatus} />;
+};
+
+// Inject-level execution status for a network injector (NetExec, Nmap…) (issue 244): its own traces have
+// no `execution_agent` (no deployed agent), so GlobalExecutionTraces above routes them through
+// MainTraces, which — unlike AgentTraces — renders no status chip at all. Fetched independently (the
+// Result tab renders regardless of which other tab is active) and rendered in the Result tab instead of
+// alongside the traces, matching where the equivalent payload-side badge above lives.
+const InjectorExecutionStatusBadge = ({ injectId }: { injectId: string }) => {
+  const [statusName, setStatusName] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    getInjectStatusWithGlobalExecutionTraces(injectId)
+      .then((response: { data: InjectStatusOutput }) => active && setStatusName(response.data?.status_name ?? null))
+      .catch(() => active && setStatusName(null));
+    return () => {
+      active = false;
+    };
+  }, [injectId]);
+  if (!statusName) {
+    return null;
+  }
+  return <InjectStatus status={statusName as InjectStatusType['status_name']} />;
 };
 
 // The Result & Terminal panel for one execution (issue 5048): an in-flow panel between the execution
@@ -797,6 +833,19 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                        consistent with the graph node; fall back to the IP only when no name is known. */}
                   <Typography variant="subtitle2">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Typography>
                 </div>
+                {/* Whether the action actually ran at all (issue 244), ahead of the prevention/detection
+                    verdicts below: those answer "was it caught?", never "did it run?" — a technical
+                    failure and a clean-but-undetected run previously looked identical. */}
+                {detail.injectId && (
+                  detail.payloadId
+                    ? (
+                        <PayloadExecutionStatusBadge
+                          injectId={detail.injectId}
+                          endpointName={endpointLabel || detail.targetHostname || detail.endpointKey}
+                        />
+                      )
+                    : <InjectorExecutionStatusBadge injectId={detail.injectId} />
+                )}
                 {/* Enterprise gate on the attribution itself, not on the verdicts: one chip for the
                     section, offering the upsell path instead of a dead-end sentence per row. Only
                     clickable for a user who could act on the dialog — the licence form it opens
