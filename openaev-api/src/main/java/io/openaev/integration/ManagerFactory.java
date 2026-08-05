@@ -46,6 +46,14 @@ public class ManagerFactory implements DependenciesManager {
    * REQUIRES_NEW} read-write transaction. The in-memory {@link Lock} still serializes concurrent
    * creation per tenant.
    *
+   * <p>Creation runs <b>outside</b> {@link ConcurrentHashMap#computeIfAbsent}: that method holds
+   * the map's bin lock for the whole mapping function, and running the {@code REQUIRES_NEW}
+   * transaction (a DB write to the tenant's connector rows) under that lock can deadlock against a
+   * concurrent tenant-creation thread that holds those rows while waiting on the same bin — a cycle
+   * PostgreSQL cannot detect because one side is a JVM lock. The per-tenant {@link Lock} already
+   * guarantees {@link #createManager} runs at most once per tenant, and {@link
+   * ConcurrentHashMap#putIfAbsent} publishes the instance safely.
+   *
    * @param tenantId the tenant identifier
    * @return the Manager for that tenant
    */
@@ -55,7 +63,9 @@ public class ManagerFactory implements DependenciesManager {
     if (existing != null) {
       return existing;
     }
-    return managers.computeIfAbsent(tenantId, id -> self.getObject().createManager(id));
+    Manager created = self.getObject().createManager(tenantId);
+    Manager previous = managers.putIfAbsent(tenantId, created);
+    return previous != null ? previous : created;
   }
 
   /**
@@ -101,7 +111,14 @@ public class ManagerFactory implements DependenciesManager {
   @Override
   public void createDependencyForTenant(Tenant tenant) {
     // Create the Manager for this tenant (must run after registration so connectors exist in DB).
-    managers.computeIfAbsent(tenant.getId(), this::createManager);
+    // Invoked via `this` (proxy bypassed) so createManager joins the surrounding tenant-creation
+    // transaction and rolls back with it. Kept outside computeIfAbsent so the map's bin lock is not
+    // held across the DB write (see getManager for the deadlock this avoids).
+    if (managers.containsKey(tenant.getId())) {
+      return;
+    }
+    Manager created = this.createManager(tenant.getId());
+    managers.putIfAbsent(tenant.getId(), created);
   }
 
   @Override
