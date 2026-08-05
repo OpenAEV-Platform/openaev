@@ -626,7 +626,13 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
                       setTimeoutHours(Number.isFinite(parsed) && parsed > 0 ? parsed : 1);
                     }}
                     label={t('Timeout (hours)')}
-                    slotProps={{ htmlInput: { min: 1, max: 720, step: 1 } }}
+                    slotProps={{
+                      htmlInput: {
+                        min: 1,
+                        max: 720,
+                        step: 1,
+                      },
+                    }}
                     helperText={t('Maximum run duration. OpenAEV steers the orchestrator to converge a few minutes before this deadline, then hard-stops the run. Default is 24 hours.')}
                     sx={{ width: 240 }}
                   />

@@ -119,7 +119,10 @@ const IndexComponent: FunctionComponent<{
                   <Route path="animation/*" element={<AnimationToExecutionRedirect />} />
                   <Route path="lessons" element={errorWrapper(Lessons)()} />
                   <Route path="findings" element={errorWrapper(SimulationFindings)()} />
-                  {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
+                  {/* An autonomous run's attack path is an action timeline on a mostly single compromised
+                    host, so render its endpoint-local actions as nodes (actionCentric) instead of the
+                    finding-centric manual-BAS view. */}
+                  {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)({ actionCentric: isAutonomous })} />}
                   {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
                   <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
                   {/* Statistics replaced the hero dashboard quick action and the old
@@ -128,7 +131,13 @@ const IndexComponent: FunctionComponent<{
                   <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
                   {/* On an autonomous run the AI provisions and drives the attack path, so scope / logic
                     are exposed read-only for inspection instead of the manual editors. */}
-                  <Route path="scope" element={isAutonomous ? errorWrapper(SimulationScope)({ readOnly: true }) : errorWrapper(SimulationScope)()} />
+                  <Route
+                    path="scope"
+                    element={isAutonomous ? errorWrapper(SimulationScope)({
+                      readOnly: true,
+                      autonomousTimeoutSeconds: autonomousRun?.autonomous_run_timeout_seconds,
+                    }) : errorWrapper(SimulationScope)()}
+                  />
                   <Route path="logic" element={isAutonomous ? errorWrapper(SimulationLogic)({ readOnly: true }) : errorWrapper(SimulationLogic)()} />
                   {/* Not found */}
                   <Route path="*" element={<NotFound />} />

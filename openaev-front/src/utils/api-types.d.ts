@@ -11356,6 +11356,21 @@ export interface ThreatArsenalActionCreateInput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
+  action_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
+    )[]
+  >;
   /** @minLength 1 */
   action_name: string;
   /**
@@ -11510,6 +11525,21 @@ export interface ThreatArsenalActionUpdateInput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
+  action_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
+    )[]
+  >;
   /** @minLength 1 */
   action_name: string;
   /**

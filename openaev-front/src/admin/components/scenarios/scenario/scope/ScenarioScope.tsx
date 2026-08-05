@@ -9,7 +9,10 @@ import { type HealthCheck, type Scenario } from '../../../../../utils/api-types'
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
 
-const ScenarioScope = ({ readOnly = false }: { readOnly?: boolean }) => {
+const ScenarioScope = ({ readOnly = false, autonomousTimeoutSeconds }: {
+  readOnly?: boolean;
+  autonomousTimeoutSeconds?: number | null;
+}) => {
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
 
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
@@ -40,7 +43,12 @@ const ScenarioScope = ({ readOnly = false }: { readOnly?: boolean }) => {
           scenarioId={scenarioId}
         />
       )}
-      <ScopeDefinition workflowId={scenario.scenario_workflow_id} readOnly={readOnly} />
+      <ScopeDefinition
+        workflowId={scenario.scenario_workflow_id}
+        readOnly={readOnly}
+        autonomous={readOnly}
+        autonomousTimeoutSeconds={autonomousTimeoutSeconds}
+      />
     </div>
   );
 };

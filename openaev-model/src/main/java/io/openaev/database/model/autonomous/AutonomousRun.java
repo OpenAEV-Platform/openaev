@@ -185,7 +185,8 @@ public class AutonomousRun implements TenantBase {
 
   @Column(name = "autonomous_run_started_at")
   @JsonProperty("autonomous_run_started_at")
-  @Schema(description = "When the run was last moved to RUNNING; the timeout deadline is based on it")
+  @Schema(
+      description = "When the run was last moved to RUNNING; the timeout deadline is based on it")
   private Instant startedAt;
 
   @Column(name = "autonomous_run_deadline_at")
@@ -196,7 +197,8 @@ public class AutonomousRun implements TenantBase {
               + " timeoutSeconds when the run becomes live. Null when no timeout applies.")
   private Instant deadlineAt;
 
-  // Internal bookkeeping: which winddown steering signal the timeout watchdog has already queued for
+  // Internal bookkeeping: which winddown steering signal the timeout watchdog has already queued
+  // for
   // this run, so it emits each nudge at most once. Null -> none, "WINDDOWN_5M" -> 5-minute signal
   // sent, "WINDDOWN_1M" -> 1-minute signal sent. Reset whenever the run (re)enters RUNNING. Never
   // exposed to the API or the orchestrator.

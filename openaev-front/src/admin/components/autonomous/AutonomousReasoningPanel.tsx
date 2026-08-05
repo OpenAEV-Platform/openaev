@@ -563,10 +563,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // as it moves (deciding -> acting -> analyzing ...). Crucially, once the operator answers we flip
   // to "Processing your answer" immediately -- the backend status stays WAITING_INPUT until the next
   // 3s poll, so keying off status alone would freeze on "Waiting for your input".
+  const ACTIVITY_EVENT_TYPES = ['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const;
+  const isActivityType = (type: string | undefined): boolean => (ACTIVITY_EVENT_TYPES as readonly string[]).includes(type ?? '');
   const lastActivityType = [...events].reverse().find(
-    e => (['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const).includes(
-      e.autonomous_event_type as 'DECISION' | 'TOOL_ACTION' | 'PROOF' | 'GAP' | 'HANDOVER' | 'AGENT_DELEGATION' | 'NARRATION',
-    ),
+    e => isActivityType(e.autonomous_event_type),
   )?.autonomous_event_type;
 
   // The latest agent-delegation event drives the "delegating to / waiting for <agent>" caption. A
@@ -604,6 +604,12 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // window animates again.
   const newestEvent = events.length > 0 ? events[events.length - 1] : undefined;
   const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS';
+  // Has the orchestrator RESUMED since the operator answered? The backend run status stays
+  // WAITING_INPUT until a later 3s poll flips it, so it lies about "still waiting" for a while. The
+  // truthful signal is a fresh activity event: once the newest event is a DECISION / TOOL_ACTION /
+  // ... the AI is demonstrably working again, so the caption must narrate THAT instead of freezing
+  // on "Processing your answer" (the exact "it says processing while it is already executing" bug).
+  const newestIsActivity = isActivityType(newestEvent?.autonomous_event_type);
   const thinkingPhase: ThinkingPhase = (() => {
     if (isWaitingInput && pendingQuestion) {
       // Genuinely idle on the operator: static wait, not a pulsing "still working" animation.
@@ -614,9 +620,12 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         active: false,
       };
     }
-    if (isWaitingInput) {
-      // The operator answered; the backend is still WAITING_INPUT until the next poll flips it, but
-      // the run is genuinely resuming - so animate.
+    if (isWaitingInput && !newestIsActivity) {
+      // The operator answered but the orchestrator has not emitted anything yet; the backend is
+      // still WAITING_INPUT until the next poll flips it. Bridge that gap with a "resuming" caption
+      // ONLY until real activity arrives - once it does, newestIsActivity is true and we fall through
+      // to the switch below so the caption reflects what the AI is actually doing (running an
+      // action, analyzing results, ...) instead of staying stuck on "Processing your answer".
       return {
         key: 'resuming',
         label: t('Processing your answer'),

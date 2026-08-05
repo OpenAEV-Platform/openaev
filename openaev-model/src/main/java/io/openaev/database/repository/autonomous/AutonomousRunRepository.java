@@ -1,10 +1,12 @@
 package io.openaev.database.repository.autonomous;
 
 import io.openaev.database.model.autonomous.AutonomousRun;
+import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -39,4 +41,27 @@ public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, St
           + "OR r.status = io.openaev.database.model.autonomous.AutonomousRunStatus.WAITING_INPUT)")
   List<String> findRunIdsDueForTimeout(
       @Param("tenantId") String tenantId, @Param("threshold") Instant threshold);
+
+  /**
+   * Atomically settles a still-active run to a terminal status, but ONLY when it is not already
+   * terminal. Returns the number of rows changed (1 = this call performed the flip; 0 = the run was
+   * already CANCELED / COMPLETED / FAILED or no longer exists).
+   *
+   * <p>The autonomous-run reconcile fires on every read ({@code get} / {@code by-simulation} /
+   * {@code by-scenario}), so a frontend poll, the second detail page and the XTM One cross-side
+   * stop check can all try to settle the same run at once. Guarding the flip in the DB (the row
+   * lock serialises the concurrent UPDATEs; only the first sees a non-terminal status) lets the
+   * writer emit the "Run canceled" / "Run completed" timeline event exactly once instead of one per
+   * racing reader - the reported duplicate + repeated "Run canceled" spam. {@code
+   * clearAutomatically} so a subsequent {@code findById} in the same transaction reads the
+   * freshly-committed status rather than a stale first-level-cache copy.
+   */
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      "UPDATE AutonomousRun r SET r.status = :target WHERE r.id = :id "
+          + "AND r.status <> io.openaev.database.model.autonomous.AutonomousRunStatus.CANCELED "
+          + "AND r.status <> io.openaev.database.model.autonomous.AutonomousRunStatus.COMPLETED "
+          + "AND r.status <> io.openaev.database.model.autonomous.AutonomousRunStatus.FAILED")
+  int settleTerminalStatusIfActive(
+      @Param("id") String id, @Param("target") AutonomousRunStatus target);
 }

@@ -41,6 +41,7 @@ const ThreatArsenalActionForm = ({
     action_name: '',
     action_platforms: [],
     action_expectations: ['PREVENTION', 'DETECTION'],
+    action_expected_security_platforms: {},
     action_description: '',
     command_executor: '',
     command_content: '',
@@ -121,6 +122,10 @@ const ThreatArsenalActionForm = ({
     // action_domains: z.array(domainZodObject).refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     action_domains: z.string().array().refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     action_expectations: z.enum(['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array(),
+    action_expected_security_platforms: z.record(
+      z.string(),
+      z.enum(['EDR', 'XDR', 'SIEM', 'SOAR', 'NDR', 'ISPM', 'LLM_FIREWALL', 'AI_GATEWAY', 'VULNERABILITY_SCANNER']).array(),
+    ).optional(),
     action_platforms: z.enum(['Linux', 'Windows', 'MacOS', 'Container', 'Service', 'Generic', 'Internal', 'Unknown']).array().min(1, { error: t('Should not be empty') }).describe('Commands-tab'),
     action_execution_arch: z.enum(['x86_64', 'arm64', 'ALL_ARCHITECTURES'], { error: t('Should not be empty') }).describe('Commands-tab'),
     action_cleanup_command: z.string().optional().nullable().describe('Commands-tab'),
