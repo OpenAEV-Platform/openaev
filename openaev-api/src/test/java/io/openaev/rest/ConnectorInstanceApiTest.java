@@ -63,6 +63,9 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Connector Instance API Integration Tests")
 public class ConnectorInstanceApiTest extends IntegrationTest {
 
+  private static final String TENANT_CONNECTOR_INSTANCE_URI =
+      "/api/tenants/{tenantId}/connector-instances";
+
   @Autowired private MockMvc mvc;
 
   @Autowired private ConnectorInstanceRepository connectorInstanceRepository;
@@ -134,7 +137,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(catalogConnector.getId());
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -152,7 +155,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(catalogConnector.getId());
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -174,7 +177,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           Instant.now().minus(3, ChronoUnit.HOURS).toString());
       platformSettingsService.saveSettings(composerSettings);
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -220,7 +223,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input1.setConfigurations(List.of(confInput1));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input1))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -235,7 +238,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input2.setConfigurations(List.of(confInput2));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input2))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -308,7 +311,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input.setConfigurations(List.of(confInput1, confInputCollectorId));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -378,7 +381,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input.setConfigurations(List.of(confInput1, confInputCollectorId));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -452,7 +455,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input.setConfigurations(List.of(confInput1, confInput2, confInput3));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
