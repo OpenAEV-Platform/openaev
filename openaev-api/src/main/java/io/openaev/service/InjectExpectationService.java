@@ -29,7 +29,6 @@ import io.openaev.aop.audit_log.AuditEvent;
 import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
-import io.openaev.config.SessionHelper;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -2577,18 +2576,6 @@ public class InjectExpectationService {
 
   // -- AUDIT LOGGING --
 
-  private String toExpectationAuditResultStatus(@NotNull BaseInjectExpectation expectation) {
-    BaseInjectExpectation.EXPECTATION_STATUS response = expectation.getResponse();
-    if (response == null) {
-      return "pending";
-    }
-    return switch (response) {
-      case SUCCESS -> "met";
-      case PENDING -> "pending";
-      default -> "not_met";
-    };
-  }
-
   private void logExpectationResultEvent(
       @NotNull BaseInjectExpectation expectation,
       @Nullable InjectExpectationResult sourceResult,
@@ -2598,11 +2585,12 @@ public class InjectExpectationService {
         logger -> {
           String injectId =
               expectation.getInject() != null ? expectation.getInject().getId() : null;
-          String expectationResult = toExpectationAuditResultStatus(expectation);
+          String expectationResult =
+              expectation.getResponse() != null ? expectation.getResponse().name() : null;
           String source =
               sourceResult != null && sourceResult.getSourceName() != null
                   ? sourceResult.getSourceName()
-                  : SessionHelper.currentUser().getId();
+                  : null;
           String sourceId = sourceResult != null ? sourceResult.getSourceId() : null;
           String detectionTimestamp = sourceResult != null ? sourceResult.getDate() : null;
 
@@ -2625,8 +2613,8 @@ public class InjectExpectationService {
                   .resourceType(ResourceType.INJECT)
                   .resourceId(injectId)
                   .message(
-                      "Expectation '%s' result: %s"
-                          .formatted(expectation.getType().name(), expectationResult))
+                      "Expectation '%s' for inject '%s', result: %s"
+                          .formatted(expectation.getType().name(), injectId, expectationResult))
                   .contextData(contextData)
                   .origin(origin)
                   .build());
