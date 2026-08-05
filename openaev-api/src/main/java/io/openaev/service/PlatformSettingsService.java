@@ -229,8 +229,17 @@ public class PlatformSettingsService {
     // Platform banners
     Map<String, List<String>> platformBannerByLevel = new HashMap<>();
     for (BannerMessage.BANNER_KEYS bannerKey : BannerMessage.BANNER_KEYS.values()) {
-      String value = getValueFromMapOfSettings(dbSettings, PLATFORM_BANNER + "." + bannerKey.key());
-      if (value != null) {
+      boolean shouldDisplayBanner = false;
+      if (bannerKey == BannerMessage.BANNER_KEYS.SAFE_MODE_ENABLED) {
+        // Safe mode banner is driven by run-mode configuration, not by persisted banner settings.
+        shouldDisplayBanner =
+            ofNullable(openAEVConfig.getRunMode()).orElse(RunMode.NORMAL) == RunMode.SAFE;
+      } else {
+        String value =
+            getValueFromMapOfSettings(dbSettings, PLATFORM_BANNER + "." + bannerKey.key());
+        shouldDisplayBanner = value != null;
+      }
+      if (shouldDisplayBanner) {
         if (platformBannerByLevel.get(bannerKey.level().name()) == null) {
           platformBannerByLevel.put(
               bannerKey.level().name(), new ArrayList<>(Arrays.asList(bannerKey.message())));

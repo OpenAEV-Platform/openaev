@@ -57,16 +57,7 @@ const SystemBanners = (settings: { settings: PlatformSettings }) => {
   // Standard hooks
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const isSafeMode = settings.settings.platform_run_mode === 'safe';
-  const bannerLevel = (settings.settings.platform_banner_by_level ?? {}) as Record<string, string[]>;
-  const effectiveBannerLevel: Record<string, string[]> = {};
-  for (const currentBannerLevel of recordEntries(bannerLevel)) {
-    effectiveBannerLevel[currentBannerLevel[0]] = [...currentBannerLevel[1]];
-  }
-  if (isSafeMode) {
-    // Safe mode is an operator state, so we inject one explicit warning banner message.
-    effectiveBannerLevel.warn = [...(effectiveBannerLevel.warn ?? []), SAFE_MODE_MESSAGE_KEY];
-  }
+  const effectiveBannerLevel = (settings.settings.platform_banner_by_level ?? {}) as Record<string, string[]>;
 
   let numberOfElements = 0;
   for (const currentBannerLevel of recordEntries(effectiveBannerLevel)) {
