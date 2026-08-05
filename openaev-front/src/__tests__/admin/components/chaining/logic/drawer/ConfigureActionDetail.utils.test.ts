@@ -19,7 +19,7 @@ const data = (over: Partial<ActionDetailData>): ActionDetailData => ({
 });
 
 describe('mapFieldLinksToStepConditions', () => {
-  it('carries a linked field’s defined value into condition_value alongside its type', () => {
+  it(`carries a linked field's defined value into condition_value alongside its type`, () => {
     // The field "target" is linked to the "host" output type AND has a defined value typed in.
     const conditions = mapFieldLinksToStepConditions(data({
       inject_content: { target: '10.0.0.5' },
@@ -71,5 +71,53 @@ describe('mapFieldLinksToStepConditions', () => {
 
     expect(conditions[0].condition_key_types).toEqual(['text']);
     expect(conditions[0].condition_value).toBe('literal');
+  });
+
+  it('coerces a numeric defined value to its string form', () => {
+    const conditions = mapFieldLinksToStepConditions(data({
+      inject_content: { port: 8080 },
+      inject_field_links: {
+        port: {
+          outputTypes: ['port'],
+          localScope: false,
+        },
+      },
+    }));
+
+    expect(conditions[0].condition_value).toBe('8080');
+  });
+
+  it('omits condition_value for non-scalar content (array or object)', () => {
+    // A multi-cardinality select stores an array; String() would coerce it into a meaningless
+    // "a,b" candidate. Only scalar values are carried into condition_value.
+    const conditions = mapFieldLinksToStepConditions(data({
+      inject_content: {
+        multi: ['a', 'b'],
+        obj: { nested: true },
+      },
+      inject_field_links: {
+        multi: {
+          outputTypes: ['text'],
+          localScope: false,
+        },
+        obj: {
+          outputTypes: ['text'],
+          localScope: false,
+        },
+      },
+    }));
+
+    expect(conditions).toHaveLength(2);
+    expect(conditions[0].condition_value).toBeUndefined();
+    expect(conditions[1].condition_value).toBeUndefined();
+  });
+
+  it('produces no conditions for fields that are not linked', () => {
+    const conditions = mapFieldLinksToStepConditions(data({
+      inject_content: { free_text: 'kept in inject_content only' },
+      inject_field_links: {},
+    }));
+
+    expect(conditions).toEqual([]);
   });
 });

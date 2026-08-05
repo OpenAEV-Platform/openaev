@@ -65,9 +65,12 @@ export const mapFieldLinksToStepConditions = (
     // Carry over the field's own typed value as the MAPPER condition's defined value,
     // so it keeps participating in the generated input combinations as an extra
     // candidate alongside the linked type's resolved pool, instead of being dropped
-    // once a primitive type is linked.
+    // once a primitive type is linked. Only scalar values are carried: an array (e.g. a
+    // multi-cardinality select) or object would be coerced into a meaningless string
+    // ("a,b", "[object Object]") and injected as a bogus runtime candidate.
     const rawValue = data.inject_content[fieldKey];
-    const definedValue = rawValue != null && String(rawValue).trim() !== ''
+    const isScalar = typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean';
+    const definedValue = isScalar && String(rawValue).trim() !== ''
       ? String(rawValue)
       : undefined;
 
