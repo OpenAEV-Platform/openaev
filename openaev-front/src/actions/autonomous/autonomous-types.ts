@@ -69,6 +69,11 @@ export interface AutonomousRun {
   autonomous_run_xtm_session_id?: string | null;
   autonomous_run_xtm_agent_slug?: string | null;
   autonomous_run_last_error?: string | null;
+  // OpenAEV-owned run timeout: max lifetime in seconds and the absolute instant the watchdog
+  // hard-stops the run (null in plan/dry-run mode).
+  autonomous_run_timeout_seconds?: number | null;
+  autonomous_run_started_at?: string | null;
+  autonomous_run_deadline_at?: string | null;
   autonomous_run_created_at?: string;
   autonomous_run_updated_at?: string;
 }
@@ -144,6 +149,8 @@ export interface AutonomousRunCreateInput {
   // Dry-run: design the attack path (scope, steps, decisions) without executing anything. The
   // operator can review the plan and later run it for real.
   plan_mode?: boolean;
+  // OpenAEV-enforced maximum run lifetime in seconds. Defaults to 24h server-side when omitted.
+  timeout_seconds?: number;
 }
 
 // Mirrors io.openaev.api.autonomous.dto.AutonomousDefaultAgentsOutput: the tenant's default agent

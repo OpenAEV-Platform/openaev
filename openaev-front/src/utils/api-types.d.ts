@@ -1486,6 +1486,11 @@ export interface AutonomousRun {
    * @format date-time
    */
   autonomous_run_created_at?: string;
+  /**
+   * Absolute instant at which OpenAEV hard-stops the run. Computed from startedAt + timeoutSeconds when the run becomes live. Null when no timeout applies.
+   * @format date-time
+   */
+  autonomous_run_deadline_at?: string;
   /** ID of the autonomous run */
   autonomous_run_id?: string;
   /** Last error message when the run failed */
@@ -1508,6 +1513,11 @@ export interface AutonomousRun {
   autonomous_run_scope_team_id?: string;
   /** Chained simulation (Exercise) this run drives */
   autonomous_run_simulation_id?: string;
+  /**
+   * When the run was last moved to RUNNING; the timeout deadline is based on it
+   * @format date-time
+   */
+  autonomous_run_started_at?: string;
   /** Lifecycle status of the run */
   autonomous_run_status:
     | "CREATED"
@@ -1519,6 +1529,11 @@ export interface AutonomousRun {
     | "COMPLETED"
     | "FAILED"
     | "CANCELED";
+  /**
+   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Null means no OpenAEV-enforced timeout (e.g. plan/dry-run mode).
+   * @format int64
+   */
+  autonomous_run_timeout_seconds?: number;
   /**
    * Update date
    * @format date-time
@@ -1559,6 +1574,11 @@ export interface AutonomousRunCreateInput {
   scope_rules?: WorkflowScopeRuleInput[];
   /** Optional team defining the in-scope audience for identity-targeted objectives (phishing, human credential harvesting). Legacy single-team shortcut; prefer the mixed 'scope' list. */
   scope_team_id?: string;
+  /**
+   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Defaults to 24h when omitted; ignored in plan/dry-run mode.
+   * @format int64
+   */
+  timeout_seconds?: number;
 }
 
 /** One resolved scope entry of an autonomous run */

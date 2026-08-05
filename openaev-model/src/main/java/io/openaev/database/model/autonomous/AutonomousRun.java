@@ -172,4 +172,35 @@ public class AutonomousRun implements TenantBase {
   @JsonProperty("autonomous_run_updated_at")
   @Schema(description = "Update date")
   private Instant updatedAt;
+
+  @Column(name = "autonomous_run_timeout_seconds")
+  @JsonProperty("autonomous_run_timeout_seconds")
+  @Schema(
+      description =
+          "Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers"
+              + " the orchestrator with winddown signals shortly before it, then hard-stops the run"
+              + " (exactly like an operator Stop) when it is reached. Null means no OpenAEV-enforced"
+              + " timeout (e.g. plan/dry-run mode).")
+  private Long timeoutSeconds;
+
+  @Column(name = "autonomous_run_started_at")
+  @JsonProperty("autonomous_run_started_at")
+  @Schema(description = "When the run was last moved to RUNNING; the timeout deadline is based on it")
+  private Instant startedAt;
+
+  @Column(name = "autonomous_run_deadline_at")
+  @JsonProperty("autonomous_run_deadline_at")
+  @Schema(
+      description =
+          "Absolute instant at which OpenAEV hard-stops the run. Computed from startedAt +"
+              + " timeoutSeconds when the run becomes live. Null when no timeout applies.")
+  private Instant deadlineAt;
+
+  // Internal bookkeeping: which winddown steering signal the timeout watchdog has already queued for
+  // this run, so it emits each nudge at most once. Null -> none, "WINDDOWN_5M" -> 5-minute signal
+  // sent, "WINDDOWN_1M" -> 1-minute signal sent. Reset whenever the run (re)enters RUNNING. Never
+  // exposed to the API or the orchestrator.
+  @JsonIgnore
+  @Column(name = "autonomous_run_winddown_phase")
+  private String winddownPhase;
 }

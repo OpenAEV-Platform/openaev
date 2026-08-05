@@ -67,6 +67,7 @@ import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.xtmone.XtmOneClient;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -124,6 +125,22 @@ public class AutonomousRunService {
    * ORCHESTRATOR_AGENT_ID} in the frontend's autonomous-types.
    */
   private static final String ORCHESTRATOR_AGENT_ID = "__orchestrator__";
+
+  /**
+   * Default OpenAEV-enforced run timeout when the launcher does not specify one: 24 hours.
+   * Autonomous runs are long-lived (recon, waiting on human-in-the-loop injects, slow exploitation)
+   * so the default is far larger than the 1h chained-scenario workflow timeout.
+   */
+  public static final long DEFAULT_TIMEOUT_SECONDS = 24L * 60L * 60L;
+
+  /** Lead time of the first winddown steering nudge before the hard stop (5 minutes). */
+  static final long WINDDOWN_5M_SECONDS = 5L * 60L;
+
+  /** Lead time of the final winddown steering nudge before the hard stop (1 minute). */
+  static final long WINDDOWN_1M_SECONDS = 60L;
+
+  static final String WINDDOWN_PHASE_5M = "WINDDOWN_5M";
+  static final String WINDDOWN_PHASE_1M = "WINDDOWN_1M";
 
   private final AutonomousRunRepository runRepository;
   private final AutonomousDirectiveRepository directiveRepository;
@@ -237,6 +254,11 @@ public class AutonomousRunService {
     run.setObjective(objective);
     run.setObjectiveTemplateKey(input.getObjectiveTemplateKey());
     run.setPlanMode(planMode);
+    // OpenAEV owns the run's lifetime: a live run gets an enforced timeout (default 24h) after
+    // which the watchdog steers the orchestrator to converge and then hard-stops it, exactly like
+    // an operator Stop. Plan/dry-runs only design the path and are short, so they stay untimed; the
+    // absolute deadline is stamped when the run actually goes live (see start()).
+    run.setTimeoutSeconds(planMode ? null : resolveTimeoutSeconds(input.getTimeoutSeconds()));
     run.setScenarioId(scenarioId);
     run.setSimulationId(simulation.getId());
     // The run's mixed scope projection is the union of the legacy target list ('scope' +
@@ -339,6 +361,7 @@ public class AutonomousRunService {
     boolean planMode = run.isPlanMode();
     run.setStatus(planMode ? AutonomousRunStatus.PLANNING : AutonomousRunStatus.RUNNING);
     run.setLastError(null);
+    stampDeadline(run);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId,
@@ -530,6 +553,9 @@ public class AutonomousRunService {
     transitionSimulation(run, ExerciseStatus.RUNNING);
     run.setStatus(AutonomousRunStatus.RUNNING);
     run.setLastError(null);
+    // Resuming grants a fresh time budget from now (and re-arms the winddown nudges): a run paused
+    // for a while must not be hard-stopped the instant it comes back.
+    stampDeadline(run);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId, run.getSimulationId(), AutonomousEventType.STATUS, "Run resumed", null, null);
@@ -566,6 +592,145 @@ public class AutonomousRunService {
     cancelOrchestratorAfterCommit(runId, "run canceled by operator", true);
     return saved;
   }
+
+  // region timeout / winddown (OpenAEV-owned run deadline)
+
+  /** Clamps a requested run timeout to a sane value, defaulting to 24h when unset or non-positive. */
+  private static long resolveTimeoutSeconds(Long requested) {
+    if (requested == null || requested <= 0) {
+      return DEFAULT_TIMEOUT_SECONDS;
+    }
+    return requested;
+  }
+
+  /**
+   * Stamps the live-start instant and computes the OpenAEV-enforced deadline from the run's timeout.
+   * Called whenever the run (re)enters RUNNING (start / resume) so a resumed run gets a fresh budget,
+   * and resets the winddown bookkeeping so the steering nudges fire again for the new window. No-op
+   * for plan/dry-run mode or a run with no configured timeout (untimed).
+   */
+  private void stampDeadline(AutonomousRun run) {
+    if (run.isPlanMode() || run.getTimeoutSeconds() == null) {
+      run.setStartedAt(now());
+      return;
+    }
+    Instant startInstant = now();
+    run.setStartedAt(startInstant);
+    run.setDeadlineAt(startInstant.plusSeconds(run.getTimeoutSeconds()));
+    run.setWinddownPhase(null);
+  }
+
+  /**
+   * Applies the OpenAEV-owned deadline policy to a single run, invoked by the timeout watchdog
+   * ({@code AutonomousTimeoutJob}) inside the run's tenant scope. Depending on how much time is left
+   * it either queues a winddown steering nudge (5 min / 1 min before, once each) or hard-stops the
+   * run at the deadline. Only acts on live runs (RUNNING / WAITING_INPUT) that carry a deadline.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void enforceDeadline(String runId) {
+    AutonomousRun run = runRepository.findById(runId).orElse(null);
+    if (run == null || run.getDeadlineAt() == null) {
+      return;
+    }
+    AutonomousRunStatus status = run.getStatus();
+    if (status != AutonomousRunStatus.RUNNING && status != AutonomousRunStatus.WAITING_INPUT) {
+      return;
+    }
+    long secondsRemaining = Duration.between(now(), run.getDeadlineAt()).getSeconds();
+    if (secondsRemaining <= 0) {
+      timeoutRun(run);
+      return;
+    }
+    if (secondsRemaining <= WINDDOWN_1M_SECONDS) {
+      queueWinddown(run, WINDDOWN_PHASE_1M, secondsRemaining);
+    } else if (secondsRemaining <= WINDDOWN_5M_SECONDS) {
+      queueWinddown(run, WINDDOWN_PHASE_5M, secondsRemaining);
+    }
+  }
+
+  /**
+   * Hard-stops a run that reached its OpenAEV-enforced deadline. Mirrors an operator Stop: the
+   * chained simulation is torn down (best-effort, like {@link #cancel}) and the run settles to
+   * CANCELED. The XTM One orchestration is stopped and purged by its own next-cycle stop check,
+   * which reads this CANCELED status - OpenAEV is the source of truth for the run lifecycle - so a
+   * userless cross-tenant HTTP push from the watchdog is not needed to clean XTM One up.
+   */
+  private void timeoutRun(AutonomousRun run) {
+    transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
+    run.setStatus(AutonomousRunStatus.CANCELED);
+    runRepository.save(run);
+    eventService.append(
+        run.getId(),
+        run.getSimulationId(),
+        AutonomousEventType.STATUS,
+        "Run timed out",
+        "The run reached its OpenAEV-enforced deadline and was hard-stopped: the simulation was"
+            + " stopped and the orchestration is torn down and cleaned up, exactly like an operator"
+            + " Stop.",
+        null);
+  }
+
+  /**
+   * Queues a winddown steering nudge on the run's existing operator-directive channel, at most once
+   * per phase. The orchestrator consumes pending directives at the start of every decision cycle and
+   * is instructed to honour them, so a live (cycling) run picks the nudge up on its next cycle with
+   * zero XTM One changes - no wake call (and thus no current-user JWT) is needed from the watchdog.
+   */
+  private void queueWinddown(AutonomousRun run, String phase, long secondsRemaining) {
+    if (phaseAlreadyReached(run.getWinddownPhase(), phase)) {
+      return;
+    }
+    long minutes = Math.max(1, Math.round(secondsRemaining / 60.0));
+    String content = winddownMessage(phase, minutes);
+    run.setWinddownPhase(phase);
+    runRepository.save(run);
+    AutonomousDirective directive = new AutonomousDirective();
+    directive.setRunId(run.getId());
+    directive.setContent(content);
+    directive.setStatus(AutonomousDirectiveStatus.PENDING);
+    directiveRepository.save(directive);
+    eventService.append(
+        run.getId(),
+        run.getSimulationId(),
+        AutonomousEventType.DIRECTIVE,
+        WINDDOWN_PHASE_1M.equals(phase)
+            ? "Winddown: ~1 minute left"
+            : "Winddown: ~" + minutes + " minutes left",
+        content,
+        null);
+  }
+
+  /** Winddown phases are ordered NONE -> 5M -> 1M; never re-send an earlier-or-equal phase. */
+  private static boolean phaseAlreadyReached(String current, String candidate) {
+    return winddownRank(current) >= winddownRank(candidate);
+  }
+
+  private static int winddownRank(String phase) {
+    if (WINDDOWN_PHASE_1M.equals(phase)) {
+      return 2;
+    }
+    if (WINDDOWN_PHASE_5M.equals(phase)) {
+      return 1;
+    }
+    return 0;
+  }
+
+  private static String winddownMessage(String phase, long minutes) {
+    if (WINDDOWN_PHASE_1M.equals(phase)) {
+      return "TIME BUDGET - FINAL WARNING: about 1 minute remains before OpenAEV hard-stops this"
+          + " run. Stop authoring new steps immediately. Record proof/findings for the progress you"
+          + " have made and set the run status now: COMPLETED if the objective is proven achieved"
+          + " (or provably unreachable), otherwise summarize what you reached. No new work.";
+    }
+    return "TIME BUDGET - WINDDOWN: about "
+        + minutes
+        + " minutes remain before OpenAEV hard-stops this run. Begin converging on the objective"
+        + " now: stop opening new branches, finish and capture proof for the most promising path,"
+        + " and prepare to report. If the objective is already proven (or provably unreachable),"
+        + " set the run COMPLETED before the deadline.";
+  }
+
+  // endregion
 
   /**
    * Restarts a settled run <b>in place</b>: reuses the SAME scenario, tears down the previous
@@ -847,6 +1012,14 @@ public class AutonomousRunService {
       String runId, AutonomousRunStatus status, String lastError, String title, String content) {
     requireFeature();
     AutonomousRun run = require(runId);
+    // CANCELED is final: it is set by an operator Stop or by the OpenAEV-owned timeout hard-stop,
+    // both of which also tear down the simulation and purge the orchestration. A late status
+    // callback from the orchestrator (e.g. a COMPLETED it emits after we already hard-stopped, or
+    // the gap-1 completion callback racing the watchdog) must NOT resurrect a stopped run. Treat any
+    // further write as an idempotent no-op so the hard stop stays authoritative.
+    if (run.getStatus() == AutonomousRunStatus.CANCELED) {
+      return run;
+    }
     run.setStatus(status);
     if (lastError != null) {
       run.setLastError(lastError);
@@ -867,10 +1040,14 @@ public class AutonomousRunService {
       if (status == AutonomousRunStatus.PLANNED
           || status == AutonomousRunStatus.COMPLETED
           || status == AutonomousRunStatus.FAILED) {
-        finishPlanSimulationQuietly(run);
+        finishSimulationTerminallyQuietly(run);
       }
     } else if (status == AutonomousRunStatus.COMPLETED || status == AutonomousRunStatus.FAILED) {
-      transitionSimulationQuietly(run, ExerciseStatus.FINISHED);
+      // A live autonomous simulation is a RUNNING keep-alive chaining workflow, and RUNNING ->
+      // FINISHED is not an allowed manual exercise transition (scheduler-only) - so the previous
+      // transitionSimulationQuietly(FINISHED) silently threw and was swallowed, leaving a COMPLETED
+      // run's simulation stuck "On-going" forever. Finish it with the direct terminal set instead.
+      finishSimulationTerminallyQuietly(run);
     }
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
@@ -2565,7 +2742,7 @@ public class AutonomousRunService {
   }
 
   /**
-   * Finishes a dry-run plan's simulation directly (status FINISHED + end date), mirroring the way
+   * Finishes an autonomous run's simulation directly (status FINISHED + end date), mirroring the way
    * {@code InjectsExecutionJob} closes a simulation. A plan simulation is created RUNNING as the
    * orchestrator's authoring / visualization substrate, but its RUN workflow is intentionally never
    * started (see {@link #create}), so the auto-closing scheduler never runs on it and it would stay
@@ -2576,7 +2753,7 @@ public class AutonomousRunService {
    * and no executed injects, so the normal close side effects do not apply - a plain terminal set
    * is both correct and sufficient. Best-effort: never fails the orchestrator callback.
    */
-  private void finishPlanSimulationQuietly(AutonomousRun run) {
+  private void finishSimulationTerminallyQuietly(AutonomousRun run) {
     String simulationId = run.getSimulationId();
     if (!hasText(simulationId)) {
       return;
@@ -2593,7 +2770,7 @@ public class AutonomousRunService {
       exerciseRepository.save(simulation);
     } catch (Exception e) {
       log.warn(
-          "[Autonomous] Could not finish plan simulation {} on run {}",
+          "[Autonomous] Could not finish simulation {} on run {}",
           simulationId,
           run.getId(),
           e);

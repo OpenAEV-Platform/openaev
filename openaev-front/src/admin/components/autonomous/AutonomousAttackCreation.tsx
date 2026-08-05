@@ -201,6 +201,10 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
   const [objective, setObjective] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  // OpenAEV-enforced run timeout, in hours. Default 24h for autonomous runs (vs the 1h chained
+  // workflow timeout): recon and human-in-the-loop steps make autonomous runs long-lived. OpenAEV
+  // owns this deadline, steers the orchestrator to converge shortly before it, then hard-stops.
+  const [timeoutHours, setTimeoutHours] = useState<number>(24);
   const [allowScope, setAllowScope] = useState<ScopeSelection>(EMPTY_SCOPE);
   const [denyScope, setDenyScope] = useState<ScopeSelection>(EMPTY_SCOPE);
   const [availableAgents, setAvailableAgents] = useState<AdditionalAgent[]>([]);
@@ -274,6 +278,7 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
     setObjective('');
     setName('');
     setDescription('');
+    setTimeoutHours(24);
     setAllowScope(EMPTY_SCOPE);
     setDenyScope(EMPTY_SCOPE);
     setAvailableAgents([]);
@@ -353,6 +358,9 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
           }
         : undefined,
       plan_mode: planMode || undefined,
+      // OpenAEV-enforced run deadline (seconds). Clamp to at least 1 minute; ignored server-side in
+      // plan/dry-run mode.
+      timeout_seconds: Math.max(60, Math.round(timeoutHours * 3600)),
     })
       .then((res) => {
         const runId = res.data.autonomous_run_id;
@@ -604,6 +612,24 @@ const AutonomousAttackCreation: FunctionComponent<AutonomousAttackCreationProps>
                       fullWidth
                     />
                   </Stack>
+                </Box>
+
+                <Box>
+                  <Typography variant="h2" gutterBottom>
+                    {t('Time budget')}
+                  </Typography>
+                  <TextField
+                    type="number"
+                    value={timeoutHours}
+                    onChange={(event) => {
+                      const parsed = Number(event.target.value);
+                      setTimeoutHours(Number.isFinite(parsed) && parsed > 0 ? parsed : 1);
+                    }}
+                    label={t('Timeout (hours)')}
+                    slotProps={{ htmlInput: { min: 1, max: 720, step: 1 } }}
+                    helperText={t('Maximum run duration. OpenAEV steers the orchestrator to converge a few minutes before this deadline, then hard-stops the run. Default is 24 hours.')}
+                    sx={{ width: 240 }}
+                  />
                 </Box>
               </>
             )}
