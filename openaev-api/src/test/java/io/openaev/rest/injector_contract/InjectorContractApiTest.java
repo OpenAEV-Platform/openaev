@@ -1470,7 +1470,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       em.flush();
       em.clear();
 
-      InjectorContractSearchPaginationInput searchInput = new InjectorContractSearchPaginationInput();
+      InjectorContractSearchPaginationInput searchInput =
+          new InjectorContractSearchPaginationInput();
       searchInput.setIncludeFullDetails(true);
       searchInput.setInjectorContractIdsToProcess(List.of(taggedContract.getId()));
 
