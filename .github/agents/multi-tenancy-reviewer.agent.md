@@ -19,7 +19,7 @@ Your job is to ensure no code introduces cross-tenant data leaks or breaks tenan
 3. **Read `.github/instructions/multi-tenancy.instructions.md`** for tenant isolation patterns and anti-patterns
 4. **Read `.github/instructions/security.instructions.md`** for RBAC and tenant isolation rules
 5. **Read `.github/instructions/database.instructions.md`** for schema and migration conventions
-6. **Read `activate-tenant-table/SKILL.md`** for how a table moves from v1 to v2 (eligibility gates, call-graph inventory) — needed to judge whether a v2 gap is a real regression or expected pre-activation state
+6. **Read `.github/skills/activate-tenant-table/SKILL.md`** for how a table moves from v1 to v2 (eligibility gates, call-graph inventory) — needed to judge whether a v2 gap is a real regression or expected pre-activation state
 
 ## Review Procedure
 
