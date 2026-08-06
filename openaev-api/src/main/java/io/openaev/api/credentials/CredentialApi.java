@@ -20,6 +20,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -92,6 +93,7 @@ public class CredentialApi extends RestBehavior {
       resourceId = "#credentialId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CREDENTIAL_ASSET)
+  @ResponseStatus(HttpStatus.NO_CONTENT)
   @Operation(summary = "Delete a credential")
   public void deleteCredential(TxCtx ctx, @PathVariable String credentialId) {
     credentialService.deleteCredential(credentialId);

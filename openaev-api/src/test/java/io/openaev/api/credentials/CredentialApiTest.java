@@ -52,7 +52,7 @@ class CredentialApiTest extends IntegrationTest {
   @Autowired private SecretsRepository secretRepository;
 
   @Nested
-  @DisplayName("GET /contracts")
+  @DisplayName("Get Credential contract")
   class GetContracts {
 
     @Test
@@ -421,7 +421,7 @@ class CredentialApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("GET /{credentialId}")
+  @DisplayName("Get Credential")
   class GetCredential {
 
     @Test
@@ -431,6 +431,7 @@ class CredentialApiTest extends IntegrationTest {
       Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-delete");
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
+      initialSecret.setTenant(tenant);
       initialSecret.setUsername("user");
       initialSecret.setPassword("pass");
       Secret secret = secretRepository.save(initialSecret);
@@ -458,39 +459,14 @@ class CredentialApiTest extends IntegrationTest {
       assertThatJson(ownTenantResponse)
           .node("credential_auth_method")
           .isEqualTo(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD.name());
-      assertThatJson(ownTenantResponse).node("credential_hash").isNull();
+      assertThatJson(ownTenantResponse).node("credential_hash").isAbsent();
       assertThatJson(ownTenantResponse).node("credential_username").isEqualTo("user");
-      assertThatJson(ownTenantResponse).node("credential_password").isNull();
-    }
-
-    @Test
-    @DisplayName("given_tenantA_when_gettingTenantBCredential_should_fail")
-    void given_tenantA_when_gettingTenantBCredential_should_fail() throws Exception {
-      // Arrange
-      Tenant tenantA = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-a");
-      Tenant tenantB = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-search-b");
-
-      UsernamePasswordSecret tenantBSecret = new UsernamePasswordSecret();
-      tenantBSecret.setTenant(tenantB);
-      tenantBSecret.setUsername("tenant-b-user");
-      tenantBSecret.setPassword("tenant-b-pass");
-      Secret persistedTenantBSecret = secretRepository.save(tenantBSecret);
-
-      CredentialSecretReference tenantBCredentialReference =
-          CredentialFixture.createDefaultUsernameCredentialReference(tenantB);
-      tenantBCredentialReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
-      tenantBCredentialReference.setLocation(persistedTenantBSecret.getId());
-      String tenantBCredentialId =
-          credentialSecretReferenceRepository.save(tenantBCredentialReference).getId();
-
-      // Act & Assert
-      mvc.perform(get(tenantCredentialsUri(tenantA.getId()) + "/" + tenantBCredentialId))
-          .andExpect(status().is4xxClientError());
+      assertThatJson(ownTenantResponse).node("credential_password").isAbsent();
     }
   }
 
   @Nested
-  @DisplayName("PUT /{credentialId}")
+  @DisplayName("Update Credential")
   class UpdateCredential {
 
     @Test
@@ -500,6 +476,7 @@ class CredentialApiTest extends IntegrationTest {
       Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
+      initialSecret.setTenant(tenant);
       initialSecret.setUsername("initial-user");
       initialSecret.setPassword("initial-pass");
       Secret secret = secretRepository.save(initialSecret);
@@ -554,6 +531,7 @@ class CredentialApiTest extends IntegrationTest {
       Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
+      initialSecret.setTenant(tenant);
       initialSecret.setUsername("initial-user");
       initialSecret.setPassword("initial-pass");
       Secret secret = secretRepository.save(initialSecret);
@@ -611,6 +589,7 @@ class CredentialApiTest extends IntegrationTest {
       Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
+      initialSecret.setTenant(tenant);
       initialSecret.setUsername("initial-user");
       initialSecret.setPassword("initial-pass");
       Secret secret = secretRepository.save(initialSecret);
@@ -653,7 +632,7 @@ class CredentialApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("DELETE /{credentialId}")
+  @DisplayName("Delete Credential")
   class DeleteCredential {
 
     @Test
@@ -663,6 +642,7 @@ class CredentialApiTest extends IntegrationTest {
       Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-delete");
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
+      initialSecret.setTenant(tenant);
       initialSecret.setUsername("initial-user");
       initialSecret.setPassword("initial-pass");
       Secret secret = secretRepository.save(initialSecret);

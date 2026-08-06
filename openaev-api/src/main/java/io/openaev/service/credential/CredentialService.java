@@ -23,6 +23,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SearchPaginationInputMapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -217,7 +218,7 @@ public class CredentialService {
     credential.setDescription(input.credentialDescription());
     List<String> tagIds = Objects.requireNonNullElse(input.credentialTagIds(), List.of());
     credential.setTags(
-        tagIds.isEmpty() ? Set.of() : iterableToSet(tagRepository.findAllById(tagIds)));
+        tagIds.isEmpty() ? new HashSet<>() : iterableToSet(tagRepository.findAllById(tagIds)));
     credential.setCredentialAuthMethod(input.credentialAuthMethod());
     credential.setCredentialType(input.credentialType());
   }

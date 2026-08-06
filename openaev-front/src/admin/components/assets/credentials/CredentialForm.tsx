@@ -253,12 +253,10 @@ const CredentialForm: FunctionComponent<Props> = ({
         />
 
         { (selectedContract?.fields ?? []).map(field => (
-          <>
             <InjectContentFieldComponent
               key={field.field_name}
               field={formatField(field)}
             />
-          </>
         ))}
 
         <div
