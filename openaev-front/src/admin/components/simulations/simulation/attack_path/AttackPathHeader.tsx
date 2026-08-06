@@ -81,13 +81,13 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
         'display': 'flex',
         'alignItems': 'center',
         'justifyContent': 'flex-start',
-        'gap': 1,
-        // The container is a 4-column grid: fill the cell rather than sizing on content, so every
-        // stat gets the same slot and the rows stay even.
+        'gap': 0.75,
+        // The container is a single-row grid of equal columns: fill the cell rather than sizing on
+        // content, so every stat gets the same slot and shrinks in step as more stats appear.
         'width': '100%',
         'minWidth': 0,
         'height': CONTROL_HEIGHT,
-        'padding': theme.spacing(0, 1),
+        'padding': theme.spacing(0, 0.75),
         'borderRadius': 1,
         'border': `1px solid ${active ? accent : 'transparent'}`,
         'backgroundColor': active ? alpha(accent, 0.08) : 'transparent',
@@ -99,14 +99,14 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
         'display': 'flex',
         'alignItems': 'center',
         'justifyContent': 'center',
-        'width': 30,
-        'height': 30,
+        'width': 26,
+        'height': 26,
         'borderRadius': 1,
         'flexShrink': 0,
         'color': accent,
         'background': alpha(accent, 0.1),
         'boxShadow': `inset 0 0 12px ${alpha(accent, 0.13)}`,
-        '& svg': { fontSize: 16 },
+        '& svg': { fontSize: 15 },
       }}
       >
         {icon}
@@ -118,7 +118,7 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
       >
         <Typography sx={{
           fontFamily: '"Geologica", sans-serif',
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: 500,
           lineHeight: 1.05,
           color: 'text.primary',
@@ -407,23 +407,23 @@ const AttackPathHeader: FunctionComponent<Props> = ({
 
       {/* Clickable summary stats, hairline-separated (HeroStats language). */}
       <Box sx={{
-        // A fixed 4-column grid, not a wrapping flex row: with natural widths the row broke wherever
-        // the captions happened to fit ("5 then 3"), which reads as ragged. Equal columns give the
-        // same slot to every stat and a deterministic 4-per-row layout. The stat set is bounded at 8
-        // (6 curated + the overflow or a lone type + chokepoints), so the band is exactly two rows.
+        // ONE non-wrapping row of equal columns (`gridAutoFlow: column` + equal `gridAutoColumns`),
+        // never a 4-per-row grid that spilled a 5th stat onto a second line. The stat set is bounded
+        // at 8 (6 curated + the overflow or a lone type + chokepoints); as it grows each column
+        // shrinks and its caption ellipsizes (every stat carries a tooltip, so a clipped caption
+        // never loses meaning) — the band stays exactly one line whatever a run discovers.
         'display': 'grid',
-        'gridTemplateColumns': 'repeat(4, minmax(0, 1fr))',
+        'gridAutoFlow': 'column',
+        'gridAutoColumns': 'minmax(0, 1fr)',
         'alignItems': 'center',
         'flex': 1,
         'minWidth': 0,
-        'columnGap': 1,
-        'rowGap': 0.5,
+        'columnGap': 0.75,
         // Hairline separators between stats: a short, vertically centered rule rather than a
-        // full-height border, so wrapped rows never show floor-to-ceiling dividers. Suppressed at the
-        // end of each row, where the rule would hang in the gutter instead of separating two stats.
-        '& > *:not(:nth-of-type(4n)):not(:last-child)': {
+        // full-height border. Suppressed after the last stat, where it would hang in the gutter.
+        '& > *:not(:last-child)': {
           'position': 'relative',
-          'paddingRight': 1,
+          'paddingRight': 0.75,
           '&::after': {
             content: '""',
             position: 'absolute',
@@ -446,7 +446,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             accent={theme.palette.primary.main}
             active={activeCard === c.key}
             onClick={() => onCardClick(c)}
-            hint={c.hint}
+            hint={c.hint ?? c.label}
           />
         ))}
         {/* The finding types that did not fit: one stat opening a popover, so the band stays legible
@@ -476,6 +476,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             active={chokepointOpen}
             onClick={onChokepointClick}
             hasPopup
+            hint={t('Top chokepoints')}
             labelAdornment={(
               <Tooltip
                 arrow

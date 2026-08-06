@@ -23,6 +23,16 @@ import lombok.Setter;
 @Schema(description = "A finding-driven trigger: react to findings and consume their values")
 public class AutonomousStepTrigger {
 
+  @JsonProperty("event_name")
+  @Schema(
+      description =
+          "Short, human-readable name for the EVENT this trigger represents - the discovery it"
+              + " fires on, phrased as an operator would read it (e.g. \"SMB service exposed\","
+              + " \"Valid credentials found\", \"Open web port discovered\"). It becomes the event"
+              + " node's title in the Logic graph. When omitted, a readable name is derived from"
+              + " the filters so the event is never shown as \"Untitled event\".")
+  private String eventName;
+
   @JsonProperty("match")
   @Schema(
       description =

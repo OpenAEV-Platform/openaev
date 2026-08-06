@@ -670,30 +670,123 @@ public class WorkflowService {
   }
 
   /**
-   * Deletes the given scenario step templates (and their conditions), skipping any already gone.
+   * Clears EVERY step template from a scenario's chaining workflow (best-effort per step), keeping
+   * the (now empty) workflow row itself.
    *
-   * <p>Used to clear the steps an autonomous run mirrored onto its scenario before a restart: the
-   * scenario workflow doubles as the seed a fresh simulation is copied from, so stale mirrored
-   * steps must be removed or the restarted simulation would not park empty and the scenario would
-   * accumulate a duplicated attack path. Best-effort per id so a missing step never aborts restart.
+   * <p>The deterministic reset used before an autonomous run is restarted or a plan is promoted to
+   * a real run. The scenario workflow doubles as the seed a fresh simulation is copied from, so any
+   * step left on it re-seeds that simulation - leaving the Logic tab and the attack-path map
+   * populated right after a reset the operator expected to wipe them. The previous reset only
+   * removed the steps named in the run's {@code stepMirror}, which is populated best-effort while
+   * authoring; a single un-mirrored (or lost-update) step therefore survived and duplicated the
+   * attack path on the next launch. An autonomous run's scenario is AI-owned and launches empty
+   * (the orchestrator authors every step, guided at most by the plan summary), so clearing the
+   * whole workflow is both safe and the behaviour the operator wants: "launching for real fully
+   * recreates everything". The workflow row is preserved so the simulation is still recognised as
+   * chaining and keep-alive holds.
    *
-   * @param scenarioStepTemplateIds step template ids previously mirrored onto the scenario
+   * @param scenarioId the autonomous run's scenario
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteScenarioMirrorSteps(java.util.Collection<String> scenarioStepTemplateIds) {
-    if (scenarioStepTemplateIds == null) {
+  public void deleteAllScenarioSteps(String scenarioId) {
+    if (!hasText(scenarioId)) {
       return;
     }
-    for (String stepId : scenarioStepTemplateIds) {
-      if (!hasText(stepId)) {
-        continue;
-      }
+    Optional<Workflow> template;
+    try {
+      template = findWorkflowTemplateByScenarioId(scenarioId);
+    } catch (ChainingException e) {
+      log.warn(
+          "Failed to resolve scenario {} workflow for a full step reset: {}",
+          scenarioId,
+          e.getMessage());
+      return;
+    }
+    if (template.isEmpty()) {
+      return;
+    }
+    for (Step step : stepService.findAllStepTemplateByWorkflow(template.get().getId())) {
       try {
-        stepService.deleteStepTemplate(stepId);
+        stepService.deleteStepTemplate(step.getId());
       } catch (Exception e) {
-        log.warn("Failed to delete mirrored scenario step {}: {}", stepId, e.getMessage());
+        log.warn(
+            "Failed to delete scenario step {} during autonomous reset: {}",
+            step.getId(),
+            e.getMessage());
       }
     }
+  }
+
+  /**
+   * Turns OFF keep-alive on a scenario's chaining workflow template (and re-enables the normal
+   * timeout it disabled), making it behave like a hand-built chained scenario again.
+   *
+   * <p>An autonomous scenario's workflow is marked {@code keepAlive} (and {@code timeoutEnabled =
+   * false}) so a launched simulation parks in RUN forever, awaiting the orchestrator between
+   * decision cycles instead of ending when it runs out of ready steps. That is exactly wrong for a
+   * scenario an operator has taken manual: with no orchestrator ever appending steps, a launched
+   * run would hang open indefinitely rather than completing. This is the single step that must
+   * accompany dropping the {@code autonomous_runs} row (in-place conversion) or copying an
+   * autonomous workflow into a fresh manual scenario (duplicate), so the resulting chained scenario
+   * runs its authored steps and ends normally. A no-op when the scenario has no workflow template.
+   *
+   * @param scenarioId the scenario whose workflow should stop keeping itself alive
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void clearScenarioWorkflowKeepAlive(String scenarioId) {
+    if (!hasText(scenarioId)) {
+      return;
+    }
+    Optional<Workflow> template;
+    try {
+      template = findWorkflowTemplateByScenarioId(scenarioId);
+    } catch (ChainingException e) {
+      log.warn(
+          "Failed to resolve scenario {} workflow to clear keep-alive: {}",
+          scenarioId,
+          e.getMessage());
+      return;
+    }
+    if (template.isEmpty()) {
+      return;
+    }
+    Workflow workflow = template.get();
+    if (workflow.isKeepAlive() || !workflow.isTimeoutEnabled()) {
+      // Exact inverse of markScenarioWorkflowKeepAlive: run-and-end, timeout watchdog back on.
+      workflow.setKeepAlive(false);
+      workflow.setTimeoutEnabled(true);
+      workflowRepository.save(workflow);
+    }
+  }
+
+  /**
+   * Copies an existing scenario's chaining workflow TEMPLATE (configuration, scope rules and every
+   * step template) onto {@code scenarioTo} as a plain <b>manual</b> chained workflow: keep-alive is
+   * forced OFF so the copy runs-and-ends like a hand-built scenario rather than parking forever for
+   * an orchestrator. Used to duplicate an autonomous scenario into a fresh, editable manual chained
+   * scenario without touching the original AI run. A no-op (returns null) when the source has no
+   * workflow template.
+   *
+   * @param scenarioIdFrom source scenario whose workflow (steps + config) is copied
+   * @param scenarioTo already-persisted destination scenario to attach the copied workflow to
+   * @return the new manual workflow template, or null if the source has no workflow
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Workflow copyScenarioChainingWorkflowAsManual(
+      @NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo) throws ChainingException {
+    Optional<Workflow> sourceOpt = findWorkflowTemplateByScenarioId(scenarioIdFrom);
+    if (sourceOpt.isEmpty()) {
+      return null;
+    }
+    Workflow source = sourceOpt.get();
+    Workflow copy = copyWorkflowTemplateToScenario(source, scenarioTo);
+    // A duplicated autonomous workflow must never inherit the "park forever" contract
+    // (keepAlive on, timeout watchdog off) that markScenarioWorkflowKeepAlive installed.
+    copy.setKeepAlive(false);
+    copy.setTimeoutEnabled(true);
+    copy = workflowRepository.save(copy);
+    stepService.copyStepTemplate(source, copy);
+    return copy;
   }
 
   /**

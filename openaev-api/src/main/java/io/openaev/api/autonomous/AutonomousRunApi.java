@@ -6,6 +6,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepInput;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepResult;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepState;
+import io.openaev.api.autonomous.dto.AutonomousConvertToManualInput;
 import io.openaev.api.autonomous.dto.AutonomousDefaultAgentsInput;
 import io.openaev.api.autonomous.dto.AutonomousDefaultAgentsOutput;
 import io.openaev.api.autonomous.dto.AutonomousDirectiveInput;
@@ -21,6 +22,7 @@ import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousEvent;
@@ -252,6 +254,24 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRun promote(@PathVariable String runId) {
     return autonomousRunService.promoteToRealRun(runId);
+  }
+
+  @Operation(
+      summary = "Convert an autonomous scenario into a manual chained scenario",
+      description =
+          "DUPLICATE copies the scenario (metadata + attack-path workflow) into a brand-new manual"
+              + " chained scenario and leaves the AI run untouched. IN_PLACE turns this scenario"
+              + " manual for good: it halts the orchestration, drops the autonomous run and its"
+              + " timeline, and keeps the scenario + its simulation as a normal chained"
+              + " scenario/simulation the operator can edit and delete. IN_PLACE is irreversible."
+              + " Works whether the run is a dry-run plan or has already executed. Returns the"
+              + " resulting manual scenario.")
+  @PostMapping("/{runId}/convert-to-manual")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public Scenario convertToManual(
+      @PathVariable String runId, @Valid @RequestBody AutonomousConvertToManualInput input) {
+    return autonomousRunService.convertToManual(runId, input.getMode());
   }
 
   @Operation(summary = "Run decision timeline, optionally since a sequence cursor")

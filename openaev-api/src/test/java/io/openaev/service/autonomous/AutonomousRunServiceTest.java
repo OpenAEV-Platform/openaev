@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.openaev.api.autonomous.dto.ConvertToManualMode;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Scenario;
@@ -21,6 +22,7 @@ import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.ScenarioToExerciseService;
@@ -35,6 +37,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -360,6 +363,129 @@ class AutonomousRunServiceTest {
     verify(workflowService).provisionSimulationTemplateWorkflow(eq("scenario-1"), any());
     verify(workflowService, never()).startWorkflowByScenarioIdAndSimulation(anyString(), any());
     assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
+  }
+
+  // endregion
+
+  // region convertToManual: turn an AI-driven scenario into a manual chained scenario
+
+  private AutonomousRun convertibleRun(AutonomousRunStatus status) {
+    AutonomousRun run = new AutonomousRun();
+    run.setId("run-1");
+    run.setScenarioId("scenario-1");
+    run.setSimulationId("sim-1");
+    run.setStatus(status);
+    return run;
+  }
+
+  @Test
+  @DisplayName("DUPLICATE copies the scenario as manual and leaves the AI run fully intact")
+  void convertToManualDuplicateLeavesRunUntouched() throws Exception {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    AutonomousRun run = convertibleRun(AutonomousRunStatus.RUNNING);
+    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    Scenario duplicate = new Scenario();
+    duplicate.setId("scenario-copy");
+    when(scenarioService.getDuplicateScenario("scenario-1")).thenReturn(duplicate);
+
+    Scenario result = service.convertToManual("run-1", ConvertToManualMode.DUPLICATE);
+
+    assertThat(result).isSameAs(duplicate);
+    // The copy's chaining workflow is cloned with keep-alive forced off.
+    verify(workflowService).copyScenarioChainingWorkflowAsManual("scenario-1", duplicate);
+    // The original run, its scenario, simulation and timeline are all untouched.
+    verifyNoInteractions(xtmOneClient, exerciseService, directiveRepository, eventService);
+    verify(runRepository, never()).delete(any());
+    verify(workflowService, never()).clearScenarioWorkflowKeepAlive(anyString());
+  }
+
+  @Test
+  @DisplayName("DUPLICATE surfaces a copy failure as a 400 without leaking the internal cause")
+  void convertToManualDuplicateWrapsChainingFailure() throws Exception {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    AutonomousRun run = convertibleRun(AutonomousRunStatus.PLANNED);
+    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    Scenario duplicate = new Scenario();
+    duplicate.setId("scenario-copy");
+    when(scenarioService.getDuplicateScenario("scenario-1")).thenReturn(duplicate);
+    when(workflowService.copyScenarioChainingWorkflowAsManual("scenario-1", duplicate))
+        .thenThrow(new ChainingException("internal detail that must not reach the client"));
+
+    assertThatThrownBy(() -> service.convertToManual("run-1", ConvertToManualMode.DUPLICATE))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> {
+              assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+              assertThat(ex.getReason()).doesNotContain("internal detail");
+            });
+    // A failed duplicate never touches the original run.
+    verify(runRepository, never()).delete(any());
+  }
+
+  @Test
+  @DisplayName(
+      "IN_PLACE on a live run halts the orchestrator, cancels the simulation, clears the AI run")
+  void convertToManualInPlaceOnLiveRun() throws Exception {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    AutonomousRun run = convertibleRun(AutonomousRunStatus.RUNNING);
+    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setAutonomous(true);
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+
+    Scenario result = service.convertToManual("run-1", ConvertToManualMode.IN_PLACE);
+
+    assertThat(result).isSameAs(scenario);
+    assertThat(scenario.isAutonomous()).isFalse();
+    // Orchestration halted + purged, simulation settled, keep-alive cleared, run + timeline
+    // dropped.
+    verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
+    verify(exerciseService).changeExerciseStatus(ExerciseStatus.CANCELED, "sim-1");
+    verify(scenarioService).updateScenario(scenario);
+    verify(workflowService).clearScenarioWorkflowKeepAlive("scenario-1");
+    verify(directiveRepository).deleteByRunId("run-1");
+    verify(eventService).deleteByRun("run-1");
+    verify(runRepository).delete(run);
+    // No new scenario is ever created in place.
+    verify(scenarioService, never()).getDuplicateScenario(anyString());
+  }
+
+  @Test
+  @DisplayName("IN_PLACE on a settled run leaves the simulation state untouched")
+  void convertToManualInPlaceOnSettledRunDoesNotTransitionSimulation() throws Exception {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    AutonomousRun run = convertibleRun(AutonomousRunStatus.COMPLETED);
+    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setAutonomous(true);
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+
+    service.convertToManual("run-1", ConvertToManualMode.IN_PLACE);
+
+    // A settled run already left the simulation scheduled/terminal - never re-transition it.
+    verifyNoInteractions(exerciseService);
+    verify(runRepository).delete(run);
+    assertThat(scenario.isAutonomous()).isFalse();
+  }
+
+  @Test
+  @DisplayName("convertToManual 409s when the run has no scenario to convert")
+  void convertToManualRejectsRunWithoutScenario() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    AutonomousRun run = new AutonomousRun();
+    run.setId("run-1");
+    run.setStatus(AutonomousRunStatus.RUNNING);
+    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+
+    assertThatThrownBy(() -> service.convertToManual("run-1", ConvertToManualMode.IN_PLACE))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+    // Nothing is halted or mutated when the run cannot be converted.
+    verifyNoInteractions(xtmOneClient, exerciseService);
+    verify(runRepository, never()).delete(any());
   }
 
   // endregion
