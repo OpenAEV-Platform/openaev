@@ -30,6 +30,9 @@ jobs:
     outputs:
       agents: ${{ steps.parse.outputs.agents }}
       known: ${{ steps.parse.outputs.known }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      is_fork: ${{ steps.pr.outputs.is_fork }}
+      base_ref: ${{ steps.pr.outputs.base_ref }}
     steps:
       - name: Parse review command
         id: parse
@@ -60,12 +63,29 @@ jobs:
           [ "$AGENTS" = '[]' ] && echo "known=false" >> "$GITHUB_OUTPUT" || echo "known=true" >> "$GITHUB_OUTPUT"
           echo "agents=$AGENTS" >> "$GITHUB_OUTPUT"
 
-      - name: Acknowledge command
+      # issue_comment payloads carry no head ref, so the SHA has to be resolved
+      # here and pinned for every downstream step.
+      - name: Resolve PR head
+        id: pr
         if: steps.parse.outputs.known == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh pr view "$PR_NUMBER" --json headRefOid,isCrossRepository,baseRefName > /tmp/pr.json
+          {
+            echo "head_sha=$(jq -r .headRefOid /tmp/pr.json)"
+            echo "is_fork=$(jq -r .isCrossRepository /tmp/pr.json)"
+            echo "base_ref=$(jq -r .baseRefName /tmp/pr.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Acknowledge command
+        if: steps.parse.outputs.known == 'true' && steps.pr.outputs.is_fork == 'false'
         uses: actions/github-script@v9
         with:
           script: |
             const agents = JSON.parse('${{ steps.parse.outputs.agents }}');
+            const sha = '${{ steps.pr.outputs.head_sha }}';
             await github.rest.reactions.createForIssueComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -78,7 +98,22 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body: `🤖 Running ${agents.map((a) => `\`${a}\``).join(', ')} for `
-                + `@${context.payload.comment.user.login}. Findings will be posted here.`,
+                + `@${context.payload.comment.user.login} against \`${sha.slice(0, 7)}\`. `
+                + `Findings will be posted here.`,
+            });
+
+      - name: Refuse fork pull requests
+        if: steps.parse.outputs.known == 'true' && steps.pr.outputs.is_fork != 'false'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '🚫 On-demand agent review is disabled for pull requests from forks.\n\n'
+                + 'The review job checks out the head commit and runs an agent over it with '
+                + 'repository credentials present, so it only runs on branches in this repository.',
             });
 
       - name: Unknown command
@@ -112,7 +147,7 @@ jobs:
   review:
     name: "🤖 ${{ matrix.agent }}"
     needs: parse
-    if: needs.parse.outputs.known == 'true'
+    if: needs.parse.outputs.known == 'true' && needs.parse.outputs.is_fork == 'false'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -130,37 +165,53 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout PR head
+      - name: Checkout pinned PR head
         uses: actions/checkout@v6
         with:
+          ref: ${{ needs.parse.outputs.head_sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Resolve merge base
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
+          HEAD_SHA: ${{ needs.parse.outputs.head_sha }}
+          BASE_REF: ${{ needs.parse.outputs.base_ref }}
         run: |
-          gh pr checkout "$PR_NUMBER"
-          BASE_REF=$(gh pr view "$PR_NUMBER" --json baseRefName --jq .baseRefName)
+          ACTUAL=$(git rev-parse HEAD)
+          if [ "$ACTUAL" != "$HEAD_SHA" ]; then
+            echo "❌ Checked out $ACTUAL but expected $HEAD_SHA"
+            exit 1
+          fi
           git fetch --no-tags origin "$BASE_REF"
           echo "BASE_SHA=$(git merge-base "origin/$BASE_REF" HEAD)" >> "$GITHUB_ENV"
 
       - name: Install Copilot CLI
         run: npm install -g @github/copilot
 
+      # No GITHUB_TOKEN in this step: the agent reads attacker-authored files, so
+      # anything it can reach is reachable by prompt injection.
       - name: Run reviewer agent
         env:
-          GH_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           AGENT: ${{ matrix.agent }}
         run: |
           PROMPT="Review the changes returned by 'git diff ${BASE_SHA}..HEAD'.
           Follow your agent definition exactly, including its context-loading and
           skill steps. Report findings as GitHub-flavoured Markdown grouped by
           severity, each with a file path and line number. If you find nothing,
-          say so in one line. Do not modify, stage, commit or push any files —
-          output the report only."
+          say so in one line. Output the report only."
 
-          copilot --agent="$AGENT" --allow-all --prompt "$PROMPT" \
+          copilot --agent="$AGENT" \
+                  --prompt "$PROMPT" \
+                  --allow-all-tools \
+                  --excluded-tools 'create,edit,apply_patch' \
+                  --deny-tool 'write' \
+                  --deny-tool 'url' \
+                  --deny-tool 'shell(git push)' \
+                  --deny-tool 'shell(gh)' \
+                  --disable-builtin-mcps \
+                  --no-ask-user \
+                  --silent \
             | tee /tmp/review-raw.md
 
       - name: Post findings
@@ -169,9 +220,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AGENT: ${{ matrix.agent }}
           PR_NUMBER: ${{ github.event.issue.number }}
+          HEAD_SHA: ${{ needs.parse.outputs.head_sha }}
         run: |
           {
-            echo "### 🤖 \`$AGENT\`"
+            echo "### 🤖 \`$AGENT\` — reviewed \`${HEAD_SHA:0:7}\`"
             echo
             if [ -s /tmp/review-raw.md ]; then
               head -c 60000 /tmp/review-raw.md  # PR comment bodies cap at 65536
