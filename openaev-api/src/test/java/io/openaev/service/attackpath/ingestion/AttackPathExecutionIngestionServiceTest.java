@@ -3,6 +3,7 @@ package io.openaev.service.attackpath.ingestion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -16,7 +17,10 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.NetworkTraffic;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.PayloadArgument;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Team;
@@ -282,6 +286,150 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     assertThat(row.getAgentPrivilege()).isEqualTo("admin");
     assertThat(row.getExecutedAt()).isNotNull();
     assertThat(row.getPayloadName()).isEqualTo("crackmapexec");
+  }
+
+  /**
+   * Builds the agent/endpoint/inject triple the target-resolution tests share, so each only has to
+   * state the payload it exercises.
+   */
+  private Inject injectRunningPayload(Tenant tenant, String injectId, Payload payload) {
+    Endpoint endpoint = EndpointFixture.createEndpoint("corp-dc");
+    endpoint.setHostname("corp-dc");
+    endpoint.setIps(new String[] {"10.0.0.5"});
+    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Windows);
+    endpoint.setTenant(tenant);
+
+    Agent agent =
+        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
+    agent.setId("agt-1");
+    agent.setAsset(endpoint);
+    agent.setExecutedByUser("agent-1");
+    endpointComposer.forEndpoint(endpoint).withAgent(agentComposer.forAgent(agent)).persist();
+
+    Exercise exercise = new Exercise();
+    exercise.setId("SIM-" + injectId);
+
+    InjectorContract contract = InjectorContractFixture.createDefaultInjectorContract();
+    contract.setNeedsExecutor(true);
+    contract.setPayload(payload);
+
+    Inject inject = InjectFixture.getDefaultInject();
+    inject.setId(injectId);
+    inject.setExercise(exercise);
+    inject.setTenant(tenant);
+    inject.setTitle(payload.getName());
+    inject.setInjectorContract(contract);
+    inject.setAssets(List.of(endpoint));
+    return inject;
+  }
+
+  private static Step stepOf(String templateId, String stepId) {
+    Step stepTemplate = StepFixture.getDefaultStepTemplate();
+    stepTemplate.setId(templateId);
+    Step step = StepFixture.getDefaultStepTemplate();
+    step.setId(stepId);
+    step.setStepTemplate(stepTemplate);
+    return step;
+  }
+
+  private static PayloadArgument argument(PrimitiveType type, String key, String defaultValue) {
+    PayloadArgument argument = new PayloadArgument();
+    argument.setType(type);
+    argument.setKey(key);
+    argument.setDefaultValue(defaultValue);
+    return argument;
+  }
+
+  @Test
+  @DisplayName(
+      "A command whose host argument names the executing machine targets its endpoint, not a"
+          + " 'localhost' node")
+  void commandTargetingLoopbackStaysOnItsEndpoint() {
+    // Arrange
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-loopback"));
+    TenantContext.setCurrentTenant(tenant.getId());
+
+    Command command =
+        (Command)
+            PayloadFixture.createDefaultCommandWithArguments(
+                List.of(
+                    argument(PrimitiveType.Host, "host", "localhost"),
+                    argument(PrimitiveType.Port, "port", "2020")));
+    command.setName("echo");
+
+    Inject inject = injectRunningPayload(tenant, "exec-loopback", command);
+    String endpointId = inject.getAssets().getFirst().getId();
+
+    // Act
+    List<AttackPathExecution> rows =
+        ingestionService.getAttackPathExecution(inject, stepOf("tmpl-1", "step-1"), "echo");
+
+    // Assert
+    // The command never left the machine it ran on, so it must stay attached to that endpoint.
+    // Keying it on the literal "localhost" also merged every endpoint's local runs into one node.
+    assertThat(rows).hasSize(1);
+    assertThat(rows.getFirst().getTargetKind()).isEqualTo("ASSET");
+    assertThat(rows.getFirst().getTargetKey()).isEqualTo(endpointId);
+    assertThat(rows.getFirst().getTargetHostname()).isEqualTo("corp-dc");
+  }
+
+  @Test
+  @DisplayName(
+      "A command's target comes from the inject's own argument value, not the payload default")
+  void commandTargetUsesInjectArgumentOverride() {
+    // Arrange
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-override"));
+    TenantContext.setCurrentTenant(tenant.getId());
+
+    Command command =
+        (Command)
+            PayloadFixture.createDefaultCommandWithArguments(
+                List.of(argument(PrimitiveType.IPv4, "target_ip", "10.9.9.9")));
+    command.setName("scan");
+
+    Inject inject = injectRunningPayload(tenant, "exec-override", command);
+    // The value this inject actually runs with, overriding the payload-level default.
+    inject.setContent(JsonNodeFactory.instance.objectNode().put("target_ip", "192.168.56.11"));
+
+    // Act
+    List<AttackPathExecution> rows =
+        ingestionService.getAttackPathExecution(inject, stepOf("tmpl-1", "step-1"), "scan");
+
+    // Assert
+    assertThat(rows).hasSize(1);
+    assertThat(rows.getFirst().getTargetKind()).isEqualTo("DISCOVERED");
+    assertThat(rows.getFirst().getTargetKey()).isEqualTo("192.168.56.11");
+  }
+
+  @Test
+  @DisplayName("A NetworkTraffic payload lands on the graph instead of writing no row at all")
+  void networkTrafficPayloadIsIngested() {
+    // Arrange
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-network-traffic"));
+    TenantContext.setCurrentTenant(tenant.getId());
+
+    NetworkTraffic networkTraffic = new NetworkTraffic();
+    networkTraffic.setId("network-traffic-id");
+    networkTraffic.setName("beacon");
+    networkTraffic.setIpSrc("10.0.0.5");
+    networkTraffic.setIpDst("203.0.113.7");
+    networkTraffic.setPortSrc(4444);
+    networkTraffic.setPortDst(443);
+    networkTraffic.setProtocol("TCP");
+
+    Inject inject = injectRunningPayload(tenant, "exec-network", networkTraffic);
+
+    // Act
+    List<AttackPathExecution> rows =
+        ingestionService.getAttackPathExecution(inject, stepOf("tmpl-1", "step-1"), null);
+
+    // Assert
+    // This payload type had no branch in the resolution switch, so the step wrote nothing and the
+    // action never appeared on the attack path.
+    assertThat(rows).hasSize(1);
+    assertThat(rows.getFirst().getTargetKind()).isEqualTo("DISCOVERED");
+    assertThat(rows.getFirst().getTargetKey()).isEqualTo("203.0.113.7");
+    assertThat(rows.getFirst().getSourceKind()).isEqualTo("AGENT");
   }
 
   @Test

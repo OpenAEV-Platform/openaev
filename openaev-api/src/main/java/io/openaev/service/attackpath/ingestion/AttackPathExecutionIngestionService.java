@@ -58,6 +58,62 @@ public class AttackPathExecutionIngestionService {
   private final ObjectMapper objectMapper;
 
   /**
+   * Argument types that can name an endpoint, so a Command payload carrying exactly one of them
+   * targets that value rather than the endpoint it runs on.
+   */
+  private static final Set<PrimitiveType> TARGET_ARGUMENT_TYPES =
+      Set.of(
+          PrimitiveType.IPv4,
+          PrimitiveType.IPv6,
+          PrimitiveType.TargetedAsset,
+          PrimitiveType.Host,
+          PrimitiveType.Domain,
+          PrimitiveType.IpSubnet);
+
+  /**
+   * Values that name the executing machine itself. A command targeting one of these did not reach a
+   * second endpoint, so it must stay attached to the endpoint it ran on: treating them as
+   * discovered targets both hides the real endpoint and merges every endpoint's local executions
+   * into one shared node, since the target key would be the literal value for all of them.
+   */
+  private static final Set<String> SELF_TARGET_VALUES =
+      Set.of("localhost", "127.0.0.1", "::1", "0.0.0.0", "*");
+
+  /**
+   * The endpoint a Command payload targets, or {@code null} when it targets the endpoint it runs
+   * on.
+   *
+   * <p>Reads the value <b>this inject actually uses</b> — the inject's own content overrides the
+   * payload's default — because the default is authored once on the payload while the value is
+   * chosen per inject. Using the default made every inject of a payload whose {@code host} argument
+   * defaults to {@code localhost} land on a discovered "localhost" node instead of its endpoint.
+   *
+   * <p>Returns {@code null} when the payload declares several endpoint-ish arguments (ambiguous,
+   * the pre-existing rule) or when the value names the executing machine.
+   */
+  @Nullable
+  private String resolveCommandTargetValue(Inject inject, Command payloadCommand) {
+    List<PayloadArgument> endpointArguments =
+        payloadCommand.getArguments().stream()
+            .filter(arg -> TARGET_ARGUMENT_TYPES.contains(arg.getType()))
+            .toList();
+    if (endpointArguments.size() != 1) {
+      return null;
+    }
+    PayloadArgument argument = endpointArguments.getFirst();
+    JsonNode override =
+        inject.getContent() == null ? null : inject.getContent().get(argument.getKey());
+    String value =
+        override != null && !override.asText().isEmpty()
+            ? override.asText()
+            : argument.getDefaultValue();
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    return SELF_TARGET_VALUES.contains(value.trim().toLowerCase()) ? null : value;
+  }
+
+  /**
    * Clears a simulation's attack-path rows (on simulation reset and delete). As a writer of a
    * tenant-active table it goes through Hibernate under a v2 scope, never raw JDBC (MT v2 /
    * TenantNonOrmAccessArchTest): {@code executeNew} opens a tenant-scoped REQUIRES_NEW transaction
@@ -319,26 +375,35 @@ public class AttackPathExecutionIngestionService {
             attackPathExecutions.add(attackPathExecution);
           }
         }
-        case COMMAND -> {
-          Set<PrimitiveType> typeEndpoint =
-              Set.of(
-                  PrimitiveType.IPv4,
-                  PrimitiveType.IPv6,
-                  PrimitiveType.TargetedAsset,
-                  PrimitiveType.Host,
-                  PrimitiveType.Domain,
-                  PrimitiveType.IpSubnet);
-          Command payloadCommand = (Command) inject.getPayload().get();
-          String targetArgIdentified = null;
-          List<String> targetArg =
-              payloadCommand.getArguments().stream()
-                  .filter(arg -> typeEndpoint.contains(arg.getType()))
-                  .map(PayloadArgument::getDefaultValue)
-                  .toList();
-          // IF MORE THAN 1 ARGS CAN MATCH AN ENDPOINT type WE DO NOT USED IT
-          if (targetArg.size() == 1) {
-            targetArgIdentified = targetArg.getFirst();
+        case NETWORK_TRAFFIC -> { // AGENT -> DISCOVERED (the destination it reached)
+          NetworkTraffic networkTraffic = (NetworkTraffic) inject.getPayload().get();
+          String destination = networkTraffic.getIpDst();
+          boolean reachesAnotherHost =
+              destination != null
+                  && !destination.isBlank()
+                  && !SELF_TARGET_VALUES.contains(destination.trim().toLowerCase());
+          for (Agent agent : agentsAndAssetsAgentless.agents()) {
+            io.openaev.database.model.Endpoint endpoint =
+                (io.openaev.database.model.Endpoint)
+                    org.hibernate.Hibernate.unproxy(agent.getAsset());
+            AttackPathExecution attackPathExecution = new AttackPathExecution();
+            attackPathExecution.setGlobalInformation(step, inject);
+            attackPathExecution.setSourceAgentInformation(agent, endpoint);
+            if (reachesAnotherHost) {
+              attackPathExecution.setId(
+                  AttackPathIds.executionNode(inject.getId(), destination, agent.getId()));
+              attackPathExecution.setTargetDiscoveredInformation(destination);
+            } else {
+              attackPathExecution.setId(
+                  AttackPathIds.executionNode(inject.getId(), endpoint.getId(), agent.getId()));
+              attackPathExecution.setTargetAssetInformation(endpoint);
+            }
+            attackPathExecutions.add(attackPathExecution);
           }
+        }
+        case COMMAND -> {
+          Command payloadCommand = (Command) inject.getPayload().get();
+          String targetArgIdentified = resolveCommandTargetValue(inject, payloadCommand);
 
           for (Agent agent : agentsAndAssetsAgentless.agents()) { // AGENT ->
             io.openaev.database.model.Endpoint endpoint =
@@ -360,6 +425,31 @@ public class AttackPathExecutionIngestionService {
               attackPathExecution.setTargetAssetInformation(endpoint);
               attackPathExecutions.add(attackPathExecution);
             }
+          }
+        }
+        // Safety net, not dead code: this switch is a statement, so a payload type added to the
+        // enum
+        // without a branch here compiles and silently writes no row at all - which is how
+        // NETWORK_TRAFFIC stayed invisible on the graph. Any unknown type falls back to the
+        // endpoint
+        // it ran on, the one edge that is always true of an agent-based execution.
+        default -> {
+          log.warn(
+              "Attack path: payload type '{}' has no target resolution; attaching inject {} to the "
+                  + "endpoint it ran on",
+              payloadType,
+              inject.getId());
+          for (Agent agent : agentsAndAssetsAgentless.agents()) {
+            io.openaev.database.model.Endpoint endpoint =
+                (io.openaev.database.model.Endpoint)
+                    org.hibernate.Hibernate.unproxy(agent.getAsset());
+            AttackPathExecution attackPathExecution = new AttackPathExecution();
+            attackPathExecution.setId(
+                AttackPathIds.executionNode(inject.getId(), endpoint.getId(), agent.getId()));
+            attackPathExecution.setGlobalInformation(step, inject);
+            attackPathExecution.setSourceAgentInformation(agent, endpoint);
+            attackPathExecution.setTargetAssetInformation(endpoint);
+            attackPathExecutions.add(attackPathExecution);
           }
         }
       }
@@ -507,26 +597,22 @@ public class AttackPathExecutionIngestionService {
           DnsResolution dnsResolution = (DnsResolution) inject.getPayload().get();
           return AttackPathIds.executionNode(inject.getId(), dnsResolution.getHostname(), target);
         }
-        case COMMAND -> { // AGENT ->
-          Set<PrimitiveType> typeEndpoint =
-              Set.of(
-                  PrimitiveType.IPv4,
-                  PrimitiveType.IPv6,
-                  PrimitiveType.TargetedAsset,
-                  PrimitiveType.Host,
-                  PrimitiveType.Domain,
-                  PrimitiveType.IpSubnet);
-          Command payloadCommand = (Command) inject.getPayload().get();
-          String targetArgIdentified = null;
-          List<String> targetArg =
-              payloadCommand.getArguments().stream()
-                  .filter(arg -> typeEndpoint.contains(arg.getType()))
-                  .map(PayloadArgument::getDefaultValue)
-                  .toList();
-          // IF MORE THAN 1 ARGS CAN MATCH AN ENDPOINT type WE DO NOT USED IT
-          if (targetArg.size() == 1) {
-            targetArgIdentified = targetArg.getFirst();
+        case NETWORK_TRAFFIC -> { // AGENT -> DISCOVERED (the destination it reached)
+          NetworkTraffic networkTraffic = (NetworkTraffic) inject.getPayload().get();
+          String destination = networkTraffic.getIpDst();
+          if (destination != null
+              && !destination.isBlank()
+              && !SELF_TARGET_VALUES.contains(destination.trim().toLowerCase())) {
+            return AttackPathIds.executionNode(inject.getId(), destination, target);
           }
+          io.openaev.database.model.Endpoint endpoint =
+              (io.openaev.database.model.Endpoint)
+                  org.hibernate.Hibernate.unproxy(agent.getAsset());
+          return AttackPathIds.executionNode(inject.getId(), endpoint.getId(), target);
+        }
+        case COMMAND -> { // AGENT ->
+          Command payloadCommand = (Command) inject.getPayload().get();
+          String targetArgIdentified = resolveCommandTargetValue(inject, payloadCommand);
 
           if (targetArgIdentified != null) { // DISCOVERED
             return AttackPathIds.executionNode(inject.getId(), targetArgIdentified, target);
@@ -537,6 +623,14 @@ public class AttackPathExecutionIngestionService {
                     org.hibernate.Hibernate.unproxy(agent.getAsset());
             return AttackPathIds.executionNode(inject.getId(), endpoint.getId(), target);
           }
+        }
+        // Mirrors the write side's fallback, so an unknown payload type still resolves to the id
+        // that was actually persisted for it.
+        default -> {
+          io.openaev.database.model.Endpoint endpoint =
+              (io.openaev.database.model.Endpoint)
+                  org.hibernate.Hibernate.unproxy(agent.getAsset());
+          return AttackPathIds.executionNode(inject.getId(), endpoint.getId(), target);
         }
       }
 
