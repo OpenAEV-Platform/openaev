@@ -699,7 +699,12 @@ const ScenarioHeader = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button color="inherit" onClick={() => setOpenConvert(false)} disabled={converting}>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => setOpenConvert(false)}
+            disabled={converting}
+          >
             {t('Cancel')}
           </Button>
           <Button
@@ -712,7 +717,7 @@ const ScenarioHeader = ({
           </Button>
           <Button
             variant="contained"
-            color="warning"
+            color="error"
             onClick={() => handleConvertToManual('IN_PLACE')}
             disabled={converting}
           >

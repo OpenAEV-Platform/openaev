@@ -986,9 +986,16 @@ public class AutonomousRunService {
       try {
         workflowService.copyScenarioChainingWorkflowAsManual(scenarioId, duplicate);
       } catch (ChainingException e) {
+        // ChainingException is a generic internal wrapper; keep its detail in the logs and hand the
+        // client a stable, safe message instead of leaking the raw cause.
+        log.warn(
+            "Failed to copy attack-path logic from scenario {} into duplicate {} on convert-to-manual",
+            scenarioId,
+            duplicate.getId(),
+            e);
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,
-            "Failed to copy the attack-path logic into the new scenario: " + e.getMessage(),
+            "Failed to copy the attack-path logic into the new scenario",
             e);
       }
       return duplicate;
