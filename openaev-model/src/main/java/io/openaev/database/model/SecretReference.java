@@ -82,7 +82,7 @@ public class SecretReference implements TenantBase {
   @Queryable(filterable = true)
   @Enumerated(EnumType.STRING)
   @Column(name = "secret_reference_status", nullable = false)
-  private SECRET_STATUS status;
+  private SECRET_STATUS status = SECRET_STATUS.UNSET;
 
   @ManyToOne
   @JoinColumn(name = "secret_reference_created_by")
