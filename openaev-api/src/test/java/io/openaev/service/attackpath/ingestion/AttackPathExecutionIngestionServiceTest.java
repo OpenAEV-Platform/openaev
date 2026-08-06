@@ -371,6 +371,8 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     assertThat(rows.getFirst().getTargetKind()).isEqualTo("ASSET");
     assertThat(rows.getFirst().getTargetKey()).isEqualTo(endpointId);
     assertThat(rows.getFirst().getTargetHostname()).isEqualTo("corp-dc");
+    assertThat(ingestionService.getExecutionIndex(inject, "agt-1"))
+        .isEqualTo(rows.getFirst().getId());
   }
 
   @Test
@@ -399,6 +401,20 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     assertThat(rows).hasSize(1);
     assertThat(rows.getFirst().getTargetKind()).isEqualTo("DISCOVERED");
     assertThat(rows.getFirst().getTargetKey()).isEqualTo("192.168.56.11");
+    assertThat(ingestionService.getExecutionIndex(inject, "agt-1"))
+        .isEqualTo(rows.getFirst().getId());
+  }
+
+  private static NetworkTraffic networkTrafficTo(String ipDst) {
+    NetworkTraffic networkTraffic = new NetworkTraffic();
+    networkTraffic.setId("network-traffic-id");
+    networkTraffic.setName("beacon");
+    networkTraffic.setIpSrc("10.0.0.5");
+    networkTraffic.setIpDst(ipDst);
+    networkTraffic.setPortSrc(4444);
+    networkTraffic.setPortDst(443);
+    networkTraffic.setProtocol("TCP");
+    return networkTraffic;
   }
 
   @Test
@@ -408,16 +424,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-network-traffic"));
     TenantContext.setCurrentTenant(tenant.getId());
 
-    NetworkTraffic networkTraffic = new NetworkTraffic();
-    networkTraffic.setId("network-traffic-id");
-    networkTraffic.setName("beacon");
-    networkTraffic.setIpSrc("10.0.0.5");
-    networkTraffic.setIpDst("203.0.113.7");
-    networkTraffic.setPortSrc(4444);
-    networkTraffic.setPortDst(443);
-    networkTraffic.setProtocol("TCP");
-
-    Inject inject = injectRunningPayload(tenant, "exec-network", networkTraffic);
+    Inject inject = injectRunningPayload(tenant, "exec-network", networkTrafficTo("203.0.113.7"));
 
     // Act
     List<AttackPathExecution> rows =
@@ -430,6 +437,90 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     assertThat(rows.getFirst().getTargetKind()).isEqualTo("DISCOVERED");
     assertThat(rows.getFirst().getTargetKey()).isEqualTo("203.0.113.7");
     assertThat(rows.getFirst().getSourceKind()).isEqualTo("AGENT");
+    // The recomputed index must name the row that was persisted, or verdicts and terminal
+    // traces written later through getExecutionIndex would miss it.
+    assertThat(ingestionService.getExecutionIndex(inject, "agt-1"))
+        .isEqualTo(rows.getFirst().getId());
+  }
+
+  @Test
+  @DisplayName("A NetworkTraffic payload whose destination is loopback stays on its endpoint")
+  void networkTrafficLoopbackStaysOnItsEndpoint() {
+    // Arrange
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-network-loopback"));
+    TenantContext.setCurrentTenant(tenant.getId());
+
+    Inject inject =
+        injectRunningPayload(tenant, "exec-network-loop", networkTrafficTo("127.0.0.1"));
+    String endpointId = inject.getAssets().getFirst().getId();
+
+    // Act
+    List<AttackPathExecution> rows =
+        ingestionService.getAttackPathExecution(inject, stepOf("tmpl-1", "step-1"), null);
+
+    // Assert
+    assertThat(rows).hasSize(1);
+    assertThat(rows.getFirst().getTargetKind()).isEqualTo("ASSET");
+    assertThat(rows.getFirst().getTargetKey()).isEqualTo(endpointId);
+    assertThat(ingestionService.getExecutionIndex(inject, "agt-1"))
+        .isEqualTo(rows.getFirst().getId());
+  }
+
+  @Test
+  @DisplayName("A blank inject override does not name a target: the payload default still applies")
+  void commandBlankOverrideFallsBackToPayloadDefault() {
+    // Arrange
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-blank"));
+    TenantContext.setCurrentTenant(tenant.getId());
+
+    Command command =
+        (Command)
+            PayloadFixture.createDefaultCommandWithArguments(
+                List.of(argument(PrimitiveType.IPv4, "target_ip", "10.9.9.9")));
+    command.setName("scan");
+
+    Inject inject = injectRunningPayload(tenant, "exec-blank", command);
+    // A whitespace-only value names nothing, so it must not suppress the payload default.
+    inject.setContent(JsonNodeFactory.instance.objectNode().put("target_ip", "   "));
+
+    // Act
+    List<AttackPathExecution> rows =
+        ingestionService.getAttackPathExecution(inject, stepOf("tmpl-1", "step-1"), "scan");
+
+    // Assert
+    assertThat(rows).hasSize(1);
+    assertThat(rows.getFirst().getTargetKind()).isEqualTo("DISCOVERED");
+    assertThat(rows.getFirst().getTargetKey()).isEqualTo("10.9.9.9");
+  }
+
+  @Test
+  @DisplayName(
+      "The persisted target value is trimmed, so stray whitespace never forks a second node")
+  void commandTargetValueIsTrimmedBeforePersisting() {
+    // Arrange
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-trim"));
+    TenantContext.setCurrentTenant(tenant.getId());
+
+    Command command =
+        (Command)
+            PayloadFixture.createDefaultCommandWithArguments(
+                List.of(argument(PrimitiveType.IPv4, "target_ip", "10.9.9.9")));
+    command.setName("scan");
+
+    Inject inject = injectRunningPayload(tenant, "exec-trim", command);
+    inject.setContent(JsonNodeFactory.instance.objectNode().put("target_ip", " 192.168.56.11  "));
+
+    // Act
+    List<AttackPathExecution> rows =
+        ingestionService.getAttackPathExecution(inject, stepOf("tmpl-1", "step-1"), "scan");
+
+    // Assert
+    // The id is keyed on the target value: an untrimmed " 192.168.56.11  " would be a distinct
+    // node from "192.168.56.11", and would diverge from the loopback check, which trims.
+    assertThat(rows).hasSize(1);
+    assertThat(rows.getFirst().getTargetKey()).isEqualTo("192.168.56.11");
+    assertThat(ingestionService.getExecutionIndex(inject, "agt-1"))
+        .isEqualTo(rows.getFirst().getId());
   }
 
   @Test

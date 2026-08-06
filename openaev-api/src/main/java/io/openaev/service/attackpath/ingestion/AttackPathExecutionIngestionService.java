@@ -80,13 +80,36 @@ public class AttackPathExecutionIngestionService {
       Set.of("localhost", "127.0.0.1", "::1", "0.0.0.0", "*");
 
   /**
+   * The trimmed remote target a raw value names, or {@code null} when it names the executing
+   * machine itself (or nothing at all).
+   *
+   * <p>Every remote-target resolution goes through here, so the value that gets persisted (and
+   * keyed into {@link AttackPathIds#executionNode}) is normalized exactly once: trimmed, so two
+   * authorings of the same target differing only by stray whitespace converge on one node, while
+   * the authored case is kept for display — only the self-target comparison lowercases.
+   */
+  @Nullable
+  private static String remoteTargetOrNull(@Nullable String rawValue) {
+    if (rawValue == null) {
+      return null;
+    }
+    String value = rawValue.trim();
+    if (value.isEmpty() || SELF_TARGET_VALUES.contains(value.toLowerCase())) {
+      return null;
+    }
+    return value;
+  }
+
+  /**
    * The endpoint a Command payload targets, or {@code null} when it targets the endpoint it runs
    * on.
    *
    * <p>Reads the value <b>this inject actually uses</b> — the inject's own content overrides the
    * payload's default — because the default is authored once on the payload while the value is
    * chosen per inject. Using the default made every inject of a payload whose {@code host} argument
-   * defaults to {@code localhost} land on a discovered "localhost" node instead of its endpoint.
+   * defaults to {@code localhost} land on a discovered "localhost" node instead of its endpoint. A
+   * blank (or JSON null) override does not name a target, so it falls back to the default rather
+   * than suppressing it.
    *
    * <p>Returns {@code null} when the payload declares several endpoint-ish arguments (ambiguous,
    * the pre-existing rule) or when the value names the executing machine.
@@ -103,14 +126,13 @@ public class AttackPathExecutionIngestionService {
     PayloadArgument argument = endpointArguments.getFirst();
     JsonNode override =
         inject.getContent() == null ? null : inject.getContent().get(argument.getKey());
+    // A JSON null node must not read as the literal string "null" (asText would).
+    String overrideValue = override == null || override.isNull() ? null : override.asText();
     String value =
-        override != null && !override.asText().isEmpty()
-            ? override.asText()
+        overrideValue != null && !overrideValue.isBlank()
+            ? overrideValue
             : argument.getDefaultValue();
-    if (value == null || value.isBlank()) {
-      return null;
-    }
-    return SELF_TARGET_VALUES.contains(value.trim().toLowerCase()) ? null : value;
+    return remoteTargetOrNull(value);
   }
 
   /**
@@ -377,11 +399,7 @@ public class AttackPathExecutionIngestionService {
         }
         case NETWORK_TRAFFIC -> { // AGENT -> DISCOVERED (the destination it reached)
           NetworkTraffic networkTraffic = (NetworkTraffic) inject.getPayload().get();
-          String destination = networkTraffic.getIpDst();
-          boolean reachesAnotherHost =
-              destination != null
-                  && !destination.isBlank()
-                  && !SELF_TARGET_VALUES.contains(destination.trim().toLowerCase());
+          String destination = remoteTargetOrNull(networkTraffic.getIpDst());
           for (Agent agent : agentsAndAssetsAgentless.agents()) {
             io.openaev.database.model.Endpoint endpoint =
                 (io.openaev.database.model.Endpoint)
@@ -389,7 +407,7 @@ public class AttackPathExecutionIngestionService {
             AttackPathExecution attackPathExecution = new AttackPathExecution();
             attackPathExecution.setGlobalInformation(step, inject);
             attackPathExecution.setSourceAgentInformation(agent, endpoint);
-            if (reachesAnotherHost) {
+            if (destination != null) {
               attackPathExecution.setId(
                   AttackPathIds.executionNode(inject.getId(), destination, agent.getId()));
               attackPathExecution.setTargetDiscoveredInformation(destination);
@@ -599,10 +617,8 @@ public class AttackPathExecutionIngestionService {
         }
         case NETWORK_TRAFFIC -> { // AGENT -> DISCOVERED (the destination it reached)
           NetworkTraffic networkTraffic = (NetworkTraffic) inject.getPayload().get();
-          String destination = networkTraffic.getIpDst();
-          if (destination != null
-              && !destination.isBlank()
-              && !SELF_TARGET_VALUES.contains(destination.trim().toLowerCase())) {
+          String destination = remoteTargetOrNull(networkTraffic.getIpDst());
+          if (destination != null) {
             return AttackPathIds.executionNode(inject.getId(), destination, target);
           }
           io.openaev.database.model.Endpoint endpoint =
