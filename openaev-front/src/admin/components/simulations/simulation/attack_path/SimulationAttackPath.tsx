@@ -354,6 +354,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // Cross-focus: clicking a finding item centers its endpoint (focusRequest) and highlights the
   // producing executions in the feed (by their raw ids).
   const [focusRequest, setFocusRequest] = useState<AttackPathFocusRequest | null>(null);
+  // Monotonic, so re-picking the SAME finding re-frames it instead of being swallowed as a no-op.
+  const focusNonce = useRef(0);
   const [highlightedExecutionIds, setHighlightedExecutionIds] = useState<Set<string>>(new Set());
   const feedRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -1280,6 +1282,24 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     }
     return fullChain.causalSourceByFinding.get(selectedFindingId) ?? selectedFindingId;
   }, [selectedFindingId, fullChain]);
+
+  // Frame the highlighted path around the finding that was just selected, wherever it was picked
+  // from (graph click, findings drawer, summary list). Keyed off the RESOLVED id so a finding still
+  // inside a collapsed cluster anchors on the cluster node that actually exists on the canvas.
+  //
+  // Until now the camera never moved on a finding click: `focusRequest` was declared and handed to
+  // the canvas but only ever set to null, so `centerOnNode` was dead code. On a large attack path
+  // the selected finding could therefore sit off-screen entirely.
+  useEffect(() => {
+    if (!effectiveSelectedFindingId) {
+      return;
+    }
+    setFocusRequest({
+      nodeId: effectiveSelectedFindingId,
+      nonce: focusNonce.current + 1,
+    });
+    focusNonce.current += 1;
+  }, [effectiveSelectedFindingId]);
 
   const baseFlow = useMemo(
     () => {
