@@ -34,7 +34,7 @@ The minimum Node.js version is specified in `openaev-front/package.json` (`engin
 **ALWAYS follow this sequence:**
 
 1. **Start services**:
-   `cd openaev-dev && docker-compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq`
+  `cd openaev-dev && docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq`
 2. **Build frontend**: `cd openaev-front && yarn install && yarn build` (~4min)
 3. **Build backend**: `cd .. && mvn clean install -DskipTests -Pdev`
 
