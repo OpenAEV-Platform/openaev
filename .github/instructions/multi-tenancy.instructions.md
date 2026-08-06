@@ -46,7 +46,7 @@ didn't; `agent.getExecutor()` (an eager `@ManyToOne` on the now-v2-active
 check on manual launch never threw. `TenantScopedEntrypointsTxCtxArchTest`
 now enumerates every entrypoint required to carry `TxCtx`; when activating a
 table, walk the *entire* call graph up to every `@RestController` entrypoint
-(not just one hop) and add each one found — see `activate-tenant-table/SKILL.md`.
+(not just one hop) and add each one found — see `.github/skills/activate-tenant-table/SKILL.md`.
 
 A bare `TxCtx` parameter is always safe to add ahead of a table's actual
 activation: it's inert until the table is in `active-tables`, and
