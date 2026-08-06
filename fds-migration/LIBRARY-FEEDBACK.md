@@ -708,7 +708,28 @@ This one now does.
 
 ## 15. The collapse toggle has no pointer cursor
 
-**Status.** Open — a library fix is in flight. **No product compensation.**
+**Status: ✅ RESOLVED** upstream by library PR #84, *"give button-rendered rail
+rows the pointer cursor"*, adopted here at pin `486cec92c`. Nothing was ever
+compensated product-side, so nothing had to be removed — the fix simply arrived.
+
+**Proof, measured in a browser rather than read off a class list.** Every
+`<button>` the rail renders was queried with `getComputedStyle(el).cursor` in
+the running product, in both rail states:
+
+| Rail state | Button row | Computed `cursor` |
+|---|---|---|
+| Expanded | `Components` (submenu trigger) | `pointer` |
+| Expanded | `Settings` (submenu trigger) | `pointer` |
+| Expanded | `By Filigran` (footer signature) | `pointer` |
+| Expanded | `Collapse` | `pointer` |
+| Collapsed | `By Filigran` | `pointer` |
+| Collapsed | `Expand` | `pointer` |
+
+Six button-rendered rows across the two states, all `pointer`. The anchors were
+measured too — 17 expanded, 19 collapsed — and none regressed. The upstream fix
+is guarded by a computed-style suite of the library's own, so the assertion is
+not a source-level `toHaveClass("cursor-pointer")` that would share this
+defect's blind spot.
 
 **What happens.** The `Navbar`'s collapse/expand control renders without
 `cursor: pointer`, so the pointer stays an arrow over a control that is
@@ -727,9 +748,8 @@ independently. Nothing is gained by writing it three times.
 gives its other activatable controls, on the collapse toggle.
 
 **Removal test.** Not applicable — there is nothing to remove product-side.
-**Verification at the next pin bump:** hover the collapse control in both rail
-states and both themes; the cursor is a pointer. If it is not, the pin does not
-carry the fix yet.
+**Verified at pin `486cec92c`:** the table above. The condition stated when this
+entry was opened is met.
 
 **Why this defect survived the computed-style diff.** It is worth recording how
 it was found, because the method missed it. The Step 5b diff compares the
@@ -737,3 +757,51 @@ product against the library's own documentation site — and the documentation
 site has the same defect. **A check that compares against a reference is blind
 to defects present in the reference.** Only interacting with the running product
 surfaces it. That lesson is now in the playbook's visual-verification step.
+
+---
+
+## 16. The `ProductSwitcher` trigger has no pointer cursor
+
+**Status.** Open. **No product compensation.** Found while verifying that
+[#15](#15-the-collapse-toggle-has-no-pointer-cursor) was fixed — the same
+defect class, on a component the fix did not reach.
+
+**What happens.** Library PR #84 added `cursor-pointer` to `NavbarItem`, which
+covers every navigation row of the rail. The `ProductSwitcher` trigger in the
+rail header is not a `NavbarItem`; it is the library's icon button, and it still
+declares no cursor. Measured in the running product at pin `486cec92c`:
+
+| Element | Tag | Size | Computed `cursor` |
+|---|---|---|---|
+| `Filigran products` (ProductSwitcher trigger) | `button` | 24×24 | **`default`** |
+
+Its class list is entirely library-owned — `border-0 bg-transparent p-0 m-0 …
+inline-flex items-center justify-center rounded-sm transition focus-visible:…`
+— and contains no product class. The product never styles this element.
+
+**Why this is worth a separate entry rather than reopening #15.** #15 was
+stated, and closed, against a testable condition: the rail's button-rendered
+*rows*. That condition is genuinely met. Reopening it would blur a verified
+result; recording the residue separately keeps both facts true. It also makes
+the more useful point visible: **the fix was applied at the component that had
+the reported symptom, not at the layer where the cause lives.** Any library
+`<button>` that is not a `NavbarItem` still has it.
+
+**What the library should do.** Rather than a third per-component patch, put the
+affordance where the cause is: every activatable, non-disabled control the
+library renders as a native `<button>` should carry it — the shared button base
+is the natural place. A per-component fix will keep leaking, because the browser
+gives `<a href>` a hand cursor for free and gives `<button>` nothing, so every
+new button-rendered control starts out wrong by default.
+
+**Why no compensation.** A product-side fix means a descendant selector reaching
+into the library's internals from the host stylesheet: invisible to the
+library's tests, silently rotting when the class names change, and rewritten
+independently by every consuming product. The affordance is missing, not wrong;
+nothing in the product is broken by waiting for the pin that carries it.
+
+**Removal test.** Not applicable — nothing to remove product-side.
+**Verification at the next pin bump:** in the running product, read
+`getComputedStyle(trigger).cursor` on the ProductSwitcher trigger in both rail
+states and both themes; it must be `pointer`. Hovering by hand is not enough —
+this exact defect survived a full visual checkpoint before it was measured.
