@@ -1,10 +1,10 @@
 package io.openaev.ocsf.parser;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.migration.ClassContentsGenerator;
 import io.openaev.migration.ClassFileWriter;
 import io.openaev.migration.ClassNameGenerator;
-import io.openaev.ocsf.parser.client.OcsfApiClient;
-import io.openaev.ocsf.parser.client.url.OcsfSchemaEndpoints;
+import io.openaev.ocsf.parser.schema.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.plugin.AbstractMojo;
@@ -15,6 +15,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 
 /** Generate source files for a java OCSF parser */
 @Slf4j
@@ -24,7 +25,7 @@ public class GenerateParser extends AbstractMojo {
       property = "basedir",
       name = "basedir",
       required = true,
-      defaultValue = "${project.basedir}")
+      defaultValue = "${maven.multiModuleProjectDirectory}")
   private File basedir;
 
   @Parameter(property = "reason", name = "reason", required = true, defaultValue = "migration")
@@ -41,7 +42,7 @@ public class GenerateParser extends AbstractMojo {
         new ClassNameGenerator(),
         new ClassFileWriter(),
         new ClassContentsGenerator(),
-        new File("."),
+        new File(""),
         "migration");
   }
 
@@ -87,12 +88,14 @@ public class GenerateParser extends AbstractMojo {
   }
 
   public void execute() throws MojoExecutionException {
-    OcsfApiClient client = new OcsfApiClient();
+    PluginContext ctx = new PluginContext(
+            Paths.get(getFinalBaseDir().getAbsoluteFile().toURI()).resolve("openaev-maven-plugin/src/main/resources"),
+            Paths.get(""));
       try {
-          log.info(client.fetch(OcsfSchemaEndpoints.DICTIONARY).toPrettyString());
-          log.info(client.fetch(OcsfSchemaEndpoints.OBJECTS_INVENTORY).toPrettyString());
-          log.info(client.fetch(OcsfSchemaEndpoints.DATATYPES).toPrettyString());
-          log.info(client.fetch(OcsfSchemaEndpoints.CLASSES_INVENTORY).toPrettyString());
+        SchemaSource schemaSource = Ocsf.instance(OcsfSchemaVersion._1_8, ctx);
+        schemaSource.refreshAllSources();
+        JsonNode dictionary = schemaSource.get(SchemaDimension.DICTIONARY);
+        JsonNode datatypes = schemaSource.get(SchemaDimension.DATATYPES);
       } catch (IOException e) {
           throw new RuntimeException(e);
       }
