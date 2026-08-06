@@ -3110,6 +3110,7 @@
   "Stop generating": "Smettere di generare",
   "Stop the autonomous run before deleting its scenario.": "Interrompi l'esecuzione autonoma prima di eliminare il suo scenario.",
   "Stop the connector before deleting it": "Arresta il connettore prima di eliminarlo",
+  "Stop the run before converting it to a manual chained scenario": "Stop the run before converting it to a manual chained scenario",
   "stopped": "bloccato",
   "Stopped": "Interrotto",
   "Storage": "Storage",
