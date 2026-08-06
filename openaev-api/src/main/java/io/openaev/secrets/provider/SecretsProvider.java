@@ -39,7 +39,7 @@ public abstract class SecretsProvider extends BaseConnectorEntity implements Ten
 
   // -- SecretProvider default implementations  --
 
-  public SecretMetadata getSecretMetada(@NotNull SecretReference secretReference) {
+  public SecretMetadata getSecretMetadata(@NotNull SecretReference secretReference) {
     throw new UnsupportedOperationException(
         "Retrieve secret main information is not supported for this provider");
   }

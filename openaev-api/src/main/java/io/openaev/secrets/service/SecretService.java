@@ -20,6 +20,7 @@ public class SecretService {
    * @return the existing tenant-scoped secret
    * @throws IllegalArgumentException if no secret exists for the given id and tenant
    */
+  @Transactional(readOnly = true)
   public Secret findByIdOrThrow(String secretId) {
     String id = Objects.requireNonNull(secretId, "secretId must not be null");
     return secretsRepository

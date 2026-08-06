@@ -15,10 +15,8 @@ import SelectFieldController from '../../../../components/fields/SelectFieldCont
 import TagFieldController from '../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
-import {
-  type CredentialContractField,
-  type CredentialContractOutput, type CredentialInput,
-} from '../../../../utils/api-types';
+import DOTS from '../../../../constants/Strings';
+import { type CredentialContractField, type CredentialContractOutput, type CredentialInput } from '../../../../utils/api-types';
 import type {
   ContractType,
   EnhancedContractElement,
@@ -194,7 +192,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     ]);
 
     const sanitizedEntries = Object.entries(values)
-      .filter(([key]) => allowedKeys.has(key));
+      .filter(([key, value]) => allowedKeys.has(key) && value != DOTS);
 
     await onSubmit(Object.fromEntries(sanitizedEntries) as CredentialInput, event);
   };

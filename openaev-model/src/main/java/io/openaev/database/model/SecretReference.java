@@ -44,10 +44,6 @@ public class SecretReference implements TenantBase {
     ACTIVE,
     INACTIVE,
     UNSET;
-
-    public static final String ACTIVE_VALUE = "ACTIVE";
-    public static final String INACTIVE_VALUE = "INACTIVE";
-    public static final String UNSET_VALUE = "INACTIVE";
   }
 
   @Id

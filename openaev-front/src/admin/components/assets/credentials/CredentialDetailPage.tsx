@@ -135,7 +135,15 @@ const CredentialDetailPage = () => {
             gap: 2,
           }}
           >
-            <Field label={t('Status')}><AssetStatus variant="list" status={credential?.credential_status?.toUpperCase() == 'ACTIVE' ? 'Active' : 'Inactive'} /></Field>
+            <Field label={t('Status')}>
+              {(credential.credential_status == 'ACTIVE' || credential.credential_status == 'INACTIVE')
+                ? (
+                    <AssetStatus
+                      variant="list"
+                      status={credential?.credential_status?.toUpperCase() == 'ACTIVE' ? 'Active' : 'Inactive'}
+                    />
+                  ) : '-'}
+            </Field>
             <Field label={t('Created by')}>{credential.credential_created_by?.user_name || '-'}</Field>
             <Field label={t('Creation date')}>{fldt(credential?.credential_created_at)}</Field>
             <Field label={t('Last verified')}>{fldt(credential?.credential_last_verified_at)}</Field>

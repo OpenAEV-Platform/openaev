@@ -47,15 +47,19 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
   const handleCloseEdit = () => setOpenEdit(false);
 
   const handleOpenEdit = async () => {
-    setOpenEdit(true);
-    setIsLoadingEditValues(true);
     if (!credentialId) {
       return;
     }
-    resolveInitialValues?.().then((values) => {
-      setEditValues(values);
+    setOpenEdit(true);
+    setIsLoadingEditValues(true);
+    if (!resolveInitialValues) {
       setIsLoadingEditValues(false);
-    });
+      return;
+    }
+    resolveInitialValues()
+      .then(values => setEditValues(values))
+      .catch(() => setOpenEdit(false))
+      .finally(() => setIsLoadingEditValues(false));
   };
 
   const submitEdit = (input: CredentialInput) => {

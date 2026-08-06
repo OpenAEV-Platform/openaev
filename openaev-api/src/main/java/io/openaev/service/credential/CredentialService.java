@@ -122,7 +122,7 @@ public class CredentialService {
     SecretsProvider secretProvider =
         resolveProviderByConnectorInstanceId(
             credential.getConnectorInstanceId(), credential.getTenant().getId());
-    SecretMetadata secretMetadata = secretProvider.getSecretMetada(credential);
+    SecretMetadata secretMetadata = secretProvider.getSecretMetadata(credential);
     return credentialMapper.toFullOutput(credential, secretMetadata);
   }
 
@@ -194,7 +194,7 @@ public class CredentialService {
     applyMetadataInputToCredential(credential, input);
     secretProvider.update(credential, convertCredentialInputToSecretStoreRequest(input));
 
-    SecretMetadata secretMetadata = secretProvider.getSecretMetada(credential);
+    SecretMetadata secretMetadata = secretProvider.getSecretMetadata(credential);
 
     return credentialMapper.toFullOutput(credential, secretMetadata);
   }
@@ -215,7 +215,9 @@ public class CredentialService {
       CredentialSecretReference credential, CredentialInput input) {
     credential.setName(Objects.requireNonNull(input.credentialName(), "name must not be null"));
     credential.setDescription(input.credentialDescription());
-    credential.setTags(iterableToSet(tagRepository.findAllById(input.credentialTagIds())));
+    List<String> tagIds = Objects.requireNonNullElse(input.credentialTagIds(), List.of());
+    credential.setTags(
+        tagIds.isEmpty() ? Set.of() : iterableToSet(tagRepository.findAllById(tagIds)));
     credential.setCredentialAuthMethod(input.credentialAuthMethod());
     credential.setCredentialType(input.credentialType());
   }

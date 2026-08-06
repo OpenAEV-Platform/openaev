@@ -26,8 +26,8 @@ public class SchemaApi extends RestBehavior {
    *
    * <ul>
    *   <li>{@code InjectExpectation} keeps backward compatibility after class rename.
-   *   <li>{@code Credential} exposes credential_* fields (DTO contract) instead of
-   *       secret_reference_* storage details.
+   *   <li>{@code Credential} is an alias mapped to {@code
+   *       io.openaev.database.model.CredentialSecretReference}.
    * </ul>
    */
   private static final Map<String, String> ENTITY_CLASS_ALIASES =

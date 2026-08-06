@@ -2,7 +2,6 @@ import { PlayCircleOutlineOutlined, TrackChangesOutlined } from '@mui/icons-mate
 import { Box, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { fetchCredential, searchCredentials } from '../../../../actions/assets/credential-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
@@ -42,14 +41,8 @@ const inlineStyles: Record<string, CSSProperties> = {
   credential_tags_ids: { width: '14%' },
 };
 
-const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
-  item: { height: 50 },
-}));
-
 const Credentials = () => {
   const { t, fldt } = useFormatter();
-  const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const [loading, setLoading] = useState<boolean>(true);
   const [credentials, setCredentials] = useState<CredentialOutput[]>([]);
@@ -167,7 +160,6 @@ const Credentials = () => {
       />
 
       <ListItem
-        classes={{ root: classes.itemHead }}
         divider={false}
         secondaryAction={<span>&nbsp;</span>}
       >
@@ -214,7 +206,7 @@ const Credentials = () => {
               )}
             >
               <ListItemButton
-                classes={{ root: classes.item }}
+                sx={{ height: 50 }}
                 component={Link}
                 to={`/admin/credentials/${credential.credential_id}`}
               >

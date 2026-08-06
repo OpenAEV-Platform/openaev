@@ -33,7 +33,7 @@ public class LocalSecretsProvider extends SecretsProvider {
   }
 
   @Override
-  public SecretMetadata getSecretMetada(@NotNull SecretReference secretReference) {
+  public SecretMetadata getSecretMetadata(@NotNull SecretReference secretReference) {
     String secretId =
         Objects.requireNonNull(
             secretReference.getLocation(), "secretReference location must not be null");
