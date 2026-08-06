@@ -343,31 +343,73 @@ const AttackPathCanvas = ({
     }
   }, [animateTo, fitCamera]);
 
-  // Center the camera on one node at a comfortable zoom (click-to-focus / cross-focus).
-  const centerOnNode = useCallback((nodeId: string) => {
+  /**
+   * Frame the highlighted path, anchored on the node that was just selected.
+   *
+   * <p>The zoom tries to contain the whole highlighted path (the nodes still lit, i.e. not dimmed)
+   * but never drops below the readable floor used by the initial fit, and the camera centres on the
+   * anchor rather than on the box centre — so the clicked finding is always the visual subject even
+   * when its chain is too long to fit and overflows.
+   *
+   * <p>Centring alone (the previous {@link centerOnNode}) kept the current zoom, which is what made
+   * a selection unreadable: zoomed out the finding was centred but tiny, zoomed in its connectors
+   * stretched off-screen.
+   */
+  const focusOnPath = useCallback((anchorNodeId: string) => {
     const el = containerRef.current;
-    const r = effectiveRects.get(nodeId);
-    if (!el || !r) {
+    const anchor = effectiveRects.get(anchorNodeId);
+    if (!el || !anchor) {
       return;
     }
-    const zoom = clampZoom(Math.max(0.8, Math.min(1.4, camera.zoom)));
-    const worldCx = r.x + r.width / 2;
-    const worldCy = r.y + r.height / 2;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    nodes.forEach((n) => {
+      if (n.data?.dimmed) {
+        return;
+      }
+      const r = effectiveRects.get(n.id);
+      if (!r) {
+        return;
+      }
+      minX = Math.min(minX, r.x);
+      minY = Math.min(minY, r.y);
+      maxX = Math.max(maxX, r.x + r.width);
+      maxY = Math.max(maxY, r.y + r.height);
+    });
+    // Nothing lit (or no rects yet): fall back to framing the anchor alone.
+    if (minX === Infinity) {
+      minX = anchor.x;
+      minY = anchor.y;
+      maxX = anchor.x + anchor.width;
+      maxY = anchor.y + anchor.height;
+    }
+    const availW = el.clientWidth - FIT_PADDING * 2;
+    const availH = el.clientHeight - FIT_PADDING * 2;
+    if (availW <= 0 || availH <= 0) {
+      return;
+    }
+    const raw = Math.min(availW / Math.max(maxX - minX, 1), availH / Math.max(maxY - minY, 1));
+    const zoom = clampZoom(Math.min(INITIAL_MAX_ZOOM, Math.max(INITIAL_MIN_ZOOM, raw)));
     animateTo({
       zoom,
-      x: el.clientWidth / 2 - worldCx * zoom,
-      y: el.clientHeight / 2 - worldCy * zoom,
+      x: el.clientWidth / 2 - (anchor.x + anchor.width / 2) * zoom,
+      y: el.clientHeight / 2 - (anchor.y + anchor.height / 2) * zoom,
     });
-  }, [effectiveRects, camera.zoom, clampZoom, animateTo]);
+  }, [nodes, effectiveRects, clampZoom, animateTo]);
 
-  // Re-fires on nonce only (repeat focus on the same node re-centers without re-running on every
+  // Re-fires on nonce only (repeat focus on the same node re-frames without re-running on every
   // camera change, hence the ref-carried callback).
-  const centerOnNodeRef = useRef(centerOnNode);
-  centerOnNodeRef.current = centerOnNode;
+  const focusOnPathRef = useRef(focusOnPath);
+  focusOnPathRef.current = focusOnPath;
   useEffect(() => {
     if (focusRequest?.nodeId) {
-      centerOnNodeRef.current(focusRequest.nodeId);
+      // Let the focused layout settle before measuring it.
+      const id = window.setTimeout(() => focusOnPathRef.current(focusRequest.nodeId), 80);
+      return () => window.clearTimeout(id);
     }
+    return undefined;
   }, [focusRequest?.nodeId, focusRequest?.nonce]);
 
   const fitAllRef = useRef(fitAll);
