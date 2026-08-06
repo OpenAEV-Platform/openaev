@@ -1,0 +1,52 @@
+package io.openaev.ocsf.parser.generator.emission.meta.method;
+
+import io.openaev.ocsf.parser.generator.emission.Emitter;
+import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
+import io.openaev.ocsf.parser.generator.emission.render.Helper;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+public class MethodMeta implements Emitter {
+  private final Set<AnnotationMeta> annotations = new HashSet<>();
+  private final Set<ArgumentMeta> arguments = new HashSet<>();
+  private final String modifier;
+  private final Class<?> returnType;
+  private final String name;
+  private final String body;
+
+  public MethodMeta(String modifier, Class<?> returnType, String name, String body) {
+    this.modifier = modifier;
+    this.returnType = returnType;
+    this.name = name;
+    this.body = body;
+  }
+
+  public MethodMeta withAnnotation(AnnotationMeta meta) {
+    annotations.add(meta);
+    return this;
+  }
+
+  public MethodMeta withArgument(ArgumentMeta meta) {
+    arguments.add(meta);
+    return this;
+  }
+
+  @Override
+  public String emit() {
+    return this.annotations.stream().map(AnnotationMeta::emit).collect(Collectors.joining("\n"))
+        + "\n"
+        + modifier
+        + " "
+        + returnType.getName()
+        + " "
+        + name
+        + "("
+        + this.arguments.stream().map(ArgumentMeta::emit).collect(Collectors.joining(", "))
+        + ") {"
+        + "\n"
+        + Helper.indent(1, body)
+        + "\n"
+        + "}";
+  }
+}

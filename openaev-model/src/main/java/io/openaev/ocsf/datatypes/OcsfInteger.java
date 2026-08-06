@@ -1,4 +1,4 @@
-package io.openaev.ocsf.datataypes;
+package io.openaev.ocsf.datatypes;
 
 import io.openaev.stix.types.BaseType;
 

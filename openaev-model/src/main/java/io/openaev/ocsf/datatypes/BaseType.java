@@ -1,4 +1,4 @@
-package io.openaev.ocsf.datataypes;
+package io.openaev.ocsf.datatypes;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

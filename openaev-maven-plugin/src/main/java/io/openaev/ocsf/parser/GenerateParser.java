@@ -5,6 +5,9 @@ import io.openaev.migration.ClassContentsGenerator;
 import io.openaev.migration.ClassFileWriter;
 import io.openaev.migration.ClassNameGenerator;
 import io.openaev.ocsf.parser.schema.*;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.plugin.AbstractMojo;
@@ -12,10 +15,6 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
 
 /** Generate source files for a java OCSF parser */
 @Slf4j
@@ -88,16 +87,18 @@ public class GenerateParser extends AbstractMojo {
   }
 
   public void execute() throws MojoExecutionException {
-    PluginContext ctx = new PluginContext(
-            Paths.get(getFinalBaseDir().getAbsoluteFile().toURI()).resolve("openaev-maven-plugin/src/main/resources"),
+    PluginContext ctx =
+        new PluginContext(
+            Paths.get(getFinalBaseDir().getAbsoluteFile().toURI())
+                .resolve("openaev-maven-plugin/src/main/resources"),
             Paths.get(""));
-      try {
-        SchemaSource schemaSource = Ocsf.instance(OcsfSchemaVersion._1_8, ctx);
-        schemaSource.refreshAllSources();
-        JsonNode dictionary = schemaSource.get(SchemaDimension.DICTIONARY);
-        JsonNode datatypes = schemaSource.get(SchemaDimension.DATATYPES);
-      } catch (IOException e) {
-          throw new RuntimeException(e);
-      }
+    try {
+      SchemaSource schemaSource = Ocsf.instance(OcsfSchemaVersion._1_8, ctx);
+      schemaSource.refreshAllSources();
+      JsonNode dictionary = schemaSource.get(SchemaDimension.DICTIONARY);
+      JsonNode datatypes = schemaSource.get(SchemaDimension.DATATYPES);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
