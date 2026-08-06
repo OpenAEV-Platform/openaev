@@ -48,6 +48,7 @@ const AtomicTestingCreation = lazy(() => import('./components/atomic_testings/At
 const IndexAtomicTesting = lazy(() => import('./components/atomic_testings/atomic_testing/Index'));
 const Scenarios = lazy(() => import('./components/scenarios/Scenarios'));
 const IndexScenario = lazy(() => import('./components/scenarios/scenario/Index'));
+const AutonomousRun = lazy(() => import('./components/autonomous/AutonomousRun'));
 const Endpoints = lazy(() => import('./components/assets/endpoints/Endpoints'));
 const AssetDetail = lazy(() => import('./components/assets/asset/AssetDetail'));
 const AssetGroups = lazy(() => import('./components/assets/asset_groups/AssetGroups'));
@@ -307,6 +308,18 @@ const Index = () => {
               )}
             />
             <Route path="scenarios" element={errorWrapper(Scenarios)()} />
+            <Route
+              path="autonomous/:runId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(AutonomousRun)()}
+                />
+              )}
+            />
             <Route path="deploy-scenario/:serviceInstanceId/:fileId" element={errorWrapper(DeployScenario)()} />
             <Route
               path="scenarios/:scenarioId/*"

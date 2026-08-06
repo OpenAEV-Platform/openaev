@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -20,7 +21,7 @@ import io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorService
 import io.openaev.executors.paloaltocortex.service.PaloAltoCortexGarbageCollectorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -63,6 +64,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   private final OpenAEVConfig openAEVConfig;
+  private final TenantScopedTransaction tenantTx;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
@@ -79,7 +81,8 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      OpenAEVConfig openAEVConfig) {
+      OpenAEVConfig openAEVConfig,
+      TenantScopedTransaction tenantTx) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -92,6 +95,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.openAEVConfig = openAEVConfig;
+    this.tenantTx = tenantTx;
 
     // Refresh the context to get the config
     try {
@@ -120,6 +124,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            getTenantId(),
             executorId,
             PALOALTOCORTEX_EXECUTOR_TYPE,
             executorName,
@@ -144,10 +149,10 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
             openAEVConfig);
     paloAltoCortexExecutorService =
         new PaloAltoCortexExecutorService(
-            executor, client, config, endpointService, agentService, assetGroupService);
+            executor, client, config, endpointService, agentService, assetGroupService, tenantTx);
     paloAltoCortexGarbageCollectorService =
         new PaloAltoCortexGarbageCollectorService(
-            config, paloAltoCortexExecutorContextService, agentService, executorId);
+            config, paloAltoCortexExecutorContextService, agentService, executor, tenantTx);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

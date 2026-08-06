@@ -12,7 +12,9 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.ArrayList;
@@ -41,6 +43,7 @@ public class ConditionServiceTest {
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Mock private ConditionRepository conditionRepository;
   @Mock private StepRepository stepRepository;
+  @Mock private WorkflowRepository workflowRepository;
   @Mock private WorkflowStateService workflowStateService;
   @Spy private ConditionUtils conditionUtils;
 
@@ -573,9 +576,11 @@ public class ConditionServiceTest {
               mapper(MappingType.LOCAL, PrimitiveType.Port, null),
               mapper(MappingType.GLOBAL, PrimitiveType.Host, null));
 
+      // Hash identity is keyed by mapper position ("mapper#<index in mappers list>"), not by
+      // source type name, so it stays unique even when mappers share a source type.
       Map<String, String> executedCombo = new java.util.TreeMap<>();
-      executedCombo.put("Host", "0.0.0.0");
-      executedCombo.put("Port", "5040");
+      executedCombo.put("mapper#0", "5040"); // Port mapper (index 0)
+      executedCombo.put("mapper#1", "0.0.0.0"); // Host mapper (index 1)
       String executedHash = hashCombo(executedCombo);
 
       WorkflowStateEntries localEntries =
@@ -718,6 +723,187 @@ public class ConditionServiceTest {
       assertEquals("admin", json.get("Text").getAsString());
       assertEquals("worker-01", json.get("Host").getAsString());
       assertNotNull(batches.getFirst().hash());
+    }
+
+    @Test
+    void given_twoMappersSharingSameSourceType_should_generateAllCombinationsWithoutDuplicates() {
+      // -------- Arrange --------
+      // Regression test: two input fields ("value" and "value2") both mapped from the same
+      // primitive type pool used to silently collapse "swapped" combinations (e.g. value=A/
+      // value2=B vs value=B/value2=A) into the same hash, dropping one and duplicating another.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-shared-type");
+
+      Condition valueMapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      valueMapper.setKey("value");
+      Condition value2Mapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      value2Mapper.setKey("value2");
+      List<Condition> mappers = List.of(valueMapper, value2Mapper);
+
+      WorkflowStateEntries localEntries = entries(List.of(input("Text", "key", "pass")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-shared-type"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 2 mappers x 2 candidate values each = 4 distinct combinations, no drops, no duplicates.
+      assertEquals(4, batches.size());
+
+      Set<String> combos =
+          batches.stream()
+              .map(
+                  b -> {
+                    Map<String, String> byKey =
+                        b.usedMappers().stream()
+                            .collect(
+                                java.util.stream.Collectors.toMap(
+                                    Condition::getKey, Condition::getValue));
+                    return byKey.get("value") + ":" + byKey.get("value2");
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("key:key", "key:pass", "pass:key", "pass:pass"), combos);
+
+      // All batch hashes are unique (no accidental collisions causing duplicate executions).
+      Set<String> hashes =
+          batches.stream()
+              .map(ConditionService.ExecutionBatch::hash)
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(4, hashes.size());
+    }
+
+    @Test
+    void given_alreadyExecutedSwappedCombo_should_stillGenerateItsDistinctMirrorCombo() {
+      // -------- Arrange --------
+      // Even if one cross-combination (value=key/value2=pass) was already executed, its mirror
+      // (value=pass/value2=key) must still be generated: they are distinct combinations, not the
+      // same hash.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-shared-type-executed");
+
+      Condition valueMapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      valueMapper.setKey("value");
+      Condition value2Mapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      value2Mapper.setKey("value2");
+      List<Condition> mappers = List.of(valueMapper, value2Mapper);
+
+      // Mark "value=key / value2=pass" (mapper#0="key", mapper#1="pass") as already executed.
+      Map<String, String> executedCombo = new java.util.TreeMap<>();
+      executedCombo.put("mapper#0", "key");
+      executedCombo.put("mapper#1", "pass");
+      String executedHash = hashCombo(executedCombo);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "key", "pass")), List.of(), Set.of(executedHash));
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-shared-type-executed"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 4 combinations minus the 1 already executed = 3 remaining, including the mirror combo.
+      assertEquals(3, batches.size());
+      Set<String> combos =
+          batches.stream()
+              .map(
+                  b -> {
+                    Map<String, String> byKey =
+                        b.usedMappers().stream()
+                            .collect(
+                                java.util.stream.Collectors.toMap(
+                                    Condition::getKey, Condition::getValue));
+                    return byKey.get("value") + ":" + byKey.get("value2");
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("key:key", "pass:key", "pass:pass"), combos);
+    }
+
+    @Test
+    void
+        given_mapperWithBothDefinedValueAndLinkedType_should_includeDefinedValueAsExtraCandidate() {
+      // -------- Arrange --------
+      // A mapper can have a static "defined value" set before a primitive type is linked to it.
+      // Linking a type switches its mappingType away from DEFAULT, but the defined value must
+      // still be used as one more candidate in the generated combinations, not discarded.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-defined-plus-linked-type");
+
+      Condition mapperWithDefinedValue =
+          mapper(MappingType.LOCAL, PrimitiveType.Text, "manual-value");
+      mapperWithDefinedValue.setKey("value");
+      List<Condition> mappers = List.of(mapperWithDefinedValue);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-defined-plus-linked-type"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 2 values from the linked type's pool + 1 defined value = 3 distinct combinations.
+      assertEquals(3, batches.size());
+      Set<String> values =
+          batches.stream()
+              .map(b -> b.usedMappers().getFirst().getValue())
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("pool-a", "pool-b", "manual-value"), values);
+    }
+
+    @Test
+    void given_mapperDefinedValueAlreadyInLinkedTypePool_should_notGenerateDuplicateCombination() {
+      // -------- Arrange --------
+      // If the defined value happens to already be one of the linked type's pool values, it must
+      // not be added a second time (would otherwise execute the exact same effective value twice).
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-defined-value-collision");
+
+      Condition mapperWithDefinedValue = mapper(MappingType.LOCAL, PrimitiveType.Text, "pool-a");
+      mapperWithDefinedValue.setKey("value");
+      List<Condition> mappers = List.of(mapperWithDefinedValue);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-defined-value-collision"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      Set<String> values =
+          batches.stream()
+              .map(b -> b.usedMappers().getFirst().getValue())
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("pool-a", "pool-b"), values);
     }
   }
 
@@ -2051,6 +2237,143 @@ public class ConditionServiceTest {
       assertFalse(
           eventB.getConditions().stream().anyMatch(c -> "valueA".equals(c.getValue())),
           "EventB must not contain EventA's leaf");
+    }
+  }
+
+  /* ============================================================
+   * Logic-map freeze (ADR-005) — create / update / delete guards
+   * ============================================================ */
+  @Nested
+  class LogicMapFreezeTests {
+
+    private Workflow workflowWithSimulation(String workflowId, ExerciseStatus status) {
+      Exercise simulation = new Exercise();
+      simulation.setStatus(status);
+      return Workflow.builder().id(workflowId).simulation(simulation).build();
+    }
+
+    private EventInput singleRootEventInput(String workflowId) {
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+      return EventInput.builder()
+          .name("event")
+          .workflowId(workflowId)
+          .conditions(List.of(rootInput))
+          .build();
+    }
+
+    @Test
+    void given_runningSimulation_should_rejectCreateConditionTree() {
+      // Arrange
+      String workflowId = "wf-running";
+      when(workflowRepository.findById(workflowId))
+          .thenReturn(Optional.of(workflowWithSimulation(workflowId, ExerciseStatus.RUNNING)));
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.createConditionTree(singleRootEventInput(workflowId)));
+      verify(conditionRepository, never()).save(any());
+    }
+
+    @Test
+    void given_scheduledSimulation_should_allowCreateConditionTree() {
+      // Arrange
+      String workflowId = "wf-scheduled";
+      when(workflowRepository.findById(workflowId))
+          .thenReturn(Optional.of(workflowWithSimulation(workflowId, ExerciseStatus.SCHEDULED)));
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // Act & Assert
+      assertDoesNotThrow(
+          () -> conditionService.createConditionTree(singleRootEventInput(workflowId)));
+    }
+
+    @Test
+    void given_persistedRootOnRunningSimulation_should_rejectUpdate_ignoringClientWorkflowId() {
+      // Arrange — the persisted root belongs to a RUNNING simulation, while the client tries to
+      // pass a SCHEDULED workflow id in the payload to bypass the freeze.
+      String rootId = "root-1";
+      String runningWorkflowId = "wf-running";
+      Condition existingRoot = new Condition();
+      existingRoot.setId(rootId);
+      existingRoot.setWorkflowId(runningWorkflowId);
+      existingRoot.setType(ConditionType.OR);
+      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
+      when(workflowRepository.findById(runningWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(runningWorkflowId, ExerciseStatus.RUNNING)));
+
+      EventInput input = singleRootEventInput("wf-scheduled-client-supplied");
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.updateConditionTree(rootId, input));
+    }
+
+    @Test
+    void given_editableRoot_should_rejectUpdate_whenTargetWorkflowIsFrozen() {
+      // Arrange — the persisted root is editable (SCHEDULED), but the client re-points it onto a
+      // launched (RUNNING) workflow via the payload. Both source and target must be editable.
+      String rootId = "root-1";
+      String scheduledWorkflowId = "wf-scheduled-source";
+      String frozenTargetWorkflowId = "wf-running-target";
+      Condition existingRoot = new Condition();
+      existingRoot.setId(rootId);
+      existingRoot.setWorkflowId(scheduledWorkflowId);
+      existingRoot.setType(ConditionType.OR);
+      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
+      when(workflowRepository.findById(scheduledWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(scheduledWorkflowId, ExerciseStatus.SCHEDULED)));
+      when(workflowRepository.findById(frozenTargetWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(frozenTargetWorkflowId, ExerciseStatus.RUNNING)));
+
+      EventInput input = singleRootEventInput(frozenTargetWorkflowId);
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.updateConditionTree(rootId, input));
+    }
+
+    @Test
+    void given_runningSimulation_should_rejectDeleteConditionTree() {
+      // Arrange
+      String conditionRootId = "cond-1";
+      String runningWorkflowId = "wf-running";
+      Condition condition = new Condition();
+      condition.setId(conditionRootId);
+      condition.setWorkflowId(runningWorkflowId);
+      when(conditionRepository.findById(conditionRootId)).thenReturn(Optional.of(condition));
+      when(workflowRepository.findById(runningWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(runningWorkflowId, ExerciseStatus.RUNNING)));
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.deleteConditionTree(conditionRootId));
+      verify(conditionRepository, never()).deleteById(anyString());
+    }
+
+    @Test
+    void given_unknownWorkflow_should_notBlockDelete() {
+      // Arrange — no workflow found: the freeze guard is a no-op (scenario/unknown workflow).
+      String conditionRootId = "cond-2";
+      String workflowId = "wf-unknown";
+      Condition condition = new Condition();
+      condition.setId(conditionRootId);
+      condition.setWorkflowId(workflowId);
+      when(conditionRepository.findById(conditionRootId)).thenReturn(Optional.of(condition));
+      when(workflowRepository.findById(workflowId)).thenReturn(Optional.empty());
+
+      // Act & Assert
+      assertDoesNotThrow(() -> conditionService.deleteConditionTree(conditionRootId));
+      verify(conditionRepository).deleteById(conditionRootId);
     }
   }
 }

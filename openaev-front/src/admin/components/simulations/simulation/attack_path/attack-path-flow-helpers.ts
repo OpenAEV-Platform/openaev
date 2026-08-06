@@ -1,4 +1,4 @@
-import { type Edge, type Node } from '@xyflow/react';
+import type { CSSProperties } from 'react';
 
 import type { AttackPathAttackPatternDTO, AttackPathDTO, AttackPathEdges, AttackPathNodeDTO } from '../../../../../utils/api-types';
 import { AP_ENDPOINT_SIZE, AP_FINDING_SIZE, AP_INJECTOR_SIZE } from './nodes/node-sizes';
@@ -63,6 +63,10 @@ export interface AttackPathFlowNodeData {
   ip?: string;
   seenIp?: string;
   platform?: string;
+  // What real entity an ASSET-band node stands for: TEAM / PERSON / ASSET_GROUP for a
+  // human-in-the-loop target (phishing, credential harvesting, ...), else undefined for a plain
+  // endpoint. The AssetNode renderer keys off this to pick the icon.
+  entityKind?: string;
   agents?: string[];
   // For an injector/execution node: the id of the step template it ran. Carried so the kill-chain
   // causal builder can look up execution metadata (dependsOn / consumedFindingKeys) per node. Mirrors
@@ -77,6 +81,10 @@ export interface AttackPathFlowNodeData {
   // For a finding node: the id of the endpoint (ASSET) node it was discovered on, so a direct click
   // on the finding can open its details panel by focusing that endpoint's path.
   assetNodeId?: string;
+  // For a finding node: false when the node is an output-only value (a chaining output not persisted
+  // as a Finding, ADR-004), true for a real finding. Drives the "Output only" badge and the degraded
+  // drawer. Absent on non-finding nodes.
+  isFinding?: boolean;
   // For an endpoint (ASSET) node: its 1-based rank among the top chokepoints (most findings), used to
   // badge the most-exposed endpoints. Absent when the endpoint is not a top chokepoint.
   chokepointRank?: number;
@@ -92,8 +100,9 @@ export interface AttackPathFlowNodeData {
   // and, when it hangs off one endpoint, that endpoint's ref so a click fetches only its findings.
   clusterId?: string;
   endpointRef?: string;
-  // Endpoint cluster role: 'header' (the "+N" toggle) or 'overflow' (the "+rest" batch loader).
-  clusterKind?: 'header' | 'overflow';
+  // Endpoint cluster role: 'header' (the "+N" toggle), 'overflow' (the "+rest" batch loader) or
+  // 'typeOverflow' (the "+N other types" toggle capping how many finding TYPES a column shows).
+  clusterKind?: 'header' | 'overflow' | 'typeOverflow';
   // Header endpoint cluster: whether it is currently expanded (drives the collapse affordance).
   expanded?: boolean;
   [key: string]: unknown;
@@ -113,8 +122,29 @@ export interface AttackPathFlowEdgeData {
   [key: string]: unknown;
 }
 
-export type AttackPathFlowNode = Node<AttackPathFlowNodeData>;
-export type AttackPathFlowEdge = Edge<AttackPathFlowEdgeData>;
+// Local structural graph types (formerly @xyflow/react's Node/Edge): the attack-path view renders
+// on its own canvas, so only the fields the builders and the canvas actually use are modeled.
+export interface AttackPathFlowNode {
+  id: string;
+  type?: string;
+  position: {
+    x: number;
+    y: number;
+  };
+  data: AttackPathFlowNodeData;
+  selected?: boolean;
+  style?: CSSProperties;
+}
+
+export interface AttackPathFlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
+  data?: AttackPathFlowEdgeData;
+  selected?: boolean;
+  style?: CSSProperties;
+}
 
 // An endpoint can carry several IPs (comma-separated). The map node shows only the relevant one to
 // stay readable: the asset's seen IP when known, otherwise the first IPv4, otherwise the first
@@ -143,10 +173,13 @@ const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   ip: n.ip,
   seenIp: n.seenIp,
   platform: n.platform,
+  entityKind: n.entityKind,
   agents: n.agents,
   stepTemplateId: n.stepTemplateId,
   injectorType: n.injectorType,
   attackPatterns: n.attackPatterns,
+  assetNodeId: n.assetNodeId,
+  isFinding: n.isFinding,
 });
 
 const EDGE_EXECUTIONS = 'EDGE_EXECUTIONS';
@@ -265,6 +298,18 @@ export const ENDPOINT_BATCH_SIZE = 10;
 // Same batching for revealing individual findings under a finding cluster.
 export const FINDING_BATCH_SIZE = 10;
 
+// How many finding TYPES a column shows before the rest collapse into one "+N other types" chip.
+// A column stacks one ~100px row per type, so an endpoint exposing ten types (portscan, port, share,
+// file, action_output, credentials, …) would sprawl over a full screen height and push its
+// neighbours out of view. The chip expands in place, exactly like a finding cluster.
+export const MAX_VISIBLE_FINDING_TYPES = 4;
+
+// Stable id prefix of a column's "+N other types" chip. Suffixed with the endpoint id for a
+// per-endpoint column; bare for the global aggregate one. Shares the finding-cluster expansion set,
+// so the container toggles it with the same handler. The '|' separator keeps it out of the
+// `cl-ft-<type>` id space: a finding type literally named "more" must not collide with the chip.
+export const AP_TYPE_OVERFLOW_ID = 'cl-ft|more';
+
 // Aggregate a set of prevention/detection statuses into one worst-case verdict: RED beats ORANGE beats
 // GREEN — one bad execution among several (e.g. one endpoint undetected while the rest were prevented)
 // must not read as fully green just because it's a minority.
@@ -322,12 +367,34 @@ const layoutFindingColumn = (
   statusForType: (type: string) => string | undefined,
   keyOf: (type: string) => string,
   findingExpansion?: FindingExpansion,
+  // This column's "+N other types" chip id. Omitted for columns that must never be capped (the
+  // focused finding-path view already scopes itself to one type).
+  typeOverflowId?: string,
+  // Finding types the cap must never hide — the type the user is focusing on.
+  pinnedTypes: ReadonlySet<string> = new Set(),
 ): {
   items: FindingColItem[];
   height: number;
+  typeOverflow?: {
+    id: string;
+    hiddenCount: number;
+    expanded: boolean;
+    y: number;
+  };
 } => {
+  // Most numerous types first, name as a tie-break so the order (and therefore which types the cap
+  // hides) is stable across renders instead of following Object.entries insertion order. Then pinned
+  // types to the front (sort is stable, so the count order holds within each group): the type the user
+  // is focusing on must survive the cap, whatever its count.
+  const sorted = [...types]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .sort((a, b) => Number(pinnedTypes.has(b[0])) - Number(pinnedTypes.has(a[0])));
+  const hasTypeOverflow = !!typeOverflowId && sorted.length > MAX_VISIBLE_FINDING_TYPES;
+  const typesExpanded = hasTypeOverflow && (findingExpansion?.expanded.has(typeOverflowId) ?? false);
+  const visibleTypes = hasTypeOverflow && !typesExpanded ? sorted.slice(0, MAX_VISIBLE_FINDING_TYPES) : sorted;
+
   let fH = 0;
-  const items = types.map(([type, count]) => {
+  const items = visibleTypes.map(([type, count]) => {
     const fcId = keyOf(type);
     const typeStatus = statusForType(type);
     const isExpanded = findingExpansion?.expanded.has(fcId) ?? false;
@@ -356,21 +423,35 @@ const layoutFindingColumn = (
       overflowY,
     };
   });
+  // The "+N other types" chip closes the column, on its own row, so expanding it pushes nothing.
+  const typeOverflow = hasTypeOverflow && typeOverflowId
+    ? {
+        id: typeOverflowId,
+        hiddenCount: sorted.length - MAX_VISIBLE_FINDING_TYPES,
+        expanded: typesExpanded,
+        y: fH,
+      }
+    : undefined;
+  if (typeOverflow) {
+    fH += CLUSTER_FINDING_ROW_H + CLUSTER_FINDING_GAP;
+  }
   return {
     items,
     height: Math.max(0, fH - CLUSTER_FINDING_GAP),
+    typeOverflow,
   };
 };
 
 // Emit a finding column's nodes/edges: one finding-cluster node per type (its edge labelled
-// "<type> found"), plus revealed individual findings and an overflow loader. {@code srcId} is the
-// node the column hangs off (the endpoint cluster header in the collapsed view, or the endpoint node
-// when endpoints are expanded). {@code endpointRef} is set for a per-endpoint column so a click
-// fetches that one endpoint's findings; absent for the injector aggregate.
+// "<type> found"), plus revealed individual findings, an overflow loader and — when the column caps
+// its types — the "+N other types" chip. {@code srcId} is the node the column hangs off (the endpoint
+// cluster header in the collapsed view, or the endpoint node when endpoints are expanded).
+// {@code endpointRef} is set for a per-endpoint column so a click fetches that one endpoint's
+// findings; absent for the injector aggregate.
 const pushFindingColumn = (
   nodes: AttackPathFlowNode[],
   edges: AttackPathFlowEdge[],
-  items: FindingColItem[],
+  column: ReturnType<typeof layoutFindingColumn>,
   srcId: string,
   topY: number,
   injId: string,
@@ -380,7 +461,7 @@ const pushFindingColumn = (
   endpointNodeId: string | undefined,
   t: ApTranslate,
 ): void => {
-  items.forEach((e) => {
+  column.items.forEach((e) => {
     nodes.push({
       id: e.fcId,
       type: AP_FLOW_NODE_TYPE.findingCluster,
@@ -425,6 +506,7 @@ const pushFindingColumn = (
           typeFindings: e.type,
           assetNodeId: f.assetNodeId ?? endpointNodeId,
           status: e.typeStatus,
+          isFinding: f.isFinding,
         },
       });
       edges.push({
@@ -470,6 +552,39 @@ const pushFindingColumn = (
       });
     }
   });
+
+  // The capped types: one chip hanging off the same source as the type clusters it stands for, so
+  // expanding it fans the remaining types into the column in place.
+  const to = column.typeOverflow;
+  if (to) {
+    nodes.push({
+      id: to.id,
+      type: AP_FLOW_NODE_TYPE.findingCluster,
+      position: {
+        x: CLUSTER_FINDING_X,
+        y: topY + to.y,
+      },
+      data: {
+        count: to.hiddenCount,
+        label: to.id,
+        injectorId: injId,
+        clusterId: to.id,
+        endpointRef,
+        clusterKind: 'typeOverflow',
+        expanded: to.expanded,
+      },
+    });
+    edges.push({
+      id: `${srcId}-${to.id}`,
+      source: srcId,
+      target: to.id,
+      type: AP_FLOW_EDGE_TYPE,
+      data: {
+        count: to.hiddenCount,
+        label: `+${to.hiddenCount} ${t('other types')}`,
+      },
+    });
+  }
 };
 
 export const buildClusteredAttackPathFlow = (
@@ -479,6 +594,8 @@ export const buildClusteredAttackPathFlow = (
   endpointBatch: Map<string, number>,
   t: ApTranslate,
   findingExpansion?: FindingExpansion,
+  // Finding types the type cap must never hide — the type the user is focusing on.
+  pinnedTypes: ReadonlySet<string> = new Set(),
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -500,6 +617,14 @@ export const buildClusteredAttackPathFlow = (
     const tgt = e.edgeTargetId;
     // A sourceless edge is malformed and ignored entirely (as before this guard was split).
     if (!src || !tgt || !assetById.has(tgt)) {
+      continue;
+    }
+    // Skip the nested team -> person recipient edge of a human-in-the-loop inject: its source is a
+    // TEAM/PERSON/ASSET_GROUP asset, not an injector, so it must not add the recipient as an endpoint
+    // "reached by" the team (which has no injector node and would render as a phantom action). The team
+    // itself stays — it is the injector-sourced target of the same inject.
+    const srcKind = assetById.get(src)?.entityKind;
+    if (srcKind === 'TEAM' || srcKind === 'PERSON' || srcKind === 'ASSET_GROUP') {
       continue;
     }
     // The endpoint is a reached node even for endpoint-local actions.
@@ -556,6 +681,8 @@ export const buildClusteredAttackPathFlow = (
     type => aggregateStatus(reachedAssets.filter(a => (a?.findingCounts?.[type] ?? 0) > 0).map(a => a?.status)),
     type => `cl-ft-${type}`,
     findingExpansion,
+    AP_TYPE_OVERFLOW_ID,
+    pinnedTypes,
   );
 
   // Expanded: each revealed (deduped) endpoint fans out to its OWN finding column.
@@ -564,7 +691,7 @@ export const buildClusteredAttackPathFlow = (
     ? shownAssetIds.map((assetId) => {
         const asset = assetById.get(assetId);
         const epTypes = (Object.entries(asset?.findingCounts ?? {}).filter(([, v]) => (v ?? 0) > 0)) as Array<[string, number]>;
-        const epCol = layoutFindingColumn(epTypes, () => asset?.status, type => `cl-ft-${type}-${assetId}`, findingExpansion);
+        const epCol = layoutFindingColumn(epTypes, () => asset?.status, type => `cl-ft-${type}-${assetId}`, findingExpansion, `${AP_TYPE_OVERFLOW_ID}-${assetId}`, pinnedTypes);
         return {
           assetId,
           asset,
@@ -665,7 +792,7 @@ export const buildClusteredAttackPathFlow = (
         },
       });
       // The endpoint's own finding column, vertically centred against its block.
-      pushFindingColumn(nodes, edges, epCol.items, assetId, epY + (epBlockH - epCol.height) / 2, AP_ALL_ENDPOINTS, asset.ref ?? assetId, assetId, t);
+      pushFindingColumn(nodes, edges, epCol, assetId, epY + (epBlockH - epCol.height) / 2, AP_ALL_ENDPOINTS, asset.ref ?? assetId, assetId, t);
       epY += epBlockH;
     });
     if (total > shown) {
@@ -697,7 +824,7 @@ export const buildClusteredAttackPathFlow = (
       });
     }
   } else {
-    pushFindingColumn(nodes, edges, agg.items, clusterId, centerY - agg.height / 2, AP_ALL_ENDPOINTS, undefined, undefined, t);
+    pushFindingColumn(nodes, edges, agg, clusterId, centerY - agg.height / 2, AP_ALL_ENDPOINTS, undefined, undefined, t);
   }
 
   return {
@@ -982,6 +1109,7 @@ export const buildFindingPathFlow = (
           label: f.value ?? f.label,
           typeFindings: f.typeFindings,
           status,
+          isFinding: f.isFinding,
         },
       });
       edges.push({
@@ -1449,6 +1577,11 @@ const CHAIN_ENDPOINTS_MAX_PER_DEPTH = 4; // a depth column with more distinct en
 // the overflow into a single "+N" endpoint cluster (click to expand), so a step reaching dozens of hosts
 // stays a few blocks tall instead of one node per host in a long unreadable vertical stack.
 
+// Synthetic step-id prefix for an endpoint-local (self-loop) action promoted to its own ACTION node
+// (localActionsAsNodes). Keyed by the authored step so re-runs coalesce and never collides with a real
+// endpoint node id (NODE_ENDPOINT|<uuid>) or injector node id.
+const LOCAL_ACTION_ID_PREFIX = 'chain-local|';
+
 interface ChainStep {
   injectorId: string;
   // endpoint node id -> the finding node ids this injector produced ON that endpoint (so each finding
@@ -1463,6 +1596,11 @@ interface ChainStep {
   statusByEndpoint: Map<string, Array<string | undefined>>;
   consumed: CausalConsumedKey[];
   deps: Set<string>;
+  // For an endpoint-local action promoted to its own node (localActionsAsNodes): the execution metadata
+  // needed to draw a proper ACTION card (catalog icon + ATT&CK techniques) when the full graph carries
+  // no injector node for it. Captured from the representative execution; unused for real injector steps.
+  actionInjectorType?: string;
+  actionAttackPatterns?: AttackPathAttackPatternDTO[];
 }
 
 export const buildCausalChainFlow = (
@@ -1474,9 +1612,23 @@ export const buildCausalChainFlow = (
   // Cluster id (chain-epc|<depth>) -> how many of that depth's hidden endpoints to reveal beyond the
   // always-shown cap, batched by ENDPOINT_BATCH_SIZE per click so a heavy depth reveals progressively.
   endpointClusterBatch: Map<string, number> = new Map(),
+  // Finding types the type cap must never hide: the one the user is focusing on. Without this, picking
+  // a finding whose type happens to fall past the cap (ties are broken by name, so "share" can lose to
+  // "cve") leaves it with no node to focus at all, and the view silently falls back to another path.
+  pinnedTypes: ReadonlySet<string> = new Set(),
+  // Render endpoint-local (self-loop) executions as their own ACTION nodes instead of collapsing them
+  // into the endpoint. Off by default (the finding-centric BAS chain hides the self-arrow); ON for an
+  // AUTONOMOUS run, whose story is the ACTION TIMELINE on a mostly single, already-compromised host, so
+  // a chain of local steps stays visible even when it produces no new distinct finding.
+  localActionsAsNodes = false,
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
+  // Finding node id -> the flow node that actually represents it (itself, or its collapsed type
+  // cluster). Lets a caller that wants to seed/highlight a specific finding (e.g. one picked from a
+  // drawer list) resolve it to whatever is ACTUALLY rendered, instead of a raw finding id that has no
+  // node at all while its cluster is still collapsed.
+  causalSourceByFinding: Map<string, string>;
 } => {
   const dtoNodes = dto.attackPathNodes ?? [];
   // Index by BOTH node id and ref: an execution edge may key an endpoint/injector by either form, and a
@@ -1504,17 +1656,49 @@ export const buildCausalChainFlow = (
   const execByRef = new Map((dto.attackPathExecutions ?? []).filter(e => e.ref).map(e => [e.ref as string, e]));
   const execEdges = (dto.attackPathEdges ?? []).filter(e => e.type === EDGE_EXECUTIONS);
 
+  // A human-in-the-loop inject (email, SMS, …) emits a nested execution edge per enabled recipient:
+  // team -> person (the source is the TEAM asset, the target the PERSON). That edge must NOT start a
+  // step — its source is not an injector — otherwise the team is promoted into a phantom "action" node
+  // (with the fallback icon, since an asset carries no injectorType) that reads as a second send to the
+  // person. Only a real injector source (or an agent/endpoint pivot, entityKind null) starts a step, so
+  // a source whose asset node is a TEAM/PERSON/ASSET_GROUP is dropped here.
+  const isHumanInLoopSource = (id?: string): boolean => {
+    const kind = assetById.get(id ?? '')?.entityKind;
+    return kind === 'TEAM' || kind === 'PERSON' || kind === 'ASSET_GROUP';
+  };
+
   // Each execution edge links one injector (edgeSourceId) to one endpoint (edgeTargetId), carrying the
   // execution refs that ran it — so we recover, per execution, which injector ran it and which endpoint.
   const injByExec = new Map<string, string>();
   const epByExec = new Map<string, string>();
   for (const e of execEdges) {
+    if (isHumanInLoopSource(e.edgeSourceId)) {
+      continue;
+    }
     for (const ref of e.executionIds ?? []) {
       if (e.edgeSourceId) {
         injByExec.set(ref, e.edgeSourceId);
       }
       if (e.edgeTargetId) {
         epByExec.set(ref, e.edgeTargetId);
+      }
+    }
+  }
+  // Endpoint-local actions (recon, credential dumps, local privilege ops) run ON the host the agent is
+  // already on, so the backend records them as a self-loop (execution edge source == target == that
+  // endpoint). The finding-centric BAS chain deliberately hides that self-arrow and represents the
+  // action purely by the findings it produced (see the self-loop tests). But an AUTONOMOUS engagement is
+  // an ACTION TIMELINE on a mostly single, already-compromised host: a run of local steps that yields no
+  // NEW distinct finding would then leave the graph visually frozen even though every step executed.
+  // When localActionsAsNodes is set, re-key each self-loop to its OWN authored step so each local action
+  // becomes its own ACTION node anchored on the endpoint (drawn to the left, exactly like an injector)
+  // instead of collapsing into the endpoint node. Keyed by stepTemplateId so re-runs of the same step
+  // coalesce and dependsOn between local steps still resolves to a real causal depth.
+  if (localActionsAsNodes) {
+    for (const [ref, ex] of execByRef) {
+      const src = injByExec.get(ref);
+      if (src && src === epByExec.get(ref)) {
+        injByExec.set(ref, `${LOCAL_ACTION_ID_PREFIX}${ex.stepTemplateId ?? ref}`);
       }
     }
   }
@@ -1564,6 +1748,14 @@ export const buildCausalChainFlow = (
         s.contractByEndpoint.set(ep, ex.contractName);
       }
       s.statusByEndpoint.set(ep, (s.statusByEndpoint.get(ep) ?? []).concat(ex.status));
+    }
+    // Capture the action's own icon/technique metadata, used only when this step renders as a synthetic
+    // node (endpoint-local action) that has no injector node of its own to read from.
+    if (ex.injectorType && !s.actionInjectorType) {
+      s.actionInjectorType = ex.injectorType;
+    }
+    if ((ex.attackPatterns?.length ?? 0) > 0 && !s.actionAttackPatterns) {
+      s.actionAttackPatterns = ex.attackPatterns;
     }
     for (const k of ex.consumedFindingKeys ?? []) {
       if (k.keyType && !s.consumed.some(c => c.keyType === k.keyType && c.operator === (k.operator ?? '') && c.value === (k.value ?? ''))) {
@@ -1721,9 +1913,10 @@ export const buildCausalChainFlow = (
     let cursorY = PADDING;
     const injectorPlaced = new Set<string>();
     for (const epId of visibleAssetIds) {
-      // Endpoint-local action: the "injector" is this very endpoint (self-loop). Drop it BEFORE the
-      // layout so no injector node, no self arrow, and no empty injector slot is reserved for it —
-      // the endpoint node and its findings still render.
+      // Endpoint-local action whose "injector" is this very endpoint (self-loop). Unless it was promoted
+      // to its own ACTION node (localActionsAsNodes re-keys it to chain-local|<step>, so injId !== epId),
+      // drop it BEFORE the layout so no injector node, no self arrow, and no empty injector slot is
+      // reserved for it — the endpoint node and its findings still render.
       const injectors = (assetInjectors.get(epId) as string[]).filter(injId => injId !== epId);
       const findingIds = assetFindings.get(epId) as string[];
       // Group the endpoint's findings by type; a type with more than the cap collapses into ONE "+N"
@@ -1737,8 +1930,27 @@ export const buildCausalChainFlow = (
         type: string;
         fids: string[];
         clusterId?: string;
+        // Set on the single "+N other types" row standing for the type groups the cap hid.
+        typeOverflowId?: string;
+        hiddenTypeCount?: number;
+        typesExpanded?: boolean;
       }[] = [];
-      for (const [ftype, fids] of findingsByType) {
+      // Cap the number of TYPE groups as well as the findings within one: a type under the per-type cap
+      // emits one row PER finding, so ten sparse types (portscan, port, share, action_output, …) stack
+      // into dozens of rows and bury the endpoint. Most numerous types first, name as a tie-break so
+      // which types the cap hides stays stable across renders.
+      const typeEntries = [...findingsByType.entries()]
+        .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+        // Pinned types first (sort is stable, so the count order holds within each group): the type the
+        // user is focusing on must survive the cap, whatever its count.
+        .sort((a, b) => Number(pinnedTypes.has(b[0])) - Number(pinnedTypes.has(a[0])));
+      const typeOverflowId = `chain-tover|${d}|${epId}`;
+      const hiddenTypeCount = Math.max(0, typeEntries.length - MAX_VISIBLE_FINDING_TYPES);
+      const typesExpanded = expandedChainClusters.has(typeOverflowId);
+      const visibleTypeEntries = hiddenTypeCount > 0 && !typesExpanded
+        ? typeEntries.slice(0, MAX_VISIBLE_FINDING_TYPES)
+        : typeEntries;
+      for (const [ftype, fids] of visibleTypeEntries) {
         const clusterId = `chain-fc|${d}|${epId}|${ftype}`;
         if (fids.length > CHAIN_FINDINGS_MAX_PER_TYPE && !expandedChainClusters.has(clusterId)) {
           findRows.push({
@@ -1754,6 +1966,17 @@ export const buildCausalChainFlow = (
             });
           }
         }
+      }
+      if (hiddenTypeCount > 0) {
+        findRows.push({
+          type: '',
+          // The hidden types' findings, so a downstream causal edge whose producer got collapsed still
+          // resolves to a placed node (the chip) instead of a fid that was never rendered.
+          fids: typeEntries.slice(MAX_VISIBLE_FINDING_TYPES).flatMap(([, fids]) => fids),
+          typeOverflowId,
+          hiddenTypeCount,
+          typesExpanded,
+        });
       }
       const h = Math.max(
         CHAIN_EP_BLOCK_MIN,
@@ -1785,8 +2008,10 @@ export const buildCausalChainFlow = (
             ? blockCenter
             : blockTop + (i + 0.5) * (h / injectors.length);
           const injDto = injectorById.get(injId);
-          // The full graph may omit injector nodes; label the action from its contract name rather than
-          // the raw step id, so the node never reads "NODE_*|<uuid>".
+          // The full graph may omit injector nodes (e.g. an endpoint-local action promoted to a node);
+          // label the action from its contract name rather than the raw step id, so the node never reads
+          // "NODE_*|<uuid>", and carry its captured icon/technique metadata so it renders a real ACTION
+          // card instead of the generic fallback icon.
           const injActionLabel = [...s.contractByEndpoint.values()][0];
           nodes.push({
             id: injId,
@@ -1795,7 +2020,13 @@ export const buildCausalChainFlow = (
               x,
               y: injCenterY - CLUSTER_INJECTOR_HALF_H,
             },
-            data: injDto ? nodeData(injDto) : { label: injActionLabel || friendlyNodeId(injId) },
+            data: injDto
+              ? nodeData(injDto)
+              : {
+                  label: injActionLabel || friendlyNodeId(injId),
+                  injectorType: s.actionInjectorType,
+                  attackPatterns: s.actionAttackPatterns,
+                },
           });
         }
         edges.push({
@@ -1820,6 +2051,41 @@ export const buildCausalChainFlow = (
       // single finding or a collapsed "+N" cluster for its type.
       findRows.forEach((row, k) => {
         const fY = blockCenter + (k - (findRows.length - 1) / 2) * CHAIN_FIND_ROW;
+        if (row.typeOverflowId) {
+          const toId = row.typeOverflowId;
+          if (!placedClusters.has(toId)) {
+            placedClusters.add(toId);
+            nodes.push({
+              id: toId,
+              type: AP_FLOW_NODE_TYPE.findingCluster,
+              position: {
+                x: x + chainFindDx,
+                y: fY - CHAIN_FIND_HALF,
+              },
+              data: {
+                count: row.hiddenTypeCount,
+                label: toId,
+                clusterId: toId,
+                clusterKind: 'typeOverflow',
+                expanded: row.typesExpanded,
+              },
+            });
+          }
+          edges.push({
+            id: `${epNodeId}-${toId}`,
+            source: epNodeId,
+            target: toId,
+            type: AP_FLOW_EDGE_TYPE,
+            data: {
+              count: row.hiddenTypeCount ?? 0,
+              label: `+${row.hiddenTypeCount ?? 0} ${t('other types')}`,
+            },
+          });
+          if (!row.typesExpanded) {
+            row.fids.forEach(fid => causalSourceByFinding.set(fid, toId));
+          }
+          return;
+        }
         if (row.clusterId) {
           // Worst-of status across the collapsed findings (a missing status is treated as the worst, RED).
           let clusterStatus = 'GREEN';
@@ -1882,6 +2148,7 @@ export const buildCausalChainFlow = (
               typeFindings: fDto?.typeFindings,
               assetNodeId: fDto?.assetNodeId,
               status: fDto?.status ?? 'RED',
+              isFinding: fDto?.isFinding,
             },
           });
         }
@@ -1946,7 +2213,13 @@ export const buildCausalChainFlow = (
               x,
               y: injCenterY - CLUSTER_INJECTOR_HALF_H,
             },
-            data: injDto ? nodeData(injDto) : { label: injActionLabel || friendlyNodeId(injId) },
+            data: injDto
+              ? nodeData(injDto)
+              : {
+                  label: injActionLabel || friendlyNodeId(injId),
+                  injectorType: s.actionInjectorType,
+                  attackPatterns: s.actionAttackPatterns,
+                },
           });
         }
         const reachedCount = hiddenAssetIds.filter(epId => (assetInjectors.get(epId) ?? []).includes(injId)).length;
@@ -2072,6 +2345,7 @@ export const buildCausalChainFlow = (
   return {
     nodes,
     edges,
+    causalSourceByFinding,
   };
 };
 
@@ -2106,12 +2380,17 @@ export const scopeChainFlowToSeeds = (
   edges: AttackPathFlowEdge[];
 } => {
   const { nodes, edges } = chainFlow;
-  // None of the seeds exist in the causal chain yet (e.g. no full-graph data, or a finding whose
-  // type cluster is still collapsed): show the whole thing rather than an empty focus.
-  if (seedIds.size === 0) {
+  // Keep only the seeds that are actually rendered: a finding whose type cluster is still collapsed
+  // (more than CHAIN_FINDINGS_MAX_PER_TYPE on that endpoint) has no node of its own — only its
+  // `chain-fc|...` cluster does — so seeding on the raw finding id would scope to nothing.
+  const nodeIds = new Set(nodes.map(n => n.id));
+  const presentSeedIds = new Set([...seedIds].filter(id => nodeIds.has(id)));
+  // None of the seeds exist in the causal chain yet (e.g. no full-graph data, or every seed's
+  // cluster is still collapsed): show the whole thing rather than an empty focus.
+  if (presentSeedIds.size === 0) {
     return chainFlow;
   }
-  const scope = new Set(seedIds);
+  const scope = new Set(presentSeedIds);
   for (let pass = 0; pass < 8; pass += 1) {
     for (const e of edges) {
       if (e.source && e.target && scope.has(e.target) && !scope.has(e.source)) {
@@ -2121,7 +2400,7 @@ export const scopeChainFlowToSeeds = (
   }
   for (let pass = 0; pass < 3; pass += 1) {
     for (const e of edges) {
-      if (e.source && e.target && seedIds.has(e.source) && !scope.has(e.target)) {
+      if (e.source && e.target && presentSeedIds.has(e.source) && !scope.has(e.target)) {
         scope.add(e.target);
       }
     }
@@ -2135,18 +2414,30 @@ export const scopeChainFlowToSeeds = (
 // scopeChainFlowToSeeds, seeded on every depth-instance of one endpoint (the causal chain lays the
 // same physical endpoint out again at each depth it's touched, each a distinct `chain-ep|depth|id`
 // node) — the endpoint-focus case (chokepoint click, endpoint drill-down with no specific finding).
+//
+// `endpointIds` takes every identifier the endpoint is known by (its graph node id AND its ref): a
+// chain endpoint node is keyed by whatever form its execution edge carried, which is not always the
+// form the caller holds. Accepting only one of them left a ref-keyed endpoint unresolvable, and an
+// unresolvable seed falls through to the whole-chain safety net below — the graph comes back
+// unchanged, so the focus click reads as "nothing happened".
 export const scopeChainFlowToEndpoint = (
   chainFlow: {
     nodes: AttackPathFlowNode[];
     edges: AttackPathFlowEdge[];
   },
-  endpointId: string,
+  endpointIds: string | ReadonlyArray<string | undefined>,
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
-} => scopeChainFlowToSeeds(
-  chainFlow,
-  new Set(
-    chainFlow.nodes.filter(n => n.id.startsWith('chain-ep|') && n.id.endsWith(`|${endpointId}`)).map(n => n.id),
-  ),
-);
+} => {
+  const candidates = (typeof endpointIds === 'string' ? [endpointIds] : endpointIds)
+    .filter((id): id is string => !!id);
+  return scopeChainFlowToSeeds(
+    chainFlow,
+    new Set(
+      chainFlow.nodes
+        .filter(n => n.id.startsWith('chain-ep|') && candidates.some(id => n.id.endsWith(`|${id}`)))
+        .map(n => n.id),
+    ),
+  );
+};

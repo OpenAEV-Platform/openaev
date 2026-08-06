@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.chaining.dto.ScopeAssetOutput;
+import io.openaev.api.chaining.dto.ScopeTeamOutput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
 import io.openaev.database.model.Action;
@@ -56,7 +57,8 @@ public class WorkflowApi extends RestBehavior {
   @AccessControl(
       resourceId = "#workflowId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.WORKFLOW)
+      resourceType = ResourceType.WORKFLOW,
+      isEnterpriseEdition = true)
   @LogExecutionTime
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
@@ -76,13 +78,34 @@ public class WorkflowApi extends RestBehavior {
       responseCode = "404",
       description = "Workflow not found or the INJECT_CHAINING feature is disabled")
   @GetMapping("/{workflowId}/valid-assets")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
+  @AccessControl(
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.WORKFLOW,
+      isEnterpriseEdition = true)
   @LogExecutionTime
   public List<ScopeAssetOutput> getValidAssets(@PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
     return scopeService.getValidAssets(workflowId).stream()
         .map(ScopeAssetMapper::toOutput)
         .toList();
+  }
+
+  @Operation(
+      summary = "Get the computed list of valid (allowed) teams for a workflow",
+      description =
+          "Returns teams that are in scope after applying allowlist/denylist rules on TEAM scope"
+              + " rules. Mirrors valid-assets for the audience (team) axis.")
+  @Transactional
+  @ApiResponse(responseCode = "200", description = "Valid teams retrieved successfully")
+  @ApiResponse(
+      responseCode = "404",
+      description = "Workflow not found or the INJECT_CHAINING feature is disabled")
+  @GetMapping("/{workflowId}/valid-teams")
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
+  @LogExecutionTime
+  public List<ScopeTeamOutput> getValidTeams(@PathVariable @NotBlank final String workflowId) {
+    checkWorkflowFeatureEnabled();
+    return scopeService.getValidTeams(workflowId).stream().map(ScopeTeamMapper::toOutput).toList();
   }
 
   // -- UPDATE --
@@ -100,7 +123,8 @@ public class WorkflowApi extends RestBehavior {
   @AccessControl(
       resourceId = "#workflowId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.WORKFLOW)
+      resourceType = ResourceType.WORKFLOW,
+      isEnterpriseEdition = true)
   public WorkflowConfigurationOutput updateWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {

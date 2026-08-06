@@ -30,6 +30,7 @@ public class InjectorContractInput {
   @JsonProperty("contract_content")
   private String content;
 
+  // Indicates whether this contract can be used to create an atomic testing inject.
   @JsonProperty("is_atomic_testing")
   // Fixes a bug due to a new version of jackson and lombok
   // cf: https://github.com/projectlombok/lombok/issues/3978

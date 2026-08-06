@@ -1,4 +1,5 @@
-import { Popover, Typography } from '@mui/material';
+import { OpenInNew } from '@mui/icons-material';
+import { Box, Popover, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactNode, useState } from 'react';
 
@@ -10,6 +11,7 @@ export interface ExpectationPlatformAlert {
   id: string;
   title: string;
   date?: string | null;
+  link?: string | null;
 }
 
 export interface ExpectationPlatformRow {
@@ -48,7 +50,20 @@ const ExpectationPlatformsTable = ({ rows }: Props) => {
   } as const;
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <Box
+      sx={{
+        'overflowX': 'auto',
+        'scrollbarWidth': 'thin',
+        // Webkit/Chromium hide overlay scrollbars until the user scrolls this exact element, which on a
+        // narrow drawer (the "Detection time"/"Alerts" columns routinely overflow) leaves no visual hint
+        // the row is scrollable at all. Force the thumb to always render, matching IconBar's pattern.
+        '&::-webkit-scrollbar': { height: 8 },
+        '&::-webkit-scrollbar-thumb': {
+          backgroundColor: theme.palette.action.focus,
+          borderRadius: 1,
+        },
+      }}
+    >
       <div style={{ minWidth: ROW_MIN_WIDTH }}>
         <div
           style={{
@@ -178,22 +193,48 @@ const ExpectationPlatformsTable = ({ rows }: Props) => {
             {`${t('Alerts')} (${popover?.row.alerts.length ?? 0})`}
           </Typography>
           {(popover?.row.alerts ?? []).map(alert => (
-            <div
+            <Box
               key={alert.id}
-              style={{
+              {...(alert.link
+                ? {
+                    component: 'a',
+                    href: alert.link,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                  }
+                : {})}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing(1),
                 padding: '4px 0',
                 borderBottom: `1px solid ${theme.palette.divider}`,
+                textDecoration: 'none',
+                color: 'inherit',
+                ...(alert.link && {
+                  'cursor': 'pointer',
+                  '&:hover': { color: 'primary.main' },
+                }),
               }}
             >
-              <Typography variant="body2">{alert.title}</Typography>
-              {alert.date && (
-                <Typography variant="caption" color="text.secondary">{fldt(alert.date)}</Typography>
+              <div style={{ flex: 1 }}>
+                <Typography variant="body2">{alert.title}</Typography>
+                {alert.date && (
+                  <Typography variant="caption" color="text.secondary">{fldt(alert.date)}</Typography>
+                )}
+              </div>
+              {alert.link && (
+                <OpenInNew sx={{
+                  fontSize: 15,
+                  flexShrink: 0,
+                }}
+                />
               )}
-            </div>
+            </Box>
           ))}
         </div>
       </Popover>
-    </div>
+    </Box>
   );
 };
 

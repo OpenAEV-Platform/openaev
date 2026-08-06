@@ -4,6 +4,8 @@ import static io.openaev.api.chaining.WorkflowApi.TENANT_WORKFLOW_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.WorkflowFixture.getDefaultWorkflowScopeRuleInputList;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -17,6 +19,7 @@ import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -32,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +50,7 @@ class WorkflowApiTest extends IntegrationTest {
   @Autowired private WorkflowRepository workflowRepository;
   @Autowired private OpenAEVConfig openAEVConfig;
   @Autowired private CacheManager cacheManager;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   private String originalDevFeatures;
 
@@ -53,6 +58,8 @@ class WorkflowApiTest extends IntegrationTest {
   void enableChainingFeature() {
     originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
     openAEVConfig.setEnabledDevFeatures(PreviewFeature.INJECT_CHAINING.getValue());
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+    when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     clearFeatureCache();
   }
 

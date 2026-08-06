@@ -392,14 +392,7 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getExecutorIconImage(
       @PathVariable String executorId) {
-    return fileService
-        .getExecutorIconImage(executorId)
-        .map(
-            inputStream ->
-                ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-                    .body(new InputStreamResource(inputStream)))
-        .orElse(null);
+    return this.fileService.getConnectorImage(ConnectorType.EXECUTOR, executorId);
   }
 
   @GetMapping(

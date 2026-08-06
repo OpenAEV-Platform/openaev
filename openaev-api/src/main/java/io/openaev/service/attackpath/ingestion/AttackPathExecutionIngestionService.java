@@ -365,7 +365,20 @@ public class AttackPathExecutionIngestionService {
       }
 
     } else { // INJECTOR ->
-      String targetSelector = inject.getContent().get("target_selector").asText();
+      // Human-in-the-loop injects (email, SMS, ...) can only target TEAMS, never assets, so they
+      // fell through every asset/manual branch below and wrote nothing - the autonomous phishing
+      // step rendered an empty attack path. Emit the team and each ENABLED recipient (injector ->
+      // team -> persons) so the step lands on the graph and its findings attach to those nodes.
+      if (!inject.getTeams().isEmpty()) {
+        attackPathExecutions.addAll(getTeamTargetExecutions(inject, step));
+      }
+
+      JsonNode selectorNode =
+          inject.getContent() == null ? null : inject.getContent().get("target_selector");
+      String targetSelector = selectorNode == null ? null : selectorNode.asText();
+      if (targetSelector == null) {
+        return attackPathExecutions; // e.g. a team-only inject: nothing more to resolve
+      }
 
       if (targetSelector.equals("manual")) { // DISCOVERY
         String[] targets = inject.getContent().get("targets").asText().split(",");
@@ -396,6 +409,58 @@ public class AttackPathExecutionIngestionService {
       }
     }
     return attackPathExecutions;
+  }
+
+  /**
+   * Attack-path rows for a team-targeted (human-in-the-loop) inject: one TEAM node targeted by the
+   * injector, and one PERSON node per ENABLED recipient hanging off the team (injector -> team ->
+   * persons). Recipients are the players enabled on THIS simulation ({@code exercise_teams_users}),
+   * not merely team members, mirroring what the email/SMS executor actually delivers to - so the
+   * graph shows exactly who was reached and findings (e.g. harvested credentials) attach per
+   * person.
+   */
+  private List<AttackPathExecution> getTeamTargetExecutions(Inject inject, Step step) {
+    List<AttackPathExecution> rows = new ArrayList<>();
+    String simulationId = inject.getExercise() == null ? null : inject.getExercise().getId();
+    String injectorId = inject.getInjector() == null ? "injector" : inject.getInjector().getId();
+    for (Team teamRef : inject.getTeams()) {
+      Team team = (Team) org.hibernate.Hibernate.unproxy(teamRef);
+      AttackPathExecution teamRow = new AttackPathExecution();
+      teamRow.setId(AttackPathIds.executionNode(inject.getId(), team.getId(), injectorId));
+      teamRow.setGlobalInformation(step, inject);
+      teamRow.setSourceInjectorInformation(inject.getInjector());
+      teamRow.setTargetTeamInformation(team.getId(), team.getName());
+      rows.add(teamRow);
+
+      if (simulationId == null) {
+        continue;
+      }
+      List<User> recipients =
+          team.getExerciseTeamUsers().stream()
+              .filter(
+                  etu ->
+                      etu.getExercise() != null && simulationId.equals(etu.getExercise().getId()))
+              .map(ExerciseTeamUser::getUser)
+              .filter(Objects::nonNull)
+              .distinct()
+              .toList();
+      for (User user : recipients) {
+        AttackPathExecution personRow = new AttackPathExecution();
+        personRow.setId(AttackPathIds.executionNode(inject.getId(), user.getId(), team.getId()));
+        personRow.setGlobalInformation(step, inject);
+        personRow.setSourceTeamInformation(team.getId(), team.getName());
+        personRow.setTargetPersonInformation(user.getId(), personLabel(user));
+        rows.add(personRow);
+      }
+    }
+    return rows;
+  }
+
+  private static String personLabel(User user) {
+    if (user.getEmail() != null && !user.getEmail().isBlank()) {
+      return user.getEmail();
+    }
+    return user.getId();
   }
 
   private AttackPathExecution setSourceInjectorTargetAsset(Asset asset, Inject inject, Step step) {

@@ -1,4 +1,5 @@
 import {
+  AccountTreeOutlined,
   ComputerOutlined,
   DashboardCustomizeOutlined,
   EmojiEventsOutlined,
@@ -11,14 +12,18 @@ import {
   RouteOutlined,
   Stop,
   TrackChangesOutlined,
+  TransformOutlined,
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
+import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
+import { convertAutonomousRunToManual, fetchAutonomousAttackPathState } from '../../../../actions/autonomous/autonomous-actions';
+import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
+import { fetchSteps } from '../../../../actions/chaining/chaining-actions';
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
 import { fetchScenarioArticles } from '../../../../actions/channels/article-action';
@@ -62,7 +67,11 @@ import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
+import { computeTenantBasename } from '../../../../utils/url-helper';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import AutonomousRunControls from '../../autonomous/AutonomousRunControls';
+import AutonomousRunStatusChip from '../../autonomous/AutonomousRunStatusChip';
+import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -76,11 +85,23 @@ import ScenarioPopover from './ScenarioPopover';
 interface ScenarioHeaderProps {
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
   openInstantiateSimulationAndStart: boolean;
+  // Present when this scenario is an autonomous (AI-driven) run: the manual launch / scheduling /
+  // scope controls are hidden and replaced with autonomous pause / resume / stop controls that act
+  // on the run and its single underlying simulation.
+  autonomousRun?: AutonomousRun | null;
+  // Authoritative DB verdict (scenario_autonomous): drives the autonomous chrome (status chip,
+  // no manual launch, attack-path stat) even before the live run object has been fetched, so the
+  // header never flips to the manual layout on reload while the run lookup is in flight.
+  knownAutonomous?: boolean;
+  onAutonomousRunUpdate?: (run: AutonomousRun) => void;
 }
 
 const ScenarioHeader = ({
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
+  autonomousRun = null,
+  knownAutonomous = false,
+  onAutonomousRunUpdate,
 }: ScenarioHeaderProps) => {
   // Standard hooks
   const { t, locale, fld } = useFormatter();
@@ -94,8 +115,17 @@ const ScenarioHeader = ({
 
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openScheduling, setOpenScheduling] = useState(false);
+  // "Convert to manual chained scenario" flow: turns an AI-driven scenario into a normal chained one
+  // the operator can hand-edit, either by duplicating it or by transforming it in place (see the
+  // dialog below). Gated on the live run object so we have the run id to act on.
+  const [openConvert, setOpenConvert] = useState(false);
+  const [converting, setConverting] = useState(false);
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
+  // Number of authored attack-path steps on the scenario's chaining workflow. A chained scenario
+  // (manual or autonomous) builds its attack path as workflow step templates, not classic scenario
+  // injects, so this is the meaningful "how big is the attack path" stat for the hero.
+  const [attackPathStepCount, setAttackPathStepCount] = useState<number | null>(null);
 
   // Preserve the deep link that used to open the assistant drawer: it now
   // routes to the dedicated full-page assistant.
@@ -144,6 +174,21 @@ const ScenarioHeader = ({
       ? helper.getWorkflowConfiguration(scenarioWorkflowId)
       : undefined,
   }));
+  const isAutonomous = knownAutonomous || !!autonomousRun;
+  const autonomousStatus = autonomousRun?.autonomous_run_status;
+  // The run drives its single simulation: deleting the scenario tears both down, so it is only
+  // allowed once the run has stopped (terminal). While it is still live (created / running /
+  // paused / waiting for input) the Delete entry stays visible but disabled with a tooltip.
+  const isAutonomousActive = isAutonomousRunActive(autonomousRun);
+  // Overflow CRUD entries: an autonomous scenario is never duplicated by hand (the AI owns its
+  // attack-path logic), but its metadata - name, description, tags, severity, category - stays
+  // freely editable, so Update / Delete / Export are offered.
+  let scenarioPopoverActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Update', 'Delete', 'Export'];
+  if (isAutonomous) {
+    scenarioPopoverActions = ['Update', 'Delete', 'Export'];
+  } else if (isScenarioChaining) {
+    scenarioPopoverActions = ['Update', 'Delete', 'Export'];
+  }
   const isScopeMissing = isScenarioChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
@@ -180,6 +225,34 @@ const ScenarioHeader = ({
   useEffect(() => {
     searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
   }, [scenarioId, scenario, workflowConfiguration]);
+
+  // Count the attack-path steps that back the hero stat. An autonomous run authors its injects on
+  // the simulation (not the scenario), so its scenario workflow is empty - the authoritative count
+  // is the run's live attack-path state, which is exactly the set of simulation injects the
+  // Execution tab shows. A manual chained scenario keeps its steps on its own workflow, so it reads
+  // those. Re-fetched as an autonomous run progresses (updated_at changes on every poll) so the
+  // stat stays live while the orchestrator keeps building the path.
+  useEffect(() => {
+    let stale = false;
+    if (autonomousRun?.autonomous_run_id) {
+      fetchAutonomousAttackPathState(autonomousRun.autonomous_run_id)
+        .then((result) => {
+          if (!stale) setAttackPathStepCount(result.data?.length ?? 0);
+        })
+        .catch(() => {});
+    } else if (scenarioWorkflowId) {
+      fetchSteps(scenarioWorkflowId)
+        .then((result) => {
+          if (!stale) setAttackPathStepCount(result.data?.length ?? 0);
+        })
+        .catch(() => {});
+    } else {
+      setAttackPathStepCount(null);
+    }
+    return () => {
+      stale = true;
+    };
+  }, [scenarioWorkflowId, autonomousRun?.autonomous_run_id, autonomousRun?.autonomous_run_updated_at]);
 
   // Expectation drift between the injector contract templates and the inject
   // content - recomputed when the scenario or its inject set changes.
@@ -233,6 +306,30 @@ const ScenarioHeader = ({
     }));
   };
 
+  const handleConvertToManual = async (mode: 'DUPLICATE' | 'IN_PLACE') => {
+    if (!autonomousRun?.autonomous_run_id) {
+      return;
+    }
+    setConverting(true);
+    try {
+      const { data } = await convertAutonomousRunToManual(autonomousRun.autonomous_run_id, mode);
+      if (mode === 'DUPLICATE') {
+        setOpenConvert(false);
+        MESSAGING$.notifySuccess(t('A manual chained scenario was created from this autonomous scenario'));
+        navigate(`/admin/scenarios/${data.scenario_id}/logic`);
+      } else {
+        MESSAGING$.notifySuccess(t('Scenario converted to a manual chained scenario'));
+        // The autonomous cockpit latches on for the life of the mount (a transient blip must never
+        // collapse a live run back to the manual view), so a soft refetch would not flip it. A full
+        // reload is the clean way to re-enter the now-manual scenario on its editable Logic tab.
+        // The router runs under APP_BASE_PATH + tenant prefix, so rebuild the absolute URL from it.
+        window.location.assign(`${computeTenantBasename()}/admin/scenarios/${data.scenario_id}/logic`);
+      }
+    } finally {
+      setConverting(false);
+    }
+  };
+
   const humanReadableScheduling = () => {
     if (!cronObject?.isValid()) {
       return null;
@@ -257,6 +354,13 @@ const ScenarioHeader = ({
           title={truncate(scenario.scenario_name, 80) ?? ''}
           chips={(
             <>
+              {/* Autonomous run status sits first (left), rendered with the SAME chip a simulation
+                  shows for its ExerciseStatus (AutonomousRunStatusChip mirrors ExerciseStatus) - the
+                  single source of truth for the run state, so it is not duplicated in the hero
+                  actions or the reasoning panel. */}
+              {isAutonomous && autonomousStatus && (
+                <AutonomousRunStatusChip status={autonomousStatus} variant="list" />
+              )}
               <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
               <ItemCategory category={scenario.scenario_category ?? 'Unknown'} label={t(scenario.scenario_category ?? 'Unknown')} size="small" />
               <Tooltip title={scheduleLabel ?? ''}>
@@ -277,12 +381,13 @@ const ScenarioHeader = ({
           )}
           action={(
             <>
-              {/* Contextual configuration alert - self-hides when healthy. */}
-              {canManage && (
+              {/* Contextual configuration alert - self-hides when healthy. Autonomous runs are
+                  scoped and driven by the AI, so the "configure scope" nudge never applies. */}
+              {canManage && !isAutonomous && (
                 <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
               )}
               {/* Expectation drift warning - self-hides when aligned or dismissed. */}
-              {canManage && (
+              {canManage && !isAutonomous && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
                   variant="scenario"
@@ -310,7 +415,7 @@ const ScenarioHeader = ({
               )}
               {/* Dismissed drift downgraded to a discreet icon after Configuration -
                   the drift is acknowledged but still reviewable. */}
-              {canManage && (
+              {canManage && !isAutonomous && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
                   variant="scenario"
@@ -343,6 +448,9 @@ const ScenarioHeader = ({
                 contextId={scenarioId}
                 entityName={scenario.scenario_name}
               />
+              {/* Scheduling stays available for autonomous scenarios too - an autonomous run can be
+                  scheduled to recur exactly like any other scenario. Only the hand-authoring
+                  assistant is withheld (the AI owns the attack-path logic). */}
               {canManage && (
                 <>
                   <TriggerSubscribeButton
@@ -371,8 +479,31 @@ const ScenarioHeader = ({
                   )}
                 </>
               )}
-              {/* The single prominent CTA. */}
-              {canLaunch && isScheduled && !ended
+              {/* Convert an AI-driven scenario into a manual chained scenario the operator can edit
+                  by hand - either duplicate it or transform it in place (irreversible). Also unlocks
+                  the underlying simulation for edit/delete (the in-place path removes the run row
+                  every autonomous lock keys off). Gated on the live run so we have the run id. */}
+              {isAutonomous && canManage && autonomousRun && (
+                <Tooltip title={t('Convert this AI-driven scenario into a manual chained scenario you can edit by hand (duplicate it, or transform it in place).')}>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    startIcon={<TransformOutlined />}
+                    onClick={() => setOpenConvert(true)}
+                    data-testid="convert-autonomous-to-manual-button"
+                  >
+                    {t('Convert to manual')}
+                  </Button>
+                </Tooltip>
+              )}
+              {/* Autonomous lifecycle: pause / resume / stop the run and its single simulation,
+                  without leaving the scenario and without ever exposing a manual launch. */}
+              {autonomousRun && (
+                <AutonomousRunControls run={autonomousRun} onRunUpdate={onAutonomousRunUpdate} />
+              )}
+              {/* The single prominent CTA - never a manual launch on an autonomous run. */}
+              {!isAutonomous && (canLaunch && isScheduled && !ended
                 ? (
                     <>
                       <Button
@@ -416,25 +547,52 @@ const ScenarioHeader = ({
                       </Button>
                     </span>
                   </Tooltip>
-                )}
-              {/* Everything else - analyze, setup, and CRUD - in one overflow menu. */}
+                ))}
+              {/* Everything else - analyze, setup, and CRUD - in one overflow menu. Deleting an
+                  autonomous scenario tears down its single simulation and stops the run. */}
               <ScenarioPopover
                 scenario={scenario}
-                actions={isScenarioChaining ? ['Update', 'Delete', 'Export'] : ['Duplicate', 'Update', 'Delete', 'Export']}
+                actions={scenarioPopoverActions}
                 onDelete={() => navigate('/admin/scenarios')}
+                deleteDisabled={isAutonomousActive}
+                deleteDisabledMessage={isAutonomousActive
+                  ? t('Stop the autonomous run before deleting its scenario.')
+                  : undefined}
               />
             </>
           )}
           stats={(
             <>
-              {/* Always-on core stats. */}
-              <HeroStat
-                icon={TrackChangesOutlined}
-                label={t('Injects')}
-                value={injectsCount}
-                color={theme.palette.warning.main}
-                to={`/admin/scenarios/${scenarioId}/injects`}
-              />
+              {/* Always-on core stats. A workflow-backed scenario (chained or autonomous) builds
+                  its attack path as workflow step templates rather than classic scenario injects,
+                  so it surfaces an "Attack path steps" stat and its inject count is read from the
+                  live simulation on the Execution tab - clicking lands there instead of on the
+                  hidden/empty scenario Injects tab. A time-based scenario keeps the plain Injects
+                  stat pointing at its authoring tab. */}
+              {isScenarioChaining || isAutonomous
+                ? (
+                    <HeroStat
+                      icon={AccountTreeOutlined}
+                      label={t('Attack path steps')}
+                      value={attackPathStepCount ?? 0}
+                      color={theme.palette.warning.main}
+                      // The attack-path graph is the natural drill-down for an "Attack path steps"
+                      // stat on both autonomous and manual chained scenarios; fall back to Execution
+                      // only when the attack-path tab is not available.
+                      to={isAttackPathEnabled && isScenarioChaining
+                        ? `/admin/scenarios/${scenarioId}/attack-path`
+                        : `/admin/scenarios/${scenarioId}/execution`}
+                    />
+                  )
+                : (
+                    <HeroStat
+                      icon={TrackChangesOutlined}
+                      label={t('Injects')}
+                      value={injectsCount}
+                      color={theme.palette.warning.main}
+                      to={`/admin/scenarios/${scenarioId}/injects`}
+                    />
+                  )}
               <HeroStat
                 icon={HubOutlined}
                 label={t('Simulations')}
@@ -509,6 +667,64 @@ const ScenarioHeader = ({
         }}
         onSubmit={onSubmit}
       />
+      <Dialog
+        open={openConvert}
+        TransitionComponent={Transition}
+        onClose={() => !converting && setOpenConvert(false)}
+        PaperProps={{ elevation: 1 }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>{t('Convert to a manual chained scenario')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText component="div">
+            {t('Turn this AI-driven scenario into a standard chained scenario you can edit by hand. Choose how:')}
+            <Box
+              component="ul"
+              sx={{
+                paddingLeft: 3,
+                marginTop: 1,
+                marginBottom: 0,
+              }}
+            >
+              <Box component="li">
+                <strong>{t('Duplicate')}</strong>
+                {` - ${t('create a new manual chained scenario from a copy of this one. The autonomous run and its simulation stay untouched.')}`}
+              </Box>
+              <Box component="li" sx={{ marginTop: 1 }}>
+                <strong>{t('Convert in place')}</strong>
+                {` - ${t('transform this scenario now. The autonomous run stops and its AI timeline is removed; the scenario and its simulation become editable and deletable. This cannot be undone.')}`}
+              </Box>
+            </Box>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => setOpenConvert(false)}
+            disabled={converting}
+          >
+            {t('Cancel')}
+          </Button>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => handleConvertToManual('DUPLICATE')}
+            disabled={converting}
+          >
+            {t('Duplicate')}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => handleConvertToManual('IN_PLACE')}
+            disabled={converting}
+          >
+            {t('Convert in place')}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={openInstantiateSimulationAndStart}
         TransitionComponent={Transition}

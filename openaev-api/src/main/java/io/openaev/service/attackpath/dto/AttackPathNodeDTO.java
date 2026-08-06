@@ -28,6 +28,11 @@ public class AttackPathNodeDTO {
   private String injectorType;
   private List<AttackPathAttackPatternDTO> attackPatterns;
 
+  // For an ASSET-typed node, what real entity it stands for: ENDPOINT (default, a machine), TEAM,
+  // PERSON or ASSET_GROUP. All target kinds share the ASSET layout band, so the front keys off this
+  // to pick the icon (and, for a TEAM, to read its persons as children). Null == ENDPOINT.
+  private String entityKind;
+
   // ASSET (endpoint), from the run snapshot
   private String hostname;
   private String ip;
@@ -80,4 +85,8 @@ public class AttackPathNodeDTO {
   // FINDING only: the per-finding verdict triple, worst-of aggregated across the producing
   // executions. Null on every other node type (omitted from the JSON).
   private AttackPathFindingVerdictsDTO verdicts;
+  // FINDING only: false when the node is an output-only value (a chaining output not persisted as a
+  // Finding, ADR-004), true for a real finding. Drives the "Output only" rendering and the degraded
+  // drawer. Null on every other node type (omitted from the JSON).
+  private Boolean isFinding;
 }

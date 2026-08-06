@@ -10,6 +10,7 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionKeyTypesUtils;
@@ -38,6 +39,7 @@ public class ConditionService {
 
   private final ConditionRepository conditionRepository;
   private final StepRepository stepRepository;
+  private final WorkflowRepository workflowRepository;
 
   // -- CONDITION TREE CREATE --
 
@@ -60,6 +62,8 @@ public class ConditionService {
     }
     validateConditionInputKeyTypes(conditionInputs);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
+
+    assertLogicMapEditable(input.getWorkflowId());
 
     Condition root =
         Condition.builder()
@@ -86,6 +90,17 @@ public class ConditionService {
           }
         },
         null);
+  }
+
+  /**
+   * Rejects a logic-map mutation when the workflow's owning simulation is no longer editable (not
+   * SCHEDULED). No-op for scenario-owned workflows or unknown/blank workflow ids. See ADR-005.
+   */
+  private void assertLogicMapEditable(String workflowId) {
+    if (workflowId == null || workflowId.isBlank()) {
+      return;
+    }
+    workflowRepository.findById(workflowId).ifPresent(WorkflowEditability::assertLogicMapEditable);
   }
 
   /**
@@ -247,6 +262,11 @@ public class ConditionService {
     Condition root = findConditionRootById(conditionRootId);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
+    assertLogicMapEditable(root.getWorkflowId());
+    if (!Objects.equals(root.getWorkflowId(), input.getWorkflowId())) {
+      assertLogicMapEditable(input.getWorkflowId());
+    }
+
     root.setName(input.getName());
     root.setDescription(input.getDescription());
     root.setWorkflowId(input.getWorkflowId());
@@ -392,9 +412,12 @@ public class ConditionService {
       throw new BadRequestException("conditionRootId must not be null or blank");
     }
 
-    if (!conditionRepository.existsById(conditionRootId)) {
-      throw new EntityNotFoundException("Condition not found: " + conditionRootId);
-    }
+    Condition condition =
+        conditionRepository
+            .findById(conditionRootId)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Condition not found: " + conditionRootId));
+    assertLogicMapEditable(condition.getWorkflowId());
     conditionRepository.deleteById(conditionRootId);
   }
 
@@ -923,7 +946,7 @@ public class ConditionService {
    * DEFAULT mapper values, and keeps only combinations that satisfy required execution keys. Unique
    * combinations are tracked via hash to avoid duplicate executions and returned as ready-to-run
    * input batches with resolved mapper conditions. Hashes are only prepared in memory here and are
-   * committed later by the caller through {@link #commitHashes(WorkflowState, List)}.
+   * committed later by the caller through .
    *
    * @param stepTemplate step template for which input combinations are generated
    * @param workflowRun active workflow run used to resolve global/local workflow states
@@ -1136,8 +1159,7 @@ public class ConditionService {
 
         for (List<WorkflowStateEntries.Pair> comboPairs :
             localEntries.cartesianProduct(perMapperPairs)) {
-          Map<String, String> combo = toComboMap(comboPairs);
-          tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
+          tryAddBatch(comboPairs, preparation, localEntries, mappers, pendingHashes, batches);
         }
       }
     }
@@ -1145,17 +1167,44 @@ public class ConditionService {
     // Step 2: fallback cartesian (always runs; dedup skips duplicates from step 1)
     for (List<WorkflowStateEntries.Pair> comboPairs :
         localEntries.cartesianProduct(preparation.dynamicPairs())) {
-      Map<String, String> combo = toComboMap(comboPairs);
-      tryAddBatch(combo, preparation, localEntries, mappers, pendingHashes, batches);
+      tryAddBatch(comboPairs, preparation, localEntries, mappers, pendingHashes, batches);
     }
 
     return batches;
   }
 
+  /**
+   * Builds the combo map exposed as the batch's {@code inputString}, keyed by source type name.
+   *
+   * <p>This is purely a display/lookup structure (e.g. for filter conditions reading a value by
+   * type). It intentionally may collapse several dynamic mappers sharing the same source type into
+   * one entry; hashing and per-mapper value resolution never rely on it (see {@link #comboIdentity}
+   * and {@link #resolveMapperRuntimeValue}), so that collapsing can no longer cause combinations to
+   * be dropped or duplicated.
+   */
   private Map<String, String> toComboMap(List<WorkflowStateEntries.Pair> pairs) {
     Map<String, String> combo = new TreeMap<>();
     pairs.forEach(pair -> combo.put(pair.key(), pair.value()));
     return combo;
+  }
+
+  /**
+   * Builds a map keyed by each dynamic mapper's position, holding the value picked for it in this
+   * combination.
+   *
+   * <p>{@code comboPairs} has exactly one entry per mapper in {@code dynamicMappers}, in the same
+   * order (see {@link #buildExecutionBatches}). Keying by position instead of by source type name
+   * keeps every mapper's chosen value distinct, even when two mappers share the same source type.
+   * Previously, collapsing by type name silently merged "swapped" combinations (e.g.
+   * mapper1=A/mapper2=B vs mapper1=B/mapper2=A) into the same hash, which caused some valid
+   * combinations to be dropped and others to be re-attempted as duplicates.
+   */
+  private Map<String, String> comboIdentity(List<WorkflowStateEntries.Pair> comboPairs) {
+    Map<String, String> identity = new TreeMap<>();
+    for (int i = 0; i < comboPairs.size(); i++) {
+      identity.put("mapper#" + i, comboPairs.get(i).value());
+    }
+    return identity;
   }
 
   private List<WorkflowStateEntries.Pair> resolveMapperPairs(
@@ -1163,6 +1212,7 @@ public class ConditionService {
       WorkflowStateEntries localEntries,
       WorkflowStateEntries globalEntries) {
     List<WorkflowStateEntries.Pair> pairs = new ArrayList<>();
+    Set<String> seenValues = new HashSet<>();
     for (String sourceKey : mapperContext.sourceKeys()) {
       Set<String> values =
           resolveValuesByMappingType(
@@ -1170,9 +1220,26 @@ public class ConditionService {
       if (values == null || values.isEmpty()) {
         continue;
       }
-      pairs.addAll(
-          values.stream().map(value -> new WorkflowStateEntries.Pair(sourceKey, value)).toList());
+      for (String value : values) {
+        if (seenValues.add(value)) {
+          pairs.add(new WorkflowStateEntries.Pair(sourceKey, value));
+        }
+      }
     }
+
+    // A defined value can be set on a mapper independently of any linked primitive type(s), and
+    // must keep being used as one more candidate even after type(s) are linked — it should never
+    // be silently discarded just because the mapper is no longer MappingType.DEFAULT. Skip it if
+    // it's already present in the pool (would otherwise generate two combinations with the exact
+    // same effective value for this mapper).
+    String definedValue = mapperContext.mapper().getValue();
+    if (definedValue != null && !definedValue.isBlank() && seenValues.add(definedValue)) {
+      String targetKey = resolveMapperTargetKey(mapperContext.mapper());
+      pairs.add(
+          new WorkflowStateEntries.Pair(
+              targetKey != null ? targetKey : "DEFINED_VALUE", definedValue));
+    }
+
     return pairs;
   }
 
@@ -1199,47 +1266,50 @@ public class ConditionService {
    * merged after dedup.
    */
   private void tryAddBatch(
-      Map<String, String> comboMap,
+      List<WorkflowStateEntries.Pair> comboPairs,
       MapperInputPreparation preparation,
       WorkflowStateEntries localEntries,
       List<Condition> mappers,
       Set<String> pendingHashes,
       List<ExecutionBatch> batches) {
 
-    if (!coversAllDynamicMappers(comboMap, preparation.dynamicMappers())) {
+    if (!coversAllDynamicMappers(comboPairs, preparation.dynamicMappers())) {
       return;
     }
 
-    String hash = localEntries.hashCombo(comboMap);
+    String hash = localEntries.hashCombo(comboIdentity(comboPairs));
     if (localEntries.getHashExecution().contains(hash) || pendingHashes.contains(hash)) {
       return;
     }
 
-    Map<String, String> fullInput = new HashMap<>(comboMap);
+    Map<String, String> fullInput = new HashMap<>(toComboMap(comboPairs));
     fullInput.putAll(preparation.defaultValues());
 
     List<Condition> resolvedMappers =
         mappers.stream()
-            .map(template -> toResolvedMapper(template, fullInput))
+            .map(template -> toResolvedMapper(template, preparation.dynamicMappers(), comboPairs))
             .collect(Collectors.toList());
 
     batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers, hash));
     pendingHashes.add(hash);
   }
 
+  /**
+   * A combo built from a mapper cartesian product always has exactly one pair per dynamic mapper,
+   * in the same order as {@code dynamicMappers}. If a dynamic mapper had no candidate value at all,
+   * it is missing from {@code comboPairs} entirely (see {@link #buildExecutionBatches}), so a plain
+   * size comparison is enough to detect incomplete combos.
+   */
   private boolean coversAllDynamicMappers(
-      Map<String, String> comboMap, List<DynamicMapperContext> dynamicMappers) {
-    for (DynamicMapperContext mapperContext : dynamicMappers) {
-      boolean covered = mapperContext.sourceKeys().stream().anyMatch(comboMap::containsKey);
-      if (!covered) {
-        return false;
-      }
-    }
-    return true;
+      List<WorkflowStateEntries.Pair> comboPairs, List<DynamicMapperContext> dynamicMappers) {
+    return comboPairs.size() == dynamicMappers.size();
   }
 
-  /** Creates a resolved copy of a mapper condition with its value filled from the input map. */
-  private Condition toResolvedMapper(Condition template, Map<String, String> fullInput) {
+  /** Creates a resolved copy of a mapper condition with its value filled from the combo. */
+  private Condition toResolvedMapper(
+      Condition template,
+      List<DynamicMapperContext> dynamicMappers,
+      List<WorkflowStateEntries.Pair> comboPairs) {
     Condition resolved = new Condition();
     resolved.setType(ConditionType.MAPPER);
     resolved.setKey(resolveMapperTargetKey(template));
@@ -1250,9 +1320,9 @@ public class ConditionService {
     resolved.setWorkflowId(template.getWorkflowId());
     resolved.setCreationDate(Instant.now());
     resolved.setUpdateDate(Instant.now());
-    String key = resolveMapperRuntimeKey(template, fullInput);
-    if (key != null) {
-      resolved.setValue(fullInput.get(key));
+    String value = resolveMapperRuntimeValue(template, dynamicMappers, comboPairs);
+    if (value != null) {
+      resolved.setValue(value);
     } else if (template.getMappingType() == MappingType.DEFAULT) {
       // DEFAULT mapper with no keyTypes: value is already known statically.
       resolved.setValue(template.getValue());
@@ -1260,14 +1330,25 @@ public class ConditionService {
     return resolved;
   }
 
-  private String resolveMapperRuntimeKey(Condition mapper, Map<String, String> fullInput) {
-    List<String> sourceKeys = resolveMapperSourceKeys(mapper);
-    for (String sourceKey : sourceKeys) {
-      if (fullInput.containsKey(sourceKey)) {
-        return sourceKey;
+  /**
+   * Resolves the value picked for one specific dynamic mapper in this combo.
+   *
+   * <p>Looks up {@code template}'s own position in {@code dynamicMappers} (by reference, since
+   * dynamic mappers are the very same {@link Condition} instances passed to {@link
+   * #prepareInputsForStepExecution}) and returns the matching entry in {@code comboPairs}. This
+   * guarantees each mapper reads back exactly the value chosen for it, even when another mapper
+   * shares the same source type.
+   */
+  private String resolveMapperRuntimeValue(
+      Condition template,
+      List<DynamicMapperContext> dynamicMappers,
+      List<WorkflowStateEntries.Pair> comboPairs) {
+    for (int i = 0; i < dynamicMappers.size() && i < comboPairs.size(); i++) {
+      if (dynamicMappers.get(i).mapper() == template) {
+        return comboPairs.get(i).value();
       }
     }
-    return sourceKeys.isEmpty() ? null : sourceKeys.getFirst();
+    return null;
   }
 
   private String resolveMapperTargetKey(Condition mapper) {

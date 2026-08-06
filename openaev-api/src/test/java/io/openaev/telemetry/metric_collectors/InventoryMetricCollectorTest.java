@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +41,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class InventoryMetricCollectorTest {
 
   @Mock private MetricRegistry metricRegistry;
+  @Mock private TenantScopedTransaction tenantTx;
   @Mock private InjectorRepository injectorRepository;
   @Mock private CollectorRepository collectorRepository;
   @Mock private ExecutorRepository executorRepository;
@@ -46,6 +50,14 @@ class InventoryMetricCollectorTest {
   @InjectMocks private InventoryMetricCollector inventoryMetricCollector;
 
   @Captor private ArgumentCaptor<Supplier<Map<Attributes, Long>>> supplierCaptor;
+
+  @BeforeEach
+  @SuppressWarnings("unchecked")
+  void setUp() {
+    // Make tenantTx.execute delegate directly to the supplied lambda
+    when(tenantTx.execute(any(TxCtx.class), any(Supplier.class)))
+        .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
+  }
 
   private static Injector injector(String id, String type) {
     Injector injector = new Injector();

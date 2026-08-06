@@ -28,6 +28,7 @@ import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.Integration;
@@ -42,11 +43,13 @@ import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -62,6 +65,9 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @DisplayName("Connector Instance API Integration Tests")
 public class ConnectorInstanceApiTest extends IntegrationTest {
+
+  private static final String TENANT_CONNECTOR_INSTANCE_URI =
+      "/api/tenants/{tenantId}/connector-instances";
 
   @Autowired private MockMvc mvc;
 
@@ -88,6 +94,19 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @MockitoBean private ManagerFactory managerFactory;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private EntityManager entityManager;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TestUserHolder testUserHolder;
+
+  @BeforeEach
+  void setUp() {
+    // Write endpoints (DELETE) resolve a TxCtx write-scope from users_tenants membership: the
+    // mock user needs a row there, otherwise the scope is missing and writes are refused with 400
+    // regardless of granted capabilities. The "Tenant Isolation" nested tests below are unaffected:
+    // they always select an explicit tenant via the /api/tenants/{id}/... path.
+    if (testUserHolder.isSet()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
+  }
 
   private ConnectorInstancePersisted getConnectorInstance(
       CatalogConnector catalogConnector, Set<ConnectorInstanceConfiguration> configurationsValues) {
@@ -134,7 +153,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(catalogConnector.getId());
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -152,7 +171,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(catalogConnector.getId());
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -174,7 +193,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           Instant.now().minus(3, ChronoUnit.HOURS).toString());
       platformSettingsService.saveSettings(composerSettings);
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -220,7 +239,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input1.setConfigurations(List.of(confInput1));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input1))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -235,7 +254,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input2.setConfigurations(List.of(confInput2));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input2))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -308,7 +327,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input.setConfigurations(List.of(confInput1, confInputCollectorId));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -378,7 +397,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input.setConfigurations(List.of(confInput1, confInputCollectorId));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -452,7 +471,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input.setConfigurations(List.of(confInput1, confInput2, confInput3));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -556,6 +575,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       executor.setType(catalogConnector.getSlug());
       executor.setCreatedAt(Instant.now());
       executor.setUpdatedAt(Instant.now());
+      executor.setTenantId(TenantContext.getCurrentTenant());
       executorComposer.forExecutor(executor).persist();
 
       ConnectorInstanceConfiguration executorIdConfig =
@@ -577,10 +597,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
       // Assert
       assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
-      assertFalse(
-          executorRepository
-              .findByIdAndTenantId(executor.getId(), TenantContext.getCurrentTenant())
-              .isPresent());
+      assertFalse(executorRepository.findByExecutorId(executor.getId()).isPresent());
     }
 
     @Test

@@ -478,31 +478,24 @@ public class InjectsExecutionJob implements Job {
                 entry.getValue().parallelStream()
                     .forEach(
                         executableInject -> {
-                          try {
-                            String tenantId =
-                                executableInject.getInjection().getInject().getTenant().getId();
-                            executeInTenant(
-                                tenantId,
-                                () -> {
-                                  try {
-                                    this.executeInject(executableInject);
-                                  } catch (RuntimeException re) {
-                                    throw re;
-                                  } catch (Exception e) {
-                                    throw new RuntimeException(e);
-                                  }
-                                });
-                          } catch (RuntimeException e) {
-                            Inject inject = executableInject.getInjection().getInject();
-                            Throwable cause = e.getCause() != null ? e.getCause() : e;
-                            log.warn(cause.getMessage(), cause);
-                            injectStatusService.failInjectStatus(
-                                inject.getId(), cause.getMessage());
-                          } catch (Exception e) {
-                            Inject inject = executableInject.getInjection().getInject();
-                            log.warn(e.getMessage(), e);
-                            injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
-                          }
+                          Inject inject = executableInject.getInjection().getInject();
+                          String tenantId = inject.getTenant().getId();
+                          executeInTenant(
+                              tenantId,
+                              () -> {
+                                try {
+                                  this.executeInject(executableInject);
+                                } catch (RuntimeException e) {
+                                  Throwable cause = e.getCause() != null ? e.getCause() : e;
+                                  log.warn(cause.getMessage(), cause);
+                                  injectStatusService.failInjectStatus(
+                                      inject.getId(), cause.getMessage());
+                                } catch (Exception e) {
+                                  log.warn(e.getMessage(), e);
+                                  injectStatusService.failInjectStatus(
+                                      inject.getId(), e.getMessage());
+                                }
+                              });
                         });
                 // Update the exercise
                 if (!entry.getKey().equals("atomic")) {

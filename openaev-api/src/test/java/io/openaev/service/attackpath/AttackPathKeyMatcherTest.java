@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class AttackPathKeyMatcherTest {
 
   private static AttackPathFindingRow finding(String type, String value) {
-    return new AttackPathFindingRow("f-id", type, value, null, null, "ep", "exec");
+    return new AttackPathFindingRow("f-id", type, value, null, null, "ep", "exec", true);
   }
 
   private static ConsumedFindingKeyDTO key(String keyType, String operator, String value) {

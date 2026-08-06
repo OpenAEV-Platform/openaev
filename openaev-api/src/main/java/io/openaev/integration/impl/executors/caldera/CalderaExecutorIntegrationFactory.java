@@ -3,6 +3,7 @@ package io.openaev.integration.impl.executors.caldera;
 import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_TYPE;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -43,6 +44,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final TenantScopedTransaction tenantTx;
 
   public CalderaExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -57,7 +59,8 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      TenantScopedTransaction tenantTx) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
@@ -71,6 +74,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.tenantTx = tenantTx;
   }
 
   @Override
@@ -133,6 +137,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
         injectorService,
         taskScheduler,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        tenantTx);
   }
 }

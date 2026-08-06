@@ -13,6 +13,7 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -94,6 +95,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
+  @Autowired private AutonomousRunRepository autonomousRunRepository;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
 
   private static String USER_ID;
@@ -148,7 +150,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             stepService,
             healthCheckUtils,
             eventPublisher,
-            attackPathExecutionService);
+            attackPathExecutionService,
+            autonomousRunRepository);
   }
 
   @AfterAll

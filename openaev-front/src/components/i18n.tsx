@@ -265,6 +265,22 @@ export const useFormatter = () => {
       year: 'numeric',
     });
   };
+  // The tightest date+time that still carries the year (05/08/26 11:25 in fr), for space-constrained
+  // spots such as a picker label sharing its line with a name. Every part is 2-digit so the width is
+  // stable across values, and the year is kept 2-digit rather than dropped: a scenario accumulates
+  // simulations over months, so "05/08" alone would be ambiguous across years.
+  const compactNumericDateTime = (date: Parameters<IntlShape['formatDate']>[0]) => {
+    if (isNone(date)) {
+      return translate('None');
+    }
+    return intl.formatDate(date, {
+      minute: '2-digit',
+      hour: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+    });
+  };
   const time = (date: Parameters<IntlShape['formatDate']>[0]) => {
     return intl.formatTime(date, {
       second: 'numeric',
@@ -341,6 +357,7 @@ export const useFormatter = () => {
     nsd: shortNumericDate,
     nsdt: shortNumericDateTime,
     vnsdt: veryShortNumericDateTime,
+    cnsdt: compactNumericDateTime,
     fndt: fullNumericDateTime,
     ft: time,
     fd: standardDate,

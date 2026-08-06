@@ -7,6 +7,7 @@ import {
   AccountOutline,
   CubeScan,
   DesktopClassic,
+  EmailOutline,
   FolderNetworkOutline,
   FormatText,
   Identifier,
@@ -40,6 +41,8 @@ const renderIcon = (findingType: string) => {
       return <IpOutline color="primary" />;
     case 'credentials':
       return <KeyOutline color="primary" />;
+    case 'email':
+      return <EmailOutline color="primary" />;
     case 'cve':
     case 'vulnerability':
       return <BugReportOutlined color="primary" />;

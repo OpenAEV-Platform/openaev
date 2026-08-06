@@ -36,6 +36,7 @@ import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
+import AutonomousAttackCreation from '../../autonomous/AutonomousAttackCreation';
 import FindingList from '../../findings/FindingList';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { humanizeEnum } from '../asset-categories';
@@ -187,6 +188,11 @@ const AssetDetail = () => {
         title={asset.asset_name}
         action={(
           <>
+            {/* Autonomous (AI-driven) attack - self-hides unless the preview
+                feature is on and XTM One is configured. Scope is asset-group
+                based server-side, so from a single asset it opens the drawer
+                for the operator to pick a scope (or let the AI resolve it). */}
+            <AutonomousAttackCreation variant="icon" />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel

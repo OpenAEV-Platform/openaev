@@ -9,8 +9,12 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ComcheckRepository;
+import io.openaev.database.repository.EndpointRepository;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.execution.ExecutableInject;
@@ -35,7 +39,10 @@ import org.mockito.Mockito;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -60,6 +67,11 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private ComcheckRepository comcheckRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private EndpointRepository endpointRepository;
+  @Autowired private AgentRepository agentRepository;
+  @Autowired private SecurityCoverageRepository securityCoverageRepository;
+  @Autowired private PlatformTransactionManager transactionManager;
   @MockitoSpyBean private ManagerFactory managerFactory;
 
   @AfterEach
@@ -67,150 +79,229 @@ class InjectsExecutionJobTest extends IntegrationTest {
     Mockito.reset(managerFactory);
   }
 
+  /**
+   * These 3 tests below call {@code job.execute(null)} which internally opens its own transaction
+   * via {@code TenantScopedTransaction} (needed since {@code InjectHelper.getInjectsToRun()} now
+   * uses it to set the v2 tenant-scope GUC for the cross-tenant executor join). That primitive
+   * refuses to run inside an already-active transaction, so these methods are declared
+   * {@code @Transactional(NOT_SUPPORTED)} to suspend the class-level {@code @Transactional} for
+   * their duration. Setup/assertions that still need a transaction (entity relations, explicit
+   * flush) run in their own short-lived transaction via this helper; rows are committed for real,
+   * hence the manual cleanup in each test's {@code finally} block.
+   */
+  private void inTransaction(Runnable work) {
+    new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
+  }
+
   @DisplayName("Not start children injects at the same time as parent injects")
   @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void given_cron_in_one_minute_should_not_start_children_injects() throws JobExecutionException {
     // -- PREPARE --
-    Exercise exercise = ExerciseFixture.getExercise();
-    exercise.setStart(Instant.now().minus(1, ChronoUnit.MINUTES));
-    Exercise exerciseSaved = this.exerciseService.createExercise(exercise);
-    Inject injectParent =
-        injectComposer
-            .forInject(InjectFixture.getDefaultInject())
-            .withEndpoint(
-                endpointComposer
-                    .forEndpoint(EndpointFixture.createEndpoint())
-                    .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
-                    .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentSession())))
-            .withInjectStatus(
-                injectStatusComposer.forInjectStatus(
-                    InjectStatusFixture.createPendingInjectStatus()))
-            .persist()
-            .get();
-    Inject injectChildren =
-        injectComposer
-            .forInject(InjectFixture.getDefaultInject())
-            .withEndpoint(
-                endpointComposer
-                    .forEndpoint(EndpointFixture.createEndpoint())
-                    .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
-                    .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentSession())))
-            .withInjectStatus(
-                injectStatusComposer.forInjectStatus(
-                    InjectStatusFixture.createPendingInjectStatus()))
-            .withDependsOn(injectParent)
-            .persist()
-            .get();
-    entityManager.flush();
+    String[] ids = new String[3]; // exerciseId, injectParentId, injectChildrenId
+    inTransaction(
+        () -> {
+          Exercise exercise = ExerciseFixture.getExercise();
+          exercise.setStart(Instant.now().minus(1, ChronoUnit.MINUTES));
+          Exercise exerciseSaved = this.exerciseService.createExercise(exercise);
+          Inject injectParent =
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withEndpoint(
+                      endpointComposer
+                          .forEndpoint(EndpointFixture.createEndpoint())
+                          .withAgent(
+                              agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
+                          .withAgent(
+                              agentComposer.forAgent(AgentFixture.createDefaultAgentSession())))
+                  .withInjectStatus(
+                      injectStatusComposer.forInjectStatus(
+                          InjectStatusFixture.createPendingInjectStatus()))
+                  .persist()
+                  .get();
+          Inject injectChildren =
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withEndpoint(
+                      endpointComposer
+                          .forEndpoint(EndpointFixture.createEndpoint())
+                          .withAgent(
+                              agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
+                          .withAgent(
+                              agentComposer.forAgent(AgentFixture.createDefaultAgentSession())))
+                  .withInjectStatus(
+                      injectStatusComposer.forInjectStatus(
+                          InjectStatusFixture.createPendingInjectStatus()))
+                  .withDependsOn(injectParent)
+                  .persist()
+                  .get();
+          entityManager.flush();
 
-    injectParent.setExercise(exerciseSaved);
-    injectChildren.setExercise(exerciseSaved);
-    injectParent.setStatus(null);
-    injectChildren.setStatus(null);
-    exerciseSaved.setInjects(new ArrayList<>(List.of(injectParent, injectChildren)));
-    String exerciseId = exerciseSaved.getId();
+          injectParent.setExercise(exerciseSaved);
+          injectChildren.setExercise(exerciseSaved);
+          injectParent.setStatus(null);
+          injectChildren.setStatus(null);
+          exerciseSaved.setInjects(new ArrayList<>(List.of(injectParent, injectChildren)));
 
-    injectRepository.saveAll(new ArrayList<>(List.of(injectParent, injectChildren)));
-    entityManager.flush();
-    // -- EXECUTE --
-    this.job.execute(null);
-    entityManager.flush();
-    entityManager.clear();
+          injectRepository.saveAll(new ArrayList<>(List.of(injectParent, injectChildren)));
+          entityManager.flush();
 
-    // -- ASSERT --
-    List<Inject> injectsSaved = injectRepository.findByExerciseId(exerciseId);
-    Optional<Inject> savedInjectParent =
-        injectsSaved.stream()
-            .filter(inject -> inject.getId().equals(injectParent.getId()))
-            .findFirst();
-    Optional<Inject> savedInjectChildren =
-        injectsSaved.stream()
-            .filter(inject -> inject.getId().equals(injectChildren.getId()))
-            .findFirst();
-    // Checking that only the parent inject has a status
-    assertTrue(savedInjectParent.isPresent());
-    assertTrue(savedInjectChildren.isPresent());
+          ids[0] = exerciseSaved.getId();
+          ids[1] = injectParent.getId();
+          ids[2] = injectChildren.getId();
+        });
 
-    assertTrue(savedInjectParent.get().getStatus().isPresent());
-    assertTrue(savedInjectChildren.get().getStatus().isEmpty());
+    try {
+      // -- EXECUTE --
+      this.job.execute(null);
 
-    assertNotNull(savedInjectParent.get().getStatus().get().getName());
+      // -- ASSERT --
+      inTransaction(
+          () -> {
+            List<Inject> injectsSaved = injectRepository.findByExerciseId(ids[0]);
+            Optional<Inject> savedInjectParent =
+                injectsSaved.stream().filter(inject -> inject.getId().equals(ids[1])).findFirst();
+            Optional<Inject> savedInjectChildren =
+                injectsSaved.stream().filter(inject -> inject.getId().equals(ids[2])).findFirst();
+            // Checking that only the parent inject has a status
+            assertTrue(savedInjectParent.isPresent());
+            assertTrue(savedInjectChildren.isPresent());
+
+            assertTrue(savedInjectParent.get().getStatus().isPresent());
+            assertTrue(savedInjectChildren.get().getStatus().isEmpty());
+
+            assertNotNull(savedInjectParent.get().getStatus().get().getName());
+          });
+    } finally {
+      // Committed rows (job opens its own transactions via TenantScopedTransaction, which refuses
+      // to run inside the class-level @Transactional): sweep them explicitly, no auto-rollback.
+      inTransaction(
+          () -> {
+            exerciseRepository.deleteById(ids[0]);
+            endpointRepository.deleteAll(endpointComposer.generatedItems);
+          });
+      injectComposer.reset();
+      endpointComposer.reset();
+      agentComposer.reset();
+      injectStatusComposer.reset();
+    }
   }
 
   @Test
   @DisplayName("When auto closing of stix-created simulation, trigger stix coverage job")
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public void whenAutoClosingStixCreatedSimulation_TriggerStixCoverageJob()
       throws JobExecutionException {
-    ExerciseComposer.Composer exerciseWrapper =
-        exerciseComposer
-            .forExercise(ExerciseFixture.createDefaultExercise())
-            .withSecurityCoverage(
-                securityCoverageComposer.forSecurityCoverage(
-                    SecurityCoverageFixture.createDefaultSecurityCoverage()))
-            .withInject(
-                injectComposer
-                    .forInject(InjectFixture.getDefaultInject())
-                    .withInjectStatus(
-                        injectStatusComposer.forInjectStatus(
-                            InjectStatusFixture.createSuccessStatus())))
-            .withInject(
-                injectComposer
-                    .forInject(InjectFixture.getDefaultInject())
-                    .withInjectStatus(
-                        injectStatusComposer.forInjectStatus(
-                            InjectStatusFixture.createSuccessStatus())));
+    String[] exerciseId = new String[1];
+    inTransaction(
+        () -> {
+          ExerciseComposer.Composer exerciseWrapper =
+              exerciseComposer
+                  .forExercise(ExerciseFixture.createDefaultExercise())
+                  .withSecurityCoverage(
+                      securityCoverageComposer.forSecurityCoverage(
+                          SecurityCoverageFixture.createDefaultSecurityCoverage()))
+                  .withInject(
+                      injectComposer
+                          .forInject(InjectFixture.getDefaultInject())
+                          .withInjectStatus(
+                              injectStatusComposer.forInjectStatus(
+                                  InjectStatusFixture.createSuccessStatus())))
+                  .withInject(
+                      injectComposer
+                          .forInject(InjectFixture.getDefaultInject())
+                          .withInjectStatus(
+                              injectStatusComposer.forInjectStatus(
+                                  InjectStatusFixture.createSuccessStatus())));
 
-    injectComposer.generatedItems.forEach(
-        i -> i.setCollectExecutionStatus(CollectExecutionStatus.COMPLETED));
-    exerciseWrapper.get().setStatus(ExerciseStatus.RUNNING);
-    exerciseWrapper.persist();
-    entityManager.flush();
+          injectComposer.generatedItems.forEach(
+              i -> i.setCollectExecutionStatus(CollectExecutionStatus.COMPLETED));
+          exerciseWrapper.get().setStatus(ExerciseStatus.RUNNING);
+          exerciseWrapper.persist();
+          entityManager.flush();
 
-    this.job.execute(null);
-    entityManager.flush();
-    entityManager.clear();
+          exerciseId[0] = exerciseWrapper.get().getId();
+        });
 
-    // assert
-    Optional<SecurityCoverageSendJob> job =
-        securityCoverageSendJobRepository.findBySimulation(exerciseWrapper.get());
-    assertThat(job).isNotEmpty();
+    try {
+      this.job.execute(null);
+
+      // assert
+      inTransaction(
+          () -> {
+            Optional<SecurityCoverageSendJob> job =
+                securityCoverageSendJobRepository.findBySimulation(
+                    exerciseRepository.getReferenceById(exerciseId[0]));
+            assertThat(job).isNotEmpty();
+          });
+    } finally {
+      // Committed rows (job opens its own transactions via TenantScopedTransaction, which refuses
+      // to run inside the class-level @Transactional): sweep them explicitly, no auto-rollback.
+      inTransaction(
+          () -> {
+            exerciseRepository.deleteById(exerciseId[0]);
+            securityCoverageRepository.deleteAll(securityCoverageComposer.generatedItems);
+          });
+      exerciseComposer.reset();
+      injectComposer.reset();
+      injectStatusComposer.reset();
+      securityCoverageComposer.reset();
+    }
   }
 
   @Test
   @DisplayName(
       "When auto closing of NON stix-created simulation, DOES NOT trigger stix coverage job")
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public void whenAutoClosingNONStixCreatedSimulation_DoesNotTriggerStixCoverageJob()
       throws JobExecutionException {
-    ExerciseComposer.Composer exerciseWrapper =
-        exerciseComposer
-            .forExercise(ExerciseFixture.createDefaultExercise())
-            .withInject(
-                injectComposer
-                    .forInject(InjectFixture.getDefaultInject())
-                    .withInjectStatus(
-                        injectStatusComposer.forInjectStatus(
-                            InjectStatusFixture.createSuccessStatus())))
-            .withInject(
-                injectComposer
-                    .forInject(InjectFixture.getDefaultInject())
-                    .withInjectStatus(
-                        injectStatusComposer.forInjectStatus(
-                            InjectStatusFixture.createSuccessStatus())));
+    String[] exerciseId = new String[1];
+    inTransaction(
+        () -> {
+          ExerciseComposer.Composer exerciseWrapper =
+              exerciseComposer
+                  .forExercise(ExerciseFixture.createDefaultExercise())
+                  .withInject(
+                      injectComposer
+                          .forInject(InjectFixture.getDefaultInject())
+                          .withInjectStatus(
+                              injectStatusComposer.forInjectStatus(
+                                  InjectStatusFixture.createSuccessStatus())))
+                  .withInject(
+                      injectComposer
+                          .forInject(InjectFixture.getDefaultInject())
+                          .withInjectStatus(
+                              injectStatusComposer.forInjectStatus(
+                                  InjectStatusFixture.createSuccessStatus())));
 
-    injectComposer.generatedItems.forEach(
-        i -> i.setCollectExecutionStatus(CollectExecutionStatus.COMPLETED));
-    exerciseWrapper.get().setStatus(ExerciseStatus.RUNNING);
-    exerciseWrapper.persist();
-    entityManager.flush();
+          injectComposer.generatedItems.forEach(
+              i -> i.setCollectExecutionStatus(CollectExecutionStatus.COMPLETED));
+          exerciseWrapper.get().setStatus(ExerciseStatus.RUNNING);
+          exerciseWrapper.persist();
+          entityManager.flush();
 
-    this.job.execute(null);
-    entityManager.flush();
-    entityManager.clear();
+          exerciseId[0] = exerciseWrapper.get().getId();
+        });
 
-    // assert
-    Optional<SecurityCoverageSendJob> job =
-        securityCoverageSendJobRepository.findBySimulation(exerciseWrapper.get());
-    assertThat(job).isEmpty();
+    try {
+      this.job.execute(null);
+
+      // assert
+      inTransaction(
+          () -> {
+            Optional<SecurityCoverageSendJob> job =
+                securityCoverageSendJobRepository.findBySimulation(
+                    exerciseRepository.getReferenceById(exerciseId[0]));
+            assertThat(job).isEmpty();
+          });
+    } finally {
+      // Committed rows (job opens its own transactions via TenantScopedTransaction, which refuses
+      // to run inside the class-level @Transactional): sweep them explicitly, no auto-rollback.
+      inTransaction(() -> exerciseRepository.deleteById(exerciseId[0]));
+      exerciseComposer.reset();
+      injectComposer.reset();
+      injectStatusComposer.reset();
+    }
   }
 
   @Test

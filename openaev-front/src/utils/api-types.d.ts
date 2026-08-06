@@ -210,6 +210,7 @@ export interface AggregatedFindingOutput {
     | "credentials"
     | "cve"
     | "username"
+    | "email"
     | "share"
     | "file"
     | "admin_username"
@@ -419,6 +420,23 @@ export interface AiTargetTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+}
+
+/** Installed arsenal + delivery substrate for custom actions */
+export interface ArsenalInventory {
+  /**
+   * Number of active agents/implants (last seen within the active window)
+   * @format int32
+   */
+  active_agent_count?: number;
+  /** Deterministic one-line recommendation on how to obtain a substrate */
+  advice?: string;
+  /** True when at least one agent/implant is active - i.e. a Command payload has a host to execute on */
+  command_delivery_available?: boolean;
+  /** True when an HTTP-request-capable injector is installed and active - i.e. a raw HTTP exploit payload (SQLi, SSRF, path traversal, auth bypass) has somewhere to run */
+  http_delivery_available?: boolean;
+  /** Injectors registered in this tenant's catalog */
+  installed_injectors?: InstalledInjector[];
 }
 
 export interface Article {
@@ -1025,6 +1043,7 @@ export interface AttackPathExecutionDetailDTO {
   executedAt?: string;
   findings?: AttackPathExecutionFindingItemDTO[];
   injectId?: string;
+  injectorCommandLine?: string;
   payloadId?: string;
   payloadName?: string;
   preventionStatus?: string;
@@ -1080,6 +1099,7 @@ export interface AttackPathNodeDTO {
   contractName?: string;
   criticality?: string;
   dependsOn?: string[];
+  entityKind?: string;
   executedAt?: string;
   executionsTraces?: any[];
   expectations?: any[];
@@ -1090,6 +1110,7 @@ export interface AttackPathNodeDTO {
   id?: string;
   injectorType?: string;
   ip?: string;
+  isFinding?: boolean;
   label?: string;
   payloadName?: string;
   platform?: string;
@@ -1216,6 +1237,510 @@ export interface AttackPatternUpdateInput {
 export interface AttackPatternUpsertInput {
   attack_patterns?: AttackPatternCreateInput[];
   ignore_dependencies?: boolean;
+}
+
+/** A chained inject step appended to a live autonomous attack path */
+export interface AutonomousAttackPathStepInput {
+  inject: InjectInput;
+  /** Optional step template id this step depends on (DEPEND_ON), for pure ordering. Null / omitted for a seed or a finding-driven step. Prefer 'trigger' over this. */
+  parent_step_template_id?: string;
+  /** Optional finding-driven trigger: the finding(s) this step reacts to and the finding values it consumes as inputs. Preferred over parent_step_template_id - it lets the attack path draw itself. Omit for a seed step (recon that runs first). */
+  trigger?: AutonomousStepTrigger;
+}
+
+/** Result of appending a chained attack-path step */
+export interface AutonomousAttackPathStepResult {
+  /** Id of the created step template */
+  step_template_id?: string;
+}
+
+/** Live state of one authored attack-path step */
+export interface AutonomousAttackPathStepState {
+  /** Id of the inject backing this step (empty until the step has executed) */
+  inject_id?: string;
+  /** Id of the injector contract the step runs, when resolvable */
+  injector_contract_id?: string;
+  /** The step template id this step runs AFTER (its DEPEND_ON parent), or null for a root step. Together with step_template_id this reconstructs the attack-path graph. */
+  parent_step_template_id?: string;
+  /** Execution status: PENDING when never started, otherwise the live ExecutionStatus (QUEUING, EXECUTING, SUCCESS, ERROR, ...) */
+  status?: string;
+  /** Stable authoring handle for this step (the chaining step template id). Pass it as parent_step_template_id to chain a follow-on step onto it, or to update/replace this exact step in place instead of re-authoring a duplicate. */
+  step_template_id?: string;
+  /** Resolved target of the step (teams / assets / asset groups, or 'inherits run scope' when it binds to the run's allow-list). */
+  target?: string;
+  /** Human-readable step title */
+  title?: string;
+  /** Execution traces (action/status: message) captured while the step ran */
+  traces?: string[];
+  /** Inject type (injector) of the step */
+  type?: string;
+}
+
+/** How to convert an autonomous scenario into a manual chained scenario */
+export interface AutonomousConvertToManualInput {
+  /** DUPLICATE creates a new manual chained scenario from a copy and leaves the AI run untouched; IN_PLACE turns this scenario manual for good (irreversible). */
+  mode: "DUPLICATE" | "IN_PLACE";
+}
+
+/** Tenant default additional agents for autonomous runs */
+export interface AutonomousDefaultAgentsInput {
+  /** XTM One agent ids to consult by default. Empty clears the default. */
+  agent_ids?: string[];
+  /** Default discovery mode per agent id (EXISTING_ONLY / SCOPED / EXPANSIVE): how much latitude the agent has to create new assets / findings / persons from recon on the fly. Agents omitted here default to SCOPED. */
+  agent_modes?: Record<string, string>;
+}
+
+/** Tenant default additional agents + per-agent discovery modes */
+export interface AutonomousDefaultAgentsOutput {
+  /** XTM One agent ids consulted by default. */
+  agent_ids?: string[];
+  /** Default discovery mode per agent id (EXISTING_ONLY / SCOPED / EXPANSIVE). */
+  agent_modes?: Record<string, string>;
+}
+
+export interface AutonomousDirective {
+  /**
+   * When the orchestrator consumed the directive
+   * @format date-time
+   */
+  autonomous_directive_consumed_at?: string;
+  /** Free-text steering instruction */
+  autonomous_directive_content: string;
+  /**
+   * Creation date
+   * @format date-time
+   */
+  autonomous_directive_created_at?: string;
+  /** ID of the directive */
+  autonomous_directive_id?: string;
+  /** Autonomous run this directive steers */
+  autonomous_directive_run_id?: string;
+  /** Whether the orchestrator has consumed the directive */
+  autonomous_directive_status: "PENDING" | "CONSUMED";
+  listened?: boolean;
+}
+
+/** Operator steering directive for a live autonomous run */
+export interface AutonomousDirectiveInput {
+  /**
+   * Free-text steering instruction (focus, avoid host, change tactic...)
+   * @minLength 1
+   */
+  content: string;
+}
+
+export interface AutonomousEvent {
+  /** Human-readable body / narration */
+  autonomous_event_content?: string;
+  /**
+   * Creation date
+   * @format date-time
+   */
+  autonomous_event_created_at?: string;
+  /** Structured payload (tool i/o, gap suggestions, proof metadata) */
+  autonomous_event_data?: string;
+  /** ID of the event */
+  autonomous_event_id?: string;
+  /** Autonomous run this event belongs to */
+  autonomous_event_run_id?: string;
+  /**
+   * Monotonic per-run ordering cursor
+   * @format int64
+   */
+  autonomous_event_sequence?: number;
+  /** Short human title */
+  autonomous_event_title?: string;
+  /** Kind of timeline entry */
+  autonomous_event_type:
+    | "NARRATION"
+    | "DECISION"
+    | "TOOL_ACTION"
+    | "HANDOVER"
+    | "AGENT_DELEGATION"
+    | "GAP"
+    | "STATUS"
+    | "DIRECTIVE"
+    | "QUESTION"
+    | "PROOF";
+  listened?: boolean;
+}
+
+/** Timeline event appended by the orchestrator */
+export interface AutonomousEventInput {
+  /** Human-readable narration / body */
+  content?: string;
+  /** Structured JSON payload (tool i/o, gap suggestions, proof metadata) */
+  data?: string;
+  /** Short human title */
+  title?: string;
+  /** Kind of timeline entry */
+  type:
+    | "NARRATION"
+    | "DECISION"
+    | "TOOL_ACTION"
+    | "HANDOVER"
+    | "AGENT_DELEGATION"
+    | "GAP"
+    | "STATUS"
+    | "DIRECTIVE"
+    | "QUESTION"
+    | "PROOF";
+}
+
+/** Binds an upstream finding value into one of this step's inject inputs */
+export interface AutonomousInputMapping {
+  /** The inject content field to fill (e.g. host, port, username, password) - the key the injector contract reads its input from. */
+  input_key?: string;
+  /** The finding primitive to pull the value from, as its lowercase label (e.g. host, port, username, password, hash). Must match a primitive an upstream step emits. */
+  key_type?:
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "email"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
+  /** Where to read the value from: GLOBAL (workflow-wide finding pool, the default and usual choice), LOCAL (this step's own matched values), or DEFAULT (static). */
+  mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
+}
+
+export interface AutonomousObjectiveTemplate {
+  /** Whether this is a seeded built-in template */
+  autonomous_objective_template_builtin?: boolean;
+  /**
+   * Creation date
+   * @format date-time
+   */
+  autonomous_objective_template_created_at?: string;
+  /** Short description of what the objective does */
+  autonomous_objective_template_description?: string;
+  /** Whether the template is offered in the gallery */
+  autonomous_objective_template_enabled?: boolean;
+  /** Icon key used by the frontend gallery card */
+  autonomous_objective_template_icon?: string;
+  /** ID of the objective template */
+  autonomous_objective_template_id?: string;
+  /** Stable key (unique per tenant) for built-in identification */
+  autonomous_objective_template_key: string;
+  /** Optional kill-chain phase focus hint */
+  autonomous_objective_template_kill_chain_focus?: string;
+  /** Human label shown in the gallery */
+  autonomous_objective_template_label: string;
+  /**
+   * Display order in the gallery
+   * @format int32
+   */
+  autonomous_objective_template_order?: number;
+  /** Objective prompt handed to the orchestrator */
+  autonomous_objective_template_prompt: string;
+  /** Whether the objective is environment-wide (operates over the whole authorized scope, no target choice needed) or target-dependent (needs a specific target/asset the operator picks up front or the orchestrator asks for). One of: environment, target. */
+  autonomous_objective_template_scope_mode: string;
+  /**
+   * Update date
+   * @format date-time
+   */
+  autonomous_objective_template_updated_at?: string;
+  listened?: boolean;
+}
+
+/** Result of promoting a finding to a targetable asset */
+export interface AutonomousPromotedAssetResult {
+  /** Id of the created (endpoint) asset - use it as an inject target */
+  asset_id?: string;
+  /** Name of the created asset */
+  asset_name?: string;
+  /** Id of the original finding (kept, now linked to the asset) */
+  finding_id?: string;
+}
+
+export interface AutonomousRun {
+  /** XTM One agent ids the orchestrator may consult as specialist handover targets during this run (in addition to the built-in payload creator). */
+  autonomous_run_agent_ids?: string[];
+  /** Per-agent discovery mode for this run: maps an XTM One agent id (or the orchestrator's own id) to how much latitude it has to bring newly discovered entities into the attack path (EXISTING_ONLY / SCOPED / EXPANSIVE). Enforced at OpenAEV's creation choke points against the acting agent. An agent absent from the map falls back to SCOPED. */
+  autonomous_run_agent_modes?: Record<string, string>;
+  /**
+   * Creation date
+   * @format date-time
+   */
+  autonomous_run_created_at?: string;
+  /**
+   * Absolute instant at which OpenAEV hard-stops the run. Computed from startedAt + timeoutSeconds when the run becomes live. Null when no timeout applies.
+   * @format date-time
+   */
+  autonomous_run_deadline_at?: string;
+  /** ID of the autonomous run */
+  autonomous_run_id?: string;
+  /** Last error message when the run failed */
+  autonomous_run_last_error?: string;
+  /** Free-text or template-derived objective for the run */
+  autonomous_run_objective: string;
+  /** Key of the objective template the run was seeded from, if any */
+  autonomous_run_objective_template_key?: string;
+  /** Plan summary captured from a dry-run and handed to the promoted real run as guidance, so the live run follows the plan while still adapting to what it finds. */
+  autonomous_run_plan_guidance?: string;
+  /** Dry-run flag. When true the orchestrator only designs the attack path (scope + steps + decisions) and nothing is executed; the run is shown in draft orange and can be promoted to a real, executing run. */
+  autonomous_run_plan_mode: boolean;
+  /** Scenario the simulation was created from, if any */
+  autonomous_run_scenario_id?: string;
+  /** Authoritative run scope: a mixed list of targetable entities (assets, asset groups, teams, persons). The orchestrator attacks within this perimeter. */
+  autonomous_run_scope?: AutonomousScopeTarget[];
+  /** Asset group defining the initial in-scope perimeter */
+  autonomous_run_scope_asset_group_id?: string;
+  /** First team of the scope, projected for convenience. Authoritative scope is the mixed list in autonomous_run_scope. An inject can only target a team, never a bare person. */
+  autonomous_run_scope_team_id?: string;
+  /** Chained simulation (Exercise) this run drives */
+  autonomous_run_simulation_id?: string;
+  /**
+   * When the run was last moved to RUNNING; the timeout deadline is based on it
+   * @format date-time
+   */
+  autonomous_run_started_at?: string;
+  /** Lifecycle status of the run */
+  autonomous_run_status:
+    | "CREATED"
+    | "PLANNING"
+    | "PLANNED"
+    | "RUNNING"
+    | "PAUSED"
+    | "WAITING_INPUT"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELED";
+  /**
+   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Null means no OpenAEV-enforced timeout (e.g. plan/dry-run mode).
+   * @format int64
+   */
+  autonomous_run_timeout_seconds?: number;
+  /**
+   * Update date
+   * @format date-time
+   */
+  autonomous_run_updated_at?: string;
+  /** XTM One orchestrator agent slug */
+  autonomous_run_xtm_agent_slug?: string;
+  /** XTM One orchestrator session id for streaming reconnection */
+  autonomous_run_xtm_session_id?: string;
+  listened?: boolean;
+}
+
+/** Input to create an autonomous attack-path run */
+export interface AutonomousRunCreateInput {
+  /** Optional XTM One agent ids the orchestrator may consult as specialist handover targets during the run (in addition to the built-in payload creator). When omitted, the tenant's configured default additional agents are used. */
+  agent_ids?: string[];
+  /** Optional per-agent discovery mode for this run: maps an agent id to EXISTING_ONLY / SCOPED / EXPANSIVE, controlling how much latitude that agent has to create new assets / findings / persons from recon on the fly. When omitted, the tenant's configured default per-agent modes are used; an agent absent from the map falls back to SCOPED. */
+  agent_modes?: Record<string, string>;
+  /** Optional orchestrator agent slug override */
+  agent_slug?: string;
+  /** Optional description for the auto-provisioned run. */
+  description?: string;
+  /** Optional label for the auto-provisioned run. Defaults to a generated name. */
+  name?: string;
+  /** Free-text objective. Optional when an objective template key is provided. */
+  objective?: string;
+  /** Key of an objective template to seed the objective from */
+  objective_template_key?: string;
+  /** Dry-run: when true the orchestrator only designs the attack path (scope, steps, decisions) and executes nothing. The operator can review the plan and later run it for real. Defaults to false (immediate live run). */
+  plan_mode?: boolean;
+  /** Advanced/optional: seed from an existing chaining scenario instead of auto-provisioning. Leave empty for a fully autonomous run. */
+  scenario_id?: string;
+  /** Optional mixed scope: a list of targetable entities (assets, asset groups, teams, persons) the run is restricted to. Leave empty to let the AI resolve the scope. */
+  scope?: AutonomousScopeTarget[];
+  /** Optional asset group defining the initial in-scope perimeter */
+  scope_asset_group_id?: string;
+  /** Optional full scope definition seeded onto the run's scenario and simulation workflows: allow-list and deny-list rules across every source (asset, asset group, team, person, and manual IP / CIDR / hostname / CSV), matching the manual chained-scope editor. Superset of 'scope' (which only carries allow-listed entities). Leave empty to skip scoping at launch and let the AI resolve and record the scope. */
+  scope_rules?: WorkflowScopeRuleInput[];
+  /** Optional team defining the in-scope audience for identity-targeted objectives (phishing, human credential harvesting). Legacy single-team shortcut; prefer the mixed 'scope' list. */
+  scope_team_id?: string;
+  /**
+   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Defaults to 24h when omitted; ignored in plan/dry-run mode.
+   * @format int64
+   */
+  timeout_seconds?: number;
+}
+
+/** One resolved scope entry of an autonomous run */
+export interface AutonomousScopeEntry {
+  /** The rule value: an entity id, or a raw IP / CIDR / hostname for MANUAL/CSV */
+  id?: string;
+  /** Resolved display name for entities; falls back to the id / raw value */
+  name?: string;
+  /** Workflow scope-rule source: ASSET, ASSET_GROUP, TEAM, PLAYER, MANUAL, CSV */
+  source?: string;
+  /** Orchestrator target kind: ASSETS, ASSETS_GROUPS, TEAMS, PLAYERS (or MANUAL for a raw IP / CIDR / hostname). Use this kind's ids with the authoring / scope tools. */
+  type?: string;
+}
+
+/** One targetable entity in an autonomous run's scope */
+export interface AutonomousScopeTarget {
+  /** Entity id of that kind (asset / asset-group / team / user id) */
+  id?: string;
+  /** Target kind: ASSETS, ASSETS_GROUPS, TEAMS or PLAYERS */
+  type?: string;
+}
+
+/** Input for the orchestrator to set an autonomous run's resolved scope */
+export interface AutonomousScopeUpdateInput {
+  /** The resolved scope: a list of targets (assets, asset groups, teams, persons) that become the run's allow-list. Replaces any previous allow-list. Empty clears it. */
+  scope?: AutonomousScopeTarget[];
+}
+
+/** An autonomous run's live, resolved scope (allow-list + deny-list) */
+export interface AutonomousScopeView {
+  /** The authorized perimeter the orchestrator may attack */
+  allowlist?: AutonomousScopeEntry[];
+  /** Explicit carve-outs the orchestrator must never touch (deny wins) */
+  denylist?: AutonomousScopeEntry[];
+  /** The autonomous run id this scope belongs to */
+  run_id?: string;
+}
+
+/** Run status update pushed by the orchestrator */
+export interface AutonomousStatusUpdateInput {
+  /** Optional narration for the status timeline entry */
+  content?: string;
+  /** Error message when the run failed */
+  last_error?: string;
+  /** New lifecycle status */
+  status:
+    | "CREATED"
+    | "PLANNING"
+    | "PLANNED"
+    | "RUNNING"
+    | "PAUSED"
+    | "WAITING_INPUT"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELED";
+  /** Optional short title for the status timeline entry */
+  title?: string;
+}
+
+/** A finding-driven trigger: react to findings and consume their values */
+export interface AutonomousStepTrigger {
+  /** Short, human-readable name for the EVENT this trigger represents - the discovery it fires on, phrased as an operator would read it (e.g. "SMB service exposed", "Valid credentials found", "Open web port discovered"). It becomes the event node's title in the Logic graph. When omitted, a readable name is derived from the filters so the event is never shown as "Untitled event". */
+  event_name?: string;
+  /** The predicates that make this step fire. Empty means: fire as soon as any of the mapped key_types is present in the finding pool. */
+  filters?: AutonomousTriggerFilter[];
+  /** Which finding values to bind into this step's inject inputs (GLOBAL mappers). This is how the step attacks what upstream steps discovered. */
+  mappings?: AutonomousInputMapping[];
+  /** How to combine multiple filters: AND (all must hold) or OR (any). Defaults to AND. */
+  match?: string;
+}
+
+/** Ensure a targetable team wrapping the given persons */
+export interface AutonomousTargetTeamInput {
+  /** Optional id of the agent on whose behalf this human target is being brought in (the orchestrator itself, or a specialist it consulted). Used to resolve the discovery mode enforced on the recipients: EXISTING_ONLY / SCOPED require them to be inside the run's identity allow-scope; EXPANSIVE may reach beyond it. Omitted -> SCOPED. */
+  acting_agent_id?: string;
+  /** Optional team name; a readable default is derived when omitted */
+  name?: string;
+  /**
+   * Ids of the persons (players) that must be reachable through the team
+   * @minItems 1
+   */
+  player_ids: string[];
+  /** Optional existing team id to augment instead of creating a new one (idempotent reuse) */
+  team_id?: string;
+}
+
+/** A team that is ready to be targeted by a human-in-the-loop inject */
+export interface AutonomousTargetTeamResult {
+  /** Ids of the players now enabled on the simulation through this team */
+  player_ids?: string[];
+  /** Id of the contextual team - pass it as an inject target (team_ids) */
+  team_id?: string;
+  /** Name of the team */
+  team_name?: string;
+}
+
+/** A single predicate of a finding-driven trigger */
+export interface AutonomousTriggerFilter {
+  /** Whether the comparison is case-sensitive (default true). */
+  case_sensitive?: boolean;
+  /** The finding primitive to test, as its lowercase label (e.g. port, host, ipv4, cve, username, password, hash, share_name, service, severity, kerberoastable_account). This is the field an upstream inject's output parser emitted. */
+  key_type?:
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "email"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
+  /** Comparison: EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN. Defaults to IS_NOT_NULL (fire as soon as the finding carries this key_type at all). */
+  operator?:
+    | "AND"
+    | "OR"
+    | "EQ"
+    | "NEQ"
+    | "IS_NULL"
+    | "IS_NOT_NULL"
+    | "GT"
+    | "GTE"
+    | "LT"
+    | "LTE"
+    | "IN"
+    | "NIN"
+    | "MAPPER"
+    | "DEPEND_ON";
+  /** The value to compare against (omit for IS_NULL / IS_NOT_NULL). */
+  value?: string;
 }
 
 export type AverageConfiguration = UtilRequiredKeys<
@@ -1524,6 +2049,46 @@ export interface CapabilityOutput {
   capability_value: string;
 }
 
+/** Capability resolution query (techniques / desired outputs / platforms) */
+export interface CapabilityQueryInput {
+  /** Optional objective template key; its kill-chain focus seeds the resolution when no explicit techniques/output types are given */
+  objective_template_key?: string;
+  /** Desired output/primitive types the AI needs produced (ContractOutputType labels: credentials, cve, port, share, kerberoastable_account...) */
+  output_types?: string[];
+  /** Optional platform filter (Windows, Linux, MacOS) applied to matches */
+  platforms?: string[];
+  /** MITRE ATT&CK technique external ids to resolve (e.g. T1110, T1566) */
+  techniques?: string[];
+}
+
+/** Capability resolution report */
+export interface CapabilityReport {
+  /** Installed injectors and the delivery substrate available for custom actions */
+  arsenal?: ArsenalInventory;
+  /** True when every queried token has at least one installed contract */
+  fully_satisfied?: boolean;
+  /** Convenience subset: only the unsatisfied resolutions */
+  gaps?: CapabilityResolution[];
+  /** One resolution per queried capability token */
+  resolutions?: CapabilityResolution[];
+}
+
+/** Resolution of one capability token against installed contracts */
+export interface CapabilityResolution {
+  /** Installed contracts that satisfy the token (empty when unsatisfied) */
+  contracts?: ResolvedContract[];
+  /** Whether this token is a technique, an output/primitive type, or a phase */
+  kind?: "TECHNIQUE" | "OUTPUT_TYPE" | "KILL_CHAIN_PHASE";
+  /** Human-readable label for the token */
+  label?: string;
+  /** True when at least one installed contract satisfies the token */
+  satisfied?: boolean;
+  /** Marketplace connectors to install to close the gap (empty when satisfied) */
+  suggested_connectors?: SuggestedConnector[];
+  /** The resolved token (technique external id, output type label, or phase) */
+  token?: string;
+}
+
 export interface CatalogConnector {
   /** Connector class name */
   catalog_connector_class_name?: string;
@@ -1571,7 +2136,11 @@ export interface CatalogConnector {
   /** Connector support version */
   catalog_connector_support_version?: string;
   /** Connector type */
-  catalog_connector_type?: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
+  catalog_connector_type?:
+    | "COLLECTOR"
+    | "INJECTOR"
+    | "EXECUTOR"
+    | "SECRETS_PROVIDER";
   /**
    * Connector use cases
    * @uniqueItems true
@@ -1644,7 +2213,11 @@ export interface CatalogConnectorOutput {
   catalog_connector_subscription_link?: string;
   /** @minLength 1 */
   catalog_connector_title: string;
-  catalog_connector_type: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
+  catalog_connector_type:
+    | "COLLECTOR"
+    | "INJECTOR"
+    | "EXECUTOR"
+    | "SECRETS_PROVIDER";
   /** @uniqueItems true */
   catalog_connector_use_cases?: string[];
   catalog_connector_verified?: boolean;
@@ -2059,6 +2632,7 @@ export interface ConditionCreateInput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "email"
     | "file_name"
     | "file_path"
     | "group_name"
@@ -2086,6 +2660,8 @@ export interface ConditionCreateInput {
   )[];
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
+  /** Optional display name. On a trigger's root condition this is the event name shown in the Logic graph; leave null on child/mapper conditions. */
+  condition_name?: string;
   /** ID of the step linked to the key */
   condition_step_from?: string;
   /** Temporary ID of the condition */
@@ -2128,6 +2704,7 @@ export interface ConditionOutput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "email"
     | "file_name"
     | "file_path"
     | "group_name"
@@ -2300,6 +2877,7 @@ export interface ContractOutputElement {
     | "credentials"
     | "cve"
     | "username"
+    | "email"
     | "share"
     | "file"
     | "admin_username"
@@ -2356,6 +2934,7 @@ export interface ContractOutputElementInput {
     | "credentials"
     | "cve"
     | "username"
+    | "email"
     | "share"
     | "file"
     | "admin_username"
@@ -2408,6 +2987,7 @@ export interface ContractOutputElementSimple {
     | "credentials"
     | "cve"
     | "username"
+    | "email"
     | "share"
     | "file"
     | "admin_username"
@@ -4783,6 +5363,7 @@ export interface Finding {
     | "credentials"
     | "cve"
     | "username"
+    | "email"
     | "share"
     | "file"
     | "admin_username"
@@ -4820,6 +5401,7 @@ export interface FindingInput {
     | "credentials"
     | "cve"
     | "username"
+    | "email"
     | "share"
     | "file"
     | "admin_username"
@@ -5834,6 +6416,7 @@ export interface InjectorContract {
     | "credentials"
     | "cve"
     | "username"
+    | "email"
     | "share"
     | "file"
     | "admin_username"
@@ -6157,6 +6740,16 @@ export interface InjectsImportTestInput {
   sheet_name: string;
   /** @format int32 */
   timezone_offset: number;
+}
+
+/** An installed injector and its activity state */
+export interface InstalledInjector {
+  /** Built-in injectors are always active; external ones must heartbeat */
+  active?: boolean;
+  injector_type?: string;
+  name?: string;
+  /** True when the injector can carry custom payloads */
+  payloads?: boolean;
 }
 
 export interface Internal {
@@ -6569,6 +7162,7 @@ export interface MapperConditionOutput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "email"
     | "file_name"
     | "file_path"
     | "group_name"
@@ -6827,6 +7421,7 @@ export interface NotificationTriggerInput {
     | "EVALUATION"
     | "CATALOG"
     | "CONNECTOR_INSTANCE_LOG"
+    | "SECRET_PROVIDER"
     | "TENANT"
     | "TENANT_SETTING"
     | "PLATFORM_ROLE"
@@ -6926,6 +7521,7 @@ export interface NotificationTriggerOutput {
     | "EVALUATION"
     | "CATALOG"
     | "CONNECTOR_INSTANCE_LOG"
+    | "SECRET_PROVIDER"
     | "TENANT"
     | "TENANT_SETTING"
     | "PLATFORM_ROLE"
@@ -7918,6 +8514,7 @@ export interface PayloadArgument {
     | "delegation_account"
     | "document"
     | "domain"
+    | "email"
     | "file_name"
     | "file_path"
     | "group_name"
@@ -8005,7 +8602,8 @@ export interface PayloadInput {
    * @uniqueItems true
    */
   payload_output_parsers?: OutputParserInput[];
-  payload_platforms?: (
+  /** @minItems 1 */
+  payload_platforms: (
     | "Linux"
     | "Windows"
     | "MacOS"
@@ -8188,7 +8786,8 @@ export interface PayloadUpdateInput {
    * @uniqueItems true
    */
   payload_output_parsers?: OutputParserInput[];
-  payload_platforms?: (
+  /** @minItems 1 */
+  payload_platforms: (
     | "Linux"
     | "Windows"
     | "MacOS"
@@ -8405,8 +9004,10 @@ export interface PlatformSettings {
     | "TENANT_FIELDS_FOR_SECURITY_COVERAGE"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
+    | "CREDENTIAL_ASSET"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
+    | "AUTONOMOUS_ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** True if the Tanium Executor is enabled */
@@ -8700,8 +9301,10 @@ export interface PublicPlatformSettings {
     | "TENANT_FIELDS_FOR_SECURITY_COVERAGE"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
+    | "CREDENTIAL_ASSET"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
+    | "AUTONOMOUS_ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
@@ -8906,6 +9509,7 @@ export interface RelatedFindingOutput {
     | "credentials"
     | "cve"
     | "username"
+    | "email"
     | "share"
     | "file"
     | "admin_username"
@@ -9086,6 +9690,14 @@ export interface ResetUserInput {
   login: string;
 }
 
+/** An installed injector contract that satisfies the capability */
+export interface ResolvedContract {
+  injector_contract_id?: string;
+  injector_type?: string;
+  label?: string;
+  platforms?: string[];
+}
+
 export interface ResourceObject {
   attributes?: Record<string, any>;
   /** @minLength 1 */
@@ -9213,6 +9825,7 @@ export interface Scenario {
   /** @format int64 */
   scenario_all_users_number?: number;
   scenario_articles?: string[];
+  scenario_autonomous?: boolean;
   scenario_category?: string;
   /** @format int64 */
   scenario_communications_number?: number;
@@ -9276,6 +9889,7 @@ export interface Scenario {
   scenario_tags?: string[];
   scenario_teams?: string[];
   scenario_teams_users?: ScenarioTeamUser[];
+  scenario_type?: string;
   scenario_type_affinity?: string;
   /** @format date-time */
   scenario_updated_at: string;
@@ -9344,6 +9958,8 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_all_users_number?: number;
+  /** Whether the scenario is an autonomous (AI-driven) attack-path scenario */
+  scenario_autonomous?: boolean;
   /** Category of the scenario */
   scenario_category?: string;
   /**
@@ -9487,6 +10103,64 @@ export interface ScopeAssetOutput {
   asset_type?: string;
 }
 
+/** A team that is in scope (allowlisted and not denylisted) for a workflow. */
+export interface ScopeTeamOutput {
+  /** ID of the team */
+  team_id?: string;
+  /** Name of the team */
+  team_name?: string;
+}
+
+export interface ScopeVariable {
+  listened?: boolean;
+  /** @format date-time */
+  scope_variable_created_at?: string;
+  scope_variable_description?: string;
+  scope_variable_id: string;
+  scope_variable_key: string;
+  scope_variable_type:
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "email"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
+  /** @format date-time */
+  scope_variable_updated_at?: string;
+  scope_variable_value?: string;
+  scope_variable_workflow?: string;
+}
+
 /** Input for a scope variable attached to a workflow. */
 export interface ScopeVariableInput {
   /** Optional description of the variable's purpose. */
@@ -9511,6 +10185,7 @@ export interface ScopeVariableInput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "email"
     | "file_name"
     | "file_path"
     | "group_name"
@@ -9563,6 +10238,7 @@ export interface ScopeVariableOutput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "email"
     | "file_name"
     | "file_path"
     | "group_name"
@@ -9614,6 +10290,32 @@ export interface SearchPaginationInput {
 
 export interface SearchTerm {
   searchTerm?: string;
+}
+
+export interface SecretsProvider {
+  external?: boolean;
+  listened?: boolean;
+  secrets_provider_id?: string;
+  secrets_provider_name?: string;
+  secrets_provider_type?: string;
+}
+
+/** Secrets provider output */
+export interface SecretsProviderOutput {
+  /** Catalog simple output */
+  catalog?: CatalogConnectorSimpleOutput;
+  connector_instance?: ConnectorInstanceOutput;
+  existing_secret_provider?: boolean;
+  is_verified?: boolean;
+  /**
+   * Secrets provider id
+   * @minLength 1
+   */
+  secrets_provider_id: string;
+  /** @minLength 1 */
+  secrets_provider_name: string;
+  /** @minLength 1 */
+  secrets_provider_type: string;
 }
 
 export interface SecurityPlatform {
@@ -10047,6 +10749,81 @@ export interface StatusPayloadOutput {
   payload_type?: string;
 }
 
+export interface Step {
+  listened?: boolean;
+  /** Action executed by the step */
+  step_action_class: "INJECT_EXECUTION";
+  /** Condition evaluated to determine whether the step is executed */
+  step_condition_executed?: string;
+  step_condition_key_types?: (
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "email"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status"
+  )[];
+  step_conditions?: Condition[];
+  /**
+   * Timestamp when the step was created
+   * @format date-time
+   */
+  step_created_at?: string;
+  /** Configuration step data stored as JSON */
+  step_data?: string;
+  /** ID for the step */
+  step_id?: string;
+  /** Inputs provided to the step in JSON format */
+  step_input?: string;
+  /**
+   * Maximum number of times this step can be executed
+   * @format int32
+   * @min 0
+   */
+  step_limit_execution?: number;
+  /** Output produced by the step in JSON format */
+  step_output?: string;
+  /** Output parser configuration in JSON format */
+  step_output_parser?: string;
+  /** Current status of the step */
+  step_status: "TEMPLATE" | "READY" | "RUN" | "END";
+  /**
+   * Timestamp when the step was last updated
+   * @format date-time
+   */
+  step_updated_at?: string;
+}
+
 export interface StepInput {
   step_action: "INJECT_EXECUTION";
   step_condition_ids?: string[];
@@ -10070,6 +10847,7 @@ export interface StepOutput {
     | "delegation_account"
     | "document"
     | "domain"
+    | "email"
     | "file_name"
     | "file_path"
     | "group_name"
@@ -10124,6 +10902,17 @@ export type StructuralHistogramWidget = UtilRequiredKeys<
   series: Series[];
   stacked?: boolean;
 };
+
+/** A marketplace connector suggested to close a capability gap */
+export interface SuggestedConnector {
+  connector_id?: string;
+  logo_url?: string;
+  short_description?: string;
+  slug?: string;
+  source_code?: string;
+  subscription_link?: string;
+  title?: string;
+}
 
 export interface Tag {
   listened?: boolean;
@@ -10577,6 +11366,21 @@ export interface ThreatArsenalActionCreateInput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
+  action_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
+    )[]
+  >;
   /** @minLength 1 */
   action_name: string;
   /**
@@ -10731,6 +11535,21 @@ export interface ThreatArsenalActionUpdateInput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
+  /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
+  action_expected_security_platforms?: Record<
+    string,
+    (
+      | "EDR"
+      | "XDR"
+      | "SIEM"
+      | "SOAR"
+      | "NDR"
+      | "ISPM"
+      | "LLM_FIREWALL"
+      | "AI_GATEWAY"
+      | "VULNERABILITY_SCANNER"
+    )[]
+  >;
   /** @minLength 1 */
   action_name: string;
   /**
@@ -11456,6 +12275,61 @@ export interface WidgetToEntitiesOutput {
   list_configuration?: ListConfiguration;
 }
 
+export interface Workflow {
+  edited?: boolean;
+  listened?: boolean;
+  /**
+   * Creation date
+   * @format date-time
+   */
+  workflow_created_at?: string;
+  /** ID of the workflow */
+  workflow_id?: string;
+  /** Workflow template is edited */
+  workflow_is_edited?: boolean;
+  /** Keep the workflow alive (parked in RUN) while empty/idle - autonomous runs */
+  workflow_keep_alive?: boolean;
+  /**
+   * @format int32
+   * @min 1
+   * @max 99
+   */
+  workflow_max_attempts?: number;
+  /**
+   * @format int64
+   * @min 1
+   * @max 5940
+   */
+  workflow_max_temporal_rate_seconds?: number;
+  workflow_rate_limit_enabled?: boolean;
+  workflow_safe_mode_enabled?: boolean;
+  workflow_scope_rules?: WorkflowScopeRule[];
+  workflow_scope_variables?: ScopeVariable[];
+  workflow_standalone_conditions?: Condition[];
+  /** Status of the workflow (TEMPLATE, RUN, STOP, END) */
+  workflow_status: "TEMPLATE" | "RUN" | "STOP" | "END";
+  /** Steps that belong to this workflow */
+  workflow_steps?: Step[];
+  workflow_timeout_enabled?: boolean;
+  /**
+   * @format int64
+   * @min 0
+   * @max 86400
+   */
+  workflow_timeout_seconds?: number;
+  /**
+   * Update date
+   * @format date-time
+   */
+  workflow_updated_at?: string;
+  /**
+   * Version of the workflow, incremented at each launch if edited
+   * @format int32
+   * @min 0
+   */
+  workflow_version?: number;
+}
+
 /** Input for creating or updating a workflow configuration. */
 export interface WorkflowConfigurationInput {
   /**
@@ -11524,6 +12398,34 @@ export interface WorkflowConfigurationOutput {
   workflow_scope_variables?: ScopeVariableOutput[];
 }
 
+export interface WorkflowScopeRule {
+  listened?: boolean;
+  /** @format date-time */
+  workflow_scope_rule_created_at?: string;
+  /** ID of the workflow scope rule */
+  workflow_scope_rule_id?: string;
+  workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
+  workflow_scope_rule_source?:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "TEAM"
+    | "PLAYER"
+    | "MANUAL"
+    | "CSV";
+  /** @format date-time */
+  workflow_scope_rule_updated_at?: string;
+  workflow_scope_rule_value?: string;
+  workflow_scope_rule_value_label?: string;
+  workflow_scope_rule_value_type?:
+    | "IP"
+    | "IP_SUBNET"
+    | "DOMAIN"
+    | "ASSET_ID"
+    | "ASSET_GROUP_ID"
+    | "TEAM_ID"
+    | "PLAYER_ID";
+}
+
 /** Input for a scope rule used in workflow configuration. */
 export interface WorkflowScopeRuleInput {
   /** ID of an existing scope rule. Null means a new rule will be created. */
@@ -11531,7 +12433,13 @@ export interface WorkflowScopeRuleInput {
   /** Selected list mode where the rule should be applied */
   workflow_scope_rule_selected_mode: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected rule */
-  workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
+  workflow_scope_rule_source:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "TEAM"
+    | "PLAYER"
+    | "MANUAL"
+    | "CSV";
   /**
    * Selected rule value
    * @minLength 1
@@ -11546,9 +12454,17 @@ export interface WorkflowScopeRuleOutput {
   /** Selected list mode where the rule is applied. */
   workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected item */
-  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
+  workflow_scope_rule_source?:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "TEAM"
+    | "PLAYER"
+    | "MANUAL"
+    | "CSV";
   /** Selected item value */
   workflow_scope_rule_value?: string;
+  /** Display-name snapshot of the referenced asset / asset group, captured when the rule was created or updated. Lets a past simulation's scope stay readable after the referenced asset / group is deleted. Null for non-asset rules or when the id could not be resolved within the tenant. */
+  workflow_scope_rule_value_label?: string;
 }
 
 export interface XtmComposerInstanceOutput {

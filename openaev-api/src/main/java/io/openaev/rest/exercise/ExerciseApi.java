@@ -552,9 +552,17 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @Deprecated(since = "1.16.0")
   public Exercise deprecatedUpdateExerciseStart(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStartDateInput input)
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfExerciseNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateStartDateInput input)
       throws InputValidationException {
-    return this.updateExerciseStart(exerciseId, input);
+    // Calls the shared, non-@Transactional helper directly rather than the sibling endpoint
+    // method: an intra-class call to a @Transactional method would bypass the Spring proxy
+    // (self-invocation), silently losing this transaction/scope.
+    return doUpdateExerciseStart(exerciseId, input);
   }
 
   @PutMapping({
@@ -567,7 +575,17 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseStart(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStartDateInput input)
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfExerciseNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateStartDateInput input)
+      throws InputValidationException {
+    return doUpdateExerciseStart(exerciseId, input);
+  }
+
+  private Exercise doUpdateExerciseStart(String exerciseId, ExerciseUpdateStartDateInput input)
       throws InputValidationException {
     Exercise exercise = exerciseService.exercise(exerciseId);
     if (!exercise.getStatus().equals(ExerciseStatus.SCHEDULED)) {
@@ -838,7 +856,12 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public Exercise changeExerciseStatus(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStatusInput input)
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfExerciseNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateStatusInput input)
       throws ChainingException {
     ExerciseStatus status = input.getStatus();
     return exerciseService.changeExerciseStatus(status, exerciseId);
@@ -1069,7 +1092,9 @@ public class ExerciseApi extends RestBehavior {
       summary = "Get endpoints. Can only be called if the user has access to the given simulation.",
       description = "Get all endpoints used by injects for a given simulation")
   @Transactional
-  public List<Endpoint> endpoints(@PathVariable String exerciseId) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
+  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String exerciseId) {
     return this.endpointService.endpointsForSimulation(exerciseId);
   }
 
@@ -1086,7 +1111,10 @@ public class ExerciseApi extends RestBehavior {
       summary =
           "Get endpoints by ids. Can only be called if the user has access to the given simulation.",
       description = "Get all endpoints by ids used by injects for a given simulation")
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
   public List<EndpointOutput> endpointsByIds(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @RequestBody @Valid @NotNull final List<String> endpointIds) {
     return this.endpointService.endpointsByIdsForSimulation(exerciseId, endpointIds);

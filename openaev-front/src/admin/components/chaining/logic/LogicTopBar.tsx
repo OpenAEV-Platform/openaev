@@ -10,9 +10,10 @@ interface LogicTopBarProps {
   eventMetas: Record<string, EventMeta>;
   onAddCompatibleAction: (field: string) => void;
   onAddComponent: () => void;
+  readOnly?: boolean;
 }
 
-const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent }: LogicTopBarProps) => {
+const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent, readOnly = false }: LogicTopBarProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -39,15 +40,17 @@ const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent }: Logi
           onAddCompatibleAction={onAddCompatibleAction}
         />
       </div>
-      <Button
-        color="primary"
-        startIcon={<Add />}
-        variant="contained"
-        onClick={onAddComponent}
-        sx={{ alignSelf: 'flex-end' }}
-      >
-        {t('Add component')}
-      </Button>
+      {!readOnly && (
+        <Button
+          color="primary"
+          startIcon={<Add />}
+          variant="contained"
+          onClick={onAddComponent}
+          sx={{ alignSelf: 'flex-end' }}
+        >
+          {t('Add component')}
+        </Button>
+      )}
     </div>
   );
 };

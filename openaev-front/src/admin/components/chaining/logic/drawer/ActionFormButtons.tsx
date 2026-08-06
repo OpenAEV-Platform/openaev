@@ -22,7 +22,7 @@ const ActionFormButtons = ({ disabled, onCancel, submitLabel }: ActionFormButton
       <Button variant="outlined" color="primary" onClick={onCancel}>
         {t('Cancel')}
       </Button>
-      <Button variant="contained" color="secondary" type="submit" disabled={disabled}>
+      <Button variant="contained" color="primary" type="submit" disabled={disabled}>
         {submitLabel ?? t('Save')}
       </Button>
     </Box>

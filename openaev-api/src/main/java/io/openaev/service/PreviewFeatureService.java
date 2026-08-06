@@ -21,4 +21,16 @@ public class PreviewFeatureService {
             .orElse(List.of());
     return enabledFeatures.contains(FEATURE_FLAG_ALL) || enabledFeatures.contains(feature);
   }
+
+  /**
+   * The Autonomous Attack Path feature depends on the attack-path projection (for the live animated
+   * view) and the chaining engine (for execution). We keep the requires-both check internally for
+   * correctness even though, once {@code ATTACK_PATH} and {@code INJECT_CHAINING} ship enabled by
+   * default, {@code AUTONOMOUS_ATTACK_PATH} is the single flag an operator has to toggle.
+   */
+  public boolean isAutonomousAttackPathEnabled() {
+    return isFeatureEnabled(PreviewFeature.AUTONOMOUS_ATTACK_PATH)
+        && isFeatureEnabled(PreviewFeature.ATTACK_PATH)
+        && isFeatureEnabled(PreviewFeature.INJECT_CHAINING);
+  }
 }

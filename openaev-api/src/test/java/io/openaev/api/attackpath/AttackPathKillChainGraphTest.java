@@ -30,7 +30,7 @@ import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
-import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -278,7 +278,7 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
     entityManager.flush();
 
     AttackPathNodeDTO consumerNode =
-        deltaService.buildDelta(SIM, v1, List.of(tenant.getId())).attackPathExecutions().stream()
+        deltaService.buildDelta(SIM, v1, Set.of(tenant.getId())).attackPathExecutions().stream()
             .filter(n -> consumer.get().getId().equals(n.getStepTemplateId()))
             .findFirst()
             .orElseThrow();
@@ -302,7 +302,7 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
     // is
     // gated on the batch actually carrying a consumer, not run on every tick.
     AttackPathNodeDTO node =
-        deltaService.buildDelta(SIM, 0, List.of(tenant.getId())).attackPathExecutions().stream()
+        deltaService.buildDelta(SIM, 0, Set.of(tenant.getId())).attackPathExecutions().stream()
             .findFirst()
             .orElseThrow();
     assertThat(node.getConsumedFindingKeys()).isNullOrEmpty();

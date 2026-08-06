@@ -5,12 +5,12 @@ This guide will help you get XTM Composer up and running quickly with OpenAEV.
 ## Prerequisites
 
 Before starting, ensure you have:   
-- XTM Composer installed (see [Installation Guide](installation.md))   
+- XTM Composer installed (see [Installation guide](installation.md))   
 - Access to an OpenAEV instance    
 - OpenAEV API token   
-- RSA private key (4096-bit)   
+- RSA (Rivest-Shamir-Adleman) private key (4096-bit)
 
-## Step 1: Generate RSA private key
+## Step 1: generate RSA private key
 
 Generate a 4096-bit RSA private key for authentication:
 
@@ -18,11 +18,11 @@ Generate a 4096-bit RSA private key for authentication:
 openssl genrsa -out private_key_4096.pem 4096
 ```
 
-## Step 2: Basic configuration
+## Step 2: basic configuration
 
 Create a configuration file based on your environment.
 
-### Option A: Using Configuration File
+### Option A: using configuration file
 
 Create `config/production.yaml`:
 
@@ -43,7 +43,7 @@ openaev:
     selector: kubernetes  # or 'docker' or 'portainer'
 ```
 
-### Option B: Using Environment Variables
+### Option B: using environment variables
 
 Set configuration through environment variables:
 
@@ -56,7 +56,7 @@ export OPENAEV__TOKEN="your-openaev-api-token"
 export OPENAEV__DAEMON__SELECTOR="kubernetes"
 ```
 
-## Step 3: Choose your orchestration platform
+## Step 3: choose your orchestration platform
 
 ### For Kubernetes
 
@@ -96,7 +96,7 @@ openaev:
       env_type: "docker"
 ```
 
-## Step 4: Run XTM Composer
+## Step 4: run XTM Composer
 
 ### Using Docker
 
@@ -109,13 +109,13 @@ docker run -d \
   filigran/xtm-composer:latest
 ```
 
-### Using Binary
+### Using binary
 
 ```bash
 COMPOSER_ENV=production ./xtm-composer
 ```
 
-## Step 5: Verify connection
+## Step 5: verify connection
 
 Check the logs to verify XTM Composer is connected to OpenAEV:
 
@@ -135,7 +135,7 @@ INFO  Successfully connected to OpenAEV
 INFO  Manager registered with ID: my-manager-001
 ```
 
-## Step 6: Verify in OpenAEV
+## Step 6: verify in OpenAEV
 
 1. Log into your OpenAEV instance
 2. Navigate to **Integrations > Catalog**
@@ -190,11 +190,11 @@ openaev:
 
 ## Troubleshooting
 
-For common issues and their solutions, see the [Troubleshooting Guide](troubleshooting.md).
+For common issues and their solutions, see the [Troubleshooting guide](troubleshooting.md).
 
 ## Next steps
 
-- Review the complete [Configuration Reference](configuration.md)
+- Review the complete [Configuration reference](configuration.md)
 - Set up monitoring and alerting
 - Configure collector, injector or executor specific settings
 - Implement security best practices

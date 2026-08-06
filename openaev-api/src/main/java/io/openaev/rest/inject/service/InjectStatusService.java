@@ -26,6 +26,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -66,13 +67,16 @@ public class InjectStatusService {
   }
 
   public InjectStatus findInjectStatusByInjectId(final String injectId) {
+    return findInjectStatusByInjectIdOptional(injectId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Inject status not found for :" + injectId));
+  }
+
+  public Optional<InjectStatus> findInjectStatusByInjectIdOptional(final String injectId) {
     if (!hasText(injectId)) {
       throw new IllegalArgumentException("InjectId should not be null");
     }
-    return this.injectStatusRepository
-        .findByInjectId(injectId)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Inject status not found for :" + injectId));
+    return this.injectStatusRepository.findByInjectId(injectId);
   }
 
   @Transactional(rollbackFor = Exception.class)

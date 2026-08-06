@@ -200,7 +200,20 @@ public abstract class AbstractConnectorService<
    * @return list of connectors
    */
   public Iterable<Output> getConnectorsOutput(boolean includeNext) {
-    List<T> connectors = getAllConnectors();
+    return buildConnectorsOutput(getAllConnectors(), includeNext);
+  }
+
+  /**
+   * Builds the output DTOs from an already-resolved connector list. Split out from {@link
+   * #getConnectorsOutput(boolean)} so callers that resolve the tenant scope explicitly (e.g. from
+   * an authorized {@link io.openaev.context.TxCtx}) can supply the connectors themselves instead of
+   * relying on the ambient transaction scope.
+   *
+   * @param connectors the connectors to expose (already scoped to the caller's authorized tenants)
+   * @param includeNext Include or not pending connector
+   * @return list of connector outputs
+   */
+  protected Iterable<Output> buildConnectorsOutput(List<T> connectors, boolean includeNext) {
     Map<String, ConnectorInstance> instancesByConnectorIdMap = buildInstanceMap();
 
     List<Output> result = new ArrayList<>();
@@ -241,18 +254,35 @@ public abstract class AbstractConnectorService<
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
   public ConnectorIds getConnectorRelationsId(String connectorId) {
+    return getConnectorRelationsId(getConnectorById(connectorId), connectorId);
+  }
+
+  /**
+   * Same as {@link #getConnectorRelationsId(String)} but with the connector already resolved by the
+   * caller. Split out so callers that resolve the connector from an authorized {@link
+   * io.openaev.context.TxCtx} (e.g. in-memory connectors with no repository-backed tenant filter)
+   * can supply it themselves instead of relying on the ambient transaction scope.
+   *
+   * @param connector the already-resolved connector (may be {@code null} if not registered)
+   * @param connectorId the connector identifier
+   * @return connector instance ID and catalog connector ID if available, null values if not found
+   */
+  protected ConnectorIds getConnectorRelationsId(T connector, String connectorId) {
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
         connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
             this.connectorType.getIdKeyName(), connectorId);
     if (relatedIds != null) {
-      boolean registered = getConnectorById(connectorId) != null;
+      boolean registered = connector != null;
       return catalogConnectorMapper.toConnectorIds(
           relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId(), registered);
     }
 
+    if (connector == null) {
+      return catalogConnectorMapper.toConnectorIds(null, null, false);
+    }
+
     // Connector already deployed without catalog, we will try to search matching catalog comparing
     // connectorType and catalogSlug
-    T connector = getConnectorById(connectorId);
     CatalogConnector catalogConnector =
         catalogConnectorService.findBySlug(connector.getType()).orElse(null);
     if (catalogConnector != null) {

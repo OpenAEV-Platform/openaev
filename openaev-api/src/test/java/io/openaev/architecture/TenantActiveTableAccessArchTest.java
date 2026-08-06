@@ -12,16 +12,19 @@ import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CweRepository;
+import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
+import io.openaev.executors.ExecutorService;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.collector.CollectorApi;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.executor.ExecutorApi;
 import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.ExerciseImportApi;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -41,6 +44,7 @@ import io.openaev.rest.payload.service.PayloadUpsertService;
 import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.EndpointService;
 import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.MapperService;
 import io.openaev.service.attackpath.AttackPathDeltaService;
@@ -90,8 +94,11 @@ class TenantActiveTableAccessArchTest {
           "cwes",
           "mitigations",
           "collectors",
+          "executors",
           "attackpath_execution",
-          "attackpath_finding");
+          "attackpath_finding",
+          "secret_references",
+          "secrets");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -217,13 +224,38 @@ class TenantActiveTableAccessArchTest {
               // Explicit tenantId param threaded from the caller (native DELETE ... AND
               // tenant_id = ?), not inspector-scoped: safe regardless of activation:
               ConnectorInstanceService.class,
-              // Documented degraded background reader (telemetry counts read 0 rows unscoped):
+              // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
               InventoryMetricCollector.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(CollectorRepository.class)
           .because(
               "collectors is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule executors_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoint, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              ExecutorApi.class,
+              // Service behind the handler; every caller is a wired handler:
+              ExecutorService.class,
+              // ConnectorInstanceService: invoked under TxCtx via ConnectorInstanceApi; deletes
+              // executors via inspector-scoped deleteByExecutorId, so it relies on executors being
+              // active on v2:
+              ConnectorInstanceService.class,
+              // EndpointService: reads executors via inspector-scoped findById (caller EndpointApi
+              // carries TxCtx):
+              EndpointService.class,
+              // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
+              InventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ExecutorRepository.class)
+          .because(
+              "executors is tenant-active: an accessor without a tenant scope silently reads zero"
                   + " rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest

@@ -117,6 +117,7 @@ public class ConditionMapper {
     Objects.requireNonNull(input, "condition create input must not be null");
 
     return Condition.builder()
+        .name(input.getName())
         .key(input.getKey())
         .keyTypes(resolveKeyTypes(input))
         .type(input.getType())

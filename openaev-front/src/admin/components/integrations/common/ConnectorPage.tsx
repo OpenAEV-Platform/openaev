@@ -45,7 +45,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   // connector type ('injector' -> 'INJECTOR') and the connector's own external
   // flag, keeping the hero's type / Built-in chip consistent with the catalog card.
   const heroType = catalogConnector?.catalog_connector_type
-    ?? (connectorType.toUpperCase() as 'INJECTOR' | 'COLLECTOR' | 'EXECUTOR');
+    ?? (connectorType.toUpperCase() as 'INJECTOR' | 'COLLECTOR' | 'EXECUTOR' | 'SECRETS_PROVIDER');
   const heroExternal = catalogConnector?.catalog_connector_manager_supported ?? connector?.isExternal;
   const createInstanceDrawer = useDialog();
 

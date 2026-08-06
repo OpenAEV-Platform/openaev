@@ -1,12 +1,10 @@
-import { RouteOutlined } from '@mui/icons-material';
 import { Box, Paper } from '@mui/material';
 import * as R from 'ramda';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent } from 'react';
 
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { Field } from '../../../../components/common/detail/EntityDetailCommon';
 import KillChainTimeline from '../../../../components/common/detail/KillChainTimeline';
-import ContextLink from '../../../../components/ContextLink';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
@@ -15,11 +13,8 @@ import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
 import ItemTypeAffinity from '../../../../components/ItemTypeAffinity';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
-import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type Exercise, type KillChainPhase } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props {
   exercise: Exercise;
@@ -32,28 +27,10 @@ interface Props {
 // dense and its Paper can bottom-align with the results card beside it.
 const SimulationMainInformation: FunctionComponent<Props> = ({ exercise, embedded = false }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
 
   const sortByOrder = R.sortWith([R.ascend(R.prop('phase_order'))]);
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(exercise.exercise_scenario || '') }));
   const killChainPhases = sortByOrder(exercise.exercise_kill_chain_phases ?? []) as KillChainPhase[];
-
-  const renderScenarioContent = () => {
-    if (!scenario) {
-      return '-';
-    }
-    if (ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, scenario.scenario_id)) {
-      return (
-        <ContextLink
-          title={scenario.scenario_name}
-          url={`${SCENARIO_BASE_URL}/${scenario.scenario_id}`}
-          icon={<RouteOutlined />}
-          variant="field"
-        />
-      );
-    }
-    return scenario.scenario_name;
-  };
 
   const content = (
     <Box sx={{
@@ -77,7 +54,6 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise, embedde
         rowGap: 2,
       }}
       >
-        <Field label={t('Parent scenario')}>{renderScenarioContent()}</Field>
         <Field label={t('Severity')}>
           <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
         </Field>

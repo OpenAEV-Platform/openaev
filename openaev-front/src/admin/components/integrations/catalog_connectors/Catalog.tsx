@@ -2,6 +2,7 @@ import { type SyntheticEvent, useMemo, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import DeployButton from '../common/DeployButton';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import { type ConnectorItem, fromCatalogConnector } from './catalog-facets';
@@ -18,11 +19,19 @@ interface Props {
  */
 const Catalog = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const { t } = useFormatter();
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
 
-  const items = useMemo(() => catalogConnectors.map(fromCatalogConnector), [catalogConnectors]);
+  const visibleCatalogConnectors = useMemo(
+    () => (isCredentialAssetEnabled
+      ? catalogConnectors
+      : catalogConnectors.filter(connector => connector.catalog_connector_type !== 'SECRETS_PROVIDER')),
+    [catalogConnectors, isCredentialAssetEnabled],
+  );
+
+  const items = useMemo(() => visibleCatalogConnectors.map(fromCatalogConnector), [visibleCatalogConnectors]);
   const connectorsById = useMemo(
-    () => new Map(catalogConnectors.map(connector => [connector.catalog_connector_id, connector])),
-    [catalogConnectors],
+    () => new Map(visibleCatalogConnectors.map(connector => [connector.catalog_connector_id, connector])),
+    [visibleCatalogConnectors],
   );
 
   const [selectedConnector, setSelectedConnector] = useState<CatalogConnectorOutput>();
