@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FC, type FormEvent } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import Tabs, { type TabsEntry } from '../../../../../components/common/tabs/Tabs';
@@ -39,11 +39,13 @@ const RoleForm: FC<RoleFormProps> = ({
   /* ---------- Zod schema ---------- */
   const schema = z.object({
     role_name: z.string().min(1, { message: t('Should not be empty') }).describe('Overview-tab'),
-    role_description: z.string().optional().describe('Overview-tab'),
+    role_description: z.string().nullish().describe('Overview-tab'),
     role_capabilities: z.string().array().describe('Capabilities-tab'),
   });
 
-  const methods = useForm<RoleCreateInput>({
+  type FormInput = z.infer<typeof schema>;
+
+  const methods = useForm<FormInput>({
     mode: 'onTouched',
     resolver: zodResolver(schema),
     defaultValues: {
@@ -82,7 +84,7 @@ const RoleForm: FC<RoleFormProps> = ({
       const tabName = getTabForField(firstErrorField);
       if (tabName) handleChangeTab(tabName);
     } else {
-      await handleSubmit(onSubmit)(e);
+      await handleSubmit(onSubmit as SubmitHandler<FormInput>)(e);
     }
   };
 

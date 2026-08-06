@@ -45,7 +45,7 @@ const PlatformRoleForm: FunctionComponent<Props> = ({
     () =>
       z.object({
         platform_role_name: z.string().min(1, { message: t('Should not be empty') }).describe('Overview-tab'),
-        platform_role_description: z.string().optional().describe('Overview-tab'),
+        platform_role_description: z.string().nullish().describe('Overview-tab'),
         platform_role_capabilities: z.string().array().describe('Capabilities-tab'),
       }),
     [t],
