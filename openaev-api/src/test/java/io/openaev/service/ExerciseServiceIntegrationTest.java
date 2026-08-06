@@ -29,6 +29,7 @@ import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
@@ -92,6 +93,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private UrlAccessTokenService urlAccessTokenService;
 
   @Autowired private WorkflowService workflowService;
+  @Autowired private WorkflowRepository workflowRepository;
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
@@ -193,6 +195,47 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
                 assertEquals(noContextualTeam.getId(), team.getId());
               }
             });
+  }
+
+  @DisplayName("Stopping a chained simulation keeps the injects that already ran")
+  @Test
+  @Transactional(rollbackFor = Exception.class)
+  void stoppingChainedSimulationKeepsItsInjects()
+      throws io.openaev.rest.exception.ChainingException {
+    // -- PREPARE --
+    // Stopping used to delete every inject of a manual chained simulation, which emptied the
+    // Execution screen while the attack path (cleared only on reset) still showed the same run.
+    org.mockito.Mockito.when(
+            previewFeatureService.isFeatureEnabled(
+                io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING))
+        .thenReturn(true);
+
+    Exercise exercise = ExerciseFixture.getExercise();
+    exercise.setFrom("test@test.com");
+    exercise.setStatus(ExerciseStatus.RUNNING);
+    Exercise exerciseSaved = this.exerciseRepository.save(exercise);
+
+    // The cancel path only touches injects when the simulation has a RUN workflow.
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    workflowRun.setSimulation(exerciseSaved);
+    this.workflowRepository.save(workflowRun);
+
+    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
+    Inject executedInject = getInjectForEmailContract(injectorContract);
+    executedInject.setExercise(exerciseSaved);
+    Inject executedInjectSaved = this.injectRepository.save(executedInject);
+    entityManager.flush();
+
+    // -- EXECUTE --
+    this.exerciseService.changeExerciseStatus(ExerciseStatus.CANCELED, exerciseSaved.getId());
+    entityManager.flush();
+
+    // -- ASSERT --
+    assertEquals(
+        List.of(executedInjectSaved.getId()),
+        this.injectRepository.findByExerciseId(exerciseSaved.getId()).stream()
+            .map(Inject::getId)
+            .toList());
   }
 
   @DisplayName("Should remove team from exercise")

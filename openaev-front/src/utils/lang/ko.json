@@ -3700,6 +3700,7 @@
   "Who is sending?": "누가 보내는 사람인가요?",
   "Who receives this inject.": "이 인젝트를 받는 대상.",
   "will be started, do you want to continue?": "가 시작됩니다. 계속하시겠습니까?",
+  "will be stopped, collected results are kept. Do you want to continue?": "이(가) 중지됩니다. 이미 수집된 결과는 유지됩니다. 계속하시겠습니까?",
   "Windows": "Windows",
   "Windows Command Line": "Windows 명령줄",
   "Windows documentation.": "Windows 문서.",
