@@ -25,8 +25,8 @@ import {
 } from 'mdi-material-ui';
 import { useContext } from 'react';
 
-import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
-import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/leftmenu-model';
+import AppNavbar from '../../../components/common/menu/navbar/AppNavbar';
+import { type NavMenuEntries } from '../../../components/common/menu/navbar/nav-menu-model';
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
@@ -42,7 +42,7 @@ const LeftBar = () => {
   // tenant). Passing no headerElement in the single-tenant case keeps the menu
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
-  const entries: LeftMenuEntries[] = [
+  const entries: NavMenuEntries[] = [
     {
       userRight: true,
       items: [
@@ -197,15 +197,11 @@ const LeftBar = () => {
   ];
   const settingsItems = settingsEntries(ability);
   entries.push(
-    {
-      userRight: settingsItems.some(item => item.userRight),
-      items: settingsItems,
-    },
-  );
-  const bottomEntries = [
+    // Always visible: "Settings" hides itself when the user lacks the right.
     {
       userRight: true,
       items: [
+        ...settingsItems,
         {
           path: `/admin/${GETTING_STARTED_URI}`,
           icon: () => (<RocketLaunchOutlined />),
@@ -214,12 +210,11 @@ const LeftBar = () => {
         },
       ],
     },
-  ];
+  );
   return (
-    <LeftMenu
+    <AppNavbar
       entries={entries}
-      bottomEntries={bottomEntries}
-      logoHeader={(navOpen: boolean) => <LeftBarHeader navOpen={navOpen} />}
+      header={() => <LeftBarHeader />}
       headerElement={hasTenantSwitcher ? (navOpen: boolean) => <TenantSwitcher navOpen={navOpen} /> : undefined}
     />
   );

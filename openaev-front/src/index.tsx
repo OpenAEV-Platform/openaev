@@ -4,7 +4,9 @@ import '@xyflow/react/dist/style.css';
 import 'react-grid-layout/css/styles.css';
 import '@filigran/chatbot/styles.css';
 import '@filigran/rich-text-editor/styles.css';
+import '@filigran/design-system/dist/index.css';
 import './static/css/index.css';
+import './static/css/design-system-host.css';
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

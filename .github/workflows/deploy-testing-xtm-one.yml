@@ -33,8 +33,24 @@ jobs:
           npm install -g corepack
         shell: alpine.sh --root {0}
       - name: Build into Alpine
+        env:
+          FDS_GIT_TOKEN: ${{ secrets.FDS_GIT_TOKEN }}
         run: |
           export JAVA_HOME=/usr/lib/jvm/default-jvm/
+          # These two lines are inlined on purpose, and duplicated across the
+          # three Alpine workflows: this step runs with `shell: alpine.sh`, and a
+          # composite action's `shell: bash` step cannot execute there — so
+          # ./.github/actions/setup-fds-auth is unusable in this block. Do not
+          # "de-duplicate" this into the composite action: it breaks all three.
+          # openaev-front consumes the private XTM-Foundation/filigran-design-system
+          # repository as a direct git dependency; yarn cannot clone it anonymously.
+          if [ -z "$FDS_GIT_TOKEN" ]; then
+            echo "FDS_GIT_TOKEN is empty: yarn install cannot clone the design system." >&2
+            exit 1
+          fi
+          git config --global \
+            url."https://x-access-token:${FDS_GIT_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
           cd openaev-front
           yarn install
           yarn build

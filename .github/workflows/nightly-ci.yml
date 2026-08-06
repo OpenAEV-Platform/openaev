@@ -32,6 +32,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
+        with:
+          fds-git-token: ${{ secrets.FDS_GIT_TOKEN }}
 
   prepare-release-assets:
     name: Prepare Release Assets
@@ -408,6 +410,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
 
+      - uses: ./.github/actions/setup-fds-auth
+        with:
+          token: ${{ secrets.FDS_GIT_TOKEN }}
+
       - name: Install frontend dependencies & Playwright
         working-directory: openaev-front
         run: |
@@ -663,6 +669,10 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
+
+      - uses: ./.github/actions/setup-fds-auth
+        with:
+          token: ${{ secrets.FDS_GIT_TOKEN }}
 
       - name: Install frontend dependencies & Playwright
         working-directory: openaev-front

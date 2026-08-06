@@ -38,6 +38,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-quality
+        with:
+          fds-git-token: ${{ secrets.FDS_GIT_TOKEN }}
 
   api-tests:
     name: "🧪 API Tests (${{ matrix.shard_name }})"
@@ -154,6 +156,7 @@ jobs:
           playwright-config: ${{ matrix.playwright-config }}
           browser: ${{ matrix.browser }}
           artifact-suffix: ${{ matrix.browser }}
+          fds-git-token: ${{ secrets.FDS_GIT_TOKEN }}
 
   e2e-infra-tests:
     name: "🧪 E2E Infra (${{ matrix.arch }})"
@@ -194,6 +197,7 @@ jobs:
           playwright-config: playwright.infra.chromium_config.ts
           browser: chromium
           artifact-suffix: ${{ matrix.arch }}
+          fds-git-token: ${{ secrets.FDS_GIT_TOKEN }}
 
   api-types-check:
     name: "🔎 API Types Check"
@@ -219,6 +223,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/api-types-check
+        with:
+          fds-git-token: ${{ secrets.FDS_GIT_TOKEN }}
 
   codecov:
     name: "📊 Coverage Merge & Upload"

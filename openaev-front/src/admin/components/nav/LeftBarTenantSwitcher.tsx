@@ -1,70 +1,38 @@
-import { HomeWorkOutlined, UnfoldMoreOutlined } from '@mui/icons-material';
-import { ListItemIcon, ListItemText, MenuItem, MenuList, Popover, Typography } from '@mui/material';
-import { alpha } from '@mui/material/styles';
-import { type FunctionComponent, useCallback, useRef, useState } from 'react';
+import { Chip, Icon, Menu, MenuContent, MenuItem, MenuTrigger, NavbarItem } from '@filigran/design-system';
+import { type FunctionComponent, type ReactNode } from 'react';
+import { useLocation } from 'react-router';
 
-import StyledTooltip from '../../../components/common/menu/leftmenu/StyledTooltip';
-import useLeftMenuStyle from '../../../components/common/menu/leftmenu/useLeftMenuStyle';
+import { NavbarItemContent } from '../../../components/common/menu/navbar/NavbarRowContent';
 import { useFormatter } from '../../../components/i18n';
-import Loader from '../../../components/Loader';
 import type { TenantOutput } from '../../../utils/api-types';
-import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import EEChip from '../common/entreprise_edition/EEChip';
+import { buildTenantUrl, stripDetailSegments } from '../../../utils/url-helper';
 
 interface TenantSwitcherProps { navOpen: boolean }
 
 /**
- * TenantSwitcher component displays a menu-item-style button in the left bar
- * that opens a popover to switch between tenants.
+ * Tenant switcher. Deliberately split in two paths, because the Enterprise
+ * Edition gate and the menu cannot coexist on one trigger:
+ *
+ * - **EE not validated** — the row is a plain `NavbarItem` carrying the EE
+ *   chip, and activating it opens the upsell dialog. No menu is mounted, so
+ *   the tenant list cannot be reached without passing the gate.
+ * - **EE validated** — the same row triggers the library's `Menu`, the
+ *   primitive that also backs `ProductSwitcher`.
+ *
+ * Each tenant row is a genuine `<a href>` (`MenuItem asChild`) because
+ * switching tenant IS a URL navigation — that is what keeps ⌘/Ctrl-click
+ * "open this tenant in a new tab" working.
  */
 const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => {
   const { t } = useFormatter();
-  const { userTenants, currentUserTenant, switchUserTenant } = useAuth();
-  const { isValidated: isValidatedEnterpriseEdition, openDialog } = useEnterpriseEdition();
-  const leftMenuStyle = useLeftMenuStyle();
+  const location = useLocation();
+  const { userTenants, currentUserTenant } = useAuth();
+  const { isValidated: isValidatedEnterpriseEdition, openDialog, setEEFeatureDetectedInfo } = useEnterpriseEdition();
 
-  const [switching, setSwitching] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const buttonRef = useRef<HTMLLIElement | null>(null);
-
-  const isSelected = useCallback(
-    (option: TenantOutput) => option.tenant_id === currentUserTenant?.tenant_id,
-    [currentUserTenant],
-  );
-
-  const handleOpen = () => {
-    if (!isValidatedEnterpriseEdition) {
-      openDialog();
-      return;
-    }
-    setAnchorEl(buttonRef.current);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleSwitchTenant = useCallback(async (tenant: TenantOutput) => {
-    if (isSelected(tenant)) {
-      handleClose();
-      return;
-    }
-
-    setSwitching(true);
-    handleClose();
-    try {
-      await switchUserTenant(tenant.tenant_id);
-    } catch (_error) {
-      MESSAGING$.notifyError(t('Error switching tenant'));
-    } finally {
-      setSwitching(false);
-    }
-  }, [isSelected, switchUserTenant, t]);
-
-  const displayName = currentUserTenant?.tenant_name ?? t('No tenant');
   const tenants = userTenants ?? [];
+  const displayName = currentUserTenant?.tenant_name ?? t('No tenant');
 
   // The switcher (and the EE chip it hosts) only makes sense when the user
   // can actually switch, i.e. has access to more than one tenant.
@@ -72,102 +40,63 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
     return null;
   }
 
-  return (
+  // Same destination the legacy handler navigated to: the current page minus
+  // its detail segments, so the user never lands on a resource that does not
+  // exist in the target tenant.
+  const tenantHref = (tenant: TenantOutput) => buildTenantUrl(tenant.tenant_id, stripDetailSegments(location.pathname));
+
+  const triggerRow = (badge?: ReactNode) => (
     <>
-      <StyledTooltip title={displayName} placement="right">
-        <MenuItem
-          ref={buttonRef}
-          onClick={handleOpen}
-          disabled={switching}
-          dense
-          data-testid="tenant-switcher"
-          // Shared left-menu row styling (16px dimmed icon, row height): the
-          // switcher must read exactly like the regular rows. Only the right
-          // padding is tightened for the unfold-more affordance.
-          sx={[
-            leftMenuStyle.menuItemSx,
-            theme => ({ paddingRight: theme.spacing(0.25) }),
-          ]}
-        >
-          {/* Half the regular rows' 8px icon-text gap: the switcher label sits
-              next to a wider glyph and reads better slightly tighter. */}
-          <ListItemIcon style={{
-            ...leftMenuStyle.listItemIcon,
-            marginRight: 4,
-          }}
-          >
-            {switching ? <Loader variant="inElement" size="xs" /> : <HomeWorkOutlined />}
-          </ListItemIcon>
-          {navOpen && (
-            <>
-              <ListItemText
-                primary={displayName}
-                slotProps={{ primary: { sx: { ...leftMenuStyle.listItemText } } }}
-              />
-              {!isValidatedEnterpriseEdition && <EEChip clickable featureDetectedInfo="Tenants" />}
-              <UnfoldMoreOutlined
-                fontSize="small"
-                sx={theme => ({
-                  color: theme.palette.text.secondary,
-                  marginLeft: theme.spacing(0.5),
-                })}
-              />
-            </>
-          )}
-        </MenuItem>
-      </StyledTooltip>
-      <Popover
-        open={Boolean(anchorEl)}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        slotProps={{
-          paper: {
-            sx: theme => ({
-              backgroundColor: theme.palette.background.nav,
-              backgroundImage: 'none',
-              minWidth: 180,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 1,
-            }),
-          },
-        }}
-      >
-        <MenuList dense>
-          {tenants.map((tenant) => {
-            const selected = isSelected(tenant);
-            return (
-              <MenuItem
-                key={tenant.tenant_id}
-                onClick={() => handleSwitchTenant(tenant)}
-                sx={theme => ({
-                  'borderLeft': selected ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
-                  'backgroundColor': selected ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
-                  'marginTop': theme.spacing(0.5),
-                  'marginBottom': theme.spacing(0.5),
-                  '&:hover': { backgroundColor: selected ? alpha(theme.palette.primary.main, 0.18) : theme.palette.action.hover },
-                })}
-              >
-                <ListItemText
-                  primary={(
-                    <Typography noWrap>
-                      {tenant.tenant_name}
-                    </Typography>
-                  )}
-                />
-              </MenuItem>
-            );
-          })}
-        </MenuList>
-      </Popover>
+      <NavbarItemContent
+        collapsed={!navOpen}
+        icon={<Icon name="building-2" size={16} />}
+        label={displayName}
+      />
+      {navOpen && badge}
+      {navOpen && (
+        <span className="text-default-secondary inline-flex shrink-0" style={{ marginLeft: 2 }} aria-hidden="true">
+          <Icon name="chevrons-up-down" size={16} />
+        </span>
+      )}
     </>
+  );
+
+  if (!isValidatedEnterpriseEdition) {
+    const openUpsellDialog = () => {
+      setEEFeatureDetectedInfo('Tenants');
+      openDialog();
+    };
+    return (
+      <NavbarItem asChild tooltipLabel={displayName}>
+        <button type="button" onClick={openUpsellDialog} data-testid="tenant-switcher">
+          {triggerRow(<Chip label={t('EE')} tone="tonic" />)}
+        </button>
+      </NavbarItem>
+    );
+  }
+
+  return (
+    <Menu>
+      <MenuTrigger asChild>
+        <NavbarItem asChild tooltipLabel={displayName}>
+          <button type="button" data-testid="tenant-switcher">
+            {triggerRow()}
+          </button>
+        </NavbarItem>
+      </MenuTrigger>
+      <MenuContent align="start" side="right">
+        {tenants.map(tenant => (
+          <MenuItem
+            key={tenant.tenant_id}
+            asChild
+            selected={tenant.tenant_id === currentUserTenant?.tenant_id}
+            data-testid="tenant-switcher-option"
+          >
+            <a href={tenantHref(tenant)}>{tenant.tenant_name}</a>
+          </MenuItem>
+        ))}
+      </MenuContent>
+    </Menu>
   );
 };
 

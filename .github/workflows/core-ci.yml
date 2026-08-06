@@ -2,11 +2,18 @@ name: "[Core] CI"
 
 on:
   push:
-    branches: [main]
+    # TEMPORARY — added 2026-08-02, must be removed when the design-system
+    # migration ends. design-system/current is the long-lived integration
+    # branch for the Filigran design-system migration; without it here, no CI
+    # ever ran on that branch nor on any PR targeting it. When the migration
+    # branch is merged and deleted, remove `design-system/current` from both
+    # lists below. Removal condition: `git ls-remote --heads origin
+    # design-system/current` returns nothing.
+    branches: [main, design-system/current]
     tags:
       - "[0-9]*.[0-9]*.[0-9]*"
   pull_request:
-    branches: [main]
+    branches: [main, design-system/current]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -49,6 +56,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
+        with:
+          fds-git-token: ${{ secrets.FDS_GIT_TOKEN }}
 
   # ──────────────────────────────────────────────────────────────────
   # Quality gates (frontend quality, API tests, E2E tests, coverage)
