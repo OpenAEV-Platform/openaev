@@ -3110,6 +3110,7 @@
   "Stop generating": "생성 중지",
   "Stop the autonomous run before deleting its scenario.": "시나리오를 삭제하기 전에 자율 실행을 중지하세요.",
   "Stop the connector before deleting it": "삭제하기 전에 커넥터를 중지하세요",
+  "Stop the run before converting it to a manual chained scenario": "Stop the run before converting it to a manual chained scenario",
   "stopped": "차단됨",
   "Stopped": "중지됨",
   "Storage": "Storage",

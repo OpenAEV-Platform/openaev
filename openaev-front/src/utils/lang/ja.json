@@ -3110,6 +3110,7 @@
   "Stop generating": "発電停止",
   "Stop the autonomous run before deleting its scenario.": "シナリオを削除する前に自律実行を停止してください。",
   "Stop the connector before deleting it": "削除する前にコネクターを停止してください",
+  "Stop the run before converting it to a manual chained scenario": "Stop the run before converting it to a manual chained scenario",
   "stopped": "阻止",
   "Stopped": "停止",
   "Storage": "Storage",
