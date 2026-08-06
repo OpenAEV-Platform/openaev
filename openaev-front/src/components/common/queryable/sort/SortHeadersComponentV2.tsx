@@ -26,6 +26,9 @@ const useStyles = makeStyles()(() => ({
     marginLeft: 4,
     opacity: 0.6,
   },
+  inactiveSortIcon: {
+    opacity: 0.3,
+  },
 }));
 
 interface Props {
@@ -69,7 +72,9 @@ const SortHeadersComponentV2: FunctionComponent<Props> = ({
               />
             </Tooltip>
           )}
-          {sortHelpers.getSortBy() === header.field ? sortComponent(sortHelpers.getSortAsc()) : ''}
+          {sortHelpers.getSortBy() === header.field
+            ? sortComponent(sortHelpers.getSortAsc())
+            : (<ArrowDropDownOutlined className={classes.inactiveSortIcon} />)}
         </div>
       );
     }
