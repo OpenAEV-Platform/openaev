@@ -294,6 +294,6 @@ This directory contains:
 
 ## What's next?
 
-- [Executors](../../../deployment/ecosystem/executors.md) -- Compare all available Executor types and their deployment options
+- [Executors](../../deployment/ecosystem/executors.md) -- Compare all available Executor types and their deployment options
 - [Injectors](injectors.md) -- Understand which Injectors require an Agent
 - [Assets](../build/assets.md) -- Manage the Endpoints where Agents are installed
