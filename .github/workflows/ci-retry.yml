@@ -5,7 +5,7 @@ name: "[Core] Auto-Retry Failed CI"
 
 on:
   workflow_run:
-    workflows: ["[Core] CI", "[Core] Nightly CI"]
+    workflows: ['\[Core\] CI', '\[Core\] Nightly CI']
     types: [completed]
 
 permissions:
