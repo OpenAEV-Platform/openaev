@@ -3,12 +3,15 @@ package io.openaev.service.platform.groups;
 import static io.openaev.database.specification.GroupSpecification.platformScope;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.UserService;
+import io.openaev.utils.CapabilityAssignmentUtils;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
@@ -30,6 +33,7 @@ public class PlatformGroupService {
   private final GroupRepository groupRepository;
   private final RoleRepository roleRepository;
   private final UserRepository userRepository;
+  private final UserService userService;
   private final ReferenceResolver referenceResolver;
 
   // -- CREATE --
@@ -113,6 +117,12 @@ public class PlatformGroupService {
   public List<String> updatePlatformGroupUsers(
       @NotBlank final String groupId, List<String> userIds) {
     Group group = findById(groupId);
+    Set<Capability> capabilitiesToAssign =
+        group.getRoles().stream()
+            .flatMap(role -> role.getCapabilities().stream())
+            .collect(java.util.stream.Collectors.toSet());
+    CapabilityAssignmentUtils.assertCanAssignCapabilities(
+        userService.currentUser(), capabilitiesToAssign);
     group.setUsers(
         new java.util.ArrayList<>(
             referenceResolver.resolve(userIds, User.class, userRepository::countByIdIn)));
@@ -123,6 +133,12 @@ public class PlatformGroupService {
   public Set<String> updatePlatformGroupRoles(
       @NotBlank final String groupId, List<String> roleIds) {
     Group group = findById(groupId);
+    Set<Capability> capabilitiesToAssign =
+        roleRepository.findAllById(roleIds).stream()
+            .flatMap(role -> role.getCapabilities().stream())
+            .collect(java.util.stream.Collectors.toSet());
+    CapabilityAssignmentUtils.assertCanAssignCapabilities(
+        userService.currentUser(), capabilitiesToAssign);
     group.setRoles(
         new java.util.ArrayList<>(
             referenceResolver.resolve(roleIds, Role.class, roleRepository::countByIdIn)));

@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.toList;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
@@ -17,12 +18,14 @@ import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.utils.CapabilityAssignmentUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,6 +40,7 @@ public class TenantGroupService {
   private final GroupRepository groupRepository;
   private final UserRepository userRepository;
   private final RoleService roleService;
+  private final UserService userService;
   private final GrantService grantService;
   @PersistenceContext private EntityManager entityManager;
 
@@ -127,6 +131,12 @@ public class TenantGroupService {
             .collect(toList());
 
     roles.forEach(role -> ReservedKeyValidator.validateRoleId(role.getId()));
+    Set<Capability> capabilitiesToAssign =
+        roles.stream()
+            .flatMap(role -> role.getCapabilities().stream())
+            .collect(java.util.stream.Collectors.toSet());
+    CapabilityAssignmentUtils.assertCanAssignCapabilities(
+        userService.currentUser(), capabilitiesToAssign);
     return this.updateGroupRoles(group, roles);
   }
 
@@ -161,6 +171,12 @@ public class TenantGroupService {
             .findByIdAndTenantId(groupId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
     ReservedKeyValidator.validateGroupId(group.getId());
+    Set<Capability> capabilitiesToAssign =
+        group.getRoles().stream()
+            .flatMap(role -> role.getCapabilities().stream())
+            .collect(java.util.stream.Collectors.toSet());
+    CapabilityAssignmentUtils.assertCanAssignCapabilities(
+        userService.currentUser(), capabilitiesToAssign);
     List<User> users = userRepository.findAllByIdInAndTenantId(input.getUserIds(), tenantId);
     users.forEach(user -> ReservedKeyValidator.validateUserEmailPattern(user.getEmail()));
     if (users.size() != input.getUserIds().size()) {

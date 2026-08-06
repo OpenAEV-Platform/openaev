@@ -12,6 +12,7 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.utils.CapabilityAssignmentUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -32,6 +33,7 @@ public class RoleService {
 
   private final RoleRepository roleRepository;
   private final GroupRepository groupRepository;
+  private final UserService userService;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -49,6 +51,7 @@ public class RoleService {
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities,
       String tenantId) {
+    CapabilityAssignmentUtils.assertCanAssignCapabilities(userService.currentUser(), capabilities);
     ReservedKeyValidator.validateRoleId(id);
     return createRoleInternal(id, roleName, roleDescription, capabilities, tenantId);
   }
@@ -115,7 +118,7 @@ public class RoleService {
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
-
+    CapabilityAssignmentUtils.assertCanAssignCapabilities(userService.currentUser(), capabilities);
     ReservedKeyValidator.validateRoleId(roleId);
     return updateRoleInternal(
         roleId, roleName, roleDescription, capabilities, TenantContext.getCurrentTenant());
