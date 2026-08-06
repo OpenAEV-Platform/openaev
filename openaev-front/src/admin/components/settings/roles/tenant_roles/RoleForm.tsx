@@ -39,7 +39,7 @@ const RoleForm: FC<RoleFormProps> = ({
   /* ---------- Zod schema ---------- */
   const schema = z.object({
     role_name: z.string().min(1, { message: t('Should not be empty') }).describe('Overview-tab'),
-    role_description: z.preprocess(v => (v === null ? undefined : v), z.string().optional()).describe('Overview-tab'),
+    role_description: z.string().optional().describe('Overview-tab'),
     role_capabilities: z.string().array().describe('Capabilities-tab'),
   });
 
