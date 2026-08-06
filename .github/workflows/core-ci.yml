@@ -1,7 +1,7 @@
 name: "[Core] CI"
 
 # Continuous Integration pipeline.
-# Snyk findings are reported but intentionally never block Core CI.
+# Container vulnerability findings are reported but intentionally never block Core CI.
 # ⚠️ Branch-protection status check: "pipeline / ✅ Pipeline Gate"
 
 on:
@@ -53,5 +53,5 @@ jobs:
           {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-arm64-infra-agent"},
           {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-arm64-infra-multitenant"}
         ]
-      snyk-fail-on-error: false
+      vulnerability-scan-fail-on-error: false
     secrets: inherit

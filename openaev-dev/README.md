@@ -31,10 +31,13 @@ The default values should work for local development.
 Container image tags are not part of `.env` — they live in `versions.env`, which is
 committed and shared with CI, and is the only place a tag is written.
 
-`.env.example` sets `COMPOSE_ENV_FILES=versions.env,.env`, which is what makes
-Compose read `versions.env`. It is required: `docker-compose.yml` declares no
-fallback tags, so an older `.env` missing that line makes Compose fail with
-`required variable ..._IMAGE is missing a value`.
+`docker-compose.yml` declares no fallback tags, so Compose must load
+`versions.env`. `podman compose` can delegate to either Docker Compose or
+`podman-compose`, whose `.env` bootstrap behavior differs. The commands below
+therefore pass both files explicitly; `.env` is second so local values win.
+
+`.env.example` also sets `COMPOSE_ENV_FILES=versions.env,.env` as a convenience
+for Compose providers that support loading this setting from `.env`.
 
 ### 2. Create the backend dev configuration
 
@@ -52,7 +55,7 @@ cp ../openaev-api/src/main/resources/application-dev.properties.example \
 Only **4 services** are required to run OpenAEV locally:
 
 ```bash
-podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
+podman compose --env-file versions.env --env-file .env up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
 ```
 
 | Service | Port | Why it's required |
@@ -67,7 +70,7 @@ podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsear
 #### Full start (all services)
 
 ```bash
-podman compose up -d
+podman compose --env-file versions.env --env-file .env up -d
 ```
 
 This starts everything, including optional services:

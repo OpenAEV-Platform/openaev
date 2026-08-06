@@ -17,8 +17,8 @@ on:
         description: "JSON array of E2E test matrix entries (includes both regular and infra)"
         type: string
         required: true
-      snyk-fail-on-error:
-        description: "Enforce Snyk findings/errors (true for Nightly; false keeps Core CI advisory)"
+      vulnerability-scan-fail-on-error:
+        description: "Enforce container vulnerability findings/errors (true for Nightly; false keeps Core CI advisory)"
         type: boolean
         required: false
         default: false
@@ -422,29 +422,29 @@ jobs:
           artifact-name: ${{ matrix.artifact-name }}
 
   # Reported through the Pipeline Gate, but only enforced there when
-  # snyk-fail-on-error is set — advisory in Core CI, blocking in Nightly.
+  # vulnerability-scan-fail-on-error is set — advisory in Core CI, blocking in Nightly.
   # Like docker-merge, it polls for the images rather than waiting on the whole
   # docker-build job, which it would otherwise trail by ~2.5 min.
-  snyk-docker:
-    name: "🔒 Snyk Container Scan"
+  container-vulnerability-scan:
+    name: "🔒 Container Vulnerability Scan"
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    continue-on-error: ${{ !inputs.snyk-fail-on-error }}
+    continue-on-error: ${{ !inputs.vulnerability-scan-fail-on-error }}
     timeout-minutes: 25
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/snyk-docker
+      - uses: ./.github/actions/container-vulnerability-scan
         with:
-          snyk-token: ${{ secrets.SNYK_TOKEN }}
-          fail-on-error: ${{ inputs.snyk-fail-on-error }}
+          fail-on-error: ${{ inputs.vulnerability-scan-fail-on-error }}
 
   # ════════════════════════════════════════════════════════════════════
   # Pipeline gate
   #
   # ⚠️  REQUIRED status check for branch protection.
-  #     Snyk is included but only enforced when snyk-fail-on-error is set, so a
+  #     The vulnerability scan is included but only enforced when
+  #     vulnerability-scan-fail-on-error is set, so a
   #     finding blocks Nightly and stays advisory in Core.
   #     Codecov is excluded: coverage upload is best-effort and must not
   #     hold the gate (and therefore the merge) behind a reporting step.
@@ -468,7 +468,7 @@ jobs:
       - backend-package-musl
       - docker-build
       - docker-merge
-      - snyk-docker
+      - container-vulnerability-scan
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -476,7 +476,7 @@ jobs:
       - name: Check all upstream job results
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
-          SNYK_ENFORCED: ${{ inputs.snyk-fail-on-error }}
+          SCAN_ENFORCED: ${{ inputs.vulnerability-scan-fail-on-error }}
         run: |
           FAILED=0
           ADVISORY=0
@@ -491,12 +491,12 @@ jobs:
             result=$(echo "$NEEDS_JSON" | jq -r --arg j "$job" '.[$j].result')
             TOTAL=$((TOTAL + 1))
 
-            # Snyk is reported but not enforced unless the caller asks for it, so a
-            # finding blocks Nightly and never blocks Core. Decided here rather than
-            # relying on job-level continue-on-error, whose mapping onto
-            # needs.<job>.result is not documented.
+            # The vulnerability scan is reported but not enforced unless the caller
+            # asks for it, so a finding blocks Nightly and never blocks Core. Decided
+            # here rather than relying on job-level continue-on-error, whose mapping
+            # onto needs.<job>.result is not documented.
             advisory=0
-            if [ "$job" = "snyk-docker" ] && [ "$SNYK_ENFORCED" != "true" ]; then
+            if [ "$job" = "container-vulnerability-scan" ] && [ "$SCAN_ENFORCED" != "true" ]; then
               advisory=1
             fi
 

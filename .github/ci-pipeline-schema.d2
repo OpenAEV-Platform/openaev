@@ -58,8 +58,8 @@ pipe: "⚙️  _ci-pipeline.yml\nshared reusable workflow  ·  secrets: inherit\
 style: {fill: "#CFD8DC"; stroke: "#37474F"; stroke-width: 4                                                                               ; border-radius: 8; font-size: 24; bold: true}
 }
 
-triggers.core -> pipe: "api-matrix · e2e-matrix\nsnyk-fail-on-error: false" {class: needs}
-triggers.nightly -> pipe: "larger matrices\nsnyk-fail-on-error: true" {class: needs}
+triggers.core -> pipe: "api-matrix · e2e-matrix\nvulnerability-scan-fail-on-error: false" {class: needs}
+triggers.nightly -> pipe: "larger matrices\nvulnerability-scan-fail-on-error: true" {class: needs}
 
 # ═══ 2. Everything that starts immediately ═══════════════════════════════════
 wave0: "② LAUNCHED IMMEDIATELY AT  t = 0   —   12 job definitions, not one `needs:` between them" {
@@ -88,7 +88,7 @@ docker: "DOCKER" {
 class: lane
 db: "🐳 Docker Build  ×4\nstd / ubi9  ×  amd64 / arm64\ntimeout 25 min · fail-fast: false\nbundled assets prepared inline" {class: docker}
 dm: "🐳 Merge Platforms  ×2\ntimeout 20 min · multi-arch OCI index" {class: docker}
-snyk: "🔒 Snyk Container Scan\ntimeout 25 min · threshold high\nCore ⚠️ advisory\nNightly ❌ blocking" {class: docker}
+scan: "🔒 Container Vulnerability Scan\ntimeout 25 min · threshold high\nCore ⚠️ advisory\nNightly ❌ blocking" {class: docker}
 }
 
 tests: "TESTS" {
@@ -138,7 +138,7 @@ gate -> retry: "on failure" {class: loop}
 wave0.build.bc -> wave0.tests.at: "POLLS artifact\napi-build-output\npoll cap 120 × 5s = 10 min" {class: poll}
 wave0.docker.db -> wave0.tests.e2e: "POLLS GHCR image\n(fallback: artifact)\npoll cap 180 × 5s = 15 min" {class: poll}
 wave0.docker.db -> wave0.docker.dm: "POLLS amd64 + arm64\npoll cap 15 min each" {class: poll}
-wave0.docker.db -> wave0.docker.snyk: "POLLS std + ubi9 amd64\npoll cap 15 min each" {class: poll}
+wave0.docker.db -> wave0.docker.scan: "POLLS std + ubi9 amd64\npoll cap 15 min each" {class: poll}
 gated.bp -> wave0.tests.atc: "POLLS artifact openaev-api-jar · poll cap 180 × 5s = 15 min" {class: poll}
 
 # ═══ Legend ══════════════════════════════════════════════════════════════════
@@ -203,8 +203,8 @@ row4 -> row5: {style.opacity: 0}
 row5 -> row6: {style.opacity: 0}
 }
 
-matrix: "CORE vs NIGHTLY — THE ONLY THREE DIFFERENCES\n\nAPI TESTS\nCore: 8 cells — 7 balanced shards + a 'remaining' catch-all, Elasticsearch\nNightly: the same 8 run twice, on Elasticsearch AND OpenSearch\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 10 cells, standard image only, chrome/amd64 + chromium/arm64\nsharded arsenals / multitenant / remaining, plus 4 infra cells\nNightly: 25 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 7 infra cells\n\nSNYK\nCore: reports findings, never blocks the Gate\nNightly: fails the Gate on high/critical findings and scanner errors" {
-style: {fill: "#FFFFFF"; stroke: "#607D8B"; stroke-width: 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ; font-size: 20}
+matrix: "CORE vs NIGHTLY — THE ONLY THREE DIFFERENCES\n\nAPI TESTS\nCore: 8 cells — 7 balanced shards + a 'remaining' catch-all, Elasticsearch\nNightly: the same 8 run twice, on Elasticsearch AND OpenSearch\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 10 cells, standard image only, chrome/amd64 + chromium/arm64\nsharded arsenals / multitenant / remaining, plus 4 infra cells\nNightly: 25 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 7 infra cells\n\nCONTAINER VULNERABILITY SCAN\nCore: reports findings, never blocks the Gate\nNightly: fails the Gate on high/critical findings and scanner errors" {
+style: {fill: "#FFFFFF"; stroke: "#607D8B"; stroke-width: 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ; font-size: 20}
 }
 
 # Invisible anchors: keep the prose blocks inside the layout flow instead of

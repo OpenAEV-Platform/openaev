@@ -14,7 +14,7 @@ on:
 
 permissions:
   actions: read # to download artifacts
-  issues: write # to update the PR comment
+  pull-requests: write # to update the PR comment
 
 jobs:
   notify:
