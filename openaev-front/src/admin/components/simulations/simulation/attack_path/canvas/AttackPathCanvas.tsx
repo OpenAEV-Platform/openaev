@@ -507,7 +507,9 @@ const AttackPathCanvas = ({
     if (e.button !== 0) {
       return;
     }
+    e.preventDefault();
     e.stopPropagation();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
     const current = dragOffsets.get(nodeId);
     nodeDrag.current = {
       id: nodeId,
@@ -531,7 +533,6 @@ const AttackPathCanvas = ({
       state.moved = true;
       stopAnim();
       markManual();
-      e.currentTarget.setPointerCapture(state.pointerId);
     }
     if (state.moved) {
       const worldDx = state.baseDx + dx / camera.zoom;
@@ -556,7 +557,18 @@ const AttackPathCanvas = ({
     if (state.moved) {
       e.currentTarget.releasePointerCapture?.(state.pointerId);
       justDraggedIds.current.add(state.id);
+    } else {
+      e.currentTarget.releasePointerCapture?.(state.pointerId);
     }
+  }, []);
+
+  const handleCardPointerCancel = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const state = nodeDrag.current;
+    nodeDrag.current = null;
+    if (!state) {
+      return;
+    }
+    e.currentTarget.releasePointerCapture?.(state.pointerId);
   }, []);
 
   const dispatchNodeClick = useCallback((node: AttackPathFlowNode) => {
@@ -684,6 +696,7 @@ const AttackPathCanvas = ({
               onPointerDown={e => handleCardPointerDown(e, node.id)}
               onPointerMove={handleCardPointerMove}
               onPointerUp={handleCardPointerUp}
+              onPointerCancel={handleCardPointerCancel}
               onClick={(e) => {
                 e.stopPropagation();
                 if (justDraggedIds.current.has(node.id)) {
