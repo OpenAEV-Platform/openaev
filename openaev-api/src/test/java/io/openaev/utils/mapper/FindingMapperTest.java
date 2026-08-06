@@ -1,180 +1,128 @@
 package io.openaev.utils.mapper;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static io.openaev.utils.fixtures.FindingFixture.createDefaultTextFindingWithRandomValue;
+import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Finding;
-import io.openaev.database.model.FindingTriageStatus;
 import io.openaev.database.model.Inject;
-import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.model.Injector;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
+import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.composers.FindingComposer;
+import io.openaev.utils.fixtures.composers.InjectComposer;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Unit tests for {@link FindingMapper}, focused on the {@code finding_triage_status} field
- * introduced on {@link AggregatedFindingOutput}/{@link RelatedFindingOutput}. The mapper itself
- * has no dependency on {@code FindingTriageRepository} (bulk fetch is the caller's
- * responsibility), so these tests only assert the merge logic against a pre-built map.
- */
-@ExtendWith(MockitoExtension.class)
-@DisplayName("FindingMapper")
-class FindingMapperTest {
+@Transactional
+@DisplayName("FindingMapper — finding_source")
+class FindingMapperTest extends IntegrationTest {
 
-  @Mock private FindingRepository findingRepository;
-  @Mock private EndpointMapper endpointMapper;
-  @Mock private AssetGroupMapper assetGroupMapper;
-  @Mock private ExerciseMapper exerciseMapper;
-  @Mock private ScenarioMapper scenarioMapper;
-  @Mock private InjectMapper injectMapper;
-
-  private FindingMapper findingMapper;
+  @Autowired private FindingMapper findingMapper;
+  @Autowired private FindingComposer findingComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private InjectorRepository injectorRepository;
 
   @BeforeEach
   void setUp() {
-    findingMapper =
-        new FindingMapper(
-            findingRepository,
-            endpointMapper,
-            assetGroupMapper,
-            exerciseMapper,
-            scenarioMapper,
-            injectMapper);
-  }
-
-  private Finding buildFinding(String id) {
-    Finding finding = new Finding();
-    finding.setId(id);
-    finding.setInject(new Inject());
-    return finding;
+    findingComposer.reset();
+    injectComposer.reset();
   }
 
   @Nested
-  @DisplayName("toAggregatedFindingOutput")
-  class ToAggregatedFindingOutputTests {
+  @DisplayName("when the inject has a real injector")
+  class WithInjector {
 
     @Test
-    @DisplayName("should default to UNTRIAGED when triage map has no entry for the finding")
-    void shouldDefaultToUntriagedWhenMapEmpty() {
+    @DisplayName(
+        "should populate finding_source with the injector id/name/type in AggregatedFindingOutput")
+    void given_findingWithInjector_should_populateSourceInAggregatedOutput() {
       // Arrange
-      Finding finding = buildFinding("finding-1");
-
-      // Act
-      AggregatedFindingOutput output =
-          findingMapper.toAggregatedFindingOutput(finding, List.of(), Map.of());
-
-      // Assert
-      assertEquals(FindingTriageStatus.UNTRIAGED, output.getFindingTriageStatus());
-    }
-
-    @Test
-    @DisplayName("should return the status found in the triage map for the finding id")
-    void shouldReturnStatusFromMap() {
-      // Arrange
-      Finding finding = buildFinding("finding-2");
-      Map<String, FindingTriageStatus> triageStatusByFindingId =
-          Map.of("finding-2", FindingTriageStatus.CONFIRMED);
-
-      // Act
-      AggregatedFindingOutput output =
-          findingMapper.toAggregatedFindingOutput(finding, List.of(), triageStatusByFindingId);
-
-      // Assert
-      assertEquals(FindingTriageStatus.CONFIRMED, output.getFindingTriageStatus());
-    }
-
-    @Test
-    @DisplayName("legacy single-finding overload should default to UNTRIAGED")
-    void legacyOverloadShouldDefaultToUntriaged() {
-      // Arrange
-      Finding finding = buildFinding("finding-3");
+      Injector injector = injectorRepository.save(InjectorFixture.createDefaultInjector("Nuclei"));
+      Inject inject = getDefaultInject();
+      inject.setInjector(injector);
+      injectComposer.forInject(inject).persist();
+      Finding finding = createDefaultTextFindingWithRandomValue();
+      finding.setInject(inject);
+      findingComposer.forFinding(finding).persist();
 
       // Act
       AggregatedFindingOutput output = findingMapper.toAggregatedFindingOutput(finding, List.of());
 
       // Assert
-      assertEquals(FindingTriageStatus.UNTRIAGED, output.getFindingTriageStatus());
+      assertEquals(injector.getId(), output.getSource().getId());
+      assertEquals(injector.getName(), output.getSource().getName());
+      assertEquals(injector.getType(), output.getSource().getType());
     }
 
     @Test
-    @DisplayName("should never call FindingRepository (mapper stays pure, no N+1 risk)")
-    void shouldNeverTouchFindingRepository() {
+    @DisplayName(
+        "should populate finding_source with the injector id/name/type in RelatedFindingOutput")
+    void given_findingWithInjector_should_populateSourceInRelatedOutput() {
       // Arrange
-      Finding finding = buildFinding("finding-4");
-
-      // Act
-      findingMapper.toAggregatedFindingOutput(finding, List.of(), Map.of());
-
-      // Assert
-      verifyNoInteractions(findingRepository);
-    }
-  }
-
-  @Nested
-  @DisplayName("toRelatedFindingOutput")
-  class ToRelatedFindingOutputTests {
-
-    @Test
-    @DisplayName("should default to UNTRIAGED when triage map has no entry for the finding")
-    void shouldDefaultToUntriagedWhenMapEmpty() {
-      // Arrange
-      Finding finding = buildFinding("finding-5");
-
-      // Act
-      RelatedFindingOutput output = findingMapper.toRelatedFindingOutput(finding, Map.of());
-
-      // Assert
-      assertEquals(FindingTriageStatus.UNTRIAGED, output.getFindingTriageStatus());
-    }
-
-    @Test
-    @DisplayName("should return the status found in the triage map for the finding id")
-    void shouldReturnStatusFromMap() {
-      // Arrange
-      Finding finding = buildFinding("finding-6");
-      Map<String, FindingTriageStatus> triageStatusByFindingId =
-          Map.of("finding-6", FindingTriageStatus.FALSE_POSITIVE);
-
-      // Act
-      RelatedFindingOutput output =
-          findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId);
-
-      // Assert
-      assertEquals(FindingTriageStatus.FALSE_POSITIVE, output.getFindingTriageStatus());
-    }
-
-    @Test
-    @DisplayName("legacy single-finding overload should default to UNTRIAGED")
-    void legacyOverloadShouldDefaultToUntriaged() {
-      // Arrange
-      Finding finding = buildFinding("finding-7");
+      Injector injector = injectorRepository.save(InjectorFixture.createDefaultInjector("NetExec"));
+      Inject inject = getDefaultInject();
+      inject.setInjector(injector);
+      injectComposer.forInject(inject).persist();
+      Finding finding = createDefaultTextFindingWithRandomValue();
+      finding.setInject(inject);
+      findingComposer.forFinding(finding).persist();
 
       // Act
       RelatedFindingOutput output = findingMapper.toRelatedFindingOutput(finding);
 
       // Assert
-      assertEquals(FindingTriageStatus.UNTRIAGED, output.getFindingTriageStatus());
+      assertEquals(injector.getId(), output.getSource().getId());
+      assertEquals(injector.getName(), output.getSource().getName());
+      assertEquals(injector.getType(), output.getSource().getType());
+    }
+  }
+
+  @Nested
+  @DisplayName("when the inject has no injector (manual finding)")
+  class WithoutInjector {
+
+    @Test
+    @DisplayName("should leave finding_source null in AggregatedFindingOutput, no NPE")
+    void given_findingWithoutInjector_should_leaveSourceNullInAggregatedOutput() {
+      // Arrange
+      Inject inject = getDefaultInject();
+      injectComposer.forInject(inject).persist();
+      Finding finding = createDefaultTextFindingWithRandomValue();
+      finding.setInject(inject);
+      findingComposer.forFinding(finding).persist();
+
+      // Act
+      AggregatedFindingOutput output = findingMapper.toAggregatedFindingOutput(finding, List.of());
+
+      // Assert
+      assertNull(output.getSource());
     }
 
     @Test
-    @DisplayName("should never call FindingRepository (mapper stays pure, no N+1 risk)")
-    void shouldNeverTouchFindingRepository() {
+    @DisplayName("should leave finding_source null in RelatedFindingOutput, no NPE")
+    void given_findingWithoutInjector_should_leaveSourceNullInRelatedOutput() {
       // Arrange
-      Finding finding = buildFinding("finding-8");
+      Inject inject = getDefaultInject();
+      injectComposer.forInject(inject).persist();
+      Finding finding = createDefaultTextFindingWithRandomValue();
+      finding.setInject(inject);
+      findingComposer.forFinding(finding).persist();
 
       // Act
-      findingMapper.toRelatedFindingOutput(finding, Map.of());
+      RelatedFindingOutput output = findingMapper.toRelatedFindingOutput(finding);
 
       // Assert
-      verifyNoInteractions(findingRepository);
+      assertNull(output.getSource());
     }
   }
 }

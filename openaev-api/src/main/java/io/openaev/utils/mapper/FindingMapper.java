@@ -23,6 +23,7 @@ public class FindingMapper {
   private final ExerciseMapper exerciseMapper;
   private final ScenarioMapper scenarioMapper;
   private final InjectMapper injectMapper;
+  private final InjectorMapper injectorMapper;
 
   /**
    * Convenience single-finding overload (no bulk triage map available) - defaults {@code
@@ -52,6 +53,11 @@ public class FindingMapper {
             relatedAssets.stream()
                 .map(endpointMapper::toEndpointSimple)
                 .collect(Collectors.toSet()))
+        .source(
+            Optional.ofNullable(finding.getInject())
+                .map(Inject::getInjector)
+                .map(injectorMapper::toInjectorSimple)
+                .orElse(null))
         .findingTriageStatus(
             triageStatusByFindingId.getOrDefault(
                 finding.getId(), FindingTriageStatus.UNTRIAGED))
@@ -90,6 +96,11 @@ public class FindingMapper {
             Optional.ofNullable(finding.getInject().getExercise())
                 .map(Exercise::getScenario)
                 .map(scenario -> scenarioMapper.toScenarioSimple(scenario))
+                .orElse(null))
+        .source(
+            Optional.ofNullable(finding.getInject())
+                .map(Inject::getInjector)
+                .map(injectorMapper::toInjectorSimple)
                 .orElse(null))
         .creationDate(finding.getCreationDate())
         .findingTriageStatus(

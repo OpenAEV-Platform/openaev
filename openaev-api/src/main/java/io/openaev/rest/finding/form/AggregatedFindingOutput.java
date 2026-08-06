@@ -8,6 +8,7 @@ import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.FindingTriageStatus;
 import io.openaev.rest.asset.endpoint.form.EndpointSimple;
 import io.openaev.rest.asset_group.form.AssetGroupSimple;
+import io.openaev.rest.injector.output.InjectorSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -64,4 +65,11 @@ public class AggregatedFindingOutput {
   @JsonProperty("finding_triage_status")
   @NotNull
   private FindingTriageStatus findingTriageStatus;
+
+  @Schema(
+      description =
+          "Injector that produced this finding (null if the finding was created manually, e.g."
+              + " via the API, without a real inject/injector behind it)")
+  @JsonProperty("finding_source")
+  private InjectorSimple source;
 }

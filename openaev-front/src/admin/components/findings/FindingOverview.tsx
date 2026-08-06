@@ -234,6 +234,7 @@ const FindingOverview = () => {
           </Box>
         </Field>
         <Field label={t('Field')}>{emptyFilled(finding.finding_field)}</Field>
+        <Field label={t('Source')}>{finding.finding_source?.injector_name ?? t('Manual')}</Field>
         <Field label={t('First seen')}>{fldt(finding.finding_created_at)}</Field>
         <Field label={t('Last seen')}>{fldt(finding.finding_updated_at)}</Field>
         <Field label={t('Tags')}>

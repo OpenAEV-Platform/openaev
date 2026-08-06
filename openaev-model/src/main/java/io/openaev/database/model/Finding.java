@@ -200,4 +200,17 @@ public class Finding implements TenantBase {
     }
     return getInject().getAssetGroups().stream().collect(Collectors.toSet());
   }
+
+  // The inject's injector can be null: either the inject has no injector resolved yet, or the
+  // connector that produced it was uninstalled (Inject#injector degrades to null via @NotFound
+  // instead of throwing, see Inject.java). Findings created manually via the API without a real
+  // inject/injector must simply show no source, not fail.
+  @JsonProperty("finding_source")
+  @Queryable(filterable = true, dynamicValues = true, path = "inject.injector.id")
+  public Injector getSource() {
+    if (getInject() == null) {
+      return null;
+    }
+    return getInject().getInjector();
+  }
 }
