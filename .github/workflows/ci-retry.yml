@@ -5,6 +5,8 @@ name: "[Core] Auto-Retry Failed CI"
 
 on:
   workflow_run:
+    # Workflow names are glob patterns, so literal brackets must be escaped.
+    # https://github.com/github/docs/issues/12572#issuecomment-1014035978
     workflows: ['\[Core\] CI', '\[Core\] Nightly CI']
     types: [completed]
 
