@@ -9091,6 +9091,8 @@ export interface PlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
+  /** Current platform run mode (normal or safe) */
+  platform_run_mode?: "normal" | "safe";
   /**
    * Idle timeout in milliseconds before the UI locks the screen (0 = disabled). Read-only, driven by server configuration
    * @format int64
@@ -9322,6 +9324,8 @@ export interface PublicPlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
+  /** Current platform run mode (normal or safe) */
+  platform_run_mode?: "normal" | "safe";
   /**
    * Theme of the platform
    * @minLength 1
