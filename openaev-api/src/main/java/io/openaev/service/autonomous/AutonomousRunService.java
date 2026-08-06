@@ -16,6 +16,7 @@ import io.openaev.api.autonomous.dto.AutonomousScopeView;
 import io.openaev.api.autonomous.dto.AutonomousStepTrigger;
 import io.openaev.api.autonomous.dto.AutonomousTargetTeamResult;
 import io.openaev.api.autonomous.dto.AutonomousTriggerFilter;
+import io.openaev.api.autonomous.dto.ConvertToManualMode;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
@@ -30,6 +31,7 @@ import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.MappingType;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
@@ -125,6 +127,21 @@ public class AutonomousRunService {
    * ORCHESTRATOR_AGENT_ID} in the frontend's autonomous-types.
    */
   private static final String ORCHESTRATOR_AGENT_ID = "__orchestrator__";
+
+  /**
+   * {@code data} payload stamped on a STATUS event that marks the orchestrator as freshly ENGAGED
+   * and actively working (start / restart-then-start / resume), as opposed to an end-of-cycle park.
+   *
+   * <p>The reasoning panel treats the newest STATUS event as a calm "Awaiting the next event" park
+   * - correct for a genuine end-of-cycle wait (phishing lure in flight, waiting on a finding), but
+   * wrong right after engagement, where the orchestrator can churn for minutes (building arsenal,
+   * resolving contracts) before it emits its first DECISION. Without a discriminator the cockpit
+   * looked frozen on "Awaiting the next event" for that whole window even though a burst of work
+   * had already begun. This marker lets the panel render an active "Getting to work" caption for
+   * the engagement window and fall back to the parked caption for a real park. i18n-safe (a
+   * structured flag, never matched on the human title).
+   */
+  private static final String ENGAGED_EVENT_DATA = "{\"phase\":\"engaged\"}";
 
   /**
    * Default OpenAEV-enforced run timeout when the launcher does not specify one: 24 hours.
@@ -371,7 +388,7 @@ public class AutonomousRunService {
         planMode
             ? "Orchestrator engaged in dry-run: designing the attack path, nothing is executed."
             : "Orchestrator engaged; autonomous execution is now running.",
-        null);
+        ENGAGED_EVENT_DATA);
     engageOrchestratorAfterCommit(saved);
     return saved;
   }
@@ -558,7 +575,12 @@ public class AutonomousRunService {
     stampDeadline(run);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
-        runId, run.getSimulationId(), AutonomousEventType.STATUS, "Run resumed", null, null);
+        runId,
+        run.getSimulationId(),
+        AutonomousEventType.STATUS,
+        "Run resumed",
+        null,
+        ENGAGED_EVENT_DATA);
     engageOrchestratorAfterCommit(saved);
     return saved;
   }
@@ -799,15 +821,14 @@ public class AutonomousRunService {
     }
     // Fresh simulation from the SAME scenario - no new scenario is ever provisioned on restart.
     Scenario scenario = scenarioService.scenario(run.getScenarioId());
-    // Clear the previous run's mirrored scenario steps first: the scenario workflow doubles as the
-    // seed the fresh simulation is copied from, so leaving them would make the restarted simulation
-    // start non-empty and duplicate the attack path. Only the AI-mirrored steps are removed
-    // (tracked
-    // in stepMirror), so any caller-authored steps of an advanced scenario are preserved.
-    if (run.getStepMirror() != null && !run.getStepMirror().isEmpty()) {
-      workflowService.deleteScenarioMirrorSteps(run.getStepMirror().values());
-      run.setStepMirror(new HashMap<>());
-    }
+    // Clear EVERY step on the scenario workflow (the seed the fresh simulation is copied from), not
+    // just the ones tracked in the run's best-effort stepMirror. An un-mirrored step (a swallowed
+    // mirror failure or a lost update on the run row) would otherwise survive and re-seed the
+    // restarted simulation, leaving the Logic tab and attack-path map populated after a reset the
+    // operator expected to wipe. The autonomous scenario is AI-owned and launches empty, so a full
+    // clear is safe and is exactly the "fully recreate on launch" behaviour operators expect.
+    workflowService.deleteAllScenarioSteps(run.getScenarioId());
+    run.setStepMirror(new HashMap<>());
     // Re-assert keep-alive on the scenario workflow before relaunching, so the restarted simulation
     // parks empty and awaits the orchestrator exactly like the first launch.
     markWorkflowKeepAlive(run.getScenarioId());
@@ -883,12 +904,13 @@ public class AutonomousRunService {
       exerciseService.deleteById(run.getSimulationId());
     }
     Scenario scenario = scenarioService.scenario(run.getScenarioId());
-    // Drop the mirrored plan steps so the promoted simulation starts with an empty attack path and
-    // the orchestrator rebuilds it live (guided by planGuidance) rather than replaying the plan.
-    if (run.getStepMirror() != null && !run.getStepMirror().isEmpty()) {
-      workflowService.deleteScenarioMirrorSteps(run.getStepMirror().values());
-      run.setStepMirror(new HashMap<>());
-    }
+    // Clear EVERY step on the scenario workflow so the promoted (fresh) simulation starts with an
+    // empty attack path and the orchestrator rebuilds it live (guided by planGuidance) rather than
+    // replaying - or duplicating - the plan. A full clear rather than the best-effort stepMirror,
+    // so
+    // an un-mirrored plan step can't survive and re-seed the live simulation.
+    workflowService.deleteAllScenarioSteps(run.getScenarioId());
+    run.setStepMirror(new HashMap<>());
     markWorkflowKeepAlive(run.getScenarioId());
     Exercise simulation =
         scenarioToExerciseService.toExercise(
@@ -917,6 +939,87 @@ public class AutonomousRunService {
             + " findings.",
         null);
     return saved;
+  }
+
+  /**
+   * Converts an autonomous (AI-driven) scenario into a plain MANUAL chained scenario the operator
+   * can edit by hand, in one of two modes.
+   *
+   * <p>{@code DUPLICATE} (safe, non-destructive): copies the scenario's metadata + chaining
+   * workflow (steps + configuration, keep-alive forced off) into a brand-new manual chained
+   * scenario and returns it. The original autonomous run - its scenario, simulation, timeline and
+   * XTM One orchestration - is left completely untouched, so the operator gets an editable copy
+   * without giving up the live cockpit.
+   *
+   * <p>{@code IN_PLACE} (irreversible): turns THIS scenario manual. The XTM One orchestration is
+   * force-halted and purged, the {@code autonomous_runs} row and its decision timeline / directives
+   * are deleted, the scenario's {@code autonomous} flag is cleared and its workflow's keep-alive is
+   * turned off. The scenario keeps its authored attack-path steps (now an editable manual logic
+   * map) and its underlying simulation is preserved. Because every autonomous lock keys off the
+   * presence of the run row, dropping it is exactly what turns that simulation back into a normal
+   * chained simulation the operator can edit and delete. There is no way back to autonomous mode.
+   *
+   * <p>Works whether the run is a dry-run plan or has already executed / is live: force-halting the
+   * orchestration (as the bulk scenario-delete path does) is what makes it safe to convert at any
+   * point, so the operator never has to Stop the run first.
+   *
+   * @param runId the autonomous run to convert
+   * @param mode IN_PLACE (irreversible flip of this scenario) or DUPLICATE (new manual copy)
+   * @return the resulting manual chained scenario (this scenario for IN_PLACE, the new copy for
+   *     DUPLICATE)
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Scenario convertToManual(String runId, ConvertToManualMode mode) {
+    requireFeature();
+    AutonomousRun run = require(runId);
+    String scenarioId = run.getScenarioId();
+    if (!hasText(scenarioId)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "This autonomous run has no scenario to convert");
+    }
+    if (mode == ConvertToManualMode.DUPLICATE) {
+      // Non-destructive: clone the scenario into a fresh manual chained scenario and leave the AI
+      // run fully intact. getDuplicateScenario returns a persisted scenario whose autonomous flag
+      // defaults to false; we then copy the attack-path workflow (steps + config) with keep-alive
+      // forced off so the copy runs-and-ends like a hand-built chained scenario.
+      Scenario duplicate = scenarioService.getDuplicateScenario(scenarioId);
+      try {
+        workflowService.copyScenarioChainingWorkflowAsManual(scenarioId, duplicate);
+      } catch (ChainingException e) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Failed to copy the attack-path logic into the new scenario: " + e.getMessage(),
+            e);
+      }
+      return duplicate;
+    }
+    // IN_PLACE (irreversible). Halt + purge the orchestration first so no lingering decision cycle
+    // keeps authoring against a scenario that is about to be manual.
+    cancelOrchestratorAfterCommit(runId, "converted to a manual chained scenario", true);
+    // Converting a still-active run leaves its simulation parked in a keep-alive RUNNING state
+    // with no orchestrator left to ever feed or end it - settle it exactly like a cancel would.
+    // Settled runs (planned / completed / failed / canceled) already left the simulation in a
+    // scheduled or terminal state, so there is nothing to transition.
+    switch (run.getStatus()) {
+      case CREATED, PLANNING, RUNNING, PAUSED, WAITING_INPUT ->
+          transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
+      default -> {
+        // Already settled - leave the simulation state untouched.
+      }
+    }
+    Scenario scenario = scenarioService.scenario(scenarioId);
+    scenario.setAutonomous(false);
+    scenarioService.updateScenario(scenario);
+    // A manual chained scenario runs-and-ends: drop the "park forever awaiting the orchestrator"
+    // contract, or a launched run would hang open indefinitely with no orchestrator to feed it.
+    workflowService.clearScenarioWorkflowKeepAlive(scenarioId);
+    // Drop the AI run + its decision history. The simulation is intentionally KEPT (it becomes a
+    // normal chained simulation) - removing the run row is precisely what unlocks it for edit and
+    // delete on both the API and the UI.
+    directiveRepository.deleteByRunId(runId);
+    eventService.deleteByRun(runId);
+    runRepository.delete(run);
+    return scenario;
   }
 
   /**
@@ -1529,8 +1632,17 @@ public class AutonomousRunService {
     if (!leaves.isEmpty()) {
       ConditionType rootType =
           "OR".equalsIgnoreCase(trigger.getMatch()) ? ConditionType.OR : ConditionType.AND;
+      // Name the root condition: it is the EVENT node in the Logic graph, and an unnamed root shows
+      // as "Untitled event", which makes the authored logic unreadable. Prefer the orchestrator's
+      // explicit event_name; otherwise derive a readable one from the filters/mappings so an event
+      // is NEVER untitled even when the orchestrator forgets to name it.
+      String eventName = deriveEventName(trigger, filters, mappings);
       conditions.add(
-          ConditionCreateInput.builder().temporaryId(TRIGGER_ROOT_TMP_ID).type(rootType).build());
+          ConditionCreateInput.builder()
+              .temporaryId(TRIGGER_ROOT_TMP_ID)
+              .type(rootType)
+              .name(eventName)
+              .build());
       conditions.addAll(leaves);
     }
 
@@ -1550,6 +1662,77 @@ public class AutonomousRunService {
               .build());
     }
     return conditions;
+  }
+
+  /** Friendly nouns for the finding primitives a trigger commonly fires on, for event naming. */
+  private static final Map<PrimitiveType, String> EVENT_NAME_NOUNS =
+      Map.ofEntries(
+          Map.entry(PrimitiveType.Port, "Open port"),
+          Map.entry(PrimitiveType.Host, "Host"),
+          Map.entry(PrimitiveType.IPv4, "IP address"),
+          Map.entry(PrimitiveType.IPv6, "IPv6 address"),
+          Map.entry(PrimitiveType.CVE, "CVE"),
+          Map.entry(PrimitiveType.Username, "Username"),
+          Map.entry(PrimitiveType.AdminUsername, "Admin account"),
+          Map.entry(PrimitiveType.Password, "Credentials"),
+          Map.entry(PrimitiveType.Hash, "Credential hash"),
+          Map.entry(PrimitiveType.ShareName, "SMB share"),
+          Map.entry(PrimitiveType.Service, "Service"),
+          Map.entry(PrimitiveType.Severity, "Finding"),
+          Map.entry(PrimitiveType.ComputerName, "Computer"),
+          Map.entry(PrimitiveType.KerberoastableAccount, "Kerberoastable account"),
+          Map.entry(PrimitiveType.AsreproastableAccount, "AS-REP roastable account"),
+          Map.entry(PrimitiveType.FileName, "File"),
+          Map.entry(PrimitiveType.FilePath, "File"),
+          Map.entry(PrimitiveType.Domain, "Domain"),
+          Map.entry(PrimitiveType.Email, "Email"));
+
+  /**
+   * Resolves the display name of the EVENT node a trigger becomes in the Logic graph. Prefers the
+   * orchestrator's explicit {@code event_name}; otherwise derives a short, readable phrase from the
+   * primitives the trigger fires on (its filters, or its mappings when it has none) so a
+   * finding-driven step is never surfaced as "Untitled event". Falls back to a generic label when
+   * nothing usable is present.
+   */
+  private String deriveEventName(
+      AutonomousStepTrigger trigger,
+      List<AutonomousTriggerFilter> filters,
+      List<AutonomousInputMapping> mappings) {
+    if (trigger != null && hasText(trigger.getEventName())) {
+      return trigger.getEventName().trim();
+    }
+    List<PrimitiveType> keyTypes =
+        filters.stream()
+            .filter(f -> f != null && f.getKeyType() != null)
+            .map(AutonomousTriggerFilter::getKeyType)
+            .distinct()
+            .toList();
+    if (keyTypes.isEmpty()) {
+      keyTypes =
+          mappings.stream()
+              .filter(m -> m != null && m.getKeyType() != null)
+              .map(AutonomousInputMapping::getKeyType)
+              .distinct()
+              .toList();
+    }
+    List<String> nouns = keyTypes.stream().limit(2).map(this::eventNounFor).distinct().toList();
+    if (nouns.isEmpty()) {
+      return "Finding available";
+    }
+    return String.join(" + ", nouns) + " found";
+  }
+
+  /** Friendly noun for a finding primitive (falls back to a de-underscored label). */
+  private String eventNounFor(PrimitiveType keyType) {
+    String noun = EVENT_NAME_NOUNS.get(keyType);
+    if (noun != null) {
+      return noun;
+    }
+    String label = keyType.label.replace('_', ' ').trim();
+    if (label.isEmpty()) {
+      return "Finding";
+    }
+    return Character.toUpperCase(label.charAt(0)) + label.substring(1);
   }
 
   /**

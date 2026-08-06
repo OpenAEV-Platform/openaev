@@ -1,5 +1,5 @@
 import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import type { WorkflowConfigurationInput } from '../../utils/api-types';
+import type { Scenario, WorkflowConfigurationInput } from '../../utils/api-types';
 import type {
   AdditionalAgent,
   AutonomousAttackPathStepState,
@@ -102,6 +102,16 @@ export const restartAutonomousRun = (runId: string): Promise<{ data: AutonomousR
 // CREATED. Pair with startAutonomousRun to engage the orchestrator on the live run.
 export const promoteAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
   simplePostCall(`${AUTONOMOUS_URI}/${runId}/promote`);
+
+// Turn an autonomous scenario into a manual chained scenario. DUPLICATE clones it into a brand-new
+// manual scenario and leaves the AI run untouched; IN_PLACE flips this scenario to manual for good
+// (halts the run, drops the autonomous_runs row + timeline, unlocks the simulation for edit/delete)
+// and is irreversible. Returns the resulting manual chained scenario to navigate to.
+export const convertAutonomousRunToManual = (
+  runId: string,
+  mode: 'DUPLICATE' | 'IN_PLACE',
+): Promise<{ data: Scenario }> =>
+  simplePostCall(`${AUTONOMOUS_URI}/${runId}/convert-to-manual`, { mode });
 
 // -- live view: decision timeline + steering --
 

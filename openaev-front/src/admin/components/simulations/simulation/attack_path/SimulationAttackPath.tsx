@@ -1,5 +1,5 @@
 import { AccountTreeOutlined, BugReportOutlined, GroupOutlined, InsertDriveFileOutlined, LabelOutlined, PlayArrowOutlined, TrackChangesOutlined, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, GlobalStyles, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, GlobalStyles, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FolderNetworkOutline } from 'mdi-material-ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -7,6 +7,7 @@ import { useNavigate, useParams } from 'react-router';
 
 import { fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
 import { createRunningExerciseFromScenario } from '../../../../../actions/scenarios/scenario-actions';
+import EmptyPlaceholder from '../../../../../components/common/EmptyPlaceholder';
 import { criticalityColor } from '../../../../../components/criticalityColor';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
@@ -2561,6 +2562,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     }
     return t('No attack-path data for this simulation.');
   })();
+  // A short title above the detailed message, so the empty-state matches the platform's zero-state
+  // language (title + explanation) rather than a lone sentence.
+  const emptyStateTitle = runInProgress ? t('Simulation running') : t('No attack path to display');
   const [launching, setLaunching] = useState(false);
   // Empty-state CTA (scenario context): instantiate + start a fresh simulation from this scenario and
   // jump to it — same flow as the scenario header's "Launch now".
@@ -2729,44 +2733,31 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               </Alert>
             )}
             {!loading && !chainLoading && !forbidden && !error && !graphHasContent && (
+              // Inset the placeholder inside the (relative) graph Paper so its dashed frame sits
+              // within the Paper's own outline instead of doubling up against it.
               <Box sx={{
-                // Fill the (relative) graph Paper and centre both ways so the empty-state is the focal point.
                 position: 'absolute',
                 inset: 0,
-                p: 4,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: theme.spacing(2),
-                textAlign: 'center',
-                color: 'text.secondary',
+                p: 1.5,
               }}
               >
-                <AccountTreeOutlined sx={{
-                  fontSize: 88,
-                  opacity: 0.4,
-                }}
+                <EmptyPlaceholder
+                  icon={<AccountTreeOutlined />}
+                  title={emptyStateTitle}
+                  message={emptyStateMessage}
+                  action={scenarioHasNoSims && scenarioId && !hideLaunchCta
+                    ? (
+                        <Button
+                          variant="contained"
+                          startIcon={<PlayArrowOutlined />}
+                          onClick={handleLaunchFromScenario}
+                          disabled={launching}
+                        >
+                          {t('Launch a simulation')}
+                        </Button>
+                      )
+                    : undefined}
                 />
-                <Typography
-                  variant="h6"
-                  sx={{
-                    maxWidth: 520,
-                    fontWeight: 500,
-                  }}
-                >
-                  {emptyStateMessage}
-                </Typography>
-                {scenarioHasNoSims && scenarioId && !hideLaunchCta && (
-                  <Button
-                    variant="contained"
-                    startIcon={<PlayArrowOutlined />}
-                    onClick={handleLaunchFromScenario}
-                    disabled={launching}
-                  >
-                    {t('Launch a simulation')}
-                  </Button>
-                )}
               </Box>
             )}
             {!loading && !chainLoading && !forbidden && !error && graphHasContent && (

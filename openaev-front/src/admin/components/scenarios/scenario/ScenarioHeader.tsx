@@ -12,15 +12,16 @@ import {
   RouteOutlined,
   Stop,
   TrackChangesOutlined,
+  TransformOutlined,
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
+import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
-import { fetchAutonomousAttackPathState } from '../../../../actions/autonomous/autonomous-actions';
+import { convertAutonomousRunToManual, fetchAutonomousAttackPathState } from '../../../../actions/autonomous/autonomous-actions';
 import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import { fetchSteps } from '../../../../actions/chaining/chaining-actions';
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
@@ -66,6 +67,7 @@ import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
+import { computeTenantBasename } from '../../../../utils/url-helper';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import AutonomousRunControls from '../../autonomous/AutonomousRunControls';
 import AutonomousRunStatusChip from '../../autonomous/AutonomousRunStatusChip';
@@ -113,6 +115,11 @@ const ScenarioHeader = ({
 
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openScheduling, setOpenScheduling] = useState(false);
+  // "Convert to manual chained scenario" flow: turns an AI-driven scenario into a normal chained one
+  // the operator can hand-edit, either by duplicating it or by transforming it in place (see the
+  // dialog below). Gated on the live run object so we have the run id to act on.
+  const [openConvert, setOpenConvert] = useState(false);
+  const [converting, setConverting] = useState(false);
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
   // Number of authored attack-path steps on the scenario's chaining workflow. A chained scenario
@@ -299,6 +306,30 @@ const ScenarioHeader = ({
     }));
   };
 
+  const handleConvertToManual = async (mode: 'DUPLICATE' | 'IN_PLACE') => {
+    if (!autonomousRun?.autonomous_run_id) {
+      return;
+    }
+    setConverting(true);
+    try {
+      const { data } = await convertAutonomousRunToManual(autonomousRun.autonomous_run_id, mode);
+      if (mode === 'DUPLICATE') {
+        setOpenConvert(false);
+        MESSAGING$.notifySuccess(t('A manual chained scenario was created from this autonomous scenario'));
+        navigate(`/admin/scenarios/${data.scenario_id}/logic`);
+      } else {
+        MESSAGING$.notifySuccess(t('Scenario converted to a manual chained scenario'));
+        // The autonomous cockpit latches on for the life of the mount (a transient blip must never
+        // collapse a live run back to the manual view), so a soft refetch would not flip it. A full
+        // reload is the clean way to re-enter the now-manual scenario on its editable Logic tab.
+        // The router runs under APP_BASE_PATH + tenant prefix, so rebuild the absolute URL from it.
+        window.location.assign(`${computeTenantBasename()}/admin/scenarios/${data.scenario_id}/logic`);
+      }
+    } finally {
+      setConverting(false);
+    }
+  };
+
   const humanReadableScheduling = () => {
     if (!cronObject?.isValid()) {
       return null;
@@ -447,6 +478,24 @@ const ScenarioHeader = ({
                     </Tooltip>
                   )}
                 </>
+              )}
+              {/* Convert an AI-driven scenario into a manual chained scenario the operator can edit
+                  by hand - either duplicate it or transform it in place (irreversible). Also unlocks
+                  the underlying simulation for edit/delete (the in-place path removes the run row
+                  every autonomous lock keys off). Gated on the live run so we have the run id. */}
+              {isAutonomous && canManage && autonomousRun && (
+                <Tooltip title={t('Convert this AI-driven scenario into a manual chained scenario you can edit by hand (duplicate it, or transform it in place).')}>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    startIcon={<TransformOutlined />}
+                    onClick={() => setOpenConvert(true)}
+                    data-testid="convert-autonomous-to-manual-button"
+                  >
+                    {t('Convert to manual')}
+                  </Button>
+                </Tooltip>
               )}
               {/* Autonomous lifecycle: pause / resume / stop the run and its single simulation,
                   without leaving the scenario and without ever exposing a manual launch. */}
@@ -618,6 +667,59 @@ const ScenarioHeader = ({
         }}
         onSubmit={onSubmit}
       />
+      <Dialog
+        open={openConvert}
+        TransitionComponent={Transition}
+        onClose={() => !converting && setOpenConvert(false)}
+        PaperProps={{ elevation: 1 }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>{t('Convert to a manual chained scenario')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText component="div">
+            {t('Turn this AI-driven scenario into a standard chained scenario you can edit by hand. Choose how:')}
+            <Box
+              component="ul"
+              sx={{
+                paddingLeft: 3,
+                marginTop: 1,
+                marginBottom: 0,
+              }}
+            >
+              <Box component="li">
+                <strong>{t('Duplicate')}</strong>
+                {` - ${t('create a new manual chained scenario from a copy of this one. The autonomous run and its simulation stay untouched.')}`}
+              </Box>
+              <Box component="li" sx={{ marginTop: 1 }}>
+                <strong>{t('Convert in place')}</strong>
+                {` - ${t('transform this scenario now. The autonomous run stops and its AI timeline is removed; the scenario and its simulation become editable and deletable. This cannot be undone.')}`}
+              </Box>
+            </Box>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => setOpenConvert(false)} disabled={converting}>
+            {t('Cancel')}
+          </Button>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => handleConvertToManual('DUPLICATE')}
+            disabled={converting}
+          >
+            {t('Duplicate')}
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={() => handleConvertToManual('IN_PLACE')}
+            disabled={converting}
+          >
+            {t('Convert in place')}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={openInstantiateSimulationAndStart}
         TransitionComponent={Transition}

@@ -1,7 +1,11 @@
+import { AccountTreeOutlined, Add } from '@mui/icons-material';
+import { Button } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchConditions, fetchSteps } from '../../../../actions/chaining/chaining-actions';
 import { fetchValidAssets, fetchValidTeams } from '../../../../actions/chaining/workflow-actions';
+import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
+import { useFormatter } from '../../../../components/i18n';
 import type {
   EventOutput,
   ScopeAssetOutput,
@@ -10,7 +14,7 @@ import type {
 } from '../../../../utils/api-types';
 import useLivePolling from '../../../../utils/hooks/useLivePolling';
 import useRemainingViewportHeight from '../../../../utils/hooks/useRemainingViewportHeight';
-import AddComponentButton, { type LogicContext } from './AddComponentButton';
+import { type LogicContext } from './AddComponentButton';
 import ComponentStepperDrawer, { type DrawerView } from './drawer/ComponentStepperDrawer';
 import LogicGraph from './logic-graph/LogicGraph';
 import LogicTopBar from './LogicTopBar';
@@ -31,6 +35,7 @@ interface LogicProps {
 }
 
 const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }: LogicProps) => {
+  const { t } = useFormatter();
   // The canvas sizes itself to the exact space left under the page chrome (no page scrollbar).
   const [graphContainerRef, graphHeight] = useRemainingViewportHeight();
   // Fetch computed valid assets (allowlist minus denylist)
@@ -173,6 +178,38 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }
     return null;
   }
 
+  // Zero-state shown when the workflow has no steps/triggers. Read-only inspection (autonomous run,
+  // or a launched simulation) used to render a blank tab — it now gets a proper placeholder that the
+  // live poll fills in place. Editable contexts keep the "Add component" call-to-action.
+  const emptyState = readOnly
+    ? (
+        <EmptyPlaceholder
+          icon={<AccountTreeOutlined />}
+          title={t('No logic to display')}
+          message={t('This workflow does not contain any steps or triggers yet. They appear here as they are authored.')}
+        />
+      )
+    : (
+        <EmptyPlaceholder
+          icon={<AccountTreeOutlined />}
+          title={t('No components yet')}
+          message={context === 'scenario'
+            ? t('Start adding components to complete the configuration of your scenario.')
+            : t('Start adding components to complete the configuration of your simulation.')}
+          action={(
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              startIcon={<Add />}
+              onClick={handleOpenDrawer}
+            >
+              {t('Add component')}
+            </Button>
+          )}
+        />
+      );
+
   return (
     <OutputProvidersProvider>
       <div
@@ -205,11 +242,7 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }
                 )}
               </>
             )
-          : (
-              !readOnly && (
-                <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
-              )
-            )}
+          : emptyState}
       </div>
       <ComponentStepperDrawer
         workflowId={workflowId}
