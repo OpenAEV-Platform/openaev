@@ -2,7 +2,7 @@
 
 !!! question "What are injectors?"
 
-    For a functional overview of the role of Injectors within the OpenAEV ecosystem, please refer to [the User Guide section on Injectors](../usage/injectors.md).
+    For a functional overview of the role of Injectors within the OpenAEV ecosystem, please refer to [the User Guide section on Injectors](../usage/environment/injectors.md).
 
 ### Introduction
 
@@ -43,4 +43,4 @@ use them within its internal logic to perform the necessary actions.
 Now, the new injector may be launched as a new process, and it should register with OpenAEV. It will then be listed
 in ***Integrations > Injectors*** and its inject contracts should be available for creating new injects.
 
-![Injectors view in OpenAEV](assets/collectors-view.png)
+![Injectors view in OpenAEV](assets/injectors-view.png)

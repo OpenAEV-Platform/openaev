@@ -2,7 +2,7 @@
 
 !!! tip "Tips"
 
-      If you want to learn more about the concept and features of collectors, you can have more info [here](../../usage/collectors.md).
+      If you want to learn more about the concept and features of collectors, you can have more info [here](../../usage/environment/collectors.md).
 
 !!! question "Collectors list"
 
@@ -21,13 +21,13 @@ There are multiple ways to deploy a collector from OpenAEV:
 
     All collectors require access to the OpenAEV API. See [Configuration](#configuration) for required parameters.
 
-### Integration Manager (Recommended)
+### Integration Manager (recommended)
 The easiest way to deploy collectors is through the Integration Manager, which allows automatic deployment directly from the OpenAEV interface.
 
-👉 See the [Integration Manager documentation](integration-manager/overview.md) for detailed instructions.
+See the [Integration Manager documentation](integration-manager/overview.md) for detailed instructions.
 
 
-### Docker Deployment
+### Docker deployment
 Several options are available for Docker deployment:
 
 #### Add a collector to your existing deployment
@@ -138,6 +138,6 @@ collector:
 
 ## Collectors status
 
-The collector status can be displayed in the dedicated section of the platform available in Integration > collectors. You will be able to see the statistics of the RabbitMQ queue of the collector:
+The Collector status can be displayed in the dedicated section of the platform available in **Integrations > Collectors**. You will be able to see the statistics of the RabbitMQ queue of the Collector:
 
 ![collectors](../assets/collectors-status.png)

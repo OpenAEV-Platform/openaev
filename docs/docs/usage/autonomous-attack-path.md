@@ -7,7 +7,7 @@ and keeps going until the objective is reached or it needs your input - all anim
 and a decision timeline.
 
 This is the highest level of automation in OpenAEV. Where a **Scenario** is a hand-authored sequence of Injects and
-[**inject chaining**](inject-chaining.md) adds conditional branching, an autonomous attack path removes the authoring
+**inject chaining** adds conditional branching, an autonomous attack path removes the authoring
 step entirely: the AI decides the sequence, the branches, and the techniques at runtime.
 
 !!! warning
@@ -144,7 +144,7 @@ back into its plan. This keeps a run progressing instead of stalling on a single
 
 ## What's next?
 
-- [Inject chaining and transfer](inject-chaining.md) - the conditional-execution engine autonomous runs build on.
-- [Scenarios and Simulations](scenarios-and-simulations.md) - the hand-authored counterpart to autonomous runs.
-- [Threat Arsenal](threat-arsenals/threat-arsenals.md) - the injectors and contracts the AI draws from.
+- Inject chaining and transfer - the conditional-execution engine autonomous runs build on.
+- [Scenarios and Simulations](foundations/scenarios-and-simulations.md) - the hand-authored counterpart to autonomous runs.
+- [Threat Arsenal](build/threat-arsenals/threat-arsenals.md) - the injectors and contracts the AI draws from.
 - [Enterprise editions](../administration/enterprise.md) - enabling the license required for AI features.
