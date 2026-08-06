@@ -26,9 +26,7 @@ const useStyles = makeStyles()(() => ({
     marginLeft: 4,
     opacity: 0.6,
   },
-  inactiveSortIcon: {
-    opacity: 0.3,
-  },
+  inactiveSortIcon: { opacity: 0.3 },
 }));
 
 interface Props {
