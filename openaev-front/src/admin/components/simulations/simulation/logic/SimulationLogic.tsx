@@ -6,7 +6,7 @@ import { useHelper } from '../../../../../store';
 import type { Exercise } from '../../../../../utils/api-types';
 import Logic from '../../../chaining/logic/Logic';
 
-const SimulationLogic = ({ readOnly = false }: { readOnly?: boolean }) => {
+const SimulationLogic = ({ isAutonomous = false }: { isAutonomous?: boolean }) => {
   const { t } = useFormatter();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
@@ -15,9 +15,9 @@ const SimulationLogic = ({ readOnly = false }: { readOnly?: boolean }) => {
   // (UI "Draft" / "Scheduled"), see ADR-005. While the exercise is still loading, only the incoming
   // (autonomous) flag applies, so the frozen banner never flashes before the status is known.
   const launched = !!exercise && exercise.exercise_status !== 'SCHEDULED';
-  const effectiveReadOnly = readOnly || launched;
+  const effectiveReadOnly = isAutonomous || launched;
   const resolveReadOnlyMessage = () => {
-    if (readOnly) {
+    if (isAutonomous) {
       return t('This simulation is driven by the autonomous attack path. Its logic map is read-only.');
     }
     if (exercise?.exercise_scenario) {

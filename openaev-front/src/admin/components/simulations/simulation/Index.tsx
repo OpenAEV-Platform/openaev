@@ -138,7 +138,7 @@ const IndexComponent: FunctionComponent<{
                       autonomousTimeoutSeconds: autonomousRun?.autonomous_run_timeout_seconds,
                     }) : errorWrapper(SimulationScope)()}
                   />
-                  <Route path="logic" element={isAutonomous ? errorWrapper(SimulationLogic)({ readOnly: true }) : errorWrapper(SimulationLogic)()} />
+                  <Route path="logic" element={isAutonomous ? errorWrapper(SimulationLogic)({ isAutonomous: true }) : errorWrapper(SimulationLogic)()} />
                   {/* Not found */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
