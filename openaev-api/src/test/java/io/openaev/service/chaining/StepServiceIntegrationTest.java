@@ -47,6 +47,8 @@ class StepServiceIntegrationTest extends IntegrationTest {
   @MockitoSpyBean private StepService spyStepService;
 
   @Autowired private StepRepository stepRepository;
+  @Autowired private ConditionService conditionService;
+  @Autowired private io.openaev.database.repository.ConditionRepository conditionRepository;
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ExerciseComposer simulationComposer;
   @MockitoBean private InjectorContractService injectorContractService;
@@ -236,6 +238,54 @@ class StepServiceIntegrationTest extends IntegrationTest {
 
     verify(spyStepService, atLeastOnce()).saveStep(any());
     assertTrue(TestTransaction.isFlaggedForRollback());
+  }
+
+  @Test
+  void should_update_a_step_whose_preserved_condition_tree_has_children()
+      throws JsonProcessingException, ChainingException {
+    // -- PREPARE --
+    // A step gated by an event: createConditionTree links EVERY node of the tree to the step - the
+    // root with is_root=true, its leaves with is_root=false.
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    Workflow workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .persist()
+            .get();
+    StepsCreateInput.StepInput createInput = buildInvalidInput(); // root + one child
+    createInput.setDataStep(injectInput);
+    Step step = spyStepService.createStepTemplate(workflow, createInput);
+
+    List<Condition> linked = conditionService.findAllConditionsByStepId(step.getId());
+    String rootId =
+        linked.stream()
+            .filter(c -> c.getConditionParent() == null)
+            .map(Condition::getId)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(2, linked.size(), "the tree's root AND its child are linked to the step");
+
+    // -- EXECUTE --
+    // Editing the action preserves that tree by naming its ROOT only, exactly as the logic map
+    // does.
+    // The child used to be unlinked and then deleted while its preserved parent still referenced
+    // it, and the step merge that followed failed the save with ObjectDeletedException.
+    io.openaev.api.chaining.dto.StepInput updateInput =
+        io.openaev.api.chaining.dto.StepInput.builder()
+            .workflowId(workflow.getId())
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .conditionIds(List.of(rootId))
+            .dataStep(injectInput)
+            .build();
+
+    Step updated = spyStepService.updateStepTemplate(step.getId(), updateInput);
+
+    // -- ASSERT --
+    assertNotNull(updated);
+    Condition survivingRoot = conditionRepository.findById(rootId).orElse(null);
+    assertNotNull(survivingRoot, "the preserved event survives");
+    assertEquals(1, survivingRoot.getConditionChildren().size(), "and keeps its child");
   }
 
   private StepsCreateInput.StepInput buildInvalidInputCondition() {

@@ -447,16 +447,21 @@ public class ConditionService {
       return;
     }
 
-    Set<String> excluded =
-        excludedConditionIds == null ? Set.of() : new HashSet<>(excludedConditionIds);
+    Set<String> preserved = withDescendants(excludedConditionIds);
 
     for (Condition condition : conditions) {
-      unlinkFromStep(condition, stepId);
-      Condition persisted = conditionRepository.save(condition);
-
-      if (excluded.contains(persisted.getId())) {
+      // A preserved condition is left completely untouched, subtree included. Its children are
+      // linked to this step too - createConditionTree links every node of an event's tree, the root
+      // with is_root=true and the leaves with is_root=false - while the caller only ever names the
+      // ROOT ids it keeps. Unlinking a leaf and then deleting it (it has no other link and no
+      // children of its own) left the surviving parent referencing a deleted instance, and the step
+      // merge that follows failed the whole save with ObjectDeletedException.
+      if (preserved.contains(condition.getId())) {
         continue;
       }
+
+      unlinkFromStep(condition, stepId);
+      Condition persisted = conditionRepository.save(condition);
 
       boolean hasNoStepLinks =
           persisted.getConditionSteps() == null || persisted.getConditionSteps().isEmpty();
@@ -466,6 +471,35 @@ public class ConditionService {
         conditionRepository.delete(persisted);
       }
     }
+  }
+
+  /**
+   * The given condition ids plus every descendant of them, so preserving a condition preserves the
+   * whole tree hanging off it.
+   *
+   * <p>Callers name the ROOT conditions they keep (a step's {@code step_condition_ids}), but an
+   * event's leaves are separate rows linked to the same step, so they have to be derived here
+   * rather than trusted from the input.
+   */
+  private Set<String> withDescendants(List<String> rootIds) {
+    if (rootIds == null || rootIds.isEmpty()) {
+      return Set.of();
+    }
+    Set<String> preserved = new HashSet<>();
+    Deque<String> pending = new ArrayDeque<>(rootIds);
+    while (!pending.isEmpty()) {
+      String id = pending.pop();
+      if (id == null || !preserved.add(id)) {
+        continue;
+      }
+      conditionRepository
+          .findById(id)
+          .filter(condition -> condition.getConditionChildren() != null)
+          .ifPresent(
+              condition ->
+                  condition.getConditionChildren().forEach(child -> pending.push(child.getId())));
+    }
+    return preserved;
   }
 
   // -- CONDITION PERSISTENCE HELPERS --
