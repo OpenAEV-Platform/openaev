@@ -37,11 +37,19 @@ const AttackPathConnectors = ({ geometries, width, height }: Props) => {
         const data = edge.data;
         const isCausal = edge.type === AP_FLOW_CAUSAL_EDGE_TYPE;
         const dimmed = data?.dimmed ?? false;
-        const color = isCausal
+        // An edge on the highlighted path is drawn in the primary colour, like the border of the
+        // cards it joins, so the path reads as a continuous route rather than as a set of lit boxes.
+        // Only its verdict colour used to be honoured, so selecting an endpoint or a finding lit the
+        // cards blue and left the connectors between them in their status colour - the chain was
+        // never actually traced.
+        const onPath = !!edge.selected;
+        const restColor = isCausal
           ? attackPathCausalColor(theme)
           : attackPathStatusColor(theme, data?.status);
+        const color = onPath ? theme.palette.primary.main : restColor;
         const dashed = isCausal && data?.causalKind !== 'finding';
-        const opacity = dimmed ? 0.08 : 0.85;
+        const restOpacity = onPath ? 1 : 0.85;
+        const opacity = dimmed ? 0.08 : restOpacity;
         const count = data?.count ?? 1;
         const label = data?.label ?? (count > 1 ? `+${count}` : undefined);
         const showLabel = !dimmed && !!label;
@@ -51,7 +59,7 @@ const AttackPathConnectors = ({ geometries, width, height }: Props) => {
               d={path}
               fill="none"
               stroke={color}
-              strokeWidth={1.5}
+              strokeWidth={onPath ? 2.5 : 1.5}
               strokeDasharray={dashed ? '6 4' : undefined}
               style={{
                 opacity,
