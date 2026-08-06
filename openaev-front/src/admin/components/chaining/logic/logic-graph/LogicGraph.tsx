@@ -37,7 +37,7 @@ interface NodePosition {
   y: number;
 }
 
-// Distinct, mid-tone accents for the MITRE-tactic group hulls, cycled by the group's phase order.
+// Distinct, mid-tone accents for the MITRE-tactic column bands, cycled in kill-chain phase order.
 // Mid saturation/lightness reads on both the light and dark "paper" backgrounds once knocked back
 // to a low-alpha fill; the same colour drives the border and header label so a group reads as one.
 const TACTIC_GROUP_COLORS = [
@@ -193,9 +193,8 @@ const LogicGraph = ({
     [actionMetas],
   );
 
-  // Tactic name -> kill-chain phase order, so the layout orders the tactic groups by MITRE phase
-  // (keeping the lowest order when a tactic maps to several phases). Node positions come from
-  // dependency depth, not this order — it only makes the group hulls' colours/order deterministic.
+  // Tactic name -> kill-chain phase order, so the layout orders the tactic columns by MITRE phase
+  // (keeping the lowest order when a tactic maps to several phases).
   const tacticOrder = useMemo(() => {
     const order: Record<string, number> = {};
     for (const phase of Object.values(killChainPhasesMap as Record<string, KillChainPhase>)) {
@@ -495,21 +494,21 @@ const LogicGraph = ({
         onZoomChange={(zoom) => { zoomRef.current = zoom; }}
         onAutoLayout={readOnly ? undefined : handleAutoLayout}
       >
-        {/* MITRE-tactic groups: a rounded, padded hull behind the action cards that share a tactic,
-            with the tactic name as a header. Purely decorative — it groups the cards without ever
-            driving their positions (the causal left-to-right layout owns that). Rendered first so it
-            sits behind the connectors and cards, and never intercepts pointer events. */}
-        {layout.groups.map((group, index) => {
+        {/* MITRE-tactic columns: one padded band behind each tactic's action cards, headed by the
+            tactic name. The layout gives every tactic its own column, so bands are side by side and
+            can never overlap. Rendered first so they sit behind the connectors and cards, and they
+            never intercept pointer events. */}
+        {layout.columns.map((column, index) => {
           const color = tacticGroupColor(index);
           return (
             <div
-              key={`tactic-group-${group.tactic}`}
+              key={`tactic-col-${column.tactic}`}
               style={{
                 position: 'absolute',
-                left: group.x,
-                top: group.y,
-                width: group.width,
-                height: group.height,
+                left: column.x,
+                top: column.y,
+                width: column.width,
+                height: column.height,
                 pointerEvents: 'none',
                 borderRadius: 16,
                 backgroundColor: alpha(color, 0.06),
@@ -522,10 +521,11 @@ const LogicGraph = ({
                   position: 'absolute',
                   top: 0,
                   left: 0,
-                  height: group.headerHeight,
-                  maxWidth: '100%',
+                  height: column.headerHeight,
+                  width: '100%',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   padding: '0 12px',
                   boxSizing: 'border-box',
                   overflow: 'hidden',
@@ -538,7 +538,7 @@ const LogicGraph = ({
                   color,
                 }}
               >
-                {group.tactic || t('Other')}
+                {column.tactic || t('Other')}
               </div>
             </div>
           );
