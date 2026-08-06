@@ -23,9 +23,6 @@ RESOURCES="openaev-api/src/main/resources"
 AGENT_LOCAL="${RESOURCES}/agents/openaev-agent"
 IMPLANT_LOCAL="${RESOURCES}/implants/openaev-implant"
 
-# Word-split on use, so keep every option space-free.
-export CURL_OPTS="-L --fail --retry 3 --retry-delay 5 --silent --show-error"
-
 # Each artifact is a separate request that costs ~1s of latency and almost no
 # bandwidth, so fetching them concurrently turns ~40s into a few seconds.
 PARALLELISM="${DOWNLOAD_PARALLELISM:-8}"
@@ -40,9 +37,11 @@ download() {
 }
 
 fetch_one() {
+  # Declared here, not at top level: bash cannot export arrays, and this runs in
+  # the child bash that xargs spawns.
+  local curl_opts=(-L --fail --retry 3 --retry-delay 5 --silent --show-error)
   mkdir -p "$(dirname "$2")"
-  # shellcheck disable=SC2086
-  if ! curl $CURL_OPTS -o "$2" "$1"; then
+  if ! curl "${curl_opts[@]}" -o "$2" "$1"; then
     echo "  ✗ FAILED  $1" >&2
     return 1
   fi

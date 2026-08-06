@@ -14,44 +14,8 @@ description: >
 runs:
   using: composite
   steps:
-    - name: Start all services (non-blocking)
-      shell: bash
-      run: |
-        source openaev-dev/versions.env
-        docker run -d --name pgsql \
-          -p 5432:5432 \
-          -e POSTGRES_USER=openaev \
-          -e POSTGRES_PASSWORD=openaev \
-          -e POSTGRES_DB=openaev \
-          $POSTGRES_IMAGE \
-          -c max_connections=1000
-        docker run -d --name elasticsearch \
-          -p 9200:9200 \
-          -e discovery.type=single-node \
-          -e xpack.security.enabled=false \
-          -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
-          $ELASTICSEARCH_IMAGE
-        docker run -d --name rabbitmq \
-          -p 5672:5672 \
-          -p 15672:15672 \
-          -e RABBITMQ_DEFAULT_USER=guest \
-          -e RABBITMQ_DEFAULT_PASS=guest \
-          $RABBITMQ_IMAGE
-        docker run -d --name minio \
-          -p 11000:9000 \
-          -e MINIO_ROOT_USER=minioadmin \
-          -e MINIO_ROOT_PASSWORD=minioadmin \
-          $MINIO_IMAGE server /data
-
-        echo "🔍 Verifying containers started..."
-        for name in pgsql elasticsearch rabbitmq minio; do
-          if ! docker inspect --format='{{.State.Running}}' "$name" 2>/dev/null | grep -q true; then
-            echo "❌ Container '$name' failed to start"
-            docker logs "$name" 2>/dev/null || true
-            exit 1
-          fi
-        done
-        echo "✅ All containers started"
+    - name: Start service containers
+      uses: ./.github/actions/start-dev-services
 
     - name: Set up Java 21
       uses: actions/setup-java@v5

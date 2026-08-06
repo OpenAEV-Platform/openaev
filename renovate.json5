@@ -104,24 +104,6 @@
             ],
             rebaseWhen: 'auto',
         },
-        // Group container image updates (docker-compose.yml + openaev-dev/versions.env)
-        // into a single PR per image so CI and local dev stay in sync.
-        {
-            groupName: 'container images',
-            description: 'Group container image updates across docker-compose and versions.env',
-            matchDatasources: [
-                'docker'
-            ],
-            matchPackageNames: [
-                'postgres',
-                'docker.elastic.co/elasticsearch/elasticsearch',
-                'opensearchproject/opensearch',
-                'rabbitmq',
-                'minio/minio',
-                'docker.elastic.co/kibana/kibana',
-                'alpine/openssl',
-            ],
-        },
     ],
     // do lock file maintenance once a week on Sunday
     lockFileMaintenance: {
@@ -132,14 +114,10 @@
         enabled: true,
     },
     // ── Container image version tracking ──────────────────────────
-    // Image versions live in two places, both under openaev-dev/:
-    //   - versions.env       → the source of truth, sourced by CI composite
-    //                          actions and loaded by Compose via COMPOSE_ENV_FILES
-    //   - docker-compose.yml → same tags as `${VAR:-<tag>}` fallback defaults
-    //
-    // Renovate tracks docker-compose.yml natively (the built-in docker-compose
-    // manager resolves `${VAR:-image:tag}` defaults). The regex manager below
-    // tracks versions.env. The groupName ensures both are updated in a SINGLE PR.
+    // Image tags live only in openaev-dev/versions.env: sourced by the CI
+    // composite actions and loaded by Compose via COMPOSE_ENV_FILES.
+    // docker-compose.yml holds no literal tags, so the built-in docker-compose
+    // manager finds nothing there and this regex manager is the only tracker.
     customManagers: [
         {
             customType: 'regex',
@@ -147,7 +125,7 @@
                 '^openaev-dev/versions\\.env$',
             ],
             matchStrings: [
-                '(?:POSTGRES_IMAGE|ELASTICSEARCH_IMAGE|OPENSEARCH_IMAGE|RABBITMQ_IMAGE|MINIO_IMAGE|KIBANA_IMAGE|OPENSSL_IMAGE)=(?<depName>[^:]+):(?<currentValue>[^\\s]+)',
+                '\\w+_IMAGE=(?<depName>[^:]+):(?<currentValue>[^\\s]+)',
             ],
             datasourceTemplate: 'docker',
         },

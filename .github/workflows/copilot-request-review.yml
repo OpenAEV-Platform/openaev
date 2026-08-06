@@ -9,9 +9,15 @@ permissions:
   pull-requests: write
   issues: write
 
+concurrency:
+  group: copilot-review-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
-  on-demand-review:
-    name: "🤖 On-demand agent review"
+  parse:
+    name: "🤖 Parse review command"
+    # The author_association gate is the security boundary: the review job below
+    # checks out PR head code and runs an agent over it.
     if: >-
       github.event.issue.pull_request &&
       startsWith(github.event.comment.body, '/review') &&
@@ -21,46 +27,45 @@ jobs:
         github.event.comment.author_association == 'COLLABORATOR'
       )
     runs-on: ubuntu-latest
+    outputs:
+      agents: ${{ steps.parse.outputs.agents }}
+      known: ${{ steps.parse.outputs.known }}
     steps:
       - name: Parse review command
         id: parse
         env:
           COMMENT: ${{ github.event.comment.body }}
         run: |
-          AGENT=""
+          # Values must match the file basenames in .github/agents/*.agent.md
+          ALL='["code-reviewer","security-reviewer","performance-reviewer","multi-tenancy-reviewer","test-specialist","frontend-reviewer","docs-reviewer"]'
 
           case "$COMMENT" in
-            */review\ security*)   AGENT="security-reviewer" ;;
-            */review\ perf*)       AGENT="performance-reviewer" ;;
-            */review\ tenancy*)    AGENT="multi-tenancy-reviewer" ;;
-            */review\ test*)       AGENT="test-specialist" ;;
-            */review\ frontend*)   AGENT="frontend-reviewer" ;;
-            */review\ docs*)       AGENT="docs-reviewer" ;;
-            */review\ all*)        AGENT="all" ;;
+            */review\ security*)   AGENTS='["security-reviewer"]' ;;
+            */review\ perf*)       AGENTS='["performance-reviewer"]' ;;
+            */review\ tenancy*)    AGENTS='["multi-tenancy-reviewer"]' ;;
+            */review\ test*)       AGENTS='["test-specialist"]' ;;
+            */review\ frontend*)   AGENTS='["frontend-reviewer"]' ;;
+            */review\ docs*)       AGENTS='["docs-reviewer"]' ;;
+            */review\ api*)        AGENTS='["api-reviewer"]' ;;
+            */review\ migration*)  AGENTS='["migration-reviewer"]' ;;
+            */review\ chaining*)   AGENTS='["chaining-engine-reviewer"]' ;;
+            */review\ code*)       AGENTS='["code-reviewer"]' ;;
+            */review\ all*)        AGENTS="$ALL" ;;
             *)
               echo "Unknown review command: $COMMENT"
-              AGENT="unknown"
+              AGENTS='[]'
               ;;
           esac
 
-          echo "agent=$AGENT" >> "$GITHUB_OUTPUT"
+          [ "$AGENTS" = '[]' ] && echo "known=false" >> "$GITHUB_OUTPUT" || echo "known=true" >> "$GITHUB_OUTPUT"
+          echo "agents=$AGENTS" >> "$GITHUB_OUTPUT"
 
       - name: Acknowledge command
-        if: steps.parse.outputs.agent != 'unknown'
+        if: steps.parse.outputs.known == 'true'
         uses: actions/github-script@v9
         with:
           script: |
-            const agent = '${{ steps.parse.outputs.agent }}';
-            const agentNames = {
-              'security-reviewer': '🔒 Security Reviewer',
-              'performance-reviewer': '⚡ Performance Reviewer',
-              'multi-tenancy-reviewer': '🏠 Multi-Tenancy Reviewer',
-              'test-specialist': '🧪 Test Specialist',
-              'frontend-reviewer': '🎨 Frontend Reviewer',
-              'docs-reviewer': '📖 Docs Reviewer',
-              'all': '🔒⚡🏠🧪🎨📖 All Agents',
-            };
-
+            const agents = JSON.parse('${{ steps.parse.outputs.agents }}');
             await github.rest.reactions.createForIssueComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -72,11 +77,12 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `🤖 **${agentNames[agent] || agent}** review requested by @${context.payload.comment.user.login}.\n\n> Agent will analyze the PR and post findings as a review comment.`,
+              body: `🤖 Running ${agents.map((a) => `\`${a}\``).join(', ')} for `
+                + `@${context.payload.comment.user.login}. Findings will be posted here.`,
             });
 
       - name: Unknown command
-        if: steps.parse.outputs.agent == 'unknown'
+        if: steps.parse.outputs.known == 'false'
         uses: actions/github-script@v9
         with:
           script: |
@@ -89,12 +95,88 @@ jobs:
                 '',
                 '| Command | Agent |',
                 '|---|---|',
+                '| `/review code` | 🔍 Code Reviewer |',
                 '| `/review security` | 🔒 Security Reviewer |',
                 '| `/review perf` | ⚡ Performance Reviewer |',
                 '| `/review tenancy` | 🏠 Multi-Tenancy Reviewer |',
                 '| `/review tests` | 🧪 Test Specialist |',
                 '| `/review frontend` | 🎨 Frontend Reviewer |',
                 '| `/review docs` | 📖 Docs Reviewer |',
-                '| `/review all` | All agents |',
+                '| `/review api` | 🔌 API Reviewer |',
+                '| `/review migration` | 🗃️ Migration Reviewer |',
+                '| `/review chaining` | 🔗 Chaining Engine Reviewer |',
+                '| `/review all` | All review agents |',
               ].join('\n'),
             });
+
+  review:
+    name: "🤖 ${{ matrix.agent }}"
+    needs: parse
+    if: needs.parse.outputs.known == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: ${{ fromJSON(needs.parse.outputs.agents) }}
+    steps:
+      - name: Check Copilot CLI credentials
+        env:
+          COPILOT_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+        run: |
+          if [ -z "$COPILOT_TOKEN" ]; then
+            echo "❌ Secret COPILOT_CLI_TOKEN is not set. Copilot CLI needs a token"
+            echo "   from an account with a Copilot subscription — the default"
+            echo "   GITHUB_TOKEN has no Copilot entitlement."
+            exit 1
+          fi
+
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve merge base
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh pr checkout "$PR_NUMBER"
+          BASE_REF=$(gh pr view "$PR_NUMBER" --json baseRefName --jq .baseRefName)
+          git fetch --no-tags origin "$BASE_REF"
+          echo "BASE_SHA=$(git merge-base "origin/$BASE_REF" HEAD)" >> "$GITHUB_ENV"
+
+      - name: Install Copilot CLI
+        run: npm install -g @github/copilot
+
+      - name: Run reviewer agent
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+          AGENT: ${{ matrix.agent }}
+        run: |
+          PROMPT="Review the changes returned by 'git diff ${BASE_SHA}..HEAD'.
+          Follow your agent definition exactly, including its context-loading and
+          skill steps. Report findings as GitHub-flavoured Markdown grouped by
+          severity, each with a file path and line number. If you find nothing,
+          say so in one line. Do not modify, stage, commit or push any files —
+          output the report only."
+
+          copilot --agent="$AGENT" --allow-all --prompt "$PROMPT" \
+            | tee /tmp/review-raw.md
+
+      - name: Post findings
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENT: ${{ matrix.agent }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          {
+            echo "### 🤖 \`$AGENT\`"
+            echo
+            if [ -s /tmp/review-raw.md ]; then
+              head -c 60000 /tmp/review-raw.md  # PR comment bodies cap at 65536
+            else
+              echo "Agent produced no output — see the workflow run for details."
+            fi
+          } > /tmp/review.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/review.md

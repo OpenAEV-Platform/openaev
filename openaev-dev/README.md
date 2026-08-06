@@ -29,12 +29,12 @@ Copy-Item .env.example .env
 The default values should work for local development.
 
 Container image tags are not part of `.env` — they live in `versions.env`, which is
-committed and shared with CI. There is nothing to configure: `docker-compose.yml`
-falls back to the exact same tags, and Renovate updates both in one PR.
+committed and shared with CI, and is the only place a tag is written.
 
-`.env.example` additionally sets `COMPOSE_ENV_FILES=versions.env,.env`, which makes
-`versions.env` the file Compose actually reads. It is optional — an older `.env`
-without that line just uses the fallbacks.
+`.env.example` sets `COMPOSE_ENV_FILES=versions.env,.env`, which is what makes
+Compose read `versions.env`. It is required: `docker-compose.yml` declares no
+fallback tags, so an older `.env` missing that line makes Compose fail with
+`required variable ..._IMAGE is missing a value`.
 
 ### 2. Create the backend dev configuration
 
