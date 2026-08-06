@@ -133,6 +133,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.exercise.ExerciseApi#endpointsByIds",
           "io.openaev.rest.exercise.ExerciseApi#updateExerciseStart",
           "io.openaev.rest.exercise.ExerciseApi#deprecatedUpdateExerciseStart",
+          // changeExerciseStatus (manual SCHEDULED->RUNNING launch) hits the same
+          // throwIfExerciseNotLaunchable -> throwIfInjectNotLaunchable -> detectEEExecutors ->
+          // agent.getExecutor() gate; it was missed in the #7059 parity pass (regression fix).
+          "io.openaev.rest.exercise.ExerciseApi#changeExerciseStatus",
           "io.openaev.rest.atomic_testing.AtomicTestingApi#launchAtomicTesting",
           "io.openaev.rest.atomic_testing.AtomicTestingApi#relaunchAtomicTesting",
           "io.openaev.rest.atomic_testing.AtomicTestingApi#updateAtomicTestingRecurrence",
