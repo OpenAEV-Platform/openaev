@@ -436,10 +436,11 @@ public class ConditionService {
    * Deletes conditions linked to a given step, excluding specific condition IDs. Rules: - Always
    * remove the current condition-step link for this step. - Delete the condition only if, after
    * unlinking, it has no more condition-step links and no children. - Conditions whose IDs are in
-   * {@code excludedConditionIds} are unlinked but never deleted, so they can be re-linked later.
+   * {@code excludedConditionIds}, and every descendant of those, are left completely untouched: not
+   * unlinked, not saved, not deleted.
    *
    * @param stepId step identifier
-   * @param excludedConditionIds condition IDs to preserve (unlink only, never delete)
+   * @param excludedConditionIds root condition IDs to preserve, subtree included
    */
   public void deleteAllConditionsByStepId(String stepId, List<String> excludedConditionIds) {
     List<Condition> conditions = findAllConditionsByStepId(stepId);
@@ -456,7 +457,9 @@ public class ConditionService {
       // ROOT ids it keeps. Unlinking a leaf and then deleting it (it has no other link and no
       // children of its own) left the surviving parent referencing a deleted instance, and the step
       // merge that follows failed the whole save with ObjectDeletedException.
-      if (preserved.contains(condition.getId())) {
+      // Guard the id explicitly: `preserved` may be an immutable Set, whose contains(null) throws.
+      // A condition with no id was never persisted, so no caller can have named it as preserved.
+      if (condition.getId() != null && preserved.contains(condition.getId())) {
         continue;
       }
 
@@ -486,10 +489,13 @@ public class ConditionService {
       return Set.of();
     }
     Set<String> preserved = new HashSet<>();
-    Deque<String> pending = new ArrayDeque<>(rootIds);
+    // Nulls are filtered on the way IN, not on pop: the caller's list is API input and may carry a
+    // null entry, and ArrayDeque rejects nulls on insertion.
+    Deque<String> pending =
+        rootIds.stream().filter(Objects::nonNull).collect(Collectors.toCollection(ArrayDeque::new));
     while (!pending.isEmpty()) {
       String id = pending.pop();
-      if (id == null || !preserved.add(id)) {
+      if (!preserved.add(id)) {
         continue;
       }
       conditionRepository
@@ -497,7 +503,10 @@ public class ConditionService {
           .filter(condition -> condition.getConditionChildren() != null)
           .ifPresent(
               condition ->
-                  condition.getConditionChildren().forEach(child -> pending.push(child.getId())));
+                  condition.getConditionChildren().stream()
+                      .map(Condition::getId)
+                      .filter(Objects::nonNull)
+                      .forEach(pending::push));
     }
     return preserved;
   }

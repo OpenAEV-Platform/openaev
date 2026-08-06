@@ -18,6 +18,7 @@ import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -1450,7 +1451,7 @@ public class ConditionServiceTest {
     }
 
     @Test
-    void shouldPreserveExcludedCondition_whenUnlinkedButInExclusionList() {
+    void shouldLeaveExcludedConditionUntouched_whenInExclusionList() {
       String removedStepId = "step-A";
 
       Condition condition = new Condition();
@@ -1460,14 +1461,67 @@ public class ConditionServiceTest {
       conditionService.linkToStep(condition, stepA, true);
 
       when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
-      when(conditionRepository.save(any(Condition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
+      when(conditionRepository.findById("cond-excluded")).thenReturn(Optional.of(condition));
 
       conditionService.deleteAllConditionsByStepId(removedStepId, List.of("cond-excluded"));
 
-      verify(conditionRepository).save(condition);
+      // Untouched means untouched: not unlinked, not saved, not deleted. Unlinking a preserved node
+      // and saving it is what left a surviving parent pointing at a deleted child, failing the step
+      // merge with ObjectDeletedException.
+      verify(conditionRepository, never()).save(any());
       verify(conditionRepository, never()).delete(any());
-      assertTrue(condition.getConditionSteps().isEmpty());
+      assertEquals(1, condition.getConditionSteps().size());
+      assertEquals(removedStepId, condition.getConditionSteps().getFirst().getStep().getId());
+    }
+
+    @Test
+    void shouldLeaveTheChildrenOfAnExcludedConditionUntouched_whenOnlyItsRootIsNamed() {
+      String removedStepId = "step-A";
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+
+      // createConditionTree links EVERY node of an event's tree to the step, but the caller only
+      // ever
+      // names the ROOT it keeps, so the child has to be derived from the root.
+      Condition root = new Condition();
+      root.setId("cond-root");
+      Condition child = new Condition();
+      child.setId("cond-child");
+      child.setConditionParent(root);
+      root.setConditionChildren(List.of(child));
+      conditionService.linkToStep(root, stepA, true);
+      conditionService.linkToStep(child, stepA, false);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId))
+          .thenReturn(List.of(root, child));
+      when(conditionRepository.findById("cond-root")).thenReturn(Optional.of(root));
+      when(conditionRepository.findById("cond-child")).thenReturn(Optional.of(child));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId, List.of("cond-root"));
+
+      verify(conditionRepository, never()).save(any());
+      verify(conditionRepository, never()).delete(any());
+      assertEquals(1, child.getConditionSteps().size());
+    }
+
+    @Test
+    void shouldTolerateANullEntryInTheExclusionList() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      condition.setId("cond-deleted");
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      conditionService.linkToStep(condition, stepA, true);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(
+          removedStepId, Arrays.asList(null, "cond-other"));
+
+      verify(conditionRepository).delete(condition);
     }
   }
 
