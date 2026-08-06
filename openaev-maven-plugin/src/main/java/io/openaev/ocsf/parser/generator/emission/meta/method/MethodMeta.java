@@ -1,6 +1,7 @@
 package io.openaev.ocsf.parser.generator.emission.meta.method;
 
 import io.openaev.ocsf.parser.generator.emission.Emitter;
+import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.render.Helper;
 import java.util.HashSet;
@@ -10,12 +11,12 @@ import java.util.stream.Collectors;
 public class MethodMeta implements Emitter {
   private final Set<AnnotationMeta> annotations = new HashSet<>();
   private final Set<ArgumentMeta> arguments = new HashSet<>();
-  private final String modifier;
-  private final Class<?> returnType;
+  private final Modifier modifier;
+  private final String returnType;
   private final String name;
   private final String body;
 
-  public MethodMeta(String modifier, Class<?> returnType, String name, String body) {
+  public MethodMeta(Modifier modifier, String returnType, String name, String body) {
     this.modifier = modifier;
     this.returnType = returnType;
     this.name = name;
@@ -36,9 +37,9 @@ public class MethodMeta implements Emitter {
   public String emit() {
     return this.annotations.stream().map(AnnotationMeta::emit).collect(Collectors.joining("\n"))
         + "\n"
-        + modifier
+        + modifier.getValue()
         + " "
-        + returnType.getName()
+        + returnType
         + " "
         + name
         + "("

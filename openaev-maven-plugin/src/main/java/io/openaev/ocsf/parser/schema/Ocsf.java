@@ -6,7 +6,7 @@ import java.io.IOException;
 public class Ocsf {
   private Ocsf() {}
 
-  public static SchemaSource instance(OcsfSchemaVersion version, PluginContext ctx)
+  public static SchemaSource schema(OcsfSchemaVersion version, PluginContext ctx)
       throws IOException {
     return new SchemaSource(new Version(version), ctx);
   }

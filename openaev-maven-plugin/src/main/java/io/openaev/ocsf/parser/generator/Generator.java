@@ -1,9 +1,17 @@
 package io.openaev.ocsf.parser.generator;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
+import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.cls.ClassMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.cls.ExtendMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.method.ArgumentMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
 import io.openaev.ocsf.parser.schema.SchemaDimension;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Generator {
   private static final String datatypesPackageName = "io.openaev.ocsf.datatypes";
@@ -22,6 +30,65 @@ public class Generator {
   }
 
   private ClassMetadata emitDatatypeClass(String name, JsonNode source) {
-    return new ClassMetadata(name, "Ocsf" + name, datatypesPackageName);
+    String actualType = name;
+    if (source.get("type") != null) {
+      actualType = source.get("type").asText();
+    }
+
+    Class<?> type = mapDatatypeToClass(actualType);
+
+    ClassMeta meta =
+        new ClassMeta()
+            .withName(compositeOcsfClassName(name))
+            .withPackage(datatypesPackageName)
+            .withExtend(new ExtendMeta("BaseType").withGenericTypeArgument(type))
+            // ctor
+            .withMethod(
+                new MethodMeta(Modifier.PUBLIC, compositeOcsfClassName(name), "", "super(value);")
+                    .withArgument(new ArgumentMeta(type, "value")));
+    if (source.get("regex") != null) {
+      meta.withMethod(
+          new MethodMeta(
+                  Modifier.PROTECTED,
+                  "boolean",
+                  "validate",
+                  """
+                  return getValue().matches("%s");
+                  """
+                      .formatted(source.get("regex").asText().replace("\n", "")))
+              .withAnnotation(new AnnotationMeta(Override.class)));
+    }
+    return new ClassMetadata(name, compositeOcsfClassName(name), datatypesPackageName);
+  }
+
+  private String compositeOcsfClassName(String name) {
+    return "OcsfDatatype" + snakeToPascal(name);
+  }
+
+  private String snakeToPascal(String snake) {
+    StringBuilder sb = new StringBuilder();
+    Matcher firstChar = Pattern.compile("^(.)").matcher(snake);
+    Matcher charAfterUnderscore = Pattern.compile("_(.)").matcher(snake);
+    if (firstChar.find()) {
+      firstChar.appendReplacement(sb, firstChar.group(1).toUpperCase());
+    }
+    while (charAfterUnderscore.find()) {
+      charAfterUnderscore.appendReplacement(sb, charAfterUnderscore.group(1).toUpperCase());
+    }
+    return sb.toString();
+  }
+
+  private Class<?> mapDatatypeToClass(String datatype) {
+    return switch (datatype) {
+      case "boolean_t" -> Boolean.class;
+      case "float_t" -> Float.class;
+      case "integer_t" -> Integer.class;
+      case "json_t" -> JsonNode.class;
+      case "long_t" -> Long.class;
+      case "string_t" -> String.class;
+      default ->
+          throw new IllegalArgumentException(
+              "Cannot convert datatype %s into a java type.".formatted(datatype));
+    };
   }
 }

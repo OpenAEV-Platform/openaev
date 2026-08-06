@@ -93,9 +93,8 @@ public class GenerateParser extends AbstractMojo {
                 .resolve("openaev-maven-plugin/src/main/resources"),
             Paths.get(""));
     try {
-      SchemaSource schemaSource = Ocsf.instance(OcsfSchemaVersion._1_8, ctx);
+      SchemaSource schemaSource = Ocsf.schema(OcsfSchemaVersion._1_8, ctx);
       schemaSource.refreshAllSources();
-      JsonNode dictionary = schemaSource.get(SchemaDimension.DICTIONARY);
       JsonNode datatypes = schemaSource.get(SchemaDimension.DATATYPES);
     } catch (IOException e) {
       throw new RuntimeException(e);

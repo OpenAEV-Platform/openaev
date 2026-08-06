@@ -12,6 +12,7 @@ public class ClassMeta implements Emitter {
   private final Set<AnnotationMeta> annotations = new HashSet<>();
   private final Set<String> imports = new HashSet<>();
   private final Set<MethodMeta> methods = new HashSet<>();
+  private ExtendMeta extend;
   private String packageName;
   private String name;
 
@@ -22,6 +23,11 @@ public class ClassMeta implements Emitter {
 
   public ClassMeta withMethod(MethodMeta meta) {
     methods.add(meta);
+    return this;
+  }
+
+  public ClassMeta withExtend(ExtendMeta meta) {
+    this.extend = meta;
     return this;
   }
 
@@ -54,6 +60,7 @@ public class ClassMeta implements Emitter {
         + "\n"
         + "public class "
         + this.name
+        + (this.extend != null ? " extends " + this.extend.emit() : "")
         + " {"
         + "\n"
         + Helper.indent(
