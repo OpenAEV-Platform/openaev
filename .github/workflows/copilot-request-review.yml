@@ -4,10 +4,7 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
+permissions: {}
 
 concurrency:
   group: copilot-review-${{ github.event.issue.number }}
@@ -27,6 +24,11 @@ jobs:
         github.event.comment.author_association == 'COLLABORATOR'
       )
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     outputs:
       agents: ${{ steps.parse.outputs.agents }}
       known: ${{ steps.parse.outputs.known }}
@@ -149,6 +151,10 @@ jobs:
     needs: parse
     if: needs.parse.outputs.known == 'true' && needs.parse.outputs.is_fork == 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -164,6 +170,11 @@ jobs:
             echo "   GITHUB_TOKEN has no Copilot entitlement."
             exit 1
           fi
+
+      # Installed before the checkout: `npm install` reads .npmrc from the working
+      # directory, which would be PR-authored once the repo is on disk.
+      - name: Install Copilot CLI
+        run: npm install -g @github/copilot
 
       - name: Checkout pinned PR head
         uses: actions/checkout@v6
@@ -185,9 +196,6 @@ jobs:
           git fetch --no-tags origin "$BASE_REF"
           echo "BASE_SHA=$(git merge-base "origin/$BASE_REF" HEAD)" >> "$GITHUB_ENV"
 
-      - name: Install Copilot CLI
-        run: npm install -g @github/copilot
-
       # No GITHUB_TOKEN in this step: the agent reads attacker-authored files, so
       # anything it can reach is reachable by prompt injection.
       - name: Run reviewer agent
@@ -195,6 +203,7 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           AGENT: ${{ matrix.agent }}
         run: |
+          set -o pipefail
           PROMPT="Review the changes returned by 'git diff ${BASE_SHA}..HEAD'.
           Follow your agent definition exactly, including its context-loading and
           skill steps. Report findings as GitHub-flavoured Markdown grouped by
