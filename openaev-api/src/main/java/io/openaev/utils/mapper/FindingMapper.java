@@ -28,6 +28,7 @@ public class FindingMapper {
   private final ExerciseMapper exerciseMapper;
   private final ScenarioMapper scenarioMapper;
   private final InjectMapper injectMapper;
+  private final InjectorMapper injectorMapper;
 
   /**
    * Group-wide impact counts of a finding, resolved by the service and handed over as one value so
@@ -136,6 +137,11 @@ public class FindingMapper {
         .findingTriageStatus(
             triageStatusByFindingId.getOrDefault(
                 finding.getId(), FindingTriageStatus.UNTRIAGED))
+        .source(
+            Optional.ofNullable(finding.getInject())
+                .map(Inject::getInjector)
+                .map(injectorMapper::toInjectorSimple)
+                .orElse(null))
         .build();
   }
 
@@ -190,6 +196,11 @@ public class FindingMapper {
                             .type(TargetType.PLAYERS)
                             .build())
                 .collect(Collectors.toSet()))
+        .source(
+            Optional.ofNullable(finding.getInject())
+                .map(Inject::getInjector)
+                .map(injectorMapper::toInjectorSimple)
+                .orElse(null))
         .creationDate(finding.getCreationDate())
         .findingTriageStatus(
             triageStatusByFindingId.getOrDefault(

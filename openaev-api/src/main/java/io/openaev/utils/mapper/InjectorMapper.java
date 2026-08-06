@@ -4,6 +4,7 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.Injector;
 import io.openaev.rest.injector.form.InjectorOutput;
+import io.openaev.rest.injector.output.InjectorSimple;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,17 @@ public class InjectorMapper {
             connectorInstance != null
                 ? connectorInstanceMapper.toConnectorInstanceOutput(connectorInstance)
                 : null)
+        .build();
+  }
+
+  public InjectorSimple toInjectorSimple(@Nullable Injector injector) {
+    if (injector == null) {
+      return null;
+    }
+    return InjectorSimple.builder()
+        .id(injector.getId())
+        .name(injector.getName())
+        .type(injector.getType())
         .build();
   }
 }

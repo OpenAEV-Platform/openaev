@@ -120,6 +120,7 @@ const FindingOverview = () => {
           </Box>
         </Field>
         <Field label={t('Field')}>{emptyFilled(finding.finding_field)}</Field>
+        <Field label={t('Source')}>{finding.finding_source?.injector_name ?? t('Manual')}</Field>
         {/* Group-wide dates from the summary: the fetched row's own dates only
             cover one occurrence and would understate the group (the historical
             "first seen shows a later date" bug). */}
