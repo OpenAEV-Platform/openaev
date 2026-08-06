@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildLogicGraphLayout } from '../../../../../../admin/components/chaining/logic/logic-graph/layout';
+import {
+  ACTION_NODE_HEIGHT,
+  buildLogicGraphLayout,
+} from '../../../../../../admin/components/chaining/logic/logic-graph/layout';
 import type { ActionMeta, EventMeta } from '../../../../../../admin/components/chaining/logic/types';
 
 // Minimal metas: the layout only reads step_condition_ids on actions and formData.conditionGroups
@@ -10,17 +13,18 @@ const action = (stepConditionIds: string[] = []): ActionMeta =>
 const event = (): EventMeta =>
   ({ formData: { conditionGroups: [] } } as unknown as EventMeta);
 
-// Two tactics (Discovery before Lateral Movement); a1+a2 in Discovery, a3 in Lateral Movement.
-// e1 gates a1, e2 gates a3.
+// A three-step chain: e1 gates a1, a1 -> e2 (inferred, elided here) ... a2 gated by e2, a3 gated by
+// e3. Discovery = a1 + a2, Lateral Movement = a3.
 const build = () => buildLogicGraphLayout({
   actionMetas: {
     a1: action(['e1']),
-    a2: action([]),
-    a3: action(['e2']),
+    a2: action(['e2']),
+    a3: action(['e3']),
   },
   eventMetas: {
     e1: event(),
     e2: event(),
+    e3: event(),
   },
   outputProviders: {},
   tacticForStep: {
@@ -34,73 +38,87 @@ const build = () => buildLogicGraphLayout({
   },
 });
 
-describe('buildLogicGraphLayout tactic columns', () => {
-  it('groups actions of the same tactic into one column, ordered by phase', () => {
-    const { nodeById, columns } = build();
-
-    // a1 and a2 share the Discovery column; a3 is in a later (further-right) column.
-    expect(nodeById.a1.x).toBe(nodeById.a2.x);
-    expect(nodeById.a3.x).toBeGreaterThan(nodeById.a1.x);
-    // Stacked vertically within the shared column.
-    expect(nodeById.a1.y).not.toBe(nodeById.a2.y);
-
-    // Columns follow the MITRE phase order, each a sized band.
-    expect(columns.map(c => c.tactic)).toEqual(['Discovery', 'Lateral Movement']);
-    expect(columns[0].x).toBeLessThan(columns[1].x);
-    expect(columns[0].height).toBeGreaterThan(0);
-    // Each action sits inside its tactic's band.
-    expect(nodeById.a1.x).toBeGreaterThanOrEqual(columns[0].x);
-    expect(nodeById.a1.x + nodeById.a1.width).toBeLessThanOrEqual(columns[0].x + columns[0].width);
-    expect(nodeById.a3.x).toBeGreaterThanOrEqual(columns[1].x);
-  });
-
-  it('places each gating event just left of its action, vertically aligned', () => {
+describe('buildLogicGraphLayout dependency-depth layout', () => {
+  it('lays nodes out left-to-right by dependency depth, NOT by tactic', () => {
     const { nodeById } = build();
 
-    // e1 sits left of the action it gates (a1) and is centered on it.
+    // A gating trigger sits strictly left of the action it gates (the causal wave reads L-to-R).
     expect(nodeById.e1.x).toBeLessThan(nodeById.a1.x);
-    const e1Center = nodeById.e1.y + nodeById.e1.height / 2;
-    const a1Center = nodeById.a1.y + nodeById.a1.height / 2;
-    expect(Math.round(e1Center)).toBe(Math.round(a1Center));
+    expect(nodeById.e2.x).toBeLessThan(nodeById.a2.x);
+    expect(nodeById.e3.x).toBeLessThan(nodeById.a3.x);
 
-    // e2 gates a3 (second column), so it sits in that column's lane — left of a3 but right of the
-    // first column's actions, not dumped in the far-left lane.
-    expect(nodeById.e2.x).toBeLessThan(nodeById.a3.x);
-    expect(nodeById.e2.x).toBeGreaterThan(nodeById.a1.x);
+    // a1 and a2 share a tactic but are on the SAME dependency layer (both gated by a first-wave
+    // trigger), so they stack in the same column instead of being forced apart by tactic.
+    expect(nodeById.a1.x).toBe(nodeById.a2.x);
+    expect(nodeById.a1.y).not.toBe(nodeById.a2.y);
   });
 
-  it('keeps events outside the tactic bands (only actions carry a TTP)', () => {
-    const { nodeById, columns } = build();
-    // Every event lies fully to the left of every tactic band (no event overlaps a band's x-range).
-    for (const eventId of ['e1', 'e2']) {
-      const ev = nodeById[eventId];
-      for (const col of columns) {
-        const insideBand = ev.x + ev.width > col.x && ev.x < col.x + col.width;
-        expect(insideBand).toBe(false);
-      }
+  it('normalizes the layout to the origin (no negative coordinates)', () => {
+    const { nodes, groups, bbox } = build();
+    for (const node of nodes) {
+      expect(node.x).toBeGreaterThanOrEqual(0);
+      expect(node.y).toBeGreaterThanOrEqual(0);
+    }
+    for (const group of groups) {
+      expect(group.x).toBeGreaterThanOrEqual(0);
+      expect(group.y).toBeGreaterThanOrEqual(0);
+    }
+    expect(bbox.minX).toBe(0);
+    expect(bbox.minY).toBe(0);
+  });
+});
+
+describe('buildLogicGraphLayout tactic groups', () => {
+  it('emits one padded group hull per tactic, ordered by phase for stable colours', () => {
+    const { groups } = build();
+    expect(groups.map(g => g.tactic)).toEqual(['Discovery', 'Lateral Movement']);
+    expect(groups.map(g => g.order)).toEqual([1, 2]);
+    for (const group of groups) {
+      expect(group.width).toBeGreaterThan(0);
+      expect(group.height).toBeGreaterThan(0);
+      expect(group.headerHeight).toBeGreaterThan(0);
     }
   });
 
-  it('cascades events sharing a lane down without overlapping', () => {
-    // e1 and e2 both gate a1: same lane, same anchor. The first is centered on a1, the second must
-    // cascade below it (align, then de-overlap) instead of stacking on the same Y.
-    const { nodeById } = buildLogicGraphLayout({
-      actionMetas: { a1: action(['e1', 'e2']) },
-      eventMetas: {
-        e1: event(),
-        e2: event(),
-      },
-      outputProviders: {},
-      tacticForStep: { a1: 'Discovery' },
-      tacticOrder: { Discovery: 1 },
-    });
-    expect(nodeById.e1.x).toBe(nodeById.e2.x);
-    const [first, second] = [nodeById.e1, nodeById.e2].sort((a, b) => a.y - b.y);
-    expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
+  it('pads each hull around its action cards (cards never sit flush on the border)', () => {
+    const { nodeById, groups } = build();
+    const discovery = groups.find(g => g.tactic === 'Discovery')!;
+    for (const id of ['a1', 'a2']) {
+      const node = nodeById[id];
+      // Horizontal + bottom padding: the card is strictly inside the hull on every padded side.
+      expect(node.x).toBeGreaterThan(discovery.x);
+      expect(node.x + node.width).toBeLessThan(discovery.x + discovery.width);
+      expect(node.y + node.height).toBeLessThan(discovery.y + discovery.height);
+      // Header room on top: the card starts below the reserved header band.
+      expect(node.y).toBeGreaterThanOrEqual(discovery.y + discovery.headerHeight);
+    }
   });
 
-  it('sorts a tactic missing from the order map after the known ones', () => {
-    const { columns } = buildLogicGraphLayout({
+  it('bounds every action of a tactic even when they span several dependency layers', () => {
+    // a1 (layer 0) and a2 (gated by e2, a later layer) are both Discovery: the hull must span both.
+    const { nodeById, groups } = buildLogicGraphLayout({
+      actionMetas: {
+        a1: action(),
+        e2gate: action(['e2']),
+      },
+      eventMetas: { e2: event() },
+      outputProviders: {},
+      tacticForStep: {
+        a1: 'Discovery',
+        e2gate: 'Discovery',
+      },
+      tacticOrder: { Discovery: 1 },
+    });
+    const discovery = groups.find(g => g.tactic === 'Discovery')!;
+    for (const id of ['a1', 'e2gate']) {
+      const node = nodeById[id];
+      expect(node.x).toBeGreaterThanOrEqual(discovery.x);
+      expect(node.x + node.width).toBeLessThanOrEqual(discovery.x + discovery.width);
+    }
+  });
+
+  it('falls a tactic missing from the order map to the end (after the known ones)', () => {
+    const { groups } = buildLogicGraphLayout({
       actionMetas: {
         a1: action(),
         a2: action(),
@@ -115,35 +133,10 @@ describe('buildLogicGraphLayout tactic columns', () => {
       // come first alphabetically.
       tacticOrder: { 'Lateral Movement': 8 },
     });
-    expect(columns.map(c => c.tactic)).toEqual(['Lateral Movement', 'Alpha Unknown']);
+    expect(groups.map(g => g.tactic)).toEqual(['Lateral Movement', 'Alpha Unknown']);
   });
 
-  it('puts an event gating actions in several columns in the leftmost lane', () => {
-    // e1 gates both a2 (second column) and a1 (first column): it must take the FIRST column's lane
-    // (left of a1), keeping the graph reading left to right.
-    const { nodeById } = buildLogicGraphLayout({
-      actionMetas: {
-        a1: action(['e1']),
-        a2: action(['e1']),
-      },
-      eventMetas: { e1: event() },
-      outputProviders: {},
-      tacticForStep: {
-        a1: 'Discovery',
-        a2: 'Lateral Movement',
-      },
-      tacticOrder: {
-        'Discovery': 1,
-        'Lateral Movement': 2,
-      },
-    });
-    expect(nodeById.e1.x).toBeLessThan(nodeById.a1.x);
-    const e1Center = nodeById.e1.y + nodeById.e1.height / 2;
-    const a1Center = nodeById.a1.y + nodeById.a1.height / 2;
-    expect(Math.round(e1Center)).toBe(Math.round(a1Center));
-  });
-
-  it('returns an empty layout (no columns) for an empty graph', () => {
+  it('returns an empty layout (no groups) for an empty graph', () => {
     const empty = buildLogicGraphLayout({
       actionMetas: {},
       eventMetas: {},
@@ -152,6 +145,8 @@ describe('buildLogicGraphLayout tactic columns', () => {
       tacticOrder: {},
     });
     expect(empty.nodes).toHaveLength(0);
-    expect(empty.columns).toHaveLength(0);
+    expect(empty.groups).toHaveLength(0);
+    // Degenerate fallback bbox is still a real box.
+    expect(empty.bbox.height).toBe(ACTION_NODE_HEIGHT);
   });
 });

@@ -1276,6 +1276,12 @@ export interface AutonomousAttackPathStepState {
   type?: string;
 }
 
+/** How to convert an autonomous scenario into a manual chained scenario */
+export interface AutonomousConvertToManualInput {
+  /** DUPLICATE creates a new manual chained scenario from a copy and leaves the AI run untouched; IN_PLACE turns this scenario manual for good (irreversible). */
+  mode: "DUPLICATE" | "IN_PLACE";
+}
+
 /** Tenant default additional agents for autonomous runs */
 export interface AutonomousDefaultAgentsInput {
   /** XTM One agent ids to consult by default. Empty clears the default. */
@@ -1640,6 +1646,8 @@ export interface AutonomousStatusUpdateInput {
 
 /** A finding-driven trigger: react to findings and consume their values */
 export interface AutonomousStepTrigger {
+  /** Short, human-readable name for the EVENT this trigger represents - the discovery it fires on, phrased as an operator would read it (e.g. "SMB service exposed", "Valid credentials found", "Open web port discovered"). It becomes the event node's title in the Logic graph. When omitted, a readable name is derived from the filters so the event is never shown as "Untitled event". */
+  event_name?: string;
   /** The predicates that make this step fire. Empty means: fire as soon as any of the mapped key_types is present in the finding pool. */
   filters?: AutonomousTriggerFilter[];
   /** Which finding values to bind into this step's inject inputs (GLOBAL mappers). This is how the step attacks what upstream steps discovered. */
@@ -2652,6 +2660,8 @@ export interface ConditionCreateInput {
   )[];
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
+  /** Optional display name. On a trigger's root condition this is the event name shown in the Logic graph; leave null on child/mapper conditions. */
+  condition_name?: string;
   /** ID of the step linked to the key */
   condition_step_from?: string;
   /** Temporary ID of the condition */

@@ -7,21 +7,19 @@ export const NODE_WIDTH = 248;
 export const ACTION_NODE_HEIGHT = 112;
 export const TRIGGER_NODE_HEIGHT = 76;
 
-// Tactic-column layout tokens (px). Actions are grouped into one column per MITRE tactic (ordered by
-// kill-chain phase), and each gating event sits in a lane immediately to the left of its action's
-// column. See buildLogicGraphLayout.
-const EVENT_TO_COL_GAP = 60; // gap between an event lane and the action column it feeds
-const INTER_COLUMN_GAP = 90; // gap between one tactic column and the next column's event lane
-const ACTION_ROW_GAP = 40; // vertical gap between stacked actions in a column
-const EVENT_ROW_GAP = 24; // vertical gap when de-overlapping events sharing a lane
-const COLUMN_TOP_MARGIN = 56; // room above the top node for the tactic column header
-const COLUMN_HEADER_Y = 22; // Y of the tactic column header label (within the top margin)
-const BAND_TOP = 8; // top of the tactic column background band
-const BAND_PADDING_BOTTOM = 20; // padding below the last node inside the column band
-// One tactic column spans its event lane + gap + action column; the next starts a stride further.
-const COLUMN_STRIDE = NODE_WIDTH + EVENT_TO_COL_GAP + NODE_WIDTH + INTER_COLUMN_GAP;
-const eventLaneX = (col: number) => col * COLUMN_STRIDE;
-const actionColX = (col: number) => col * COLUMN_STRIDE + NODE_WIDTH + EVENT_TO_COL_GAP;
+// Column / row separation. Denser when the chain is large (mirrors XTM One's
+// node-count-driven `dynNodeSep` / `dynRankSep`) so big graphs stay compact.
+const columnGap = (nodeCount: number) => (nodeCount > 14 ? 84 : 120);
+const rowGap = (nodeCount: number) => (nodeCount > 14 ? 18 : 30);
+
+// -- Tactic-group tokens (px). Groups are a PURELY VISUAL overlay drawn behind the nodes: the causal
+// left-to-right layout (see buildLogicGraphLayout) places nodes by dependency depth, and each group
+// is the padded bounding hull of the action nodes that share a MITRE tactic. The padding keeps the
+// cards from sitting flush against the hull border, and the header room reserves space above the
+// topmost card for the tactic label. --
+const GROUP_PADDING_X = 18; // horizontal breathing room between a card and its group border
+const GROUP_PADDING_Y = 16; // vertical breathing room between a card and its group border
+const GROUP_HEADER_HEIGHT = 26; // extra room reserved at the top of a hull for the tactic label
 
 export type LogicGraphNodeKind = 'action' | 'trigger';
 
@@ -59,25 +57,27 @@ export interface LogicGraphBBox {
   height: number;
 }
 
-/** One MITRE-tactic column: its header label and the coloured band its nodes sit in. */
-export interface LogicGraphColumn {
+/**
+ * One MITRE-tactic group: the padded, rounded hull drawn behind the action nodes that share a
+ * tactic, plus its header label. Purely decorative — it never drives node positions (only actions
+ * carry a TTP, so events are ignored here). `order` is the tactic's kill-chain phase rank, used by
+ * the renderer to pick a stable accent colour.
+ */
+export interface LogicGraphGroup {
   tactic: string;
-  /**
-   * The coloured band rectangle (world coords). Covers the ACTION column only: events carry no TTP,
-   * so they sit in the lane to the LEFT of this band, outside any tactic (see buildLogicGraphLayout).
-   */
+  order: number;
   x: number;
+  y: number;
   width: number;
-  top: number;
   height: number;
-  /** Y of the column header label (centered over the band). */
-  headerY: number;
+  /** Y reserved for the header label, inside the hull at the top. */
+  headerHeight: number;
 }
 
 export interface LogicGraphLayout {
   nodes: LogicGraphNode[];
   edges: LogicGraphEdge[];
-  columns: LogicGraphColumn[];
+  groups: LogicGraphGroup[];
   bbox: LogicGraphBBox;
   nodeById: Record<string, LogicGraphNode>;
 }
@@ -114,7 +114,7 @@ interface BuildLayoutInput {
   outputProviders: Record<string, OutputProviderEntry[]>;
   /** Resolved MITRE tactic name per action step id (see buildTacticForStep). */
   tacticForStep: Record<string, string>;
-  /** Tactic name -> kill-chain phase order, so columns follow the MITRE order (lower = leftmost). */
+  /** Tactic name -> kill-chain phase order, so group colours follow the MITRE order (lower = earlier). */
   tacticOrder: Record<string, number>;
 }
 
@@ -258,9 +258,13 @@ const computeLayers = (nodeIds: string[], acyclicEdges: RawEdge[]): Record<strin
 };
 
 /**
- * Build the auto-laid-out causal graph (nodes + orthogonal connector paths + bounding box) from the
- * parsed action / event metadata. Pure and deterministic so it can be memoized behind a content
- * fingerprint (polling re-renders must not shuffle the layout).
+ * Build the auto-laid-out causal graph (nodes + orthogonal connector paths + tactic groups +
+ * bounding box) from the parsed action / event metadata. Pure and deterministic so it can be
+ * memoized behind a content fingerprint (polling re-renders must not shuffle the layout).
+ *
+ * Node positions come purely from dependency depth (longest-path layering), so the chain reads
+ * left-to-right as `Action -> Trigger -> Action` waves — the tactic never forces the layout. MITRE
+ * tactics are layered back on top as decorative group hulls (see the group computation at the end).
  */
 export const buildLogicGraphLayout = ({
   actionMetas,
@@ -310,130 +314,151 @@ export const buildLogicGraphLayout = ({
   }
   const graphEdges = [...prunedInferred, ...nonInferred];
 
-  // -- Tactic-column positioning ------------------------------------------------------------------
-  // Actions are grouped into one column per MITRE tactic, columns ordered by kill-chain phase. Each
-  // gating event sits in a lane immediately to the LEFT of its action's column, vertically aligned
-  // to the action it gates (so the event -> action arrow stays horizontal). This restores the
-  // tactic-column reading of the logic view (the dependency-depth layering it replaced put the whole
-  // chain on a single alternating row). The graphEdges above are still used only for rendering.
-  const actionIds = nodeIds.filter(id => kindById[id] === 'action');
-  const eventIds = nodeIds.filter(id => kindById[id] === 'trigger');
+  const preds: Record<string, string[]> = {};
+  for (const edge of graphEdges) (preds[edge.target] ??= []).push(edge.source);
 
-  // The tactic columns present in THIS workflow, ordered by phase (unknown tactics sort last, then
-  // by name for determinism).
-  const uniqueTactics = Array.from(new Set(actionIds.map(id => tacticForStep[id] ?? '')));
-  uniqueTactics.sort((a, b) => {
+  const layer = computeLayers(nodeIds, graphEdges);
+
+  // Bucket nodes per layer, keeping a stable initial order.
+  const layers: Record<number, string[]> = {};
+  for (const id of nodeIds) (layers[layer[id]] ??= []).push(id);
+  const layerKeys = Object.keys(layers).map(Number).sort((a, b) => a - b);
+
+  // Barycenter ordering (single downward pass) to reduce edge crossings: order each layer by the
+  // average row of its predecessors in the previous layer. Same-tactic actions are kept adjacent as
+  // a tie-break so their group hulls stay compact without disturbing the crossing-minimizing order.
+  const orderIndex: Record<string, number> = {};
+  const tacticRank = (id: string) => tacticOrder[tacticForStep[id] ?? ''] ?? 99;
+  layerKeys.forEach((layerKey, layerIdx) => {
+    const ids = layers[layerKey];
+    if (layerIdx === 0) {
+      ids.forEach((id, i) => {
+        orderIndex[id] = i;
+      });
+      return;
+    }
+    const withKey = ids.map((id) => {
+      const parents = (preds[id] ?? []).filter(p => orderIndex[p] !== undefined);
+      const key = parents.length > 0
+        ? parents.reduce((sum, p) => sum + orderIndex[p], 0) / parents.length
+        : Number.MAX_SAFE_INTEGER;
+      return {
+        id,
+        key,
+        tactic: tacticRank(id),
+      };
+    });
+    withKey.sort((a, b) => (a.key !== b.key ? a.key - b.key : a.tactic - b.tactic));
+    layers[layerKey] = withKey.map(w => w.id);
+    layers[layerKey].forEach((id, i) => {
+      orderIndex[id] = i;
+    });
+  });
+
+  const nodeCount = nodeIds.length;
+  const colGap = columnGap(nodeCount);
+  const rGap = rowGap(nodeCount);
+  const heightOf = (id: string) =>
+    (kindById[id] === 'action' ? ACTION_NODE_HEIGHT : TRIGGER_NODE_HEIGHT);
+
+  // Vertically center each column around a shared midline so the chain reads as balanced rather
+  // than top-left heavy.
+  const colHeight: Record<number, number> = {};
+  for (const layerKey of layerKeys) {
+    const ids = layers[layerKey];
+    colHeight[layerKey] = ids.reduce((sum, id) => sum + heightOf(id), 0)
+      + Math.max(0, ids.length - 1) * rGap;
+  }
+  const maxColHeight = Math.max(0, ...Object.values(colHeight));
+
+  const nodes: LogicGraphNode[] = [];
+  for (const layerKey of layerKeys) {
+    const ids = layers[layerKey];
+    let y = (maxColHeight - colHeight[layerKey]) / 2;
+    const x = layerKey * (NODE_WIDTH + colGap);
+    for (const id of ids) {
+      const height = heightOf(id);
+      nodes.push({
+        id,
+        kind: kindById[id],
+        layer: layerKey,
+        x,
+        y,
+        width: NODE_WIDTH,
+        height,
+      });
+      y += height + rGap;
+    }
+  }
+
+  // -- Tactic groups (decorative overlay) ---------------------------------------------------------
+  // For each MITRE tactic present, bound the ACTION nodes that share it (events carry no TTP) and
+  // pad the hull out so cards never sit flush against the border, reserving header room on top for
+  // the tactic label. Groups follow the kill-chain phase order (unknown tactics sort last, then by
+  // name) so their accent colours are stable across renders.
+  const actionsByTactic: Record<string, LogicGraphNode[]> = {};
+  for (const node of nodes) {
+    if (node.kind !== 'action') continue;
+    const tactic = tacticForStep[node.id] ?? '';
+    (actionsByTactic[tactic] ??= []).push(node);
+  }
+  const orderedTactics = Object.keys(actionsByTactic).sort((a, b) => {
     const oa = tacticOrder[a] ?? 99;
     const ob = tacticOrder[b] ?? 99;
     return oa !== ob ? oa - ob : a.localeCompare(b);
   });
-  const colByTactic: Record<string, number> = {};
-  uniqueTactics.forEach((tactic, i) => {
-    colByTactic[tactic] = i;
-  });
-  const colOfAction = (id: string) => colByTactic[tacticForStep[id] ?? ''] ?? 0;
-
-  // Actions per column, in a stable order.
-  const actionsByCol: Record<number, string[]> = {};
-  for (const id of actionIds) (actionsByCol[colOfAction(id)] ??= []).push(id);
-
-  // Actions are top-aligned within their column (like a table): every column starts at the same top,
-  // just under its header, so headers stay attached to their nodes. `colActionBottomY` tracks each
-  // column's lowest ACTION so its background band can be sized to fit — only actions carry a TTP, so
-  // only actions belong to a tactic column; events sit outside the band (see below).
-  const nodes: LogicGraphNode[] = [];
-  const actionCenterY: Record<string, number> = {};
-  const colActionBottomY: Record<number, number> = {};
-  uniqueTactics.forEach((_tactic, col) => {
-    const ids = actionsByCol[col] ?? [];
-    let y = COLUMN_TOP_MARGIN;
-    for (const id of ids) {
-      nodes.push({
-        id,
-        kind: 'action',
-        layer: col,
-        x: actionColX(col),
-        y,
-        width: NODE_WIDTH,
-        height: ACTION_NODE_HEIGHT,
-      });
-      actionCenterY[id] = y + ACTION_NODE_HEIGHT / 2;
-      colActionBottomY[col] = y + ACTION_NODE_HEIGHT;
-      y += ACTION_NODE_HEIGHT + ACTION_ROW_GAP;
+  const groups: LogicGraphGroup[] = orderedTactics.map((tactic) => {
+    const members = actionsByTactic[tactic];
+    let gMinX = Infinity;
+    let gMinY = Infinity;
+    let gMaxX = -Infinity;
+    let gMaxY = -Infinity;
+    for (const node of members) {
+      gMinX = Math.min(gMinX, node.x);
+      gMinY = Math.min(gMinY, node.y);
+      gMaxX = Math.max(gMaxX, node.x + node.width);
+      gMaxY = Math.max(gMaxY, node.y + node.height);
     }
-  });
-
-  // Resolve, per event, the column it sits left of and the Y to align to: the leftmost tactic among
-  // the actions it gates, aligned to that action's center (topmost when it gates several).
-  const eventPlacement: Record<string, {
-    col: number;
-    anchorY: number;
-  }> = {};
-  for (const [stepId, meta] of Object.entries(actionMetas)) {
-    if (actionCenterY[stepId] === undefined) continue;
-    const col = colOfAction(stepId);
-    const y = actionCenterY[stepId];
-    for (const eventId of meta.step_condition_ids) {
-      if (!eventMetas[eventId]) continue;
-      const cur = eventPlacement[eventId];
-      if (!cur || col < cur.col || (col === cur.col && y < cur.anchorY)) {
-        eventPlacement[eventId] = {
-          col,
-          anchorY: y,
-        };
-      }
-    }
-  }
-
-  // Bucket events per lane X (orphan events, gating nothing, share column 0's lane), then align each
-  // to its anchor and cascade down only to resolve overlaps ("align, then de-overlap").
-  const eventLanes: Record<number, {
-    id: string;
-    anchorY: number | null;
-  }[]> = {};
-  for (const id of eventIds) {
-    const p = eventPlacement[id];
-    const laneX = eventLaneX(p ? p.col : 0);
-    (eventLanes[laneX] ??= []).push({
-      id,
-      anchorY: p ? p.anchorY : null,
-    });
-  }
-  for (const [laneXStr, items] of Object.entries(eventLanes)) {
-    const laneX = Number(laneXStr);
-    items.sort(
-      (a, b) => (a.anchorY ?? Number.POSITIVE_INFINITY) - (b.anchorY ?? Number.POSITIVE_INFINITY),
-    );
-    let cursor = COLUMN_TOP_MARGIN;
-    for (const { id, anchorY } of items) {
-      const desiredTop = anchorY === null ? cursor : anchorY - TRIGGER_NODE_HEIGHT / 2;
-      const y = Math.max(desiredTop, cursor);
-      nodes.push({
-        id,
-        kind: 'trigger',
-        layer: 0,
-        x: laneX,
-        y,
-        width: NODE_WIDTH,
-        height: TRIGGER_NODE_HEIGHT,
-      });
-      cursor = y + TRIGGER_NODE_HEIGHT + EVENT_ROW_GAP;
-    }
-  }
-
-  // One coloured band per column, covering the ACTION column only (events have no TTP, so they sit
-  // in the lane to the left of the band, outside any tactic). Sized to the column's actions.
-  const columns: LogicGraphColumn[] = uniqueTactics.map((tactic, col) => {
-    const bottom = colActionBottomY[col] ?? COLUMN_TOP_MARGIN;
+    const x = gMinX - GROUP_PADDING_X;
+    const y = gMinY - GROUP_PADDING_Y - GROUP_HEADER_HEIGHT;
     return {
       tactic,
-      x: actionColX(col),
-      width: NODE_WIDTH,
-      top: BAND_TOP,
-      height: bottom + BAND_PADDING_BOTTOM - BAND_TOP,
-      headerY: COLUMN_HEADER_Y,
+      order: tacticOrder[tactic] ?? 99,
+      x,
+      y,
+      width: gMaxX + GROUP_PADDING_X - x,
+      height: gMaxY + GROUP_PADDING_Y - y,
+      headerHeight: GROUP_HEADER_HEIGHT,
     };
   });
+
+  // Normalize the whole layout to the origin: group hulls pad out above and to the left of the
+  // nodes (header room + horizontal padding), so the top-left of the content is a group corner, not
+  // a node. The render container and pan/zoom fit both assume content starts at (0, 0), so shift
+  // every node and group by the negative of the global minimum. Do this BEFORE routing edges so the
+  // connector paths are computed in the final coordinate space.
+  let originX = Infinity;
+  let originY = Infinity;
+  for (const node of nodes) {
+    originX = Math.min(originX, node.x);
+    originY = Math.min(originY, node.y);
+  }
+  for (const group of groups) {
+    originX = Math.min(originX, group.x);
+    originY = Math.min(originY, group.y);
+  }
+  const offsetX = Number.isFinite(originX) ? -originX : 0;
+  const offsetY = Number.isFinite(originY) ? -originY : 0;
+  if (offsetX !== 0 || offsetY !== 0) {
+    for (const node of nodes) {
+      node.x += offsetX;
+      node.y += offsetY;
+    }
+    for (const group of groups) {
+      group.x += offsetX;
+      group.y += offsetY;
+    }
+  }
 
   const nodeById: Record<string, LogicGraphNode> = Object.fromEntries(
     nodes.map(n => [n.id, n]),
@@ -452,8 +477,7 @@ export const buildLogicGraphLayout = ({
   });
 
   let minX = Infinity;
-  // Start at the band top so the column headers/bands above the topmost node are never framed out.
-  let minY = columns.length > 0 ? BAND_TOP : Infinity;
+  let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
   for (const node of nodes) {
@@ -461,6 +485,14 @@ export const buildLogicGraphLayout = ({
     minY = Math.min(minY, node.y);
     maxX = Math.max(maxX, node.x + node.width);
     maxY = Math.max(maxY, node.y + node.height);
+  }
+  // Fold the group hulls into the bbox so their padded borders and headers (which extend above and
+  // around the nodes) are never framed out on fit.
+  for (const group of groups) {
+    minX = Math.min(minX, group.x);
+    minY = Math.min(minY, group.y);
+    maxX = Math.max(maxX, group.x + group.width);
+    maxY = Math.max(maxY, group.y + group.height);
   }
   if (!Number.isFinite(minX)) {
     minX = 0;
@@ -472,7 +504,7 @@ export const buildLogicGraphLayout = ({
   return {
     nodes,
     edges,
-    columns,
+    groups,
     bbox: {
       minX,
       minY,

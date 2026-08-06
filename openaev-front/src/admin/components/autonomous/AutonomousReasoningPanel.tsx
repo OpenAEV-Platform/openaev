@@ -607,7 +607,23 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // as the next cycle emits an activity event, the newest event is no longer a STATUS and the
   // window animates again.
   const newestEvent = events.length > 0 ? events[events.length - 1] : undefined;
-  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS';
+  // A STATUS stamped `{"phase":"engaged"}` (start / restart-then-start / resume) means the
+  // orchestrator has JUST engaged and is actively working - it can churn for minutes (building
+  // arsenal, resolving contracts) before its first DECISION lands. That is the opposite of a park,
+  // so it must NOT read as the calm "Awaiting the next event": the cockpit looked frozen for that
+  // whole window even though a burst of work had already begun the instant the operator clicked.
+  const engagedOnStatus = (() => {
+    if (newestEvent?.autonomous_event_type !== 'STATUS' || !newestEvent.autonomous_event_data) {
+      return false;
+    }
+    try {
+      return (JSON.parse(newestEvent.autonomous_event_data) as { phase?: string }).phase === 'engaged';
+    } catch {
+      return false;
+    }
+  })();
+  // Parked only when the newest STATUS is a genuine end-of-cycle wait (NOT an engagement marker).
+  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS' && !engagedOnStatus;
   // Has the orchestrator RESUMED since the operator answered? The backend run status stays
   // WAITING_INPUT until a later 3s poll flips it, so it lies about "still waiting" for a while. The
   // truthful signal is a fresh activity event: once the newest event is a DECISION / TOOL_ACTION /
@@ -633,6 +649,19 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       return {
         key: 'resuming',
         label: t('Processing your answer'),
+        color: accent,
+        active: true,
+      };
+    }
+    if (engagedOnStatus && !newestIsActivity) {
+      // Freshly engaged (start / restart / resume) but the first activity event has not landed yet.
+      // The orchestrator is demonstrably working (a cycle is running); narrate that with a pulsing
+      // caption instead of the static parked one, until the first DECISION / TOOL_ACTION arrives and
+      // the switch below takes over. Fixes the "stuck on Awaiting the next event for minutes after I
+      // clicked Redo plan, but the iterations had already begun" report.
+      return {
+        key: 'engaging',
+        label: run.autonomous_run_plan_mode === true ? t('Designing the attack path') : t('Getting to work'),
         color: accent,
         active: true,
       };

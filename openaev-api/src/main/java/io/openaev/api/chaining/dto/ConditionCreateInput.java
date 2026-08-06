@@ -24,6 +24,18 @@ public class ConditionCreateInput {
   @JsonProperty("condition_temporary_id")
   private String temporaryId;
 
+  /**
+   * Optional display name for the condition. Only meaningful on the ROOT condition of a trigger
+   * tree, where it becomes the EVENT name shown in the Logic graph (an unnamed root renders as
+   * "Untitled event"). Ignored/left null on child leaves and mapper conditions.
+   */
+  @Schema(
+      description =
+          "Optional display name. On a trigger's root condition this is the event name shown in "
+              + "the Logic graph; leave null on child/mapper conditions.")
+  @JsonProperty("condition_name")
+  private String name;
+
   /** Temporary ID of the parent condition */
   @Schema(description = "Temporary ID of the parent condition")
   @JsonProperty("condition_temporary_id_condition_parent")
