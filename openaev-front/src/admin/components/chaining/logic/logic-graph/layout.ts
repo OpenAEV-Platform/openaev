@@ -63,13 +63,11 @@ export interface LogicGraphBBox {
 /**
  * One MITRE-tactic column: the padded band drawn behind the action cards of that tactic, plus its
  * header label. Exactly one band per tactic, and bands never overlap — each owns an exclusive
- * horizontal stride of the canvas. The band covers the ACTION column only: events carry no TTP, so
- * they sit in the lane to its LEFT, outside any tactic. `order` is the tactic's kill-chain phase
- * rank, used by the renderer to pick a stable accent colour.
+ * horizontal span of the canvas. The band covers the ACTION column only: events carry no TTP, so
+ * they sit in the lane to its LEFT, outside any tactic. Columns come out in kill-chain phase order.
  */
 export interface LogicGraphColumn {
   tactic: string;
-  order: number;
   x: number;
   y: number;
   width: number;
@@ -485,7 +483,6 @@ export const buildLogicGraphLayout = ({
     const bottom = colActionBottomY[col] ?? COLUMN_TOP_MARGIN;
     return {
       tactic,
-      order: tacticOrder[tactic] ?? 99,
       x: actionX[col] - BAND_PADDING_X,
       y: BAND_TOP,
       width: NODE_WIDTH + 2 * BAND_PADDING_X,

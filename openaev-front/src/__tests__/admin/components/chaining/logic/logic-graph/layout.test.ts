@@ -102,10 +102,9 @@ describe('buildLogicGraphLayout tactic-column layout', () => {
 });
 
 describe('buildLogicGraphLayout tactic columns', () => {
-  it('emits exactly one band per tactic, ordered by phase for stable colours', () => {
+  it('emits exactly one band per tactic, in kill-chain phase order', () => {
     const { columns } = build();
     expect(columns.map(c => c.tactic)).toEqual(['Discovery', 'Lateral Movement']);
-    expect(columns.map(c => c.order)).toEqual([1, 2]);
     for (const column of columns) {
       expect(column.width).toBeGreaterThan(0);
       expect(column.height).toBeGreaterThan(0);
