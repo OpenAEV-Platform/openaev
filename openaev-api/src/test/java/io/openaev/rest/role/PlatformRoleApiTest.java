@@ -51,7 +51,9 @@ public class PlatformRoleApiTest extends IntegrationTest {
       // -------- Arrange --------
       PlatformRoleInput input =
           new PlatformRoleInput(
-              "NewPlatformRole", "A description", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+              "NewPlatformRole",
+              "A description",
+              Set.of(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES));
 
       // -------- Act --------
       String response =
@@ -76,6 +78,25 @@ public class PlatformRoleApiTest extends IntegrationTest {
     @WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES})
     @DisplayName("Given ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES only, should be forbidden to create")
     void given_accessPlatform_should_forbidCreate() throws Exception {
+      // -------- Arrange --------
+      PlatformRoleInput input =
+          new PlatformRoleInput("Forbidden", "desc", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              post(PLATFORM_ROLES_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should be forbidden to assign unowned capabilities")
+    void given_managePlatform_should_forbidCreateWithUnownedCapabilities() throws Exception {
       // -------- Arrange --------
       PlatformRoleInput input =
           new PlatformRoleInput("Forbidden", "desc", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
@@ -255,7 +276,9 @@ public class PlatformRoleApiTest extends IntegrationTest {
 
       PlatformRoleInput input =
           new PlatformRoleInput(
-              "UpdatedRoleName", "Updated desc", Set.of(Capability.MANAGE_PLATFORM_SETTINGS));
+              "UpdatedRoleName",
+              "Updated desc",
+              Set.of(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES));
 
       // -------- Act --------
       String response =
@@ -279,6 +302,32 @@ public class PlatformRoleApiTest extends IntegrationTest {
     @WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES})
     @DisplayName("Given ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES only, should be forbidden to update")
     void given_accessPlatform_should_forbidUpdate() throws Exception {
+      // -------- Arrange --------
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(PlatformRoleFixture.getPlatformRole("NotUpdatable"))
+              .persist()
+              .get();
+
+      PlatformRoleInput input =
+          new PlatformRoleInput(
+              "Forbidden", "forbidden", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(PLATFORM_ROLES_URI + "/" + role.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should be forbidden to update with unowned capabilities")
+    void given_managePlatform_should_forbidUpdateWithUnownedCapabilities() throws Exception {
       // -------- Arrange --------
       Role role =
           platformRoleComposer

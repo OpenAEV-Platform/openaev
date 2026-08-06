@@ -297,7 +297,9 @@ public class TenantGroupApiTest extends IntegrationTest {
           tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("RoleGroup")).persist().get();
       Role role =
           tenantRoleComposer
-              .forRole(TenantRoleFixture.getRole("RoleForGroup", Set.of(Capability.ACCESS_ASSETS)))
+              .forRole(
+                  TenantRoleFixture.getRole(
+                      "RoleForGroup", Set.of(Capability.MANAGE_TENANT_SETTINGS)))
               .persist()
               .get();
 
@@ -321,6 +323,36 @@ public class TenantGroupApiTest extends IntegrationTest {
       List<String> roles = JsonPath.read(response, "$.group_roles");
       assertEquals(1, roles.size());
       assertEquals(role.getId(), roles.getFirst());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName(
+        "Given MANAGE_TENANT_SETTINGS, should forbid assigning role with unowned capabilities")
+    void given_manageTenantSettings_should_forbidUpdateGroupRolesWithUnownedCapabilities()
+        throws Exception {
+      // -------- Arrange --------
+      Group group =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup("RoleGroupForbidden"))
+              .persist()
+              .get();
+      Role role =
+          tenantRoleComposer
+              .forRole(TenantRoleFixture.getRole("RoleForGroup", Set.of(Capability.ACCESS_ASSETS)))
+              .persist()
+              .get();
+      GroupUpdateRolesInput input =
+          GroupUpdateRolesInput.builder().roleIds(List.of(role.getId())).build();
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(tenantUri(TENANT_GROUP_URI) + "/" + group.getId() + "/roles")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
     }
 
     @Test
@@ -351,6 +383,40 @@ public class TenantGroupApiTest extends IntegrationTest {
       // -------- Assert --------
       List<String> users = JsonPath.read(response, "$.group_users");
       assertTrue(users.contains(userId));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName(
+        "Given MANAGE_TENANT_SETTINGS, should forbid assigning users to group with unowned role capabilities")
+    void given_manageTenantSettings_should_forbidUpdateGroupUsersWithUnownedRoleCapabilities()
+        throws Exception {
+      // -------- Arrange --------
+      Group group =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup("UserGroupForbidden"))
+              .persist()
+              .get();
+      Role role =
+          tenantRoleComposer
+              .forRole(
+                  TenantRoleFixture.getRole("RoleForUserUpdate", Set.of(Capability.ACCESS_ASSETS)))
+              .persist()
+              .get();
+      group.setRoles(new ArrayList<>(List.of(role)));
+      groupRepository.save(group);
+
+      GroupUpdateUsersInput input = new GroupUpdateUsersInput();
+      input.setUserIds(List.of(testUserHolder.get().getId()));
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(tenantUri(TENANT_GROUP_URI) + "/" + group.getId() + "/users")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
     }
 
     @Test

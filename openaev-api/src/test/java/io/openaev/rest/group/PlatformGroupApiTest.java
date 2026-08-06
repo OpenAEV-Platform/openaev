@@ -376,7 +376,9 @@ public class PlatformGroupApiTest extends IntegrationTest {
               .get();
       Role role =
           platformRoleComposer
-              .forPlatformRole(PlatformRoleFixture.getPlatformRole("AssignRole"))
+              .forPlatformRole(
+                  PlatformRoleFixture.getPlatformRole(
+                      "AssignRole", Set.of(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES)))
               .persist()
               .get();
 
@@ -399,6 +401,69 @@ public class PlatformGroupApiTest extends IntegrationTest {
       // -------- Assert --------
       List<String> roleIds = JsonPath.read(response, "$");
       assertTrue(roleIds.contains(role.getId()));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should forbid assigning platform roles with unowned capabilities")
+    void given_managePlatform_should_forbidUpdateGroupRolesWithUnownedCapabilities()
+        throws Exception {
+      // -------- Arrange --------
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("RoleUpdateGroupForbidden"))
+              .persist()
+              .get();
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(PlatformRoleFixture.getPlatformRole("AssignRoleForbidden"))
+              .persist()
+              .get();
+      PlatformGroupUpdateRolesInput input =
+          new PlatformGroupUpdateRolesInput(List.of(role.getId()));
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(PLATFORM_GROUPS_URI + "/" + group.getId() + "/platform-roles")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should forbid assigning users to group with unowned role capabilities")
+    void given_managePlatform_should_forbidUpdateGroupUsersWithUnownedRoleCapabilities()
+        throws Exception {
+      // -------- Arrange --------
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("UserUpdateGroupForbidden"))
+              .persist()
+              .get();
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(PlatformRoleFixture.getPlatformRole("RoleForUserUpdateForbidden"))
+              .persist()
+              .get();
+      group.setRoles(new ArrayList<>(List.of(role)));
+      groupRepository.save(group);
+
+      PlatformGroupUpdateUsersInput input =
+          new PlatformGroupUpdateUsersInput(List.of(testUserHolder.get().getId()));
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(PLATFORM_GROUPS_URI + "/" + group.getId() + "/users")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
     }
 
     @Test
