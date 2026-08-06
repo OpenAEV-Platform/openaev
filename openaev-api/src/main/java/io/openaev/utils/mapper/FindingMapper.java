@@ -22,6 +22,7 @@ public class FindingMapper {
   private final ExerciseMapper exerciseMapper;
   private final ScenarioMapper scenarioMapper;
   private final InjectMapper injectMapper;
+  private final InjectorMapper injectorMapper;
 
   public AggregatedFindingOutput toAggregatedFindingOutput(
       Finding finding, List<Asset> relatedAssets) {
@@ -37,6 +38,11 @@ public class FindingMapper {
             relatedAssets.stream()
                 .map(endpointMapper::toEndpointSimple)
                 .collect(Collectors.toSet()))
+        .source(
+            Optional.ofNullable(finding.getInject())
+                .map(Inject::getInjector)
+                .map(injectorMapper::toInjectorSimple)
+                .orElse(null))
         .build();
   }
 
@@ -63,6 +69,11 @@ public class FindingMapper {
             Optional.ofNullable(finding.getInject().getExercise())
                 .map(Exercise::getScenario)
                 .map(scenario -> scenarioMapper.toScenarioSimple(scenario))
+                .orElse(null))
+        .source(
+            Optional.ofNullable(finding.getInject())
+                .map(Inject::getInjector)
+                .map(injectorMapper::toInjectorSimple)
                 .orElse(null))
         .creationDate(finding.getCreationDate())
         .build();

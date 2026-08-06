@@ -195,6 +195,8 @@ export interface AggregatedFindingOutput {
    * @minLength 1
    */
   finding_id: string;
+  /** Injector that produced this finding (null if the finding was created manually, e.g. via the API, without a real inject/injector behind it) */
+  finding_source?: InjectorSimple;
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -5350,6 +5352,7 @@ export interface Finding {
   finding_name?: string;
   finding_scenario?: Scenario;
   finding_simulation?: Exercise;
+  finding_source?: Injector;
   finding_tags?: string[];
   finding_teams?: string[];
   finding_type:
@@ -6710,6 +6713,21 @@ export interface InjectorOutput {
 export interface InjectorRegistration {
   connection?: BrokerConnectionInfo;
   listen?: string;
+}
+
+export interface InjectorSimple {
+  /**
+   * Injector Id
+   * @minLength 1
+   */
+  injector_id: string;
+  /**
+   * Injector Name
+   * @minLength 1
+   */
+  injector_name: string;
+  /** Injector Type */
+  injector_type?: string;
 }
 
 export interface InjectorUpdateInput {
@@ -9494,6 +9512,8 @@ export interface RelatedFindingOutput {
   finding_scenario?: ScenarioSimple;
   /** Simulation linked to inject */
   finding_simulation?: ExerciseSimple;
+  /** Injector that produced this finding (null if the finding was created manually, e.g. via the API, without a real inject/injector behind it) */
+  finding_source?: InjectorSimple;
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"

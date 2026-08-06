@@ -1,4 +1,4 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
 import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
@@ -29,12 +29,13 @@ interface Props {
 }
 
 const inlineStyles: Record<string, CSSProperties> = ({
-  finding_type: { width: '13%' },
-  finding_value: { width: '27%' },
-  finding_assets: { width: '17%' },
-  finding_asset_groups: { width: '15%' },
-  finding_created_at: { width: '14%' },
-  finding_updated_at: { width: '14%' },
+  finding_type: { width: '12%' },
+  finding_source: { width: '10%' },
+  finding_value: { width: '24%' },
+  finding_assets: { width: '15%' },
+  finding_asset_groups: { width: '13%' },
+  finding_created_at: { width: '13%' },
+  finding_updated_at: { width: '13%' },
 });
 
 const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
@@ -48,6 +49,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     'finding_updated_at',
     'finding_asset_groups',
     'finding_assets',
+    'finding_source',
   ];
 
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
@@ -94,6 +96,18 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         >
           {t(ContractOutputElementType[finding.finding_type] ?? finding.finding_type)}
         </span>
+      ),
+    },
+    {
+      field: 'finding_source',
+      label: 'Source',
+      isSortable: false,
+      // Manual findings (created via the API without a real inject/injector behind them) show a
+      // muted "Manual" fallback instead of an empty cell.
+      value: (finding: AggregatedFindingOutput) => (
+        finding.finding_source
+          ? <Chip size="small" variant="outlined" label={finding.finding_source.injector_name} />
+          : <Typography variant="body2" color="text.secondary">{t('Manual')}</Typography>
       ),
     },
     {
