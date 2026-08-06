@@ -16,13 +16,15 @@ Certificate validation ensures that OpenAEV only communicates with trusted endpo
 
 ### Strict validation (default)
 
-By default, OpenAEV validates all outgoing TLS certificates against the JVM's default trust store (`cacerts`). No configuration is needed.
+By default, OpenAEV validates all outgoing TLS certificates against the JVM (Java Virtual Machine)'s default trust store (`cacerts`). No configuration is needed.
 
 | Parameter | Environment variable | Default | Description |
 |:--|:--|:--|:--|
 | `openaev.unsecured-certificate` | `OPENAEV_UNSECURED-CERTIFICATE` | `false` | Reject untrusted SSL certificates |
 
-⚠️ **Warning** — Keep this set to `false` in production. Setting it to `true` disables certificate chain validation for **all** outgoing connections and exposes the platform to MITM attacks.
+!!! warning
+
+    Keep this set to `false` in production. Setting it to `true` disables certificate chain validation for **all** outgoing connections and exposes the platform to MITM attacks.
 
 ### Allow self-signed certificates (dev/test only)
 
@@ -36,7 +38,9 @@ services:
       - OPENAEV_UNSECURED-CERTIFICATE=true
 ```
 
-⚠️ **Warning** — Use this only in controlled, non-production environments.
+!!! warning
+
+    Use this only in controlled, non-production environments.
 
 ### Add custom trusted certificates (recommended)
 
@@ -44,11 +48,11 @@ Instead of disabling validation, add your internal CA or self-signed certificate
 
 | Parameter | Environment variable | Default | Description |
 |:--|:--|:--|:--|
-| `openaev.extra-trusted-certs-dir` | `OPENAEV_EXTRA-TRUSTED-CERTS-DIR` | — | Directory containing additional trusted PEM certificates |
+| `openaev.extra-trusted-certs-dir` | `OPENAEV_EXTRA-TRUSTED-CERTS-DIR` | — | Directory containing additional trusted PEM (Privacy-Enhanced Mail) certificates |
 
 **Requirements:**
 
-- Certificate files must be in **PEM format** (`.pem`) or **DER-encoded X.509** format.
+- Certificate files must be in **PEM format** (`.pem`) or **DER (Distinguished Encoding Rules)-encoded X.509** format.
 - The directory must be readable by the OpenAEV process.
 
 ### Example
@@ -71,7 +75,9 @@ services:
 
 OpenAEV now trusts your internal CA **while keeping strict validation** for everything else.
 
-💡 **Tip** — This is the recommended approach for production environments with internal PKI.
+!!! tip
+
+    This is the recommended approach for production environments with internal PKI (Public Key Infrastructure).
 
 ## Incoming connections (TLS termination)
 
@@ -102,7 +108,9 @@ services:
       - ./keystore.p12:/opt/openaev/keystore.p12:ro
 ```
 
-💡 **Tip** — Most production deployments terminate TLS at a reverse proxy (Nginx, Traefik, HAProxy). In that case, leave `server.ssl.enabled=false` and set `openaev.cookie-secure=true` if end-users connect over HTTPS.
+!!! tip
+
+    Most production deployments terminate TLS at a reverse proxy (Nginx, Traefik, HAProxy). In that case, leave `server.ssl.enabled=false` and set `openaev.cookie-secure=true` if end-users connect over HTTPS.
 
 ## Proxy support
 

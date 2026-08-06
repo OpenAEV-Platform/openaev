@@ -1,0 +1,82 @@
+name: "🧹 Registry Cleanup"
+
+# CI images (ghcr.io/<repo>-ci) exist only to hand a build over to E2E, the
+# platform merge and the Snyk scan. Sweeping them on a schedule rather than at
+# the end of each pipeline keeps the housekeeping job off every run, and also
+# reclaims tags from runs that were cancelled before an in-pipeline cleanup
+# could have run.
+
+on:
+  schedule:
+    # After Nightly CI (03:00) so a nightly run never races the sweep.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      retention_hours:
+        description: "Delete CI image versions older than this many hours"
+        type: string
+        required: false
+        default: "24"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: registry-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: "🧹 Sweep stale CI images"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Delete stale CI image versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RETENTION_HOURS: ${{ inputs.retention_hours || '24' }}
+        run: |
+          set -euo pipefail
+
+          OWNER=$(echo "${{ github.repository }}" | cut -d/ -f1)
+          PACKAGE="$(echo "${{ github.repository }}" | cut -d/ -f2 | tr '[:upper:]' '[:lower:]')-ci"
+          CUTOFF=$(date -u -d "-${RETENTION_HOURS} hours" +%Y-%m-%dT%H:%M:%SZ)
+
+          echo "Package : $OWNER/$PACKAGE"
+          echo "Cutoff  : $CUTOFF (retention ${RETENTION_HOURS}h)"
+
+          VERSIONS=$(gh api --paginate \
+            "/orgs/$OWNER/packages/container/$PACKAGE/versions?per_page=100" 2>/dev/null) || {
+            echo "Package not found or not accessible — nothing to do"
+            exit 0
+          }
+
+          # The package holds CI images exclusively, so anything past the cutoff
+          # goes: untagged manifests included, since multi-arch pushes leave
+          # dangling children that no tag filter would ever match.
+          STALE=$(printf '%s' "$VERSIONS" | jq -r --arg cutoff "$CUTOFF" \
+            '[.[] | select(.updated_at < $cutoff)] | .[] | "\(.id)\t\(.updated_at)\t\((.metadata.container.tags // []) | join(","))"')
+
+          if [ -z "$STALE" ]; then
+            echo "Nothing older than the cutoff"
+            exit 0
+          fi
+
+          COUNT=0
+          FAILED=0
+          while IFS=$'\t' read -r id updated tags; do
+            [ -z "$id" ] && continue
+            if gh api -X DELETE \
+                 "/orgs/$OWNER/packages/container/$PACKAGE/versions/$id" >/dev/null 2>&1; then
+              echo "  deleted $id  $updated  ${tags:-<untagged>}"
+              COUNT=$((COUNT + 1))
+            else
+              echo "  could not delete $id  $updated  ${tags:-<untagged>}"
+              FAILED=$((FAILED + 1))
+            fi
+          done <<< "$STALE"
+
+          echo "──────────────────────────────────────"
+          echo "  Deleted $COUNT version(s), $FAILED failure(s)"
+          echo "──────────────────────────────────────"

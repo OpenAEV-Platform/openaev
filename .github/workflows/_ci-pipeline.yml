@@ -1,0 +1,536 @@
+name: "CI Pipeline"
+
+# ════════════════════════════════════════════════════════════════════
+# Single reusable workflow for the entire CI/CD pipeline.
+# Called by core-ci.yml (defaults) and nightly-ci.yml (all flags on).
+# Nightly-only jobs are gated behind boolean inputs.
+# ════════════════════════════════════════════════════════════════════
+
+on:
+  workflow_call:
+    inputs:
+      api-matrix:
+        description: "JSON array of API test matrix entries"
+        type: string
+        required: true
+      e2e-matrix:
+        description: "JSON array of E2E test matrix entries (includes both regular and infra)"
+        type: string
+        required: true
+      snyk-fail-on-error:
+        description: "Enforce Snyk findings/errors (true for Nightly; false keeps Core CI advisory)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+  # Docker images are handed between jobs through GHCR; artifacts are still uploaded.
+  packages: write
+
+jobs:
+  # ════════════════════════════════════════════════════════════════════
+  # Build
+  # ════════════════════════════════════════════════════════════════════
+
+  migrations-guard:
+    name: "🔎 Migrations Guard"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-tags: "true"
+          fetch-depth: 0
+      - uses: ./.github/actions/find-latest-tag
+        id: latest-tag
+      - uses: ./.github/actions/migrations-guard
+        with:
+          last-release-number: ${{ steps.latest-tag.outputs.latest-tag }}
+
+  backend-compile:
+    name: "🔨 Backend Compile"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/backend-compile
+
+  frontend-build:
+    name: "🎨 Frontend Build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/frontend-build
+
+  prepare-bundled-assets:
+    name: "📦 Prepare Bundled Assets"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # git describe needs the commit graph, not historical file contents
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/prepare-bundled-assets
+
+  # ════════════════════════════════════════════════════════════════════
+  # Static quality checks
+  # ════════════════════════════════════════════════════════════════════
+
+  spotless-check:
+    name: "🔍 Spotless Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/spotless-check
+
+  frontend-quality:
+    name: "🧪 Frontend Quality & Unit Tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/frontend-quality
+
+  # ════════════════════════════════════════════════════════════════════
+  # API Tests — matrix passed from caller
+  # ════════════════════════════════════════════════════════════════════
+
+  api-tests:
+    name: "🧪 API Tests (${{ matrix.shard_name }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.api-matrix) }}
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      ENGINE_URL: http://localhost:9200
+      ENGINE_ENGINESELECTOR: ${{ matrix.engine_selector }}
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/api-tests
+        with:
+          includes: ${{ matrix.includes }}
+          excludes: ${{ matrix.excludes }}
+          shard: ${{ matrix.shard }}
+          shard-name: ${{ matrix.shard_name }}
+          search-engine: ${{ matrix.search_engine }}
+          artifact-suffix: ${{ matrix.artifact_suffix }}
+
+  # ════════════════════════════════════════════════════════════════════
+  # E2E Tests — matrix passed from caller
+  # ════════════════════════════════════════════════════════════════════
+
+  e2e-tests:
+    name: "🧪 E2E (${{ matrix.shard_name || 'full' }} · ${{ matrix.project }} · ${{ matrix.variant }}${{ matrix.search_engine == 'opensearch' && ' · OS' || '' }})"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.e2e-matrix) }}
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      ENGINE_ENGINESELECTOR: ${{ matrix.search_engine == 'opensearch' && 'opensearch' || 'elk' }}
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/e2e-tests
+        with:
+          browser: ${{ matrix.browser }}
+          project: ${{ matrix.project }}
+          docker-image: ${{ matrix.docker_image }}
+          search-engine: ${{ matrix.search_engine }}
+          includes: ${{ matrix.includes }}
+          excludes: ${{ matrix.excludes }}
+          artifact-suffix: ${{ matrix.artifact_suffix }}
+
+  # ════════════════════════════════════════════════════════════════════
+  # API Types Check
+  # ════════════════════════════════════════════════════════════════════
+
+  api-types-check:
+    name: "🔎 API Types Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/api-types-check
+
+  # ════════════════════════════════════════════════════════════════════
+  # Coverage Merge & Upload
+  # ════════════════════════════════════════════════════════════════════
+
+  codecov:
+    name: "📊 Coverage Merge & Upload"
+    needs: [api-tests, frontend-quality, e2e-tests, api-types-check]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      - name: Download compiled Maven artifacts
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          name: backend-compiled
+          path: ~/.m2/repository/io/openaev/
+        continue-on-error: true
+
+      - name: Download API build output
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          name: api-build-output
+          path: openaev-api/target
+        continue-on-error: true
+
+      - name: Download all JaCoCo exec shards
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: jacoco-exec-shard-*
+          path: jacoco-exec
+        continue-on-error: true
+
+      - name: Merge JaCoCo exec files
+        id: jacoco-merge
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        run: |
+          echo "📦 Merging JaCoCo exec files from all shards..."
+          EXEC_FILES=$(find jacoco-exec -name 'jacoco.exec' 2>/dev/null)
+          if [ -z "$EXEC_FILES" ]; then
+            echo "⚠️ No JaCoCo exec files found"
+            exit 1
+          fi
+          SHARD_COUNT=$(echo "$EXEC_FILES" | wc -l)
+          cat jacoco-exec/jacoco-exec-shard-*/jacoco.exec > openaev-api/target/jacoco.exec
+          echo "✅ Merged $SHARD_COUNT shard(s)"
+
+      - name: Coverage report & threshold check
+        if: steps.jacoco-merge.outcome == 'success'
+        run: mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage threshold check ⚠️"
+
+      - name: Upload API coverage
+        if: ${{ !cancelled() && steps.jacoco-merge.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-api
+          path: openaev-api/target/site/jacoco/jacoco.xml
+          if-no-files-found: warn
+
+      - name: Download vitest coverage
+        if: ${{ needs.frontend-quality.result == 'success' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: vitest-coverage
+          path: coverage/frontend
+        continue-on-error: true
+
+      - name: Download playwright coverage
+        if: ${{ needs.e2e-tests.result == 'success' }}
+        uses: actions/download-artifact@v8
+        with:
+          pattern: playwright-coverage-*
+          path: coverage/e2e
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: backend,frontend,e2e
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  # ════════════════════════════════════════════════════════════════════
+  # Packaging
+  # ════════════════════════════════════════════════════════════════════
+
+  backend-package:
+    name: "📦 Backend Package (glibc)"
+    needs: [frontend-build, backend-compile, prepare-bundled-assets]
+    timeout-minutes: 15
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.frontend-build.result == 'success' &&
+        needs.backend-compile.result == 'success' &&
+        (needs.prepare-bundled-assets.result == 'success' || needs.prepare-bundled-assets.result == 'skipped')
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/backend-package
+        with:
+          download-release-assets: ${{ needs.prepare-bundled-assets.result == 'success' }}
+
+  backend-package-musl:
+    name: "📦 Backend Package (musl)"
+    needs: [frontend-build, backend-compile, prepare-bundled-assets]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: maven:3.9.16-eclipse-temurin-21-alpine
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/backend-package-musl
+
+  # ════════════════════════════════════════════════════════════════════
+  # Docker
+  # ════════════════════════════════════════════════════════════════════
+
+  # No `needs: [prepare-bundled-assets]`: the assets are fetched inline instead,
+  # which removes ~1.4 min of serial wait from the head of the critical path.
+  # fetch-depth 0 is required because the asset version comes from `git describe`.
+  docker-build:
+    name: "🐳 Docker Build (${{ matrix.variant }} ${{ matrix.arch }})"
+    if: ${{ !cancelled() }}
+    timeout-minutes: 25
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: standard
+            arch: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+            dockerfile: ./Dockerfile
+            artifact-name: openaev-image
+            jar-path: /openaev-api.jar
+            cache-scope: docker-standard
+            tags: openaev:ci-${{ github.run_id }}
+          - variant: standard
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: ./Dockerfile
+            artifact-name: openaev-image
+            jar-path: /openaev-api.jar
+            cache-scope: docker-standard
+            tags: openaev:ci-${{ github.run_id }}
+          - variant: ubi9
+            arch: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+            dockerfile: ./Dockerfile_ubi9
+            artifact-name: openaev-ubi9-image
+            jar-path: /opt/openaev/openaev-api.jar
+            cache-scope: docker-ubi9
+            tags: openaev-ubi9:ci-${{ github.run_id }}
+          - variant: ubi9
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: ./Dockerfile_ubi9
+            artifact-name: openaev-ubi9-image
+            jar-path: /opt/openaev/openaev-api.jar
+            cache-scope: docker-ubi9
+            tags: openaev-ubi9:ci-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # git describe needs the commit graph, not historical file contents
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/docker-build
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          artifact-name: ${{ matrix.artifact-name }}
+          platform: ${{ matrix.platform }}
+          jar-path: ${{ matrix.jar-path }}
+          cache-scope: ${{ matrix.cache-scope }}
+          tags: ${{ matrix.tags }}
+
+  # No `needs: [docker-build]`: that waits for job completion, i.e. ~2.5 min of
+  # gzip/validate/upload this job never consumes. It polls for the platform images
+  # instead and aborts by itself if a build fails.
+  docker-merge:
+    name: "🐳 Merge Platforms (${{ matrix.variant }})"
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: standard
+            artifact-name: openaev-image
+          - variant: ubi9
+            artifact-name: openaev-ubi9-image
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/docker-merge-platforms
+        with:
+          artifact-name: ${{ matrix.artifact-name }}
+
+  # Reported through the Pipeline Gate, but only enforced there when
+  # snyk-fail-on-error is set — advisory in Core CI, blocking in Nightly.
+  # Like docker-merge, it polls for the images rather than waiting on the whole
+  # docker-build job, which it would otherwise trail by ~2.5 min.
+  snyk-docker:
+    name: "🔒 Snyk Container Scan"
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ !inputs.snyk-fail-on-error }}
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/snyk-docker
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          fail-on-error: ${{ inputs.snyk-fail-on-error }}
+
+  # ════════════════════════════════════════════════════════════════════
+  # Pipeline gate
+  #
+  # ⚠️  REQUIRED status check for branch protection.
+  #     Snyk is included but only enforced when snyk-fail-on-error is set, so a
+  #     finding blocks Nightly and stays advisory in Core.
+  #     Codecov is excluded: coverage upload is best-effort and must not
+  #     hold the gate (and therefore the merge) behind a reporting step.
+  #     The full check name is "<caller-job> / ✅ Pipeline Gate".
+  #     If the caller job key changes, update the branch-protection rule.
+  # ════════════════════════════════════════════════════════════════════
+
+  pipeline-gate:
+    name: "✅ Pipeline Gate"
+    needs:
+      - migrations-guard
+      - backend-compile
+      - frontend-build
+      - prepare-bundled-assets
+      - spotless-check
+      - frontend-quality
+      - api-tests
+      - e2e-tests
+      - api-types-check
+      - backend-package
+      - backend-package-musl
+      - docker-build
+      - docker-merge
+      - snyk-docker
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check all upstream job results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          SNYK_ENFORCED: ${{ inputs.snyk-fail-on-error }}
+        run: |
+          FAILED=0
+          ADVISORY=0
+          TOTAL=0
+
+          echo "══════════════════════════════════════════════════"
+          echo "  ✅ Upstream Job Results"
+          echo "══════════════════════════════════════════════════"
+          echo ""
+
+          for job in $(echo "$NEEDS_JSON" | jq -r 'keys[]'); do
+            result=$(echo "$NEEDS_JSON" | jq -r --arg j "$job" '.[$j].result')
+            TOTAL=$((TOTAL + 1))
+
+            # Snyk is reported but not enforced unless the caller asks for it, so a
+            # finding blocks Nightly and never blocks Core. Decided here rather than
+            # relying on job-level continue-on-error, whose mapping onto
+            # needs.<job>.result is not documented.
+            advisory=0
+            if [ "$job" = "snyk-docker" ] && [ "$SNYK_ENFORCED" != "true" ]; then
+              advisory=1
+            fi
+
+            case "$result" in
+              success)   icon="✅" ;;
+              skipped)   icon="⏭️" ;;
+              failure|cancelled)
+                if [ "$advisory" -eq 1 ]; then
+                  icon="⚠️"; ADVISORY=$((ADVISORY + 1))
+                else
+                  icon="❌"; FAILED=$((FAILED + 1))
+                fi
+                ;;
+              *)         icon="❓" ;;
+            esac
+
+            printf "  %s  %-30s %s\n" "$icon" "$job" "$result"
+          done
+
+          echo ""
+          echo "══════════════════════════════════════════════════"
+
+          if [ "$ADVISORY" -gt 0 ]; then
+            echo "⚠️ $ADVISORY advisory job(s) reported problems — not blocking"
+          fi
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "❌ $FAILED/$TOTAL upstream job(s) failed"
+            exit 1
+          fi
+
+          echo "✅ All $TOTAL upstream jobs passed"
+
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/sanity-check
+        with:
+          github-token: ${{ github.token }}

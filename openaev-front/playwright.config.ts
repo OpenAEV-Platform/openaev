@@ -6,11 +6,17 @@ import { defineConfig, devices } from '@playwright/test';
 
 import coverageOptions from './tests_e2e/conf/mcr.config';
 
+const isArm = process.env.CI === 'true' && process.arch === 'arm64';
+const armUnsupportedTests = /.*external-injector.*|.*external-executor.*|.*external-collector.*/;
+const globalTestIgnore = isArm ? [armUnsupportedTests] : [];
+const nonInfraTestIgnore = isArm ? [/infra\/.*/, armUnsupportedTests] : [/infra\/.*/];
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
   testDir: './tests_e2e',
+  testIgnore: globalTestIgnore,
   /* Run tests in files in parallel */
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -57,24 +63,142 @@ export default defineConfig({
   expect: { timeout: 60000 },
   /* Test timeout: 300s (5 min) for long-running scenario tests */
   timeout: 300000,
-  /* Configure projects for major browsers */
+  // Configure projects for major browsers.
+  // Select via CLI: yarn playwright test --project=setup --project=<browser>
   projects: [
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
-      use: {
-        ...devices['Desktop Chrome'],
-        channel: 'chrome',
-      },
+      // Bundled Chromium: it only writes storageState, and it is the one browser
+      // present on every runner and dev machine (no Chrome channel on arm64).
+      use: { ...devices['Desktop Chrome'] },
     },
     {
-      name: 'Google Chrome',
-      // Infra tests may have side-effects on the host machine (e.g. installing an agent)
-      // and are run separately via playwright.infra.chromium_config.ts
-      testIgnore: /infra\/.*/,
+      name: 'chrome',
+      testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'chromium',
+      testIgnore: nonInfraTestIgnore,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'firefox',
+      testIgnore: nonInfraTestIgnore,
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'webkit',
+      testIgnore: nonInfraTestIgnore,
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'edge',
+      testIgnore: nonInfraTestIgnore,
+      use: {
+        ...devices['Desktop Edge'],
+        channel: 'msedge',
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'infra-chrome',
+      testMatch: /infra\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chrome',
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'infra-chromium',
+      testMatch: /infra\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'infra-firefox',
+      testMatch: /infra\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'infra-webkit',
+      testMatch: /infra\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'infra-edge',
+      testMatch: /infra\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Edge'],
+        channel: 'msedge',
         storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,

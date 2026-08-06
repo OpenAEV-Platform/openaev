@@ -210,19 +210,53 @@ Write down every hit and classify it:
 - background writer → convert to the primitive in Phase 5b. If you are not
   converting it in this run, it is a blocker: stop and report (Phase 0)
 
-Then walk ONE hop up: for every service the greps flagged, list ALL of its
-callers — they are part of the surface even though they match neither the
-repository grep nor the table-name grep. This is where parallel and DEPRECATED
-controllers hide: the cwes activation had to wire `CveApi` (deprecated since
-1.19, still deployed, same `VulnerabilityService` underneath) alongside
-`VulnerabilityApi`; neither grep sees it because it only references the
-service. A deprecated controller that still ships is a live path.
+Then walk the call graph up UNTIL you reach every entrypoint (`@RestController`
+method), not just one hop. Stopping at the first caller is the #7188-class
+regression: the executors activation (#6409) found `ExerciseService
+.throwIfExerciseNotLaunchable`'s callers `updateExerciseStart` and
+`deprecatedUpdateExerciseStart` and wired `TxCtx` on both, but
+`ExerciseApi#changeExerciseStatus` — a third, equally direct caller of the
+exact same gate — was never enumerated and shipped with the tenant-scope gap
+undetected. Every intermediate method found this way (a shared gate/helper
+like `throwIfXNotLaunchable`, a mapper, a projection builder, ...) becomes its
+own grep target:
 
-If the table has no API of its own and is reached through another aggregate's
-association (the cwes model: only `Vulnerability`'s `@ManyToMany` reaches it),
-also list every caller of the association accessor
-(`grep -rn "\.get{Entities}()" ... --include="*.java"`): lazy loads bypass the
-repository entirely, so the repository grep cannot see them.
+```bash
+# for EVERY shared method discovered while walking up (not just the first one
+# found) - repeat until the hit list is only @RestController entrypoints
+grep -rn "\.{sharedMethodName}(" openaev-api/src/main/java --include="*.java"
+```
+
+List ALL of its callers — they are part of the surface even though they match
+neither the repository grep nor the table-name grep. This is where parallel
+and DEPRECATED controllers hide: the cwes activation had to wire `CveApi`
+(deprecated since 1.19, still deployed, same `VulnerabilityService`
+underneath) alongside `VulnerabilityApi`; neither grep sees it because it only
+references the service. A deprecated controller that still ships is a live
+path. When the walk reaches a shared gate with N callers, count them: N
+entrypoints in the inventory must produce N `TxCtx` additions (or N documented
+exceptions) — a gate found with only "the callers I happened to notice" is not
+a complete inventory.
+
+Separately, ALWAYS list every caller of the association accessor for any
+entity that holds a `@ManyToOne`/`@ManyToMany`/`@OneToMany` reference to the
+entity being activated
+(`grep -rn "\.get{Entities}()\|\.get{Entity}()" ... --include="*.java"`), even
+when `{table}` has its own API. Having an own API and being reached through
+another aggregate's eager/lazy association are independent facts — the
+executors table has `ExecutorApi`, yet `Agent.getExecutor()` (an EAGER
+`@ManyToOne`, read by `EnterpriseEditionService.detectEEExecutors` several
+calls away from any executor-specific code) was the exact path that broke.
+Lazy or eager, an association load bypasses the repository entirely, so the
+repository grep and the table-name grep cannot see it — only an explicit scan
+of every entity that references `{Entity}` finds it:
+
+```bash
+# every entity field of type {Entity} (or a collection of it), anywhere in the model
+grep -rln "private {Entity} \|private List<{Entity}>\|private Set<{Entity}>" openaev-model/src/main/java --include="*.java"
+# then, for each owning entity found, every caller of its accessor
+grep -rn "\.get{Entity}()" openaev-api/src/main/java openaev-model/src/main/java --include="*.java"
+```
 
 Also list child tables (FKs pointing at `{table}`). A child without its own
 `tenant_id` rides along with the parent and is NOT added to `active-tables`.
@@ -884,6 +918,14 @@ Before marking the issue done, write down:
 - [ ] unique constraints on business keys include tenant_id, or a prep
       migration was done first (own reviewed change)
 - [ ] inventory complete; every reader classified; redone before go-live
+- [ ] call graph walked to every `@RestController` entrypoint (not one hop):
+      for each shared gate/helper method found along the way, its full caller
+      list was grepped and the count of `TxCtx` additions matches the count of
+      callers found (#6409 regression: `changeExerciseStatus` was a third,
+      unwired caller of `throwIfExerciseNotLaunchable` missed this way)
+- [ ] association-accessor scan run for every entity holding a reference to
+      the activated entity, regardless of whether the activated table has its
+      own API (eager/lazy loads bypass the repository grep either way)
 - [ ] isolation test written first and seen red for the mechanism, then green;
       raw red/green outputs captured in the report
 - [ ] reads: own row visible, cross-tenant 404, path and header selectors

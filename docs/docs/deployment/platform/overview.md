@@ -40,7 +40,7 @@ standalone Python processes.
 
 ### Collectors
 
-Collectors are used to connect to all security systems such as SIEMs, XDRs, EDRs, firewalls, mail gateways etc. to check
+Collectors are used to connect to all security systems such as SIEMs (Security Information and Event Management), XDRs (Extended Detection and Response), EDRs (Endpoint Detection and Response), firewalls, mail gateways etc. to check
 if an inject (execution, emails, etc.) has been detected or prevented and fill the security posture.
 
 !!! tip "Tips"

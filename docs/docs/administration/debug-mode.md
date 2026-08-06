@@ -16,7 +16,7 @@ no parameter capture, no extra per-request work and no extra files written.
   the MDC; it is rendered in the SQL file (not the console slot), so the SQL can be filtered per
   tenant. This uses Micrometer Tracing; no tracing backend is required, the ids are written to the
   normal log output.
-- **SQL detail.** Every SQL statement (ORM-generated and native) is logged with its execution time
+- **SQL detail.** Every SQL statement, both ORM (Object-Relational Mapping)-generated and native, is logged with its execution time
   and its masked parameters, on the dedicated `io.openaev.debug.sql` logger. To keep this high-volume
   output off the console and the production log pipeline, it is written to a rotated file
   (`openaev-debug-sql.log`) under the debug output directory rather than to stdout.
@@ -24,8 +24,8 @@ no parameter capture, no extra per-request work and no extra files written.
   flagging N+1 queries (the same SELECT repeated many times, the classic lazy-loading symptom) and
   chatty requests. No configuration of its own; it rides on the SQL detail above. This summary stays
   on the console so it remains visible.
-- **JVM profiling.** A bounded Java Flight Recorder (JFR) recording is started, dumped on a timer and
-  flushed on shutdown to the debug output directory. JFR is part of the JDK, there is no extra agent.
+- **JVM (Java Virtual Machine) profiling.** A bounded Java Flight Recorder (JFR) recording is started, dumped on a timer and
+  flushed on shutdown to the debug output directory. JFR is part of the JDK (Java Development Kit), there is no extra agent.
 
 The scope of the toggle is global: a single flag turns the verbose mode on for the whole instance.
 Per-request scoping is out of scope.
@@ -64,7 +64,7 @@ What each field means:
   Filter on it to reconstruct the whole request across application logs and SQL.
 - `tenant=...` (SQL file only) -- the tenant the request targets (the default tenant when the request
   is not tenant-scoped). It is not rendered in the console slot.
-- `time=1ms` -- the statement's JDBC execution time, so slow statements stand out.
+- `time=1ms` -- the statement's JDBC (Java Database Connectivity) execution time, so slow statements stand out.
 - `statement=...` -- the real SQL sent to PostgreSQL (Hibernate-generated or native), with `?`
   placeholders.
 - `params=[{column=value}]` -- the bound parameters by column. `user_email` and `user_password` are
@@ -196,7 +196,7 @@ credentials and personal data, and masking makes sure they never reach the logs.
   (default keys include `password`, `secret`, `token`, `api_key`, `encryption_key`,
   `encryption_salt`, `authorization`, `client_secret`, ...).
 - **Value based.** Configured regular expressions are masked wherever they appear, even with no key
-  context (defaults: JSON Web Tokens, `Bearer`/`Basic` authorization values, PEM private key blocks,
+  context (defaults: JSON Web Tokens, `Bearer`/`Basic` authorization values, PEM (Privacy-Enhanced Mail) private key blocks,
   email addresses). The regex scan is bounded (8 KB) so a very long value cannot burn the request
   thread; values are masked first and truncated for display after, so no prefix of a long secret
   leaks.

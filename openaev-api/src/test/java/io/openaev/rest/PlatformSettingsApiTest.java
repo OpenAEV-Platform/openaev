@@ -33,7 +33,8 @@ class PlatformSettingsApiTest extends IntegrationTest {
           "platform_light_theme",
           "platform_dark_theme",
           "enabled_dev_features",
-          "platform_whitemark");
+          "platform_whitemark",
+          "platform_run_mode");
 
   private static final List<String> PRIVATE_FIELDS =
       List.of(
@@ -98,6 +99,19 @@ class PlatformSettingsApiTest extends IntegrationTest {
       // -- ASSERT --
       result.andExpect(status().isOk());
       assertFieldsDoNotExist(result, PRIVATE_FIELDS);
+    }
+
+    @Test
+    @DisplayName("Given default run mode should return normal")
+    void given_default_run_mode_should_return_normal() throws Exception {
+      // -- ARRANGE --
+
+      // -- ACT --
+      ResultActions result =
+          mvc.perform(get("/api/settings/public").with(csrf()).accept(MediaType.APPLICATION_JSON));
+
+      // -- ASSERT --
+      result.andExpect(status().isOk()).andExpect(jsonPath("$.platform_run_mode").value("normal"));
     }
   }
 

@@ -37,22 +37,6 @@ interface NodePosition {
   y: number;
 }
 
-// Distinct, mid-tone accents for the MITRE-tactic group hulls, cycled by the group's phase order.
-// Mid saturation/lightness reads on both the light and dark "paper" backgrounds once knocked back
-// to a low-alpha fill; the same colour drives the border and header label so a group reads as one.
-const TACTIC_GROUP_COLORS = [
-  '#5b8def', // blue
-  '#9b6dff', // violet
-  '#e0567a', // rose
-  '#f0a132', // amber
-  '#3fb27f', // green
-  '#48b0c7', // teal
-  '#c9508e', // magenta
-  '#8a8f2f', // olive
-];
-const tacticGroupColor = (index: number) =>
-  TACTIC_GROUP_COLORS[((index % TACTIC_GROUP_COLORS.length) + TACTIC_GROUP_COLORS.length) % TACTIC_GROUP_COLORS.length];
-
 /** Decode HTML entities that occasionally survive in orchestrator-authored titles ("&amp;" -> "&"). */
 const decodeEntities = (value?: string): string =>
   (value ?? '')
@@ -193,9 +177,8 @@ const LogicGraph = ({
     [actionMetas],
   );
 
-  // Tactic name -> kill-chain phase order, so the layout orders the tactic groups by MITRE phase
-  // (keeping the lowest order when a tactic maps to several phases). Node positions come from
-  // dependency depth, not this order — it only makes the group hulls' colours/order deterministic.
+  // Tactic name -> kill-chain phase order, so the layout orders the tactic columns by MITRE phase
+  // (keeping the lowest order when a tactic maps to several phases).
   const tacticOrder = useMemo(() => {
     const order: Record<string, number> = {};
     for (const phase of Object.values(killChainPhasesMap as Record<string, KillChainPhase>)) {
@@ -495,54 +478,55 @@ const LogicGraph = ({
         onZoomChange={(zoom) => { zoomRef.current = zoom; }}
         onAutoLayout={readOnly ? undefined : handleAutoLayout}
       >
-        {/* MITRE-tactic groups: a rounded, padded hull behind the action cards that share a tactic,
-            with the tactic name as a header. Purely decorative — it groups the cards without ever
-            driving their positions (the causal left-to-right layout owns that). Rendered first so it
-            sits behind the connectors and cards, and never intercepts pointer events. */}
-        {layout.groups.map((group, index) => {
-          const color = tacticGroupColor(index);
-          return (
+        {/* MITRE-tactic columns: one padded band behind each tactic's action cards, headed by the
+            tactic name. Every band uses the SAME theme blue — a real chain carries far too many
+            tactics for a colour cycle to stay legible, and near-identical hues would read as a
+            meaning they do not carry; the column and its header already identify the tactic. The
+            layout gives every tactic its own column, so bands are side by side and can never overlap.
+            Rendered first so they sit behind the connectors and cards, and they never intercept
+            pointer events. */}
+        {layout.columns.map(column => (
+          <div
+            key={`tactic-col-${column.tactic}`}
+            style={{
+              position: 'absolute',
+              left: column.x,
+              top: column.y,
+              width: column.width,
+              height: column.height,
+              pointerEvents: 'none',
+              borderRadius: 16,
+              backgroundColor: alpha(theme.palette.primary.main, 0.06),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.28)}`,
+              boxSizing: 'border-box',
+            }}
+          >
             <div
-              key={`tactic-group-${group.tactic}`}
               style={{
                 position: 'absolute',
-                left: group.x,
-                top: group.y,
-                width: group.width,
-                height: group.height,
-                pointerEvents: 'none',
-                borderRadius: 16,
-                backgroundColor: alpha(color, 0.06),
-                border: `1px solid ${alpha(color, 0.28)}`,
+                top: 0,
+                left: 0,
+                height: column.headerHeight,
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 12px',
                 boxSizing: 'border-box',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.09em',
+                textTransform: 'uppercase',
+                color: theme.palette.primary.main,
               }}
             >
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  height: group.headerHeight,
-                  maxWidth: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '0 12px',
-                  boxSizing: 'border-box',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.09em',
-                  textTransform: 'uppercase',
-                  color,
-                }}
-              >
-                {group.tactic || t('Other')}
-              </div>
+              {column.tactic || t('Other')}
             </div>
-          );
-        })}
+          </div>
+        ))}
         <Connectors
           edges={routedEdges}
           width={contentSize.width}

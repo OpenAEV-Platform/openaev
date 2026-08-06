@@ -16,7 +16,7 @@
 
 ### Security requirements
 
-- **RSA Private Key**: 4096-bit RSA private key for authentication
+- **RSA (Rivest-Shamir-Adleman) private key**: 4096-bit RSA private key for authentication
 - **Network Access**:
     - Connectivity to OpenCTI/OpenAEV instances
     - Access to container orchestration API
@@ -162,14 +162,14 @@ docker run -d \
 
 ### Portainer installation
 
-#### Method 1: Deploy via Portainer UI
+#### Method 1: deploy via Portainer UI
 
 1. **Access Portainer Dashboard**:
     - Navigate to your Portainer instance
     - Select your Docker environment
 
 2. **Create a Stack**:
-    - Go to Stacks → Add Stack
+    - Go to **Stacks > Add Stack**
     - Name: `xtm-composer`
     - Use the following docker-compose configuration:
 
@@ -210,7 +210,7 @@ networks:
       ```
     - Copy your configuration files to `/config`
 
-#### Method 2: Deploy via Docker Compose
+#### Method 2: deploy via Docker Compose
 
 **Option A: Using the preconfigured OpenAEV Docker stack (Recommended)**
 
@@ -304,10 +304,10 @@ openssl genrsa -out ./private_key_4096.pem 4096
 
 ## Troubleshooting
 
-For common issues and their solutions, see the [Troubleshooting Guide](troubleshooting.md).
+For common issues and their solutions, see the [Troubleshooting guide](troubleshooting.md).
 
 ## Next steps
 
-1. Configure XTM Composer - See [Configuration Reference](configuration.md)
-2. Connect to OpenAEV - See [Quick Start](quick-start.md)
+1. Configure XTM Composer - See [Configuration reference](configuration.md)
+2. Connect to OpenAEV - See [Quick start guide](quick-start.md)
 3. Verify integration management functionality
