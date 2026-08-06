@@ -12,12 +12,16 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
@@ -38,8 +42,10 @@ public class TenantGroupApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private GrantRepository grantRepository;
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private TenantRoleComposer tenantRoleComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
@@ -436,6 +442,101 @@ public class TenantGroupApiTest extends IntegrationTest {
               put(tenantUri(TENANT_GROUP_URI) + "/" + group.getId() + "/information")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+  }
+
+  @Nested
+  @DisplayName("Grants")
+  class Grants {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Given admin user, should add a grant to a tenant group")
+    void given_admin_should_addGrant() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("GrantGroup")).persist().get();
+      Scenario scenario =
+          scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
+
+      GroupGrantInput input = new GroupGrantInput();
+      input.setName(Grant.GRANT_TYPE.OBSERVER);
+      input.setResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
+      input.setResourceId(scenario.getId());
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  post(tenantUri(TENANT_GROUP_URI) + "/" + group.getId() + "/grants")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<Map<String, Object>> grants = JsonPath.read(response, "$.group_grants");
+      assertFalse(grants.isEmpty());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName("Given MANAGE_TENANT_SETTINGS only, should be forbidden to add unowned grants")
+    void given_manageTenantSettings_should_forbidAddGrant() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup("GrantGroupForbidden"))
+              .persist()
+              .get();
+      Scenario scenario =
+          scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
+
+      GroupGrantInput input = new GroupGrantInput();
+      input.setName(Grant.GRANT_TYPE.OBSERVER);
+      input.setResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
+      input.setResourceId(scenario.getId());
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              post(tenantUri(TENANT_GROUP_URI) + "/" + group.getId() + "/grants")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName("Given MANAGE_TENANT_SETTINGS only, should be forbidden to remove unowned grants")
+    void given_manageTenantSettings_should_forbidRemoveGrant() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup("GrantGroupRemoveForbidden"))
+              .persist()
+              .get();
+      Scenario scenario =
+          scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
+      Grant grant = new Grant();
+      grant.setName(Grant.GRANT_TYPE.OBSERVER);
+      grant.setResourceId(scenario.getId());
+      grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
+      grant.setGroup(group);
+      grant = grantRepository.save(grant);
+      group.getGrants().add(grant);
+      groupRepository.save(group);
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              delete(tenantUri(TENANT_GROUP_URI) + "/" + group.getId() + "/grants/" + grant.getId())
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isForbidden());

@@ -7,7 +7,7 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.service.UserService;
-import io.openaev.utils.CapabilityAssignmentUtils;
+import io.openaev.utils.AssignmentUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -34,7 +34,7 @@ public class PlatformRoleService {
       @NotBlank final String name,
       final String description,
       @NotNull final Set<Capability> capabilities) {
-    CapabilityAssignmentUtils.assertCanAssignCapabilities(userService.currentUser(), capabilities);
+    AssignmentUtils.assertCanAssignCapabilities(userService.currentUser(), capabilities);
     Capability.validateForPlatformRole(capabilities);
     Role role = new Role();
     role.setName(name);
@@ -99,7 +99,7 @@ public class PlatformRoleService {
       @NotBlank final String name,
       final String description,
       @NotNull final Set<Capability> capabilities) {
-    CapabilityAssignmentUtils.assertCanAssignCapabilities(userService.currentUser(), capabilities);
+    AssignmentUtils.assertCanAssignCapabilities(userService.currentUser(), capabilities);
     Capability.validateForPlatformRole(capabilities);
     Role role = findById(roleId);
     role.setName(name);

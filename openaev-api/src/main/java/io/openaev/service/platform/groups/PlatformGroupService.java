@@ -11,7 +11,7 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserService;
-import io.openaev.utils.CapabilityAssignmentUtils;
+import io.openaev.utils.AssignmentUtils;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
@@ -121,8 +121,7 @@ public class PlatformGroupService {
         group.getRoles().stream()
             .flatMap(role -> role.getCapabilities().stream())
             .collect(java.util.stream.Collectors.toSet());
-    CapabilityAssignmentUtils.assertCanAssignCapabilities(
-        userService.currentUser(), capabilitiesToAssign);
+    AssignmentUtils.assertCanAssignCapabilities(userService.currentUser(), capabilitiesToAssign);
     group.setUsers(
         new java.util.ArrayList<>(
             referenceResolver.resolve(userIds, User.class, userRepository::countByIdIn)));
@@ -137,8 +136,7 @@ public class PlatformGroupService {
         roleRepository.findAllById(roleIds).stream()
             .flatMap(role -> role.getCapabilities().stream())
             .collect(java.util.stream.Collectors.toSet());
-    CapabilityAssignmentUtils.assertCanAssignCapabilities(
-        userService.currentUser(), capabilitiesToAssign);
+    AssignmentUtils.assertCanAssignCapabilities(userService.currentUser(), capabilitiesToAssign);
     group.setRoles(
         new java.util.ArrayList<>(
             referenceResolver.resolve(roleIds, Role.class, roleRepository::countByIdIn)));

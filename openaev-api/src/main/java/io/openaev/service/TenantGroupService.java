@@ -18,7 +18,7 @@ import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.service.account.ReservedKeyValidator;
-import io.openaev.utils.CapabilityAssignmentUtils;
+import io.openaev.utils.AssignmentUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -67,6 +67,8 @@ public class TenantGroupService {
             .findByIdAndTenantId(groupId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
     ReservedKeyValidator.validateGroupId(group.getId());
+    AssignmentUtils.assertCanAssignGrant(
+        userService.currentUser(), input.getName(), input.getResourceId());
     Grant grant = new Grant();
     grant.setName(input.getName());
     grant.setGroup(group);
@@ -135,8 +137,7 @@ public class TenantGroupService {
         roles.stream()
             .flatMap(role -> role.getCapabilities().stream())
             .collect(java.util.stream.Collectors.toSet());
-    CapabilityAssignmentUtils.assertCanAssignCapabilities(
-        userService.currentUser(), capabilitiesToAssign);
+    AssignmentUtils.assertCanAssignCapabilities(userService.currentUser(), capabilitiesToAssign);
     return this.updateGroupRoles(group, roles);
   }
 
@@ -175,8 +176,7 @@ public class TenantGroupService {
         group.getRoles().stream()
             .flatMap(role -> role.getCapabilities().stream())
             .collect(java.util.stream.Collectors.toSet());
-    CapabilityAssignmentUtils.assertCanAssignCapabilities(
-        userService.currentUser(), capabilitiesToAssign);
+    AssignmentUtils.assertCanAssignCapabilities(userService.currentUser(), capabilitiesToAssign);
     List<User> users = userRepository.findAllByIdInAndTenantId(input.getUserIds(), tenantId);
     users.forEach(user -> ReservedKeyValidator.validateUserEmailPattern(user.getEmail()));
     if (users.size() != input.getUserIds().size()) {
@@ -220,6 +220,8 @@ public class TenantGroupService {
             .filter(g -> grantId.equals(g.getId()))
             .findFirst()
             .orElseThrow(ElementNotFoundException::new);
+    AssignmentUtils.assertCanAssignGrant(
+        userService.currentUser(), grant.getName(), grant.getResourceId());
     group.getGrants().remove(grant);
     return groupRepository.save(group);
   }
