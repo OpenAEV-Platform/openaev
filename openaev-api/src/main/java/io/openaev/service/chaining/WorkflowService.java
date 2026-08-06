@@ -1609,7 +1609,25 @@ public class WorkflowService {
    */
   @Transactional(readOnly = true)
   public List<AuthoredAttackStep> readAuthoredAttackPath(String simulationId) {
-    Optional<Workflow> template = findWorkflowTemplateBySimulationId(simulationId);
+    return readAuthoredAttackPathFromTemplate(findWorkflowTemplateBySimulationId(simulationId));
+  }
+
+  /**
+   * Scenario-side twin of {@link #readAuthoredAttackPath(String)} for author-scenario (AI planning)
+   * runs: reads the steps authored directly onto the scenario's workflow TEMPLATE, since a plan run
+   * has no simulation. Run inject ids are always empty here - a plan never executes.
+   */
+  @Transactional(readOnly = true)
+  public List<AuthoredAttackStep> readAuthoredAttackPathForScenario(String scenarioId) {
+    try {
+      return readAuthoredAttackPathFromTemplate(findWorkflowTemplateByScenarioId(scenarioId));
+    } catch (ChainingException e) {
+      log.warn("[Chaining] Could not read authored attack path for scenario {}", scenarioId, e);
+      return List.of();
+    }
+  }
+
+  private List<AuthoredAttackStep> readAuthoredAttackPathFromTemplate(Optional<Workflow> template) {
     if (template.isEmpty()) {
       return List.of();
     }

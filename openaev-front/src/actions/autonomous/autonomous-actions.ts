@@ -57,6 +57,24 @@ export const createAutonomousRun = (
   input: AutonomousRunCreateInput,
 ): Promise<{ data: AutonomousRun }> => simplePostCall(AUTONOMOUS_URI, input);
 
+// Launch an existing chained scenario in AUTONOMOUS mode: the backend seeds a live simulation from
+// the scenario's authored attack path and engages the orchestrator to verify, execute, and
+// adapt/extend it. Creates AND starts the run in one call; returns the run (with its simulation id).
+export const launchAutonomousFromScenario = (
+  scenarioId: string,
+  input?: Partial<AutonomousRunCreateInput>,
+): Promise<{ data: AutonomousRun }> =>
+  simplePostCall(`${AUTONOMOUS_URI}/from-scenario/${scenarioId}`, input ?? {});
+
+// Plan an existing chained scenario with the orchestrator (author-scenario mode): the orchestrator
+// designs the attack path by writing steps directly onto the scenario workflow. No simulation is
+// provisioned and nothing is executed. Creates AND starts the (dry-run) planning session.
+export const planAutonomousScenario = (
+  scenarioId: string,
+  input?: Partial<AutonomousRunCreateInput>,
+): Promise<{ data: AutonomousRun }> =>
+  simplePostCall(`${AUTONOMOUS_URI}/plan-scenario/${scenarioId}`, input ?? {});
+
 export const fetchAutonomousRuns = (): Promise<{ data: AutonomousRun[] }> =>
   simpleCall(AUTONOMOUS_URI, undefined, false);
 

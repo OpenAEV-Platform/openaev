@@ -155,6 +155,36 @@ public class AutonomousRunApi extends RestBehavior {
     return autonomousRunService.create(input);
   }
 
+  @Operation(
+      summary = "Launch an existing chained scenario in autonomous mode",
+      description =
+          "Seeds a live simulation from the scenario's authored attack-path steps and engages the"
+              + " orchestrator to verify, execute, and adapt/extend the path from live findings."
+              + " The plain scenario 'exercise/running' launch stays operator-driven; this is the"
+              + " autonomous launch mode. Creates AND starts the run in one call.")
+  @PostMapping("/from-scenario/{scenarioId}")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRun launchFromScenario(
+      @PathVariable String scenarioId, @RequestBody(required = false) AutonomousRunCreateInput input) {
+    return autonomousRunService.launchFromScenario(scenarioId, input);
+  }
+
+  @Operation(
+      summary = "Plan an existing chained scenario with the orchestrator (author steps, no run)",
+      description =
+          "Engages the orchestrator to DESIGN a reusable attack path by authoring steps directly"
+              + " onto the scenario's workflow template. No simulation is provisioned and nothing"
+              + " is executed; the operator later launches the authored scenario in normal or"
+              + " autonomous mode. Creates AND starts the (dry-run) planning session in one call.")
+  @PostMapping("/plan-scenario/{scenarioId}")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRun planScenario(
+      @PathVariable String scenarioId, @RequestBody(required = false) AutonomousRunCreateInput input) {
+    return autonomousRunService.planScenario(scenarioId, input);
+  }
+
   @Operation(summary = "List autonomous runs, newest first")
   @GetMapping
   @Transactional(readOnly = true)

@@ -432,6 +432,8 @@ public class XtmOneClient {
       String objective,
       String openaevRunId,
       String simulationId,
+      String scenarioId,
+      boolean authorScenario,
       String scopeAssetGroupId,
       String scopeTeamId,
       List<AutonomousScopeTarget> scope,
@@ -451,6 +453,11 @@ public class XtmOneClient {
       body.put("objective", objective);
       body.put("openaev_run_id", openaevRunId);
       body.put("simulation_id", simulationId);
+      // Author-scenario (AI planning) mode: no simulation exists; the orchestrator authors the
+      // attack path onto the scenario workflow instead. XTM One targets the scenario for its
+      // attack-path tools when author_scenario is set, otherwise it targets the simulation.
+      if (scenarioId != null) body.put("scenario_id", scenarioId);
+      body.put("author_scenario", authorScenario);
       if (scopeAssetGroupId != null) body.put("scope_asset_group_id", scopeAssetGroupId);
       if (scopeTeamId != null) body.put("scope_team_id", scopeTeamId);
       if (scope != null && !scope.isEmpty()) body.put("scope", scope);

@@ -215,19 +215,17 @@ public class AutonomousRunService {
 
     Scenario scenario;
     String scenarioId = input.getScenarioId();
-    if (scenarioId != null && !scenarioId.isBlank()) {
-      // Advanced path: seed from a caller-provided chaining scenario.
+    boolean seededFromScenario = scenarioId != null && !scenarioId.isBlank();
+    if (seededFromScenario) {
+      // Seed from a caller-provided chaining scenario. Autonomy is a launch-time MODE now, not a
+      // scenario type, so the scenario is a plain reusable chained scenario and is NOT stamped
+      // autonomous. The AI cockpit is discovered from the run row (by-simulation / by-scenario
+      // lookups), not from a flag on the scenario.
       scenario = scenarioService.scenario(scenarioId);
       if (!workflowService.isScenarioChaining(scenarioId)) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,
             "The scenario must define a chaining (attack path) workflow to run autonomously");
-      }
-      // Mark the caller-provided scenario autonomous too, so its detail page renders the AI cockpit
-      // without a lookup probe (persisted via dirty-checking in this transaction).
-      if (!scenario.isAutonomous()) {
-        scenario.setAutonomous(true);
-        scenario = scenarioService.updateScenario(scenario);
       }
     } else {
       // Autonomous default: provision a fresh attack-path scenario so the operator never has to
@@ -344,6 +342,13 @@ public class AutonomousRunService {
         normalizeAgentModes(
             selectedModes != null ? selectedModes : readDefaultAdditionalAgentModes(),
             resolvedAgentIds));
+    // Seed-and-adapt: when launched in autonomous mode from a scenario that already carries an
+    // authored attack path, hand the orchestrator a starting-plan guidance so it verifies and
+    // executes the seeded steps first, then adapts/extends from live findings (unless a prior plan
+    // guidance was already carried in, e.g. a promoted dry-run).
+    if (seededFromScenario && !planMode && !hasText(run.getPlanGuidance())) {
+      run.setPlanGuidance(buildScenarioSeedGuidance(scenario));
+    }
     run.setStatus(AutonomousRunStatus.CREATED);
     AutonomousRun saved = runRepository.save(run);
 
@@ -359,6 +364,147 @@ public class AutonomousRunService {
             : "Autonomous attack-path run created from scenario \"" + scenario.getName() + "\"."),
         null);
     return saved;
+  }
+
+  /**
+   * Launches an existing chained scenario in AUTONOMOUS mode: seeds a live simulation from the
+   * scenario's authored attack-path steps and engages the orchestrator to verify, execute, and
+   * adapt/extend the path from live findings. This is the scenario-side entry point behind {@code
+   * POST /scenarios/{id}/exercise/autonomous}; the plain {@code exercise} endpoint keeps launching
+   * a normal (operator-driven) simulation.
+   *
+   * <p>Creates the run bound to the scenario and immediately engages the orchestrator in one
+   * transaction (the {@code afterCommit} engage still fires once this method's transaction commits,
+   * exactly like {@link #start}). No scenario is ever provisioned here - the operator authored (or
+   * AI-planned) the scenario beforehand.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public AutonomousRun launchFromScenario(String scenarioId, AutonomousRunCreateInput input) {
+    requireFeature();
+    if (!hasText(scenarioId)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
+    }
+    if (!workflowService.isScenarioChaining(scenarioId)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "The scenario must define a chaining (attack path) workflow to run autonomously");
+    }
+    AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
+    effective.setScenarioId(scenarioId);
+    effective.setPlanMode(false);
+    if (!hasText(effective.getObjective()) && !hasText(effective.getObjectiveTemplateKey())) {
+      Scenario scenario = scenarioService.scenario(scenarioId);
+      effective.setObjective(
+          "Run the chained scenario \""
+              + scenario.getName()
+              + "\" autonomously: verify and execute its authored attack path, then adapt and"
+              + " extend it from live findings to achieve the objective.");
+    }
+    // Same-class calls run inside THIS transaction (no proxy re-entry): create() builds + saves the
+    // run, start() flips it live and registers the post-commit orchestrator engagement.
+    AutonomousRun created = create(effective);
+    return start(created.getId());
+  }
+
+  /**
+   * Author-scenario (AI planning) mode: engages the orchestrator to design a reusable chained
+   * scenario by writing steps directly onto the scenario's workflow TEMPLATE - no simulation is
+   * ever provisioned and nothing is executed. The operator later launches the authored scenario in
+   * normal OR autonomous mode. This is the scenario-side entry point behind {@code POST
+   * /scenarios/{id}/plan-with-ai}.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public AutonomousRun planScenario(String scenarioId, AutonomousRunCreateInput input) {
+    requireFeature();
+    if (!hasText(scenarioId)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
+    }
+    if (!workflowService.isScenarioChaining(scenarioId)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "The scenario must be a chained scenario to be planned by the orchestrator");
+    }
+    AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
+    Scenario scenario = scenarioService.scenario(scenarioId);
+    if (!hasText(effective.getObjective()) && !hasText(effective.getObjectiveTemplateKey())) {
+      effective.setObjective(
+          "Design the attack path for the chained scenario \""
+              + scenario.getName()
+              + "\": author its steps (recon, exploitation, lateral movement, objective) onto the"
+              + " scenario workflow so it can later be launched in normal or autonomous mode.");
+    }
+    String objective = resolveObjective(effective);
+
+    // Keep the scenario workflow alive so the authoring window survives (no timeout, not ended).
+    markWorkflowKeepAlive(scenarioId);
+
+    AutonomousRun run = new AutonomousRun();
+    run.setObjective(objective);
+    run.setObjectiveTemplateKey(effective.getObjectiveTemplateKey());
+    // Author-scenario mode is a dry-run with NO simulation: the orchestrator writes onto the
+    // scenario workflow itself. It stays untimed like any plan/dry-run.
+    run.setPlanMode(true);
+    run.setTimeoutSeconds(null);
+    run.setScenarioId(scenarioId);
+    run.setSimulationId(null);
+
+    List<AutonomousScopeTarget> scope = resolveScope(effective);
+    for (AutonomousScopeTarget target : allowlistTargetsFromRules(effective.getScopeRules())) {
+      addScopeIfAbsent(scope, target.getType(), target.getId());
+    }
+    run.setScope(scope);
+    run.setScopeAssetGroupId(firstScopeIdOfType(scope, "ASSETS_GROUPS"));
+    run.setScopeTeamId(firstScopeIdOfType(scope, "TEAMS"));
+    // Persist any launch-time scope onto the scenario workflow only (no simulation to seed).
+    List<WorkflowScopeRuleInput> seededScopeRules = new ArrayList<>();
+    if (effective.getScopeRules() != null) {
+      for (WorkflowScopeRuleInput rule : effective.getScopeRules()) {
+        if (rule != null
+            && rule.getSelectedMode() != null
+            && rule.getRuleSource() != null
+            && hasText(rule.getRuleValue())) {
+          seededScopeRules.add(rule);
+        }
+      }
+    }
+    seededScopeRules.addAll(toAllowlistScopeInputs(resolveScope(effective)));
+    workflowService.writeScopeRules(scenarioId, null, seededScopeRules);
+
+    run.setXtmAgentSlug(effective.getAgentSlug());
+    List<String> selectedAgentIds = effective.getAgentIds();
+    List<String> resolvedAgentIds =
+        selectedAgentIds != null
+            ? new ArrayList<>(selectedAgentIds)
+            : readDefaultAdditionalAgentIds();
+    run.setAgentIds(resolvedAgentIds);
+    Map<String, String> selectedModes = effective.getAgentModes();
+    run.setAgentModes(
+        normalizeAgentModes(
+            selectedModes != null ? selectedModes : readDefaultAdditionalAgentModes(),
+            resolvedAgentIds));
+    run.setStatus(AutonomousRunStatus.CREATED);
+    AutonomousRun saved = runRepository.save(run);
+    eventService.append(
+        saved.getId(),
+        null,
+        AutonomousEventType.STATUS,
+        "Planning started",
+        "The orchestrator will design a reusable attack path for scenario \""
+            + scenario.getName()
+            + "\" by authoring steps onto the scenario workflow. Nothing is executed.",
+        null);
+    // Flip to PLANNING and engage the orchestrator after commit (same transaction as this method).
+    return start(saved.getId());
+  }
+
+  /** Starting-plan guidance handed to the orchestrator when a scenario is launched autonomously. */
+  private String buildScenarioSeedGuidance(Scenario scenario) {
+    return "This run was launched from the chained scenario \""
+        + scenario.getName()
+        + "\". Its authored attack-path steps have been seeded into this simulation as your"
+        + " starting plan. Read the current attack-path state first, then verify and execute the"
+        + " seeded steps in kill-chain order, and adapt or extend the path from live findings to"
+        + " achieve the objective.";
   }
 
   /**
@@ -416,6 +562,11 @@ public class AutonomousRunService {
     final String agentSlug = run.getXtmAgentSlug();
     final String objective = run.getObjective();
     final String simulationId = run.getSimulationId();
+    final String scenarioId = run.getScenarioId();
+    // Author-scenario (AI planning) mode: a plan run with no simulation authors directly onto the
+    // scenario workflow. XTM One must target the scenario for its attack-path tools, so it is told
+    // both the scenario id and that the target is the scenario (not a simulation).
+    final boolean authorScenario = run.isPlanMode() && !hasText(simulationId);
     final String scopeAssetGroupId = run.getScopeAssetGroupId();
     final String scopeTeamId = run.getScopeTeamId();
     final List<AutonomousScopeTarget> scope =
@@ -439,6 +590,8 @@ public class AutonomousRunService {
                   agentSlug,
                   objective,
                   simulationId,
+                  scenarioId,
+                  authorScenario,
                   scopeAssetGroupId,
                   scopeTeamId,
                   scope,
@@ -455,6 +608,8 @@ public class AutonomousRunService {
           agentSlug,
           objective,
           simulationId,
+          scenarioId,
+          authorScenario,
           scopeAssetGroupId,
           scopeTeamId,
           scope,
@@ -477,6 +632,8 @@ public class AutonomousRunService {
       String agentSlug,
       String objective,
       String simulationId,
+      String scenarioId,
+      boolean authorScenario,
       String scopeAssetGroupId,
       String scopeTeamId,
       List<AutonomousScopeTarget> scope,
@@ -492,6 +649,8 @@ public class AutonomousRunService {
               objective,
               runId,
               simulationId,
+              scenarioId,
+              authorScenario,
               scopeAssetGroupId,
               scopeTeamId,
               scope,
@@ -1540,11 +1699,43 @@ public class AutonomousRunService {
       AutonomousStepTrigger trigger) {
     requireFeature();
     AutonomousRun run = require(runId);
-    if (!hasText(run.getSimulationId())) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "The autonomous run has no live simulation to build steps on");
-    }
     List<ConditionCreateInput> triggerConditions = toTriggerConditions(trigger);
+    // Author-scenario (AI planning) mode: no simulation exists, so the orchestrator authors the
+    // step directly onto the scenario's workflow TEMPLATE. Nothing executes; there is no mirror
+    // (the scenario IS the authored artifact) and the returned id is the scenario step id the
+    // orchestrator chains the next step onto.
+    if (!hasText(run.getSimulationId())) {
+      if (!hasText(run.getScenarioId())) {
+        throw new ResponseStatusException(
+            HttpStatus.CONFLICT,
+            "The autonomous run has neither a live simulation nor a scenario to build steps on");
+      }
+      String scenarioStepId;
+      try {
+        scenarioStepId =
+            workflowService.appendChainedStepToScenario(
+                run.getScenarioId(), injectInput, parentStepTemplateId, triggerConditions);
+      } catch (ChainingException e) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Failed to author the attack-path step onto the scenario: " + e.getMessage(),
+            e);
+      }
+      boolean findingDrivenPlan = !triggerConditions.isEmpty();
+      eventService.append(
+          runId,
+          null,
+          AutonomousEventType.TOOL_ACTION,
+          "Attack-path step authored",
+          "A chained step was added to the scenario's attack path"
+              + (findingDrivenPlan
+                  ? " (fires on a finding and consumes its values)."
+                  : hasText(parentStepTemplateId)
+                      ? " (depends on a previous step)."
+                      : " (seed step - readies immediately against the scope)."),
+          null);
+      return scenarioStepId;
+    }
     String stepTemplateId;
     try {
       stepTemplateId =
@@ -1758,9 +1949,30 @@ public class AutonomousRunService {
   public String updateAttackPathStep(String runId, String stepTemplateId, InjectInput injectInput) {
     requireFeature();
     AutonomousRun run = require(runId);
+    // Author-scenario mode: the step id IS a scenario step template id; update it in place on the
+    // scenario workflow (no simulation, no mirror twin).
     if (!hasText(run.getSimulationId())) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "The autonomous run has no live simulation to update steps on");
+      if (!hasText(run.getScenarioId())) {
+        throw new ResponseStatusException(
+            HttpStatus.CONFLICT,
+            "The autonomous run has neither a live simulation nor a scenario to update steps on");
+      }
+      try {
+        workflowService.updateChainedStep(stepTemplateId, injectInput);
+      } catch (ChainingException e) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Failed to update the scenario attack-path step: " + e.getMessage(),
+            e);
+      }
+      eventService.append(
+          runId,
+          null,
+          AutonomousEventType.TOOL_ACTION,
+          "Attack-path step updated",
+          "An existing chained step was updated in place on the scenario (no new step created).",
+          null);
+      return stepTemplateId;
     }
     try {
       workflowService.updateChainedStep(stepTemplateId, injectInput);
@@ -1843,6 +2055,11 @@ public class AutonomousRunService {
    * here.
    */
   private void enableTargetedTeamMembers(String simulationId, List<String> teamIds) {
+    // Author-scenario (AI planning) runs have no simulation to enable players on - nothing is
+    // delivered while planning, so this is a no-op.
+    if (!hasText(simulationId)) {
+      return;
+    }
     // Shared with the manual chaining execution path via ExerciseService so both keep one source of
     // truth (idempotent: attaches each team to the simulation if missing, then enables its
     // players).
@@ -1891,8 +2108,14 @@ public class AutonomousRunService {
   public List<AutonomousAttackPathStepState> attackPathState(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
+    // Author-scenario mode: read the steps authored onto the scenario workflow (no simulation).
     if (!hasText(run.getSimulationId())) {
-      return List.of();
+      if (!hasText(run.getScenarioId())) {
+        return List.of();
+      }
+      return workflowService.readAuthoredAttackPathForScenario(run.getScenarioId()).stream()
+          .map(this::toStepState)
+          .toList();
     }
     // Build the snapshot from the simulation TEMPLATE workflow's steps (the STABLE authoring
     // handles the orchestrator built) rather than from materialized injects, so the read returns

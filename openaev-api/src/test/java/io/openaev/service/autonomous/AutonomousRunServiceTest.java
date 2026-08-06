@@ -3,15 +3,20 @@ package io.openaev.service.autonomous;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.ConvertToManualMode;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Scenario;
@@ -30,6 +35,8 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.xtmone.XtmOneClient;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,6 +67,7 @@ class AutonomousRunServiceTest {
   @Mock private ScenarioService scenarioService;
   @Mock private ScenarioToExerciseService scenarioToExerciseService;
   @Mock private XtmOneClient xtmOneClient;
+  @Mock private OpenAEVConfig openAEVConfig;
 
   @InjectMocks private AutonomousRunService service;
 
@@ -486,6 +494,105 @@ class AutonomousRunServiceTest {
     // Nothing is halted or mutated when the run cannot be converted.
     verifyNoInteractions(xtmOneClient, exerciseService);
     verify(runRepository, never()).delete(any());
+  }
+
+  // endregion
+
+  // region scenario-side entry points: launch-from-scenario (autonomous mode) + plan-with-AI
+
+  @Test
+  @DisplayName("launchFromScenario refuses a scenario that has no chaining (attack path) workflow")
+  void launchFromScenarioRejectsNonChainedScenario() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    // A time-based (non-chained) scenario has no authored attack path to seed, so it cannot be
+    // launched in autonomous mode - the entry point must 400 before creating any run.
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(false);
+
+    assertThatThrownBy(() -> service.launchFromScenario("scenario-1", null))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+    verify(runRepository, never()).save(any());
+    verifyNoInteractions(xtmOneClient);
+  }
+
+  @Test
+  @DisplayName("planScenario refuses a scenario that is not chained (nothing to author onto)")
+  void planScenarioRejectsNonChainedScenario() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(false);
+
+    assertThatThrownBy(() -> service.planScenario("scenario-1", null))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+    verify(runRepository, never()).save(any());
+    verifyNoInteractions(xtmOneClient);
+  }
+
+  @Test
+  @DisplayName(
+      "planScenario authors onto the scenario template: plan-mode run with NO simulation, and the"
+          + " orchestrator is engaged in author-scenario mode (scenario id, null simulation)")
+  void planScenarioAuthorsOntoScenarioWithoutSimulation() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+
+    // save() assigns the generated id and the follow-up start() reloads it by that id.
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun r = invocation.getArgument(0);
+              if (r.getId() == null) {
+                r.setId("plan-run-1");
+              }
+              savedHolder[0] = r;
+              return r;
+            });
+    when(runRepository.findById("plan-run-1"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setObjective("Prove a path to the domain controller");
+    // Explicit (empty) agent selection so the tenant-default settings lookup is never hit.
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+
+    AutonomousRun run = service.planScenario("scenario-1", input);
+
+    // Author-scenario mode is a dry-run bound to the SCENARIO, with no simulation ever provisioned.
+    assertThat(run.isPlanMode()).isTrue();
+    assertThat(run.getScenarioId()).isEqualTo("scenario-1");
+    assertThat(run.getSimulationId()).isNull();
+    assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
+    // The scenario workflow is kept alive so the authoring window survives.
+    verify(workflowService).markScenarioWorkflowKeepAlive("scenario-1");
+    // Scope is written onto the scenario workflow only (null simulation id), never a simulation.
+    verify(workflowService).writeScopeRules(eq("scenario-1"), isNull(), anyList());
+    // The orchestrator is engaged in AUTHOR-SCENARIO mode: author_scenario=true, the scenario id is
+    // passed, and there is NO simulation to target.
+    verify(xtmOneClient)
+        .startAutonomousRun(
+            any(),
+            eq("Prove a path to the domain controller"),
+            eq("plan-run-1"),
+            isNull(),
+            eq("scenario-1"),
+            eq(true),
+            any(),
+            any(),
+            anyList(),
+            any(),
+            eq(true),
+            any(),
+            any(),
+            anyList(),
+            anyMap());
   }
 
   // endregion
