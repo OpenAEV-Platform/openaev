@@ -1773,6 +1773,11 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       const injectorIds = new Set(
         baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
       );
+      const endpointNodeIds = new Set(
+        baseFlow.nodes
+          .filter(n => n.type === AP_FLOW_NODE_TYPE.asset || n.type === AP_FLOW_NODE_TYPE.endpointCluster)
+          .map(n => n.id),
+      );
       const pathSet = new Set<string>();
       // Tracks the finding-focus "active" node (its own leaf if selected, else its type cluster) across
       // both branches below, so the downstream pass after them can re-key off it instead of
@@ -1820,11 +1825,33 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         // shared-hub ambiguity to guard against (unlike the clustered view this restriction was written
         // for), so there's nothing to lose by walking every hop back.
         const restrictInjectors = !chainMode && producingInjectorIds.size > 0;
+        // Chain mode gets its own, narrower restriction. The focused finding's OWN endpoint is a hub:
+        // every action that ever ran against it is an upstream neighbour, so an unrestricted walk
+        // adopted them all and the path covered the entire scope - which is why nothing ever rendered
+        // dimmed. Actions that merely touched that endpoint without producing this finding are
+        // context, not path, so they are skipped at that one hop. Deeper endpoints keep their actions:
+        // those ARE the earlier links of the causal chain, and they are reached through an upstream
+        // FINDING ("triggered") edge rather than through the focused endpoint.
+        const focusEndpointIds = new Set(
+          chainMode && producingInjectorIds.size > 0
+            ? baseFlow.edges
+                .filter(e => e.target === activeId && !!e.source)
+                .map(e => e.source as string)
+                .filter(id => endpointNodeIds.has(id))
+            : [],
+        );
         pathSet.add(activeId);
         for (let pass = 0; pass < 8; pass += 1) {
           for (const e of baseFlow.edges) {
             if (e.target && e.source && pathSet.has(e.target) && !pathSet.has(e.source)) {
               if (restrictInjectors && injectorIds.has(e.source) && !producingInjectorIds.has(e.source)) {
+                continue;
+              }
+              if (
+                injectorIds.has(e.source)
+                && focusEndpointIds.has(e.target)
+                && !producingInjectorIds.has(e.source)
+              ) {
                 continue;
               }
               pathSet.add(e.source);
