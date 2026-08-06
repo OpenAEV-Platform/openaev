@@ -9,8 +9,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
+import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -48,7 +50,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
 
   @Autowired private StepRepository stepRepository;
   @Autowired private ConditionService conditionService;
-  @Autowired private io.openaev.database.repository.ConditionRepository conditionRepository;
+  @Autowired private ConditionRepository conditionRepository;
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ExerciseComposer simulationComposer;
   @MockitoBean private InjectorContractService injectorContractService;
@@ -271,8 +273,8 @@ class StepServiceIntegrationTest extends IntegrationTest {
     // does.
     // The child used to be unlinked and then deleted while its preserved parent still referenced
     // it, and the step merge that followed failed the save with ObjectDeletedException.
-    io.openaev.api.chaining.dto.StepInput updateInput =
-        io.openaev.api.chaining.dto.StepInput.builder()
+    StepInput updateInput =
+        StepInput.builder()
             .workflowId(workflow.getId())
             .stepAction(StepActionClass.INJECT_EXECUTION)
             .conditionIds(List.of(rootId))

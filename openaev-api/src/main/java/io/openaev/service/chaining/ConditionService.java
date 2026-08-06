@@ -448,7 +448,11 @@ public class ConditionService {
       return;
     }
 
-    Set<String> preserved = withDescendants(excludedConditionIds);
+    // Null entries are dropped defensively: the caller's list is API input.
+    Set<String> excluded =
+        excludedConditionIds == null
+            ? Set.of()
+            : excludedConditionIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 
     for (Condition condition : conditions) {
       // A preserved condition is left completely untouched, subtree included. Its children are
@@ -457,9 +461,7 @@ public class ConditionService {
       // ROOT ids it keeps. Unlinking a leaf and then deleting it (it has no other link and no
       // children of its own) left the surviving parent referencing a deleted instance, and the step
       // merge that follows failed the whole save with ObjectDeletedException.
-      // Guard the id explicitly: `preserved` may be an immutable Set, whose contains(null) throws.
-      // A condition with no id was never persisted, so no caller can have named it as preserved.
-      if (condition.getId() != null && preserved.contains(condition.getId())) {
+      if (isPreserved(condition, excluded)) {
         continue;
       }
 
@@ -477,38 +479,30 @@ public class ConditionService {
   }
 
   /**
-   * The given condition ids plus every descendant of them, so preserving a condition preserves the
-   * whole tree hanging off it.
+   * Whether the condition is named in the excluded ids, or descends from a condition that is, so
+   * preserving a condition preserves the whole tree hanging off it.
    *
    * <p>Callers name the ROOT conditions they keep (a step's {@code step_condition_ids}), but an
-   * event's leaves are separate rows linked to the same step, so they have to be derived here
-   * rather than trusted from the input.
+   * event's leaves are separate rows linked to the same step, so preservation has to be derived by
+   * walking up the parent chain rather than trusted from the input. The walk stays on entities
+   * already in the persistence context (every node of a linked tree is linked to the step itself,
+   * and reading a lazy parent's id does not initialize its proxy), so no per-node repository lookup
+   * is needed. The visited set makes the walk terminate even on a corrupted parent chain forming a
+   * cycle.
    */
-  private Set<String> withDescendants(List<String> rootIds) {
-    if (rootIds == null || rootIds.isEmpty()) {
-      return Set.of();
+  private boolean isPreserved(Condition condition, Set<String> excludedConditionIds) {
+    if (excludedConditionIds.isEmpty()) {
+      return false;
     }
-    Set<String> preserved = new HashSet<>();
-    // Nulls are filtered on the way IN, not on pop: the caller's list is API input and may carry a
-    // null entry, and ArrayDeque rejects nulls on insertion.
-    Deque<String> pending =
-        rootIds.stream().filter(Objects::nonNull).collect(Collectors.toCollection(ArrayDeque::new));
-    while (!pending.isEmpty()) {
-      String id = pending.pop();
-      if (!preserved.add(id)) {
-        continue;
+    Set<String> visited = new HashSet<>();
+    for (Condition current = condition;
+        current != null && current.getId() != null && visited.add(current.getId());
+        current = current.getConditionParent()) {
+      if (excludedConditionIds.contains(current.getId())) {
+        return true;
       }
-      conditionRepository
-          .findById(id)
-          .filter(condition -> condition.getConditionChildren() != null)
-          .ifPresent(
-              condition ->
-                  condition.getConditionChildren().stream()
-                      .map(Condition::getId)
-                      .filter(Objects::nonNull)
-                      .forEach(pending::push));
     }
-    return preserved;
+    return false;
   }
 
   // -- CONDITION PERSISTENCE HELPERS --
