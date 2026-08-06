@@ -11,10 +11,10 @@ This folder contains configuration files for setting up a local development envi
 
 ## Quick Start
 
-### 1. Customize environment variables (optional)
+### 1. Set up environment variables
 
-The defaults in `docker-compose.yml` work without an `.env` file. To override
-credentials or optional XTM Composer settings, copy the example and adjust it:
+Container image tags live directly in `docker-compose.yml`. Runtime settings such
+as credentials are supplied through `.env`, so copy the example and adjust it:
 
 ```bash
 # Linux/macOS
@@ -27,8 +27,9 @@ copy .env.example .env
 Copy-Item .env.example .env
 ```
 
-If an existing `.env` contains `COMPOSE_ENV_FILES`, remove that line. Image tags
-now live in `docker-compose.yml`, which is also the source used by CI.
+The provided values work for local development. If an existing `.env` contains
+`COMPOSE_ENV_FILES`, remove that line. Image tags now live in `docker-compose.yml`,
+which is also the source used by CI.
 
 ### 2. Create the backend dev configuration
 
@@ -108,7 +109,7 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 
 | File | Description |
 |------|-------------|
-| `.env.example` | Optional environment variable overrides (copy to `.env`) |
+| `.env.example` | Development environment variables (copy to `.env`) |
 | `docker-compose.yml` | Container composition file (used via `podman compose`) |
 | `rabbitmq.conf` | RabbitMQ configuration |
 | `otlp-config.yaml` | OpenTelemetry Collector configuration (for telemetry) |

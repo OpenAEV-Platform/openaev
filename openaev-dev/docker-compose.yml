@@ -11,8 +11,8 @@ services:
     container_name: openaev-dev-pgsql
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-openaev}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openaev}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: openaev
     ports:
       - "5432:5432"
@@ -20,7 +20,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openaev} -d openaev"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d openaev"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -99,14 +99,14 @@ services:
     container_name: openaev-test-pgsql
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-openaev}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openaev}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: openaev
     ports:
       - "5433:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-openaev}", "-d", "openaev"]
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "openaev"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -194,8 +194,8 @@ services:
     ports:
       - "5050:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_USER:-admin@openaev.io}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_USER}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     depends_on:
       openaev-dev-pgsql:
         condition: service_healthy
@@ -243,13 +243,13 @@ services:
     platform: linux/amd64
     network_mode: host # allow connecting to non docker local instance
     environment:
-      - MANAGER__ID=${XTM_COMPOSER_ID:-}
+      - MANAGER__ID=${XTM_COMPOSER_ID}
       - "MANAGER__NAME=XTM Integrations Manager"
       - MANAGER__CREDENTIALS_KEY_FILEPATH=/keys/private_key.pem
       - OPENAEV__ENABLE=true
       - OPENCTI__ENABLE=false
       - OPENAEV__URL=${OPENAEV_URL:-http://localhost:8080}
-      - OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN:-}
+      - OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN}
       - OPENAEV__DAEMON__SELECTOR=docker
       # Workaround: pending https://github.com/FiligranHQ/xtm-composer/issues/64,
       # use OPENCTI__ keys to customise the docker daemon
