@@ -388,11 +388,21 @@ export const buildLogicGraphLayout = ({
         : ADJACENT_BAND_GAP + 2 * BAND_PADDING_X);
   });
 
-  // Actions per column, stacked in causal order (dependency depth, then input order to stay stable).
+  // Actions per column, GATED ONES FIRST, then in causal order (dependency depth, then input order to
+  // stay stable). Gated actions are what a lane's trigger cards align to, and depth order alone put
+  // them last (a gated action's depth is at least 1, an ungated one's is 0): the triggers were then
+  // anchored to the bottom of a tall column, leaving the top of the lane empty over hundreds of px.
+  // Ungated actions have nothing to align with, so they are the ones that belong at the bottom.
+  const isGated = (id: string) =>
+    (actionMetas[id]?.step_condition_ids ?? []).some(condId => eventMetas[condId]);
   const actionsByCol: Record<number, string[]> = {};
   for (const id of actionIds) (actionsByCol[colOfAction(id)] ??= []).push(id);
   for (const ids of Object.values(actionsByCol)) {
-    ids.sort((a, b) => (layer[a] !== layer[b] ? layer[a] - layer[b] : inputOrder[a] - inputOrder[b]));
+    ids.sort((a, b) => {
+      const gatedRank = Number(isGated(b)) - Number(isGated(a));
+      if (gatedRank !== 0) return gatedRank;
+      return layer[a] !== layer[b] ? layer[a] - layer[b] : inputOrder[a] - inputOrder[b];
+    });
   }
 
   // Actions are top-aligned within their column (like a table): every column starts at the same top,

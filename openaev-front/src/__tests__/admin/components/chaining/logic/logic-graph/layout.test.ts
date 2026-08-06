@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { OutputProviderEntry } from '../../../../../../admin/components/chaining/logic/logic-flow-helpers';
 import {
   ACTION_NODE_HEIGHT,
   buildLogicGraphLayout,
@@ -14,6 +15,16 @@ const action = (stepConditionIds: string[] = []): ActionMeta =>
   ({ step_condition_ids: stepConditionIds } as unknown as ActionMeta);
 const event = (): EventMeta =>
   ({ formData: { conditionGroups: [] } } as unknown as EventMeta);
+/** An event listening on one finding field, so `outputProviders` can wire an inferred producer edge. */
+const eventOn = (field: string): EventMeta =>
+  ({
+    formData: {
+      conditionGroups: [{
+        conditions: [{ field }],
+        subGroups: [],
+      }],
+    },
+  } as unknown as EventMeta);
 
 /** Do two boxes share any surface? Touching edges do NOT count as overlapping. */
 const overlaps = (
@@ -279,23 +290,53 @@ describe('buildLogicGraphLayout tactic columns', () => {
     expect(ungatedGap).toBeLessThan(nodeById.gate.width);
   });
 
-  it('stacks a column\'s cards in causal order (dependency depth first)', () => {
-    // late is gated by a trigger fed by early, so it sits below early in their shared column.
+  it('stacks a column\'s gated cards on top, ungated ones at the bottom', () => {
+    // Only `gated` has a trigger to align with, so it goes first and the lane's card stays near the
+    // top of the canvas instead of hanging under a stack of ungated cards.
     const { nodeById } = buildLogicGraphLayout({
       actionMetas: {
-        late: action(['gate']),
-        early: action(),
+        ungated1: action(),
+        gated: action(['gate']),
+        ungated2: action(),
       },
       eventMetas: { gate: event() },
       outputProviders: {},
       tacticForStep: {
-        late: 'Discovery',
-        early: 'Discovery',
+        ungated1: 'Discovery',
+        gated: 'Discovery',
+        ungated2: 'Discovery',
       },
       tacticOrder: { Discovery: 1 },
     });
-    expect(nodeById.late.x).toBe(nodeById.early.x);
-    expect(nodeById.early.y).toBeLessThan(nodeById.late.y);
+    expect(nodeById.gated.x).toBe(nodeById.ungated1.x);
+    expect(nodeById.gated.y).toBeLessThan(nodeById.ungated1.y);
+    expect(nodeById.gated.y).toBeLessThan(nodeById.ungated2.y);
+    // Which is the point: the trigger sits level with the topmost row, not far below it.
+    expect(nodeById.gate.y + nodeById.gate.height / 2)
+      .toBe(nodeById.gated.y + nodeById.gated.height / 2);
+    expect(nodeById.gate.y).toBeLessThan(nodeById.ungated1.y);
+  });
+
+  it('orders the gated cards among themselves by dependency depth', () => {
+    // deep is gated by `late`, a trigger fed by shallow's "port" output, so it comes after shallow.
+    const { nodeById } = buildLogicGraphLayout({
+      actionMetas: {
+        deep: action(['late']),
+        shallow: action(['first']),
+      },
+      eventMetas: {
+        first: event(),
+        late: eventOn('port'),
+      },
+      outputProviders: { port: [{ stepId: 'shallow' } as unknown as OutputProviderEntry] },
+      tacticForStep: {
+        deep: 'Discovery',
+        shallow: 'Discovery',
+      },
+      tacticOrder: { Discovery: 1 },
+    });
+    expect(nodeById.deep.x).toBe(nodeById.shallow.x);
+    expect(nodeById.shallow.y).toBeLessThan(nodeById.deep.y);
   });
 
   it('falls a tactic missing from the order map to the end (after the known ones)', () => {
