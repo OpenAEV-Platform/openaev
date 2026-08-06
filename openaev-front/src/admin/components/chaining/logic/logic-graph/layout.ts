@@ -9,10 +9,13 @@ export const TRIGGER_NODE_HEIGHT = 76;
 
 // -- Tactic-column tokens (px). Actions are laid out in one column per MITRE tactic (ordered by
 // kill-chain phase), and each gating event sits in a lane immediately to the left of the column it
-// feeds. Every tactic owns an exclusive horizontal stride, which is what makes the tactic bands
-// non-overlapping BY CONSTRUCTION (see buildLogicGraphLayout). --
+// feeds. Columns are laid out with a running cursor rather than a fixed stride, so a tactic whose
+// events are absent claims no lane width at all and its band sits right next to its neighbour. Each
+// tactic still owns an exclusive horizontal span, which is what keeps the bands non-overlapping BY
+// CONSTRUCTION (see buildLogicGraphLayout). --
 const EVENT_TO_COL_GAP = 60; // gap between an event lane and the action column it feeds
 const INTER_COLUMN_GAP = 90; // gap between one tactic column and the next column's event lane
+const ADJACENT_BAND_GAP = 40; // gap between two tactic bands with no event lane between them
 const ACTION_ROW_GAP = 40; // vertical gap between stacked actions in a column
 const EVENT_ROW_GAP = 24; // vertical gap when de-overlapping events sharing a lane
 const COLUMN_TOP_MARGIN = 56; // room above the top node, inside the band, for the tactic header
@@ -20,10 +23,6 @@ const BAND_TOP = 8; // top of the tactic band
 const BAND_PADDING_X = 18; // horizontal breathing room between a card and its band border
 const BAND_PADDING_BOTTOM = 20; // padding below the last card inside the band
 const BAND_HEADER_HEIGHT = 26; // room reserved at the top of a band for the tactic label
-// One tactic column spans its event lane + gap + action column; the next starts a stride further.
-const COLUMN_STRIDE = NODE_WIDTH + EVENT_TO_COL_GAP + NODE_WIDTH + INTER_COLUMN_GAP;
-const eventLaneX = (col: number) => col * COLUMN_STRIDE;
-const actionColX = (col: number) => col * COLUMN_STRIDE + NODE_WIDTH + EVENT_TO_COL_GAP;
 
 export type LogicGraphNodeKind = 'action' | 'trigger';
 
@@ -329,9 +328,9 @@ export const buildLogicGraphLayout = ({
   // immediately to the LEFT of its action's column, aligned to the action it gates so the
   // event -> action arrow stays horizontal.
   //
-  // Because every tactic owns an exclusive horizontal stride (event lane + gap + action column +
-  // gap), a tactic band can never intersect another band, nor a card of another tactic. That is the
-  // whole point of laying out by tactic rather than decorating a depth-ordered layout with per-tactic
+  // Because every tactic owns an exclusive horizontal span (event lane + gap + action column + gap),
+  // a tactic band can never intersect another band, nor a card of another tactic. That is the whole
+  // point of laying out by tactic rather than decorating a depth-ordered layout with per-tactic
   // bounding hulls: one tactic's actions would then scatter across several depth columns, so its hull
   // stretched over its neighbours' cards and every stacked hull's header landed on the card above.
   const actionIds = nodeIds.filter(id => kindById[id] === 'action');
@@ -355,6 +354,40 @@ export const buildLogicGraphLayout = ({
   });
   const colOfAction = (id: string) => colByTactic[tacticForStep[id] ?? ''] ?? 0;
 
+  // Which lane does each event belong to? The leftmost tactic among the actions it gates (orphan
+  // events, gating nothing, fall in column 0's lane). Resolved BEFORE the actions are positioned,
+  // because it only needs the column, never the Y — that is what lets an unused lane claim no width
+  // at all instead of reserving an empty card's worth of canvas between two tactics.
+  const laneOfEvent: Record<string, number> = {};
+  for (const [stepId, meta] of Object.entries(actionMetas)) {
+    if (kindById[stepId] !== 'action') continue;
+    const col = colOfAction(stepId);
+    for (const eventId of meta.step_condition_ids) {
+      if (!eventMetas[eventId]) continue;
+      const cur = laneOfEvent[eventId];
+      if (cur === undefined || col < cur) laneOfEvent[eventId] = col;
+    }
+  }
+  const laneCol = (id: string) => laneOfEvent[id] ?? 0;
+  const occupiedLanes = new Set(eventIds.map(laneCol));
+
+  // Walk the columns left to right with a running cursor: a column claims lane width only when its
+  // lane actually holds an event, and the gap to the next column shrinks to ADJACENT_BAND_GAP when
+  // that column has no lane either (nothing has to be routed through the space, so reserving a card's
+  // width there just pushed the bands apart for nothing).
+  const laneX: number[] = [];
+  const actionX: number[] = [];
+  let cursorX = 0;
+  uniqueTactics.forEach((_tactic, col) => {
+    laneX[col] = cursorX;
+    if (occupiedLanes.has(col)) cursorX += NODE_WIDTH + EVENT_TO_COL_GAP;
+    actionX[col] = cursorX;
+    cursorX += NODE_WIDTH
+      + (occupiedLanes.has(col + 1)
+        ? INTER_COLUMN_GAP
+        : ADJACENT_BAND_GAP + 2 * BAND_PADDING_X);
+  });
+
   // Actions per column, stacked in causal order (dependency depth, then input order to stay stable).
   const actionsByCol: Record<number, string[]> = {};
   for (const id of actionIds) (actionsByCol[colOfAction(id)] ??= []).push(id);
@@ -375,7 +408,7 @@ export const buildLogicGraphLayout = ({
         id,
         kind: 'action',
         layer: col,
-        x: actionColX(col),
+        x: actionX[col],
         y,
         width: NODE_WIDTH,
         height: ACTION_NODE_HEIGHT,
@@ -386,44 +419,35 @@ export const buildLogicGraphLayout = ({
     }
   });
 
-  // Resolve, per event, the lane it sits in and the Y to align to: the leftmost tactic among the
-  // actions it gates, aligned to that action's center (topmost when it gates several).
-  const eventPlacement: Record<string, {
-    col: number;
-    anchorY: number;
-  }> = {};
+  // Y to align each event to, now that its actions are placed: the topmost action it gates inside its
+  // own lane's column, so the event -> action arrow stays horizontal.
+  const eventAnchorY: Record<string, number> = {};
   for (const [stepId, meta] of Object.entries(actionMetas)) {
     if (actionCenterY[stepId] === undefined) continue;
     const col = colOfAction(stepId);
     const y = actionCenterY[stepId];
     for (const eventId of meta.step_condition_ids) {
-      if (!eventMetas[eventId]) continue;
-      const cur = eventPlacement[eventId];
-      if (!cur || col < cur.col || (col === cur.col && y < cur.anchorY)) {
-        eventPlacement[eventId] = {
-          col,
-          anchorY: y,
-        };
+      if (!eventMetas[eventId] || laneCol(eventId) !== col) continue;
+      if (eventAnchorY[eventId] === undefined || y < eventAnchorY[eventId]) {
+        eventAnchorY[eventId] = y;
       }
     }
   }
 
-  // Bucket events per lane (orphan events, gating nothing, share column 0's lane), then align each
-  // to its anchor and cascade down only to resolve overlaps ("align, then de-overlap") — a lane
-  // never stacks two cards closer than EVENT_ROW_GAP.
+  // Bucket events per lane, then align each to its anchor and cascade down only to resolve overlaps
+  // ("align, then de-overlap") — a lane never stacks two cards closer than EVENT_ROW_GAP.
   const eventLanes: Record<number, {
     id: string;
     anchorY: number | null;
   }[]> = {};
   for (const id of eventIds) {
-    const col = eventPlacement[id]?.col ?? 0;
-    (eventLanes[col] ??= []).push({
+    (eventLanes[laneCol(id)] ??= []).push({
       id,
-      anchorY: eventPlacement[id]?.anchorY ?? null,
+      anchorY: eventAnchorY[id] ?? null,
     });
   }
-  for (const [laneColStr, items] of Object.entries(eventLanes)) {
-    const laneCol = Number(laneColStr);
+  for (const [colStr, items] of Object.entries(eventLanes)) {
+    const col = Number(colStr);
     items.sort(
       (a, b) => (a.anchorY ?? Number.POSITIVE_INFINITY) - (b.anchorY ?? Number.POSITIVE_INFINITY),
     );
@@ -434,8 +458,8 @@ export const buildLogicGraphLayout = ({
       nodes.push({
         id,
         kind: 'trigger',
-        layer: laneCol,
-        x: eventLaneX(laneCol),
+        layer: col,
+        x: laneX[col],
         y,
         width: NODE_WIDTH,
         height: TRIGGER_NODE_HEIGHT,
@@ -452,7 +476,7 @@ export const buildLogicGraphLayout = ({
     return {
       tactic,
       order: tacticOrder[tactic] ?? 99,
-      x: actionColX(col) - BAND_PADDING_X,
+      x: actionX[col] - BAND_PADDING_X,
       y: BAND_TOP,
       width: NODE_WIDTH + 2 * BAND_PADDING_X,
       height: bottom + BAND_PADDING_BOTTOM - BAND_TOP,

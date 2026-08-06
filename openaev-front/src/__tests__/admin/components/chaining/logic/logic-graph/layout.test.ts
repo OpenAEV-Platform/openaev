@@ -209,6 +209,76 @@ describe('buildLogicGraphLayout tactic columns', () => {
     expect(nodeById.smbFound.x).toBeLessThan(nodeById.exec2.x);
   });
 
+  it('collapses the event lane of a tactic that has no event, tightening the bands', () => {
+    // Three tactics, no event anywhere: nothing has to be routed between the bands, so none of them
+    // may reserve an event card's worth of empty canvas.
+    const { columns, nodeById } = buildLogicGraphLayout({
+      actionMetas: {
+        a1: action(),
+        a2: action(),
+        a3: action(),
+      },
+      eventMetas: {},
+      outputProviders: {},
+      tacticForStep: {
+        a1: 'Discovery',
+        a2: 'Lateral Movement',
+        a3: 'Impact',
+      },
+      tacticOrder: {
+        'Discovery': 1,
+        'Lateral Movement': 2,
+        'Impact': 3,
+      },
+    });
+    expect(columns).toHaveLength(3);
+    // The first band starts at the origin: no empty lane pushes it right.
+    expect(columns[0].x).toBe(0);
+    for (let i = 1; i < columns.length; i += 1) {
+      const gap = columns[i].x - (columns[i - 1].x + columns[i - 1].width);
+      expect(gap).toBeGreaterThan(0); // still non-overlapping
+      expect(gap).toBeLessThan(nodeById.a1.width); // but too tight to hide an unused card slot
+    }
+  });
+
+  it('keeps lane room only where an event actually sits', () => {
+    // Only the second tactic is gated: its lane must be wide enough for the trigger card, while the
+    // first tactic (no event) stays flush against it.
+    const { columns, nodeById } = buildLogicGraphLayout({
+      actionMetas: {
+        a1: action(),
+        a2: action(['gate']),
+        a3: action(),
+      },
+      eventMetas: { gate: event() },
+      outputProviders: {},
+      tacticForStep: {
+        a1: 'Discovery',
+        a2: 'Lateral Movement',
+        a3: 'Impact',
+      },
+      tacticOrder: {
+        'Discovery': 1,
+        'Lateral Movement': 2,
+        'Impact': 3,
+      },
+    });
+    const [discovery, lateral, impact] = columns;
+
+    // Lane present between Discovery and Lateral Movement: the gap fits the trigger card, and the
+    // trigger sits inside it (outside both bands).
+    const gatedGap = lateral.x - (discovery.x + discovery.width);
+    expect(gatedGap).toBeGreaterThanOrEqual(nodeById.gate.width);
+    expect(nodeById.gate.x).toBeGreaterThanOrEqual(discovery.x + discovery.width);
+    expect(nodeById.gate.x + nodeById.gate.width).toBeLessThanOrEqual(lateral.x);
+
+    // No lane between Lateral Movement and Impact: that gap stays tight.
+    const ungatedGap = impact.x - (lateral.x + lateral.width);
+    expect(ungatedGap).toBeGreaterThan(0);
+    expect(ungatedGap).toBeLessThan(gatedGap);
+    expect(ungatedGap).toBeLessThan(nodeById.gate.width);
+  });
+
   it('stacks a column\'s cards in causal order (dependency depth first)', () => {
     // late is gated by a trigger fed by early, so it sits below early in their shared column.
     const { nodeById } = buildLogicGraphLayout({
