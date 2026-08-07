@@ -41,7 +41,8 @@ public class Secret implements TenantBase {
   @JsonProperty("secret_type")
   @Setter(NONE)
   @ToString.Include
-  private String type;
+  @Enumerated(EnumType.STRING)
+  private SECRET_TYPE type;
 
   @Column(name = "secret_created_at")
   @JsonProperty("secret_created_at")

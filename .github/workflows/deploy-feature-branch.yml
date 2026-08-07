@@ -102,15 +102,25 @@ jobs:
           COMMENT_ID: ${{ steps.comment.outputs.comment_id }}
         with:
           script: |
-            await github.rest.actions.createWorkflowDispatch({
+            const { data: run } = await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'deploy-feature-branch-build.yml',
               ref: 'main',
+              headers: {
+                'X-GitHub-Api-Version': '2026-03-10'
+              },
               inputs: {
                 pr_number: String(context.issue.number),
                 head_ref: process.env.HEAD_REF,
                 head_sha: process.env.HEAD_SHA,
                 comment_id: process.env.COMMENT_ID
               }
+            });
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: parseInt(process.env.COMMENT_ID, 10),
+              body: `🚀 Feature branch deploy is in progress — [view build workflow](${run.html_url}).`
             });

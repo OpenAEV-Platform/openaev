@@ -10,6 +10,12 @@ public final class TxCtxScopeUtils {
 
   private TxCtxScopeUtils() {}
 
+  /**
+   * Returns the explicit tenant ids for an HTTP request scope.
+   *
+   * <p>{@link TxCtx.Missing} is fail-closed and returns an empty list. {@link TxCtx.AllTenants} is
+   * a background-only intention and must not reach HTTP read paths.
+   */
   public static Set<String> tenantIdsFromHTTPCtx(TxCtx ctx) {
     Objects.requireNonNull(ctx, "ctx must not be null");
     return switch (ctx) {
