@@ -307,7 +307,8 @@ public class ExecutionExecutorService {
 
   // -- AUDIT LOGGING --
 
-  private void logInjectExecutingEvent(Inject inject, Executor executor, Set<Agent> executorAgents) {
+  private void logInjectExecutingEvent(
+      Inject inject, Executor executor, Set<Agent> executorAgents) {
     if (executorAgents.isEmpty()) {
       return;
     }
