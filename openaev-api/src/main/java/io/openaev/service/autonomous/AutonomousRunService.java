@@ -3382,6 +3382,16 @@ public class AutonomousRunService {
       if (run.isPlanMode() || current == AutonomousRunStatus.WAITING_INPUT) {
         return run;
       }
+      // An unconsumed (PENDING) directive is proof-of-life, not a desync: the operator just
+      // steered - addDirective flips WAITING_INPUT to RUNNING right away - and the orchestrator
+      // has not picked the directive up yet, so the simulation legitimately still reads FINISHED
+      // underneath the now-RUNNING run. Completing here would kill the run inside that
+      // answer-to-consume window: the same premature termination the WAITING_INPUT guard above
+      // fixes, just shifted a few seconds later.
+      if (directiveRepository.existsByRunIdAndStatus(
+          run.getId(), AutonomousDirectiveStatus.PENDING)) {
+        return run;
+      }
       target = AutonomousRunStatus.COMPLETED;
     } else {
       // Scheduled / running / paused: the simulation is still live, no desync to fix.
