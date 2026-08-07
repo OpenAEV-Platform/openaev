@@ -1,5 +1,7 @@
 package io.openaev.secrets.provider;
 
+import io.openaev.database.model.HashSecret;
+
 /**
  * Payload for provider-side secret storage.
  *
@@ -9,4 +11,4 @@ package io.openaev.secrets.provider;
  * @param hashAlgorithm hash algorithm for HASH auth method (NTLM, SHA256, ...)
  */
 public record SecretStoreRequest(
-    String username, String password, String hash, String hashAlgorithm) {}
+    String username, String password, String hash, HashSecret.HASH_ALGORITHM hashAlgorithm) {}

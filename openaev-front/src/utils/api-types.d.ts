@@ -3037,6 +3037,105 @@ export interface CreateExerciseInput {
   exercise_tags?: string[];
 }
 
+export interface CredentialContractField {
+  choices?: string[];
+  field_name?: string;
+  field_type?: "text" | "password" | "select" | "number" | "checkbox";
+  required?: boolean;
+}
+
+export interface CredentialContractOutput {
+  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
+  credential_type: "IDENTITY";
+  fields?: CredentialContractField[];
+}
+
+export interface CredentialCreatedByOutput {
+  /** Creator user ID */
+  user_id?: string;
+  /** Creator display name */
+  user_name?: string;
+}
+
+export interface CredentialFullOutput {
+  /** Credential authentication method */
+  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
+  /**
+   * Credential creation timestamp
+   * @format date-time
+   */
+  credential_created_at: string;
+  /** User who created the credential */
+  credential_created_by: CredentialCreatedByOutput;
+  /** Credential description */
+  credential_description?: string;
+  /** Credential description */
+  credential_hash_algorithm?: "SHA" | "NTLM";
+  /** Credential ID */
+  credential_id: string;
+  /**
+   * Last credential verification timestamp
+   * @format date-time
+   */
+  credential_last_verified_at?: string;
+  /** Credential name */
+  credential_name: string;
+  /** Credential status */
+  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
+  /**
+   * Tag IDs linked to the credential
+   * @uniqueItems true
+   */
+  credential_tags_ids?: string[];
+  /** Credential type */
+  credential_type: "IDENTITY";
+  /** Secret username */
+  credential_username?: string;
+}
+
+export interface CredentialInput {
+  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
+  credential_description?: string;
+  credential_hash?: string;
+  credential_hash_algorithm?: "SHA" | "NTLM";
+  /** @minLength 1 */
+  credential_name: string;
+  credential_password?: string;
+  credential_tags?: string[];
+  credential_type: "IDENTITY";
+  credential_username?: string;
+}
+
+export interface CredentialOutput {
+  /** Credential authentication method */
+  credential_auth_method?: "USERNAME_PASSWORD" | "HASH";
+  /**
+   * Credential creation timestamp
+   * @format date-time
+   */
+  credential_created_at?: string;
+  /** User who created the credential */
+  credential_created_by?: CredentialCreatedByOutput;
+  /** Credential ID */
+  credential_id?: string;
+  /**
+   * Last credential verification timestamp
+   * @format date-time
+   */
+  credential_last_verified_at?: string;
+  /** Credential name */
+  credential_name?: string;
+  /** Credential status */
+  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
+  /**
+   * Tag IDs linked to the credential
+   * @uniqueItems true
+   */
+  credential_tags_ids?: string[];
+  /** Credential type */
+  credential_type?: "IDENTITY";
+}
+
 export interface CustomDashboard {
   /** @format date-time */
   custom_dashboard_created_at: string;
@@ -7392,6 +7491,7 @@ export interface NotificationTriggerInput {
     | "THREAT_ARSENAL"
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
+    | "CREDENTIAL_ASSET"
     | "DOCUMENT"
     | "CHANNEL"
     | "FINDING"
@@ -7492,6 +7592,7 @@ export interface NotificationTriggerOutput {
     | "THREAT_ARSENAL"
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
+    | "CREDENTIAL_ASSET"
     | "DOCUMENT"
     | "CHANNEL"
     | "FINDING"
@@ -7795,6 +7896,25 @@ export interface PageAttackPattern {
 
 export interface PageConnectorInstanceLog {
   content?: ConnectorInstanceLog[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageCredentialOutput {
+  content?: CredentialOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;

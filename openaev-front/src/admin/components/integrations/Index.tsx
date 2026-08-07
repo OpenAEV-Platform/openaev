@@ -51,12 +51,6 @@ const Index = () => {
             <Route path=":executorId" element={<ConnectorPage />} />
           </Route>
 
-          {!isCredentialAssetEnabled && (
-            <Route
-              path="secrets-providers/*"
-              element={<Navigate to="../deployed" replace={true} />}
-            />
-          )}
           {isCredentialAssetEnabled && (
             <Route path="secrets-providers" element={errorWrapper(SecretsProviderLayout)()}>
               <Route index element={<Navigate to="../deployed" replace={true} />} />
