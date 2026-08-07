@@ -210,6 +210,16 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun create(AutonomousRunCreateInput input) {
+    return doCreate(input);
+  }
+
+  /**
+   * Body of {@link #create}. Kept un-annotated so composite transactional entry points ({@link
+   * #launchFromScenario}) can reuse it without the intra-class {@code @Transactional}
+   * self-invocation trap (a same-class call bypasses the Spring proxy). Must be called inside an
+   * active transaction.
+   */
+  private AutonomousRun doCreate(AutonomousRunCreateInput input) {
     requireFeature();
     String objective = resolveObjective(input);
 
@@ -408,10 +418,11 @@ public class AutonomousRunService {
               + "\" autonomously: verify and execute its authored attack path, then adapt and"
               + " extend it from live findings to achieve the objective.");
     }
-    // Same-class calls run inside THIS transaction (no proxy re-entry): create() builds + saves the
-    // run, start() flips it live and registers the post-commit orchestrator engagement.
-    AutonomousRun created = create(effective);
-    return start(created.getId());
+    // The un-annotated internals run inside THIS transaction: doCreate() builds + saves the run,
+    // doStart() flips it live and registers the post-commit orchestrator engagement. Calling the
+    // public @Transactional create()/start() here would self-invoke past the Spring proxy.
+    AutonomousRun created = doCreate(effective);
+    return doStart(created.getId());
   }
 
   /**
@@ -511,8 +522,9 @@ public class AutonomousRunService {
             + scenario.getName()
             + "\" by authoring steps onto the scenario workflow. Nothing is executed.",
         null);
-    // Flip to PLANNING and engage the orchestrator after commit (same transaction as this method).
-    return start(saved.getId());
+    // Flip to PLANNING and engage the orchestrator after commit (same transaction as this method);
+    // the un-annotated internal avoids self-invoking the @Transactional start() past the proxy.
+    return doStart(saved.getId());
   }
 
   /** Starting-plan guidance handed to the orchestrator when a scenario is launched autonomously. */
@@ -532,6 +544,17 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun start(String runId) {
+    return doStart(runId);
+  }
+
+  /**
+   * Body of {@link #start}. Kept un-annotated so composite transactional entry points ({@link
+   * #launchFromScenario}, {@link #planScenario}) can reuse it without the intra-class
+   * {@code @Transactional} self-invocation trap (a same-class call bypasses the Spring proxy). Must
+   * be called inside an active transaction; the orchestrator engagement it registers fires after
+   * that transaction commits.
+   */
+  private AutonomousRun doStart(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
     if (run.getStatus() != AutonomousRunStatus.CREATED
