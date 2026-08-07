@@ -17,6 +17,7 @@ import useRemainingViewportHeight from '../../../../utils/hooks/useRemainingView
 import { type LogicContext } from './AddComponentButton';
 import ComponentStepperDrawer, { type DrawerView } from './drawer/ComponentStepperDrawer';
 import LogicGraph from './logic-graph/LogicGraph';
+import LogicReadOnlyBanner from './LogicReadOnlyBanner';
 import LogicTopBar from './LogicTopBar';
 import OutputProvidersProvider from './OutputProvidersContext';
 import type { ActionMeta, EventMeta } from './types';
@@ -32,9 +33,12 @@ interface LogicProps {
    *  authoring affordances (top bar, add-component, node edit/delete) are hidden while pan/zoom
    *  and the trigger spotlight stay available. */
   readOnly?: boolean;
+  /** Message shown in the read-only banner explaining WHY the map is frozen. When omitted, no
+   *  banner is rendered (the read-only affordances are still hidden). */
+  readOnlyMessage?: string;
 }
 
-const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }: LogicProps) => {
+const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, readOnlyMessage }: LogicProps) => {
   const { t } = useFormatter();
   // The canvas sizes itself to the exact space left under the page chrome (no page scrollbar).
   const [graphContainerRef, graphHeight] = useRemainingViewportHeight();
@@ -212,6 +216,7 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false }
 
   return (
     <OutputProvidersProvider>
+      {readOnly && readOnlyMessage && <LogicReadOnlyBanner message={readOnlyMessage} />}
       <div
         ref={graphContainerRef}
         style={{

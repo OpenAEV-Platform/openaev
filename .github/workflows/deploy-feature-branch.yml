@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Minimize previous deploy comments
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const comments = await github.paginate(github.rest.issues.listComments, {
@@ -70,7 +70,7 @@ jobs:
 
       - name: Post in-progress comment
         id: comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { data } = await github.rest.issues.createComment({
@@ -83,7 +83,7 @@ jobs:
 
       - name: Get PR details
         id: pr
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const pr = await github.rest.pulls.get({
@@ -95,7 +95,7 @@ jobs:
             core.setOutput('head_sha', pr.data.head.sha);
 
       - name: Dispatch unprivileged build
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           HEAD_REF: ${{ steps.pr.outputs.head_ref }}
           HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
