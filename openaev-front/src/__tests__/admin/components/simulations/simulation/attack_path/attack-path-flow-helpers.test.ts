@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -211,22 +211,6 @@ describe('pivotEndpointIds', () => {
       },
     ]).size).toBe(0);
   });
-
-  it('never flags an endpoint whose only source role is a self-loop (endpoint-local action)', () => {
-    // A Whoami-style local action emits source = target = the endpoint; that is not lateral movement.
-    expect(pivotEndpointIds([
-      {
-        type: 'EDGE_EXECUTIONS',
-        edgeSourceId: 'NODE_INJECTOR|nmap',
-        edgeTargetId: 'NODE_ENDPOINT|a',
-      },
-      {
-        type: 'EDGE_EXECUTIONS',
-        edgeSourceId: 'NODE_ENDPOINT|a',
-        edgeTargetId: 'NODE_ENDPOINT|a',
-      },
-    ]).size).toBe(0);
-  });
 });
 
 describe('orderSimulationPickerOptions', () => {
@@ -397,38 +381,6 @@ describe('buildClusteredAttackPathFlow', () => {
     expect(ids).toContain('ep2');
     expect(nodes.find(n => n.id === 'ep1')?.type).toBe(AP_FLOW_NODE_TYPE.asset);
     expect(edges.find(e => e.id === 'cl-ep-all-ep1')?.target).toBe('ep1');
-  });
-
-  it('keeps an endpoint reached only by an endpoint-local action (self-loop) visible, without a self arrow', () => {
-    // Arrange: ep2 is reached ONLY by a Whoami-style local action (execution edge source = target = ep2).
-    const selfLoopDto: AttackPathDTO = {
-      ...clusteredDto,
-      attackPathEdges: [
-        {
-          edgeId: 'x1',
-          edgeSourceId: 'inj',
-          edgeTargetId: 'ep1',
-          type: 'EDGE_EXECUTIONS',
-          count: 5,
-        },
-        {
-          edgeId: 'x-self',
-          edgeSourceId: 'ep2',
-          edgeTargetId: 'ep2',
-          type: 'EDGE_EXECUTIONS',
-          count: 1,
-        },
-      ],
-    };
-    // Act: collapsed (hub) and expanded views.
-    const collapsed = buildClusteredAttackPathFlow(selfLoopDto, new Map(), tt);
-    const expanded = buildClusteredAttackPathFlow(selfLoopDto, new Map([[AP_ALL_ENDPOINTS, 15]]), tt);
-    // Assert: ep2 counts as reached (hub count 2) and renders when expanded, with its findings…
-    expect(collapsed.nodes.find(n => n.id === 'cl-ep-all')?.data.count).toBe(2);
-    expect(expanded.nodes.find(n => n.id === 'ep2')?.type).toBe(AP_FLOW_NODE_TYPE.asset);
-    // …but no arrow loops back onto it: the only edge INTO ep2 comes from the shared hub.
-    expect(expanded.edges.find(e => e.source === 'ep2' && e.target === 'ep2')).toBeUndefined();
-    expect(expanded.edges.filter(e => e.target === 'ep2').map(e => e.source)).toEqual(['cl-ep-all']);
   });
 
   it('still ignores a malformed execution edge that has a target but no source', () => {
@@ -1389,59 +1341,6 @@ describe('buildCausalChainFlow', () => {
     expect(edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE)).toHaveLength(0);
   });
 
-  it('renders an endpoint reached only by an endpoint-local action without an injector node or self arrow', () => {
-    // Arrange: a Whoami-style local action — the execution edge's source IS its target endpoint.
-    const selfLoop: AttackPathDTO = {
-      mode: 'full',
-      attackPathNodes: [
-        {
-          id: 'ep-1',
-          type: 'ASSET',
-          label: 'DC-01',
-          ip: '10.0.0.1',
-        },
-        {
-          id: 'NODE_FINDING|username|bob',
-          type: 'FINDING',
-          typeFindings: 'username',
-          value: 'bob',
-          label: 'bob',
-        },
-      ],
-      attackPathExecutions: [
-        {
-          id: 'x-local',
-          type: 'EXECUTION',
-          ref: 'exec-local',
-          stepTemplateId: 'step-L',
-          contractName: 'Whoami',
-          findingsNodeIds: ['NODE_FINDING|username|bob'],
-          dependsOn: [],
-        },
-      ],
-      attackPathEdges: [
-        {
-          type: 'EDGE_EXECUTIONS',
-          edgeSourceId: 'ep-1',
-          edgeTargetId: 'ep-1',
-          executionIds: ['exec-local'],
-        },
-      ],
-    };
-    // Act
-    const { nodes, edges } = buildCausalChainFlow(selfLoop, tt);
-    const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
-    // Assert: the endpoint and its finding render…
-    expect(byId['chain-ep|0|ep-1'].type).toBe(AP_FLOW_NODE_TYPE.asset);
-    expect(byId['NODE_FINDING|username|bob'].type).toBe(AP_FLOW_NODE_TYPE.finding);
-    // …but no injector node is drawn for the local action and no arrow loops onto the endpoint.
-    expect(nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector)).toHaveLength(0);
-    expect(edges.find(e => e.source === 'ep-1' || e.target === 'ep-1')).toBeUndefined();
-    // Every emitted edge resolves to placed nodes (nothing dangles on the suppressed injector).
-    const nodeIds = new Set(nodes.map(n => n.id));
-    expect(edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
-  });
-
   it('promotes endpoint-local actions to their own action nodes when localActionsAsNodes is set (autonomous action timeline)', () => {
     // Arrange: two endpoint-local actions on the SAME host, chained (LSASS dump depends on the sweep).
     // In a finding-centric BAS chain both collapse into the endpoint and the follow-up adds nothing new;
@@ -1509,78 +1408,6 @@ describe('buildCausalChainFlow', () => {
     // Every emitted edge still resolves to a placed node.
     const nodeIds = new Set(promoted.nodes.map(n => n.id));
     expect(promoted.edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
-  });
-
-  it('emits no causal edge into an endpoint-local step (its injector node is suppressed)', () => {
-    // Arrange: nmap produces port 445 on ep-1; a LOCAL action on ep-1 consumes it (dependsOn step-A).
-    const localConsumer: AttackPathDTO = {
-      mode: 'full',
-      attackPathNodes: [
-        {
-          id: 'inj-nmap',
-          type: 'INJECTOR',
-          label: 'Nmap',
-        },
-        {
-          id: 'ep-1',
-          type: 'ASSET',
-          label: 'DC-01',
-          ip: '10.0.0.1',
-        },
-        {
-          id: 'NODE_FINDING|port|445',
-          type: 'FINDING',
-          typeFindings: 'port',
-          value: '445',
-          label: '445',
-        },
-      ],
-      attackPathExecutions: [
-        {
-          id: 'x1',
-          type: 'EXECUTION',
-          ref: 'exec-1',
-          stepTemplateId: 'step-A',
-          findingsNodeIds: ['NODE_FINDING|port|445'],
-          dependsOn: [],
-        },
-        {
-          id: 'x-local',
-          type: 'EXECUTION',
-          ref: 'exec-local',
-          stepTemplateId: 'step-L',
-          contractName: 'Whoami',
-          consumedFindingKeys: [{
-            keyType: 'port',
-            operator: 'EQ',
-            value: '445',
-            matchedFindingIds: ['NODE_FINDING|port|445'],
-          }],
-          dependsOn: ['step-A'],
-        },
-      ],
-      attackPathEdges: [
-        {
-          type: 'EDGE_EXECUTIONS',
-          edgeSourceId: 'inj-nmap',
-          edgeTargetId: 'ep-1',
-          executionIds: ['exec-1'],
-        },
-        {
-          type: 'EDGE_EXECUTIONS',
-          edgeSourceId: 'ep-1',
-          edgeTargetId: 'ep-1',
-          executionIds: ['exec-local'],
-        },
-      ],
-    };
-    // Act
-    const { nodes, edges } = buildCausalChainFlow(localConsumer, tt);
-    // Assert: no causal edge targets the raw endpoint id (its "injector" node was never placed), and
-    // every edge still resolves to placed nodes.
-    const nodeIds = new Set(nodes.map(n => n.id));
-    expect(edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE && e.target === 'ep-1')).toHaveLength(0);
-    expect(edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
   });
 });
 
@@ -1737,74 +1564,6 @@ describe('scopeChainFlowToEndpoint', () => {
     // A single string keeps working (the original signature).
     expect(scopeChainFlowToEndpoint(chainFlow, REF).nodes
       .some(n => n.id === `chain-ep|0|${REF}`)).toBe(true);
-  });
-});
-
-describe('buildFindingPathFlow', () => {
-  const pathDto: AttackPathDTO = {
-    mode: 'collapsed',
-    attackPathNodes: [
-      {
-        id: 'inj-A',
-        type: 'INJECTOR',
-        label: 'NetExec',
-      },
-      {
-        id: 'ep-1',
-        type: 'ASSET',
-        label: 'DC-01',
-        ref: 'dc-01',
-        status: 'RED',
-        findingCounts: { username: 1 },
-      },
-    ],
-    attackPathEdges: [
-      {
-        type: 'EDGE_EXECUTIONS',
-        edgeSourceId: 'inj-A',
-        edgeTargetId: 'ep-1',
-      },
-      {
-        type: 'EDGE_EXECUTIONS',
-        edgeSourceId: 'ep-1',
-        edgeTargetId: 'ep-1',
-      },
-    ],
-  };
-  const finding = {
-    endpointNodeId: 'ep-1',
-    endpointKey: 'dc-01',
-    type: 'username',
-    value: 'bob',
-  };
-
-  it('never lists the endpoint itself as a reaching injector (self-loop filtered)', () => {
-    // Act
-    const { nodes, edges } = buildFindingPathFlow(pathDto, finding, tt);
-    // Assert: only the real injector renders and points at the endpoint; no ep-1 -> ep-1 arrow.
-    expect(nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id)).toEqual(['inj-A']);
-    expect(edges.find(e => e.source === 'inj-A' && e.target === 'ep-1')).toBeDefined();
-    expect(edges.find(e => e.source === 'ep-1' && e.target === 'ep-1')).toBeUndefined();
-  });
-
-  it('still renders the endpoint and its finding clusters when only a local action reached it', () => {
-    // Arrange: drop the real injector edge — the endpoint is reached by the local action alone.
-    const localOnly: AttackPathDTO = {
-      ...pathDto,
-      attackPathEdges: [
-        {
-          type: 'EDGE_EXECUTIONS',
-          edgeSourceId: 'ep-1',
-          edgeTargetId: 'ep-1',
-        },
-      ],
-    };
-    // Act
-    const { nodes } = buildFindingPathFlow(localOnly, finding, tt);
-    // Assert: no injector, but the endpoint and its per-type cluster still render.
-    expect(nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector)).toHaveLength(0);
-    expect(nodes.find(n => n.id === 'ep-1')?.type).toBe(AP_FLOW_NODE_TYPE.asset);
-    expect(nodes.find(n => n.id === 'path-cl-type|username|dc-01')?.type).toBe(AP_FLOW_NODE_TYPE.findingCluster);
   });
 });
 

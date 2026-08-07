@@ -628,18 +628,15 @@ export const buildClusteredAttackPathFlow = (
       continue;
     }
     // The endpoint is a reached node even for endpoint-local actions.
-    if (!reachedOrder.includes(tgt)) {
-      reachedOrder.push(tgt);
-    }
-    // Endpoint-local action (source === target): not reached "by" an injector — no self arrow.
-    if (src === tgt) {
-      continue;
-    }
+
     const injs = injectorsByEndpoint.get(tgt) ?? [];
     if (!injs.includes(src)) {
       injs.push(src);
     }
     injectorsByEndpoint.set(tgt, injs);
+    if (!reachedOrder.includes(tgt)) {
+      reachedOrder.push(tgt);
+    }
   }
 
   // Reveal the most-exposed endpoints first (most findings = highest chokepoint score), so expanding
@@ -970,8 +967,7 @@ export const buildFindingPathFlow = (
   const injectorIds = new Set<string>();
   const statusesByInjector = new Map<string, Array<string | undefined>>();
   for (const e of dto.attackPathEdges ?? []) {
-    if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === endpointId && e.edgeSourceId
-      && e.edgeSourceId !== e.edgeTargetId) {
+    if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === endpointId && e.edgeSourceId) {
       injectorIds.add(e.edgeSourceId);
       const statuses = (e.executionIds ?? []).map(ref => execByRef.get(ref)?.status);
       statusesByInjector.set(
@@ -1917,7 +1913,7 @@ export const buildCausalChainFlow = (
       // to its own ACTION node (localActionsAsNodes re-keys it to chain-local|<step>, so injId !== epId),
       // drop it BEFORE the layout so no injector node, no self arrow, and no empty injector slot is
       // reserved for it — the endpoint node and its findings still render.
-      const injectors = (assetInjectors.get(epId) as string[]).filter(injId => injId !== epId);
+      const injectors = assetInjectors.get(epId) as string[];
       const findingIds = assetFindings.get(epId) as string[];
       // Group the endpoint's findings by type; a type with more than the cap collapses into ONE "+N"
       // cluster row (unless the user expanded it), so a heavy endpoint stays a handful of rows tall.
@@ -2265,11 +2261,6 @@ export const buildCausalChainFlow = (
   const drawnCausalEdges = new Set<string>();
   const labelledCausal = new Set<string>();
   for (const [injId, s] of steps) {
-    // An endpoint-local step (self-loop) has no injector node in the graph, so there is nothing to
-    // anchor a causal edge on — emitting one would target a node React Flow cannot resolve.
-    if (!nodeById.has(injId)) {
-      continue;
-    }
     let matched = false;
     const injY = nodeById.get(injId)?.position.y ?? 0;
     for (const key of s.consumed) {
@@ -2326,7 +2317,7 @@ export const buildCausalChainFlow = (
     if (!matched) {
       for (const dep of s.deps) {
         // The depended step's node may itself be an unplaced endpoint-local step — same guard.
-        if (steps.has(dep) && nodeById.has(dep)) {
+        if (steps.has(dep)) {
           edges.push({
             id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-depend-${dep}-${injId}`,
             source: dep,
