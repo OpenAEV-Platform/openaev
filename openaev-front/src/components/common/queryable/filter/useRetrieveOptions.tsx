@@ -60,6 +60,7 @@ const useRetrieveOptions = () => {
       case 'action_injectors':
       case 'injector_contract_injectors':
       case 'inject_injector_contract':
+      case 'finding_source':
         searchInjectorByIdAsOptions(ids, contextId).then((response) => {
           setOptions(response.data);
         });
