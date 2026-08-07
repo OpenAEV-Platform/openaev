@@ -11,9 +11,9 @@ import SimulationAttackPath from '../../../simulations/simulation/attack_path/Si
 // (defaulting to the most recent). The scenario is already loaded by the parent Index route.
 //
 // Autonomy is a launch-time MODE now, not a scenario type: a chained scenario is always relaunchable
-// (normal or autonomous), so this view no longer suppresses the launch CTA nor forces action-centric
-// rendering off the scenario. The live autonomous cockpit lives on the simulation detail page, which
-// applies action-centric rendering per run.
+// (normal or autonomous), so this view no longer suppresses the launch CTA. Action-centric rendering
+// is derived inside SimulationAttackPath from each selected simulation's durable exercise_autonomous
+// marker, so an autonomous run picked here renders as an action timeline automatically - no prop needed.
 const ScenarioAttackPath: FunctionComponent = () => {
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
