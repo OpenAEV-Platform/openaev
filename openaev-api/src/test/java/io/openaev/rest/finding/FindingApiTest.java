@@ -1052,7 +1052,7 @@ class FindingApiTest extends IntegrationTest {
       List<Finding> results = findingRepository.findAll(distinctSpec);
 
       // Should return only 2 distinct findings (f1/f2 collapse to one)
-      assertThat(results).hasSize(2);
+      assertThat(results.size()).isEqualTo(2);
 
       Set<String> distinctPairs =
           results.stream()
@@ -1063,6 +1063,102 @@ class FindingApiTest extends IntegrationTest {
           .containsExactlyInAnyOrder(
               f1.getType().getLabel() + "::" + f1.getValue(),
               f3.getType().getLabel() + "::" + f3.getValue());
+    }
+
+    /**
+     * Bypasses {@link Finding#updateDate}'s {@code @UpdateTimestamp} generator (which would
+     * otherwise stamp "now" on every insert/update regardless of any value set on the entity) via
+     * a bulk JPQL update, then clears the persistence context so subsequent repository reads
+     * reflect the forced value rather than a stale in-memory one.
+     */
+    private void forceUpdatedAt(String findingId, Instant instant) {
+      entityManager
+          .createQuery("UPDATE Finding f SET f.updateDate = :d WHERE f.id = :id")
+          .setParameter("d", instant)
+          .setParameter("id", findingId)
+          .executeUpdate();
+      entityManager.clear();
+    }
+
+    @Test
+    @DisplayName(
+        "distinctTypeValueWithFilter picks the most recently updated occurrence, not the minimum id")
+    void distinctTypeValueWithFilter_picksMostRecentlyUpdatedOccurrence() {
+      // Two findings sharing the same (type, value): f1 has a lexicographically smaller id (would
+      // have been picked by the old cb.least(id) logic) but f2 is the most recently seen
+      // occurrence.
+      Finding f1 =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .persist()
+              .get();
+      Finding f2 =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper2)
+              .persist()
+              .get();
+
+      String olderId = f1.getId().compareTo(f2.getId()) < 0 ? f1.getId() : f2.getId();
+      String newerId = olderId.equals(f1.getId()) ? f2.getId() : f1.getId();
+
+      Instant now = Instant.now();
+      forceUpdatedAt(olderId, now.minus(1, ChronoUnit.HOURS));
+      forceUpdatedAt(newerId, now);
+
+      List<Finding> results =
+          findingRepository.findAll(FindingSpecification.distinctTypeValueWithFilter(null));
+
+      assertThat(results.size()).isEqualTo(1);
+      assertThat(results.getFirst().getId()).isEqualTo(newerId);
+    }
+
+    @Test
+    @DisplayName(
+        "distinctTypeValueWithFilter ties on identical finding_updated_at and falls back to the minimum id")
+    void distinctTypeValueWithFilter_tieBreaksOnMinIdWhenUpdatedAtEqual() {
+      Finding f1 =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .persist()
+              .get();
+      Finding f2 =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper2)
+              .persist()
+              .get();
+
+      Instant sameInstant = Instant.now();
+      forceUpdatedAt(f1.getId(), sameInstant);
+      forceUpdatedAt(f2.getId(), sameInstant);
+
+      String expectedId = f1.getId().compareTo(f2.getId()) < 0 ? f1.getId() : f2.getId();
+
+      List<Finding> results =
+          findingRepository.findAll(FindingSpecification.distinctTypeValueWithFilter(null));
+
+      assertThat(results.size()).isEqualTo(1);
+      assertThat(results.getFirst().getId()).isEqualTo(expectedId);
+    }
+
+    @Test
+    @DisplayName("distinctTypeValueWithFilter returns the single finding of a single-occurrence group")
+    void distinctTypeValueWithFilter_singleOccurrenceGroup() {
+      Finding onlyFinding =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultIPV6Finding())
+              .withInject(injectWrapper)
+              .persist()
+              .get();
+
+      List<Finding> results =
+          findingRepository.findAll(FindingSpecification.distinctTypeValueWithFilter(null));
+
+      assertThat(results.size()).isEqualTo(1);
+      assertThat(results.getFirst().getId()).isEqualTo(onlyFinding.getId());
     }
   }
 
