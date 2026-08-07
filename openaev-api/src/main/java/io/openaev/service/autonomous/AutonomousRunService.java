@@ -1609,6 +1609,17 @@ public class AutonomousRunService {
         "Operator directive queued",
         content,
         null);
+    // The directive answers whatever the run was parked on. If it was WAITING_INPUT, the operator
+    // has now responded, so leave that state immediately instead of waiting for the next orchestrator
+    // cycle to flip it - otherwise the header keeps reading "Waiting for input" while the run has in
+    // fact resumed (the reported header/cockpit contradiction). A plan run returns to PLANNING (still
+    // authoring logic), a live run to RUNNING; the orchestrator refines this on its next cycle via
+    // update_openaev_run_status. Only WAITING_INPUT is touched, so a directive queued against an
+    // already-active run never perturbs its status.
+    if (run.getStatus() == AutonomousRunStatus.WAITING_INPUT) {
+      run.setStatus(run.isPlanMode() ? AutonomousRunStatus.PLANNING : AutonomousRunStatus.RUNNING);
+      runRepository.save(run);
+    }
     // Re-arm the orchestrator so it picks up the directive now, not only at its next scheduled
     // re-check - crucial when the run is parked in WAITING_INPUT after asking the operator a
     // question. Fired after commit so the orchestrator can never consume before the row is visible.

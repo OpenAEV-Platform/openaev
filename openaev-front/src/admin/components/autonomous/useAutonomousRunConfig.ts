@@ -144,6 +144,14 @@ export interface UseAutonomousRunConfigOptions {
    * (from {@link initialInput}) still wins.
    */
   defaultTimeoutHours?: number;
+  /**
+   * The host is the AI builder (a build / plan-authoring pass), not a live launch. Plan mode is
+   * untimed server-side, so the time budget is meaningless here: we always show {@link
+   * defaultTimeoutHours} (ignoring any timeout a previously-saved build config carried) and omit
+   * `timeout_seconds` from the built payload so a stale value can never be persisted and surfaced
+   * back as a misleading budget on the next open.
+   */
+  isPlanMode?: boolean;
 }
 
 /** Fallback time budget (hours) when a host does not override it: autonomous execution is long-lived. */
@@ -194,6 +202,7 @@ export const useAutonomousRunConfig = ({
   initialInput,
   defaultObjective,
   defaultTimeoutHours = DEFAULT_TIMEOUT_HOURS,
+  isPlanMode = false,
 }: UseAutonomousRunConfigOptions): AutonomousRunConfig => {
   const [templates, setTemplates] = useState<AutonomousObjectiveTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -284,9 +293,10 @@ export const useAutonomousRunConfig = ({
       setName(initialInput.name ?? '');
       setDescription(initialInput.description ?? '');
       // A saved timeout wins; otherwise fall back to this host's default (24h launch / 1h planning)
-      // rather than leaving whatever a previous open left behind.
+      // rather than leaving whatever a previous open left behind. In plan mode the budget is
+      // server-untimed and meaningless, so always show the default (never a stale saved value).
       setTimeoutHours(
-        initialInput.timeout_seconds && initialInput.timeout_seconds > 0
+        !isPlanMode && initialInput.timeout_seconds && initialInput.timeout_seconds > 0
           ? Math.round(initialInput.timeout_seconds / 3600)
           : defaultTimeoutHours,
       );
@@ -302,7 +312,7 @@ export const useAutonomousRunConfig = ({
         setObjective(defaultObjective);
       }
     }
-  }, [open, initialInput, defaultObjective, defaultTimeoutHours]);
+  }, [open, initialInput, defaultObjective, defaultTimeoutHours, isPlanMode]);
 
   const selectTemplate = (template: AutonomousObjectiveTemplate) => {
     setSelectedTemplateKey(template.autonomous_objective_template_key);
@@ -381,8 +391,12 @@ export const useAutonomousRunConfig = ({
       : undefined,
     plan_mode: planMode || undefined,
     // OpenAEV-enforced run deadline (seconds). Clamp to the advertised 1h-720h range (the HTML
-    // min/max only guard the spinner, not typed input); ignored server-side in build mode.
-    timeout_seconds: Math.min(720 * 3600, Math.max(3600, Math.round(timeoutHours * 3600))),
+    // min/max only guard the spinner, not typed input). Omitted entirely in build/plan mode: the
+    // server does not enforce a deadline while planning, and persisting one would carry a stale,
+    // misleading budget back into the next open of the saved config.
+    timeout_seconds: planMode
+      ? undefined
+      : Math.min(720 * 3600, Math.max(3600, Math.round(timeoutHours * 3600))),
   });
 
   return {
