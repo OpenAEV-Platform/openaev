@@ -1,4 +1,4 @@
-# Private Registry
+# Private registry
 
 ## Overview
 
@@ -10,8 +10,6 @@ This page explains how to configure:
 - Configuration for private Docker registries
 - Kubernetes automatic secret creation
 - Registry prefix resolution
-
----
 
 ## Configuration
 
@@ -28,7 +26,7 @@ openaev:
       email: "user@example.com"       # Optional
 ```
 
-### Environment Variables
+### Environment variables
 
 ```bash
 export OPENAEV__DAEMON__REGISTRY__SERVER="registry.example.com"
@@ -37,16 +35,14 @@ export OPENAEV__DAEMON__REGISTRY__PASSWORD="mypassword"
 export OPENAEV__DAEMON__REGISTRY__EMAIL="user@example.com"  # Optional
 ```
 
-### Required Fields
+### Required fields
 
 - **server**: Registry URL (defaults to `docker.io` if not specified)
 - **username**: Registry username (required for Kubernetes secret creation)
 - **password**: Registry password (required for Kubernetes secret creation)
 - **email**: User email (optional)
 
----
-
-## Kubernetes Secret Auto-Creation
+## Kubernetes secret auto-creation
 
 When using the **Kubernetes orchestrator**, XTM Composer automatically creates an `imagePullSecret` at startup if credentials are configured.
 
@@ -63,13 +59,13 @@ When using the **Kubernetes orchestrator**, XTM Composer automatically creates a
 - No secret is created
 - You can manually create and configure your own secret if needed
 
-### Secret Details
+### Secret details
 
 - **Name**: `openaev-registry-auth` (hardcoded)
 - **Type**: `kubernetes.io/dockerconfigjson`
 - **Lifecycle**: Recreated on each startup if credentials present
 
-### Expected Startup Logs
+### Expected startup logs
 
 ```
 INFO orchestrator="kubernetes" secret="openaev-registry-auth" Deleting existing imagePullSecret if present
@@ -77,7 +73,7 @@ INFO orchestrator="kubernetes" secret="openaev-registry-auth" server="registry.e
 INFO orchestrator="kubernetes" secret="openaev-registry-auth" Successfully created imagePullSecret
 ```
 
-### Required Kubernetes Permissions
+### Required Kubernetes permissions
 
 Your ServiceAccount must have these permissions:
 
@@ -106,9 +102,7 @@ rules:
 - Check secret is attached to pods: `kubectl describe pod <pod-name>`
 - Ensure registry server is accessible from the cluster
 
----
-
-## Registry Prefix Resolution
+## Registry prefix resolution
 
 The Integration Manager automatically handles registry prefixes in image names:
 
@@ -126,4 +120,4 @@ image: "openaev/collector-example:1.0.0"
 image: "registry.example.com/openaev/collector-example:1.0.0"
 ```
 
-See also: [Proxy Support](proxy-configuration.md)
+See also: [Proxy support](proxy-configuration.md)

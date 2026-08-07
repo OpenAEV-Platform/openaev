@@ -157,6 +157,7 @@ const useSearchOptions = () => {
       case 'user_tags':
       case 'document_tags':
       case 'challenge_tags':
+      case 'secret_reference_tags':
       case 'base_tags_side':
         searchTagAsOption(search).then((response) => {
           setOptions(response.data);
@@ -211,6 +212,7 @@ const useSearchOptions = () => {
         });
         break;
       case 'finding_users':
+      case 'secret_reference_created_by':
       case 'asset_linked_person':
         searchPlayersAsOption(search).then((response) => {
           setOptions(response.data);

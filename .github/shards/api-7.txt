@@ -1,0 +1,15 @@
+io/openaev/api/custom_dashboard/**/*Test.java
+io/openaev/api/url_access_token/**/*Test.java
+io/openaev/debug/**/*Test.java
+io/openaev/injectors/**/*Test.java
+io/openaev/injects/**/*Test.java
+io/openaev/rest/domain/**/*Test.java
+io/openaev/rest/url_access_token/**/*Test.java
+io/openaev/scheduler/**/*Test.java
+io/openaev/service/*Test.java
+io/openaev/service/chaining/**/*Test.java
+io/openaev/service/connector_instances/**/*Test.java
+io/openaev/service/stix/**/*Test.java
+io/openaev/service/user_event/**/*Test.java
+io/openaev/utilstest/**/*Test.java
+io/openaev/xtmone/**/*Test.java

@@ -68,6 +68,8 @@ const IndexCustomDashboard = lazy(() => import('./components/workspaces/custom_d
 const IndexReporting = lazy(() => import('./components/reporting/Index'));
 const IndexSettings = lazy(() => import('./components/settings/Index'));
 const ThreatArsenal = lazy(() => import('./components/threat_arsenal/ThreatArsenal'));
+const Credentials = lazy(() => import('./components/assets/credentials/Credentials'));
+const CredentialDetail = lazy(() => import('./components/assets/credentials/CredentialDetailPage'));
 
 // Param-preserving redirects for the legacy nested asset URLs
 // (/admin/assets/details/:id, /admin/assets/endpoints/:id,
@@ -371,6 +373,30 @@ const Index = () => {
                     subject: SUBJECTS.ASSETS,
                   }]}
                   Component={errorWrapper(AssetDetail)()}
+                />
+              )}
+            />
+            <Route
+              path="credentials"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.SECURITY_PLATFORMS,
+                  }]}
+                  Component={errorWrapper(Credentials)()}
+                />
+              )}
+            />
+            <Route
+              path="credentials/:credentialId/*"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.SECURITY_PLATFORMS,
+                  }]}
+                  Component={errorWrapper(CredentialDetail)()}
                 />
               )}
             />

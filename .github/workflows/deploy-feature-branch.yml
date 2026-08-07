@@ -1,0 +1,116 @@
+name: "[Core] Deploy Feature Branch"
+
+# Handles the /deploy command on PRs. Posts an in-progress comment, then
+# dispatches the unprivileged build workflow (deploy-feature-branch-build.yml).
+# Once that build succeeds, downstream automation promotes and deploys the image.
+#
+# SECURITY: This workflow NEVER checks out PR code. It only does API calls.
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: feature-deploy-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: write # needed to dispatch the build workflow
+  pull-requests: write # needed to create and minimize PR comments
+
+jobs:
+  dispatch-build:
+    name: "🚀 Dispatch feature build"
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/deploy') &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR'
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Minimize previous deploy comments
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100
+            });
+            const markers = [
+              '🚀 Feature branch deploy',
+              '✅ Feature branch build',
+              '❌ Feature branch build',
+              '⏳ Feature branch deployment',
+              '### ✅ Feature branch deployed',
+              '### ❌ Feature branch deploy',
+              '### 🧪 Feature branch deploy'
+            ];
+            const deployComments = comments.filter(c =>
+              markers.some(m => c.body.startsWith(m))
+            );
+            for (const c of deployComments) {
+              try {
+                await github.graphql(`
+                  mutation($id: ID!) {
+                    minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) {
+                      minimizedComment { isMinimized }
+                    }
+                  }
+                `, { id: c.node_id });
+              } catch (e) {
+                core.warning(`Could not minimize comment ${c.id}: ${e.message}`);
+              }
+            }
+
+      - name: Post in-progress comment
+        id: comment
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { data } = await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '🚀 Feature branch deploy is in progress — build will start shortly.'
+            });
+            core.setOutput('comment_id', data.id);
+
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('head_ref', pr.data.head.ref);
+            core.setOutput('head_sha', pr.data.head.sha);
+
+      - name: Dispatch unprivileged build
+        uses: actions/github-script@v9
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          COMMENT_ID: ${{ steps.comment.outputs.comment_id }}
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy-feature-branch-build.yml',
+              ref: 'main',
+              inputs: {
+                pr_number: String(context.issue.number),
+                head_ref: process.env.HEAD_REF,
+                head_sha: process.env.HEAD_SHA,
+                comment_id: process.env.COMMENT_ID
+              }
+            });

@@ -8,7 +8,7 @@ This documentation provides details on setting up and utilizing the authenticati
 
 !!! tip "Production deployment"
 
-    Please use the LDAP/Auth0/OpenID/SAML strategy for production deployment.
+    Please use the LDAP (Lightweight Directory Access Protocol)/Auth0/OpenID/SAML (Security Assertion Markup Language) strategy for production deployment.
 
 ### Local users
 
@@ -70,7 +70,7 @@ OPENAEV_PROVIDER_{registrationId}_LASTNAME_ATTRIBUTE_KEY=
       *{registrationId} is an arbitrary identifier you choose.*
       metadata-uri is the uri of the xml file given by your identity provider
 
-### Single Sign On URL
+### Single sign-on URL
 
 #### SAML2
 
@@ -148,7 +148,7 @@ OPENAEV_PROVIDER_AZURE_GROUPS__MANAGEMENT: |
 
     If `autoCreate` is `false` and the target OpenAEV group does not exist, the mapping is **silently skipped** — the user logs in successfully but is not added to the group. Make sure the group names match exactly (case-sensitive).
 
-## Breakglass local account with SSO enabled
+## Breakglass local account with SSO (Single Sign-On) enabled
 
 ### Why you need a breakglass account
 
@@ -170,7 +170,7 @@ When `openaev.auth-local-enable` is set to `true` **alongside** your SSO provide
 
 To set up a breakglass account alongside SSO, keep local authentication enabled while configuring your SSO provider.
 
-#### Step 1: Keep local authentication enabled
+#### Step 1: keep local authentication enabled
 
 Make sure the [local authentication](#local-users) flag remains `true` (this is the default):
 
@@ -178,7 +178,7 @@ Make sure the [local authentication](#local-users) flag remains `true` (this is 
 OPENAEV_AUTH-LOCAL-ENABLE=true
 ```
 
-#### Step 2: Configure a strong admin account
+#### Step 2: configure a strong admin account
 
 Set a strong, unique password for the built-in admin account. This is the account defined at platform initialization:
 
@@ -188,12 +188,12 @@ OPENAEV_ADMIN_PASSWORD=<a-very-strong-and-unique-password>
 OPENAEV_ADMIN_TOKEN=<a-valid-uuidv4-token>
 ```
 
-#### Step 3: Enable your SSO provider
+#### Step 3: enable your SSO provider
 
 Configure your SSO provider by following the appropriate section:
 
-- [OpenID Connect](#openid) — for OAuth2/OIDC providers (Auth0, Keycloak, Azure AD, GitHub, etc.)
-- [SAML2](#saml2) — for SAML-based identity providers (Microsoft ADFS, Okta, etc.)
+- [OpenID Connect](#openid) — for OAuth2/OIDC (OpenID Connect) providers (Auth0, Keycloak, Azure AD, GitHub, etc.)
+- [SAML2](#saml2) — for SAML-based identity providers (Microsoft ADFS (Active Directory Federation Services), Okta, etc.)
 
 !!! tip "Reminder"
 

@@ -2,7 +2,7 @@
 
 !!! tip "Tips"
 
-      If you want to learn more about the concept and features of injectors, you can have more info [here](../../usage/injectors.md).
+      If you want to learn more about the concept and features of injectors, you can have more info [here](../../usage/environment/injectors.md).
 
 !!! question "Injectors list"
 
@@ -12,7 +12,7 @@
 
 ### Built-in injectors
 
-Some injectors such as email, SMS, media pressure, etc. are directly embedded into the application. To configure them, 
+Some injectors such as email, SMS (Short Message Service), media pressure, etc. are directly embedded into the application. To configure them,
 just add the proper configuration parameters in your platform configuration.
 
 ### External (Python) injectors
@@ -25,15 +25,15 @@ There are multiple ways to deploy an external injectors from OpenAEV:
 
 !!! info
 
-    ⚠️ All external injectors must be able to access the OpenAEV API. They require 2 mandatory configuration parameters: OPENAEV_URL and OPENAEV_TOKEN. In addition, each collector has specific mandatory parameters that need to be configured.
+    All external injectors must be able to access the OpenAEV API. They require 2 mandatory configuration parameters: OPENAEV_URL and OPENAEV_TOKEN. In addition, each collector has specific mandatory parameters that need to be configured.
 
-#### Integration Manager (Recommended)
+#### Integration Manager (recommended)
 The easiest way to deploy injectors is through the Integration Manager, which allows automatic deployment directly from the OpenAEV interface.
 
-👉 See the [Integration Manager documentation](integration-manager/overview.md) for detailed instructions.
+See the [Integration Manager documentation](integration-manager/overview.md) for detailed instructions.
 
 
-#### Docker Deployment
+#### Docker deployment
 Several options are available for Docker deployment:
 
 ##### Add an injector to your existing deployment
@@ -52,7 +52,7 @@ For instance, to enable the HTTP query injector, you can add a new service to yo
 ```
 Note: Injector images and available versions can be found on Docker Hub.
 
-##### Launch a standalone collector
+##### Launch a standalone injector
 To launch a standalone injector, you can use the `docker-compose.yml` file of the injector itself. Just download the latest [release](https://github.com/OpenAEV-Platform/injectors/releases) and start the injector:
 
 ```
@@ -152,6 +152,6 @@ networks:
 
 ## Injectors status
 
-The injector status can be displayed in the dedicated section of the platform available in Integration > injectors. You will be able to see the statistics of the RabbitMQ queue of the injector:
+The Injector status can be displayed in the dedicated section of the platform available in **Integrations > Injectors**. You will be able to see the statistics of the RabbitMQ queue of the Injector:
 
 ![injectors](../assets/injectors-status.png)

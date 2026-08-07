@@ -14,7 +14,7 @@ implemented.
 | [OpenCTI / OpenAEV compatibility](#octi-oaev-compatibility)   | -             | 2.2.0      |
 | [OpenAEV encryption of secret](#openaev-encryption)           | -             | 2.1.0      |
 | [OpenAEV renaming](#openaev-renaming)                         | 1.18.20       | 2.0.0      |
-| [OpenAEV CSRF](#openaev-csrf)                                 | -             | 2.3.4      |
+| [OpenAEV CSRF (Cross-Site Request Forgery)](#openaev-csrf)     | -             | 2.3.4      |
 | [URL access token enforcement](#url-access-token-enforcement) | -             | 2.260622.0 |
 | [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
 
@@ -24,7 +24,7 @@ implemented.
 
 <a id="octi-oaev-compatibility"></a>
 
-#### Scenario Generation from OpenCTI Security Coverage
+#### Scenario generation from OpenCTI security coverage
 
 In **OpenAEV 2.2.0**, the interconnection between OpenCTI and OpenAEV requires matching major versions:
 

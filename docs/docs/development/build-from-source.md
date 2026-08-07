@@ -5,9 +5,9 @@
 
     * [Linux (Ubuntu used as example)](environment-ubuntu.md)
     * [Windows](environment-windows.md)
-    * MacOS (TBD)
+    * macOS — not yet documented; contributions welcome
 
-# Building and running from source
+# Build from source
 
 !!! Info "Assumed shell location"
 

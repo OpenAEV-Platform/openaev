@@ -436,10 +436,11 @@ public class ConditionService {
    * Deletes conditions linked to a given step, excluding specific condition IDs. Rules: - Always
    * remove the current condition-step link for this step. - Delete the condition only if, after
    * unlinking, it has no more condition-step links and no children. - Conditions whose IDs are in
-   * {@code excludedConditionIds} are unlinked but never deleted, so they can be re-linked later.
+   * {@code excludedConditionIds}, and every descendant of those, are left completely untouched: not
+   * unlinked, not saved, not deleted.
    *
    * @param stepId step identifier
-   * @param excludedConditionIds condition IDs to preserve (unlink only, never delete)
+   * @param excludedConditionIds root condition IDs to preserve, subtree included
    */
   public void deleteAllConditionsByStepId(String stepId, List<String> excludedConditionIds) {
     List<Condition> conditions = findAllConditionsByStepId(stepId);
@@ -447,16 +448,25 @@ public class ConditionService {
       return;
     }
 
+    // Null entries are dropped defensively: the caller's list is API input.
     Set<String> excluded =
-        excludedConditionIds == null ? Set.of() : new HashSet<>(excludedConditionIds);
+        excludedConditionIds == null
+            ? Set.of()
+            : excludedConditionIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 
     for (Condition condition : conditions) {
-      unlinkFromStep(condition, stepId);
-      Condition persisted = conditionRepository.save(condition);
-
-      if (excluded.contains(persisted.getId())) {
+      // A preserved condition is left completely untouched, subtree included. Its children are
+      // linked to this step too - createConditionTree links every node of an event's tree, the root
+      // with is_root=true and the leaves with is_root=false - while the caller only ever names the
+      // ROOT ids it keeps. Unlinking a leaf and then deleting it (it has no other link and no
+      // children of its own) left the surviving parent referencing a deleted instance, and the step
+      // merge that follows failed the whole save with ObjectDeletedException.
+      if (isPreserved(condition, excluded)) {
         continue;
       }
+
+      unlinkFromStep(condition, stepId);
+      Condition persisted = conditionRepository.save(condition);
 
       boolean hasNoStepLinks =
           persisted.getConditionSteps() == null || persisted.getConditionSteps().isEmpty();
@@ -466,6 +476,33 @@ public class ConditionService {
         conditionRepository.delete(persisted);
       }
     }
+  }
+
+  /**
+   * Whether the condition is named in the excluded ids, or descends from a condition that is, so
+   * preserving a condition preserves the whole tree hanging off it.
+   *
+   * <p>Callers name the ROOT conditions they keep (a step's {@code step_condition_ids}), but an
+   * event's leaves are separate rows linked to the same step, so preservation has to be derived by
+   * walking up the parent chain rather than trusted from the input. The walk stays on entities
+   * already in the persistence context (every node of a linked tree is linked to the step itself,
+   * and reading a lazy parent's id does not initialize its proxy), so no per-node repository lookup
+   * is needed. The visited set makes the walk terminate even on a corrupted parent chain forming a
+   * cycle.
+   */
+  private boolean isPreserved(Condition condition, Set<String> excludedConditionIds) {
+    if (excludedConditionIds.isEmpty()) {
+      return false;
+    }
+    Set<String> visited = new HashSet<>();
+    for (Condition current = condition;
+        current != null && current.getId() != null && visited.add(current.getId());
+        current = current.getConditionParent()) {
+      if (excludedConditionIds.contains(current.getId())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // -- CONDITION PERSISTENCE HELPERS --

@@ -34,6 +34,8 @@ runs:
       with:
         name: backend-compiled
         path: ~/.m2/repository/io/openaev/
+        # JARs are already zips — re-zipping costs CPU for ~0% gain
+        compression-level: 0
     - name: Upload API build output
       uses: actions/upload-artifact@v7
       with:

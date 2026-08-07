@@ -484,17 +484,23 @@ const ScenarioHeader = ({
                   the underlying simulation for edit/delete (the in-place path removes the run row
                   every autonomous lock keys off). Gated on the live run so we have the run id. */}
               {isAutonomous && canManage && autonomousRun && (
-                <Tooltip title={t('Convert this AI-driven scenario into a manual chained scenario you can edit by hand (duplicate it, or transform it in place).')}>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    size="small"
-                    startIcon={<TransformOutlined />}
-                    onClick={() => setOpenConvert(true)}
-                    data-testid="convert-autonomous-to-manual-button"
-                  >
-                    {t('Convert to manual')}
-                  </Button>
+                <Tooltip
+                  title={isAutonomousActive
+                    ? t('Stop the run before converting it to a manual chained scenario')
+                    : t('Convert this AI-driven scenario into a manual chained scenario you can edit by hand (duplicate it, or transform it in place).')}
+                >
+                  {/* span wrapper so the tooltip still shows while the button is disabled */}
+                  <span>
+                    <IconButton
+                      color="primary"
+                      size="small"
+                      disabled={isAutonomousActive}
+                      onClick={() => setOpenConvert(true)}
+                      data-testid="convert-autonomous-to-manual-button"
+                    >
+                      <TransformOutlined fontSize="small" />
+                    </IconButton>
+                  </span>
                 </Tooltip>
               )}
               {/* Autonomous lifecycle: pause / resume / stop the run and its single simulation,

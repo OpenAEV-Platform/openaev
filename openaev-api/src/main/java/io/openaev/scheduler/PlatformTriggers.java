@@ -17,12 +17,15 @@ import org.quartz.SimpleScheduleBuilder;
 import org.quartz.Trigger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
+// Safe mode keeps web/UI available by not registering Quartz triggers at startup.
+@ConditionalOnProperty(name = "openaev.run-mode", havingValue = "normal", matchIfMissing = true)
 public class PlatformTriggers {
 
   private PlatformJobDefinitions platformJobs;

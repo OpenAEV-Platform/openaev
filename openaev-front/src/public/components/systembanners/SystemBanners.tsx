@@ -6,6 +6,9 @@ import { type PlatformSettings } from '../../../utils/api-types';
 import { isEmptyField, recordEntries, recordKeys } from '../../../utils/utils';
 import { type BannerMessage } from './utils';
 
+const SAFE_MODE_MESSAGE_KEY = 'Safe mode is active: background processing is disabled.';
+const SAFE_MODE_DOCUMENTATION_URL = 'https://docs.openaev.io/latest/deployment/platform/run-modes/';
+
 /* eslint-disable */
 /* Avoid auto-lint removal using --fix with false positive finding of: */
 const useStyles = makeStyles()((theme) => ({
@@ -26,6 +29,10 @@ const useStyles = makeStyles()((theme) => ({
   bannerText: {
     color: 'black',
     fontWeight: 'bold',
+  },
+  bannerLink: {
+    color: 'black',
+    marginLeft: 4,
   },
   banner_debug: {
     background: theme.palette.success.main,
@@ -51,6 +58,7 @@ const SystemBanners = (settings: { settings: PlatformSettings }) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
   const bannerLevel = settings.settings.platform_banner_by_level as BannerMessage;
+
   let numberOfElements = 0;
   if (bannerLevel !== undefined) {
     for (const currentBannerLevel of recordEntries(bannerLevel)) {
@@ -73,11 +81,22 @@ const SystemBanners = (settings: { settings: PlatformSettings }) => {
         return (
           <div key={key} className={topBannerClasses}>
             {bannerLevel[key].map((message: string) => {
+              const isSafeModeMessage = message === SAFE_MODE_MESSAGE_KEY;
               return (
                 <div key={`${key}.${message}`} className={classes.container}>
                   <ReportProblem color="error" fontSize="small" style={{ marginRight: 8 }} />
                   <span className={classes.bannerText}>
                     {t(message)}
+                    {isSafeModeMessage && (
+                      <a
+                        href={SAFE_MODE_DOCUMENTATION_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={classes.bannerLink}
+                      >
+                        {t('Learn more')}
+                      </a>
+                    )}
                   </span>
                 </div>
               );

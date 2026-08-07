@@ -1,0 +1,250 @@
+name: Docker Build & Validate (single platform)
+description: >
+  Build a single-platform Docker image using a multi-stage Dockerfile that
+  builds frontend and backend from source.  Runs natively on the job runner
+  (no QEMU emulation).  Validates the image locally and uploads the OCI
+  archive as an artifact.  A separate merge step combines per-platform
+  archives into the final multi-arch image.
+  The calling job MUST run actions/checkout before this action.
+
+inputs:
+  tags:
+    description: >
+      Local image reference (single `name:tag`) recorded inside the OCI archive.
+      It is never pushed, so it must stay unqualified.
+    required: true
+  labels:
+    description: Docker image labels (from docker/metadata-action)
+    required: false
+    default: ""
+  dockerfile:
+    description: Path to the Dockerfile to build
+    required: false
+    default: "./Dockerfile"
+  artifact-name:
+    description: Name for the uploaded artifact (platform suffix is appended automatically)
+    required: false
+    default: "openaev-image"
+  platform:
+    description: "Target platform (e.g. linux/amd64 or linux/arm64)"
+    required: false
+    default: "linux/amd64"
+  jar-path:
+    description: Path to openaev-api.jar inside the image (for validation)
+    required: false
+    default: "/openaev-api.jar"
+  cache-scope:
+    description: GHA cache scope name for buildx layer caching
+    required: false
+    default: "docker-standard"
+  download-release-assets:
+    description: >
+      Prepare the agent/implant binaries and catalog on this runner. Done inline
+      rather than by downloading the release-assets artifact, so the build does
+      not have to wait for the prepare-bundled-assets job to finish.
+      Requires the calling job to check out with fetch-depth: 0.
+    required: false
+    default: "true"
+  allow-registry:
+    description: >
+      Set to "false" when the calling workflow has no packages:write; the image
+      is then handed to downstream jobs as an artifact only.
+    required: false
+    default: "true"
+
+outputs:
+  digest:
+    description: Docker image digest
+    value: ${{ steps.docker-build.outputs.digest }}
+  artifact-name:
+    description: Full artifact name including platform suffix
+    value: ${{ steps.names.outputs.artifact_name }}
+  image_size_mb:
+    description: Docker image size in MB
+    value: ${{ steps.docker-validate.outputs.image_size_mb }}
+  image_warning:
+    description: Whether image size is suspiciously small
+    value: ${{ steps.docker-validate.outputs.image_warning }}
+  jar_in_image:
+    description: Whether openaev-api.jar was found inside the image
+    value: ${{ steps.docker-validate.outputs.jar_in_image }}
+  java_version:
+    description: Java version inside the image
+    value: ${{ steps.docker-validate.outputs.java_version }}
+  layer_count:
+    description: Number of image layers
+    value: ${{ steps.docker-validate.outputs.layer_count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compute artifact names
+      id: names
+      run: |
+        PLATFORM="${{ inputs.platform }}"
+        ARCH="${PLATFORM#*/}"
+        echo "arch=${ARCH}" >> "$GITHUB_OUTPUT"
+        echo "artifact_name=${{ inputs.artifact-name }}-${ARCH}" >> "$GITHUB_OUTPUT"
+        echo "cache_scope=${{ inputs.cache-scope }}-${ARCH}" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Prepare release assets (agents, implants, catalog)
+      if: ${{ inputs.download-release-assets == 'true' }}
+      uses: ./.github/actions/prepare-bundled-assets
+      with:
+        upload-artifact: "false"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Resolve CI registry
+      id: registry
+      uses: ./.github/actions/ci-registry
+      with:
+        allow-registry: ${{ inputs.allow-registry }}
+
+    - name: Log in to GHCR
+      if: ${{ steps.registry.outputs.available == 'true' }}
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Record build start time
+      id: build-timer
+      run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    # Only main writes the layer cache: a mode=max export costs ~6 min and blocks every
+    # E2E job, while a PR-scoped cache is unreadable from any other PR. PRs read main's
+    # cache through cache-from for free.
+    #
+    # Two exporters run in the same build: the OCI archive still becomes the reviewable
+    # artifact, while the registry copy lets consumers start as soon as the build ends
+    # instead of waiting for gzip + validate + upload.
+    #
+    # `tags` is deliberately not set: buildx would append --tag to *every* exporter,
+    # so the unqualified local name would also be pushed, resolving to docker.io/library.
+    # The local name belongs to the OCI archive only, hence the name= attribute.
+    - name: Build image (single-platform OCI archive)
+      id: docker-build
+      uses: docker/build-push-action@v7
+      env:
+        BUILDKIT_PROGRESS: plain
+      with:
+        context: .
+        file: ${{ inputs.dockerfile }}
+        platforms: ${{ inputs.platform }}
+        push: false
+        pull: true
+        outputs: |
+          type=oci,dest=${{ steps.names.outputs.artifact_name }}.tar,name=${{ inputs.tags }}
+          ${{ steps.registry.outputs.available == 'true' && format('type=image,name={0}:{1}-{2},push=true', steps.registry.outputs.repository, steps.registry.outputs.tag-prefix, steps.names.outputs.artifact_name) || '' }}
+        labels: ${{ inputs.labels }}
+        cache-from: type=gha,scope=${{ steps.names.outputs.cache_scope }}
+        cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', steps.names.outputs.cache_scope) || '' }}
+
+    - name: Print build timing summary
+      run: |
+        END=$(date +%s)
+        START=${{ steps.build-timer.outputs.start }}
+        TOTAL=$((END - START))
+        MINS=$((TOTAL / 60))
+        SECS=$((TOTAL % 60))
+        echo "══════════════════════════════════════════"
+        echo "  ⏱️  Docker Build (${{ inputs.platform }}): ${MINS}m ${SECS}s"
+        echo "══════════════════════════════════════════"
+      shell: bash
+
+    - name: Compress OCI archive
+      run: |
+        gzip ${{ steps.names.outputs.artifact_name }}.tar
+        TAR_SIZE=$(stat --format=%s ${{ steps.names.outputs.artifact_name }}.tar.gz 2>/dev/null || stat -f%z ${{ steps.names.outputs.artifact_name }}.tar.gz 2>/dev/null)
+        TAR_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $TAR_SIZE / 1048576}")
+        echo "${{ inputs.platform }} OCI archive (${TAR_SIZE_MB} MB compressed)"
+      shell: bash
+
+    - name: Validate Docker image
+      id: docker-validate
+      run: |
+        ARTIFACT="${{ steps.names.outputs.artifact_name }}"
+        JAR_PATH="${{ inputs.jar-path }}"
+        VALIDATION_FAILED=0
+
+        # Load the single-platform image into the local daemon for validation
+        gunzip -k "${ARTIFACT}.tar.gz"
+        skopeo copy \
+          "oci-archive:${ARTIFACT}.tar" \
+          "docker-daemon:${ARTIFACT}-validate:latest"
+        rm -f "${ARTIFACT}.tar"
+        IMAGE="${ARTIFACT}-validate:latest"
+
+        echo "── Validating ${{ inputs.platform }} image ──"
+
+        # Check image size
+        IMAGE_SIZE=$(docker image inspect "$IMAGE" --format='{{.Size}}')
+        IMAGE_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $IMAGE_SIZE / 1048576}")
+        echo "image_size=$IMAGE_SIZE"       >> "$GITHUB_OUTPUT"
+        echo "image_size_mb=$IMAGE_SIZE_MB" >> "$GITHUB_OUTPUT"
+        echo "  Image size: ${IMAGE_SIZE_MB} MB"
+
+        if [ "$IMAGE_SIZE" -lt 209715200 ]; then
+          echo "Docker image is only ${IMAGE_SIZE_MB} MB -- suspiciously small"
+          echo "image_warning=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "Docker image size looks healthy"
+          echo "image_warning=false" >> "$GITHUB_OUTPUT"
+        fi
+
+        # Verify JAR is inside the image
+        JAR_CHECK_ERR=$(mktemp)
+        JAR_IN_IMAGE=$(docker run --rm --entrypoint ls "$IMAGE" -la "$JAR_PATH" 2>"$JAR_CHECK_ERR") || true
+        if [ -z "$JAR_IN_IMAGE" ]; then
+          echo "openaev-api.jar NOT found at $JAR_PATH"
+          if [ -s "$JAR_CHECK_ERR" ]; then
+            echo "  Error: $(cat "$JAR_CHECK_ERR")"
+          fi
+          JAR_DIR=$(dirname "$JAR_PATH")
+          echo "  Listing $JAR_DIR contents for diagnostics:"
+          docker run --rm --entrypoint ls "$IMAGE" -la "$JAR_DIR" 2>/dev/null \
+            | sed 's/^/    /' || echo "    (could not list $JAR_DIR)"
+          echo "jar_in_image=false" >> "$GITHUB_OUTPUT"
+          VALIDATION_FAILED=1
+        else
+          echo "openaev-api.jar found inside Docker image"
+          echo "  $JAR_IN_IMAGE"
+          echo "jar_in_image=true" >> "$GITHUB_OUTPUT"
+        fi
+        rm -f "$JAR_CHECK_ERR"
+
+        # Verify Java is available
+        JAVA_VERSION=$(docker run --rm --entrypoint java "$IMAGE" -version 2>&1 | head -1) || true
+        if [ -z "$JAVA_VERSION" ]; then
+          echo "Java runtime not found inside Docker image"
+          echo "java_version=NOT_FOUND" >> "$GITHUB_OUTPUT"
+          VALIDATION_FAILED=1
+        else
+          echo "  Java: $JAVA_VERSION"
+          echo "java_version=$JAVA_VERSION" >> "$GITHUB_OUTPUT"
+        fi
+
+        # Count layers
+        LAYER_COUNT=$(docker image inspect "$IMAGE" --format='{{len .RootFS.Layers}}')
+        echo "  Layers: $LAYER_COUNT"
+        echo "layer_count=$LAYER_COUNT" >> "$GITHUB_OUTPUT"
+
+        if [ "$VALIDATION_FAILED" -ne 0 ]; then
+          echo "Docker image validation failed"
+          exit 1
+        fi
+      shell: bash
+
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ steps.names.outputs.artifact_name }}
+        path: ${{ steps.names.outputs.artifact_name }}.tar.gz
+        retention-days: 1
+        # Already gzipped — re-zipping costs CPU on both upload and download for ~0% gain
+        compression-level: 0

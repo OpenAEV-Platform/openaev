@@ -8,13 +8,13 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.secrets.provider.SecretsProviderType;
+import io.openaev.secrets.provider.impl.handlers.SecretHandler;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.FileService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.NativeEncryptionService;
 import java.io.InputStream;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -24,29 +24,29 @@ import org.springframework.stereotype.Service;
 @Service
 public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFactory {
   private final ComponentRequestEngine componentRequestEngine;
-  private final NativeEncryptionService nativeEncryptionService;
   private final SecretService secretService;
   private final SecretReferenceService secretReferenceService;
   private final PreviewFeatureService previewFeatureService;
   private final FileService fileService;
+  private final List<SecretHandler> secretHandlers;
 
   public LocalSecretsProviderIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       ComponentRequestEngine componentRequestEngine,
       HttpClientFactory httpClientFactory,
-      NativeEncryptionService nativeEncryptionService,
       SecretService secretService,
       SecretReferenceService secretReferenceService,
       PreviewFeatureService previewFeatureService,
-      FileService fileService) {
+      FileService fileService,
+      List<SecretHandler> secretHandlers) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
-    this.nativeEncryptionService = nativeEncryptionService;
     this.secretService = secretService;
     this.secretReferenceService = secretReferenceService;
     this.previewFeatureService = previewFeatureService;
     this.fileService = fileService;
+    this.secretHandlers = secretHandlers;
   }
 
   @Override
@@ -82,9 +82,9 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
         instance,
         connectorInstanceService,
         componentRequestEngine,
-        nativeEncryptionService,
         secretService,
-        secretReferenceService);
+        secretReferenceService,
+        secretHandlers);
   }
 
   @Override

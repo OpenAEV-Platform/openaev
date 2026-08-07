@@ -1,0 +1,14 @@
+io/openaev/api/expectations/**/*Test.java
+io/openaev/api/notification_trigger/**/*Test.java
+io/openaev/context/**/*Test.java
+io/openaev/database/**/*Test.java
+io/openaev/diagnostics/**/*Test.java
+io/openaev/engine/**/*Test.java
+io/openaev/healthcheck/**/*Test.java
+io/openaev/migration/**/*Test.java
+io/openaev/rest/*Test.java
+io/openaev/rest/lessons_template/**/*Test.java
+io/openaev/rest/mapper/**/*Test.java
+io/openaev/service/detection_remediation/**/*Test.java
+io/openaev/service/expectation/**/*Test.java
+io/openaev/xtmhub/**/*Test.java

@@ -13,13 +13,13 @@ import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration
 import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegrationFactory;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
+import io.openaev.secrets.provider.impl.handlers.SecretHandler;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.FileService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import io.openaev.service.connector_instances.NativeEncryptionService;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Comparator;
 import java.util.List;
@@ -43,11 +43,11 @@ public class LocalSecretsProviderIntegrationTest {
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private ConnectorInstanceService connectorInstanceService;
-  @Autowired private NativeEncryptionService nativeEncryptionService;
   @Autowired private SecretService secretService;
   @Autowired private SecretReferenceService secretReferenceService;
   @Autowired private PreviewFeatureService previewFeatureService;
   @Autowired private FileService fileService;
+  @Autowired private List<SecretHandler> secretHandlers;
 
   private LocalSecretsProviderIntegrationFactory getFactory() {
     return new LocalSecretsProviderIntegrationFactory(
@@ -55,11 +55,11 @@ public class LocalSecretsProviderIntegrationTest {
         catalogConnectorService,
         componentRequestEngine,
         null,
-        nativeEncryptionService,
         secretService,
         secretReferenceService,
         previewFeatureService,
-        fileService);
+        fileService,
+        secretHandlers);
   }
 
   @Nested

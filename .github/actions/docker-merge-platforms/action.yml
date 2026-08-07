@@ -1,0 +1,275 @@
+name: Merge Multi-Platform Docker Images
+description: >
+  Downloads per-platform OCI archives built by docker-build, merges them into
+  a single multi-arch OCI image index, validates both platforms are present,
+  and uploads the merged archive.  The output artifact is compatible with the
+  downstream promotion workflow (skopeo copy --all).
+
+inputs:
+  artifact-name:
+    description: "Base artifact name (e.g. openaev-image). Per-platform archives are expected as <name>-amd64 and <name>-arm64."
+    required: true
+  platforms:
+    description: "Comma-separated platforms to merge (default: linux/amd64,linux/arm64)"
+    required: false
+    default: "linux/amd64,linux/arm64"
+  allow-registry:
+    description: >
+      Set to "false" when the calling workflow has no packages:write; the
+      per-platform archives are then merged from artifacts.
+    required: false
+    default: "true"
+
+outputs:
+  digest:
+    description: Manifest list digest
+    value: ${{ steps.merge-registry.outputs.digest || steps.merge.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve CI registry
+      id: registry
+      uses: ./.github/actions/ci-registry
+      with:
+        allow-registry: ${{ inputs.allow-registry }}
+
+    - name: Log in to GHCR
+      if: ${{ steps.registry.outputs.available == 'true' }}
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Wait for platform images
+      shell: bash
+      env:
+        REPO: ${{ steps.registry.outputs.repository }}
+        PREFIX: ${{ steps.registry.outputs.tag-prefix }}
+        ARTIFACT: ${{ inputs.artifact-name }}
+        PLATFORMS: ${{ inputs.platforms }}
+        USE_REGISTRY: ${{ steps.registry.outputs.available }}
+      run: |
+        set -euo pipefail
+        IFS=',' read -ra PLATS <<< "$PLATFORMS"
+
+        # Counts Docker Build cells that already failed, so a broken build aborts the
+        # poll instead of running it out to the timeout.
+        build_failed() {
+          local n
+          n=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+                --jq '[.jobs[] | select(.name | test("Docker Build")) | .conclusion]
+                      | map(select(. == "failure" or . == "cancelled")) | length' 2>/dev/null) || n=""
+          echo "${n:-0}"
+        }
+
+        ready() {
+          if [ "$USE_REGISTRY" = "true" ]; then
+            docker buildx imagetools inspect "$1" >/dev/null 2>&1
+          else
+            gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+              --jq '[.artifacts[].name]' 2>/dev/null | grep -qF "\"$1\""
+          fi
+        }
+
+        for plat in "${PLATS[@]}"; do
+          plat=$(echo "$plat" | xargs)
+          ARCH="${plat#*/}"
+          if [ "$USE_REGISTRY" = "true" ]; then
+            TARGET="${REPO}:${PREFIX}-${ARTIFACT}-${ARCH}"
+          else
+            TARGET="${ARTIFACT}-${ARCH}"
+          fi
+          echo "⏳ Waiting for ${TARGET}..."
+
+          for i in $(seq 1 180); do
+            if ready "$TARGET"; then
+              echo "  ✅ ${TARGET} ready (after ~$((i * 5))s)"
+              break
+            fi
+            if [ "$(build_failed)" -gt 0 ]; then
+              echo "❌ A Docker Build job failed or was cancelled — aborting"
+              exit 1
+            fi
+            if [ "$i" -eq 180 ]; then
+              echo "❌ Timed out waiting for ${TARGET} (15 min)"
+              exit 1
+            fi
+            sleep 5
+          done
+        done
+
+    # Registry path: the index is assembled server-side from manifests that already
+    # exist, so no ~1.9 GB of archives are moved just to staple them together.
+    - name: Merge platforms via registry
+      id: merge-registry
+      if: ${{ steps.registry.outputs.available == 'true' }}
+      shell: bash
+      env:
+        REPO: ${{ steps.registry.outputs.repository }}
+        PREFIX: ${{ steps.registry.outputs.tag-prefix }}
+        ARTIFACT: ${{ inputs.artifact-name }}
+        PLATFORMS: ${{ inputs.platforms }}
+      run: |
+        set -euo pipefail
+        SRC=""
+        IFS=',' read -ra PLATS <<< "$PLATFORMS"
+        for plat in "${PLATS[@]}"; do
+          plat=$(echo "$plat" | xargs)
+          SRC="$SRC ${REPO}:${PREFIX}-${ARTIFACT}-${plat#*/}"
+        done
+
+        echo "── Creating multi-arch index from: $SRC ──"
+        docker buildx imagetools create -t "${REPO}:${PREFIX}-${ARTIFACT}" $SRC
+
+        DIGEST=$(docker buildx imagetools inspect "${REPO}:${PREFIX}-${ARTIFACT}" \
+          --format '{{json .Manifest.Digest}}' | tr -d '"')
+        echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+        echo "  ✅ Multi-arch manifest digest: ${DIGEST}"
+
+        # The reviewable artifact is still produced, just pulled from the index
+        echo "── Exporting multi-arch OCI archive ──"
+        skopeo copy --all \
+          "docker://${REPO}:${PREFIX}-${ARTIFACT}" \
+          "oci-archive:${ARTIFACT}.tar"
+        gzip "${ARTIFACT}.tar"
+
+    - name: Install crane
+      if: ${{ steps.registry.outputs.available != 'true' }}
+      shell: bash
+      run: |
+        CRANE_VERSION="0.20.3"
+        curl -sL "https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/go-containerregistry_Linux_$(uname -m | sed 's/aarch64/arm64/' | sed 's/x86_64/x86_64/').tar.gz" \
+          | tar -xzf - -C /usr/local/bin crane
+        crane version
+
+    - name: Download per-platform artifacts
+      if: ${{ steps.registry.outputs.available != 'true' }}
+      uses: actions/download-artifact@v8
+      with:
+        pattern: ${{ inputs.artifact-name }}-*
+        path: platform-archives/
+        merge-multiple: false
+
+    - name: Merge into multi-arch OCI archive
+      id: merge
+      if: ${{ steps.registry.outputs.available != 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        ARTIFACT="${{ inputs.artifact-name }}"
+        PLATFORMS="${{ inputs.platforms }}"
+
+        echo "── Merging per-platform archives into multi-arch image ──"
+
+        # Start a temporary local registry for the merge
+        docker run -d --name merge-registry -p 5555:5000 registry:2
+        sleep 2
+
+        # Push each per-platform archive to the local registry
+        IFS=',' read -ra PLATS <<< "$PLATFORMS"
+        CRANE_ARGS=""
+        for plat in "${PLATS[@]}"; do
+          plat=$(echo "$plat" | xargs)
+          ARCH="${plat#*/}"
+          ARCHIVE="platform-archives/${ARTIFACT}-${ARCH}/${ARTIFACT}-${ARCH}.tar.gz"
+
+          if [ ! -f "$ARCHIVE" ]; then
+            echo "❌ Missing archive for ${plat}: ${ARCHIVE}"
+            ls -la platform-archives/ 2>/dev/null
+            exit 1
+          fi
+
+          echo "  Loading ${plat} from ${ARCHIVE}..."
+          gunzip -k "$ARCHIVE"
+          OCI_TAR="${ARCHIVE%.gz}"
+
+          # Push single-platform image to local registry
+          skopeo copy --all \
+            "oci-archive:${OCI_TAR}" \
+            "docker://localhost:5555/${ARTIFACT}:${ARCH}" \
+            --dest-tls-verify=false
+          rm -f "$OCI_TAR"
+
+          CRANE_ARGS="${CRANE_ARGS} -m localhost:5555/${ARTIFACT}:${ARCH}"
+          echo "  ✅ ${plat} loaded"
+        done
+
+        # Create the multi-arch manifest list
+        echo "  Creating multi-arch manifest list..."
+        crane index append \
+          --insecure \
+          -t "localhost:5555/${ARTIFACT}:multiarch" \
+          ${CRANE_ARGS}
+
+        # Export the merged multi-arch image as OCI archive
+        crane pull --insecure --format oci \
+          "localhost:5555/${ARTIFACT}:multiarch" \
+          "${ARTIFACT}-oci-dir"
+
+        # Convert OCI directory layout to OCI archive (tar)
+        tar -cf "${ARTIFACT}.tar" -C "${ARTIFACT}-oci-dir" .
+        gzip "${ARTIFACT}.tar"
+
+        # Compute digest
+        DIGEST=$(crane digest --insecure "localhost:5555/${ARTIFACT}:multiarch")
+        echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+        echo "  ✅ Multi-arch manifest digest: ${DIGEST}"
+
+        # Cleanup
+        docker stop merge-registry && docker rm merge-registry
+        rm -rf "${ARTIFACT}-oci-dir" platform-archives/
+
+    - name: Verify merged archive
+      shell: bash
+      run: |
+        set -euo pipefail
+        ARTIFACT="${{ inputs.artifact-name }}"
+        PLATFORMS="${{ inputs.platforms }}"
+
+        TAR_SIZE=$(stat --format=%s "${ARTIFACT}.tar.gz" 2>/dev/null || stat -f%z "${ARTIFACT}.tar.gz" 2>/dev/null)
+        TAR_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $TAR_SIZE / 1048576}")
+        echo "  Multi-arch OCI archive: ${TAR_SIZE_MB} MB compressed"
+
+        echo "── Platforms in merged archive ──"
+        gunzip -k "${ARTIFACT}.tar.gz"
+        FOUND_PLATFORMS=$(skopeo inspect --raw "oci-archive:${ARTIFACT}.tar" \
+          | python3 -c "
+        import json, sys
+        idx = json.load(sys.stdin)
+        manifests = idx.get('manifests', [])
+        platforms = []
+        for m in manifests:
+            p = m.get('platform', {})
+            pl = f\"{p.get('os','?')}/{p.get('architecture','?')}\"
+            platforms.append(pl)
+            print(f'  ✅ {pl}')
+        print(','.join(platforms))
+        " | tail -1)
+        rm -f "${ARTIFACT}.tar"
+
+        # Verify all expected platforms are present
+        IFS=',' read -ra EXPECTED <<< "$PLATFORMS"
+        MISSING=0
+        for plat in "${EXPECTED[@]}"; do
+          plat=$(echo "$plat" | xargs)
+          if ! echo "$FOUND_PLATFORMS" | grep -q "$plat"; then
+            echo "  ❌ Missing platform: ${plat}"
+            MISSING=1
+          fi
+        done
+        if [ "$MISSING" -ne 0 ]; then
+          echo "❌ Merged archive is missing expected platforms"
+          exit 1
+        fi
+        echo "  ✅ All expected platforms present"
+
+    - name: Upload merged multi-arch artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.artifact-name }}.tar.gz
+        retention-days: 1
+        # Already gzipped — re-zipping costs CPU for ~0% gain
+        compression-level: 0

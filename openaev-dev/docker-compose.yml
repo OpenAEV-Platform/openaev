@@ -1,3 +1,4 @@
+# Container image tags live in this file so Compose works without extra flags.
 services:
 
   # ===========================================================================

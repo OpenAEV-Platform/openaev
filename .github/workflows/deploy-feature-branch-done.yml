@@ -1,0 +1,73 @@
+name: "[Core] Deploy Feature Branch Done"
+
+# Triggered when the unprivileged build workflow completes.
+# Updates the PR comment with the build result. On success, downstream
+# automation picks up the artifact and handles promotion + deployment.
+#
+# SECURITY: This workflow NEVER checks out PR code. It only downloads
+# the metadata artifact and updates the PR comment.
+
+on:
+  workflow_run:
+    workflows: ["[Core] Deploy Feature Branch Build"]
+    types: [completed]
+
+permissions:
+  actions: read # to download artifacts
+  pull-requests: write # to update the PR comment
+
+jobs:
+  notify:
+    name: "💬 Update PR comment"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download metadata artifact
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+            });
+            const match = artifacts.data.artifacts.find(a => a.name === 'deploy-metadata');
+            if (!match) {
+              core.setFailed('deploy-metadata artifact not found');
+              return;
+            }
+            const download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: match.id,
+              archive_format: 'zip',
+            });
+            const fs = require('fs');
+            fs.writeFileSync('metadata.zip', Buffer.from(download.data));
+
+      - name: Extract metadata
+        run: |
+          unzip -o metadata.zip -d metadata
+          cat metadata/deploy-metadata.json
+
+      - name: Update PR comment with result
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const meta = JSON.parse(fs.readFileSync('metadata/deploy-metadata.json', 'utf8'));
+            const conclusion = context.payload.workflow_run.conclusion;
+            const runUrl = context.payload.workflow_run.html_url;
+
+            let body;
+            if (conclusion === 'success' && meta.build_result === 'success') {
+              body = `✅ Feature branch build finished — [view run](${runUrl})\n\n⏳ Deployment is ongoing, a new comment will be posted once it completes.`;
+            } else {
+              body = `❌ Feature branch build failed — [view run](${runUrl})`;
+            }
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: parseInt(meta.comment_id, 10),
+              body
+            });
