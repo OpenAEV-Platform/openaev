@@ -17,6 +17,11 @@ interface AutonomousRunDetection {
   /** Push a fresher run (status transitions) up from the live reasoning panel / header controls,
    *  so the hero and tab set stay in lockstep with the orchestrator without a second poll loop. */
   setRun: (run: AutonomousRun) => void;
+  /** Forget the detected run and treat the entity as manual, WITHOUT waiting for the discovery poll
+   *  to re-probe. Used when an operator action has just torn the run down server-side (a normal
+   *  launch supersedes a settled AI outcome): the by-scenario lookup now 404s, but the latched run
+   *  would otherwise keep rendering the stale AI plan outcome until a full page reload. */
+  clearRun: () => void;
 }
 
 /**
@@ -70,6 +75,16 @@ const useAutonomousRunDetection = (
     detectedRef.current = true;
     setManual(false);
     setRun(next);
+  }, []);
+
+  // Drop the detected run and pin the entity to manual so the discovery poll does NOT immediately
+  // re-detect it (the run was just torn down server-side, so a probe would 404 and land on manual
+  // anyway - pinning avoids a redundant round-trip and a flash of the stale outcome). A later real
+  // run (a fresh AI build / launch) clears this again through pushRun.
+  const clearRun = useCallback(() => {
+    detectedRef.current = false;
+    setManual(true);
+    setRun(null);
   }, []);
 
   useEffect(() => {
@@ -141,6 +156,7 @@ const useAutonomousRunDetection = (
     run,
     resolved,
     setRun: pushRun,
+    clearRun,
   };
 };
 

@@ -668,5 +668,81 @@ class AutonomousRunServiceTest {
     assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
   }
 
+  @Test
+  @DisplayName(
+      "supersedeSettledRunOnManualLaunch tears down a settled plan run (and its throwaway"
+          + " simulation) so a normal launch reverts the scenario to its non-AI overview")
+  void supersedeSettledRunOnManualLaunchTearsDownSettledPlanRun() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    // A settled dry-run left an AI plan outcome on the scenario. Launching a normal simulation
+    // makes it stale, so the run row + its plan-mode substrate simulation are removed.
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(true);
+    prior.setStatus(AutonomousRunStatus.CANCELED);
+    prior.setSimulationId("plan-sim");
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    service.supersedeSettledRunOnManualLaunch("scenario-1");
+
+    verify(exerciseService).deleteById("plan-sim");
+    verify(directiveRepository).deleteByRunId("prior-run");
+    verify(eventService).deleteByRun("prior-run");
+    verify(runRepository).delete(prior);
+    verify(xtmOneClient).cancelAutonomousRun(eq("prior-run"), anyString(), eq(true));
+  }
+
+  @Test
+  @DisplayName(
+      "supersedeSettledRunOnManualLaunch unbinds a finished LIVE run but keeps its simulation as"
+          + " history")
+  void supersedeSettledRunOnManualLaunchKeepsFinishedLiveSimulation() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    // A completed LIVE run: the run row is removed so the scenario reverts to the normal overview,
+    // but its real simulation stays as a plain chained simulation (relaunch never destroys results).
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(false);
+    prior.setStatus(AutonomousRunStatus.COMPLETED);
+    prior.setSimulationId("live-sim");
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    service.supersedeSettledRunOnManualLaunch("scenario-1");
+
+    verify(exerciseService, never()).deleteById(anyString());
+    verify(runRepository).delete(prior);
+  }
+
+  @Test
+  @DisplayName(
+      "supersedeSettledRunOnManualLaunch never tears down a still-active run (defensive no-op, no"
+          + " 409)")
+  void supersedeSettledRunOnManualLaunchLeavesActiveRunUntouched() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(false);
+    prior.setStatus(AutonomousRunStatus.RUNNING);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    service.supersedeSettledRunOnManualLaunch("scenario-1");
+
+    verify(runRepository, never()).delete(any());
+    verify(exerciseService, never()).deleteById(anyString());
+    verifyNoInteractions(xtmOneClient);
+  }
+
+  @Test
+  @DisplayName("supersedeSettledRunOnManualLaunch is a no-op when the scenario carries no run")
+  void supersedeSettledRunOnManualLaunchNoOpWhenNoRun() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
+
+    service.supersedeSettledRunOnManualLaunch("scenario-1");
+
+    verify(runRepository, never()).delete(any());
+    verifyNoInteractions(xtmOneClient);
+  }
+
   // endregion
 }

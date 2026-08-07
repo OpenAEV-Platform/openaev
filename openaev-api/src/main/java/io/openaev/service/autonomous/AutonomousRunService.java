@@ -198,6 +198,32 @@ public class AutonomousRunService {
             () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Autonomous run not found"));
   }
 
+  /** A settled run: canceled, completed or failed. Nothing may execute or be authored on it. */
+  private static boolean isTerminal(AutonomousRunStatus status) {
+    return status == AutonomousRunStatus.CANCELED
+        || status == AutonomousRunStatus.COMPLETED
+        || status == AutonomousRunStatus.FAILED;
+  }
+
+  /**
+   * Refuses an orchestrator authoring call against a run that has already ended. A cancel / timeout
+   * / settle stops the XTM One orchestrator, but a decision cycle already in flight (or the next
+   * one, before it has seen the stop) can still call an authoring tool. Left unguarded, that call
+   * both adds steps to a dead run AND - because the authoring path persists the whole run entity to
+   * mirror the step - reverts the run's terminal status to active via a stale full-entity save
+   * (lost update, this row is not optimistically locked). The read-path reconcile then re-cancels
+   * the resurrected run every poll, which is the source of the repeated "Run canceled" cadence.
+   * Failing the late author closed keeps the terminal state authoritative.
+   */
+  private void assertRunAcceptsAuthoring(AutonomousRun run) {
+    if (isTerminal(run.getStatus())) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "This autonomous run has ended (" + run.getStatus() + "); it no longer accepts"
+              + " attack-path authoring.");
+    }
+  }
+
   // region lifecycle
 
   /**
@@ -801,18 +827,35 @@ public class AutonomousRunService {
     if (run.getStatus() == AutonomousRunStatus.CANCELED) {
       return run;
     }
+    // Read what the after-work needs BEFORE the bulk flip below: settleTerminalStatusIfActive is a
+    // clearAutomatically UPDATE, so `run` is detached afterwards and a LAZY tenant fetch would blow
+    // up.
+    String tenantId = run.getTenant().getId();
+    String simulationId = run.getSimulationId();
+    // Claim the terminal flip with the SAME atomic conditional UPDATE the timeout watchdog and the
+    // read-path reconcile use, instead of a plain read-modify-save. An operator Stop, a racing
+    // reconcile and the watchdog can all reach a run at once; routing every terminal settle through
+    // one row-guarded claim means exactly one of them flips the row and narrates - the plain save
+    // this replaced could double-narrate with a concurrent reconcile (the reported duplicate). A
+    // blind save also silently reverted a status a concurrent reconcile had already set, so the
+    // atomic claim is the correctness fix too.
+    int changed =
+        runRepository.settleTerminalStatusIfActive(
+            runId, tenantId, AutonomousRunStatus.CANCELED, now());
     // Best-effort, not strict: an already-CANCELED/FINISHED simulation must not block the run from
     // settling to CANCELED, otherwise a mid-cancel crash leaves the operator permanently stuck.
     transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
-    run.setStatus(AutonomousRunStatus.CANCELED);
-    AutonomousRun saved = runRepository.save(run);
-    eventService.append(
-        runId, run.getSimulationId(), AutonomousEventType.STATUS, "Run canceled", null, null);
+    // Narrate at most once per run life: if a reconcile / watchdog already claimed this flip
+    // (changed == 0) or already narrated the run's end, the guard drops this line.
+    if (changed > 0) {
+      eventService.appendTerminalStatusOnce(runId, simulationId, "Run canceled", null);
+    }
     // Stop purges the run's coordination state so a later restart starts clean (re-asks the
     // operator
     // for scope instead of re-reading a stale resolved target / open exploitation task).
     cancelOrchestratorAfterCommit(runId, "run canceled by operator", true);
-    return saved;
+    // Re-read the freshly-settled row (the bulk UPDATE cleared the persistence context).
+    return require(runId);
   }
 
   // region timeout / winddown (OpenAEV-owned run deadline)
@@ -911,15 +954,13 @@ public class AutonomousRunService {
       return;
     }
     transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
-    eventService.append(
+    eventService.appendTerminalStatusOnce(
         run.getId(),
         run.getSimulationId(),
-        AutonomousEventType.STATUS,
         "Run timed out",
         "The run reached its OpenAEV-enforced deadline and was hard-stopped: the simulation was"
             + " stopped and the orchestration is torn down and cleaned up, exactly like an operator"
-            + " Stop.",
-        null);
+            + " Stop.");
   }
 
   /**
@@ -1328,6 +1369,16 @@ public class AutonomousRunService {
    * never destroy the previous run's results).
    */
   private void supersedePriorRun(String scenarioId, String reason) {
+    supersedePriorRun(scenarioId, reason, true);
+  }
+
+  /**
+   * Supersede overload with control over the still-active case. {@code refuseIfActive = true} is the
+   * AI relaunch / rebuild contract (a live run blocks the new one with a 409); {@code false} is the
+   * normal-launch contract, where an active run is left untouched as a defensive no-op rather than
+   * torn down (see {@link #supersedeSettledRunOnManualLaunch}).
+   */
+  private void supersedePriorRun(String scenarioId, String reason, boolean refuseIfActive) {
     AutonomousRun prior = runRepository.findByScenarioId(scenarioId).orElse(null);
     if (prior == null) {
       return;
@@ -1339,9 +1390,14 @@ public class AutonomousRunService {
         || status == AutonomousRunStatus.RUNNING
         || status == AutonomousRunStatus.PAUSED
         || status == AutonomousRunStatus.WAITING_INPUT) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT,
-          "Stop the active autonomous run before rebuilding or relaunching this scenario");
+      if (refuseIfActive) {
+        throw new ResponseStatusException(
+            HttpStatus.CONFLICT,
+            "Stop the active autonomous run before rebuilding or relaunching this scenario");
+      }
+      // A normal (operator-driven) launch must never tear down a live orchestration: leave the
+      // active run intact (the hero already hides the manual launch while a run is active).
+      return;
     }
     String priorId = prior.getId();
     cancelOrchestratorAfterCommit(priorId, reason, true);
@@ -1351,6 +1407,29 @@ public class AutonomousRunService {
     directiveRepository.deleteByRunId(priorId);
     eventService.deleteByRun(priorId);
     runRepository.delete(prior);
+  }
+
+  /**
+   * A plain, operator-driven ("normal") launch of a chained scenario makes any AI outcome a
+   * previous autonomous run left on the scenario stale: the latest run is now the manual one, so
+   * the scenario overview and hero must revert to the normal (non-AI) view instead of keeping a
+   * settled plan / run outcome, decision timeline and status chip on display. This supersedes
+   * (tears down + unbinds) a SETTLED autonomous run bound to {@code scenarioId} so the by-scenario
+   * lookup 404s and the manual overview returns - a plan-mode dry-run is discarded with its
+   * throwaway substrate simulation, while a finished LIVE run keeps its simulation as history (see
+   * {@link #supersedePriorRun}). The scenario's authored attack-path steps are never touched: it is
+   * a normal chained scenario the operator just launched.
+   *
+   * <p>A no-op when the scenario carries no run, or the feature is off. A still-active run is left
+   * untouched (never a 409): the hero hides the manual launch while a run is active, so this is only
+   * ever reached for a settled run, and a normal launch must never tear down a live orchestration.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void supersedeSettledRunOnManualLaunch(String scenarioId) {
+    if (!previewFeatureService.isAutonomousAttackPathEnabled() || !hasText(scenarioId)) {
+      return;
+    }
+    supersedePriorRun(scenarioId, "scenario relaunched as a normal simulation", false);
   }
 
   // endregion
@@ -1588,6 +1667,7 @@ public class AutonomousRunService {
   public AutonomousRun setRunScope(String runId, List<AutonomousScopeTarget> targets) {
     requireFeature();
     AutonomousRun run = require(runId);
+    assertRunAcceptsAuthoring(run);
     List<AutonomousScopeTarget> scope = targets != null ? new ArrayList<>(targets) : List.of();
     workflowService.writeAllowlistScope(
         run.getScenarioId(), run.getSimulationId(), toAllowlistScopeInputs(scope), true);
@@ -1785,6 +1865,7 @@ public class AutonomousRunService {
       AutonomousStepTrigger trigger) {
     requireFeature();
     AutonomousRun run = require(runId);
+    assertRunAcceptsAuthoring(run);
     List<ConditionCreateInput> triggerConditions = toTriggerConditions(trigger);
     // Author-scenario (AI planning) mode: no simulation exists, so the orchestrator authors the
     // step directly onto the scenario's workflow TEMPLATE. Nothing executes; there is no mirror
@@ -2035,6 +2116,7 @@ public class AutonomousRunService {
   public String updateAttackPathStep(String runId, String stepTemplateId, InjectInput injectInput) {
     requireFeature();
     AutonomousRun run = require(runId);
+    assertRunAcceptsAuthoring(run);
     // Author-scenario mode: the step id IS a scenario step template id; update it in place on the
     // scenario workflow (no simulation, no mirror twin).
     if (!hasText(run.getSimulationId())) {

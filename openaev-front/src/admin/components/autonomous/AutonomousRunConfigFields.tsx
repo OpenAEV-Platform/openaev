@@ -4,6 +4,7 @@ import {
   AutoAwesome,
   Diamond,
   Dns,
+  ExpandMore,
   HowToReg,
   Hub,
   Key,
@@ -17,6 +18,9 @@ import {
   TrackChanges,
 } from '@mui/icons-material';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -128,6 +132,14 @@ export interface AutonomousRunConfigFieldsProps {
    */
   activeStep: number;
   disabled?: boolean;
+  /**
+   * When the scenario is already defined (manually authored or AI-built) and is being launched in
+   * autonomous mode, the sensible course is "execute what is defined, then iterate": the free-text
+   * mission (pre-seeded by the hook) becomes the primary control and the objective-template gallery
+   * is demoted into a collapsed accordion, signalling it is an override, not the normal flow. When
+   * false (no plan / no logic yet), the gallery stays front-and-center to define the objective.
+   */
+  demoteTemplates?: boolean;
 }
 
 /**
@@ -137,11 +149,99 @@ export interface AutonomousRunConfigFieldsProps {
  * picker at full width). The run is NOT labelled here - the scenario already exists and its name /
  * description are edited on the scenario itself - so there is no name / description field.
  */
-export const AutonomousRunConfigFields = ({ config, activeStep, disabled }: AutonomousRunConfigFieldsProps) => {
+export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demoteTemplates }: AutonomousRunConfigFieldsProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { settings } = useAuth();
   const xtmOneUrl = toHttpUrl(settings.platform_xtm_one_url)?.replace(/\/+$/, '');
+
+  const objectiveField = (
+    <TextField
+      value={config.objective}
+      onChange={event => config.setObjective(event.target.value)}
+      label={t('Objective (free text)')}
+      placeholder={t('e.g. Reach the domain controller and prove domain admin from an initial foothold')}
+      multiline
+      minRows={3}
+      fullWidth
+      disabled={disabled}
+    />
+  );
+
+  const templateGallery = (
+    <Stack
+      sx={{
+        display: 'grid',
+        gap: theme.spacing(1),
+        gridTemplateColumns: 'repeat(2, 1fr)',
+      }}
+    >
+      {config.loadingTemplates && config.templates.length === 0
+        ? ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'].map(skeletonKey => (
+            <Card key={skeletonKey} variant="outlined">
+              <Box sx={{ padding: theme.spacing(1.5) }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Skeleton variant="circular" width={20} height={20} sx={{ flexShrink: 0 }} />
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton variant="text" width="55%" height={18} />
+                    <Skeleton variant="text" width="90%" height={14} />
+                  </Box>
+                </Stack>
+              </Box>
+            </Card>
+          ))
+        : config.templates.map((template) => {
+            const isSelected = config.selectedTemplateKey === template.autonomous_objective_template_key;
+            const ObjectiveIcon = OBJECTIVE_ICONS[template.autonomous_objective_template_icon ?? ''] ?? TrackChanges;
+            return (
+              <Card
+                key={template.autonomous_objective_template_key}
+                variant="outlined"
+                sx={{
+                  borderColor: isSelected ? theme.palette.ai.main : undefined,
+                  borderWidth: isSelected ? 2 : 1,
+                  backgroundColor: isSelected ? alpha(theme.palette.ai.main, 0.08) : undefined,
+                }}
+              >
+                <CardActionArea
+                  onClick={() => config.selectTemplate(template)}
+                  disabled={disabled}
+                  sx={{
+                    padding: theme.spacing(1.5),
+                    height: '100%',
+                  }}
+                >
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <ObjectiveIcon
+                      fontSize="small"
+                      sx={{
+                        flexShrink: 0,
+                        color: isSelected ? theme.palette.ai.main : theme.palette.text.secondary,
+                      }}
+                    />
+                    <Box>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{
+                          fontWeight: 'bold',
+                          fontSize: '0.8125rem',
+                        }}
+                      >
+                        {t(template.autonomous_objective_template_label)}
+                      </Typography>
+                      {template.autonomous_objective_template_description && (
+                        <Typography variant="caption" color="text.secondary">
+                          {t(template.autonomous_objective_template_description)}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Stack>
+                </CardActionArea>
+              </Card>
+            );
+          })}
+    </Stack>
+  );
 
   return (
     <Stack sx={{ gap: theme.spacing(3) }}>
@@ -151,89 +251,57 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled }: Auto
             <Typography variant="h2" gutterBottom>
               {t('Objective')}
             </Typography>
-            <Stack
-              sx={{
-                display: 'grid',
-                gap: theme.spacing(1),
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                marginBottom: theme.spacing(2),
-              }}
-            >
-              {config.loadingTemplates && config.templates.length === 0
-                ? ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'].map(skeletonKey => (
-                    <Card key={skeletonKey} variant="outlined">
-                      <Box sx={{ padding: theme.spacing(1.5) }}>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                          <Skeleton variant="circular" width={20} height={20} sx={{ flexShrink: 0 }} />
-                          <Box sx={{ flex: 1 }}>
-                            <Skeleton variant="text" width="55%" height={18} />
-                            <Skeleton variant="text" width="90%" height={14} />
-                          </Box>
-                        </Stack>
-                      </Box>
-                    </Card>
-                  ))
-                : config.templates.map((template) => {
-                    const isSelected = config.selectedTemplateKey === template.autonomous_objective_template_key;
-                    const ObjectiveIcon = OBJECTIVE_ICONS[template.autonomous_objective_template_icon ?? ''] ?? TrackChanges;
-                    return (
-                      <Card
-                        key={template.autonomous_objective_template_key}
-                        variant="outlined"
-                        sx={{
-                          borderColor: isSelected ? theme.palette.ai.main : undefined,
-                          borderWidth: isSelected ? 2 : 1,
-                          backgroundColor: isSelected ? alpha(theme.palette.ai.main, 0.08) : undefined,
-                        }}
-                      >
-                        <CardActionArea
-                          onClick={() => config.selectTemplate(template)}
-                          disabled={disabled}
+            {demoteTemplates
+              ? (
+                  // Already-defined scenario launched autonomously: the run first executes what is
+                  // defined, so the free-text mission leads and the template gallery is a demoted,
+                  // collapsed override rather than the default course of action.
+                  <>
+                    <Alert
+                      severity="info"
+                      variant="outlined"
+                      sx={{ marginBottom: theme.spacing(2) }}
+                    >
+                      {t('The run first executes the attack path already defined in this scenario, then the orchestrator keeps iterating from there. Adjust the mission below if needed.')}
+                    </Alert>
+                    {objectiveField}
+                    <Accordion
+                      variant="outlined"
+                      disableGutters
+                      sx={{
+                        marginTop: theme.spacing(2),
+                        '&::before': { display: 'none' },
+                      }}
+                    >
+                      <AccordionSummary expandIcon={<ExpandMore />}>
+                        <Typography variant="subtitle2">
+                          {t('Start from a pre-built objective template instead')}
+                        </Typography>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
                           sx={{
-                            padding: theme.spacing(1.5),
-                            height: '100%',
+                            display: 'block',
+                            marginBottom: theme.spacing(1.5),
                           }}
                         >
-                          <Stack direction="row" spacing={1.5} alignItems="center">
-                            <ObjectiveIcon
-                              fontSize="small"
-                              sx={{
-                                flexShrink: 0,
-                                color: isSelected ? theme.palette.ai.main : theme.palette.text.secondary,
-                              }}
-                            />
-                            <Box>
-                              <Typography
-                                variant="subtitle2"
-                                sx={{
-                                  fontWeight: 'bold',
-                                  fontSize: '0.8125rem',
-                                }}
-                              >
-                                {t(template.autonomous_objective_template_label)}
-                              </Typography>
-                              {template.autonomous_objective_template_description && (
-                                <Typography variant="caption" color="text.secondary">
-                                  {t(template.autonomous_objective_template_description)}
-                                </Typography>
-                              )}
-                            </Box>
-                          </Stack>
-                        </CardActionArea>
-                      </Card>
-                    );
-                  })}
-            </Stack>
-            <TextField
-              value={config.objective}
-              onChange={event => config.setObjective(event.target.value)}
-              label={t('Objective (free text)')}
-              placeholder={t('e.g. Reach the domain controller and prove domain admin from an initial foothold')}
-              multiline
-              minRows={3}
-              fullWidth
-              disabled={disabled}
-            />
+                          {t('Replaces the mission above with a ready-made objective. Not the usual course when the scenario is already defined.')}
+                        </Typography>
+                        {templateGallery}
+                      </AccordionDetails>
+                    </Accordion>
+                  </>
+                )
+              : (
+                  <>
+                    <Box sx={{ marginBottom: theme.spacing(2) }}>
+                      {templateGallery}
+                    </Box>
+                    {objectiveField}
+                  </>
+                )}
           </Box>
 
           <Box>
@@ -276,7 +344,7 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled }: Auto
                   step: 1,
                 },
               }}
-              helperText={t('Maximum run duration. OpenAEV steers the orchestrator to converge a few minutes before this deadline, then hard-stops the run. Default is 24 hours.')}
+              helperText={t('Maximum duration of a live run. OpenAEV steers the orchestrator to converge a few minutes before this deadline, then hard-stops the run. Planning (the AI builder) is untimed and ignores this.')}
               fullWidth
               disabled={disabled}
             />
@@ -331,6 +399,9 @@ export interface AutonomousRunConfigPanelProps {
   error?: string | null;
   /** AI-accent info banner shown at the top; omit to hide it (e.g. when a host already explains). */
   infoText?: string;
+  /** Demote the objective-template gallery into a collapsed accordion (already-defined scenario
+   *  launched autonomously - see {@link AutonomousRunConfigFieldsProps.demoteTemplates}). */
+  demoteTemplates?: boolean;
   /**
    * Show the "Save for later" action: a neutral secondary button that persists the configuration
    * WITHOUT starting anything (the scenario AI builder). Built with plan_mode so the saved input is
@@ -357,6 +428,7 @@ export const AutonomousRunConfigPanel = ({
   submitting = false,
   error,
   infoText,
+  demoteTemplates,
   showSave = false,
   showLaunch = true,
   saveLabel,
@@ -411,7 +483,7 @@ export const AutonomousRunConfigPanel = ({
         ))}
       </Stepper>
 
-      <AutonomousRunConfigFields config={config} activeStep={activeStep} disabled={submitting} />
+      <AutonomousRunConfigFields config={config} activeStep={activeStep} disabled={submitting} demoteTemplates={demoteTemplates} />
 
       {error && <Alert severity="error">{error}</Alert>}
 

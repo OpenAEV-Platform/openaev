@@ -29,7 +29,7 @@ import { type ArticlesHelper } from '../../../../actions/channels/article-helper
 import { dismissExerciseExpectationsDrift, fetchExerciseExpectationsDrift, fetchExerciseTeams, realignExerciseExpectations, searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
-import { fetchExerciseInjectsSimple } from '../../../../actions/Inject';
+import { fetchExerciseInjectsSimple, reconcileExerciseInjects } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -79,6 +79,14 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
     onLoading(true);
     try {
       await dispatch(updateExerciseStatus(exerciseId, { exercise_status: status.exercise_status ?? undefined }));
+      // Stop (CANCELED) and Reset (SCHEDULED) both delete injects server-side
+      // (a chained simulation drops its run injects, a reset always clears the
+      // outcome). The merge-only entity store never evicts on refetch, so
+      // reconcile it explicitly or the Execution screens keep showing the
+      // deleted injects as completed until a full page reload.
+      if (status.exercise_status === 'CANCELED' || status.exercise_status === 'SCHEDULED') {
+        await dispatch(reconcileExerciseInjects(exerciseId));
+      }
     } finally {
       onLoading(false);
     }

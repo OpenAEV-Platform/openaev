@@ -16,6 +16,15 @@ interface AutonomousRunConfigDrawerProps {
   presetScopeAssetGroupId?: string;
   /** Pre-fill the whole config from a saved input (scenario AI builder's "Save for later"). */
   initialInput?: AutonomousRunCreateInput | null;
+  /** Seed the free-text objective when nothing else does (launching an already-defined scenario:
+   *  "execute what is defined, then iterate"). A saved objective still wins. */
+  defaultObjective?: string;
+  /** Demote the objective-template gallery into a collapsed accordion and lead with the free-text
+   *  mission (already-defined scenario launched in autonomous mode). */
+  demoteTemplates?: boolean;
+  /** Default time budget (hours) when nothing pre-fills it: 24h for a live launch, a smaller value
+   *  for the AI builder (planning is a quick, untimed design pass). Omit to keep the 24h default. */
+  defaultTimeoutHours?: number;
   submitting?: boolean;
   error?: string | null;
   /** Show the "Save for later" action (persist config, start nothing). Defaults to false. */
@@ -41,6 +50,9 @@ const AutonomousRunConfigDrawer = ({
   infoText,
   presetScopeAssetGroupId,
   initialInput,
+  defaultObjective,
+  demoteTemplates,
+  defaultTimeoutHours,
   submitting = false,
   error,
   showSave = false,
@@ -55,6 +67,8 @@ const AutonomousRunConfigDrawer = ({
     open,
     presetScopeAssetGroupId,
     initialInput,
+    defaultObjective,
+    defaultTimeoutHours,
   });
 
   // Clear the selection every time the drawer closes so a fresh open starts clean (and a preset
@@ -73,6 +87,7 @@ const AutonomousRunConfigDrawer = ({
           config={config}
           submitting={submitting}
           error={error}
+          demoteTemplates={demoteTemplates}
           infoText={infoText
             ?? t('An AI orchestrator designs and (optionally) drives a real attack path, adapting in real time. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope. Plan for a dry-run that only designs the path, or launch now to run it live.')}
           showSave={showSave}

@@ -1,8 +1,6 @@
-import { AutoAwesome, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Alert, AlertTitle, Box, Button, Paper, Tab, Tabs, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useMemo, useState } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import { searchInjectTests } from '../../../../actions/inject_test/scenario-inject-test-actions';
@@ -54,11 +52,12 @@ const IndexScenarioComponent: FunctionComponent<{
   /** Push a fresher run up (status transitions, a just-started plan/launch) so the hero, tab set and
    *  reasoning panel stay in lockstep without a second poll loop. */
   onAutonomousRunUpdate: (run: AutonomousRun) => void;
-}> = ({ scenario, autonomousRun, onAutonomousRunUpdate }) => {
+  /** Forget the detected run so the overview reverts to the manual view immediately after a normal
+   *  launch supersedes a settled AI outcome server-side (no wait for a full page reload). */
+  onAutonomousRunCleared: () => void;
+}> = ({ scenario, autonomousRun, onAutonomousRunUpdate, onAutonomousRunCleared }) => {
   const { t } = useFormatter();
-  const theme = useTheme();
   const location = useLocation();
-  const navigate = useNavigate();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   // Attack path only exists for chained scenarios (workflow-backed), never
   // for time-based ones: same gating as the simulation side.
@@ -104,20 +103,6 @@ const IndexScenarioComponent: FunctionComponent<{
     tabValue = `/admin/scenarios/${scenario.scenario_id}/tests`;
   }
   const [openInstantiateSimulationAndStart, setOpenInstantiateSimulationAndStart] = useState<boolean>(false);
-  // The manual overview reports its sample / launch state up so the "not run yet" launch banner can
-  // render at the very top of the page (under the hero, above the tabs) instead of below the fold.
-  const [overviewSample, setOverviewSample] = useState<{
-    isSample: boolean;
-    hasNeverRun: boolean;
-    canLaunch: boolean;
-    isScopeMissing: boolean;
-  }>({
-    isSample: false,
-    hasNeverRun: false,
-    canLaunch: false,
-    isScopeMissing: false,
-  });
-  const isOverviewRoute = tabValue === `/admin/scenarios/${scenario.scenario_id}`;
 
   // Chained scenarios expose Scope / Logic / Attack path (workflow-backed); time-based scenarios
   // keep the classic Injects / Tests / Lessons tab set. Autonomy is a launch-time mode now, so the
@@ -241,7 +226,7 @@ const IndexScenarioComponent: FunctionComponent<{
     ? <AutonomousOverview run={autonomousRun} />
     : errorWrapper(ScenarioComponent)({
         autonomousRun: settledRun,
-        onOverviewSampleState: setOverviewSample,
+        setOpenInstantiateSimulationAndStart,
       });
 
   return (
@@ -271,97 +256,8 @@ const IndexScenarioComponent: FunctionComponent<{
               openInstantiateSimulationAndStart={openInstantiateSimulationAndStart}
               autonomousRun={autonomousRun}
               onAutonomousRunUpdate={onAutonomousRunUpdate}
+              onAutonomousRunCleared={onAutonomousRunCleared}
             />
-            {/* "Not run yet" launch banner: pinned to the top of the page (under the hero, above the
-                tabs) so the launch CTA is the first thing seen, rather than buried below the sample
-                overview. Only on the Overview route, and never while the live cockpit owns the page. */}
-            {isOverviewRoute && !hasCockpit && overviewSample.isSample && (
-              <Paper
-                variant="outlined"
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2,
-                  flexWrap: 'wrap',
-                  padding: 2,
-                  marginBottom: 2,
-                  borderRadius: 1,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, transparent 60%)`,
-                }}
-              >
-                <RocketLaunchOutlined color="primary" />
-                <Box sx={{
-                  flex: 1,
-                  minWidth: 240,
-                }}
-                >
-                  <Typography sx={{
-                    fontWeight: 600,
-                    marginBottom: 0.25,
-                  }}
-                  >
-                    {overviewSample.hasNeverRun ? t('This scenario has not run yet') : t('No results to display yet')}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('The insights below are a sample preview. Launch a simulation to populate them with your real posture.')}
-                  </Typography>
-                </Box>
-                {/* A chained scenario can be launched two ways - a plain operator-driven simulation
-                    (Normal) or an orchestrator-driven live run (Autonomous). The Autonomous button
-                    opens the hero's launch config drawer (objective / agents / scope) via the query
-                    param. A time-based scenario only ever launches a normal simulation. */}
-                {overviewSample.canLaunch && isChained && (
-                  <Box sx={{
-                    display: 'flex',
-                    gap: 1,
-                    flexWrap: 'wrap',
-                  }}
-                  >
-                    <Tooltip title={overviewSample.isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch a normal, operator-driven simulation from this scenario')}>
-                      <Box component="span" sx={{ display: 'inline-flex' }}>
-                        <Button
-                          startIcon={<PlayArrowOutlined />}
-                          variant="contained"
-                          color="primary"
-                          disabled={overviewSample.isScopeMissing}
-                          onClick={() => setOpenInstantiateSimulationAndStart(true)}
-                        >
-                          {t('Normal')}
-                        </Button>
-                      </Box>
-                    </Tooltip>
-                    <Tooltip title={t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}>
-                      <Box component="span" sx={{ display: 'inline-flex' }}>
-                        <Button
-                          startIcon={<AutoAwesome />}
-                          variant="contained"
-                          onClick={() => navigate(`/admin/scenarios/${scenario.scenario_id}?openAiLaunch=true`)}
-                          sx={{
-                            'whiteSpace': 'nowrap',
-                            'backgroundColor': theme.palette.ai.main,
-                            'color': theme.palette.ai.contrastText,
-                            '&:hover': { backgroundColor: theme.palette.ai.dark },
-                          }}
-                        >
-                          {t('Autonomous')}
-                        </Button>
-                      </Box>
-                    </Tooltip>
-                  </Box>
-                )}
-                {overviewSample.canLaunch && !isChained && (
-                  <Button
-                    startIcon={<PlayArrowOutlined />}
-                    variant="contained"
-                    color="primary"
-                    onClick={() => setOpenInstantiateSimulationAndStart(true)}
-                  >
-                    {t('Launch simulation now')}
-                  </Button>
-                )}
-              </Paper>
-            )}
             <Box
               sx={{
                 borderBottom: 1,
@@ -449,7 +345,7 @@ const Index = () => {
   if (scenario && !isChained) {
     knownAutonomous = false;
   }
-  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForScenario(
+  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun, clearRun: clearAutonomousRun } = useAutonomousRunForScenario(
     scenarioId,
     knownAutonomous,
   );
@@ -481,6 +377,7 @@ const Index = () => {
         scenario={scenario}
         autonomousRun={autonomousRun}
         onAutonomousRunUpdate={setAutonomousRun}
+        onAutonomousRunCleared={clearAutonomousRun}
       />
     </InjectContext.Provider>
   );

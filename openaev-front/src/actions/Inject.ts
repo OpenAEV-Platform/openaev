@@ -1,5 +1,8 @@
+import { type Map as ImmutableMap } from 'immutable';
 import { type Dispatch } from 'redux';
 
+import { DATA_DELETE_BATCH_SUCCESS } from '../constants/ActionTypes';
+import { store } from '../store';
 import {
   bulkDeleteReferential,
   delReferential,
@@ -47,6 +50,42 @@ export const bulkUpdateInjectSimple = (data: InjectBulkUpdateInputs) => {
 export const fetchExerciseInjects = (exerciseId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects`;
   return getReferential(schema.arrayOfInjects, uri)(dispatch);
+};
+
+// Reconciles the entity store with the backend after a simulation lifecycle
+// transition that deletes injects server-side (Stop on a chained simulation
+// drops its injects, Reset always does). The normalized store only ever MERGES
+// fetch payloads - a refetch cannot evict an entity deleted server-side, and
+// the per-entity SSE delete events are not guaranteed to reach this tab - so
+// without an explicit eviction the Execution screens keep showing the deleted
+// injects as "completed" until a full page reload. Best-effort: on fetch
+// failure nothing is evicted (better stale than wrongly empty).
+export const reconcileExerciseInjects = (exerciseId: string) => async (dispatch: AppDispatch) => {
+  let payload;
+  try {
+    payload = await fetchExerciseInjects(exerciseId)(dispatch);
+  } catch {
+    return;
+  }
+  const freshIds = new Set<string>(payload?.result ?? []);
+  const injectsMap = store.getState().referential.getIn(['entities', 'injects']);
+  if (!injectsMap) {
+    return;
+  }
+  const staleDeletes = injectsMap
+    .valueSeq()
+    .filter((inject: ImmutableMap<string, unknown>) => inject.get('inject_exercise') === exerciseId && !freshIds.has(inject.get('inject_id') as string))
+    .map((inject: ImmutableMap<string, unknown>) => ({
+      id: inject.get('inject_id') as string,
+      type: 'injects',
+    }))
+    .toArray();
+  if (staleDeletes.length > 0) {
+    dispatch({
+      type: DATA_DELETE_BATCH_SUCCESS,
+      payload: staleDeletes,
+    });
+  }
 };
 
 // Lightweight variant (InjectOutput) used where only targeting metadata is

@@ -92,6 +92,10 @@ interface ScenarioHeaderProps {
   /** Push a fresher run up (a just-started plan/launch, or a status transition from the controls) so
    *  the whole scenario page reveals / refreshes the AI cockpit without a second poll loop. */
   onAutonomousRunUpdate?: (run: AutonomousRun) => void;
+  /** Forget the detected run so the overview reverts to the manual view immediately: a normal launch
+   *  supersedes a settled AI outcome server-side, so the stale plan/run outcome must stop rendering
+   *  without waiting for a full page reload. */
+  onAutonomousRunCleared?: () => void;
 }
 
 const ScenarioHeader = ({
@@ -99,6 +103,7 @@ const ScenarioHeader = ({
   setOpenInstantiateSimulationAndStart,
   autonomousRun = null,
   onAutonomousRunUpdate,
+  onAutonomousRunCleared,
 }: ScenarioHeaderProps) => {
   // Standard hooks
   const { t, locale, fld } = useFormatter();
@@ -436,6 +441,22 @@ const ScenarioHeader = ({
   } else {
     aiLaunchLabel = t('Build');
   }
+
+  // Autonomous-launch objective UX depends on how defined the scenario already is:
+  //   1. Manually authored (has attack-path steps, no saved AI config) - and
+  //   2. AI-built (a saved AI config with an objective)
+  // both read as "execute what is already defined, then iterate": the launch drawer leads with a
+  // pre-seeded free-text mission (the saved objective when present, else a default execute-first
+  // mission) and demotes the objective-template gallery into a collapsed accordion, signalling that
+  // picking a template is an override rather than the normal course.
+  //   3. Nothing defined yet (no steps, no saved config) - keep the normal template-first drawer so
+  // the operator defines the objective from scratch.
+  // Only the live-launch intent gets this; the AI builder (design/author) keeps templates upfront.
+  const launchHasDefinition = (attackPathStepCount ?? 0) > 0 || !!aiInitialInput;
+  const aiDemoteTemplates = aiDrawerIntent === 'launch' && launchHasDefinition;
+  const aiDefaultObjective = aiDemoteTemplates
+    ? t('Execute the attack path already defined in this scenario first, then continue autonomously: adapt to live findings, progress toward the objective, and expand within the authorized scope.')
+    : undefined;
 
   // Launch actions for the hero, resolved here (rather than as nested ternaries in the JSX). A
   // scheduled scenario keeps the Stop + one-off Launch-now controls; a chained autonomous-capable
@@ -847,12 +868,16 @@ const ScenarioHeader = ({
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
               const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
-              // A chained simulation is best followed live on its attack path
-              // graph; time-based ones land on the overview as before. The
-              // route only exists when ATTACK_PATH is enabled (see
-              // simulation/Index.tsx route gating).
+              // A normal launch supersedes any settled AI outcome server-side (the by-scenario run
+              // lookup now 404s), so forget the latched run: the overview reverts to the manual view
+              // instead of keeping the stale AI plan outcome + status chip until a full page reload.
+              onAutonomousRunCleared?.();
+              // Launching from the scenario keeps the operator on the scenario: a chained scenario
+              // lands on its own Attack path tab (which mirrors the running simulation live), so the
+              // context stays the scenario rather than jumping into the new simulation. A time-based
+              // scenario has no attack-path tab, so it still lands on the simulation overview.
               if (isScenarioChaining && isAttackPathEnabled) {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
+                navigate(`/admin/scenarios/${scenarioId}/attack-path`);
               } else {
                 navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
               }
@@ -880,6 +905,12 @@ const ScenarioHeader = ({
         open={aiDrawerOpen}
         onClose={() => setAiDrawerOpen(false)}
         initialInput={aiInitialInput}
+        defaultObjective={aiDefaultObjective}
+        demoteTemplates={aiDemoteTemplates}
+        // Planning (the AI builder) is a quick, server-side-untimed design pass, so default its time
+        // budget to 1h rather than surfacing the misleading 24h execution budget. A live autonomous
+        // launch keeps the 24h default (recon + human-in-the-loop steps make it long-lived).
+        defaultTimeoutHours={aiDrawerIntent === 'build' ? 1 : undefined}
         title={aiDrawerTitle}
         infoText={aiDrawerIntent === 'build'
           ? t('Configure this scenario\'s attack path - the objective, the specialist agents the orchestrator may consult, and the scope. Save it to build or launch later, or Build now to have the orchestrator author the steps onto the scenario without executing anything.')
