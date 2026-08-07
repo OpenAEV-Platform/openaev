@@ -286,7 +286,76 @@ public class PlatformGroupApiTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
     @DisplayName(
-        "Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should toggle default assign on update")
+        "Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should forbid making a group with unowned role capabilities the default one")
+    void given_managePlatform_should_forbidDefaultAssignOnGroupWithUnownedCapabilities()
+        throws Exception {
+      // -------- Arrange --------
+      // Enrolling every future user into that group would hand out ACCESS_PLATFORM_SETTINGS.
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("DefaultAssignForbidden"))
+              .persist()
+              .get();
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(
+                  PlatformRoleFixture.getPlatformRole(
+                      "RoleForDefaultAssign", Set.of(Capability.ACCESS_PLATFORM_SETTINGS)))
+              .persist()
+              .get();
+      group.setRoles(new ArrayList<>(List.of(role)));
+      groupRepository.save(group);
+
+      PlatformGroupInput input = new PlatformGroupInput("DefaultAssignForbidden", "desc", true);
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(PLATFORM_GROUPS_URI + "/" + group.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should still rename an already-default group carrying unowned capabilities")
+    void given_managePlatform_should_allowRenamingAlreadyDefaultGroup() throws Exception {
+      // -------- Arrange --------
+      // Only the transition to default is an escalation; an already-flagged group stays editable.
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("AlreadyDefault"))
+              .persist()
+              .get();
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(
+                  PlatformRoleFixture.getPlatformRole(
+                      "RoleForAlreadyDefault", Set.of(Capability.ACCESS_PLATFORM_SETTINGS)))
+              .persist()
+              .get();
+      group.setRoles(new ArrayList<>(List.of(role)));
+      group.setDefaultUserAssignation(true);
+      groupRepository.save(group);
+
+      PlatformGroupInput input = new PlatformGroupInput("AlreadyDefaultRenamed", "desc", true);
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(PLATFORM_GROUPS_URI + "/" + group.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should toggle default assign")
     void given_managePlatform_should_toggleDefaultAssignOnUpdate() throws Exception {
       // -------- Arrange --------
       Group group =
@@ -430,7 +499,7 @@ public class PlatformGroupApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
-          .andExpect(status().isForbidden());
+          .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -463,7 +532,7 @@ public class PlatformGroupApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
-          .andExpect(status().isForbidden());
+          .andExpect(status().isBadRequest());
     }
 
     @Test

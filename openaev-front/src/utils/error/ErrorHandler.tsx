@@ -5,6 +5,10 @@ import { MESSAGING$ } from '../Environment';
 import useEnterpriseEdition from '../hooks/useEnterpriseEdition';
 import { type Error, setNotifyErrorHandler } from './errorHandlerUtil';
 
+// Codes raised by the privilege-escalation guard: the caller may not hand out a capability or a
+// resource grant they do not hold themselves.
+const PRIVILEGE_GRANT_CODES = ['CANNOT_GRANT_UNHELD_CAPABILITIES', 'CANNOT_GRANT_UNHELD_RESOURCE_GRANT'];
+
 const ErrorHandler = () => {
   const { openDialog, setEEFeatureDetectedInfo } = useEnterpriseEdition();
   const { t } = useFormatter();
@@ -31,6 +35,12 @@ const ErrorHandler = () => {
         // never masked by a misleading "The element already exists".
         const conflictMessage = error.message && error.message !== 'Conflict' ? error.message : null;
         MESSAGING$.notifyError(conflictMessage ? t(conflictMessage) : t('The element already exists'));
+      } else if (error.status === 400 && PRIVILEGE_GRANT_CODES.includes(error.message)) {
+        // The backend sends capability / grant names as keys, each of which has its own
+        // translation, so the refused privileges read like they do everywhere else in the UI.
+        // Must stay above the generic 400 branch, which would print the raw code.
+        const refused = error?.errors?.children?.message?.errors;
+        MESSAGING$.notifyError(t(error.message, { values: (Array.isArray(refused) ? refused : []).map(key => t(key)).join(', ') }));
       } else if (error.status === 400) {
         if (error.message) {
           MESSAGING$.notifyError(t(error.message));

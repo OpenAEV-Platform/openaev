@@ -1,5 +1,6 @@
 package io.openaev.rest.role;
 
+import static io.openaev.rest.exception.PrivilegeGrantException.UNHELD_CAPABILITIES;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -114,7 +115,71 @@ public class TenantRoleApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
-          .andExpect(status().isForbidden());
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName(
+        "Given MANAGE_TENANT_SETTINGS, the rejection should name the capabilities that cannot be granted")
+    void given_manageTenantSettings_should_nameUnownedCapabilitiesInError() throws Exception {
+      // -------- Arrange --------
+      RoleInput input =
+          RoleInput.builder()
+              .name("Forbidden")
+              .capabilities(
+                  Set.of(
+                      Capability.MANAGE_TENANT_SETTINGS,
+                      Capability.ACCESS_ASSETS,
+                      Capability.ACCESS_CHALLENGES))
+              .build();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  post(tenantUri("/api/tenants/{tenantId}/roles"))
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      // Capabilities come back as keys, not prose, so the client can translate them.
+      assertEquals(UNHELD_CAPABILITIES, JsonPath.read(response, "$.message"));
+      List<String> refused = JsonPath.read(response, "$.errors.children.message.errors");
+      assertTrue(refused.contains(Capability.ACCESS_ASSETS.name()));
+      assertTrue(refused.contains(Capability.ACCESS_CHALLENGES.name()));
+      assertFalse(refused.contains(Capability.MANAGE_TENANT_SETTINGS.name()));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName(
+        "Given MANAGE_TENANT_SETTINGS, no role should be persisted when the grant is refused")
+    void given_manageTenantSettings_should_notPersistRefusedRole() throws Exception {
+      // -------- Arrange --------
+      RoleInput input =
+          RoleInput.builder()
+              .name("NeverPersisted")
+              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .build();
+
+      // -------- Act --------
+      mvc.perform(
+              post(tenantUri("/api/tenants/{tenantId}/roles"))
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      // -------- Assert --------
+      assertTrue(
+          roleRepository.findAll().stream().noneMatch(r -> "NeverPersisted".equals(r.getName())));
     }
   }
 
@@ -326,7 +391,7 @@ public class TenantRoleApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
-          .andExpect(status().isForbidden());
+          .andExpect(status().isBadRequest());
     }
   }
 

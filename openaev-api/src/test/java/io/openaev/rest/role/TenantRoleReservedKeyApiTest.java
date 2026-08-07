@@ -23,7 +23,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.role.form.RoleInput;
 import io.openaev.service.AbstractPrivilegeService;
-import io.openaev.service.RoleService;
+import io.openaev.service.TenantRoleService;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -48,7 +48,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private RoleRepository roleRepository;
   @Autowired private TenantRoleComposer tenantRoleComposer;
-  @Autowired private RoleService roleService;
+  @Autowired private TenantRoleService tenantRoleService;
 
   /** Computes the tenant-scoped reserved id used by the service-account role in this tenant. */
   private String reservedServiceRoleId() {
@@ -89,7 +89,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
       // -------- Act & Assert --------
       assertThatThrownBy(
               () ->
-                  roleService.createRole(
+                  tenantRoleService.createRoleInternal(
                       reservedId,
                       "AnyName",
                       "desc",
@@ -108,7 +108,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
       // -------- Act & Assert --------
       assertThatThrownBy(
               () ->
-                  roleService.createRole(
+                  tenantRoleService.createRoleInternal(
                       reservedId,
                       "AnyName",
                       "desc",
@@ -267,7 +267,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
 
       // -------- Act --------
       Role updated =
-          roleService.updateRoleInternal(
+          tenantRoleService.updateRoleInternal(
               reserved.getId(),
               "re-converged name",
               "re-converged description",
@@ -291,7 +291,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
       // -------- Act & Assert --------
       assertThatThrownBy(
               () ->
-                  roleService.updateRoleInternal(
+                  tenantRoleService.updateRoleInternal(
                       unknownId,
                       "any-name",
                       "any-desc",
