@@ -14,6 +14,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
 import type { ConditionCreateInput, KillChainPhase } from '../../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../../utils/Environment';
 import {
   buildActionMetas,
   buildEventData,
@@ -394,9 +395,18 @@ const LogicGraph = ({
     const triggerId = aId;
     const action = actionMetas[actionId];
     if (!action || action.step_condition_ids.includes(triggerId)) return;
+    // An action is gated by AT MOST ONE event. The link itself is technically unbounded
+    // (step_condition_ids is a list), but a second event makes the whole scenario unlaunchable: the
+    // copy performed at launch refuses more than one gating root and fails with "Only 1 condition can
+    // be first parent". Refuse the link here, while the user can still see what they are doing,
+    // rather than letting them build a map that dies on Launch.
+    if (action.step_condition_ids.length > 0) {
+      MESSAGING$.notifyError(t('An action can only wait on one event. Remove the current event first.'));
+      return;
+    }
     updateStep(actionId, buildStepUpdate(action, [...action.step_condition_ids, triggerId]))
       .then(refreshGraph);
-  }, [actionMetas, buildStepUpdate, refreshGraph]);
+  }, [actionMetas, buildStepUpdate, refreshGraph, t]);
 
   // Screen-space connection drag: preview line follows the cursor in client coordinates (so it is
   // immune to the pan/zoom transform), and the drop target is resolved with elementFromPoint against
