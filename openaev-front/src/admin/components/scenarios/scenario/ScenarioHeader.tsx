@@ -458,7 +458,7 @@ const ScenarioHeader = ({
         {/* Even while scheduled, allow a one-off manual run outside
             the recurrence - compact icon so it stays secondary to Stop. */}
         <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch now')}>
-          <span style={{ display: 'inline-flex' }}>
+          <Box component="span" sx={{ display: 'inline-flex' }}>
             <IconButton
               size="small"
               color="primary"
@@ -468,7 +468,7 @@ const ScenarioHeader = ({
             >
               <PlayArrowOutlined fontSize="small" />
             </IconButton>
-          </span>
+          </Box>
         </Tooltip>
       </>
     );
@@ -476,7 +476,7 @@ const ScenarioHeader = ({
     launchActions = (
       <>
         <Tooltip title={normalLaunchTitle}>
-          <span style={{ display: 'inline-flex' }}>
+          <Box component="span" sx={{ display: 'inline-flex' }}>
             <Button
               startIcon={<PlayArrowOutlined />}
               variant="contained"
@@ -488,13 +488,13 @@ const ScenarioHeader = ({
             >
               {t('Normal')}
             </Button>
-          </span>
+          </Box>
         </Tooltip>
         <Tooltip title={isRunSettled
           ? t('Relaunch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')
           : t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}
         >
-          <span style={{ display: 'inline-flex' }}>
+          <Box component="span" sx={{ display: 'inline-flex' }}>
             <Button
               startIcon={<AutoAwesome />}
               variant="contained"
@@ -510,14 +510,14 @@ const ScenarioHeader = ({
             >
               {t('Autonomous')}
             </Button>
-          </span>
+          </Box>
         </Tooltip>
       </>
     );
   } else {
     launchActions = (
       <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : ''}>
-        <span style={{ display: 'inline-flex' }}>
+        <Box component="span" sx={{ display: 'inline-flex' }}>
           <Button
             startIcon={<PlayArrowOutlined />}
             variant="contained"
@@ -529,7 +529,7 @@ const ScenarioHeader = ({
           >
             {t('Launch')}
           </Button>
-        </span>
+        </Box>
       </Tooltip>
     );
   }
@@ -695,7 +695,7 @@ const ScenarioHeader = ({
                   ? t('Rebuild with AI - re-plan the attack path (this wipes the current logic map and starts fresh)')
                   : t('AI builder - configure the attack path, then save it for later or build it now (nothing is executed)')}
                 >
-                  <span style={{ display: 'inline-flex' }}>
+                  <Box component="span" sx={{ display: 'inline-flex' }}>
                     <IconButton
                       size="small"
                       onClick={() => openAiDrawer('build')}
@@ -711,7 +711,7 @@ const ScenarioHeader = ({
                     >
                       <AutoAwesome fontSize="small" />
                     </IconButton>
-                  </span>
+                  </Box>
                 </Tooltip>
               )}
               {/* Launch actions (suppressed while a run is active - the lifecycle controls own the

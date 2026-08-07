@@ -319,7 +319,7 @@ const IndexScenarioComponent: FunctionComponent<{
                   }}
                   >
                     <Tooltip title={overviewSample.isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch a normal, operator-driven simulation from this scenario')}>
-                      <span style={{ display: 'inline-flex' }}>
+                      <Box component="span" sx={{ display: 'inline-flex' }}>
                         <Button
                           startIcon={<PlayArrowOutlined />}
                           variant="contained"
@@ -329,10 +329,10 @@ const IndexScenarioComponent: FunctionComponent<{
                         >
                           {t('Normal')}
                         </Button>
-                      </span>
+                      </Box>
                     </Tooltip>
                     <Tooltip title={t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}>
-                      <span style={{ display: 'inline-flex' }}>
+                      <Box component="span" sx={{ display: 'inline-flex' }}>
                         <Button
                           startIcon={<AutoAwesome />}
                           variant="contained"
@@ -346,7 +346,7 @@ const IndexScenarioComponent: FunctionComponent<{
                         >
                           {t('Autonomous')}
                         </Button>
-                      </span>
+                      </Box>
                     </Tooltip>
                   </Box>
                 )}

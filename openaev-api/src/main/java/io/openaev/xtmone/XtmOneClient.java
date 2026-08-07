@@ -452,10 +452,12 @@ public class XtmOneClient {
       if (agentSlug != null) body.put("agent_slug", agentSlug);
       body.put("objective", objective);
       body.put("openaev_run_id", openaevRunId);
-      body.put("simulation_id", simulationId);
       // Author-scenario (AI planning) mode: no simulation exists; the orchestrator authors the
       // attack path onto the scenario workflow instead. XTM One targets the scenario for its
       // attack-path tools when author_scenario is set, otherwise it targets the simulation.
+      // Omit optional targets when null (consistent with scenario_id / scope_*) so XTM One can
+      // distinguish "no simulation" (author-scenario mode) from an explicit null.
+      if (simulationId != null) body.put("simulation_id", simulationId);
       if (scenarioId != null) body.put("scenario_id", scenarioId);
       body.put("author_scenario", authorScenario);
       if (scopeAssetGroupId != null) body.put("scope_asset_group_id", scopeAssetGroupId);

@@ -130,7 +130,7 @@ const Scenarios = () => {
       isSortable: true,
       value: (scenario: Scenario) => nsdt(scenario.scenario_updated_at),
     },
-  ], []);
+  ], [t, nsdt]);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
 

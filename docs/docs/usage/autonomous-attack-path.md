@@ -96,8 +96,10 @@ are two ways to get one:
 
 !!! note
 
-    **Plan with AI** is design-time only. It produces a reusable Scenario, not a run. Execution is a separate,
-    explicit step (see below), so you can plan once and launch many times.
+    **Plan with AI** is design-time only: the orchestrator authors the Scenario's workflow but executes nothing and
+    creates no Simulation. It runs as a short planning session (which you may see in the autonomous runs list) whose
+    only lasting output is the reusable Scenario. Execution is a separate, explicit step (see below), so you can plan
+    once and launch many times.
 
 ## Launch modes: normal vs autonomous
 

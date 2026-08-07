@@ -166,7 +166,8 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRun launchFromScenario(
-      @PathVariable String scenarioId, @RequestBody(required = false) AutonomousRunCreateInput input) {
+      @PathVariable String scenarioId,
+      @Valid @RequestBody(required = false) AutonomousRunCreateInput input) {
     return autonomousRunService.launchFromScenario(scenarioId, input);
   }
 
@@ -181,7 +182,8 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRun planScenario(
-      @PathVariable String scenarioId, @RequestBody(required = false) AutonomousRunCreateInput input) {
+      @PathVariable String scenarioId,
+      @Valid @RequestBody(required = false) AutonomousRunCreateInput input) {
     return autonomousRunService.planScenario(scenarioId, input);
   }
 
