@@ -204,7 +204,8 @@ trigger. There is no way to make the logo a link.
 a real link, `logoLabel` names it, and `logoCollapsed` gives the collapsed rail
 its own 28px square slot. `LeftBarHeader.tsx` now passes `theme.logo` and
 `theme.logo_collapsed` into the two slots and the product-side compensation is
-deleted — see the pin-bump section of `IMPLEMENTATION-PLAYBOOK.md`.
+deleted — see the pin-bump section of the implementation playbook, now
+`process/PRODUCT-IMPLEMENTATION-PLAYBOOK.md` in the design-system repository.
 
 **One residual rough edge, worth a doc line rather than a fix.** Neither slot
 sizes its child: both wrap it in a `shrink-0` span and clip with

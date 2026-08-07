@@ -4,7 +4,8 @@ description: >
   openaev-front consumes as a direct git dependency. The repository is private,
   so the default GITHUB_TOKEN cannot read it: a dedicated PAT is required.
   Must run BEFORE any `yarn install` in openaev-front.
-  See fds-migration/IMPLEMENTATION-PLAYBOOK.md.
+  See process/PRODUCT-IMPLEMENTATION-PLAYBOOK.md in the design-system repository
+  (XTM-Foundation/filigran-design-system).
 
 inputs:
   token:
