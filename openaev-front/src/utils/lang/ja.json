@@ -1470,6 +1470,7 @@
   "Findings are not available for this report subject.": "Findings are not available for this report subject.",
   "Findings by type": "種類別の検出結果",
   "Findings collected over the period, by type and most recent.": "Findings collected over the period, by type and most recent.",
+  "Findings pagination for {type}": "{type} の finding のページ送り",
   "Finished": "終了",
   "Fire a single technique": "単一のテクニックを実行",
   "Firewall": "Firewall",

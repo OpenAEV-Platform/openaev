@@ -1470,6 +1470,7 @@
   "Findings are not available for this report subject.": "Findings are not available for this report subject.",
   "Findings by type": "Hallazgos por tipo",
   "Findings collected over the period, by type and most recent.": "Findings collected over the period, by type and most recent.",
+  "Findings pagination for {type}": "Paginación de findings para {type}",
   "Finished": "Terminado",
   "Fire a single technique": "Dispare una técnica única",
   "Firewall": "Firewall",

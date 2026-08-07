@@ -1470,6 +1470,7 @@
   "Findings are not available for this report subject.": "Findings are not available for this report subject.",
   "Findings by type": "Находки по типу",
   "Findings collected over the period, by type and most recent.": "Findings collected over the period, by type and most recent.",
+  "Findings pagination for {type}": "Постраничная навигация по findings для {type}",
   "Finished": "Готовые",
   "Fire a single technique": "Выполните одну технику",
   "Firewall": "Firewall",

@@ -208,6 +208,23 @@ const EndpointDetailPanel = ({
                     >
                       {`${g.type} (${g.values.length})`}
                     </Typography>
+                    {/* The pager belongs to THIS group only (each finding type pages on its own), so it
+                        sits on the group's own header row. Under the last value it landed between two
+                        groups, equidistant from both, and read as paging the whole section. */}
+                    {pageCount > 1 && (
+                      <Pagination
+                        size="small"
+                        count={pageCount}
+                        page={page}
+                        siblingCount={0}
+                        aria-label={t('Findings pagination for {type}', { type: g.type })}
+                        onChange={(_, value) => setGroupPages(prev => ({
+                          ...prev,
+                          [g.type]: value,
+                        }))}
+                        sx={{ ml: 'auto' }}
+                      />
+                    )}
                   </Box>
                   {pageValues.map((v, i) => (
                     <Typography
@@ -220,21 +237,6 @@ const EndpointDetailPanel = ({
                       {v}
                     </Typography>
                   ))}
-                  {pageCount > 1 && (
-                    <Pagination
-                      size="small"
-                      count={pageCount}
-                      page={page}
-                      onChange={(_, value) => setGroupPages(prev => ({
-                        ...prev,
-                        [g.type]: value,
-                      }))}
-                      sx={{
-                        mt: 0.5,
-                        pl: 2.25,
-                      }}
-                    />
-                  )}
                 </Box>
               );
             })}

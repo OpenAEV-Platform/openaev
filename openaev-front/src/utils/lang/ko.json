@@ -1470,6 +1470,7 @@
   "Findings are not available for this report subject.": "Findings are not available for this report subject.",
   "Findings by type": "유형별 발견 항목",
   "Findings collected over the period, by type and most recent.": "Findings collected over the period, by type and most recent.",
+  "Findings pagination for {type}": "{type} 발견 항목 페이지 이동",
   "Finished": "완성된",
   "Fire a single technique": "단일 기법 실행",
   "Firewall": "Firewall",
