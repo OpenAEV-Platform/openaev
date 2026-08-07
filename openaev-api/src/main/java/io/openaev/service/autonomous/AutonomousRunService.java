@@ -424,8 +424,8 @@ public class AutonomousRunService {
    * <p>Build is also REBUILD: it always starts from a blank logic map. Any previously settled run
    * (an earlier plan or a finished live run) is superseded, and the scenario workflow is fully
    * wiped - steps AND event/trigger conditions - before the orchestrator is engaged, so the AI
-   * designs the path fresh instead of stacking on top of (or partially colliding with) the
-   * previous one. A still-active run is refused with 409.
+   * designs the path fresh instead of stacking on top of (or partially colliding with) the previous
+   * one. A still-active run is refused with 409.
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun planScenario(String scenarioId, AutonomousRunCreateInput input) {
@@ -1296,13 +1296,13 @@ public class AutonomousRunService {
    * planning / running / paused / waiting-input) is refused with 409 - the operator must stop it
    * first, mirroring the hero which hides the launch and build actions while a run is active.
    *
-   * <p>A settled run is torn down like {@link #tearDownRun} except for its simulation: any lingering
-   * XTM One orchestration is halted and purged, the decision timeline and steering directives are
-   * deleted, and the run row is removed. A leftover plan-mode simulation (the legacy non-executing
-   * dry-run substrate) is deleted with it, but a finished LIVE simulation is deliberately KEPT:
-   * with the run row gone it is a plain chained simulation of the scenario and stays as history,
-   * consistent with "a scenario can carry many simulations" (relaunching must never destroy the
-   * previous run's results).
+   * <p>A settled run is torn down like {@link #tearDownRun} except for its simulation: any
+   * lingering XTM One orchestration is halted and purged, the decision timeline and steering
+   * directives are deleted, and the run row is removed. A leftover plan-mode simulation (the legacy
+   * non-executing dry-run substrate) is deleted with it, but a finished LIVE simulation is
+   * deliberately KEPT: with the run row gone it is a plain chained simulation of the scenario and
+   * stays as history, consistent with "a scenario can carry many simulations" (relaunching must
+   * never destroy the previous run's results).
    */
   private void supersedePriorRun(String scenarioId, String reason) {
     AutonomousRun prior = runRepository.findByScenarioId(scenarioId).orElse(null);
