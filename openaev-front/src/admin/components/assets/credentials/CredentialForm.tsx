@@ -252,11 +252,11 @@ const CredentialForm: FunctionComponent<Props> = ({
           disabled={isLoadingContracts || availableAuthMethods.length === 0}
         />
 
-        { (selectedContract?.fields ?? []).map(field => (
-            <InjectContentFieldComponent
-              key={field.field_name}
-              field={formatField(field)}
-            />
+        {(selectedContract?.fields ?? []).map(field => (
+          <InjectContentFieldComponent
+            key={field.field_name}
+            field={formatField(field)}
+          />
         ))}
 
         <div
