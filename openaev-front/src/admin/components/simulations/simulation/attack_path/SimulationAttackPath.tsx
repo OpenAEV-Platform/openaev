@@ -1030,7 +1030,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       // not just its type cluster (the backend escapes `\`/`|`, so a share value never matches a
       // rebuilt `NODE_FINDING|type|value`, hence matching on typeFindings+value like highlightGraphFinding).
       const canonicalId = (fullDto?.attackPathNodes ?? [])
-        .find(n => n.type === 'FINDING' && (n.typeFindings ?? '') === (item.type ?? '') && (n.value ?? n.label) === (item.value ?? ''))?.id;
+        .find(n => n.type === 'FINDING' && (n.typeFindings ?? '') === (item.type ?? '') && findingValuesMatch(item.type ?? '', n.value ?? n.label ?? '', item.value ?? ''))?.id;
       if (!chainMode) {
         // Non-chain path-focus view: the finding's own node only exists once its type cluster is
         // expanded (see the auto-expand effect below), so leave selectedFindingId null here — the
@@ -1762,32 +1762,69 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     // Focused finding-path view: keep the focused scope, and let clicks on findings/clusters
     // highlight the exact sub-path (injector -> endpoint -> selection).
     if (pathFinding) {
-      // Endpoint focus (no specific finding, e.g. a chokepoint click) with nothing sub-selected: only
-      // the focused endpoint is "selected" (blue); its injectors, edges and finding clusters keep their
-      // verdict colour (green/orange/red) so blue means "what I picked", not "the whole subgraph".
+      // Endpoint focus (no specific finding, e.g. a chokepoint click) with nothing sub-selected: mirror
+      // the finding/injector highlight below — walk the endpoint's FULL incoming path (every injector
+      // and finding cluster that reached it) and light it blue, dimming everything off that path. Same
+      // visual language as picking a finding: blue means "the path to what I picked".
       if (!pathFinding.type && !selectedInjectorId && !selectedFindingId) {
         // The endpoint's own node id in the scoped chain graph is `chain-ep|depth|<raw id>`, not the
         // raw id itself (that's the non-chain buildFindingPathFlow layout's scheme) — match either.
         const isFocusedEndpoint = (nodeId: string) => nodeId === pathFinding.endpointNodeId
           || (nodeId.startsWith('chain-ep|') && nodeId.endsWith(`|${pathFinding.endpointNodeId}`));
+        // A DIFFERENT endpoint's own instance in the scoped chain graph (any `chain-ep|...` node that
+        // isn't this one). The causal chain dedupes identical actions/finding VALUES across hosts into
+        // ONE shared node (e.g. two hosts both exposing port 445 collapse to a single "port|445" node,
+        // and a step run against several hosts is one shared injector node) — walking through those
+        // shared hops is correct (they genuinely are on this endpoint's path too), but must never carry
+        // the walk INTO another endpoint's own node, or every host sharing any recon result/action with
+        // this one lights up as if it were on the path (nothing left to dim, an all-blue graph).
+        const isOtherEndpoint = (nodeId: string) => nodeId.startsWith('chain-ep|') && !isFocusedEndpoint(nodeId);
+        const focusedNodeIds = baseFlow.nodes.filter(n => isFocusedEndpoint(n.id)).map(n => n.id);
+        const pathSet = new Set<string>(focusedNodeIds);
+        // Walk UPSTREAM from the endpoint: every injector/finding/endpoint that eventually leads into
+        // it (mirrors the selectedInjectorId/selectedFindingId upstream walks a few branches below).
+        for (let pass = 0; pass < 8; pass += 1) {
+          for (const e of baseFlow.edges) {
+            if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source) && !isOtherEndpoint(e.source)) {
+              pathSet.add(e.source);
+            }
+          }
+        }
+        // Walk DOWNSTREAM too, scoped from the endpoint itself: its own finding clusters hang off it as
+        // children, so without this pass they'd render dimmed even though they belong to this chokepoint.
+        const down = new Set<string>(focusedNodeIds);
+        for (let pass = 0; pass < 3; pass += 1) {
+          for (const e of baseFlow.edges) {
+            if (e.source && e.target && down.has(e.source) && !down.has(e.target) && !isOtherEndpoint(e.target)) {
+              down.add(e.target);
+              pathSet.add(e.target);
+            }
+          }
+        }
         return {
-          nodes: baseFlow.nodes.map(n => ({
-            ...n,
-            selected: isFocusedEndpoint(n.id),
-            data: {
-              ...(n.data ?? {}),
-              dimmed: false,
-            },
-          })),
-          edges: baseFlow.edges.map(e => ({
-            ...e,
-            selected: false,
-            data: {
-              ...(e.data ?? {}),
-              count: e.data?.count ?? 1,
-              dimmed: false,
-            },
-          })),
+          nodes: baseFlow.nodes.map((n) => {
+            const selected = pathSet.has(n.id);
+            return {
+              ...n,
+              selected,
+              data: {
+                ...(n.data ?? {}),
+                dimmed: !selected,
+              },
+            };
+          }),
+          edges: baseFlow.edges.map((e) => {
+            const selected = pathSet.has(e.source) && pathSet.has(e.target);
+            return {
+              ...e,
+              selected,
+              data: {
+                ...(e.data ?? {}),
+                count: e.data?.count ?? 1,
+                dimmed: !selected,
+              },
+            };
+          }),
         };
       }
       const injectorIds = new Set(
@@ -1798,6 +1835,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
           .filter(n => n.type === AP_FLOW_NODE_TYPE.asset || n.type === AP_FLOW_NODE_TYPE.endpointCluster)
           .map(n => n.id),
       );
+      // Same guard as the chokepoint branch above: never let the walk carry INTO another endpoint's own
+      // node in the chain view — the causal chain dedupes identical actions/finding values shared by
+      // several hosts into ONE node, so an unrestricted walk from a finding/action on one host bleeds
+      // into every OTHER host that happens to share that same recon result or step (all-blue graph).
+      const isFocusedChainEndpoint = (nodeId: string) => nodeId === pathFinding.endpointNodeId
+        || (nodeId.startsWith('chain-ep|') && nodeId.endsWith(`|${pathFinding.endpointNodeId}`));
+      const isOtherChainEndpoint = (nodeId: string) => chainMode && nodeId.startsWith('chain-ep|') && !isFocusedChainEndpoint(nodeId);
       const pathSet = new Set<string>();
       // Tracks the finding-focus "active" node (its own leaf if selected, else its type cluster) across
       // both branches below, so the downstream pass after them can re-key off it instead of
@@ -1813,7 +1857,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         pathSet.add(selectedInjectorId);
         for (let pass = 0; pass < 8; pass += 1) {
           for (const e of baseFlow.edges) {
-            if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            if (e.source && e.target && pathSet.has(e.target) && !pathSet.has(e.source) && !isOtherChainEndpoint(e.source)) {
               pathSet.add(e.source);
             }
           }
@@ -1821,7 +1865,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         const down = new Set<string>([selectedInjectorId]);
         for (let pass = 0; pass < 8; pass += 1) {
           for (const e of baseFlow.edges) {
-            if (e.source && e.target && down.has(e.source) && !down.has(e.target)) {
+            if (e.source && e.target && down.has(e.source) && !down.has(e.target) && !isOtherChainEndpoint(e.target)) {
               down.add(e.target);
               pathSet.add(e.target);
             }
@@ -1864,6 +1908,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         for (let pass = 0; pass < 8; pass += 1) {
           for (const e of baseFlow.edges) {
             if (e.target && e.source && pathSet.has(e.target) && !pathSet.has(e.source)) {
+              if (isOtherChainEndpoint(e.source)) {
+                continue;
+              }
               if (restrictInjectors && injectorIds.has(e.source) && !producingInjectorIds.has(e.source)) {
                 continue;
               }
@@ -1889,7 +1936,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         const down = new Set<string>([activeId]);
         for (let pass = 0; pass < 3; pass += 1) {
           for (const e of baseFlow.edges) {
-            if (e.source && e.target && down.has(e.source) && !down.has(e.target)) {
+            if (e.source && e.target && down.has(e.source) && !down.has(e.target) && !isOtherChainEndpoint(e.target)) {
               down.add(e.target);
               pathSet.add(e.target);
             }
