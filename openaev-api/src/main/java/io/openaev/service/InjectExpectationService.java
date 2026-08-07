@@ -2437,17 +2437,20 @@ public class InjectExpectationService {
       @NotNull BaseInjectExpectation expectation, @Nullable InjectExpectationResult sourceResult) {
     auditLogger.ifPresent(
         logger -> {
+          Optional<InjectExpectationResult> optionalSourceResult =
+              Optional.ofNullable(sourceResult);
           String injectId =
-              expectation.getInject() != null ? expectation.getInject().getId() : null;
+              Optional.ofNullable(expectation.getInject()).map(Inject::getId).orElse(null);
           String expectationResult =
-              expectation.getResponse() != null ? expectation.getResponse().name() : null;
+              Optional.ofNullable(expectation.getResponse()).map(Enum::name).orElse(null);
           String source =
-              sourceResult != null && sourceResult.getSourceName() != null
-                  ? sourceResult.getSourceName()
-                  : null;
-          String sourceId = sourceResult != null ? sourceResult.getSourceId() : null;
-          String sourceType = sourceResult != null ? sourceResult.getSourceType() : null;
-          String detectionTimestamp = sourceResult != null ? sourceResult.getDate() : null;
+              optionalSourceResult.map(InjectExpectationResult::getSourceName).orElse(null);
+          String sourceId =
+              optionalSourceResult.map(InjectExpectationResult::getSourceId).orElse(null);
+          String sourceType =
+              optionalSourceResult.map(InjectExpectationResult::getSourceType).orElse(null);
+          String detectionTimestamp =
+              optionalSourceResult.map(InjectExpectationResult::getDate).orElse(null);
 
           Map<String, Object> contextData = new LinkedHashMap<>();
           contextData.put("inject_id", injectId);
@@ -2457,8 +2460,7 @@ public class InjectExpectationService {
           contextData.put("source", source);
           contextData.put("source_id", sourceId);
           contextData.put("source_type", sourceType);
-          contextData.put("execution_timestamp", Instant.now().toString());
-          contextData.put("detection_timestamp", detectionTimestamp);
+          contextData.put("execution_timestamp", detectionTimestamp);
 
           logger.logEvent(
               AuditEvent.builder()
