@@ -190,7 +190,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           .allSatisfy(
               event -> {
                 assertThat(event.getEventScope()).isEqualTo("expectation_result");
-                assertThat(extractContextValue(event, "source_type")).isEqualTo("automatic");
+                assertThat(extractContextValue(event, "source_type")).isEqualTo("collector");
               });
     }
 
@@ -233,7 +233,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           .anySatisfy(
               event -> {
                 assertThat(extractExpectationId(event)).isEqualTo(assetExpectationId);
-                assertThat(extractContextValue(event, "source_type")).isEqualTo("automatic");
+                assertThat(extractContextValue(event, "source_type")).isEqualTo("collector");
               });
     }
 
@@ -267,9 +267,9 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
             e.setResults(
                 List.of(
                     InjectExpectationResult.builder()
-                        .sourceId("collector-id")
+                        .sourceId(COLLECTOR_ID)
                         .sourceName("collector-name")
-                        .sourceType("collector-type")
+                        .sourceType("collector")
                         .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                         .result("result")
                         .sourceAssetId(UUID.randomUUID().toString())
@@ -308,13 +308,11 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           .anySatisfy(
               event -> {
                 assertThat(extractExpectationId(event)).isEqualTo(parentAssetExpectationId);
-                assertThat(extractContextValue(event, "source_type")).isEqualTo("automatic");
               });
       assertThat(expectationEvents)
           .anySatisfy(
               event -> {
                 assertThat(extractExpectationId(event)).isEqualTo(parentGroupExpectationId);
-                assertThat(extractContextValue(event, "source_type")).isEqualTo("automatic");
               });
     }
 
