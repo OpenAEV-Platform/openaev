@@ -453,130 +453,168 @@ class InjectsExecutionJobTest extends IntegrationTest {
     @Test
     @DisplayName("given inject targets should log TARGET_RESOLUTION with endpoint agent statuses")
     @SuppressWarnings("unchecked")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void given_injectTargets_should_logTargetResolutionWithEndpointStatuses() throws Exception {
-      // Arrange
-      Exercise savedExercise =
-          exerciseComposer
-              .forExercise(
-                  ExerciseFixture.createRunningAttackExercise(
-                      Instant.now().minus(1, ChronoUnit.MINUTES)))
-              .persist()
-              .get();
+      String[] ids = new String[3]; // exerciseId, injectId, endpointWithoutAgentId
+      try {
+        // Arrange
+        inTransaction(
+            () -> {
+              Exercise savedExercise =
+                  exerciseComposer
+                      .forExercise(
+                          ExerciseFixture.createRunningAttackExercise(
+                              Instant.now().minus(1, ChronoUnit.MINUTES)))
+                      .persist()
+                      .get();
 
-      AgentComposer.Composer activeAgentComposer =
-          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
-      activeAgentComposer.get().setLastSeen(Instant.now());
-      AgentComposer.Composer inactiveAgentComposer =
-          agentComposer.forAgent(AgentFixture.createDefaultAgentSession());
-      inactiveAgentComposer.get().setLastSeen(Instant.now().minus(2, ChronoUnit.HOURS));
+              AgentComposer.Composer activeAgentComposer =
+                  agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+              activeAgentComposer.get().setLastSeen(Instant.now());
+              AgentComposer.Composer inactiveAgentComposer =
+                  agentComposer.forAgent(AgentFixture.createDefaultAgentSession());
+              inactiveAgentComposer.get().setLastSeen(Instant.now().minus(2, ChronoUnit.HOURS));
 
-      EndpointComposer.Composer endpointWithoutAgentComposer =
-          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
-      EndpointComposer.Composer endpointWithAgentsComposer =
-          endpointComposer
-              .forEndpoint(EndpointFixture.createEndpoint())
-              .withAgent(activeAgentComposer)
-              .withAgent(inactiveAgentComposer);
+              EndpointComposer.Composer endpointWithoutAgentComposer =
+                  endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+              EndpointComposer.Composer endpointWithAgentsComposer =
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(activeAgentComposer)
+                      .withAgent(inactiveAgentComposer);
 
-      InjectorContract injectorContract =
-          injectorContractFixture.getWellKnownSingleManualContract();
+              InjectorContract injectorContract =
+                  injectorContractFixture.getWellKnownSingleManualContract();
 
-      Inject inject =
-          injectComposer
-              .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
-              .withEndpoint(endpointWithoutAgentComposer)
-              .withEndpoint(endpointWithAgentsComposer)
-              .persist()
-              .get();
+              Inject inject =
+                  injectComposer
+                      .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
+                      .withEndpoint(endpointWithoutAgentComposer)
+                      .withEndpoint(endpointWithAgentsComposer)
+                      .persist()
+                      .get();
 
-      inject.setExercise(savedExercise);
-      injectRepository.save(inject);
-      entityManager.flush();
-      clearInvocations(auditLogger);
-      doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+              inject.setExercise(savedExercise);
+              injectRepository.save(inject);
+              entityManager.flush();
 
-      // Act
-      job.executeInject(getExecutableInject(inject.getId()));
+              ids[0] = savedExercise.getId();
+              ids[1] = inject.getId();
+              ids[2] = endpointWithoutAgentComposer.get().getId();
+            });
 
-      // Assert
-      AuditEvent targetResolutionEvent = captureTargetResolutionEvent(inject.getId());
+        clearInvocations(auditLogger);
+        doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
 
-      assertThat(targetResolutionEvent.getEventType()).isEqualTo(EventType.EXECUTION);
-      assertThat(targetResolutionEvent.getContextData())
-          .containsEntry("inject_id", inject.getId())
-          .containsEntry("total_endpoints", 2);
+        // Act
+        job.executeInject(getExecutableInject(ids[1]));
 
-      List<Map<String, Object>> endpoints =
-          (List<Map<String, Object>>) targetResolutionEvent.getContextData().get("endpoints");
-      String endpointWithoutAgentId = endpointWithoutAgentComposer.get().getId();
-      String endpointWithAgentsId = endpointWithAgentsComposer.get().getId();
+        // Assert
+        AuditEvent targetResolutionEvent = captureTargetResolutionEvent(ids[1]);
 
-      Map<String, Object> agentlessEndpoint =
-          endpoints.stream()
-              .filter(endpoint -> endpointWithoutAgentId.equals(endpoint.get("endpoint_id")))
-              .findFirst()
-              .orElseThrow();
-      assertThat(agentlessEndpoint).containsEntry("status", "ASSET_AGENTLESS");
+        assertThat(targetResolutionEvent.getEventType()).isEqualTo(EventType.EXECUTION);
+        assertThat(targetResolutionEvent.getContextData())
+            .containsEntry("inject_id", ids[1])
+            .containsEntry("total_endpoints", 2);
 
-      Map<String, Object> endpointWithAgents =
-          endpoints.stream()
-              .filter(endpoint -> endpointWithAgentsId.equals(endpoint.get("endpoint_id")))
-              .findFirst()
-              .orElseThrow();
-      List<Map<String, Object>> agents =
-          (List<Map<String, Object>>) endpointWithAgents.get("agents");
-      Set<String> statuses =
-          agents.stream()
-              .map(agent -> String.valueOf(agent.get("status")))
-              .collect(java.util.stream.Collectors.toSet());
+        List<Map<String, Object>> endpoints =
+            (List<Map<String, Object>>) targetResolutionEvent.getContextData().get("endpoints");
+        Map<String, Object> agentlessEndpoint =
+            endpoints.stream()
+                .filter(endpoint -> ids[2].equals(endpoint.get("endpoint_id")))
+                .findFirst()
+                .orElseThrow();
+        assertThat(agentlessEndpoint).containsEntry("status", "ASSET_AGENTLESS");
 
-      assertThat(statuses).containsExactlyInAnyOrder("AGENT_ACTIVE", "AGENT_INACTIVE");
+        Map<String, Object> endpointWithAgents =
+            endpoints.stream()
+                .filter(endpoint -> !ids[2].equals(endpoint.get("endpoint_id")))
+                .findFirst()
+                .orElseThrow();
+        List<Map<String, Object>> agents =
+            (List<Map<String, Object>>) endpointWithAgents.get("agents");
+        Set<String> statuses =
+            agents.stream()
+                .map(agent -> String.valueOf(agent.get("status")))
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertThat(statuses).containsExactlyInAnyOrder("AGENT_ACTIVE", "AGENT_INACTIVE");
+      } finally {
+        inTransaction(
+            () -> {
+              exerciseRepository.deleteById(ids[0]);
+              endpointRepository.deleteAll(endpointComposer.generatedItems);
+            });
+        exerciseComposer.reset();
+        injectComposer.reset();
+        endpointComposer.reset();
+        agentComposer.reset();
+      }
     }
 
     @Test
     @DisplayName(
         "given inject team and player should log TARGET_RESOLUTION with team_ids and player_ids")
     @SuppressWarnings("unchecked")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void given_injectTeamAndPlayer_should_logTargetResolutionWithTeamAndPlayerIds()
         throws Exception {
-      // Arrange
-      UserComposer.Composer userComposerRef =
-          userComposer.forUser(UserFixture.getUserWithDefaultEmail());
-      TeamComposer.Composer teamComposerRef =
-          teamComposer.forTeam(TeamFixture.getDefaultTeam()).withUser(userComposerRef);
+      String[] ids = new String[3]; // exerciseId, injectId, teamId
+      try {
+        // Arrange
+        inTransaction(
+            () -> {
+              UserComposer.Composer userComposerRef =
+                  userComposer.forUser(UserFixture.getUserWithDefaultEmail());
+              TeamComposer.Composer teamComposerRef =
+                  teamComposer.forTeam(TeamFixture.getDefaultTeam()).withUser(userComposerRef);
 
-      Exercise exercise =
-          exerciseComposer
-              .forExercise(
-                  ExerciseFixture.createRunningAttackExercise(
-                      Instant.now().minus(1, ChronoUnit.MINUTES)))
-              .withTeam(teamComposerRef)
-              .withTeamUsers()
-              .persist()
-              .get();
+              Exercise exercise =
+                  exerciseComposer
+                      .forExercise(
+                          ExerciseFixture.createRunningAttackExercise(
+                              Instant.now().minus(1, ChronoUnit.MINUTES)))
+                      .withTeam(teamComposerRef)
+                      .withTeamUsers()
+                      .persist()
+                      .get();
 
-      InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
-      Inject inject =
-          injectComposer
-              .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
-              .withTeam(teamComposerRef)
-              .persist()
-              .get();
-      inject.setExercise(exercise);
-      injectRepository.save(inject);
+              InjectorContract injectorContract =
+                  injectorContractFixture.getWellKnownSingleEmailContract();
+              Inject inject =
+                  injectComposer
+                      .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
+                      .withTeam(teamComposerRef)
+                      .persist()
+                      .get();
+              inject.setExercise(exercise);
+              injectRepository.save(inject);
+              entityManager.flush();
 
-      entityManager.flush();
-      clearInvocations(auditLogger);
-      doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+              ids[0] = exercise.getId();
+              ids[1] = inject.getId();
+              ids[2] = teamComposerRef.get().getId();
+            });
 
-      // Act
-      job.executeInject(getExecutableInject(inject.getId()));
+        clearInvocations(auditLogger);
+        doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
 
-      // Assert
-      AuditEvent targetResolutionEvent = captureTargetResolutionEvent(inject.getId());
+        // Act
+        job.executeInject(getExecutableInject(ids[1]));
 
-      List<String> teamIds = (List<String>) targetResolutionEvent.getContextData().get("team_ids");
-      assertThat(teamIds).contains(teamComposerRef.get().getId());
+        // Assert
+        AuditEvent targetResolutionEvent = captureTargetResolutionEvent(ids[1]);
+
+        List<String> teamIds =
+            (List<String>) targetResolutionEvent.getContextData().get("team_ids");
+        assertThat(teamIds).contains(ids[2]);
+      } finally {
+        inTransaction(() -> exerciseRepository.deleteById(ids[0]));
+        exerciseComposer.reset();
+        injectComposer.reset();
+        teamComposer.reset();
+        userComposer.reset();
+      }
     }
 
     private AuditEvent captureTargetResolutionEvent(String injectId) {

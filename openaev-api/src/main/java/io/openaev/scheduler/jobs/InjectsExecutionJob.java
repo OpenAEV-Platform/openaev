@@ -670,7 +670,7 @@ public class InjectsExecutionJob implements Job {
             .filter(AgentUtils::isPrimaryAgent)
             .toList();
     if (endpointAgents.isEmpty()) {
-      endpointResolution.put("status", ExecutionTraceStatus.ASSET_AGENTLESS);
+      endpointResolution.put("status", ExecutionTraceStatus.ASSET_AGENTLESS.name());
       return endpointResolution;
     }
 
