@@ -86,7 +86,6 @@ public class InjectExpectationService {
   public static final String PENDING = "Pending";
   public static final String COLLECTOR = "collector";
   public static final String SECURITY_PLATFORM = "security-platform";
-  private static final String EXPECTATION_SOURCE_TYPE_AUTOMATIC = "automatic";
 
   /**
    * Upper bound for the collector-polled "not filled" queries. Collectors poll periodically (oldest
