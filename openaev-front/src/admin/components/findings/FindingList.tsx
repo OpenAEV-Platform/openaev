@@ -1,4 +1,4 @@
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
 import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
@@ -15,6 +15,7 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import InjectIcon from '../common/injects/InjectIcon';
 import ContractOutputElementType from './ContractOutputElementType';
 import FindingTriageControl from './FindingTriageControl';
 
@@ -31,10 +32,10 @@ interface Props {
 
 const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '11%' },
-  finding_source: { width: '9%' },
   finding_value: { width: '20%' },
   finding_assets: { width: '14%' },
   finding_asset_groups: { width: '12%' },
+  finding_source: { width: '9%' },
   finding_created_at: { width: '12%' },
   finding_updated_at: { width: '12%' },
   finding_triage_status: { width: '10%' },
@@ -102,18 +103,6 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       ),
     },
     {
-      field: 'finding_source',
-      label: 'Source',
-      isSortable: false,
-      // Manual findings (created via the API without a real inject/injector behind them) show a
-      // muted "Manual" fallback instead of an empty cell.
-      value: (finding: AggregatedFindingOutput) => (
-        finding.finding_source
-          ? <Chip size="small" variant="outlined" label={finding.finding_source.injector_name} />
-          : <Typography variant="body2" color="text.secondary">{t('Manual')}</Typography>
-      ),
-    },
-    {
       field: 'finding_value',
       label: 'Value',
       isSortable: true,
@@ -173,6 +162,20 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
             target_name: group.asset_group_name,
             target_type: 'ASSETS_GROUPS',
           })) as TargetSimple[]}
+        />
+      ),
+    },
+    {
+      field: 'finding_source',
+      label: 'Source',
+      isSortable: false,
+      // Manual findings (created via the API without a real inject/injector behind them) fall
+      // back to the generic "unknown" glyph, same convention as InjectIcon when a type is missing.
+      value: (finding: AggregatedFindingOutput) => (
+        <InjectIcon
+          type={finding.finding_source?.injector_type}
+          tooltip={<>{finding.finding_source?.injector_name ?? t('Manual')}</>}
+          variant="list"
         />
       ),
     },
