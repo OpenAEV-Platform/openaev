@@ -173,20 +173,14 @@ class InjectExpectationServiceTest {
   }
 
   private AuditEvent invokeExpectationResultAudit(
-      BaseInjectExpectation expectation,
-      InjectExpectationResult sourceResult,
-      AuditEventOrigin origin,
-      String sourceType)
-      throws Exception {
+      BaseInjectExpectation expectation, InjectExpectationResult sourceResult) throws Exception {
     Method method =
         InjectExpectationService.class.getDeclaredMethod(
             "logExpectationResultEvent",
             BaseInjectExpectation.class,
-            InjectExpectationResult.class,
-            AuditEventOrigin.class,
-            String.class);
+            InjectExpectationResult.class);
     method.setAccessible(true);
-    method.invoke(injectExpectationService, expectation, sourceResult, origin, sourceType);
+    method.invoke(injectExpectationService, expectation, sourceResult);
 
     ArgumentCaptor<AuditEvent> auditEventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
     verify(auditLogger).logEvent(auditEventCaptor.capture());
@@ -211,13 +205,12 @@ class InjectExpectationServiceTest {
           InjectExpectationResult.builder()
               .sourceId("collector-1")
               .sourceName("EDR Collector")
+              .sourceType("automatic")
               .date("2026-08-05T10:15:30Z")
               .build();
 
       // Act
-      AuditEvent event =
-          invokeExpectationResultAudit(
-              expectation, sourceResult, AuditEventOrigin.SYSTEM, "automatic");
+      AuditEvent event = invokeExpectationResultAudit(expectation, sourceResult);
 
       // Assert
       assertEquals(AuditEventScope.EXPECTATION_RESULT, event.getEventScope());
@@ -242,16 +235,18 @@ class InjectExpectationServiceTest {
       expectation.setExpectedScore(50.0);
       expectation.setScore(null);
       InjectExpectationResult sourceResult =
-          InjectExpectationResult.builder().sourceId("manual-source").sourceName(null).build();
+          InjectExpectationResult.builder()
+              .sourceId("manual-source")
+              .sourceName(userId)
+              .sourceType("manual")
+              .build();
 
       // Act
-      AuditEvent event =
-          invokeExpectationResultAudit(
-              expectation, sourceResult, AuditEventOrigin.REQUEST, "manual");
+      AuditEvent event = invokeExpectationResultAudit(expectation, sourceResult);
 
       // Assert
       assertEquals(AuditEventScope.EXPECTATION_RESULT, event.getEventScope());
-      assertEquals(AuditEventOrigin.REQUEST, event.getOrigin());
+      assertEquals(AuditEventOrigin.SYSTEM, event.getOrigin());
       assertEquals("manual", event.getContextData().get("source_type"));
       assertEquals(userId, event.getContextData().get("source"));
     }
