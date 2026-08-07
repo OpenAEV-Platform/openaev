@@ -179,6 +179,7 @@ public class LogService {
       }
 
       if (signatureNode != null) {
+        signatureNode = objectNormalizationUtils.normalize(signatureNode);
         signatureNode = ObjectRedactionUtils.redact(signatureNode, resourceType);
         doc.getRequestMetadata().setSignature(signatureNode);
       }
@@ -312,7 +313,11 @@ public class LogService {
     // Extract signature into request metadata
     Object signatureObj = ctx.remove("signature");
     if (signatureObj instanceof JsonNode signatureNode && !signatureNode.isNull()) {
-      JsonNode redactedSignature = ObjectRedactionUtils.redact(signatureNode, resourceType);
+      // Normalize before redacting: this is what enforces the max event size. Without it a large
+      // payload reaching the signature node (e.g. a @RequestPart DTO) is logged uncapped and can
+      // exhaust the heap.
+      JsonNode normalizedSignature = objectNormalizationUtils.normalize(signatureNode);
+      JsonNode redactedSignature = ObjectRedactionUtils.redact(normalizedSignature, resourceType);
       doc.getRequestMetadata().setSignature(redactedSignature);
     }
   }
