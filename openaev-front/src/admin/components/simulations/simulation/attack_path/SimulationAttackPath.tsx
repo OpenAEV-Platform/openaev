@@ -2158,6 +2158,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         statusColor: attackPathStatusColor(theme, e.status),
         statusLabel: t(statusLabelKey(e.status)),
         subtitle: [e.agentName, e.privilege].filter(Boolean).join(' · '),
+        injectId: e.injectId,
+        payloadId: e.payloadId,
+        executionStatus: e.executionStatus,
       }));
   }, [findingDetail, highlightedExecutionIds, executions, fullDto?.attackPathExecutions, theme, t]);
 
@@ -2870,8 +2873,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                 <FindingDetailPanel
                   value={maskFindingValue(findingDetail.type, findingDetail.value)}
                   type={findingDetail.type}
+                  simulationId={simulationId}
                   endpointLabel={findingEndpoint?.hostname || findingEndpoint?.label || findingEndpoint?.ref || pathFinding?.endpointKey || t('Endpoint')}
                   endpointSub={[findingEndpoint?.ip, findingEndpoint?.platform].filter(Boolean).join(' · ')}
+                  endpointName={findingEndpoint?.hostname}
                   expectations={findingExpectations}
                   isFinding={findingDetailIsFinding}
                   actions={producingActions}

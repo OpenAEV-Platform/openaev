@@ -53,23 +53,44 @@ export const InjectorExecutionStatusBadge = ({ injectId }: { injectId: string })
   return <InjectStatus status={statusName as InjectStatusType['status_name']} />;
 };
 
-// One execution row (endpoint/injector panel list) rarely has its injectId/payloadId already loaded —
-// those live on the execution DETAIL DTO, not the lightweight graph row — so this resolves them first
-// (a small extra fetch per visible row) before delegating to the same two badges the Result tab uses,
-// so every place an execution shows up agrees on the same "did it actually run" status.
-export const ExecutionRowStatusBadge = ({ simulationId, executionRef, endpointName }: {
+// An inject-level status the backend cannot still change under us: anything else (a run in flight, or
+// a status the graph snapshot froze before it settled) is refined by this component's own fetch.
+const TERMINAL_INJECT_STATUSES = new Set(['EXECUTED', 'PARTIAL', 'ERROR']);
+
+// One execution row (endpoint/injector panel list). The graph row now ships this execution's inject,
+// payload and inject-level status (see AttackPathGraphService#applyExecutionStatuses), so a network
+// injector's status renders on FIRST PAINT — it used to cost two sequential fetches per visible row
+// (detail for the injectId, then the inject's status) and showed nothing for a second or two.
+//
+// Two cases still fetch:
+//   - a payload-backed execution, because "did it run" is per AGENT there, read from that target's
+//     traces; the inject-level status cannot answer it for one agent among several;
+//   - a row with no status, or a non-terminal one (a live run): the graph's value would go stale until
+//     the next delta touching that row, so it is refined here rather than trusted.
+export const ExecutionRowStatusBadge = ({ simulationId, executionRef, endpointName, injectId, payloadId, executionStatus }: {
   simulationId: string;
   executionRef?: string;
   endpointName?: string;
+  injectId?: string;
+  payloadId?: string;
+  executionStatus?: string;
 }) => {
+  const settledFromGraph = !!injectId
+    && !payloadId
+    && !!executionStatus
+    && TERMINAL_INJECT_STATUSES.has(executionStatus.toUpperCase());
   const [detail, setDetail] = useState<{
     injectId?: string;
     payloadId?: string;
-  } | null>(null);
+  } | null>(injectId
+    ? {
+        injectId,
+        payloadId,
+      }
+    : null);
   useEffect(() => {
     let active = true;
-    if (!executionRef) {
-      setDetail(null);
+    if (!executionRef || settledFromGraph) {
       return () => {
         active = false;
       };
@@ -80,7 +101,10 @@ export const ExecutionRowStatusBadge = ({ simulationId, executionRef, endpointNa
     return () => {
       active = false;
     };
-  }, [simulationId, executionRef]);
+  }, [simulationId, executionRef, settledFromGraph]);
+  if (settledFromGraph) {
+    return <InjectStatus status={executionStatus as InjectStatusType['status_name']} />;
+  }
   if (!detail?.injectId) {
     return null;
   }

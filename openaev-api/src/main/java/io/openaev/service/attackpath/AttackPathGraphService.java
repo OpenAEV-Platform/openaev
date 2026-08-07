@@ -335,6 +335,15 @@ public class AttackPathGraphService {
         e.getPreventionStatus(),
         e.getDetectionStatus(),
         e.getVulnerabilityStatus(),
+        // Same resolution as the graph feed's (see applyExecutionStatuses), for the single row
+        // here.
+        injectId == null
+            ? null
+            : injectStatusRepository
+                .findByInjectId(injectId)
+                .map(InjectStatus::getName)
+                .map(Enum::name)
+                .orElse(null),
         e.getExecutedAt() == null ? null : e.getExecutedAt().toString(),
         findings,
         securityPlatformResolver.resolve(e.getId(), e.getTenant().getId()),
@@ -635,6 +644,7 @@ public class AttackPathGraphService {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
     applyContractNames(page, feedByExecutionId);
+    applyExecutionStatuses(page, feedByExecutionId);
     return new AttackPathEndpointRelationsDTO(
         new ArrayList<>(feedByExecutionId.values()),
         new ArrayList<>(edges.values()),
@@ -686,6 +696,7 @@ public class AttackPathGraphService {
     applyKillChain(executions, feedByExecutionId);
     applyEventDependencies(executions, findings, feedByExecutionId);
     Map<String, String> contractNames = applyContractNames(executions, feedByExecutionId);
+    applyExecutionStatuses(executions, feedByExecutionId);
     applyInjectorNodeLabels(nodes, contractsByInjectorNode, contractNames);
 
     // Endpoint (ASSET) nodes, with attributes and colour from the executions targeting them.
@@ -1356,6 +1367,59 @@ public class AttackPathGraphService {
       }
     }
     return nameByExternalId;
+  }
+
+  /**
+   * Fills each feed node's inject reference and execution status ("did it actually run"), resolved
+   * the same way the Result drawer's detail read resolves its {@code injectId}: from the durable
+   * step the frozen row is keyed by, since the row itself only stores a step id.
+   *
+   * <p>Two queries for the whole set, not two per row: the client used to fetch the detail row of
+   * every visible execution just to learn its injectId, then that inject's status, so a list of ten
+   * executions cost twenty sequential round-trips and rendered no status for a second or two.
+   *
+   * <p>A row with no resolvable inject, or an inject with no status row yet (a run in flight),
+   * simply keeps a null status — the front renders nothing rather than guessing.
+   */
+  private void applyExecutionStatuses(
+      List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
+    Set<String> stepIds =
+        executions.stream()
+            .map(AttackPathExecutionRow::stepId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    if (stepIds.isEmpty()) {
+      return;
+    }
+    Map<String, String> injectIdByStepId = new HashMap<>();
+    for (Object[] row : stepRepository.findInjectIdsByStepIds(stepIds)) {
+      if (row[0] instanceof String stepId && row[1] instanceof String injectId) {
+        injectIdByStepId.put(stepId, injectId);
+      }
+    }
+    Map<String, String> statusByInjectId = new HashMap<>();
+    if (!injectIdByStepId.isEmpty()) {
+      for (Object[] row :
+          injectStatusRepository.findStatusNamesByInjectIds(
+              new HashSet<>(injectIdByStepId.values()))) {
+        if (row[0] instanceof String injectId && row[1] != null) {
+          statusByInjectId.put(injectId, row[1].toString());
+        }
+      }
+    }
+    for (AttackPathExecutionRow e : executions) {
+      AttackPathNodeDTO node = feedByExecutionId.get(e.id());
+      if (node == null) {
+        continue;
+      }
+      node.setPayloadId(e.payloadId());
+      String injectId = e.stepId() == null ? null : injectIdByStepId.get(e.stepId());
+      if (injectId == null) {
+        continue;
+      }
+      node.setInjectId(injectId);
+      node.setExecutionStatus(statusByInjectId.get(injectId));
+    }
   }
 
   /**

@@ -1041,6 +1041,7 @@ export interface AttackPathExecutionDetailDTO {
   detectionStatus?: string;
   endpointKey?: string;
   executedAt?: string;
+  executionStatus?: string;
   findings?: AttackPathExecutionFindingItemDTO[];
   injectId?: string;
   injectorCommandLine?: string;
@@ -1101,6 +1102,7 @@ export interface AttackPathNodeDTO {
   dependsOn?: string[];
   entityKind?: string;
   executedAt?: string;
+  executionStatus?: string;
   executionsTraces?: any[];
   expectations?: any[];
   findingCounts?: Record<string, number>;
@@ -1108,10 +1110,12 @@ export interface AttackPathNodeDTO {
   findingsTypeNodeId?: string;
   hostname?: string;
   id?: string;
+  injectId?: string;
   injectorType?: string;
   ip?: string;
   isFinding?: boolean;
   label?: string;
+  payloadId?: string;
   payloadName?: string;
   platform?: string;
   privilege?: string;

@@ -227,4 +227,49 @@ class StepRepositoryTest extends IntegrationTest {
     Assertions.assertEquals(1, stepIdsForInject2.size(), "Should return exactly 1 step ID");
     Assertions.assertTrue(stepIdsForInject2.contains(step2.getId()), "Should contain step2");
   }
+
+  @Test
+  void whenFindInjectIdsByStepIds_thenReturnsOnePairPerResolvedStep() {
+    // GIVEN: two steps carrying an inject_id, one carrying none
+    Step withInject1 =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"inject_id\": \"inject-batch-1\"}")
+            .build();
+    Step withInject2 =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"inject_id\": \"inject-batch-2\"}")
+            .build();
+    Step withoutInject =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"something_else\": \"no inject here\"}")
+            .build();
+
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+        .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withStep(stepComposer.forStep(withInject1))
+        .withStep(stepComposer.forStep(withInject2))
+        .withStep(stepComposer.forStep(withoutInject))
+        .persist();
+
+    // WHEN: resolving all three in one query
+    List<Object[]> pairs =
+        stepRepository.findInjectIdsByStepIds(
+            List.of(withInject1.getId(), withInject2.getId(), withoutInject.getId()));
+
+    // THEN: the step with no inject_id is filtered out, not returned as a null pair
+    Assertions.assertEquals(2, pairs.size(), "Only the steps carrying an inject_id come back");
+    Set<String> resolved =
+        pairs.stream()
+            .map(row -> row[0] + "=" + row[1])
+            .collect(java.util.stream.Collectors.toSet());
+    Assertions.assertTrue(resolved.contains(withInject1.getId() + "=inject-batch-1"));
+    Assertions.assertTrue(resolved.contains(withInject2.getId() + "=inject-batch-2"));
+  }
 }

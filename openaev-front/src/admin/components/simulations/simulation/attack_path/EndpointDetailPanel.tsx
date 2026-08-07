@@ -313,6 +313,9 @@ const EndpointDetailPanel = ({
                       simulationId={simulationId}
                       executionRef={e.ref}
                       endpointName={e.hostname}
+                      injectId={e.injectId}
+                      payloadId={e.payloadId}
+                      executionStatus={e.executionStatus}
                     />
                   </Box>
                   <Box sx={{

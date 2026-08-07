@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -165,6 +166,26 @@ public interface StepRepository extends JpaRepository<Step, String> {
       """,
       nativeQuery = true)
   Optional<String> findInjectIdByStepId(@Param("stepId") String stepId);
+
+  /**
+   * The same resolution as {@link #findInjectIdByStepId(String)} for many steps at once, as {@code
+   * (stepId, injectId)} pairs. The attack-path graph read resolves the inject of every execution it
+   * returns, so doing it row by row would be one query per visible execution. Steps whose data
+   * carries no {@code inject_id} are filtered out rather than returned as null pairs.
+   *
+   * @param stepIds the steps whose data may carry an inject_id
+   * @return one row per resolved step: {@code [stepId, injectId]}
+   */
+  @Query(
+      value =
+          """
+      SELECT step_id, jsonb_path_query_first(step_data, '$.**.inject_id') #>> '{}' AS inject_id
+      FROM steps
+      WHERE step_id IN (:stepIds)
+        AND jsonb_path_query_first(step_data, '$.**.inject_id') #>> '{}' IS NOT NULL
+      """,
+      nativeQuery = true)
+  List<Object[]> findInjectIdsByStepIds(@Param("stepIds") Collection<String> stepIds);
 
   /**
    * Returns the step IDs associated with any of the given inject IDs in a single query.
