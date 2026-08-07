@@ -323,8 +323,9 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
   public void deleteScenario(@PathVariable @NotBlank final String scenarioId) {
-    // An autonomous scenario and its single simulation are one unit: tear the run + simulation down
-    // first (409 if the run is still active), then delete the scenario. No-op for manual scenarios.
+    // Tear down the autonomous run's coordination first (409 if it is still active), then delete
+    // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
+    // any chained simulation. No-op for manual scenarios.
     this.autonomousRunService.deleteForScenario(scenarioId);
     this.scenarioService.deleteScenario(scenarioId);
   }
