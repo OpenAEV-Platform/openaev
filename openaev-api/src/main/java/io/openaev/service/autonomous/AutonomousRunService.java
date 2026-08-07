@@ -1298,10 +1298,11 @@ public class AutonomousRunService {
   }
 
   /**
-   * Tears down the autonomous run owning {@code scenarioId} together with its single underlying
-   * simulation (attack-path rows included) and its timeline/directives. An autonomous scenario and
-   * its simulation are one unit, so deleting the scenario must delete the simulation too -
-   * otherwise an orphan run keeps driving a simulation whose scenario is gone.
+   * Tears down the autonomous run owning {@code scenarioId} - its coordination row, timeline and
+   * directives - and halts the orchestration, so deleting the scenario never leaves an orphan run
+   * driving a simulation whose scenario is gone. It does NOT delete a finished LIVE simulation: that
+   * is history, detached by the scenario delete like any other simulation (see {@link
+   * #tearDownRun}). Only a non-executing plan-mode substrate simulation is removed with the run.
    *
    * <p>Deliberately a best-effort no-op for manual scenarios (and when the preview feature is off),
    * so the generic scenario-delete endpoint can call it unconditionally. A still-active run
@@ -1355,20 +1356,29 @@ public class AutonomousRunService {
   }
 
   /**
-   * Tears an autonomous run down together with its underlying simulation, decision timeline, and
-   * steering directives, and halts the XTM One orchestration. Shared by both scenario-delete paths
-   * (single and bulk) so an autonomous run is cleaned up the same way however its scenario is
-   * deleted - never leaving an orphaned run row or a self-resuming durable execution behind.
+   * Tears an autonomous run's COORDINATION down - the run row, its decision timeline and steering
+   * directives - and halts the XTM One orchestration. Shared by both scenario-delete paths (single
+   * and bulk) so a run is cleaned up the same way however its scenario is deleted, never leaving an
+   * orphaned run row or a self-resuming durable execution behind.
+   *
+   * <p>It does NOT delete a real simulation: a finished LIVE simulation is history and is left for
+   * the scenario delete to detach (scenarios_exercises SET_REFERENCE_NULL) like any other
+   * simulation - consistent with "a scenario can carry many simulations", and matching {@link
+   * #supersedePriorRun}. Only a non-executing plan-mode substrate simulation (a throwaway with no
+   * results) is deleted with the run.
    */
   private void tearDownRun(AutonomousRun run) {
     // Halt the XTM One orchestration first: once the run row is gone OpenAEV can no longer be
-    // driven, but a still-live durable execution would keep self-resuming and dispatching injects
-    // against the deleted simulation. Fired after commit (the run id is captured now) so the
-    // upstream cancel resolves the same execution by its stable dedup key. Purge so no orphaned
-    // shared state / work items linger after the scenario and its simulation are gone.
+    // driven, but a still-live durable execution would keep self-resuming and dispatching injects.
+    // Fired after commit (the run id is captured now) so the upstream cancel resolves the same
+    // execution by its stable dedup key. Purge so no orphaned shared state / work items linger.
     String runId = run.getId();
     cancelOrchestratorAfterCommit(runId, "autonomous scenario deleted", true);
-    if (hasText(run.getSimulationId())) {
+    // A plan-mode substrate simulation never executed and holds no results - delete it. A finished
+    // LIVE simulation is real history: keep it (the scenario delete detaches it) so deleting the
+    // scenario never destroys a simulation, which is the legacy 1:1 scenario<->simulation coupling
+    // we no longer want.
+    if (run.isPlanMode() && hasText(run.getSimulationId())) {
       exerciseService.deleteById(run.getSimulationId());
     }
     directiveRepository.deleteByRunId(runId);
@@ -2879,10 +2889,11 @@ public class AutonomousRunService {
   }
 
   /**
-   * Returns the run driving a given scenario, if any. An autonomous run owns exactly one scenario
-   * (and its single simulation), so this is the scenario-side twin of {@link #getBySimulation}: it
-   * lets the scenario detail page render the same AI-driven cockpit and steer the underlying
-   * simulation. 404 when the scenario is not autonomous.
+   * Returns the CURRENT autonomous run of a given scenario, if any. A scenario keeps at most one
+   * live run at a time (a rebuild or relaunch supersedes the prior run row, though its finished
+   * simulation stays as history - see {@link #supersedePriorRun}), so this is the scenario-side twin
+   * of {@link #getBySimulation}: it lets the scenario detail page render the AI-driven cockpit and
+   * steer the current run's simulation. 404 when the scenario has no autonomous run.
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun getByScenario(String scenarioId) {

@@ -710,6 +710,71 @@ class AutonomousRunServiceTest {
 
   @Test
   @DisplayName(
+      "deleteForScenario tears down a finished LIVE run's coordination but KEEPS its simulation as"
+          + " history (no legacy scenario<->simulation cascade delete)")
+  void deleteForScenarioKeepsFinishedLiveSimulation() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    // Deleting a scenario must never destroy a real simulation: a completed LIVE run's simulation
+    // is history and is left for the scenario delete to detach (scenarios_exercises
+    // SET_REFERENCE_NULL), exactly like a manual chained simulation.
+    AutonomousRun run = new AutonomousRun();
+    run.setId("run-1");
+    run.setScenarioId("scenario-1");
+    run.setPlanMode(false);
+    run.setStatus(AutonomousRunStatus.COMPLETED);
+    run.setSimulationId("live-sim");
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(run));
+
+    service.deleteForScenario("scenario-1");
+
+    verify(exerciseService, never()).deleteById(anyString());
+    verify(directiveRepository).deleteByRunId("run-1");
+    verify(eventService).deleteByRun("run-1");
+    verify(runRepository).delete(run);
+    verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
+  }
+
+  @Test
+  @DisplayName(
+      "deleteForScenario deletes only a plan-mode substrate simulation (a throwaway with no"
+          + " results) with the run")
+  void deleteForScenarioDeletesPlanSubstrate() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    AutonomousRun run = new AutonomousRun();
+    run.setId("run-1");
+    run.setScenarioId("scenario-1");
+    run.setPlanMode(true);
+    run.setStatus(AutonomousRunStatus.PLANNED);
+    run.setSimulationId("plan-sim");
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(run));
+
+    service.deleteForScenario("scenario-1");
+
+    verify(exerciseService).deleteById("plan-sim");
+    verify(runRepository).delete(run);
+  }
+
+  @Test
+  @DisplayName("deleteForScenario refuses (409) while the run is still active and touches nothing")
+  void deleteForScenarioRefusesActiveRun() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    AutonomousRun run = new AutonomousRun();
+    run.setId("run-1");
+    run.setScenarioId("scenario-1");
+    run.setPlanMode(false);
+    run.setStatus(AutonomousRunStatus.RUNNING);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(run));
+
+    assertThatThrownBy(() -> service.deleteForScenario("scenario-1"))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+    verify(runRepository, never()).delete(any());
+    verify(exerciseService, never()).deleteById(anyString());
+  }
+
+  @Test
+  @DisplayName(
       "supersedeSettledRunOnManualLaunch never tears down a still-active run (defensive no-op, no"
           + " 409)")
   void supersedeSettledRunOnManualLaunchLeavesActiveRunUntouched() {

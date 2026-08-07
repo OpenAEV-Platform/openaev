@@ -169,8 +169,10 @@ const useAutonomousRunForSimulation = (simulationId: string | undefined): Autono
   useAutonomousRunDetection(simulationId, fetchAutonomousRunBySimulation);
 
 /**
- * Scenario-side twin: detects the autonomous run owning a scenario so the scenario detail page can
- * render the same AI cockpit and steer its single underlying simulation.
+ * Scenario-side twin: detects the CURRENT autonomous run of a scenario so the scenario detail page
+ * can render the same AI cockpit and steer that run's simulation. A scenario carries at most one
+ * live run at a time (older runs are superseded, their finished simulations kept as history), so
+ * this resolves to the current/last run - never assuming a scenario owns exactly one simulation.
  *
  * <p>Pass the scenario's own {@code scenario_autonomous} flag once the scenario is loaded: when it
  * is {@code false} the scenario is authoritatively manual and the lookup is skipped entirely, so a
