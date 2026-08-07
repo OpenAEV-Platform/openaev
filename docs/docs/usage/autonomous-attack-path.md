@@ -32,7 +32,7 @@ seeds itself with your authored steps and then adapts, extends, and drives them 
 | Requirement | Why |
 |---|---|
 | **Enterprise Edition** | Autonomous attack path is an AI feature and, like every other AI capability in OpenAEV, is Enterprise Edition only. |
-| **`AUTONOMOUS_ATTACK_PATH` feature enabled** | The feature is gated behind a preview flag. It transitively relies on `ATTACK_PATH` and `INJECT_CHAINING`; once those ship enabled, `AUTONOMOUS_ATTACK_PATH` is the single operator-visible gate. |
+| **`INJECT_CHAINING` feature enabled** | Autonomy is a launch-time mode of a chained scenario, not a feature of its own, so it shares the chaining preview flag. Any tenant with chaining enabled can launch a chained scenario in autonomous mode - there is no dedicated autonomous flag. |
 | **A registered XTM One platform** | The autonomous orchestrator (the AI "brain") runs in XTM One. OpenAEV is the execution and visualization substrate; it must be connected to an XTM One instance. |
 | **Installed injectors / collectors** | The AI can only execute techniques your installed arsenal supports. Gaps are surfaced as advice, not silent failures. |
 

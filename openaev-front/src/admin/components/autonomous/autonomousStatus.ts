@@ -18,6 +18,18 @@ export const isAutonomousRunActive = (run: AutonomousRun | null | undefined): bo
     || status === 'WAITING_INPUT';
 };
 
+/** Whether a run row exists at all (any status). Distinct from "active" - a settled run still exists. */
+export const hasAutonomousRun = (run: AutonomousRun | null | undefined): boolean => !!run;
+
+/**
+ * A run is "settled" once it exists but is no longer active: PLANNED (a finished plan) or a terminal
+ * COMPLETED / FAILED / CANCELED. This is the state where the scenario keeps a durable, read-only AI
+ * outcome (timeline, gaps, proofs) while scope/logic unlock for editing and the hero offers
+ * Rebuild / Relaunch.
+ */
+export const isAutonomousRunSettled = (run: AutonomousRun | null | undefined): boolean =>
+  hasAutonomousRun(run) && !isAutonomousRunActive(run);
+
 /**
  * Maps an autonomous run status to an MUI palette color. Kept in its own module (not on a component
  * file) so it can be shared without tripping react-refresh. The run-status chip is rendered from

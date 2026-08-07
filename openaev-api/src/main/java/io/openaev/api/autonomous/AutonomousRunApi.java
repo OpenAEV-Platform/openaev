@@ -51,10 +51,10 @@ import org.springframework.web.bind.annotation.RestController;
  * Autonomous (AI-driven) attack-path run endpoints. Two independent gates apply to every method:
  *
  * <ul>
- *   <li>the {@code AUTONOMOUS_ATTACK_PATH} preview feature (which itself requires {@code
- *       ATTACK_PATH} + {@code INJECT_CHAINING}), resolved inside {@link AutonomousRunService},
- *       returning 404 when the feature is off - the same convention the attack-path and chaining
- *       APIs use; and
+ *   <li>the {@code INJECT_CHAINING} preview feature - autonomy is a launch mode of a chained
+ *       scenario, so it shares the chaining gate (there is no dedicated autonomous flag), resolved
+ *       inside {@link AutonomousRunService}, returning 404 when the feature is off - the same
+ *       convention the attack-path and chaining APIs use; and
  *   <li>the Enterprise Edition license, enforced declaratively by {@code @AccessControl(...,
  *       isEnterpriseEdition = true)}. This is an AI feature, so it is EE-only exactly like every
  *       other AI capability (remediation generation, XTM One chat); the aspect enforces the EE gate
@@ -224,6 +224,35 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRun getByScenario(@PathVariable String scenarioId) {
     return autonomousRunService.getByScenario(scenarioId);
+  }
+
+  @Operation(
+      summary = "Read the saved autonomous-run configuration of a chained scenario",
+      description =
+          "Returns the AI-builder configuration (objective, agents + discovery modes, scope, time"
+              + " budget) an operator saved on this scenario for later, or an empty body when none"
+              + " has been saved. Lets the AI builder drawer pre-fill from the last configuration."
+              + " This does NOT start a run - the scenario stays a normal chained scenario.")
+  @GetMapping("/scenario-config/{scenarioId}")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRunCreateInput getScenarioConfig(@PathVariable String scenarioId) {
+    return autonomousRunService.getScenarioAutonomousConfig(scenarioId);
+  }
+
+  @Operation(
+      summary = "Save an autonomous-run configuration on a chained scenario (no run started)",
+      description =
+          "Persists the AI-builder configuration on the scenario so it can be built (planned) or"
+              + " launched later. Nothing is executed and no run is created; the scenario stays a"
+              + " normal, editable chained scenario. An empty body clears the saved configuration.")
+  @PutMapping("/scenario-config/{scenarioId}")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRunCreateInput saveScenarioConfig(
+      @PathVariable String scenarioId,
+      @RequestBody(required = false) AutonomousRunCreateInput input) {
+    return autonomousRunService.saveScenarioAutonomousConfig(scenarioId, input);
   }
 
   @Operation(summary = "Engage the orchestrator for a created run")

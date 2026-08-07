@@ -1,4 +1,5 @@
 import {
+  AutoAwesome,
   CancelOutlined,
   ComputerOutlined,
   EmojiEventsOutlined,
@@ -400,6 +401,25 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
           title={truncate(exercise.exercise_name, 80) ?? ''}
           chips={(
             <>
+              {/* Durable Normal/Autonomous marker: read from the simulation's own exercise_autonomous
+                  flag, so the badge stays even after the autonomous run row is torn down (observe-only
+                  either way - control lives on the parent scenario). */}
+              {exercise.exercise_autonomous && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  icon={<AutoAwesome sx={{ fontSize: 14 }} />}
+                  label={t('Autonomous')}
+                  sx={{
+                    'borderRadius': 1,
+                    'height': 22,
+                    'fontSize': 11,
+                    'color': theme.palette.ai?.main ?? theme.palette.primary.main,
+                    'borderColor': theme.palette.ai?.main ?? theme.palette.primary.main,
+                    '& .MuiChip-icon': { color: 'inherit' },
+                  }}
+                />
+              )}
               <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
               <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
               {exercise.exercise_category && (

@@ -570,6 +570,9 @@ class AutonomousRunServiceTest {
     assertThat(run.getScenarioId()).isEqualTo("scenario-1");
     assertThat(run.getSimulationId()).isNull();
     assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
+    // Build always starts from a blank logic map: the full wipe (steps AND event/trigger
+    // conditions) runs before the orchestrator is engaged.
+    verify(workflowService).deleteAllScenarioSteps("scenario-1");
     // The scenario workflow is kept alive so the authoring window survives.
     verify(workflowService).markScenarioWorkflowKeepAlive("scenario-1");
     // Scope is written onto the scenario workflow only (null simulation id), never a simulation.
@@ -593,6 +596,76 @@ class AutonomousRunServiceTest {
             any(),
             anyList(),
             anyMap());
+  }
+
+  @Test
+  @DisplayName("planScenario refuses to rebuild while the scenario's previous run is still active")
+  void planScenarioRefusesWhileActiveRun() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    // A prior plan run is still being designed (active): rebuilding would orphan it, so the entry
+    // point must 409 before wiping anything or engaging the orchestrator.
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(true);
+    prior.setStatus(AutonomousRunStatus.PLANNING);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    assertThatThrownBy(() -> service.planScenario("scenario-1", null))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+    verify(workflowService, never()).deleteAllScenarioSteps(anyString());
+    verify(runRepository, never()).save(any());
+    verifyNoInteractions(xtmOneClient);
+  }
+
+  @Test
+  @DisplayName("planScenario supersedes a settled prior run before rebuilding the plan")
+  void planScenarioSupersedesSettledPriorRun() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+
+    // A settled dry-run (PLANNED, no simulation) already exists: it must be torn down so the fresh
+    // plan run can bind, but its (absent) simulation is never touched.
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(true);
+    prior.setStatus(AutonomousRunStatus.PLANNED);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun r = invocation.getArgument(0);
+              if (r.getId() == null) {
+                r.setId("plan-run-2");
+              }
+              savedHolder[0] = r;
+              return r;
+            });
+    when(runRepository.findById("plan-run-2"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setObjective("Prove a path to the domain controller");
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+
+    AutonomousRun run = service.planScenario("scenario-1", input);
+
+    // The prior settled run row is removed and its coordination state purged (no simulation delete
+    // for a plan-mode dry-run), then the fresh plan run is created and the logic map wiped.
+    verify(runRepository).delete(prior);
+    verify(xtmOneClient).cancelAutonomousRun(eq("prior-run"), anyString(), eq(true));
+    verify(exerciseService, never()).deleteById(anyString());
+    verify(workflowService).deleteAllScenarioSteps("scenario-1");
+    assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
   }
 
   // endregion

@@ -961,6 +961,7 @@ public class ExerciseService {
     selections.add(exerciseRoot.get("start").alias("exercise_start_date"));
     selections.add(exerciseRoot.get("end").alias("exercise_end_date"));
     selections.add(exerciseRoot.get("updatedAt").alias("exercise_updated_at"));
+    selections.add(exerciseRoot.get("autonomous").alias("exercise_autonomous"));
     selections.add(tagIdsExpression.alias("exercise_tags"));
     selections.add(injectIdsExpression.alias("exercise_injects"));
 
@@ -995,6 +996,8 @@ public class ExerciseService {
                   new HashSet<>(Arrays.asList(tuple.get("exercise_tags", String[].class))));
               exerciseSimple.setInjectIds(tuple.get("exercise_injects", String[].class));
               exerciseSimple.setWorkflowId(tuple.get("exercise_workflow_id", String.class));
+              exerciseSimple.setAutonomous(
+                  Boolean.TRUE.equals(tuple.get("exercise_autonomous", Boolean.class)));
               return exerciseSimple;
             })
         .toList();

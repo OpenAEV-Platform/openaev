@@ -808,7 +808,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               fontWeight: 600,
             }}
           >
-            {t('Autonomous orchestrator')}
+            {run.autonomous_run_plan_mode === true
+              ? t('Scenario planner')
+              : t('Autonomous orchestrator')}
           </Typography>
           {isActive && (thinkingPhase.active
             ? <CircularProgress size={14} sx={{ color: accent }} />

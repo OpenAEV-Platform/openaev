@@ -1,4 +1,4 @@
-import { PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
+import { AutoAwesome, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
 import { Avatar, Box, Button, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
@@ -6,6 +6,7 @@ import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect,
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AgentHelper } from '../../../../actions/agents/agent-helper';
+import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
@@ -47,6 +48,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
+import AutonomousOutcome from '../../autonomous/AutonomousOutcome';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
@@ -54,7 +56,14 @@ import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../worksp
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
 
-const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>> }) => {
+const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null }: {
+  setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
+  // The settled autonomous run owning this scenario, if any. When present, the overview keeps a
+  // durable, read-only AI outcome (mission, decision timeline, gaps, proofs) even though the live
+  // cockpit and steer panel are gone. Null for a never-run or purely-manual chained scenario, or
+  // while a run is still active (the live cockpit owns the overview then).
+  autonomousRun?: AutonomousRun | null;
+}) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { scenarioId } = useParams() as { scenarioId: ScenarioType['scenario_id'] };
@@ -263,6 +272,53 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       paddingBottom: theme.spacing(5),
     }}
     >
+      {/* Durable AI outcome: once an autonomous run has settled the live cockpit is gone, but the
+          scenario keeps a read-only read of what the orchestrator produced (mission, decision
+          timeline, capability gaps and - for a live run - proof of exploitation), so the timeline
+          and gaps are never lost when the scenario is "done". A live run owns the overview via the
+          cockpit instead, so this only ever renders for a settled run. */}
+      {autonomousRun && (
+        <Box sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+        }}
+        >
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+            flexWrap: 'wrap',
+          }}
+          >
+            <Typography
+              variant="h6"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                margin: 0,
+              }}
+            >
+              <AutoAwesome fontSize="small" sx={{ color: theme.palette.ai?.main ?? theme.palette.primary.main }} />
+              {autonomousRun.autonomous_run_plan_mode ? t('AI plan outcome') : t('Autonomous run outcome')}
+            </Typography>
+            {!autonomousRun.autonomous_run_plan_mode && autonomousRun.autonomous_run_simulation_id && (
+              <Button
+                size="small"
+                variant="outlined"
+                component={Link}
+                to={`/admin/simulations/${autonomousRun.autonomous_run_simulation_id}`}
+              >
+                {t('Open run simulation')}
+              </Button>
+            )}
+          </Box>
+          <AutonomousOutcome run={autonomousRun} live={false} />
+        </Box>
+      )}
+
       {isSample && (
         <Paper
           variant="outlined"
@@ -294,14 +350,56 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               {t('The insights below are a sample preview. Launch a simulation to populate them with your real posture.')}
             </Typography>
           </Box>
-          {canLaunch && (
-            <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : ''}>
+          {/* A chained scenario can be launched two ways - a plain operator-driven simulation
+              (Normal) or an orchestrator-driven live run (Autonomous). The Autonomous button routes
+              to the header, whose launch config drawer is the single control surface (objective /
+              agents / scope). A time-based scenario only ever launches a normal simulation. */}
+          {canLaunch && isScenarioChaining && (
+            <Box sx={{
+              display: 'flex',
+              gap: 1,
+              flexWrap: 'wrap',
+            }}
+            >
+              <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch a normal, operator-driven simulation from this scenario')}>
+                <span style={{ display: 'inline-flex' }}>
+                  <Button
+                    startIcon={<PlayArrowOutlined />}
+                    variant="contained"
+                    color="primary"
+                    disabled={isScopeMissing}
+                    onClick={() => setOpenInstantiateSimulationAndStart(true)}
+                  >
+                    {t('Normal')}
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip title={t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}>
+                <span style={{ display: 'inline-flex' }}>
+                  <Button
+                    startIcon={<AutoAwesome />}
+                    variant="contained"
+                    onClick={() => navigate(`/admin/scenarios/${scenarioId}?openAiLaunch=true`)}
+                    sx={{
+                      'whiteSpace': 'nowrap',
+                      'backgroundColor': theme.palette.ai.main,
+                      'color': theme.palette.ai.contrastText,
+                      '&:hover': { backgroundColor: theme.palette.ai.dark },
+                    }}
+                  >
+                    {t('Autonomous')}
+                  </Button>
+                </span>
+              </Tooltip>
+            </Box>
+          )}
+          {canLaunch && !isScenarioChaining && (
+            <Tooltip title="">
               <span style={{ display: 'inline-flex' }}>
                 <Button
                   startIcon={<PlayArrowOutlined />}
                   variant="contained"
                   color="primary"
-                  disabled={isScopeMissing}
                   onClick={() => setOpenInstantiateSimulationAndStart(true)}
                 >
                   {t('Launch simulation now')}

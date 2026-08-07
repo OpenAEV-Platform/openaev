@@ -16,12 +16,13 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from '@mui/material';
+import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type Dispatch, type SetStateAction, type MouseEvent, useEffect, useMemo, useState } from 'react';
+import { type Dispatch, type ReactNode, type SetStateAction, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
-import { launchAutonomousFromScenario, planAutonomousScenario } from '../../../../actions/autonomous/autonomous-actions';
+import { fetchScenarioAutonomousConfig, launchAutonomousFromScenario, planAutonomousScenario, saveScenarioAutonomousConfig } from '../../../../actions/autonomous/autonomous-actions';
+import { type AutonomousRun, type AutonomousRunCreateInput } from '../../../../actions/autonomous/autonomous-types';
 import { fetchSteps } from '../../../../actions/chaining/chaining-actions';
 import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { fetchScenarioChallenges } from '../../../../actions/challenge-action';
@@ -32,6 +33,7 @@ import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import {
   createRunningExerciseFromScenario,
   dismissScenarioExpectationsDrift,
+  fetchScenario,
   fetchScenarioExpectationsDrift,
   fetchScenarioTeams,
   realignScenarioExpectations,
@@ -67,6 +69,10 @@ import handle from '../../../../utils/period/Period';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import AutonomousRunConfigDrawer from '../../autonomous/AutonomousRunConfigDrawer';
+import AutonomousRunControls from '../../autonomous/AutonomousRunControls';
+import AutonomousRunStatusChip from '../../autonomous/AutonomousRunStatusChip';
+import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/autonomousStatus';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -80,11 +86,19 @@ import ScenarioPopover from './ScenarioPopover';
 interface ScenarioHeaderProps {
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
   openInstantiateSimulationAndStart: boolean;
+  /** The autonomous run owning this scenario (plan-mode design session or a live autonomous launch),
+   *  or null. Drives the hero's status chip + lifecycle controls, and gates the launch actions. */
+  autonomousRun?: AutonomousRun | null;
+  /** Push a fresher run up (a just-started plan/launch, or a status transition from the controls) so
+   *  the whole scenario page reveals / refreshes the AI cockpit without a second poll loop. */
+  onAutonomousRunUpdate?: (run: AutonomousRun) => void;
 }
 
 const ScenarioHeader = ({
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
+  autonomousRun = null,
+  onAutonomousRunUpdate,
 }: ScenarioHeaderProps) => {
   // Standard hooks
   const { t, locale, fld } = useFormatter();
@@ -93,7 +107,7 @@ const ScenarioHeader = ({
   const location = useLocation();
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
-  const [openScenarioAssistantQueryParam] = useQueryParameter(['openScenarioAssistant']);
+  const [openScenarioAssistantQueryParam, openAiBuilderQueryParam, openAiLaunchQueryParam] = useQueryParameter(['openScenarioAssistant', 'openAiBuilder', 'openAiLaunch']);
   const { canLaunch, canManage } = useScenarioPermissions(scenarioId);
 
   const [openConfiguration, setOpenConfiguration] = useState(false);
@@ -104,11 +118,30 @@ const ScenarioHeader = ({
   // builds its attack path as workflow step templates, not classic scenario injects, so this is the
   // meaningful "how big is the attack path" stat for the hero.
   const [attackPathStepCount, setAttackPathStepCount] = useState<number | null>(null);
-  // Launch-mode menu (Normal vs Autonomous) anchor, and in-flight guards for the autonomous
-  // launch / AI-planning calls.
-  const [launchMenuAnchor, setLaunchMenuAnchor] = useState<null | HTMLElement>(null);
-  const [launching, setLaunching] = useState(false);
-  const [planning, setPlanning] = useState(false);
+  // The shared AI-run configuration drawer (objective, agents, scope, time budget), plus which
+  // action it is scoped to: "build" (the AI builder - Save the config for later or Build/plan it
+  // now, authoring onto the scenario) or "launch" (Autonomous - live run). Also its in-flight /
+  // error state and the saved config it pre-fills from.
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const [aiDrawerIntent, setAiDrawerIntent] = useState<'build' | 'launch'>('build');
+  const [aiInitialInput, setAiInitialInput] = useState<AutonomousRunCreateInput | null>(null);
+  const [aiSubmitting, setAiSubmitting] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  // Fetch the scenario's saved AI config BEFORE opening, so the drawer's hook seeds from it on the
+  // open toggle (its agent effect reads initialInput off the first open). data is null when nothing
+  // was saved yet, which the hook treats as "use tenant defaults".
+  const openAiDrawer = async (intent: 'build' | 'launch') => {
+    setAiError(null);
+    let saved: AutonomousRunCreateInput | null = null;
+    try {
+      saved = (await fetchScenarioAutonomousConfig(scenarioId)).data;
+    } catch {
+      saved = null;
+    }
+    setAiInitialInput(saved);
+    setAiDrawerIntent(intent);
+    setAiDrawerOpen(true);
+  };
 
   // Preserve the deep link that used to open the assistant drawer: it now
   // routes to the dedicated full-page assistant.
@@ -152,10 +185,42 @@ const ScenarioHeader = ({
   const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
-  // Autonomy is a launch-time MODE now (not a scenario type): a chained scenario can be launched
-  // autonomously (orchestrator-driven) or planned by the orchestrator, when the autonomous feature
-  // is enabled. Time-based scenarios only ever launch a normal simulation.
-  const isAutonomousModeEnabled = isScenarioChaining && isFeatureEnabled('AUTONOMOUS_ATTACK_PATH');
+  // Autonomy is a launch-time MODE now (not a scenario type) and no longer has a dedicated flag: any
+  // chained scenario can be launched autonomously (orchestrator-driven) or planned by the
+  // orchestrator, gated by the same chaining feature. Time-based scenarios only ever launch a normal
+  // simulation.
+  const isAutonomousModeEnabled = isScenarioChaining;
+  // A run is "active" while the orchestrator is planning or driving: the hero then shows lifecycle
+  // controls (pause / resume / stop) instead of the launch actions, and the page hosts the cockpit.
+  // A settled run (PLANNED / completed) leaves the launch actions available again so the operator can
+  // relaunch normally or in autonomous mode, or promote / redo the plan from the controls.
+  const isRunActive = isAutonomousRunActive(autonomousRun);
+  // A settled run (PLANNED / completed / failed / canceled) leaves an authored attack path (and,
+  // for a live run, results) behind: the hero CTAs then read as Rebuild (AI) / Relaunch rather than
+  // the first-time Build / Launch, and Build wipes the logic map to re-plan from scratch.
+  const isRunSettled = isAutonomousRunSettled(autonomousRun);
+
+  // Deep link from scenario creation ("Generate with AI" toggle): auto-open the AI builder drawer
+  // once, then strip the query param so a refresh / back does not reopen it. Only for a chained
+  // scenario the operator can manage and while no run already owns it.
+  useEffect(() => {
+    if (openAiBuilderQueryParam === 'true' && canManage && isAutonomousModeEnabled && !isRunActive) {
+      void openAiDrawer('build');
+      navigate(location.pathname, { replace: true });
+    }
+  }, [openAiBuilderQueryParam, canManage, isAutonomousModeEnabled, isRunActive, scenarioId]);
+
+  // Deep link from the overview "no run yet" banner (Autonomous button): open the launch config
+  // drawer so the operator configures the objective / agents / scope, then launches the live run.
+  // The header owns the drawer (single control surface), so the banner just routes here. Strip the
+  // param after so a refresh / back does not reopen it.
+  useEffect(() => {
+    if (openAiLaunchQueryParam === 'true' && canManage && isAutonomousModeEnabled && !isRunActive) {
+      void openAiDrawer('launch');
+      navigate(location.pathname, { replace: true });
+    }
+  }, [openAiLaunchQueryParam, canManage, isAutonomousModeEnabled, isRunActive, scenarioId]);
+
   const { workflowConfiguration } = useHelper((helper: WorkflowConfigurationHelper) => ({
     workflowConfiguration: scenarioWorkflowId
       ? helper.getWorkflowConfiguration(scenarioWorkflowId)
@@ -273,47 +338,201 @@ const ScenarioHeader = ({
     }));
   };
 
-  // Launch trigger. A chained scenario with the autonomous feature offers a mode menu (Normal vs
-  // Autonomous); everything else launches a normal simulation directly.
-  const handleLaunchClick = (event: MouseEvent<HTMLElement>) => {
-    if (isAutonomousModeEnabled) {
-      setLaunchMenuAnchor(event.currentTarget);
-    } else {
-      setOpenInstantiateSimulationAndStart(true);
-    }
-  };
+  // Normal launch: a plain, operator-driven simulation from the scenario. Opens the confirm dialog.
+  const handleLaunchNormal = () => setOpenInstantiateSimulationAndStart(true);
 
-  // Autonomous launch: seed a live simulation from the scenario's authored attack path and engage
-  // the orchestrator, then follow it live on the resulting simulation's cockpit.
-  const handleLaunchAutonomous = async () => {
-    setLaunchMenuAnchor(null);
-    setLaunching(true);
+  // AI builder - Save: persist the configuration on the scenario WITHOUT starting anything. The
+  // scenario stays a normal, editable chained scenario; the operator can build or launch it later
+  // and the drawer will pre-fill from this. Launch stays a separate second step.
+  const handleAiSave = async (input: AutonomousRunCreateInput) => {
+    setAiSubmitting(true);
+    setAiError(null);
     try {
-      const { data } = await launchAutonomousFromScenario(scenarioId);
-      MESSAGING$.notifySuccess(t('Autonomous run launched; the orchestrator is now driving the simulation'));
-      const simulationId = data.autonomous_run_simulation_id;
-      if (simulationId) {
-        navigate(isAttackPathEnabled
-          ? `${SIMULATION_BASE_URL}/${simulationId}/attack-path`
-          : `${SIMULATION_BASE_URL}/${simulationId}`);
-      }
+      await saveScenarioAutonomousConfig(scenarioId, input);
+      setAiDrawerOpen(false);
+      MESSAGING$.notifySuccess(t('AI configuration saved. You can build or launch it later.'));
+    } catch {
+      setAiError(t('Failed to save the AI configuration'));
     } finally {
-      setLaunching(false);
+      setAiSubmitting(false);
     }
   };
 
-  // AI planning (author-scenario mode): the orchestrator designs the attack path by writing steps
-  // onto this scenario's workflow. Nothing is executed; the operator then launches it later.
-  const handlePlanWithAI = async () => {
-    setPlanning(true);
+  // AI builder - Build: the orchestrator designs the attack path by writing steps onto this
+  // scenario's workflow from the configured objective / agents / scope. Nothing is executed; the
+  // operator launches it later. The config is persisted first so it survives (re-buildable if the
+  // plan is discarded). Push the run up so the planning cockpit appears, and land on Logic to watch
+  // the authored workflow take shape.
+  const handleAiBuild = async (input: AutonomousRunCreateInput) => {
+    setAiSubmitting(true);
+    setAiError(null);
     try {
-      await planAutonomousScenario(scenarioId);
+      await saveScenarioAutonomousConfig(scenarioId, input);
+      const { data } = await planAutonomousScenario(scenarioId, input);
+      onAutonomousRunUpdate?.(data);
+      setAiDrawerOpen(false);
       MESSAGING$.notifySuccess(t('The orchestrator is designing the attack path for this scenario'));
       navigate(`/admin/scenarios/${scenarioId}/logic`);
+    } catch {
+      setAiError(t('Failed to start the build'));
     } finally {
-      setPlanning(false);
+      setAiSubmitting(false);
     }
   };
+
+  // Autonomous launch: seed a live simulation from the scenario's authored attack path and the
+  // configured objective / agents / scope, then engage the orchestrator. The scenario page IS the
+  // control surface (single reasoning panel + lifecycle controls) and stays synced with the live
+  // simulation through the Execution / Attack path tabs - so we push the run up to reveal the
+  // cockpit and stay here rather than jumping to the simulation (whose cockpit is a read-only
+  // mirror). Landing on Attack path lets the operator watch it build live.
+  const handleAiLaunch = async (input: AutonomousRunCreateInput) => {
+    setAiSubmitting(true);
+    setAiError(null);
+    try {
+      const { data } = await launchAutonomousFromScenario(scenarioId, input);
+      onAutonomousRunUpdate?.(data);
+      // Refresh the scenario so its exercise list (Execution / Attack path tabs) picks up the live
+      // simulation the launch just provisioned - keeping the scenario view in sync with the run.
+      dispatch(fetchScenario(scenarioId));
+      setAiDrawerOpen(false);
+      MESSAGING$.notifySuccess(t('Autonomous run launched; the orchestrator is now driving the simulation'));
+      if (isAttackPathEnabled) {
+        navigate(`/admin/scenarios/${scenarioId}/attack-path`);
+      }
+    } catch {
+      setAiError(t('Failed to launch the autonomous run'));
+    } finally {
+      setAiSubmitting(false);
+    }
+  };
+
+  // Resolved out of the JSX to avoid nested ternaries: the Normal launch tooltip depends on scope
+  // validity first, then on whether this is a first launch or a relaunch of a settled run.
+  let normalLaunchTitle: string;
+  if (isScopeMissing) {
+    normalLaunchTitle = t('A chained scenario requires a defined scope.');
+  } else if (isRunSettled) {
+    normalLaunchTitle = t('Relaunch a normal, operator-driven simulation from this scenario');
+  } else {
+    normalLaunchTitle = t('Launch a normal, operator-driven simulation from this scenario');
+  }
+
+  // AI config drawer title + primary action label: "launch" intent is always a live Autonomous
+  // launch; "build" reads as Rebuild once a settled run left an authored attack path behind.
+  let aiDrawerTitle: string;
+  if (aiDrawerIntent !== 'build') {
+    aiDrawerTitle = t('Launch in autonomous mode');
+  } else if (isRunSettled) {
+    aiDrawerTitle = t('Rebuild the attack path');
+  } else {
+    aiDrawerTitle = t('AI builder');
+  }
+  let aiLaunchLabel: string;
+  if (aiDrawerIntent !== 'build') {
+    aiLaunchLabel = t('Launch now');
+  } else if (isRunSettled) {
+    aiLaunchLabel = t('Rebuild');
+  } else {
+    aiLaunchLabel = t('Build');
+  }
+
+  // Launch actions for the hero, resolved here (rather than as nested ternaries in the JSX). A
+  // scheduled scenario keeps the Stop + one-off Launch-now controls; a chained autonomous-capable
+  // scenario shows two explicit buttons - Normal (a plain operator-driven simulation) and Autonomous
+  // (AI-purple, opens the config drawer and drives it live); everything else launches a normal
+  // simulation directly. Rendered only while no run is active and the operator may launch.
+  let launchActions: ReactNode;
+  if (isScheduled && !ended) {
+    launchActions = (
+      <>
+        <Button
+          startIcon={<Stop />}
+          variant="outlined"
+          color="inherit"
+          size="small"
+          onClick={stop}
+        >
+          {t('Stop')}
+        </Button>
+        {/* Even while scheduled, allow a one-off manual run outside
+            the recurrence - compact icon so it stays secondary to Stop. */}
+        <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch now')}>
+          <span style={{ display: 'inline-flex' }}>
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={handleLaunchNormal}
+              disabled={isScopeMissing}
+              data-testid="scenario-launch-now-button"
+            >
+              <PlayArrowOutlined fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+      </>
+    );
+  } else if (isAutonomousModeEnabled) {
+    launchActions = (
+      <>
+        <Tooltip title={normalLaunchTitle}>
+          <span style={{ display: 'inline-flex' }}>
+            <Button
+              startIcon={<PlayArrowOutlined />}
+              variant="contained"
+              color="primary"
+              size="small"
+              onClick={handleLaunchNormal}
+              disabled={isScopeMissing}
+              data-testid="scenario-launch-button"
+            >
+              {t('Normal')}
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip title={isRunSettled
+          ? t('Relaunch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')
+          : t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}
+        >
+          <span style={{ display: 'inline-flex' }}>
+            <Button
+              startIcon={<AutoAwesome />}
+              variant="contained"
+              size="small"
+              onClick={() => openAiDrawer('launch')}
+              data-testid="scenario-launch-autonomous-button"
+              sx={{
+                'whiteSpace': 'nowrap',
+                'backgroundColor': theme.palette.ai.main,
+                'color': theme.palette.ai.contrastText,
+                '&:hover': { backgroundColor: theme.palette.ai.dark },
+              }}
+            >
+              {t('Autonomous')}
+            </Button>
+          </span>
+        </Tooltip>
+      </>
+    );
+  } else {
+    launchActions = (
+      <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : ''}>
+        <span style={{ display: 'inline-flex' }}>
+          <Button
+            startIcon={<PlayArrowOutlined />}
+            variant="contained"
+            color="primary"
+            size="small"
+            onClick={handleLaunchNormal}
+            disabled={isScopeMissing}
+            data-testid="scenario-launch-button"
+          >
+            {t('Launch')}
+          </Button>
+        </span>
+      </Tooltip>
+    );
+  }
 
   const humanReadableScheduling = () => {
     if (!cronObject?.isValid()) {
@@ -341,6 +560,11 @@ const ScenarioHeader = ({
             <>
               <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
               <ItemCategory category={scenario.scenario_category ?? 'Unknown'} label={t(scenario.scenario_category ?? 'Unknown')} size="small" />
+              {/* While a run owns the scenario, surface its status right next to severity/category -
+                  the same chip a simulation shows - so the AI lifecycle reads at a glance. */}
+              {autonomousRun && (
+                <AutonomousRunStatusChip status={autonomousRun.autonomous_run_status} />
+              )}
               <Tooltip title={scheduleLabel ?? ''}>
                 <Chip
                   size="small"
@@ -453,98 +677,46 @@ const ScenarioHeader = ({
                   )}
                 </>
               )}
-              {/* Plan with AI (author-scenario mode): the orchestrator designs the attack path onto
-                  this chained scenario's workflow, without launching or executing anything. */}
-              {canManage && isAutonomousModeEnabled && (
-                <Tooltip title={t('Let the orchestrator design this scenario\'s attack path (authors steps onto the scenario, nothing is executed)')}>
+              {/* While a run is ACTIVE it owns the hero: the launch actions are swapped for the
+                  run's lifecycle controls (pause / resume / stop) - the same single control
+                  surface the simulation defers to. Once the run settles (planned / completed /
+                  failed / canceled) the standard actions return: rebuild through the AI builder
+                  (Build wipes the logic map and re-plans) or relaunch Normal / Autonomous. */}
+              {isRunActive && autonomousRun && (
+                <AutonomousRunControls run={autonomousRun} onRunUpdate={onAutonomousRunUpdate} />
+              )}
+              {/* AI builder: compact AI-purple icon button. Opens the shared config drawer scoped to
+                  the "build" action - the operator configures the objective / agents / scope, then
+                  Saves it for later or Builds it now (the orchestrator authors the attack path onto
+                  this scenario, nothing executed). Hidden while a run is active (its lifecycle
+                  controls own the hero then). */}
+              {canManage && isAutonomousModeEnabled && !isRunActive && (
+                <Tooltip title={isRunSettled
+                  ? t('Rebuild with AI - re-plan the attack path (this wipes the current logic map and starts fresh)')
+                  : t('AI builder - configure the attack path, then save it for later or build it now (nothing is executed)')}
+                >
                   <span style={{ display: 'inline-flex' }}>
-                    <Button
-                      variant="outlined"
-                      color="secondary"
+                    <IconButton
                       size="small"
-                      startIcon={<AutoAwesome />}
-                      onClick={handlePlanWithAI}
-                      disabled={planning}
+                      onClick={() => openAiDrawer('build')}
+                      aria-label={isRunSettled ? t('Rebuild with AI') : t('AI builder')}
                       data-testid="scenario-plan-with-ai-button"
+                      sx={{
+                        'color': theme.palette.ai.main,
+                        '&:hover': {
+                          color: theme.palette.ai.dark,
+                          backgroundColor: alpha(theme.palette.ai.main, 0.08),
+                        },
+                      }}
                     >
-                      {t('Plan with AI')}
-                    </Button>
+                      <AutoAwesome fontSize="small" />
+                    </IconButton>
                   </span>
                 </Tooltip>
               )}
-              {/* The prominent launch CTA. On a chained scenario with the autonomous feature it opens
-                  a mode menu (Normal vs Autonomous); otherwise it launches a normal simulation. */}
-              {canLaunch && isScheduled && !ended
-                ? (
-                    <>
-                      <Button
-                        startIcon={<Stop />}
-                        variant="outlined"
-                        color="inherit"
-                        size="small"
-                        onClick={stop}
-                      >
-                        {t('Stop')}
-                      </Button>
-                      {/* Even while scheduled, allow a one-off manual run outside
-                          the recurrence - compact icon so it stays secondary to Stop. */}
-                      <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch now')}>
-                        <span style={{ display: 'inline-flex' }}>
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            onClick={handleLaunchClick}
-                            disabled={isScopeMissing || launching}
-                            data-testid="scenario-launch-now-button"
-                          >
-                            <PlayArrowOutlined fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    </>
-                  )
-                : canLaunch && (
-                  <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : ''}>
-                    <span style={{ display: 'inline-flex' }}>
-                      <Button
-                        startIcon={<PlayArrowOutlined />}
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                        onClick={handleLaunchClick}
-                        disabled={isScopeMissing || launching}
-                        data-testid="scenario-launch-button"
-                      >
-                        {t('Launch')}
-                      </Button>
-                    </span>
-                  </Tooltip>
-                )}
-              <Menu
-                anchorEl={launchMenuAnchor}
-                open={Boolean(launchMenuAnchor)}
-                onClose={() => setLaunchMenuAnchor(null)}
-              >
-                <MenuItem
-                  onClick={() => {
-                    setLaunchMenuAnchor(null);
-                    setOpenInstantiateSimulationAndStart(true);
-                  }}
-                >
-                  <ListItemIcon><PlayArrowOutlined fontSize="small" /></ListItemIcon>
-                  <ListItemText
-                    primary={t('Launch a simulation')}
-                    secondary={t('Run the scenario as a normal, operator-driven simulation')}
-                  />
-                </MenuItem>
-                <MenuItem onClick={handleLaunchAutonomous} disabled={launching}>
-                  <ListItemIcon><AutoAwesome fontSize="small" /></ListItemIcon>
-                  <ListItemText
-                    primary={t('Launch in autonomous mode')}
-                    secondary={t('Seed the orchestrator with the scenario\'s attack path, then let it adapt from live findings')}
-                  />
-                </MenuItem>
-              </Menu>
+              {/* Launch actions (suppressed while a run is active - the lifecycle controls own the
+                  hero then). Resolved into `launchActions` above to avoid nested ternaries here. */}
+              {!isRunActive && canLaunch && launchActions}
               {/* Everything else - analyze, setup, and CRUD - in one overflow menu. */}
               <ScenarioPopover
                 scenario={scenario}
@@ -698,6 +870,30 @@ const ScenarioHeader = ({
       >
         <ScenarioConfiguration />
       </Drawer>
+      {/* Shared AI-run configuration drawer, scoped to the action that opened it. "build" (AI
+          builder) offers Save (persist the config, nothing runs) + Build (plan now, author the
+          steps onto the scenario); "launch" (Autonomous) seeds a live simulation and drives it.
+          Both pre-fill from the scenario's saved config and reuse the exact same objective / agents
+          / scope config as the entity-level Autonomous attack action. Launch is always a second
+          step - it is never offered from the builder. */}
+      <AutonomousRunConfigDrawer
+        open={aiDrawerOpen}
+        onClose={() => setAiDrawerOpen(false)}
+        initialInput={aiInitialInput}
+        title={aiDrawerTitle}
+        infoText={aiDrawerIntent === 'build'
+          ? t('Configure this scenario\'s attack path - the objective, the specialist agents the orchestrator may consult, and the scope. Save it to build or launch later, or Build now to have the orchestrator author the steps onto the scenario without executing anything.')
+          : t('The orchestrator seeds a live simulation from the objective, agents and scope below, then drives it and adapts from real findings.')}
+        submitting={aiSubmitting}
+        error={aiError}
+        showSave={aiDrawerIntent === 'build'}
+        showPlan={false}
+        showLaunch
+        saveLabel={t('Save')}
+        launchLabel={aiLaunchLabel}
+        onSave={aiDrawerIntent === 'build' ? handleAiSave : undefined}
+        onLaunch={aiDrawerIntent === 'build' ? handleAiBuild : handleAiLaunch}
+      />
     </>
   );
 };

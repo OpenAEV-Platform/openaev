@@ -5094,6 +5094,7 @@ export interface Exercise {
   /** @format int64 */
   exercise_all_users_number?: number;
   exercise_articles?: string[];
+  exercise_autonomous?: boolean;
   exercise_category?: string;
   /** @format int64 */
   exercise_communications_number?: number;
@@ -5188,6 +5189,8 @@ export interface ExerciseBulkProcessingInput {
 }
 
 export interface ExerciseSimple {
+  /** Whether this simulation was created by an autonomous (AI-driven) run */
+  exercise_autonomous?: boolean;
   /** Exercise Category */
   exercise_category?: string;
   exercise_global_score: ExpectationResultsByType[];
@@ -9127,7 +9130,6 @@ export interface PlatformSettings {
     | "CREDENTIAL_ASSET"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
-    | "AUTONOMOUS_ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** True if the Tanium Executor is enabled */
@@ -9426,7 +9428,6 @@ export interface PublicPlatformSettings {
     | "CREDENTIAL_ASSET"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
-    | "AUTONOMOUS_ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
@@ -10736,6 +10737,7 @@ export interface SimulationChallengesReader {
 export interface SimulationDetails {
   /** @format int64 */
   exercise_all_users_number?: number;
+  exercise_autonomous?: boolean;
   exercise_category?: string;
   /** @format int64 */
   exercise_communications_number?: number;

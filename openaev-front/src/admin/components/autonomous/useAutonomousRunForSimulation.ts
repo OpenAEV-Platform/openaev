@@ -36,7 +36,9 @@ const useAutonomousRunDetection = (
 ): AutonomousRunDetection => {
   const { settings } = useAuth();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
-  const featureEnabled = isFeatureEnabled('AUTONOMOUS_ATTACK_PATH');
+  // Autonomy is a launch mode of chained scenarios, so it rides the chaining feature flag - there is
+  // no dedicated autonomous flag anymore.
+  const featureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const xtmOneReady = settings.platform_xtm_one_configured === true;
   // A positive "this entity is manual" hint makes the run non-existent by definition, so there is
   // nothing to look up regardless of EE / feature / XTM One state.

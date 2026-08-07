@@ -46,6 +46,7 @@ public class WorkflowService {
   private static final Gson GSON = new Gson();
 
   private final StepService stepService;
+  private final ConditionService conditionService;
   private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
@@ -670,20 +671,22 @@ public class WorkflowService {
   }
 
   /**
-   * Clears EVERY step template from a scenario's chaining workflow (best-effort per step), keeping
-   * the (now empty) workflow row itself.
+   * Clears the ENTIRE logic map of a scenario's chaining workflow - every step template AND every
+   * condition (event/trigger trees included) - keeping the (now empty) workflow row itself.
    *
-   * <p>The deterministic reset used before an autonomous run is restarted or a plan is promoted to
-   * a real run. The scenario workflow doubles as the seed a fresh simulation is copied from, so any
-   * step left on it re-seeds that simulation - leaving the Logic tab and the attack-path map
-   * populated right after a reset the operator expected to wipe them. The previous reset only
-   * removed the steps named in the run's {@code stepMirror}, which is populated best-effort while
-   * authoring; a single un-mirrored (or lost-update) step therefore survived and duplicated the
-   * attack path on the next launch. An autonomous run's scenario is AI-owned and launches empty
-   * (the orchestrator authors every step, guided at most by the plan summary), so clearing the
-   * whole workflow is both safe and the behaviour the operator wants: "launching for real fully
-   * recreates everything". The workflow row is preserved so the simulation is still recognised as
-   * chaining and keep-alive holds.
+   * <p>The deterministic reset used before an autonomous run is restarted, a plan is promoted to a
+   * real run, or the AI builder re-plans (rebuilds) the scenario. The scenario workflow doubles as
+   * the seed a fresh simulation is copied from, so anything left on it re-seeds that simulation -
+   * leaving the Logic tab and the attack-path map populated right after a reset the operator
+   * expected to wipe them. Two past regressions shaped this method: (1) the reset once only removed
+   * the steps named in the run's best-effort {@code stepMirror}, so a single un-mirrored step
+   * survived and duplicated the attack path; (2) deleting the steps alone leaves the event/trigger
+   * condition trees behind, because per-step condition cleanup only deletes a condition once it has
+   * no more step links AND no children - a root condition with children (exactly what an authored
+   * event is) always survived as an orphan on the logic map. An AI-rebuilt scenario starts from an
+   * empty logic map, so clearing everything is both safe and the behaviour the operator wants:
+   * "build (or launch for real) fully recreates everything". The workflow row is preserved so the
+   * simulation is still recognised as chaining and keep-alive holds.
    *
    * @param scenarioId the autonomous run's scenario
    */
@@ -714,6 +717,16 @@ public class WorkflowService {
             step.getId(),
             e.getMessage());
       }
+    }
+    // Sweep the conditions AFTER the steps: per-step cleanup only removed conditions left with no
+    // step links and no children, so event/trigger trees survive it by construction.
+    try {
+      conditionService.deleteAllConditionsByWorkflowId(template.get().getId());
+    } catch (Exception e) {
+      log.warn(
+          "Failed to delete scenario {} workflow conditions during autonomous reset: {}",
+          scenarioId,
+          e.getMessage());
     }
   }
 
