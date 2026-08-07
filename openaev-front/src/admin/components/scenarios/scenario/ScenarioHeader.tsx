@@ -391,7 +391,8 @@ const ScenarioHeader = ({
   // control surface (single reasoning panel + lifecycle controls) and stays synced with the live
   // simulation through the Execution / Attack path tabs - so we push the run up to reveal the
   // cockpit and stay here rather than jumping to the simulation (whose cockpit is a read-only
-  // mirror). Landing on Attack path lets the operator watch it build live.
+  // mirror). Landing on the scenario overview puts the operator in front of the AI cockpit -
+  // timeline, gaps and findings - while the Attack path tab stays one click away.
   const handleAiLaunch = async (input: AutonomousRunCreateInput) => {
     setAiSubmitting(true);
     setAiError(null);
@@ -403,9 +404,7 @@ const ScenarioHeader = ({
       dispatch(fetchScenario(scenarioId));
       setAiDrawerOpen(false);
       MESSAGING$.notifySuccess(t('Autonomous run launched; the orchestrator is now driving the simulation'));
-      if (isAttackPathEnabled) {
-        navigate(`/admin/scenarios/${scenarioId}/attack-path`);
-      }
+      navigate(`/admin/scenarios/${scenarioId}`);
     } catch {
       setAiError(t('Failed to launch the autonomous run'));
     } finally {
@@ -873,12 +872,12 @@ const ScenarioHeader = ({
               // lookup now 404s), so forget the latched run: the overview reverts to the manual view
               // instead of keeping the stale AI plan outcome + status chip until a full page reload.
               onAutonomousRunCleared?.();
-              // Launching from the scenario keeps the operator on the scenario: a chained scenario
-              // lands on its own Attack path tab (which mirrors the running simulation live), so the
-              // context stays the scenario rather than jumping into the new simulation. A time-based
-              // scenario has no attack-path tab, so it still lands on the simulation overview.
+              // A manual launch jumps into the simulation that was just created: a chained scenario
+              // lands on the simulation's Attack path tab (the live execution view), a time-based
+              // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
+              // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
               if (isScenarioChaining && isAttackPathEnabled) {
-                navigate(`/admin/scenarios/${scenarioId}/attack-path`);
+                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
               } else {
                 navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
               }
