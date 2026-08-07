@@ -249,7 +249,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   isLoading: boolean;
   // Present when this simulation is an autonomous (AI-driven) run. The simulation view is then
   // observe-only: all manual scope / scheduling / configuration controls AND the run lifecycle
-  // controls are hidden. Full control (pause / resume / stop / restart / steer) lives on the parent
+  // controls are hidden. Full control (pause / resume / stop / steer) lives on the parent
   // scenario, reached via the "Parent scenario" button; here operators only follow the run live.
   autonomousRun?: AutonomousRun | null;
 }) => {
@@ -542,7 +542,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
               {/* Unified parent-scenario pivot: whenever a simulation was run from a scenario (manual
                   or autonomous), the top-right hero action is an outlined button carrying the scenario
                   name. For autonomous runs the parent scenario is also where the full control surface
-                  (pause / resume / stop / restart / steer) lives. */}
+                  (pause / resume / stop / steer) lives; once stopped, relaunch happens from the
+                  scenario's Normal / Autonomous launch buttons - there is no restart. */}
               {parentScenarioId && (
                 <Tooltip title={parentScenario?.scenario_name ?? t('Parent scenario')}>
                   <span style={{ display: 'inline-flex' }}>
