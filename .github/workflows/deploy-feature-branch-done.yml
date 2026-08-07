@@ -9,7 +9,7 @@ name: "[Core] Deploy Feature Branch Done"
 
 on:
   workflow_run:
-    workflows: ["[Core] Deploy Feature Branch Build"]
+    workflows: ['\[Core\] Deploy Feature Branch Build']
     types: [completed]
 
 permissions:
