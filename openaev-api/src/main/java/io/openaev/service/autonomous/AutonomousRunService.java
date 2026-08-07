@@ -219,7 +219,9 @@ public class AutonomousRunService {
     if (isTerminal(run.getStatus())) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT,
-          "This autonomous run has ended (" + run.getStatus() + "); it no longer accepts"
+          "This autonomous run has ended ("
+              + run.getStatus()
+              + "); it no longer accepts"
               + " attack-path authoring.");
     }
   }
@@ -1392,10 +1394,10 @@ public class AutonomousRunService {
   }
 
   /**
-   * Supersede overload with control over the still-active case. {@code refuseIfActive = true} is the
-   * AI relaunch / rebuild contract (a live run blocks the new one with a 409); {@code false} is the
-   * normal-launch contract, where an active run is left untouched as a defensive no-op rather than
-   * torn down (see {@link #supersedeSettledRunOnManualLaunch}).
+   * Supersede overload with control over the still-active case. {@code refuseIfActive = true} is
+   * the AI relaunch / rebuild contract (a live run blocks the new one with a 409); {@code false} is
+   * the normal-launch contract, where an active run is left untouched as a defensive no-op rather
+   * than torn down (see {@link #supersedeSettledRunOnManualLaunch}).
    */
   private void supersedePriorRun(String scenarioId, String reason, boolean refuseIfActive) {
     AutonomousRun prior = runRepository.findByScenarioId(scenarioId).orElse(null);
@@ -1440,8 +1442,9 @@ public class AutonomousRunService {
    * a normal chained scenario the operator just launched.
    *
    * <p>A no-op when the scenario carries no run, or the feature is off. A still-active run is left
-   * untouched (never a 409): the hero hides the manual launch while a run is active, so this is only
-   * ever reached for a settled run, and a normal launch must never tear down a live orchestration.
+   * untouched (never a 409): the hero hides the manual launch while a run is active, so this is
+   * only ever reached for a settled run, and a normal launch must never tear down a live
+   * orchestration.
    */
   @Transactional(rollbackFor = Exception.class)
   public void supersedeSettledRunOnManualLaunch(String scenarioId) {
