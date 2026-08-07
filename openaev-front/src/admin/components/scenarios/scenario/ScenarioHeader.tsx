@@ -391,7 +391,8 @@ const ScenarioHeader = ({
   // control surface (single reasoning panel + lifecycle controls) and stays synced with the live
   // simulation through the Execution / Attack path tabs - so we push the run up to reveal the
   // cockpit and stay here rather than jumping to the simulation (whose cockpit is a read-only
-  // mirror). Landing on Attack path lets the operator watch it build live.
+  // mirror). Landing on the scenario overview puts the operator in front of the AI cockpit -
+  // timeline, gaps and findings - while the Attack path tab stays one click away.
   const handleAiLaunch = async (input: AutonomousRunCreateInput) => {
     setAiSubmitting(true);
     setAiError(null);
@@ -403,9 +404,7 @@ const ScenarioHeader = ({
       dispatch(fetchScenario(scenarioId));
       setAiDrawerOpen(false);
       MESSAGING$.notifySuccess(t('Autonomous run launched; the orchestrator is now driving the simulation'));
-      if (isAttackPathEnabled) {
-        navigate(`/admin/scenarios/${scenarioId}/attack-path`);
-      }
+      navigate(`/admin/scenarios/${scenarioId}`);
     } catch {
       setAiError(t('Failed to launch the autonomous run'));
     } finally {
