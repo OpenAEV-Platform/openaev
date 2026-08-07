@@ -31,6 +31,7 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hibernate.Session;
@@ -94,6 +95,7 @@ class InjectsExecutionJobTenantScopeTest {
   @BeforeEach
   void setUp() throws Exception {
     ReflectionTestUtils.setField(job, "injectExecutionThreshold", 15);
+    ReflectionTestUtils.setField(job, "auditLogger", Optional.empty());
     when(entityManager.unwrap(Session.class)).thenReturn(mock(Session.class));
 
     // Every sweep around the execution is a no-op here: this test is about the execution scope.
@@ -102,6 +104,7 @@ class InjectsExecutionJobTenantScopeTest {
     doReturn(List.of()).when(exerciseRepository).saveAll(any());
     when(previewFeatureService.isFeatureEnabled(any())).thenReturn(false);
     when(injectService.getExecutedAndNotFinished()).thenReturn(List.of());
+    when(injectService.resolveAllAssetsToExecute(any(Inject.class))).thenReturn(List.of());
     when(injectHelper.getAllPendingInjectsWithThresholdMinutes(anyInt())).thenReturn(List.of());
     when(healthCheckUtils.runContentChecks(any(Inject.class))).thenReturn(List.of());
 
@@ -120,7 +123,7 @@ class InjectsExecutionJobTenantScopeTest {
         .when(tenantTx)
         .execute(any(TxCtx.class), any(Runnable.class));
 
-    when(executor.execute(any()))
+    when(executor.execute(any(ExecutableInject.class), any()))
         .thenAnswer(
             invocation -> {
               tenantDuringExecution.set(TenantContext.getCurrentTenant());
@@ -208,7 +211,8 @@ class InjectsExecutionJobTenantScopeTest {
   @Test
   @DisplayName("failed inject status update runs under the inject tenant scope")
   void failedStatusUpdateRunsUnderInjectTenant() throws Exception {
-    when(executor.execute(any())).thenThrow(new RuntimeException("boom"));
+    when(executor.execute(any(ExecutableInject.class), any()))
+        .thenThrow(new RuntimeException("boom"));
 
     job.execute(null);
 
