@@ -40,9 +40,9 @@ public class ScenarioSpecification {
   }
 
   /**
-   * Chained scenarios: they own a chaining workflow template. Autonomy is no longer a scenario
-   * type - it is chosen at launch time - so a scenario is chained purely by carrying a chaining
-   * workflow template, regardless of the (legacy) {@code scenario_autonomous} flag.
+   * Chained scenarios: they own a chaining workflow template. Autonomy is no longer a scenario type
+   * - it is chosen at launch time - so a scenario is chained purely by carrying a chaining workflow
+   * template, regardless of the (legacy) {@code scenario_autonomous} flag.
    */
   public static Specification<Scenario> isChained() {
     return (root, query, cb) -> hasChainingWorkflow(root, query, cb);
