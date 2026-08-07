@@ -1,6 +1,5 @@
 package io.openaev.service.autonomous;
 
-import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
@@ -56,15 +55,18 @@ public class AutonomousRunReconciliationWriter {
       return null;
     }
     // Only the reader that actually performed the flip narrates it: a concurrent reconcile that
-    // found the run already terminal (changed == 0) must not append a second identical event.
+    // found the run already terminal (changed == 0) must not append a second identical event. And
+    // even when this reader DID flip, it narrates through the once-per-run guard: a settled run can
+    // be briefly resurrected by a late orchestrator write (a stale full-entity save that reverts
+    // the status) and re-settled here on the next poll, which is what produced the *repeated* "Run
+    // canceled" lines - the guard drops that second narration while still keeping the status
+    // authoritative.
     if (changed > 0) {
-      eventService.append(
+      eventService.appendTerminalStatusOnce(
           run.getId(),
           run.getSimulationId(),
-          AutonomousEventType.STATUS,
           target == AutonomousRunStatus.CANCELED ? "Run canceled" : "Run completed",
-          reasonDetail,
-          null);
+          reasonDetail);
     }
     return run;
   }

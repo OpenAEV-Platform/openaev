@@ -7,10 +7,10 @@ import { useFormatter } from '../../../../i18n';
 import { type FilterHelpers } from '../FilterHelpers';
 import { OperatorKeyValues } from '../FilterUtils';
 
-// Ids MUST match the backend ScenarioUtils engine-type values (Time-based / Chained / Autonomous).
+// Ids MUST match the backend ScenarioUtils engine-type values (Time-based / Chained). Autonomy is
+// a launch-time MODE, not a scenario type.
 export const SCENARIO_TYPE_TIME_BASED = 'Time-based';
 export const SCENARIO_TYPE_CHAINED = 'Chained';
-export const SCENARIO_TYPE_AUTONOMOUS = 'Autonomous';
 
 const ScenarioTypeFilter: FunctionComponent<{
   propertySchema: PropertySchemaDTO;
@@ -34,10 +34,6 @@ const ScenarioTypeFilter: FunctionComponent<{
     {
       id: SCENARIO_TYPE_CHAINED,
       label: t(SCENARIO_TYPE_CHAINED),
-    },
-    {
-      id: SCENARIO_TYPE_AUTONOMOUS,
-      label: t(SCENARIO_TYPE_AUTONOMOUS),
     },
   ];
 

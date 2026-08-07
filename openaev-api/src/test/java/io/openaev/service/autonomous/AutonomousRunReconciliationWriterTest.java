@@ -8,7 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
@@ -57,14 +56,10 @@ class AutonomousRunReconciliationWriterTest {
 
     assertThat(result).isNotNull();
     assertThat(result.getStatus()).isEqualTo(AutonomousRunStatus.CANCELED);
+    // Narration goes through the once-per-run guard so a resurrected + re-settled run cannot spam a
+    // second identical terminal line.
     verify(eventService)
-        .append(
-            eq("run-1"),
-            eq("sim-1"),
-            eq(AutonomousEventType.STATUS),
-            eq("Run canceled"),
-            eq("detail"),
-            eq(null));
+        .appendTerminalStatusOnce(eq("run-1"), eq("sim-1"), eq("Run canceled"), eq("detail"));
   }
 
   @Test
@@ -80,7 +75,7 @@ class AutonomousRunReconciliationWriterTest {
         writer.settleRunStatus("run-1", "tenant-1", AutonomousRunStatus.CANCELED, "detail");
 
     assertThat(result).isNotNull();
-    verify(eventService, never()).append(any(), any(), any(), anyString(), anyString(), any());
+    verify(eventService, never()).appendTerminalStatusOnce(any(), any(), anyString(), any());
   }
 
   @Test
@@ -95,6 +90,6 @@ class AutonomousRunReconciliationWriterTest {
         writer.settleRunStatus("run-1", "tenant-1", AutonomousRunStatus.CANCELED, "detail");
 
     assertThat(result).isNull();
-    verify(eventService, never()).append(any(), any(), any(), anyString(), anyString(), any());
+    verify(eventService, never()).appendTerminalStatusOnce(any(), any(), anyString(), any());
   }
 }

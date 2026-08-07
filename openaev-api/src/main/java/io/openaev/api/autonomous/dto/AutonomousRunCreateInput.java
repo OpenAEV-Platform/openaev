@@ -98,9 +98,10 @@ public class AutonomousRunCreateInput {
   @JsonProperty("plan_mode")
   @Schema(
       description =
-          "Dry-run: when true the orchestrator only designs the attack path (scope, steps,"
-              + " decisions) and executes nothing. The operator can review the plan and later run"
-              + " it for real. Defaults to false (immediate live run).")
+          "Build mode: when true the orchestrator only authors the scenario's logic (scope, steps,"
+              + " decisions) and executes nothing. The operator can review the built logic and later"
+              + " launch the scenario (in normal or autonomous mode). Defaults to false (immediate"
+              + " live autonomous run).")
   private boolean planMode = false;
 
   @JsonProperty("timeout_seconds")
@@ -109,6 +110,6 @@ public class AutonomousRunCreateInput {
           "Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers"
               + " the orchestrator with winddown signals shortly before it, then hard-stops the run"
               + " (exactly like an operator Stop) when it is reached. Defaults to 24h when omitted;"
-              + " ignored in plan/dry-run mode.")
+              + " ignored in build mode (authoring the logic is untimed).")
   private Long timeoutSeconds;
 }

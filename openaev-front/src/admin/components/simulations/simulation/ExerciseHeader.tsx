@@ -1,4 +1,5 @@
 import {
+  AutoAwesome,
   CancelOutlined,
   ComputerOutlined,
   EmojiEventsOutlined,
@@ -28,7 +29,7 @@ import { type ArticlesHelper } from '../../../../actions/channels/article-helper
 import { dismissExerciseExpectationsDrift, fetchExerciseExpectationsDrift, fetchExerciseTeams, realignExerciseExpectations, searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
-import { fetchExerciseInjectsSimple } from '../../../../actions/Inject';
+import { fetchExerciseInjectsSimple, reconcileExerciseInjects } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -78,6 +79,14 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
     onLoading(true);
     try {
       await dispatch(updateExerciseStatus(exerciseId, { exercise_status: status.exercise_status ?? undefined }));
+      // Stop (CANCELED) and Reset (SCHEDULED) both delete injects server-side
+      // (a chained simulation drops its run injects, a reset always clears the
+      // outcome). The merge-only entity store never evicts on refetch, so
+      // reconcile it explicitly or the Execution screens keep showing the
+      // deleted injects as completed until a full page reload.
+      if (status.exercise_status === 'CANCELED' || status.exercise_status === 'SCHEDULED') {
+        await dispatch(reconcileExerciseInjects(exerciseId));
+      }
     } finally {
       onLoading(false);
     }
@@ -400,6 +409,25 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
           title={truncate(exercise.exercise_name, 80) ?? ''}
           chips={(
             <>
+              {/* Durable Normal/Autonomous marker: read from the simulation's own exercise_autonomous
+                  flag, so the badge stays even after the autonomous run row is torn down (observe-only
+                  either way - control lives on the parent scenario). */}
+              {exercise.exercise_autonomous && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  icon={<AutoAwesome sx={{ fontSize: 14 }} />}
+                  label={t('Autonomous')}
+                  sx={{
+                    'borderRadius': 1,
+                    'height': 22,
+                    'fontSize': 11,
+                    'color': theme.palette.ai?.main ?? theme.palette.primary.main,
+                    'borderColor': theme.palette.ai?.main ?? theme.palette.primary.main,
+                    '& .MuiChip-icon': { color: 'inherit' },
+                  }}
+                />
+              )}
               <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
               <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
               {exercise.exercise_category && (

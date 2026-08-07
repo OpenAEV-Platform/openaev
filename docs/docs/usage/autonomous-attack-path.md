@@ -6,9 +6,11 @@ environment on its own. It reasons about what to do next, launches the relevant 
 and keeps going until the objective is reached or it needs your input - all animated live on an attack-path graph
 and a decision timeline.
 
-This is the highest level of automation in OpenAEV. Where a **Scenario** is a hand-authored sequence of Injects and
-**inject chaining** adds conditional branching, an autonomous attack path removes the authoring
-step entirely: the AI decides the sequence, the branches, and the techniques at runtime.
+This is the highest level of automation in OpenAEV. It builds directly on **chained Scenarios**: a chained Scenario is
+a Scenario whose Injects are linked into an attack-path workflow (see **inject chaining**). **Autonomy is not a separate
+kind of Scenario - it is a way to launch a chained Scenario.** You author (or AI-plan) the chained Scenario once, then
+choose at launch time whether to run it yourself (normal mode) or hand it to the orchestrator (autonomous mode), which
+seeds itself with your authored steps and then adapts, extends, and drives them live.
 
 !!! warning
 
@@ -30,7 +32,7 @@ step entirely: the AI decides the sequence, the branches, and the techniques at 
 | Requirement | Why |
 |---|---|
 | **Enterprise Edition** | Autonomous attack path is an AI feature and, like every other AI capability in OpenAEV, is Enterprise Edition only. |
-| **`AUTONOMOUS_ATTACK_PATH` feature enabled** | The feature is gated behind a preview flag. It transitively relies on `ATTACK_PATH` and `INJECT_CHAINING`; once those ship enabled, `AUTONOMOUS_ATTACK_PATH` is the single operator-visible gate. |
+| **`INJECT_CHAINING` feature enabled** | Autonomy is a launch-time mode of a chained scenario, not a feature of its own, so it shares the chaining preview flag. Any tenant with chaining enabled can launch a chained scenario in autonomous mode - there is no dedicated autonomous flag. |
 | **A registered XTM One platform** | The autonomous orchestrator (the AI "brain") runs in XTM One. OpenAEV is the execution and visualization substrate; it must be connected to an XTM One instance. |
 | **Installed injectors / collectors** | The AI can only execute techniques your installed arsenal supports. Gaps are surfaced as advice, not silent failures. |
 
@@ -80,20 +82,49 @@ A run moves through these states:
 | **Failed** | The run ended with an error. |
 | **Canceled** | You stopped the run. |
 
-## Create an autonomous attack path
+## Build a chained Scenario
 
-1. Open the **Autonomous attack path** section and select **Autonomous attack**.
-2. Give the run a **name** and an optional **description**. That is all you choose - the AI decides everything else.
-3. Describe the **objective** in plain language, or pick one of the built-in **objective templates** (for example
-   *crown-jewel assessment*, *web application exploitation*, *domain compromise*). Templates pre-fill a proven
-   objective you can still edit.
-4. Confirm the **scope**, **rate limits**, and **safe mode** for the run.
-5. Launch. The run starts in **Created**, then moves to **Running** as the orchestrator engages.
+An autonomous attack path always runs from a **chained Scenario**, so you build (or plan) that Scenario first. There
+are two ways to get one:
 
-Once launched, you land on the run's **Scenario** - the home of an autonomous attack path. It shows the AI
-overview, the live attack map, and an always-open reasoning panel on the right, with pause / resume / stop controls
-in the header. An autonomous run owns exactly one Simulation; opening that Simulation directly gives the same
-cockpit. Manual configuration (scope, logic, manual launch) is never exposed for an autonomous run - the AI owns it.
+- **Author it manually**: create a Scenario, add Injects, and link them into an attack-path workflow with inject
+  chaining - the classic hand-authored path.
+- **Plan it with AI**: on a chained Scenario, use **Plan with AI**. The orchestrator designs the attack path -
+  scoping the perimeter and authoring the steps (recon, exploitation, lateral movement, objective) - and writes them
+  **directly onto the Scenario's workflow template**. Nothing is executed and no Simulation is created; you get a
+  reusable Scenario you can review, edit, and launch whenever you like.
+
+!!! note
+
+    **Plan with AI** is design-time only: the orchestrator authors the Scenario's workflow but executes nothing and
+    creates no Simulation. It runs as a short planning session (which you may see in the autonomous runs list) whose
+    only lasting output is the reusable Scenario. Execution is a separate, explicit step (see below), so you can plan
+    once and launch many times.
+
+## Launch modes: normal vs autonomous
+
+Once you have a chained Scenario, the **Launch** action lets you choose how to run it:
+
+1. **Launch a simulation (normal mode)**: starts a standard, operator-driven Simulation from the Scenario, exactly
+   like any chained Scenario. You can launch as many Simulations as you like over time.
+2. **Launch in autonomous mode**: hands the Scenario to the orchestrator. It **seeds itself with the Scenario's
+   authored steps** as the starting attack path, then verifies, executes, and adapts/extends the path live from what
+   it finds - the AI-driven pentest experience. Describe or confirm the **objective**, then confirm the **scope**,
+   **rate limits**, and **safe mode**. The run starts in **Created**, then moves to **Running** as the orchestrator
+   engages.
+
+An autonomous run owns exactly one Simulation, kept fully read-only and in sync. You drive and observe it from the
+**Simulation** detail page: the AI overview, the live attack map, and an always-open reasoning panel on the right,
+with pause / resume / stop controls in the header. Manual configuration (scope, logic, manual launch) is not exposed
+while the run is autonomous - the AI owns it.
+
+## Relaunch a finished autonomous run
+
+Because the attack path lives on the Scenario (not the run), a completed autonomous run is fully repeatable. From the
+Scenario you can:
+
+- **Launch a simulation (normal mode)** to replay the same path yourself, or
+- **Launch in autonomous mode** again to let the orchestrator drive a fresh run from the same authored steps.
 
 ### Objectives and scope modes
 
@@ -107,8 +138,9 @@ Every objective has a **scope mode** that tells the AI whether it needs a specif
 
 !!! note
 
-    You never have to select an "attack path scenario" for an autonomous run. Autonomy is the point: you provide the
-    name, description, and objective, and the orchestrator builds and drives the path itself.
+    Scope modes apply the same way whether you plan the Scenario with AI or launch it in autonomous mode: an
+    *environment* objective lets the orchestrator discover its own targets, while a *target* objective without a
+    target makes it raise a **Question** and wait rather than guess.
 
 ## Steer a running attack path
 

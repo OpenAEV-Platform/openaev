@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Autonomous (AI-driven) attack path store. Adds four additive, tenant-isolated tables backing the
- * feature gated by the {@code AUTONOMOUS_ATTACK_PATH} preview flag:
+ * autonomous launch mode of chained scenarios, gated by the {@code INJECT_CHAINING} preview flag:
  *
  * <ul>
  *   <li>{@code autonomous_runs} - one AI-driven run bound to a chained simulation + XTM One

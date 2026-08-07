@@ -3,15 +3,20 @@ package io.openaev.service.autonomous;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.ConvertToManualMode;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Scenario;
@@ -30,6 +35,8 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.xtmone.XtmOneClient;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,6 +67,7 @@ class AutonomousRunServiceTest {
   @Mock private ScenarioService scenarioService;
   @Mock private ScenarioToExerciseService scenarioToExerciseService;
   @Mock private XtmOneClient xtmOneClient;
+  @Mock private OpenAEVConfig openAEVConfig;
 
   @InjectMocks private AutonomousRunService service;
 
@@ -231,13 +239,7 @@ class AutonomousRunServiceTest {
 
     verify(exerciseService).changeExerciseStatus(ExerciseStatus.CANCELED, "sim-1");
     verify(eventService)
-        .append(
-            eq("run-1"),
-            eq("sim-1"),
-            eq(AutonomousEventType.STATUS),
-            eq("Run timed out"),
-            anyString(),
-            eq(null));
+        .appendTerminalStatusOnce(eq("run-1"), eq("sim-1"), eq("Run timed out"), anyString());
     verify(directiveRepository, never()).save(any());
   }
 
@@ -486,6 +488,255 @@ class AutonomousRunServiceTest {
     // Nothing is halted or mutated when the run cannot be converted.
     verifyNoInteractions(xtmOneClient, exerciseService);
     verify(runRepository, never()).delete(any());
+  }
+
+  // endregion
+
+  // region scenario-side entry points: launch-from-scenario (autonomous mode) + plan-with-AI
+
+  @Test
+  @DisplayName("launchFromScenario refuses a scenario that has no chaining (attack path) workflow")
+  void launchFromScenarioRejectsNonChainedScenario() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    // A time-based (non-chained) scenario has no authored attack path to seed, so it cannot be
+    // launched in autonomous mode - the entry point must 400 before creating any run.
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(false);
+
+    assertThatThrownBy(() -> service.launchFromScenario("scenario-1", null))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+    verify(runRepository, never()).save(any());
+    verifyNoInteractions(xtmOneClient);
+  }
+
+  @Test
+  @DisplayName("planScenario refuses a scenario that is not chained (nothing to author onto)")
+  void planScenarioRejectsNonChainedScenario() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(false);
+
+    assertThatThrownBy(() -> service.planScenario("scenario-1", null))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+    verify(runRepository, never()).save(any());
+    verifyNoInteractions(xtmOneClient);
+  }
+
+  @Test
+  @DisplayName(
+      "planScenario authors onto the scenario template: plan-mode run with NO simulation, and the"
+          + " orchestrator is engaged in author-scenario mode (scenario id, null simulation)")
+  void planScenarioAuthorsOntoScenarioWithoutSimulation() throws Exception {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+
+    // save() assigns the generated id and the follow-up start() reloads it by that id.
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun r = invocation.getArgument(0);
+              if (r.getId() == null) {
+                r.setId("plan-run-1");
+              }
+              savedHolder[0] = r;
+              return r;
+            });
+    when(runRepository.findById("plan-run-1"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setObjective("Prove a path to the domain controller");
+    // Explicit (empty) agent selection so the tenant-default settings lookup is never hit.
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+
+    AutonomousRun run = service.planScenario("scenario-1", input);
+
+    // Author-scenario mode is a dry-run bound to the SCENARIO, with no simulation ever provisioned.
+    assertThat(run.isPlanMode()).isTrue();
+    assertThat(run.getScenarioId()).isEqualTo("scenario-1");
+    assertThat(run.getSimulationId()).isNull();
+    assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
+    // Build always starts from a blank logic map: the full wipe (steps AND event/trigger
+    // conditions) runs before the orchestrator is engaged.
+    verify(workflowService).deleteAllScenarioSteps("scenario-1");
+    // The scenario workflow is kept alive so the authoring window survives.
+    verify(workflowService).markScenarioWorkflowKeepAlive("scenario-1");
+    // Scope is written onto the scenario workflow only (null simulation id), never a simulation.
+    verify(workflowService).writeScopeRules(eq("scenario-1"), isNull(), anyList());
+    // The orchestrator is engaged in AUTHOR-SCENARIO mode: author_scenario=true, the scenario id is
+    // passed, and there is NO simulation to target.
+    verify(xtmOneClient)
+        .startAutonomousRun(
+            any(),
+            eq("Prove a path to the domain controller"),
+            eq("plan-run-1"),
+            isNull(),
+            eq("scenario-1"),
+            eq(true),
+            any(),
+            any(),
+            anyList(),
+            any(),
+            eq(true),
+            any(),
+            any(),
+            anyList(),
+            anyMap());
+  }
+
+  @Test
+  @DisplayName("planScenario refuses to rebuild while the scenario's previous run is still active")
+  void planScenarioRefusesWhileActiveRun() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    // A prior plan run is still being designed (active): rebuilding would orphan it, so the entry
+    // point must 409 before wiping anything or engaging the orchestrator.
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(true);
+    prior.setStatus(AutonomousRunStatus.PLANNING);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    assertThatThrownBy(() -> service.planScenario("scenario-1", null))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+    verify(workflowService, never()).deleteAllScenarioSteps(anyString());
+    verify(runRepository, never()).save(any());
+    verifyNoInteractions(xtmOneClient);
+  }
+
+  @Test
+  @DisplayName("planScenario supersedes a settled prior run before rebuilding the plan")
+  void planScenarioSupersedesSettledPriorRun() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+
+    // A settled dry-run (PLANNED, no simulation) already exists: it must be torn down so the fresh
+    // plan run can bind, but its (absent) simulation is never touched.
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(true);
+    prior.setStatus(AutonomousRunStatus.PLANNED);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun r = invocation.getArgument(0);
+              if (r.getId() == null) {
+                r.setId("plan-run-2");
+              }
+              savedHolder[0] = r;
+              return r;
+            });
+    when(runRepository.findById("plan-run-2"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setObjective("Prove a path to the domain controller");
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+
+    AutonomousRun run = service.planScenario("scenario-1", input);
+
+    // The prior settled run row is removed and its coordination state purged (no simulation delete
+    // for a plan-mode dry-run), then the fresh plan run is created and the logic map wiped.
+    verify(runRepository).delete(prior);
+    verify(xtmOneClient).cancelAutonomousRun(eq("prior-run"), anyString(), eq(true));
+    verify(exerciseService, never()).deleteById(anyString());
+    verify(workflowService).deleteAllScenarioSteps("scenario-1");
+    assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
+  }
+
+  @Test
+  @DisplayName(
+      "supersedeSettledRunOnManualLaunch tears down a settled plan run (and its throwaway"
+          + " simulation) so a normal launch reverts the scenario to its non-AI overview")
+  void supersedeSettledRunOnManualLaunchTearsDownSettledPlanRun() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    // A settled dry-run left an AI plan outcome on the scenario. Launching a normal simulation
+    // makes it stale, so the run row + its plan-mode substrate simulation are removed.
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(true);
+    prior.setStatus(AutonomousRunStatus.CANCELED);
+    prior.setSimulationId("plan-sim");
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    service.supersedeSettledRunOnManualLaunch("scenario-1");
+
+    verify(exerciseService).deleteById("plan-sim");
+    verify(directiveRepository).deleteByRunId("prior-run");
+    verify(eventService).deleteByRun("prior-run");
+    verify(runRepository).delete(prior);
+    verify(xtmOneClient).cancelAutonomousRun(eq("prior-run"), anyString(), eq(true));
+  }
+
+  @Test
+  @DisplayName(
+      "supersedeSettledRunOnManualLaunch unbinds a finished LIVE run but keeps its simulation as"
+          + " history")
+  void supersedeSettledRunOnManualLaunchKeepsFinishedLiveSimulation() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    // A completed LIVE run: the run row is removed so the scenario reverts to the normal overview,
+    // but its real simulation stays as a plain chained simulation (relaunch never destroys
+    // results).
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(false);
+    prior.setStatus(AutonomousRunStatus.COMPLETED);
+    prior.setSimulationId("live-sim");
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    service.supersedeSettledRunOnManualLaunch("scenario-1");
+
+    verify(exerciseService, never()).deleteById(anyString());
+    verify(runRepository).delete(prior);
+  }
+
+  @Test
+  @DisplayName(
+      "supersedeSettledRunOnManualLaunch never tears down a still-active run (defensive no-op, no"
+          + " 409)")
+  void supersedeSettledRunOnManualLaunchLeavesActiveRunUntouched() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(false);
+    prior.setStatus(AutonomousRunStatus.RUNNING);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    service.supersedeSettledRunOnManualLaunch("scenario-1");
+
+    verify(runRepository, never()).delete(any());
+    verify(exerciseService, never()).deleteById(anyString());
+    verifyNoInteractions(xtmOneClient);
+  }
+
+  @Test
+  @DisplayName("supersedeSettledRunOnManualLaunch is a no-op when the scenario carries no run")
+  void supersedeSettledRunOnManualLaunchNoOpWhenNoRun() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
+
+    service.supersedeSettledRunOnManualLaunch("scenario-1");
+
+    verify(runRepository, never()).delete(any());
+    verifyNoInteractions(xtmOneClient);
   }
 
   // endregion

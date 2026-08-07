@@ -505,6 +505,30 @@ public class ConditionService {
     return false;
   }
 
+  /**
+   * Deletes EVERY condition belonging to a workflow: root event/trigger trees, their children, and
+   * step-scoped MAPPER conditions alike (children and step links cascade from the roots).
+   *
+   * <p>The condition-side complement of a full step wipe. Per-step cleanup ({@link
+   * #deleteAllConditionsByStepId(String)}) only deletes a condition once it has no more step links
+   * AND no children, so an event/trigger tree - a root condition with children - always survived a
+   * "reset everything" pass and lingered as an orphan on the logic map after the steps were gone.
+   * Used by the autonomous rebuild/reset paths; deliberately skips the logic-map editability
+   * assertion because those paths reset workflows that may still be flagged keep-alive.
+   *
+   * @param workflowId the workflow whose conditions must all be removed
+   */
+  public void deleteAllConditionsByWorkflowId(String workflowId) {
+    if (workflowId == null || workflowId.isBlank()) {
+      return;
+    }
+    List<Condition> roots =
+        conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflowId);
+    if (!roots.isEmpty()) {
+      conditionRepository.deleteAll(roots);
+    }
+  }
+
   // -- CONDITION PERSISTENCE HELPERS --
 
   /**

@@ -21,18 +21,18 @@ public class ScenarioUtils {
   private static final String SCENARIO_TYPE_FILTER = "scenario_type";
 
   // Engine-type filter values (kept human-readable, mirroring the recurrence filter). They are the
-  // exact ids the launch UI stores and the frontend ScenarioTypeFilter offers.
+  // exact ids the launch UI stores and the frontend ScenarioTypeFilter offers. Autonomy is no
+  // longer a scenario type - it is a launch-time mode - so only Chained / Time-based remain.
   public static final String SCENARIO_TYPE_TIME_BASED = "Time-based";
   public static final String SCENARIO_TYPE_CHAINED = "Chained";
-  public static final String SCENARIO_TYPE_AUTONOMOUS = "Autonomous";
 
   /**
    * Manage filters that are not directly managed by the generic mechanics. Two composite scenario
    * facets are handled here because they cannot map to a single JPA column: {@code
-   * scenario_recurrence} (scheduled vs. not) and {@code scenario_type} (time-based / chained /
-   * autonomous, derived from the autonomous flag and the presence of a chaining workflow template).
-   * Each matching filter is stripped from the generic group and re-expressed as a Specification;
-   * the results are combined with the group's AND/OR mode.
+   * scenario_recurrence} (scheduled vs. not) and {@code scenario_type} (time-based / chained,
+   * derived from the presence of a chaining workflow template). Each matching filter is stripped
+   * from the generic group and re-expressed as a Specification; the results are combined with the
+   * group's AND/OR mode.
    */
   public static UnaryOperator<Specification<Scenario>> handleCustomFilter(
       @NotNull final SearchPaginationInput searchPaginationInput) {
@@ -91,7 +91,6 @@ public class ScenarioUtils {
     for (String value : values) {
       Specification<Scenario> valueSpec =
           switch (value) {
-            case SCENARIO_TYPE_AUTONOMOUS -> ScenarioSpecification.isAutonomous();
             case SCENARIO_TYPE_CHAINED -> ScenarioSpecification.isChained();
             case SCENARIO_TYPE_TIME_BASED -> ScenarioSpecification.isTimeBased();
             default -> null;

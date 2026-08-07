@@ -51,10 +51,10 @@ import org.springframework.web.bind.annotation.RestController;
  * Autonomous (AI-driven) attack-path run endpoints. Two independent gates apply to every method:
  *
  * <ul>
- *   <li>the {@code AUTONOMOUS_ATTACK_PATH} preview feature (which itself requires {@code
- *       ATTACK_PATH} + {@code INJECT_CHAINING}), resolved inside {@link AutonomousRunService},
- *       returning 404 when the feature is off - the same convention the attack-path and chaining
- *       APIs use; and
+ *   <li>the {@code INJECT_CHAINING} preview feature - autonomy is a launch mode of a chained
+ *       scenario, so it shares the chaining gate (there is no dedicated autonomous flag), resolved
+ *       inside {@link AutonomousRunService}, returning 404 when the feature is off - the same
+ *       convention the attack-path and chaining APIs use; and
  *   <li>the Enterprise Edition license, enforced declaratively by {@code @AccessControl(...,
  *       isEnterpriseEdition = true)}. This is an AI feature, so it is EE-only exactly like every
  *       other AI capability (remediation generation, XTM One chat); the aspect enforces the EE gate
@@ -155,6 +155,41 @@ public class AutonomousRunApi extends RestBehavior {
     return autonomousRunService.create(input);
   }
 
+  @Operation(
+      summary = "Launch an existing chained scenario in autonomous mode",
+      description =
+          "Spins up a live simulation and engages the orchestrator to drive it. If the scenario"
+              + " already has authored steps (built by hand or by the AI builder), they are seeded"
+              + " as the starting attack path and the orchestrator verifies, executes, and"
+              + " adapts/extends from live findings; if the scenario is still empty, the"
+              + " orchestrator builds the attack path live 'as it goes' from the objective and"
+              + " scope. The plain scenario 'exercise/running' launch stays operator-driven; this is"
+              + " the autonomous launch mode. Creates AND starts the run in one call.")
+  @PostMapping("/from-scenario/{scenarioId}")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRun launchFromScenario(
+      @PathVariable String scenarioId,
+      @Valid @RequestBody(required = false) AutonomousRunCreateInput input) {
+    return autonomousRunService.launchFromScenario(scenarioId, input);
+  }
+
+  @Operation(
+      summary = "Plan an existing chained scenario with the orchestrator (author steps, no run)",
+      description =
+          "Engages the orchestrator to DESIGN a reusable attack path by authoring steps directly"
+              + " onto the scenario's workflow template. No simulation is provisioned and nothing"
+              + " is executed; the operator later launches the authored scenario in normal or"
+              + " autonomous mode. Creates AND starts the build (logic-authoring) session in one call.")
+  @PostMapping("/plan-scenario/{scenarioId}")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRun planScenario(
+      @PathVariable String scenarioId,
+      @Valid @RequestBody(required = false) AutonomousRunCreateInput input) {
+    return autonomousRunService.planScenario(scenarioId, input);
+  }
+
   @Operation(summary = "List autonomous runs, newest first")
   @GetMapping
   @Transactional(readOnly = true)
@@ -194,6 +229,35 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRun getByScenario(@PathVariable String scenarioId) {
     return autonomousRunService.getByScenario(scenarioId);
+  }
+
+  @Operation(
+      summary = "Read the saved autonomous-run configuration of a chained scenario",
+      description =
+          "Returns the AI-builder configuration (objective, agents + discovery modes, scope, time"
+              + " budget) an operator saved on this scenario for later, or an empty body when none"
+              + " has been saved. Lets the AI builder drawer pre-fill from the last configuration."
+              + " This does NOT start a run - the scenario stays a normal chained scenario.")
+  @GetMapping("/scenario-config/{scenarioId}")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRunCreateInput getScenarioConfig(@PathVariable String scenarioId) {
+    return autonomousRunService.getScenarioAutonomousConfig(scenarioId);
+  }
+
+  @Operation(
+      summary = "Save an autonomous-run configuration on a chained scenario (no run started)",
+      description =
+          "Persists the AI-builder configuration on the scenario so it can be built (planned) or"
+              + " launched later. Nothing is executed and no run is created; the scenario stays a"
+              + " normal, editable chained scenario. An empty body clears the saved configuration.")
+  @PutMapping("/scenario-config/{scenarioId}")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public AutonomousRunCreateInput saveScenarioConfig(
+      @PathVariable String scenarioId,
+      @RequestBody(required = false) AutonomousRunCreateInput input) {
+    return autonomousRunService.saveScenarioAutonomousConfig(scenarioId, input);
   }
 
   @Operation(summary = "Engage the orchestrator for a created run")
@@ -242,13 +306,13 @@ public class AutonomousRunApi extends RestBehavior {
   }
 
   @Operation(
-      summary = "Promote a completed dry-run plan to a real, executing run",
+      summary = "Launch a completed plan as a live autonomous run",
       description =
-          "Turns a PLANNED dry-run into a live run in place: tears the non-executing plan"
-              + " simulation and the mirrored plan steps down, provisions a fresh executing"
-              + " simulation, clears plan mode and keeps the plan summary as guidance. The caller"
-              + " then starts it again; the orchestrator follows the plan while adapting to live"
-              + " findings.")
+          "Turns a PLANNED (built-logic) run into a live autonomous run in place: tears the"
+              + " non-executing plan simulation and the mirrored plan steps down, provisions a fresh"
+              + " executing simulation, clears build mode and keeps the plan summary as guidance. The"
+              + " caller then starts it again; the orchestrator follows the plan while adapting to"
+              + " live findings.")
   @PostMapping("/{runId}/promote")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -264,7 +328,7 @@ public class AutonomousRunApi extends RestBehavior {
               + " manual for good: it halts the orchestration, drops the autonomous run and its"
               + " timeline, and keeps the scenario + its simulation as a normal chained"
               + " scenario/simulation the operator can edit and delete. IN_PLACE is irreversible."
-              + " Works whether the run is a dry-run plan or has already executed. Returns the"
+              + " Works whether the run is a built plan or has already executed. Returns the"
               + " resulting manual scenario.")
   @PostMapping("/{runId}/convert-to-manual")
   @Transactional

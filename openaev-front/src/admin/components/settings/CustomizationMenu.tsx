@@ -16,9 +16,10 @@ const CustomizationMenuComponent: FunctionComponent = () => {
   const { settings } = useAuth();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   // The autonomous-attack customization is driven by XTM One (the AI brain); show it only when the
-  // feature is on and XTM One is connected, matching the launch entry point's own gate.
+  // chaining feature is on (autonomy is a launch mode of chained scenarios, no dedicated flag) and
+  // XTM One is connected, matching the launch entry point's own gate.
   const autonomousReady
-    = isFeatureEnabled('AUTONOMOUS_ATTACK_PATH')
+    = isFeatureEnabled('INJECT_CHAINING')
       && settings.platform_xtm_one_configured === true;
 
   const entries: RightMenuEntry[] = [

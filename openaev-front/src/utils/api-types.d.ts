@@ -1505,9 +1505,9 @@ export interface AutonomousRun {
   autonomous_run_objective: string;
   /** Key of the objective template the run was seeded from, if any */
   autonomous_run_objective_template_key?: string;
-  /** Plan summary captured from a dry-run and handed to the promoted real run as guidance, so the live run follows the plan while still adapting to what it finds. */
+  /** Plan summary captured while building the logic and handed to a subsequent live autonomous run as guidance, so the live run follows the plan while still adapting to what it finds. */
   autonomous_run_plan_guidance?: string;
-  /** Dry-run flag. When true the orchestrator only designs the attack path (scope + steps + decisions) and nothing is executed; the run is shown in draft orange and can be promoted to a real, executing run. */
+  /** Build flag. When true the orchestrator only authors the scenario's logic (scope + steps + decisions) and nothing is executed; the built logic is shown in draft orange and can then be launched (in normal or autonomous mode). */
   autonomous_run_plan_mode: boolean;
   /** Scenario the simulation was created from, if any */
   autonomous_run_scenario_id?: string;
@@ -1536,7 +1536,7 @@ export interface AutonomousRun {
     | "FAILED"
     | "CANCELED";
   /**
-   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Null means no OpenAEV-enforced timeout (e.g. plan/dry-run mode).
+   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Null means no OpenAEV-enforced timeout (e.g. build mode).
    * @format int64
    */
   autonomous_run_timeout_seconds?: number;
@@ -1568,7 +1568,7 @@ export interface AutonomousRunCreateInput {
   objective?: string;
   /** Key of an objective template to seed the objective from */
   objective_template_key?: string;
-  /** Dry-run: when true the orchestrator only designs the attack path (scope, steps, decisions) and executes nothing. The operator can review the plan and later run it for real. Defaults to false (immediate live run). */
+  /** Build mode: when true the orchestrator only authors the scenario's logic (scope, steps, decisions) and executes nothing. The operator can review the built logic and later launch the scenario (in normal or autonomous mode). Defaults to false (immediate live autonomous run). */
   plan_mode?: boolean;
   /** Advanced/optional: seed from an existing chaining scenario instead of auto-provisioning. Leave empty for a fully autonomous run. */
   scenario_id?: string;
@@ -1581,7 +1581,7 @@ export interface AutonomousRunCreateInput {
   /** Optional team defining the in-scope audience for identity-targeted objectives (phishing, human credential harvesting). Legacy single-team shortcut; prefer the mixed 'scope' list. */
   scope_team_id?: string;
   /**
-   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Defaults to 24h when omitted; ignored in plan/dry-run mode.
+   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Defaults to 24h when omitted; ignored in build mode (authoring the logic is untimed).
    * @format int64
    */
   timeout_seconds?: number;
@@ -5094,6 +5094,7 @@ export interface Exercise {
   /** @format int64 */
   exercise_all_users_number?: number;
   exercise_articles?: string[];
+  exercise_autonomous?: boolean;
   exercise_category?: string;
   /** @format int64 */
   exercise_communications_number?: number;
@@ -5188,6 +5189,8 @@ export interface ExerciseBulkProcessingInput {
 }
 
 export interface ExerciseSimple {
+  /** Whether this simulation was created by an autonomous (AI-driven) run */
+  exercise_autonomous?: boolean;
   /** Exercise Category */
   exercise_category?: string;
   exercise_global_score: ExpectationResultsByType[];
@@ -9127,7 +9130,6 @@ export interface PlatformSettings {
     | "CREDENTIAL_ASSET"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
-    | "AUTONOMOUS_ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** True if the Tanium Executor is enabled */
@@ -9426,7 +9428,6 @@ export interface PublicPlatformSettings {
     | "CREDENTIAL_ASSET"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
-    | "AUTONOMOUS_ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
@@ -10736,6 +10737,7 @@ export interface SimulationChallengesReader {
 export interface SimulationDetails {
   /** @format int64 */
   exercise_all_users_number?: number;
+  exercise_autonomous?: boolean;
   exercise_category?: string;
   /** @format int64 */
   exercise_communications_number?: number;

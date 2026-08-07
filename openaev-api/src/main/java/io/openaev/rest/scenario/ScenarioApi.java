@@ -634,6 +634,11 @@ public class ScenarioApi extends RestBehavior {
 
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
         && workflowService.isScenarioChaining(scenarioId)) {
+      // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
+      // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
+      // plan or run outcome is no longer the latest activity). No-op when the scenario carries no
+      // run or the feature is off, and never tears down a still-active run.
+      autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
       simulation =
           scenarioToExerciseService.toExercise(
               scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);

@@ -119,10 +119,11 @@ const IndexComponent: FunctionComponent<{
                   <Route path="animation/*" element={<AnimationToExecutionRedirect />} />
                   <Route path="lessons" element={errorWrapper(Lessons)()} />
                   <Route path="findings" element={errorWrapper(SimulationFindings)()} />
-                  {/* An autonomous run's attack path is an action timeline on a mostly single compromised
-                    host, so render its endpoint-local actions as nodes (actionCentric) instead of the
-                    finding-centric manual-BAS view. */}
-                  {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)({ actionCentric: isAutonomous })} />}
+                  {/* An autonomous run's attack path renders as an action timeline instead of the
+                    finding-centric manual-BAS view. That switch is derived inside SimulationAttackPath
+                    from the selected simulation's durable exercise_autonomous marker, so a finished
+                    autonomous run keeps action-centric rendering even after its live run row is gone. */}
+                  {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
                   {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
                   <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
                   {/* Statistics replaced the hero dashboard quick action and the old

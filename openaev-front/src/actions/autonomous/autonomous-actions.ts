@@ -13,8 +13,9 @@ import type {
   CapabilityReport,
 } from './autonomous-types';
 
-// Autonomous (AI-driven) attack-path run client, gated by the AUTONOMOUS_ATTACK_PATH preview
-// feature. The tenant prefix is added centrally by Action.buildUri, so these use the plain /api
+// Autonomous (AI-driven) attack-path run client, gated by the INJECT_CHAINING preview feature
+// (autonomy is a launch mode of chained scenarios, so it shares the chaining flag). The tenant
+// prefix is added centrally by Action.buildUri, so these use the plain /api
 // paths. Reads pass defaultNotifyErrorBehavior=false so polling failures don't spam toasts; the
 // mutating calls keep the default error toast.
 const AUTONOMOUS_URI = '/api/autonomous-runs';
@@ -57,6 +58,24 @@ export const createAutonomousRun = (
   input: AutonomousRunCreateInput,
 ): Promise<{ data: AutonomousRun }> => simplePostCall(AUTONOMOUS_URI, input);
 
+// Launch an existing chained scenario in AUTONOMOUS mode: the backend seeds a live simulation from
+// the scenario's authored attack path and engages the orchestrator to verify, execute, and
+// adapt/extend it. Creates AND starts the run in one call; returns the run (with its simulation id).
+export const launchAutonomousFromScenario = (
+  scenarioId: string,
+  input?: Partial<AutonomousRunCreateInput>,
+): Promise<{ data: AutonomousRun }> =>
+  simplePostCall(`${AUTONOMOUS_URI}/from-scenario/${scenarioId}`, input ?? {});
+
+// Plan an existing chained scenario with the orchestrator (author-scenario mode): the orchestrator
+// designs the attack path by writing steps directly onto the scenario workflow. No simulation is
+// provisioned and nothing is executed. Creates AND starts the (dry-run) planning session.
+export const planAutonomousScenario = (
+  scenarioId: string,
+  input?: Partial<AutonomousRunCreateInput>,
+): Promise<{ data: AutonomousRun }> =>
+  simplePostCall(`${AUTONOMOUS_URI}/plan-scenario/${scenarioId}`, input ?? {});
+
 export const fetchAutonomousRuns = (): Promise<{ data: AutonomousRun[] }> =>
   simpleCall(AUTONOMOUS_URI, undefined, false);
 
@@ -78,6 +97,23 @@ export const fetchAutonomousRunByScenario = (
 ): Promise<{ data: AutonomousRun }> =>
   simpleCall(`${AUTONOMOUS_URI}/by-scenario/${scenarioId}`, undefined, false);
 
+// Read the autonomous-run configuration saved on a chained scenario (the AI builder's "Save for
+// later"), so the builder drawer can pre-fill. `data` is null when nothing was saved. Toast
+// suppressed - a scenario with no saved config is expected, not an error.
+export const fetchScenarioAutonomousConfig = (
+  scenarioId: string,
+): Promise<{ data: AutonomousRunCreateInput | null }> =>
+  simpleCall(`${AUTONOMOUS_URI}/scenario-config/${scenarioId}`, undefined, false);
+
+// Persist an autonomous-run configuration on a chained scenario WITHOUT starting a run. The
+// scenario stays a normal, editable chained scenario; the config is only used to pre-fill the
+// builder and seed a later Build (plan) or Launch.
+export const saveScenarioAutonomousConfig = (
+  scenarioId: string,
+  input: AutonomousRunCreateInput,
+): Promise<{ data: AutonomousRunCreateInput | null }> =>
+  simplePutCall(`${AUTONOMOUS_URI}/scenario-config/${scenarioId}`, input);
+
 export const startAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
   simplePostCall(`${AUTONOMOUS_URI}/${runId}/start`);
 
@@ -89,19 +125,6 @@ export const resumeAutonomousRun = (runId: string): Promise<{ data: AutonomousRu
 
 export const cancelAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
   simplePostCall(`${AUTONOMOUS_URI}/${runId}/cancel`);
-
-// Restart a terminal run in place: reuses the same scenario, tears the old simulation down and
-// provisions a fresh one, resetting the run to CREATED. Pair with startAutonomousRun to re-engage
-// the orchestrator - no new scenario is created.
-export const restartAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
-  simplePostCall(`${AUTONOMOUS_URI}/${runId}/restart`);
-
-// Promote a completed dry-run plan to a real, executing run in place: the backend tears the
-// non-executing plan simulation + mirrored plan steps down, provisions a fresh executing
-// simulation, clears plan mode and keeps the plan summary as guidance, resetting the run to
-// CREATED. Pair with startAutonomousRun to engage the orchestrator on the live run.
-export const promoteAutonomousRun = (runId: string): Promise<{ data: AutonomousRun }> =>
-  simplePostCall(`${AUTONOMOUS_URI}/${runId}/promote`);
 
 // Turn an autonomous scenario into a manual chained scenario. DUPLICATE clones it into a brand-new
 // manual scenario and leaves the AI run untouched; IN_PLACE flips this scenario to manual for good

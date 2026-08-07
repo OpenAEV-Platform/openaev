@@ -23,14 +23,11 @@ public class PreviewFeatureService {
   }
 
   /**
-   * The Autonomous Attack Path feature depends on the attack-path projection (for the live animated
-   * view) and the chaining engine (for execution). We keep the requires-both check internally for
-   * correctness even though, once {@code ATTACK_PATH} and {@code INJECT_CHAINING} ship enabled by
-   * default, {@code AUTONOMOUS_ATTACK_PATH} is the single flag an operator has to toggle.
+   * Autonomy is a launch-time MODE of a chained scenario, not a feature of its own: it is gated by
+   * the same {@code INJECT_CHAINING} flag that turns on the chaining engine it drives. There is no
+   * dedicated autonomous flag anymore - a tenant that has chaining has autonomous.
    */
   public boolean isAutonomousAttackPathEnabled() {
-    return isFeatureEnabled(PreviewFeature.AUTONOMOUS_ATTACK_PATH)
-        && isFeatureEnabled(PreviewFeature.ATTACK_PATH)
-        && isFeatureEnabled(PreviewFeature.INJECT_CHAINING);
+    return isFeatureEnabled(PreviewFeature.INJECT_CHAINING);
   }
 }

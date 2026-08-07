@@ -76,4 +76,8 @@ public class ExerciseSimple {
   @Schema(description = "Workflow ID associated with the simulation")
   @JsonProperty("exercise_workflow_id")
   private String workflowId;
+
+  @Schema(description = "Whether this simulation was created by an autonomous (AI-driven) run")
+  @JsonProperty("exercise_autonomous")
+  private boolean autonomous;
 }
