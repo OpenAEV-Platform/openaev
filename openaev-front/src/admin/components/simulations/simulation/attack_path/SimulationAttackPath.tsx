@@ -1417,16 +1417,14 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     const applyExec = (ids: string[]) => setHighlightedExecutionIds(new Set(ids));
     const matchIn = (items: AttackPathFindingItemDTO[]) =>
       items.find(it => it.endpointKey === endpointKey && (it.type ?? '') === type && findingValuesMatch(type, it.value ?? '', value));
-    const loaded = matchIn(findingsPage?.items ?? []);
-    if (loaded) {
-      applyExec(loaded.executionIds ?? []);
-      return;
-    }
-    // Authoritative for EVERY finding type: the full graph's execution→findings links. This covers types
-    // the drawer categories don't (port, hash…), which otherwise resolved to no producer — leaving every
-    // injector on the endpoint highlighted instead of just the one that produced the finding. Resolve the
-    // finding's CANONICAL node id from the graph (the backend escapes `\`/`|`, so a share value never
-    // matches a rebuilt `NODE_FINDING|type|value`) and match executions on that.
+    // Authoritative for EVERY finding type: the full graph's execution→findings links, resolved by the
+    // finding's own CANONICAL node id (exact match on the RAW value, unlike the drawer's category page
+    // whose credential values are masked server-side). Tried FIRST — a credentials category match is
+    // ambiguous whenever two findings share a username but differ only by password/hash, since
+    // findingValuesMatch() compares just the username for that type (the drawer can't compare masked
+    // secrets): picking the category-page match first would silently attribute the wrong producing
+    // action to whichever entry happens to sort first in the page. The canonical lookup below never has
+    // this ambiguity because it compares the full, unmasked value.
     const canonicalId = (fullDto?.attackPathNodes ?? [])
       .find(n => n.type === 'FINDING' && (n.typeFindings ?? '') === type && (n.value ?? n.label) === value)?.id;
     const fromFull = canonicalId
@@ -1437,6 +1435,14 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       : [];
     if (fromFull.length > 0) {
       applyExec(fromFull);
+      return;
+    }
+    // Fallback for finding types the full graph didn't resolve (or wasn't loaded yet): the drawer's
+    // already-loaded category page. Ambiguous for same-username credentials, but only reached when the
+    // exact resolution above found nothing.
+    const loaded = matchIn(findingsPage?.items ?? []);
+    if (loaded) {
+      applyExec(loaded.executionIds ?? []);
       return;
     }
     const category = CATEGORY_OF_TYPE[type];
@@ -1543,8 +1549,20 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       setHighlightedExecutionIds(new Set(producerRefs));
       return true;
     }
-    // Scope the feed (and the producing-action list) to THIS finding's producing executions, resolved
-    // from its category page exactly like a drawer pick.
+    // Producing executions, resolved by this finding's OWN node id (exact, unambiguous — unlike the
+    // drawer category page below, whose credential values are masked server-side, so two findings
+    // sharing a username but differing only by password/hash would otherwise be indistinguishable).
+    const fromFull = (fullDto?.attackPathExecutions ?? [])
+      .filter(e => (e.findingsNodeIds ?? []).includes(nodeId))
+      .map(e => e.ref)
+      .filter((r): r is string => !!r);
+    if (fromFull.length > 0) {
+      setHighlightedExecutionIds(new Set(fromFull));
+      return true;
+    }
+    // Fallback for finding types/graphs the exact lookup above didn't resolve: the drawer's category
+    // page, exactly like a drawer pick. Ambiguous for same-username credentials, but only reached when
+    // the exact resolution above found nothing.
     const category = CATEGORY_OF_TYPE[type];
     if (!category) {
       setHighlightedExecutionIds(new Set());
