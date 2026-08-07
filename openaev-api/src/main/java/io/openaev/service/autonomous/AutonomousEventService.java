@@ -6,6 +6,7 @@ import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,16 @@ public class AutonomousEventService {
 
   private final AutonomousEventRepository eventRepository;
   private final AttackPathVersionService attackPathVersionService;
+
+  /**
+   * Titles that narrate a run reaching its END. Kept in one place because it is the set the
+   * "narrate the end once" guard ({@link #appendTerminalStatusOnce}) matches against - a run's
+   * lifetime has exactly one of these, and every terminal-settle path (operator Stop, timeout
+   * watchdog, read-path reconcile) must funnel its terminal line through the guard so a resurrected
+   * + re-settled run can never spam a second identical one.
+   */
+  public static final Set<String> TERMINAL_STATUS_TITLES =
+      Set.of("Run canceled", "Run completed", "Run timed out", "Run failed");
 
   @Transactional(rollbackFor = Exception.class)
   public AutonomousEvent append(
@@ -59,6 +70,23 @@ public class AutonomousEventService {
       }
     }
     return saved;
+  }
+
+  /**
+   * Appends a run's END event ("Run canceled" / "Run completed" / "Run timed out" / "Run failed")
+   * exactly once per run life. Any second terminal narration - a racing settle path that also won
+   * a flip, or the reconcile re-settling a run that a late orchestrator write briefly resurrected -
+   * is dropped instead of appended, which is the fix for the duplicated + repeated terminal message
+   * the operator saw when canceling a run. Returns {@code null} when the run's end was already
+   * narrated. The guard resets naturally on restart / promote, which purge the whole timeline.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public AutonomousEvent appendTerminalStatusOnce(
+      String runId, String simulationId, String title, String content) {
+    if (eventRepository.existsTerminalStatusEvent(runId, TERMINAL_STATUS_TITLES)) {
+      return null;
+    }
+    return append(runId, simulationId, AutonomousEventType.STATUS, title, content, null);
   }
 
   @Transactional(readOnly = true)
