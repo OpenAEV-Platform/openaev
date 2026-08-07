@@ -1,5 +1,4 @@
-# Container image tags live only in versions.env, which `.env` loads via
-# COMPOSE_ENV_FILES. Compose refuses to start if that is not set.
+# Container image tags live in this file so Compose works without extra flags.
 services:
 
   # ===========================================================================
@@ -10,7 +9,7 @@ services:
   # Development PostgreSQL database (persistent storage)
   openaev-dev-pgsql:
     container_name: openaev-dev-pgsql
-    image: ${POSTGRES_IMAGE:?see .env.example}
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -30,7 +29,7 @@ services:
   # Credentials: minioadmin/minioadmin
   openaev-dev-minio:
     container_name: openaev-dev-minio
-    image: ${MINIO_IMAGE:?see .env.example}
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
     ports:
       - "10000:9000"
       - "10001:9001"
@@ -47,7 +46,7 @@ services:
   # RabbitMQ message queue with management UI (default credentials: guest/guest)
   openaev-dev-rabbitmq:
     container_name: openaev-dev-rabbitmq
-    image: ${RABBITMQ_IMAGE:?see .env.example}
+    image: rabbitmq:4.3-management
     restart: unless-stopped
     volumes:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
@@ -62,7 +61,7 @@ services:
   # Development Elasticsearch (persistent storage)
   openaev-dev-elasticsearch:
     container_name: openaev-dev-elasticsearch
-    image: ${ELASTICSEARCH_IMAGE:?see .env.example}
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.15
     volumes:
       - esdata:/usr/share/elasticsearch/data
       - essnapshots:/usr/share/elasticsearch/snapshots
@@ -98,7 +97,7 @@ services:
   # Test PostgreSQL database (ephemeral - no volume for clean test runs)
   openaev-test-pgsql:
     container_name: openaev-test-pgsql
-    image: ${POSTGRES_IMAGE:?see .env.example}
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -114,7 +113,7 @@ services:
   # Test MinIO object storage (S3-compatible)
   openaev-test-minio:
     container_name: openaev-test-minio
-    image: ${MINIO_IMAGE:?see .env.example}
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
     ports:
       - "11000:9000"
       - "11001:9001"
@@ -134,7 +133,7 @@ services:
   # You typically only need to run one search engine at a time.
   openaev-dev-opensearch:
     container_name: openaev-dev-opensearch
-    image: ${OPENSEARCH_IMAGE:?see .env.example}
+    image: opensearchproject/opensearch:3.7.0
     volumes:
       - osdata:/usr/share/opensearch/data
       - ossnapshots:/usr/share/opensearch/snapshots
@@ -162,7 +161,7 @@ services:
   # Test Elasticsearch (ephemeral - no volume for clean test runs)
   openaev-test-elasticsearch:
     container_name: openaev-test-elasticsearch
-    image: ${ELASTICSEARCH_IMAGE:?see .env.example}
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.15
     environment:
       - discovery.type=single-node
       - xpack.ml.enabled=false
@@ -203,7 +202,7 @@ services:
   # Kibana - Elasticsearch UI for development
   openaev-dev-kibana:
     container_name: openaev-dev-kibana
-    image: ${KIBANA_IMAGE:?see .env.example}
+    image: docker.elastic.co/kibana/kibana:8.19.15
     environment:
       - ELASTICSEARCH_HOSTS=http://openaev-dev-elasticsearch:9200
     restart: unless-stopped
@@ -215,7 +214,7 @@ services:
   # Kibana - Elasticsearch UI for testing
   openaev-test-kibana:
     container_name: openaev-test-kibana
-    image: ${KIBANA_IMAGE:?see .env.example}
+    image: docker.elastic.co/kibana/kibana:8.19.15
     environment:
       - ELASTICSEARCH_HOSTS=http://openaev-test-elasticsearch:9200
     restart: unless-stopped
@@ -227,7 +226,7 @@ services:
   # RSA key generator & XTM Composer (needed only for injector integration testing)
   rsa-key-generator:
     container_name: rsa-key-generator
-    image: ${OPENSSL_IMAGE:?see .env.example}
+    image: alpine/openssl:3.5.7
     volumes:
       - rsakeys:/keys
     entrypoint: [ "/bin/ash" ]

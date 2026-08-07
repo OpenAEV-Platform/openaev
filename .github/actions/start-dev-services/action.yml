@@ -2,9 +2,9 @@ name: Start Dev Services
 description: >
   Start the backing service containers shared by the test jobs (PostgreSQL,
   Elasticsearch or OpenSearch, RabbitMQ, MinIO) in the background and assert
-  they came up. Image tags come from openaev-dev/versions.env. Containers are
-  named pgsql, search-engine, rabbitmq and minio. Readiness polling is left to
-  the caller so the containers can boot while other setup runs.
+  they came up. Image tags come from openaev-dev/docker-compose.yml. Containers
+  are named pgsql, search-engine, rabbitmq and minio. Readiness polling is left
+  to the caller so the containers can boot while other setup runs.
 
 inputs:
   search-engine:
@@ -12,7 +12,7 @@ inputs:
     required: false
     default: "elasticsearch"
   search-engine-image:
-    description: "Override the search engine image (default from openaev-dev/versions.env)"
+    description: "Override the search engine image (default from openaev-dev/docker-compose.yml)"
     required: false
     default: ""
 
@@ -25,17 +25,22 @@ runs:
         SEARCH_ENGINE: ${{ inputs.search-engine }}
         SEARCH_ENGINE_IMAGE: ${{ inputs.search-engine-image }}
       run: |
-        source openaev-dev/versions.env
+        COMPOSE_FILE=openaev-dev/docker-compose.yml
+        POSTGRES_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images openaev-dev-pgsql)
+        RABBITMQ_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images openaev-dev-rabbitmq)
+        MINIO_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images openaev-test-minio)
+
         docker run -d --name pgsql \
           -p 5432:5432 \
           -e POSTGRES_USER=openaev \
           -e POSTGRES_PASSWORD=openaev \
           -e POSTGRES_DB=openaev \
-          $POSTGRES_IMAGE \
+          "$POSTGRES_IMAGE" \
           -c max_connections=1000
         SEARCH_IMAGE="$SEARCH_ENGINE_IMAGE"
         if [ -z "$SEARCH_IMAGE" ]; then
-          SEARCH_IMAGE=$([ "$SEARCH_ENGINE" = "opensearch" ] && echo "$OPENSEARCH_IMAGE" || echo "$ELASTICSEARCH_IMAGE")
+          SEARCH_SERVICE=$([ "$SEARCH_ENGINE" = "opensearch" ] && echo "openaev-dev-opensearch" || echo "openaev-dev-elasticsearch")
+          SEARCH_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images "$SEARCH_SERVICE")
         fi
         if [ "$SEARCH_ENGINE" = "opensearch" ]; then
           docker run -d --name search-engine \
@@ -43,26 +48,26 @@ runs:
             -e discovery.type=single-node \
             -e DISABLE_SECURITY_PLUGIN=true \
             -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
-            $SEARCH_IMAGE
+            "$SEARCH_IMAGE"
         else
           docker run -d --name search-engine \
             -p 9200:9200 \
             -e discovery.type=single-node \
             -e xpack.security.enabled=false \
             -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
-            $SEARCH_IMAGE
+            "$SEARCH_IMAGE"
         fi
         docker run -d --name rabbitmq \
           -p 5672:5672 \
           -p 15672:15672 \
           -e RABBITMQ_DEFAULT_USER=guest \
           -e RABBITMQ_DEFAULT_PASS=guest \
-          $RABBITMQ_IMAGE
+          "$RABBITMQ_IMAGE"
         docker run -d --name minio \
           -p 11000:9000 \
           -e MINIO_ROOT_USER=minioadmin \
           -e MINIO_ROOT_PASSWORD=minioadmin \
-          $MINIO_IMAGE server /data
+          "$MINIO_IMAGE" server /data
 
         echo "🔍 Verifying containers started..."
         for name in pgsql search-engine rabbitmq minio; do

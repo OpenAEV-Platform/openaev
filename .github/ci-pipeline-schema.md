@@ -2,7 +2,7 @@
 
 Both **Core CI** (`core-ci.yml`) and **Nightly CI** (`nightly-ci.yml`) are thin callers.
 All the work lives in one reusable workflow, `_ci-pipeline.yml`, and the callers differ
-only in three inputs: `api-matrix`, `e2e-matrix` and `snyk-fail-on-error`.
+only in three inputs: `api-matrix`, `e2e-matrix` and `vulnerability-scan-fail-on-error`.
 
 ![OpenAEV CI pipeline — Core and Nightly](ci-pipeline-schema.svg)
 
@@ -71,7 +71,7 @@ gives up and fails the job — not how long the wait normally lasts.
 | **API Types Check** | artifact `openaev-api-jar` | 180 × 5s = 15 min | Backend Compile is `failure`/`cancelled` |
 | **E2E Tests** | GHCR image tag, falling back to the image artifact | 180 × 5s = 15 min | the arch-matched Docker Build cell fails |
 | **Docker Merge** | both `amd64` and `arm64` images of its variant | 180 × 5s = 15 min each | any Docker Build cell fails |
-| **Snyk Container Scan** | `standard-amd64` and `ubi9-amd64` images | 180 × 5s = 15 min each | any Docker Build cell fails |
+| **Container Vulnerability Scan** | `standard-amd64` and `ubi9-amd64` images | 180 × 5s = 15 min each | any Docker Build cell fails |
 
 E2E additionally tolerates a flaky control plane: after 10 consecutive GitHub API errors
 it stops polling and attempts the download directly.
@@ -101,7 +101,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + Vitest + coverage |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 20 min | Multi-arch OCI index per variant, assembled server-side in the registry |
-| 🔒 **Snyk Container Scan** | 25 min | CVE scan of both amd64 images, threshold `high` |
+| 🔒 **Container Vulnerability Scan** | 25 min | CVE scan of both amd64 images, threshold `high` |
 | 🧪 **API Tests** | 30 min | Spring Boot integration tests vs PostgreSQL + search engine. `fail-fast: false` |
 | 🔎 **API Types Check** | 20 min | Generated TS types must match the live API schema |
 | 🧪 **E2E Tests** | 45 min | Playwright against the built container. `fail-fast: false` |
@@ -126,7 +126,7 @@ It `needs:` these 14 jobs:
 
 `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
 `spotless-check`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
-`backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `snyk-docker`
+`backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `container-vulnerability-scan`
 
 **Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must
 never hold a merge.
@@ -134,11 +134,11 @@ never hold a merge.
 The gate evaluates `needs` results itself in a shell loop rather than relying on
 job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocumented.
 
-### Snyk enforcement policy
+### Container vulnerability enforcement policy
 
 | | Core CI | Nightly CI |
 |-|---------|------------|
-| `snyk-fail-on-error` | `false` | `true` |
+| `vulnerability-scan-fail-on-error` | `false` | `true` |
 | Findings and scanner errors | Reported in logs and artifacts, marked ⚠️ advisory, never fail the gate | High/critical findings and scanner execution errors ❌ fail the gate |
 
 ---

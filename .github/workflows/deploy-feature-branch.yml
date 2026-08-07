@@ -17,7 +17,7 @@ concurrency:
 permissions:
   contents: read
   actions: write # needed to dispatch the build workflow
-  issues: write
+  pull-requests: write # needed to create and minimize PR comments
 
 jobs:
   dispatch-build:

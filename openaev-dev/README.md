@@ -4,7 +4,7 @@ This folder contains configuration files for setting up a local development envi
 
 ## Prerequisites
 
-- Podman and Podman Compose (or `podman compose`)
+- Podman with a Compose provider, or Docker with the Compose plugin
 - Java 21+ (for backend development)
 - Node.js 20+ and Yarn (for frontend development)
 - IntelliJ IDEA (recommended IDE)
@@ -13,7 +13,8 @@ This folder contains configuration files for setting up a local development envi
 
 ### 1. Set up environment variables
 
-Copy the example environment file and adjust values if needed:
+Container image tags live directly in `docker-compose.yml`. Runtime settings such
+as credentials are supplied through `.env`, so copy the example and adjust it:
 
 ```bash
 # Linux/macOS
@@ -26,15 +27,9 @@ copy .env.example .env
 Copy-Item .env.example .env
 ```
 
-The default values should work for local development.
-
-Container image tags are not part of `.env` — they live in `versions.env`, which is
-committed and shared with CI, and is the only place a tag is written.
-
-`.env.example` sets `COMPOSE_ENV_FILES=versions.env,.env`, which is what makes
-Compose read `versions.env`. It is required: `docker-compose.yml` declares no
-fallback tags, so an older `.env` missing that line makes Compose fail with
-`required variable ..._IMAGE is missing a value`.
+The provided values work for local development. If an existing `.env` contains
+`COMPOSE_ENV_FILES`, remove that line. Image tags now live in `docker-compose.yml`,
+which is also the source used by CI.
 
 ### 2. Create the backend dev configuration
 
@@ -52,7 +47,11 @@ cp ../openaev-api/src/main/resources/application-dev.properties.example \
 Only **4 services** are required to run OpenAEV locally:
 
 ```bash
+# Podman
 podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
+
+# Docker
+docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
 ```
 
 | Service | Port | Why it's required |
@@ -67,7 +66,11 @@ podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsear
 #### Full start (all services)
 
 ```bash
+# Podman
 podman compose up -d
+
+# Docker
+docker compose up -d
 ```
 
 This starts everything, including optional services:
@@ -106,8 +109,7 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 
 | File | Description |
 |------|-------------|
-| `.env.example` | Example environment variables (copy to `.env`) |
-| `versions.env` | Container image versions, shared with CI (committed) |
+| `.env.example` | Development environment variables (copy to `.env`) |
 | `docker-compose.yml` | Container composition file (used via `podman compose`) |
 | `rabbitmq.conf` | RabbitMQ configuration |
 | `otlp-config.yaml` | OpenTelemetry Collector configuration (for telemetry) |

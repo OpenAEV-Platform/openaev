@@ -113,21 +113,4 @@
         rebaseWhen: 'auto',
         enabled: true,
     },
-    // ── Container image version tracking ──────────────────────────
-    // Image tags live only in openaev-dev/versions.env: sourced by the CI
-    // composite actions and loaded by Compose via COMPOSE_ENV_FILES.
-    // docker-compose.yml holds no literal tags, so the built-in docker-compose
-    // manager finds nothing there and this regex manager is the only tracker.
-    customManagers: [
-        {
-            customType: 'regex',
-            fileMatch: [
-                '^openaev-dev/versions\\.env$',
-            ],
-            matchStrings: [
-                '\\w+_IMAGE=(?<depName>[^:]+):(?<currentValue>[^\\s]+)',
-            ],
-            datasourceTemplate: 'docker',
-        },
-    ],
 }

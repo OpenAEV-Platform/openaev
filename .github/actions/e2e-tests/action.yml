@@ -29,7 +29,7 @@ inputs:
     required: false
     default: "elasticsearch"
   search-engine-image:
-    description: "Docker image for the search engine (default from openaev-dev/versions.env)"
+    description: "Docker image for the search engine (default from openaev-dev/docker-compose.yml)"
     required: false
     default: ""
   project:

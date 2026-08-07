@@ -3,7 +3,7 @@ name: "[Core] Nightly CI"
 # Nightly: same pipeline, larger matrix.
 # Adds OpenSearch coverage for Chrome/WebKit/Chromium, Firefox and Edge on
 # Elasticsearch, and expanded infrastructure-test coverage.
-# Unlike Core CI, Snyk findings at the configured threshold fail this workflow.
+# Unlike Core CI, container vulnerability findings at the configured threshold fail this workflow.
 
 on:
   schedule:
@@ -71,5 +71,5 @@ jobs:
           {"browser":"firefox","project":"infra-firefox","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64-infra"},
           {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64-infra"}
         ]
-      snyk-fail-on-error: true
+      vulnerability-scan-fail-on-error: true
     secrets: inherit
