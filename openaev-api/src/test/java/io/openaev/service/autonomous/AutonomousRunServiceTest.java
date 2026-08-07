@@ -239,13 +239,7 @@ class AutonomousRunServiceTest {
 
     verify(exerciseService).changeExerciseStatus(ExerciseStatus.CANCELED, "sim-1");
     verify(eventService)
-        .append(
-            eq("run-1"),
-            eq("sim-1"),
-            eq(AutonomousEventType.STATUS),
-            eq("Run timed out"),
-            anyString(),
-            eq(null));
+        .appendTerminalStatusOnce(eq("run-1"), eq("sim-1"), eq("Run timed out"), anyString());
     verify(directiveRepository, never()).save(any());
   }
 
@@ -699,7 +693,8 @@ class AutonomousRunServiceTest {
   void supersedeSettledRunOnManualLaunchKeepsFinishedLiveSimulation() {
     when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     // A completed LIVE run: the run row is removed so the scenario reverts to the normal overview,
-    // but its real simulation stays as a plain chained simulation (relaunch never destroys results).
+    // but its real simulation stays as a plain chained simulation (relaunch never destroys
+    // results).
     AutonomousRun prior = new AutonomousRun();
     prior.setId("prior-run");
     prior.setPlanMode(false);

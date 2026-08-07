@@ -48,6 +48,21 @@ public class AutonomousEventService {
       String title,
       String content,
       String data) {
+    return doAppend(runId, simulationId, type, title, content, data);
+  }
+
+  /**
+   * Body of {@link #append}. Kept un-annotated so {@link #appendTerminalStatusOnce} can reuse it
+   * without the intra-class {@code @Transactional} self-invocation trap (a same-class call bypasses
+   * the Spring proxy). Must be called inside an active transaction.
+   */
+  private AutonomousEvent doAppend(
+      String runId,
+      String simulationId,
+      AutonomousEventType type,
+      String title,
+      String content,
+      String data) {
     AutonomousEvent event = new AutonomousEvent();
     event.setRunId(runId);
     event.setSequence(eventRepository.findMaxSequence(runId) + 1);
@@ -74,8 +89,8 @@ public class AutonomousEventService {
 
   /**
    * Appends a run's END event ("Run canceled" / "Run completed" / "Run timed out" / "Run failed")
-   * exactly once per run life. Any second terminal narration - a racing settle path that also won
-   * a flip, or the reconcile re-settling a run that a late orchestrator write briefly resurrected -
+   * exactly once per run life. Any second terminal narration - a racing settle path that also won a
+   * flip, or the reconcile re-settling a run that a late orchestrator write briefly resurrected -
    * is dropped instead of appended, which is the fix for the duplicated + repeated terminal message
    * the operator saw when canceling a run. Returns {@code null} when the run's end was already
    * narrated. The guard resets naturally on restart / promote, which purge the whole timeline.
@@ -86,7 +101,7 @@ public class AutonomousEventService {
     if (eventRepository.existsTerminalStatusEvent(runId, TERMINAL_STATUS_TITLES)) {
       return null;
     }
-    return append(runId, simulationId, AutonomousEventType.STATUS, title, content, null);
+    return doAppend(runId, simulationId, AutonomousEventType.STATUS, title, content, null);
   }
 
   @Transactional(readOnly = true)
