@@ -6,7 +6,6 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.PhishingEmailTemplate;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.injectors.phishing.form.PhishingEmailTemplateInput;
 import io.openaev.injectors.phishing.service.PhishingEmailTemplateService;
 import io.openaev.rest.helper.RestBehavior;
@@ -31,7 +30,6 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       TENANT_PREFIX + "/phishing/email-templates";
 
   private final PhishingEmailTemplateService emailTemplateService;
-  private final PhishingEmailTemplateRepository emailTemplateRepository;
 
   @GetMapping({PHISHING_EMAIL_TEMPLATE_URI, TENANT_PHISHING_EMAIL_TEMPLATE_URI})
   @Transactional
@@ -39,7 +37,7 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
   public Iterable<PhishingEmailTemplate> emailTemplates() {
-    return emailTemplateRepository.findAll();
+    return emailTemplateService.emailTemplates();
   }
 
   @GetMapping({PHISHING_EMAIL_TEMPLATE_URI + "/{id}", TENANT_PHISHING_EMAIL_TEMPLATE_URI + "/{id}"})

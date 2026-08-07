@@ -6,8 +6,6 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.repository.DocumentRepository;
-import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.injectors.phishing.form.PhishingLandingPageInput;
 import io.openaev.injectors.phishing.form.PhishingLandingPageLogoInput;
 import io.openaev.injectors.phishing.service.PhishingLandingPageService;
@@ -33,14 +31,12 @@ public class PhishingLandingPageApi extends RestBehavior {
       TENANT_PREFIX + "/phishing/landing-pages";
 
   private final PhishingLandingPageService landingPageService;
-  private final PhishingLandingPageRepository landingPageRepository;
-  private final DocumentRepository documentRepository;
 
   @GetMapping({PHISHING_LANDING_PAGE_URI, TENANT_PHISHING_LANDING_PAGE_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PHISHING_LANDING_PAGE)
   public Iterable<PhishingLandingPage> landingPages() {
-    return landingPageRepository.findAll();
+    return landingPageService.landingPages();
   }
 
   @GetMapping({PHISHING_LANDING_PAGE_URI + "/{id}", TENANT_PHISHING_LANDING_PAGE_URI + "/{id}"})
@@ -86,16 +82,7 @@ public class PhishingLandingPageApi extends RestBehavior {
       resourceType = ResourceType.PHISHING_LANDING_PAGE)
   public PhishingLandingPage updateLandingPageLogos(
       @PathVariable String id, @Valid @RequestBody PhishingLandingPageLogoInput input) {
-    PhishingLandingPage landingPage = landingPageService.landingPage(id);
-    landingPage.setLogoDark(
-        input.getLogoDark() != null
-            ? documentRepository.findById(input.getLogoDark()).orElse(null)
-            : null);
-    landingPage.setLogoLight(
-        input.getLogoLight() != null
-            ? documentRepository.findById(input.getLogoLight()).orElse(null)
-            : null);
-    return landingPageService.upsert(landingPage);
+    return landingPageService.updateLogos(id, input.getLogoDark(), input.getLogoLight());
   }
 
   @PostMapping({

@@ -33,6 +33,7 @@ import io.openaev.injector_contract.ContractDef;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.injectors.phishing.PhishingContract;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -66,6 +67,7 @@ public class PhishingLandingPageService {
   private final InjectorContractRepository injectorContractRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final PhishingContract phishingContract;
+  private final DocumentService documentService;
   private final ObjectMapper mapper;
 
   // -- CRUD --
@@ -83,6 +85,20 @@ public class PhishingLandingPageService {
     PhishingLandingPage saved = landingPageRepository.save(landingPage);
     synchroniseInjectorContract(saved);
     return saved;
+  }
+
+  /**
+   * Resolves and sets the dark/light logo documents of a landing page, keeping document resolution
+   * in the service layer so the controller depends on services only. A {@code null} id clears the
+   * corresponding logo; a non-null id that does not resolve is rejected by {@code
+   * DocumentService.document}.
+   */
+  public PhishingLandingPage updateLogos(
+      @NotBlank final String id, final String logoDarkId, final String logoLightId) {
+    PhishingLandingPage landingPage = landingPage(id);
+    landingPage.setLogoDark(logoDarkId != null ? documentService.document(logoDarkId) : null);
+    landingPage.setLogoLight(logoLightId != null ? documentService.document(logoLightId) : null);
+    return upsert(landingPage);
   }
 
   public void delete(@NotBlank final String id) {

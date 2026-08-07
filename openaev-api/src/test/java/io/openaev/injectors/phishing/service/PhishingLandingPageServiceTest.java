@@ -1,6 +1,7 @@
 package io.openaev.injectors.phishing.service;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -8,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.PhishingLandingPage;
@@ -17,6 +19,7 @@ import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injectors.phishing.PhishingContract;
+import io.openaev.rest.document.DocumentService;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +38,7 @@ class PhishingLandingPageServiceTest {
   @Mock private InjectorContractRepository injectorContractRepository;
   @Mock private ExpectationBuilderService expectationBuilderService;
   @Mock private PhishingContract phishingContract;
+  @Mock private DocumentService documentService;
   @Mock private ObjectMapper mapper;
 
   @InjectMocks private PhishingLandingPageService phishingLandingPageService;
@@ -74,5 +78,29 @@ class PhishingLandingPageServiceTest {
     // -- ASSERT --
     verify(injectorContractRepository).deleteById(any(InjectorContractId.class));
     verify(landingPageRepository).deleteById("lp-1");
+  }
+
+  @Test
+  @DisplayName("updateLogos resolves documents through the service and clears a null logo")
+  void updateLogos_should_resolveDocumentsAndClearNulls() {
+    // -- ARRANGE --
+    PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setId("lp-1");
+    landingPage.setName("Login page");
+    Document darkLogo = new Document();
+    darkLogo.setId("doc-dark");
+    when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(landingPage));
+    when(documentService.document("doc-dark")).thenReturn(darkLogo);
+    when(landingPageRepository.save(any(PhishingLandingPage.class))).thenReturn(landingPage);
+    when(injectorRepository.findByTypeAndTenantId(eq(PhishingContract.TYPE), any()))
+        .thenReturn(Optional.empty());
+
+    // -- ACT --
+    PhishingLandingPage updated = phishingLandingPageService.updateLogos("lp-1", "doc-dark", null);
+
+    // -- ASSERT --
+    assertSame(darkLogo, updated.getLogoDark());
+    assertNull(updated.getLogoLight());
+    verify(documentService).document("doc-dark");
   }
 }
