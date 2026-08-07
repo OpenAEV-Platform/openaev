@@ -418,9 +418,9 @@ public class AutonomousRunService {
    * already has logic:
    *
    * <ul>
-   *   <li>If the scenario already has authored steps (built by hand OR by the AI builder), those are
-   *       seeded onto the live simulation as the starting attack path - the orchestrator executes
-   *       them first, then adapts/extends from live findings.
+   *   <li>If the scenario already has authored steps (built by hand OR by the AI builder), those
+   *       are seeded onto the live simulation as the starting attack path - the orchestrator
+   *       executes them first, then adapts/extends from live findings.
    *   <li>If the scenario is still empty (no steps), there is nothing to seed - the orchestrator
    *       builds the attack path live "as it goes" from the objective and scope.
    * </ul>
@@ -449,10 +449,12 @@ public class AutonomousRunService {
     effective.setPlanMode(false);
     if (!hasText(effective.getObjective()) && !hasText(effective.getObjectiveTemplateKey())) {
       Scenario scenario = scenarioService.scenario(scenarioId);
-      // The default mission depends on whether the scenario already carries any logic: with authored
+      // The default mission depends on whether the scenario already carries any logic: with
+      // authored
       // steps the run executes them first then adapts; on an empty scenario there is nothing to
       // execute, so the orchestrator designs and drives the path live ("as it goes").
-      boolean hasAuthoredSteps = !workflowService.readAuthoredAttackPathForScenario(scenarioId).isEmpty();
+      boolean hasAuthoredSteps =
+          !workflowService.readAuthoredAttackPathForScenario(scenarioId).isEmpty();
       effective.setObjective(
           hasAuthoredSteps
               ? "Run the chained scenario \""
