@@ -214,7 +214,7 @@ public class Finding implements TenantBase {
   // instead of throwing, see Inject.java). Findings created manually via the API without a real
   // inject/injector must simply show no source, not fail.
   @JsonProperty("finding_source")
-  @Queryable(filterable = true, dynamicValues = true, path = "inject.injector.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "inject.injector.id", label = "source")
   public Injector getSource() {
     if (getInject() == null) {
       return null;
