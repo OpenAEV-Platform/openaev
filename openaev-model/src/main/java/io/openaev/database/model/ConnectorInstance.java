@@ -29,6 +29,8 @@ public abstract class ConnectorInstance {
   @EqualsAndHashCode.Include
   public abstract String getId();
 
+  public abstract void setId(String newId);
+
   public abstract CURRENT_STATUS_TYPE getCurrentStatus();
 
   public abstract void setCurrentStatus(CURRENT_STATUS_TYPE newStatus);
