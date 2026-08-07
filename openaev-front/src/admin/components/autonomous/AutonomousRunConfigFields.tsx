@@ -269,7 +269,7 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
                       variant="outlined"
                       disableGutters
                       sx={{
-                        marginTop: theme.spacing(2),
+                        'marginTop': theme.spacing(2),
                         '&::before': { display: 'none' },
                       }}
                     >

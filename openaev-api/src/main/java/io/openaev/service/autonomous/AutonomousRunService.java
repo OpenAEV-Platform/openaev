@@ -398,10 +398,10 @@ public class AutonomousRunService {
         AutonomousEventType.STATUS,
         planMode ? "Plan created" : "Run created",
         (planMode
-            ? "Autonomous attack-path DRY-RUN created from scenario \""
+            ? "AI builder started from scenario \""
                 + scenario.getName()
-                + "\". The orchestrator will design the attack path without executing anything."
-            : "Autonomous attack-path run created from scenario \"" + scenario.getName() + "\"."),
+                + "\". The orchestrator will author the scenario's logic; nothing is executed."
+            : "Autonomous run created from scenario \"" + scenario.getName() + "\"."),
         null);
     return saved;
   }
@@ -599,7 +599,7 @@ public class AutonomousRunService {
         AutonomousEventType.STATUS,
         planMode ? "Planning started" : "Run started",
         planMode
-            ? "Orchestrator engaged in dry-run: designing the attack path, nothing is executed."
+            ? "Orchestrator engaged: building the scenario's logic, nothing is executed."
             : "Orchestrator engaged; autonomous execution is now running.",
         ENGAGED_EVENT_DATA);
     engageOrchestratorAfterCommit(saved);
@@ -1132,13 +1132,13 @@ public class AutonomousRunService {
     AutonomousRun run = require(runId);
     if (!run.isPlanMode()) {
       throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Only a dry-run plan can be promoted to a real run");
+          HttpStatus.CONFLICT, "Only built (non-executed) logic can be launched as a live run");
     }
     if (run.getStatus() != AutonomousRunStatus.PLANNED
         && run.getStatus() != AutonomousRunStatus.FAILED
         && run.getStatus() != AutonomousRunStatus.CANCELED) {
       throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "A plan can only be run for real once planning has settled");
+          HttpStatus.CONFLICT, "A plan can only be launched once building has settled");
     }
     // Stop the planning orchestration and purge its coordination state so the live run does not
     // inherit the plan cycle's assumptions.
@@ -1162,7 +1162,7 @@ public class AutonomousRunService {
       workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation);
     } catch (ChainingException e) {
       throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Failed to start the promoted simulation: " + e.getMessage(), e);
+          HttpStatus.BAD_REQUEST, "Failed to start the live run: " + e.getMessage(), e);
     }
     directiveRepository.deleteByRunId(runId);
     eventService.deleteByRun(runId);
@@ -1178,10 +1178,10 @@ public class AutonomousRunService {
         saved.getId(),
         simulation.getId(),
         AutonomousEventType.STATUS,
-        "Plan promoted to live run",
-        "The dry-run plan was promoted to a real run; a fresh executing simulation was provisioned."
-            + " The orchestrator will follow the plan as closely as possible while adapting to live"
-            + " findings.",
+        "Plan launched as a live run",
+        "The planned logic was launched as a live autonomous run; a fresh executing simulation was"
+            + " provisioned. The orchestrator will follow the plan as closely as possible while"
+            + " adapting to live findings.",
         null);
     return saved;
   }

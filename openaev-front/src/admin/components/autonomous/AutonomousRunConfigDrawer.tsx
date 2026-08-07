@@ -89,7 +89,7 @@ const AutonomousRunConfigDrawer = ({
           error={error}
           demoteTemplates={demoteTemplates}
           infoText={infoText
-            ?? t('An AI orchestrator designs and (optionally) drives a real attack path, adapting in real time. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope. Plan for a dry-run that only designs the path, or launch now to run it live.')}
+            ?? t('In autonomous mode an AI orchestrator drives the run live and adapts in real time - reacting to findings, adding steps and consulting specialist agents to pursue the objective. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope.')}
           showSave={showSave}
           showLaunch={showLaunch}
           saveLabel={saveLabel}

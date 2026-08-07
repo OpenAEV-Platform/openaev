@@ -235,8 +235,9 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
   const theme = useTheme();
   const { t, nsdt, vnsdt } = useFormatter();
   const accent = theme.palette.ai?.main ?? theme.palette.primary.main;
-  // In dry-run the mission card itself carries the "plan mode" signal (orange, like the OCTI
-  // draft): the mission is the natural anchor, so we tint it instead of stacking a separate banner.
+  // When the scenario's logic was AI-built but not yet run, the mission card itself carries the
+  // "planned" signal (orange, like the OCTI draft): the mission is the natural anchor, so we tint
+  // it instead of stacking a separate banner.
   const isPlanMode = run.autonomous_run_plan_mode;
   const missionAccent = isPlanMode ? theme.palette.warning.main : accent;
   const runId = run.autonomous_run_id;
@@ -599,7 +600,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
               attack map is one click away in this view's own "Attack path" tab, so no button is
               duplicated at the top of the mission card. */}
           <Typography variant="h6" sx={{ margin: 0 }}>
-            {isPlanMode ? t('Mission (plan mode)') : t('Mission')}
+            {isPlanMode ? t('Mission (planned)') : t('Mission')}
           </Typography>
         </Stack>
         <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>

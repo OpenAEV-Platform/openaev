@@ -177,7 +177,7 @@ public class AutonomousRunApi extends RestBehavior {
           "Engages the orchestrator to DESIGN a reusable attack path by authoring steps directly"
               + " onto the scenario's workflow template. No simulation is provisioned and nothing"
               + " is executed; the operator later launches the authored scenario in normal or"
-              + " autonomous mode. Creates AND starts the (dry-run) planning session in one call.")
+              + " autonomous mode. Creates AND starts the build (logic-authoring) session in one call.")
   @PostMapping("/plan-scenario/{scenarioId}")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -303,13 +303,13 @@ public class AutonomousRunApi extends RestBehavior {
   }
 
   @Operation(
-      summary = "Promote a completed dry-run plan to a real, executing run",
+      summary = "Launch a completed plan as a live autonomous run",
       description =
-          "Turns a PLANNED dry-run into a live run in place: tears the non-executing plan"
-              + " simulation and the mirrored plan steps down, provisions a fresh executing"
-              + " simulation, clears plan mode and keeps the plan summary as guidance. The caller"
-              + " then starts it again; the orchestrator follows the plan while adapting to live"
-              + " findings.")
+          "Turns a PLANNED (built-logic) run into a live autonomous run in place: tears the"
+              + " non-executing plan simulation and the mirrored plan steps down, provisions a fresh"
+              + " executing simulation, clears build mode and keeps the plan summary as guidance. The"
+              + " caller then starts it again; the orchestrator follows the plan while adapting to"
+              + " live findings.")
   @PostMapping("/{runId}/promote")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -325,7 +325,7 @@ public class AutonomousRunApi extends RestBehavior {
               + " manual for good: it halts the orchestration, drops the autonomous run and its"
               + " timeline, and keeps the scenario + its simulation as a normal chained"
               + " scenario/simulation the operator can edit and delete. IN_PLACE is irreversible."
-              + " Works whether the run is a dry-run plan or has already executed. Returns the"
+              + " Works whether the run is a built plan or has already executed. Returns the"
               + " resulting manual scenario.")
   @PostMapping("/{runId}/convert-to-manual")
   @Transactional

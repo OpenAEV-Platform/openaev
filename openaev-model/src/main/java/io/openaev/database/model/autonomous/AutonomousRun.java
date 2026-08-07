@@ -68,17 +68,18 @@ public class AutonomousRun implements TenantBase {
   @JsonProperty("autonomous_run_plan_mode")
   @Schema(
       description =
-          "Dry-run flag. When true the orchestrator only designs the attack path (scope + steps +"
-              + " decisions) and nothing is executed; the run is shown in draft orange and can be"
-              + " promoted to a real, executing run.")
+          "Build flag. When true the orchestrator only authors the scenario's logic (scope + steps +"
+              + " decisions) and nothing is executed; the built logic is shown in draft orange and"
+              + " can then be launched (in normal or autonomous mode).")
   private boolean planMode = false;
 
   @Column(name = "autonomous_run_plan_guidance", columnDefinition = "text")
   @JsonProperty("autonomous_run_plan_guidance")
   @Schema(
       description =
-          "Plan summary captured from a dry-run and handed to the promoted real run as guidance, so"
-              + " the live run follows the plan while still adapting to what it finds.")
+          "Plan summary captured while building the logic and handed to a subsequent live autonomous"
+              + " run as guidance, so the live run follows the plan while still adapting to what it"
+              + " finds.")
   private String planGuidance;
 
   @Column(name = "autonomous_run_simulation_id")
@@ -180,7 +181,7 @@ public class AutonomousRun implements TenantBase {
           "Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers"
               + " the orchestrator with winddown signals shortly before it, then hard-stops the run"
               + " (exactly like an operator Stop) when it is reached. Null means no OpenAEV-enforced"
-              + " timeout (e.g. plan/dry-run mode).")
+              + " timeout (e.g. build mode).")
   private Long timeoutSeconds;
 
   @Column(name = "autonomous_run_started_at")

@@ -27,11 +27,11 @@ import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, sanitizeEventTex
 import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 
 // An "active" run is one the orchestrator is currently driving, so the panel keeps polling the
-// timeline, shows the live thinking/hourglass indicator, and enables steering. PLANNING (dry-run
-// plan design in progress) MUST be here alongside RUNNING/WAITING_INPUT: it is an in-progress phase
-// where the AI is authoring the plan, so without it the right panel would sit frozen with no
-// indicator and never refresh until a question flips the run to WAITING_INPUT. PLANNED is settled
-// (planning done), so it is intentionally NOT active.
+// timeline, shows the live thinking/hourglass indicator, and enables steering. PLANNING (the AI is
+// still building the scenario's logic) MUST be here alongside RUNNING/WAITING_INPUT: it is an
+// in-progress phase where the AI is authoring the logic, so without it the right panel would sit
+// frozen with no indicator and never refresh until a question flips the run to WAITING_INPUT.
+// PLANNED is settled (logic done), so it is intentionally NOT active.
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['PLANNING', 'RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 3000;
 
@@ -661,7 +661,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       // clicked Redo plan, but the iterations had already begun" report.
       return {
         key: 'engaging',
-        label: run.autonomous_run_plan_mode === true ? t('Designing the attack path') : t('Getting to work'),
+        label: run.autonomous_run_plan_mode === true ? t('Building the scenario logic') : t('Getting to work'),
         color: accent,
         active: true,
       };

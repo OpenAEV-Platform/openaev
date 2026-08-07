@@ -177,7 +177,7 @@ export interface AutonomousRunConfig {
   denyCount: number;
   canSubmit: boolean;
   reset: () => void;
-  /** Build the create/plan/launch payload from the current selection (optionally a dry-run plan). */
+  /** Build the create/build/launch payload from the current selection (optionally a build-only plan). */
   buildInput: (planMode?: boolean) => AutonomousRunCreateInput;
 }
 
@@ -381,7 +381,7 @@ export const useAutonomousRunConfig = ({
       : undefined,
     plan_mode: planMode || undefined,
     // OpenAEV-enforced run deadline (seconds). Clamp to the advertised 1h-720h range (the HTML
-    // min/max only guard the spinner, not typed input); ignored server-side in plan/dry-run mode.
+    // min/max only guard the spinner, not typed input); ignored server-side in build mode.
     timeout_seconds: Math.min(720 * 3600, Math.max(3600, Math.round(timeoutHours * 3600))),
   });
 

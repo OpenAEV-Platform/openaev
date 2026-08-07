@@ -376,7 +376,7 @@ const ScenarioHeader = ({
       const { data } = await planAutonomousScenario(scenarioId, input);
       onAutonomousRunUpdate?.(data);
       setAiDrawerOpen(false);
-      MESSAGING$.notifySuccess(t('The orchestrator is designing the attack path for this scenario'));
+      MESSAGING$.notifySuccess(t('The orchestrator is building the logic for this scenario'));
       navigate(`/admin/scenarios/${scenarioId}/logic`);
     } catch {
       setAiError(t('Failed to start the build'));
@@ -418,9 +418,9 @@ const ScenarioHeader = ({
   if (isScopeMissing) {
     normalLaunchTitle = t('A chained scenario requires a defined scope.');
   } else if (isRunSettled) {
-    normalLaunchTitle = t('Relaunch a normal, operator-driven simulation from this scenario');
+    normalLaunchTitle = t('Relaunch this scenario in normal mode - runs only the predefined steps, no live AI adaptation');
   } else {
-    normalLaunchTitle = t('Launch a normal, operator-driven simulation from this scenario');
+    normalLaunchTitle = t('Launch this scenario in normal mode - runs only the predefined steps, no live AI adaptation');
   }
 
   // AI config drawer title + primary action label: "launch" intent is always a live Autonomous
@@ -713,8 +713,8 @@ const ScenarioHeader = ({
                   controls own the hero then). */}
               {canManage && isAutonomousModeEnabled && !isRunActive && (
                 <Tooltip title={isRunSettled
-                  ? t('Rebuild with AI - re-plan the attack path (this wipes the current logic map and starts fresh)')
-                  : t('AI builder - configure the attack path, then save it for later or build it now (nothing is executed)')}
+                  ? t('Rebuild with AI - re-author this scenario\'s logic (this wipes the current logic map and starts fresh)')
+                  : t('AI builder - let the orchestrator author this scenario\'s logic; save it for later or build it now (nothing runs while building)')}
                 >
                   <Box component="span" sx={{ display: 'inline-flex' }}>
                     <IconButton
@@ -913,8 +913,8 @@ const ScenarioHeader = ({
         defaultTimeoutHours={aiDrawerIntent === 'build' ? 1 : undefined}
         title={aiDrawerTitle}
         infoText={aiDrawerIntent === 'build'
-          ? t('Configure this scenario\'s attack path - the objective, the specialist agents the orchestrator may consult, and the scope. Save it to build or launch later, or Build now to have the orchestrator author the steps onto the scenario without executing anything.')
-          : t('The orchestrator seeds a live simulation from the objective, agents and scope below, then drives it and adapts from real findings.')}
+          ? t('Let the AI build this scenario\'s logic for you - set the objective, the specialist agents the orchestrator may consult, and the scope. Save it to build or launch later, or Build now to have the orchestrator author the steps onto the scenario. Nothing runs while building; you launch the scenario afterwards, in normal or autonomous mode.')
+          : t('Launch this scenario in autonomous mode: the orchestrator seeds a live run from the objective, agents and scope below, then drives it and adapts in real time - reacting to findings, adding steps and consulting agents to pursue the objective within scope. (Normal mode instead runs only the scenario\'s predefined steps.)')}
         submitting={aiSubmitting}
         error={aiError}
         showSave={aiDrawerIntent === 'build'}
