@@ -2572,7 +2572,6 @@
   "phone_number_tooltip": "电话号码应以加号 ( + )开头. 它可以包含空格、连字符( - ) 或括号.",
   "Pipe": "管道",
   "Pivot node": "Pivot node",
-  "Plan (dry-run)": "Plan (dry-run)",
   "Plan mode - the AI is designing the attack path; nothing is executed.": "Plan mode - the AI is designing the attack path; nothing is executed.",
   "Plan ready": "Plan ready",
   "Plan ready - the AI has designed the attack path; nothing has been executed. Run it for real to launch a fresh live run guided by this plan.": "Plan ready - the AI has designed the attack path; nothing has been executed. Run it for real to launch a fresh live run guided by this plan.",

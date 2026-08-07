@@ -1,9 +1,9 @@
 import {
+  ArrowBack,
   ArrowUpward,
   AutoAwesome,
   Diamond,
   Dns,
-  ExpandMore,
   HowToReg,
   Hub,
   Key,
@@ -17,9 +17,6 @@ import {
   TrackChanges,
 } from '@mui/icons-material';
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -27,10 +24,14 @@ import {
   CardActionArea,
   Skeleton,
   Stack,
+  Step,
+  StepLabel,
+  Stepper,
   TextField,
   Typography,
 } from '@mui/material';
 import { alpha, type Theme, useTheme } from '@mui/material/styles';
+import { useState } from 'react';
 
 import {
   type AutonomousRunCreateInput,
@@ -120,16 +121,23 @@ const ScopeSection = ({
 
 export interface AutonomousRunConfigFieldsProps {
   config: AutonomousRunConfig;
+  /**
+   * Which stepper page to render: 0 = objective + specialist agents + time budget, 1 = allow list,
+   * 2 = deny list. The scope lists are split across their own steps (the previous, preferred UX)
+   * rather than crammed into accordions, so each picker gets the full drawer width.
+   */
+  activeStep: number;
   disabled?: boolean;
 }
 
 /**
- * The full autonomous-run configuration body, driven by {@link useAutonomousRunConfig}: an objective
- * gallery + free-text objective, the specialist-agents picker, an optional run label, the time
- * budget, and the allow / deny scope lists (rendered as accordions so the whole thing embeds inside
- * any drawer or creation form).
+ * The autonomous-run configuration body for one stepper page, driven by {@link useAutonomousRunConfig}.
+ * Step 0 is the objective gallery + free-text objective, the specialist-agents picker and the time
+ * budget; steps 1 and 2 are the allow / deny scope lists (each reusing the manual chained-scope
+ * picker at full width). The run is NOT labelled here - the scenario already exists and its name /
+ * description are edited on the scenario itself - so there is no name / description field.
  */
-export const AutonomousRunConfigFields = ({ config, disabled }: AutonomousRunConfigFieldsProps) => {
+export const AutonomousRunConfigFields = ({ config, activeStep, disabled }: AutonomousRunConfigFieldsProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { settings } = useAuth();
@@ -137,180 +145,150 @@ export const AutonomousRunConfigFields = ({ config, disabled }: AutonomousRunCon
 
   return (
     <Stack sx={{ gap: theme.spacing(3) }}>
-      <Box>
-        <Typography variant="h2" gutterBottom>
-          {t('Objective')}
-        </Typography>
-        <Stack
-          sx={{
-            display: 'grid',
-            gap: theme.spacing(1),
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            marginBottom: theme.spacing(2),
-          }}
-        >
-          {config.loadingTemplates && config.templates.length === 0
-            ? ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'].map(skeletonKey => (
-                <Card key={skeletonKey} variant="outlined">
-                  <Box sx={{ padding: theme.spacing(1.5) }}>
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                      <Skeleton variant="circular" width={20} height={20} sx={{ flexShrink: 0 }} />
-                      <Box sx={{ flex: 1 }}>
-                        <Skeleton variant="text" width="55%" height={18} />
-                        <Skeleton variant="text" width="90%" height={14} />
+      {activeStep === 0 && (
+        <>
+          <Box>
+            <Typography variant="h2" gutterBottom>
+              {t('Objective')}
+            </Typography>
+            <Stack
+              sx={{
+                display: 'grid',
+                gap: theme.spacing(1),
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                marginBottom: theme.spacing(2),
+              }}
+            >
+              {config.loadingTemplates && config.templates.length === 0
+                ? ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'].map(skeletonKey => (
+                    <Card key={skeletonKey} variant="outlined">
+                      <Box sx={{ padding: theme.spacing(1.5) }}>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <Skeleton variant="circular" width={20} height={20} sx={{ flexShrink: 0 }} />
+                          <Box sx={{ flex: 1 }}>
+                            <Skeleton variant="text" width="55%" height={18} />
+                            <Skeleton variant="text" width="90%" height={14} />
+                          </Box>
+                        </Stack>
                       </Box>
-                    </Stack>
-                  </Box>
-                </Card>
-              ))
-            : config.templates.map((template) => {
-                const isSelected = config.selectedTemplateKey === template.autonomous_objective_template_key;
-                const ObjectiveIcon = OBJECTIVE_ICONS[template.autonomous_objective_template_icon ?? ''] ?? TrackChanges;
-                return (
-                  <Card
-                    key={template.autonomous_objective_template_key}
-                    variant="outlined"
-                    sx={{
-                      borderColor: isSelected ? theme.palette.ai.main : undefined,
-                      borderWidth: isSelected ? 2 : 1,
-                      backgroundColor: isSelected ? alpha(theme.palette.ai.main, 0.08) : undefined,
-                    }}
-                  >
-                    <CardActionArea
-                      onClick={() => config.selectTemplate(template)}
-                      disabled={disabled}
-                      sx={{
-                        padding: theme.spacing(1.5),
-                        height: '100%',
-                      }}
-                    >
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <ObjectiveIcon
-                          fontSize="small"
+                    </Card>
+                  ))
+                : config.templates.map((template) => {
+                    const isSelected = config.selectedTemplateKey === template.autonomous_objective_template_key;
+                    const ObjectiveIcon = OBJECTIVE_ICONS[template.autonomous_objective_template_icon ?? ''] ?? TrackChanges;
+                    return (
+                      <Card
+                        key={template.autonomous_objective_template_key}
+                        variant="outlined"
+                        sx={{
+                          borderColor: isSelected ? theme.palette.ai.main : undefined,
+                          borderWidth: isSelected ? 2 : 1,
+                          backgroundColor: isSelected ? alpha(theme.palette.ai.main, 0.08) : undefined,
+                        }}
+                      >
+                        <CardActionArea
+                          onClick={() => config.selectTemplate(template)}
+                          disabled={disabled}
                           sx={{
-                            flexShrink: 0,
-                            color: isSelected ? theme.palette.ai.main : theme.palette.text.secondary,
+                            padding: theme.spacing(1.5),
+                            height: '100%',
                           }}
-                        />
-                        <Box>
-                          <Typography
-                            variant="subtitle2"
-                            sx={{
-                              fontWeight: 'bold',
-                              fontSize: '0.8125rem',
-                            }}
-                          >
-                            {t(template.autonomous_objective_template_label)}
-                          </Typography>
-                          {template.autonomous_objective_template_description && (
-                            <Typography variant="caption" color="text.secondary">
-                              {t(template.autonomous_objective_template_description)}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Stack>
-                    </CardActionArea>
-                  </Card>
-                );
-              })}
-        </Stack>
-        <TextField
-          value={config.objective}
-          onChange={event => config.setObjective(event.target.value)}
-          label={t('Objective (free text)')}
-          placeholder={t('e.g. Reach the domain controller and prove domain admin from an initial foothold')}
-          multiline
-          minRows={3}
-          fullWidth
-          disabled={disabled}
-        />
-      </Box>
+                        >
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <ObjectiveIcon
+                              fontSize="small"
+                              sx={{
+                                flexShrink: 0,
+                                color: isSelected ? theme.palette.ai.main : theme.palette.text.secondary,
+                              }}
+                            />
+                            <Box>
+                              <Typography
+                                variant="subtitle2"
+                                sx={{
+                                  fontWeight: 'bold',
+                                  fontSize: '0.8125rem',
+                                }}
+                              >
+                                {t(template.autonomous_objective_template_label)}
+                              </Typography>
+                              {template.autonomous_objective_template_description && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {t(template.autonomous_objective_template_description)}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Stack>
+                        </CardActionArea>
+                      </Card>
+                    );
+                  })}
+            </Stack>
+            <TextField
+              value={config.objective}
+              onChange={event => config.setObjective(event.target.value)}
+              label={t('Objective (free text)')}
+              placeholder={t('e.g. Reach the domain controller and prove domain admin from an initial foothold')}
+              multiline
+              minRows={3}
+              fullWidth
+              disabled={disabled}
+            />
+          </Box>
 
-      <Box>
-        <AutonomousAgentsSelector
-          title={t('Agents')}
-          agents={config.availableAgents}
-          enabledIds={config.selectedAgentIds}
-          onToggle={config.toggleAgent}
-          modes={config.selectedAgentModes}
-          onModeChange={config.changeAgentMode}
-          orchestrator={{
-            id: ORCHESTRATOR_AGENT_ID,
-            name: t('Autonomous orchestrator'),
-            description: t('Plans and drives the entire attack path, and consults the agents below.'),
-          }}
-          builtinSlug={BUILTIN_AGENT_SLUG}
-          loading={config.loadingAgents}
-          disabled={disabled}
-          createAgentUrl={xtmOneUrl ? `${xtmOneUrl}/agents/new` : undefined}
-          infoTooltip={t('Specialist agents the orchestrator can consult during the attack (payload creation, code generation, recon, exploitation support). Prefilled from your tenant defaults; built-in agents are enabled by default but can be turned off or replaced for this run. Each agent\'s discovery mode controls how much it may create from recon: enrich existing entities only, stay within scope, or expand the perimeter.')}
-        />
-      </Box>
+          <Box>
+            <AutonomousAgentsSelector
+              title={t('Agents')}
+              agents={config.availableAgents}
+              enabledIds={config.selectedAgentIds}
+              onToggle={config.toggleAgent}
+              modes={config.selectedAgentModes}
+              onModeChange={config.changeAgentMode}
+              orchestrator={{
+                id: ORCHESTRATOR_AGENT_ID,
+                name: t('Autonomous orchestrator'),
+                description: t('Plans and drives the entire attack path, and consults the agents below.'),
+              }}
+              builtinSlug={BUILTIN_AGENT_SLUG}
+              loading={config.loadingAgents}
+              disabled={disabled}
+              createAgentUrl={xtmOneUrl ? `${xtmOneUrl}/agents/new` : undefined}
+              infoTooltip={t('Specialist agents the orchestrator can consult during the attack (payload creation, code generation, recon, exploitation support). Prefilled from your tenant defaults; built-in agents are enabled by default but can be turned off or replaced for this run. Each agent\'s discovery mode controls how much it may create from recon: enrich existing entities only, stay within scope, or expand the perimeter.')}
+            />
+          </Box>
 
-      <Box>
-        <Typography variant="h2" gutterBottom>
-          {t('Label (optional)')}
-        </Typography>
-        <Stack sx={{ gap: theme.spacing(2) }}>
-          <TextField
-            value={config.name}
-            onChange={event => config.setName(event.target.value)}
-            label={t('Name')}
-            placeholder={t('Auto-generated if left empty')}
-            fullWidth
-            disabled={disabled}
-          />
-          <TextField
-            value={config.description}
-            onChange={event => config.setDescription(event.target.value)}
-            label={t('Description')}
-            placeholder={t('Auto-generated from the objective if left empty')}
-            multiline
-            minRows={2}
-            fullWidth
-            disabled={disabled}
-          />
-        </Stack>
-      </Box>
+          <Box>
+            <Typography variant="h2" gutterBottom>
+              {t('Time budget')}
+            </Typography>
+            <TextField
+              type="number"
+              value={config.timeoutHours}
+              onChange={(event) => {
+                const parsed = Number(event.target.value);
+                config.setTimeoutHours(Number.isFinite(parsed) && parsed > 0 ? parsed : 1);
+              }}
+              label={t('Timeout (hours)')}
+              slotProps={{
+                htmlInput: {
+                  min: 1,
+                  max: 720,
+                  step: 1,
+                },
+              }}
+              helperText={t('Maximum run duration. OpenAEV steers the orchestrator to converge a few minutes before this deadline, then hard-stops the run. Default is 24 hours.')}
+              fullWidth
+              disabled={disabled}
+            />
+          </Box>
+        </>
+      )}
 
-      <Box>
-        <Typography variant="h2" gutterBottom>
-          {t('Time budget')}
-        </Typography>
-        <TextField
-          type="number"
-          value={config.timeoutHours}
-          onChange={(event) => {
-            const parsed = Number(event.target.value);
-            config.setTimeoutHours(Number.isFinite(parsed) && parsed > 0 ? parsed : 1);
-          }}
-          label={t('Timeout (hours)')}
-          slotProps={{
-            htmlInput: {
-              min: 1,
-              max: 720,
-              step: 1,
-            },
-          }}
-          helperText={t('Maximum run duration. OpenAEV steers the orchestrator to converge a few minutes before this deadline, then hard-stops the run. Default is 24 hours.')}
-          fullWidth
-          disabled={disabled}
-        />
-      </Box>
-
-      <Accordion
-        variant="outlined"
-        sx={{
-          '&:before': { display: 'none' },
-          'borderRadius': 1,
-        }}
-      >
-        <AccordionSummary expandIcon={<ExpandMore />}>
-          <Typography variant="h2" sx={{ margin: 0 }}>
-            {config.allowCount > 0 ? `${t('Allow list')} (${config.allowCount})` : t('Allow list')}
+      {activeStep === 1 && (
+        <Box>
+          <Typography variant="h2" gutterBottom>
+            {t('Allow list')}
           </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
           <Typography
             variant="caption"
             color="text.secondary"
@@ -322,22 +300,14 @@ export const AutonomousRunConfigFields = ({ config, disabled }: AutonomousRunCon
             {t('Optional. The perimeter the AI is authorized to attack: add assets, asset groups, teams, persons, or manual IPs / hostnames. Leave empty and the AI will ask you to choose targets before it attacks anything.')}
           </Typography>
           <ScopeSection mode="ALLOWLIST" selection={config.allowScope} onChange={config.setAllowScope} />
-        </AccordionDetails>
-      </Accordion>
+        </Box>
+      )}
 
-      <Accordion
-        variant="outlined"
-        sx={{
-          '&:before': { display: 'none' },
-          'borderRadius': 1,
-        }}
-      >
-        <AccordionSummary expandIcon={<ExpandMore />}>
-          <Typography variant="h2" sx={{ margin: 0 }}>
-            {config.denyCount > 0 ? `${t('Deny list')} (${config.denyCount})` : t('Deny list')}
+      {activeStep === 2 && (
+        <Box>
+          <Typography variant="h2" gutterBottom>
+            {t('Deny list')}
           </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
           <Typography
             variant="caption"
             color="text.secondary"
@@ -349,8 +319,8 @@ export const AutonomousRunConfigFields = ({ config, disabled }: AutonomousRunCon
             {t('Optional. Explicit carve-outs the AI must never touch, even if they fall inside the allow-list. Deny always wins over allow.')}
           </Typography>
           <ScopeSection mode="DENYLIST" selection={config.denyScope} onChange={config.setDenyScope} />
-        </AccordionDetails>
-      </Accordion>
+        </Box>
+      )}
     </Stack>
   );
 };
@@ -367,20 +337,17 @@ export interface AutonomousRunConfigPanelProps {
    * mode-agnostic; the host decides Build vs Launch at action time.
    */
   showSave?: boolean;
-  showPlan?: boolean;
   showLaunch?: boolean;
   saveLabel?: string;
-  planLabel?: string;
   launchLabel?: string;
   onSave?: (input: AutonomousRunCreateInput) => void;
-  onPlan?: (input: AutonomousRunCreateInput) => void;
   onLaunch?: (input: AutonomousRunCreateInput) => void;
   onCancel: () => void;
   cancelLabel?: string;
 }
 
 /**
- * The AI-accent banner + {@link AutonomousRunConfigFields} + a Plan / Launch footer, with NO drawer
+ * The AI-accent banner + {@link AutonomousRunConfigFields} + a Save / Launch footer, with NO drawer
  * chrome, so it can be dropped either inside {@link AutonomousRunConfigDrawer} or straight into
  * another surface (e.g. the scenario-creation drawer's "Generate with AI" step) without nesting
  * drawers. The caller owns the {@link useAutonomousRunConfig} instance and the submit handlers.
@@ -391,13 +358,10 @@ export const AutonomousRunConfigPanel = ({
   error,
   infoText,
   showSave = false,
-  showPlan = true,
   showLaunch = true,
   saveLabel,
-  planLabel,
   launchLabel,
   onSave,
-  onPlan,
   onLaunch,
   onCancel,
   cancelLabel,
@@ -405,6 +369,16 @@ export const AutonomousRunConfigPanel = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const canSubmit = config.canSubmit && !submitting;
+  // Three-step launch flow (the preferred UX over accordions): objective + agents + time budget,
+  // then the allow-list, then the deny-list. Scope is optional, so Save / Launch stay
+  // available on every step and the operator can skip straight past the scope steps.
+  const [activeStep, setActiveStep] = useState(0);
+  const stepLabels = [
+    t('Objective'),
+    config.allowCount > 0 ? `${t('Allow list')} (${config.allowCount})` : t('Allow list'),
+    config.denyCount > 0 ? `${t('Deny list')} (${config.denyCount})` : t('Deny list'),
+  ];
+  const lastStep = stepLabels.length - 1;
 
   return (
     <Box sx={{
@@ -424,7 +398,20 @@ export const AutonomousRunConfigPanel = ({
         </Alert>
       )}
 
-      <AutonomousRunConfigFields config={config} disabled={submitting} />
+      <Stepper activeStep={activeStep}>
+        {stepLabels.map((label, index) => (
+          <Step key={label} completed={false}>
+            <StepLabel
+              onClick={() => setActiveStep(index)}
+              sx={{ cursor: 'pointer' }}
+            >
+              {label}
+            </StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+
+      <AutonomousRunConfigFields config={config} activeStep={activeStep} disabled={submitting} />
 
       {error && <Alert severity="error">{error}</Alert>}
 
@@ -443,27 +430,32 @@ export const AutonomousRunConfigPanel = ({
           gap: theme.spacing(1),
         }}
         >
+          {activeStep > 0 && (
+            <Button
+              onClick={() => setActiveStep(step => step - 1)}
+              startIcon={<ArrowBack />}
+              disabled={submitting}
+            >
+              {t('Back')}
+            </Button>
+          )}
+          {activeStep < lastStep && (
+            <Button
+              onClick={() => setActiveStep(step => step + 1)}
+              variant="outlined"
+              disabled={submitting}
+            >
+              {t('Next')}
+            </Button>
+          )}
           {showSave && onSave && (
             <Button
               onClick={() => onSave(config.buildInput(true))}
-              variant="outlined"
-              color="inherit"
+              variant="contained"
               disabled={!canSubmit}
               data-testid="button-autonomous-save"
             >
               {saveLabel ?? t('Save for later')}
-            </Button>
-          )}
-          {showPlan && onPlan && (
-            <Button
-              onClick={() => onPlan(config.buildInput(true))}
-              variant="outlined"
-              color="inherit"
-              disabled={!canSubmit}
-              startIcon={<AutoAwesome />}
-              data-testid="button-autonomous-plan"
-            >
-              {planLabel ?? t('Plan (dry-run)')}
             </Button>
           )}
           {showLaunch && onLaunch && (

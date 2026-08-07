@@ -2572,7 +2572,6 @@
   "phone_number_tooltip": "전화번호는 더하기 기호(+)로 시작해야 합니다. 공백이나 하이픈( - ) 또는 괄호를 포함할 수 있습니다.",
   "Pipe": "파이프",
   "Pivot node": "Pivot node",
-  "Plan (dry-run)": "Plan (dry-run)",
   "Plan mode - the AI is designing the attack path; nothing is executed.": "Plan mode - the AI is designing the attack path; nothing is executed.",
   "Plan ready": "Plan ready",
   "Plan ready - the AI has designed the attack path; nothing has been executed. Run it for real to launch a fresh live run guided by this plan.": "Plan ready - the AI has designed the attack path; nothing has been executed. Run it for real to launch a fresh live run guided by this plan.",

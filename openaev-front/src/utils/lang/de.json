@@ -2572,7 +2572,6 @@
   "phone_number_tooltip": "Die Rufnummer sollte mit einem Pluszeichen ( + ) beginnen. Sie kann Leerzeichen oder Bindestriche ( - ) oder Klammern enthalten.",
   "Pipe": "Rohrleitung",
   "Pivot node": "Pivot node",
-  "Plan (dry-run)": "Plan (dry-run)",
   "Plan mode - the AI is designing the attack path; nothing is executed.": "Plan mode - the AI is designing the attack path; nothing is executed.",
   "Plan ready": "Plan ready",
   "Plan ready - the AI has designed the attack path; nothing has been executed. Run it for real to launch a fresh live run guided by this plan.": "Plan ready - the AI has designed the attack path; nothing has been executed. Run it for real to launch a fresh live run guided by this plan.",

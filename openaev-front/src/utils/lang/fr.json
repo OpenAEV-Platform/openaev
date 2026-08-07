@@ -2572,7 +2572,6 @@
   "phone_number_tooltip": "Le numéro de téléphone devrait commencer par un signe plus ( + ). Il peut contenir des espaces ou des tirets ( – ) ou des parenthèses.",
   "Pipe": "Tuyau",
   "Pivot node": "Nœud pivot",
-  "Plan (dry-run)": "Plan (dry-run)",
   "Plan mode - the AI is designing the attack path; nothing is executed.": "Plan mode - the AI is designing the attack path; nothing is executed.",
   "Plan ready": "Plan ready",
   "Plan ready - the AI has designed the attack path; nothing has been executed. Run it for real to launch a fresh live run guided by this plan.": "Plan ready - the AI has designed the attack path; nothing has been executed. Run it for real to launch a fresh live run guided by this plan.",

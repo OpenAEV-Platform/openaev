@@ -1,8 +1,8 @@
-import { AutoAwesome, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Avatar, Box, Button, Paper, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { AutoAwesome } from '@mui/icons-material';
+import { Avatar, Box, Button, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AgentHelper } from '../../../../actions/agents/agent-helper';
@@ -56,13 +56,20 @@ import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../worksp
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
 
-const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null }: {
-  setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
+const Scenario = ({ autonomousRun = null, onOverviewSampleState }: {
   // The settled autonomous run owning this scenario, if any. When present, the overview keeps a
   // durable, read-only AI outcome (mission, decision timeline, gaps, proofs) even though the live
   // cockpit and steer panel are gone. Null for a never-run or purely-manual chained scenario, or
   // while a run is still active (the live cockpit owns the overview then).
   autonomousRun?: AutonomousRun | null;
+  // Report the overview's sample/launch state up to Index so the "not run yet" banner can render at
+  // the very top of the page (under the hero, above the tabs) instead of buried below the fold here.
+  onOverviewSampleState?: (state: {
+    isSample: boolean;
+    hasNeverRun: boolean;
+    canLaunch: boolean;
+    isScopeMissing: boolean;
+  }) => void;
 }) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -230,6 +237,17 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null }
   const showPosture = isSample || hasPosture;
   const showMitre = isSample || hasMitreResults;
 
+  // Surface the "not run yet" state to Index so it can render the launch banner at the very top of
+  // the page (under the hero, above the tabs) rather than mid-overview below the fold.
+  useEffect(() => {
+    onOverviewSampleState?.({
+      isSample,
+      hasNeverRun,
+      canLaunch,
+      isScopeMissing,
+    });
+  }, [onOverviewSampleState, isSample, hasNeverRun, canLaunch, isScopeMissing]);
+
   // Even without any run result we know which MITRE techniques the scenario's
   // injects target: feed them to the matrix with empty expectation results so
   // the REAL techniques render (muted, coverage unknown) instead of a greyed
@@ -317,97 +335,6 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null }
           </Box>
           <AutonomousOutcome run={autonomousRun} live={false} />
         </Box>
-      )}
-
-      {isSample && (
-        <Paper
-          variant="outlined"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-            flexWrap: 'wrap',
-            padding: 2,
-            borderRadius: 1,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, transparent 60%)`,
-          }}
-        >
-          <RocketLaunchOutlined color="primary" />
-          <Box sx={{
-            flex: 1,
-            minWidth: 240,
-          }}
-          >
-            <Typography sx={{
-              fontWeight: 600,
-              marginBottom: 0.25,
-            }}
-            >
-              {hasNeverRun ? t('This scenario has not run yet') : t('No results to display yet')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t('The insights below are a sample preview. Launch a simulation to populate them with your real posture.')}
-            </Typography>
-          </Box>
-          {/* A chained scenario can be launched two ways - a plain operator-driven simulation
-              (Normal) or an orchestrator-driven live run (Autonomous). The Autonomous button routes
-              to the header, whose launch config drawer is the single control surface (objective /
-              agents / scope). A time-based scenario only ever launches a normal simulation. */}
-          {canLaunch && isScenarioChaining && (
-            <Box sx={{
-              display: 'flex',
-              gap: 1,
-              flexWrap: 'wrap',
-            }}
-            >
-              <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch a normal, operator-driven simulation from this scenario')}>
-                <span style={{ display: 'inline-flex' }}>
-                  <Button
-                    startIcon={<PlayArrowOutlined />}
-                    variant="contained"
-                    color="primary"
-                    disabled={isScopeMissing}
-                    onClick={() => setOpenInstantiateSimulationAndStart(true)}
-                  >
-                    {t('Normal')}
-                  </Button>
-                </span>
-              </Tooltip>
-              <Tooltip title={t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}>
-                <span style={{ display: 'inline-flex' }}>
-                  <Button
-                    startIcon={<AutoAwesome />}
-                    variant="contained"
-                    onClick={() => navigate(`/admin/scenarios/${scenarioId}?openAiLaunch=true`)}
-                    sx={{
-                      'whiteSpace': 'nowrap',
-                      'backgroundColor': theme.palette.ai.main,
-                      'color': theme.palette.ai.contrastText,
-                      '&:hover': { backgroundColor: theme.palette.ai.dark },
-                    }}
-                  >
-                    {t('Autonomous')}
-                  </Button>
-                </span>
-              </Tooltip>
-            </Box>
-          )}
-          {canLaunch && !isScenarioChaining && (
-            <Tooltip title="">
-              <span style={{ display: 'inline-flex' }}>
-                <Button
-                  startIcon={<PlayArrowOutlined />}
-                  variant="contained"
-                  color="primary"
-                  onClick={() => setOpenInstantiateSimulationAndStart(true)}
-                >
-                  {t('Launch simulation now')}
-                </Button>
-              </span>
-            </Tooltip>
-          )}
-        </Paper>
       )}
 
       {showPosture && (

@@ -887,7 +887,6 @@ const ScenarioHeader = ({
         submitting={aiSubmitting}
         error={aiError}
         showSave={aiDrawerIntent === 'build'}
-        showPlan={false}
         showLaunch
         saveLabel={t('Save')}
         launchLabel={aiLaunchLabel}
