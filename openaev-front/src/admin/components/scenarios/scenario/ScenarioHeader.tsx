@@ -1,6 +1,7 @@
 import {
   AccountTreeOutlined,
   AutoAwesome,
+  AutoFixHigh,
   ComputerOutlined,
   DashboardCustomizeOutlined,
   EmojiEventsOutlined,
@@ -730,7 +731,7 @@ const ScenarioHeader = ({
                         },
                       }}
                     >
-                      <AutoAwesome fontSize="small" />
+                      <AutoFixHigh fontSize="small" />
                     </IconButton>
                   </Box>
                 </Tooltip>
