@@ -21,7 +21,9 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 import org.hibernate.annotations.*;
 
 @Data
@@ -112,6 +114,12 @@ public class Finding implements TenantBase {
       path = "triage.status",
       refEnumClazz = FindingTriageStatus.class,
       label = "triage status")
+  // Excluded to break the Finding <-> FindingTriage toString/equals/hashCode recursion (Lombok
+  // @Data on both sides): mirrors the convention used for the mappedBy/inverse-navigation side of
+  // a bidirectional relation elsewhere in this codebase (see SecurityPlatform#collectors /
+  // #injectors), leaving the owning side (FindingTriage#finding) unexcluded.
+  @EqualsAndHashCode.Exclude
+  @ToString.Exclude
   private FindingTriage triage;
 
   // -- AUDIT --
