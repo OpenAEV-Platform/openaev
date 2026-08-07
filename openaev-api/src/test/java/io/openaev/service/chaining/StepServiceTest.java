@@ -1299,6 +1299,77 @@ class StepServiceTest {
   class CopyStepConditionTemplateFields {
 
     @Test
+    void given_stepGatedByTwoEvents_should_copyBothTreesInsteadOfThrowing() {
+      // Arrange — an action gated by TWO events, which the logic map lets you build
+      // (step_condition_ids is a list) and the engine already ANDs across.
+      Workflow sourceWorkflow = new Workflow();
+      sourceWorkflow.setId("source-workflow-id");
+
+      Step sourceStep = new Step();
+      sourceStep.setId("source-step-id");
+      sourceStep.setWorkflow(sourceWorkflow);
+
+      Workflow targetWorkflow = new Workflow();
+      targetWorkflow.setId("target-workflow-id");
+
+      Step targetStep = new Step();
+      targetStep.setId("target-step-id");
+      targetStep.setWorkflow(targetWorkflow);
+
+      Condition firstEvent = Condition.builder().type(ConditionType.AND).name("SMB_FOUND").build();
+      firstEvent.setId("event-1");
+      Condition firstLeaf =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("port")
+              .keyTypes(List.of(PrimitiveType.Port))
+              .value("445")
+              .conditionParent(firstEvent)
+              .build();
+      firstLeaf.setId("leaf-1");
+
+      Condition secondEvent =
+          Condition.builder().type(ConditionType.AND).name("SHARE_FOUND").build();
+      secondEvent.setId("event-2");
+      Condition secondLeaf =
+          Condition.builder()
+              .type(ConditionType.IS_NOT_NULL)
+              .key("share")
+              .keyTypes(List.of(PrimitiveType.ShareName))
+              .conditionParent(secondEvent)
+              .build();
+      secondLeaf.setId("leaf-2");
+
+      List<Condition> all = List.of(firstEvent, firstLeaf, secondEvent, secondLeaf);
+      when(conditionService.findAllConditionsByStepId("source-step-id")).thenReturn(all);
+      when(conditionService.findAllNonMapperConditionsByWorkflowId("source-workflow-id"))
+          .thenReturn(all);
+
+      List<Condition> savedConditions = new ArrayList<>();
+      when(conditionService.saveCondition(any(Condition.class)))
+          .thenAnswer(
+              invocation -> {
+                Condition c = invocation.getArgument(0);
+                c.setId(UUID.randomUUID().toString());
+                savedConditions.add(c);
+                return c;
+              });
+
+      // Act — used to throw "Only 1 condition can be first parent", making a scenario built that
+      // way in the UI permanently unlaunchable.
+      stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
+
+      // Assert — both trees copied, roots and leaves alike
+      assertEquals(4, savedConditions.size());
+      assertEquals(
+          List.of("SMB_FOUND", "SHARE_FOUND"),
+          savedConditions.stream()
+              .filter(c -> c.getConditionParent() == null)
+              .map(Condition::getName)
+              .toList());
+    }
+
+    @Test
     void given_conditionWithAllFields_should_copyAllConfigFieldsToNewCondition() {
       // Arrange
       Workflow sourceWorkflow = new Workflow();

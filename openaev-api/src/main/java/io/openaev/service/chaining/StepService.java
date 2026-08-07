@@ -575,17 +575,17 @@ public class StepService {
           "New step (TEMPLATE): At least 1 condition must be a root (no parent)");
     }
 
-    // Allow one event/filter root plus any number of mapper roots.
-    // This happens when a step has one linked event root and one or more action mappings.
-    if (rootConditions.size() > 1) {
-      long nonMapperRootCount =
-          rootConditions.stream().filter(c -> c.getType() != ConditionType.MAPPER).count();
-      if (nonMapperRootCount > 1) {
-        throw new IllegalArgumentException(
-            "New step (TEMPLATE): Only 1 condition can be first parent");
-      }
-    }
-
+    // Any number of event/filter roots is accepted, plus any number of mapper roots.
+    //
+    // The logic map lets an action be gated by SEVERAL events - `step_condition_ids` is a list, the
+    // graph appends to it, and linkExistingConditionsToStep links every id as a root - and the
+    // engine
+    // already ANDs across gating trees (evaluateFilterConditions returns false on the first
+    // unsatisfied tree). The loop below already copies every root and its subtree. This guard was
+    // the
+    // only thing rejecting more than one event root, so a scenario built that way in the UI became
+    // permanently unlaunchable, failing at copy time with "Only 1 condition can be first parent".
+    //
     // Full set of the source workflow's non-MAPPER conditions, to resolve children by parent id
     // independent of conditions_steps linkage (Event-API links only the root to the step).
     List<Condition> allSourceConditions =
