@@ -534,7 +534,7 @@ class AutonomousRunServiceTest {
   @DisplayName(
       "planScenario authors onto the scenario template: plan-mode run with NO simulation, and the"
           + " orchestrator is engaged in author-scenario mode (scenario id, null simulation)")
-  void planScenarioAuthorsOntoScenarioWithoutSimulation() {
+  void planScenarioAuthorsOntoScenarioWithoutSimulation() throws Exception {
     when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();

@@ -48,6 +48,7 @@ class WorkflowServiceTest {
   @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
+  @Mock private ConditionService conditionService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private WorkflowStateService workflowStateService;
@@ -966,6 +967,7 @@ class WorkflowServiceTest {
       service =
           new WorkflowService(
               stepService,
+              conditionService,
               previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
@@ -1245,6 +1247,7 @@ class WorkflowServiceTest {
       service =
           new WorkflowService(
               stepService,
+              conditionService,
               previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
@@ -1430,6 +1433,7 @@ class WorkflowServiceTest {
       service =
           new WorkflowService(
               stepService,
+              conditionService,
               previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
@@ -1650,6 +1654,7 @@ class WorkflowServiceTest {
       service =
           new WorkflowService(
               stepService,
+              conditionService,
               previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
