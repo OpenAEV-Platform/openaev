@@ -5,12 +5,18 @@ import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
+import io.openaev.database.model.EventStatus;
+import io.openaev.database.model.EventType;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
@@ -25,7 +31,9 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,10 +52,13 @@ public class InjectStatusService {
   private final InjectUtils injectUtils;
   private final InjectStatusRepository injectStatusRepository;
   private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
+  private final Optional<AuditLogger> auditLogger;
   private final ApplicationEventPublisher eventPublisher;
   private final ObjectMapper mapper;
 
   private final EntityManager entityManager;
+
+  private static final String NO_STATUS = "NONE";
 
   /**
    * Streams the parent inject (with its embedded status) to the SSE consumers.
@@ -82,13 +93,19 @@ public class InjectStatusService {
   @Transactional(rollbackFor = Exception.class)
   public Inject updateInjectStatus(String injectId, InjectUpdateStatusInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow();
+    ExecutionStatus previousStatus = inject.getStatus().map(InjectStatus::getName).orElse(null);
     // build status
     InjectStatus injectStatus = new InjectStatus();
     injectStatus.setInject(inject);
-    injectStatus.setName(ExecutionStatus.fromName(input.getStatus()));
+    ExecutionStatus newStatus = ExecutionStatus.fromName(input.getStatus());
+    injectStatus.setName(newStatus);
     // Save status for inject
     inject.setStatus(injectStatus);
-    return injectRepository.save(inject);
+    Inject saved = injectRepository.save(inject);
+    if (previousStatus != newStatus) {
+      logInjectStatusTransition(inject, previousStatus, newStatus, null);
+    }
+    return saved;
   }
 
   public void addStartImplantExecutionTraceByInject(
@@ -144,6 +161,7 @@ public class InjectStatusService {
   }
 
   public void updateFinalInjectStatus(InjectStatus injectStatus) {
+    ExecutionStatus previousStatus = injectStatus.getName();
     ExecutionStatus finalStatus =
         InjectStatusUtils.computeStatus(
             injectStatus.getTraces().stream()
@@ -152,6 +170,11 @@ public class InjectStatusService {
     injectStatus.setTrackingEndDate(Instant.now());
     injectStatus.setName(finalStatus);
     injectStatus.getInject().setUpdatedAt(Instant.now());
+
+    // Audit log: final inject status
+    if (previousStatus != finalStatus) {
+      logInjectStatusTransition(injectStatus.getInject(), previousStatus, finalStatus, null);
+    }
   }
 
   /**
@@ -224,6 +247,9 @@ public class InjectStatusService {
       Inject inject, Agent agent, InjectExecutionInput input, ObjectNode structuredOutput) {
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
 
+    // Capture previous status for audit diff logging
+    ExecutionStatus previousStatus = injectStatus.getName();
+
     // Creating the Execution Trace
     ExecutionTrace executionTrace =
         createExecutionTrace(injectStatus, input, agent, structuredOutput);
@@ -249,6 +275,12 @@ public class InjectStatusService {
       // inject from "in flight" to "completed" without a page reload.
       publishInjectStatusUpdate(inject);
       log.debug("Successfully updated inject final status: {}", inject.getId());
+    }
+
+    // Audit log: inject status transition
+    ExecutionStatus newStatus = injectStatus.getName();
+    if (previousStatus != newStatus) {
+      logInjectStatusTransition(inject, previousStatus, newStatus, agent);
     }
 
     log.debug("Successfully updated inject: {}", inject.getId());
@@ -281,6 +313,7 @@ public class InjectStatusService {
   }
 
   public InjectStatus fromExecution(Execution execution, InjectStatus injectStatus) {
+    ExecutionStatus previousStatus = injectStatus.getName();
     if (!execution.getTraces().isEmpty()) {
       List<ExecutionTrace> traces =
           execution.getTraces().stream().peek(t -> t.setInjectStatus(injectStatus)).toList();
@@ -288,6 +321,9 @@ public class InjectStatusService {
     }
     if (execution.isAsync() && ExecutionStatus.EXECUTING.equals(injectStatus.getName())) {
       injectStatus.setName(ExecutionStatus.PENDING);
+      // updateFinalInjectStatus already logs its own transition
+      logInjectStatusTransition(
+          injectStatus.getInject(), previousStatus, ExecutionStatus.PENDING, null);
     } else {
       updateFinalInjectStatus(injectStatus);
     }
@@ -314,6 +350,7 @@ public class InjectStatusService {
   public InjectStatus failInjectStatus(@NotNull String injectId, @Nullable String message) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
+    ExecutionStatus previousStatus = injectStatus.getName();
     if (message != null) {
       injectStatus.addErrorTrace(message, ExecutionTraceAction.COMPLETE);
     }
@@ -324,6 +361,9 @@ public class InjectStatusService {
     // Stream the ERROR transition so the execution board moves the inject to "completed" live.
     inject.setStatus(saved);
     publishInjectStatusUpdate(inject);
+    if (previousStatus != ExecutionStatus.ERROR) {
+      logInjectStatusTransition(inject, previousStatus, ExecutionStatus.ERROR, null);
+    }
     return saved;
   }
 
@@ -332,6 +372,7 @@ public class InjectStatusService {
       @NotNull String injectId, @NotNull ExecutionStatus status) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
+    ExecutionStatus previousStatus = injectStatus.getName();
     injectStatus.setName(status);
     injectStatus.setTrackingSentDate(Instant.now());
     injectStatus.setPayloadOutput(getPayloadOutput(inject));
@@ -340,6 +381,9 @@ public class InjectStatusService {
     // from "up next" to "in flight" without a page reload.
     inject.setStatus(saved);
     publishInjectStatusUpdate(inject);
+    if (previousStatus != status) {
+      logInjectStatusTransition(inject, previousStatus, status, null);
+    }
     return saved;
   }
 
@@ -408,5 +452,39 @@ public class InjectStatusService {
             .flatMap(i -> i.map(InjectStatus::getId).stream())
             .toList();
     injectStatusRepository.deleteAllByIds(injectStatusIds);
+  }
+
+  private void logInjectStatusTransition(
+      Inject inject, ExecutionStatus previousStatus, ExecutionStatus newStatus, Agent agent) {
+    String previousName = previousStatus != null ? previousStatus.name() : NO_STATUS;
+    String newName = newStatus != null ? newStatus.name() : NO_STATUS;
+    auditLogger.ifPresent(
+        logger ->
+            logger.logEvent(
+                AuditEvent.builder()
+                    .eventType(EventType.EXECUTION)
+                    .eventScope(AuditEventScope.INJECT_STATUS_TRANSITION)
+                    .eventStatus(EventStatus.SUCCESS)
+                    .resourceType(ResourceType.INJECT)
+                    .resourceId(inject.getId())
+                    .message(
+                        "Inject '%s' transitioned from %s to %s"
+                            .formatted(inject.getTitle(), previousName, newName))
+                    .contextData(buildTransitionContextData(inject, previousName, newName, agent))
+                    .origin(AuditEventOrigin.SYSTEM)
+                    .build()));
+  }
+
+  private Map<String, Object> buildTransitionContextData(
+      Inject inject, String previousStatus, String newStatus, Agent agent) {
+    Map<String, Object> ctx = new LinkedHashMap<>();
+    ctx.put("inject_id", inject.getId());
+    ctx.put("inject_name", inject.getTitle());
+    ctx.put("previous_status", previousStatus);
+    ctx.put("new_status", newStatus);
+    if (agent != null && agent.getExecutor() != null) {
+      ctx.put("executor_type", agent.getExecutor().getType());
+    }
+    return ctx;
   }
 }

@@ -2,6 +2,7 @@ package io.openaev.rest.user;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Action;
@@ -82,10 +83,11 @@ public class UserApi extends RestBehavior {
 
         auditLogger.ifPresent(
             logger -> {
-              String eventScope = LogUtils.getEventScope(Action.LOGIN);
-              String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
               logger.logAuthEvent(
-                  eventScope, eventStatus, LogUtils.getAuthEventProviderLocal(), null, null);
+                  AuditEventScope.LOGIN,
+                  EventStatus.SUCCESS,
+                  LogUtils.getAuthEventProviderLocal(),
+                  null);
             });
 
         return user;
@@ -96,14 +98,11 @@ public class UserApi extends RestBehavior {
 
     auditLogger.ifPresent(
         logger -> {
-          String eventScope = LogUtils.getEventScope(Action.LOGIN);
-          String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
           logger.logAuthEvent(
-              eventScope,
-              eventStatus,
+              AuditEventScope.LOGIN,
+              EventStatus.ERROR,
               LogUtils.getAuthEventProviderLocal(),
-              BadCredentialsException.class.getSimpleName(),
-              null);
+              BadCredentialsException.class.getSimpleName());
         });
 
     throw new BadCredentialsException("Invalid credential.");

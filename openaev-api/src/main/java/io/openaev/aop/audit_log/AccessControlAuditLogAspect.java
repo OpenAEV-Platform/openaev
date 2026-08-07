@@ -9,11 +9,10 @@ import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
-import io.openaev.service.LogService;
-import io.openaev.utils.log.LogUtils;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.lang.annotation.Annotation;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import lombok.RequiredArgsConstructor;
@@ -64,6 +63,7 @@ public class AccessControlAuditLogAspect {
 
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
+  @PersistenceContext private EntityManager entityManager;
 
   private static final String LOG_ERROR_MSG = "Error during audit logging";
 
@@ -95,18 +95,24 @@ public class AccessControlAuditLogAspect {
       if (isActive) {
         try {
           if (isRbacDeniedException(ex)) {
-            String eventScope = LogUtils.getEventScope(Action.UNAUTHORIZED);
-            String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode errorNode = buildErrorNode(null, ex);
 
-            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
+            logAccessControlEvent(
+                joinPoint,
+                accessControl,
+                AuditEventScope.from(Action.UNAUTHORIZED),
+                EventStatus.ERROR,
+                errorNode);
           } else if (isActionActive) {
-            String eventScope = LogUtils.getEventScope(action);
-            String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode resultNode = getOutputNode(result);
             JsonNode errorNode = buildErrorNode(resultNode, ex);
 
-            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
+            logAccessControlEvent(
+                joinPoint,
+                accessControl,
+                AuditEventScope.from(action),
+                EventStatus.ERROR,
+                errorNode);
           }
         } catch (AuditLogFailureException e) {
           throw e;
@@ -119,11 +125,14 @@ public class AccessControlAuditLogAspect {
 
     if (isActive && isActionActive && AuditLogContext.isEnabled()) {
       try {
-        String eventScope = LogUtils.getEventScope(action);
-        String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
         JsonNode resultNode = getOutputNode(result);
 
-        logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, resultNode);
+        logAccessControlEvent(
+            joinPoint,
+            accessControl,
+            AuditEventScope.from(action),
+            EventStatus.SUCCESS,
+            resultNode);
       } catch (AuditLogFailureException ex) {
         throw ex;
       } catch (Exception ex) {
@@ -137,11 +146,10 @@ public class AccessControlAuditLogAspect {
   private void logAccessControlEvent(
       JoinPoint joinPoint,
       AccessControl accessControl,
-      String eventScope,
-      String eventStatus,
+      AuditEventScope eventScope,
+      EventStatus eventStatus,
       JsonNode outputNode) {
     try {
-      String logUUID = UUID.randomUUID().toString();
       ResourceType resourceType = accessControl.resourceType();
       String resourceId = resolveResourceId(joinPoint, accessControl);
       JsonNode inputNode = getInputNode(joinPoint, eventScope);
@@ -170,8 +178,7 @@ public class AccessControlAuditLogAspect {
               inputNode,
               outputNode,
               signatureNode,
-              snapshots,
-              logUUID);
+              snapshots);
 
       auditFuture.whenComplete(logCompletion);
     } catch (AuditLogFailureException ex) {
@@ -182,11 +189,20 @@ public class AccessControlAuditLogAspect {
   }
 
   /**
-   * Captures all pending entity snapshots from {@link AuditLogContext}. Must be called on the
-   * servlet thread before any async handoff, since {@link AuditLogContext} is request-scoped.
+   * Flushes pending Hibernate changes and captures all entity snapshots from {@link
+   * AuditLogContext}. Must be called on the servlet thread before any async handoff, since {@link
+   * AuditLogContext} is request-scoped.
+   *
+   * <p>The flush triggers {@code @PreUpdate} / {@code @PreRemove} JPA callbacks that store
+   * before/after snapshots in {@link AuditLogContext}. Without it, the callbacks would only fire at
+   * transaction commit time — after {@code consumeAllSnapshots()} has already cleared the context.
+   *
+   * <p>This is safe because the aspect runs inside the transaction boundary; if the flush reveals a
+   * constraint violation, it would have failed at commit anyway.
    */
   private Map<String, AuditLogContext.EntitySnapshot> captureEntitySnapshots() {
     try {
+      entityManager.flush();
       return AuditLogContext.consumeAllSnapshots();
     } catch (Exception e) {
       log.debug("[AUDIT] Failed to capture entity snapshots: {}", e.getMessage());
@@ -215,12 +231,12 @@ public class AccessControlAuditLogAspect {
   }
 
   // Capture the input DTO for create/update/status_change
-  private JsonNode getInputNode(JoinPoint joinPoint, String eventScope) {
+  private JsonNode getInputNode(JoinPoint joinPoint, AuditEventScope eventScope) {
     JsonNode inputNode = null;
 
-    if ("create".equals(eventScope)
-        || "update".equals(eventScope)
-        || "status_change".equals(eventScope)) {
+    if (eventScope == AuditEventScope.CREATE
+        || eventScope == AuditEventScope.UPDATE
+        || eventScope == AuditEventScope.STATUS_CHANGE) {
       Object requestBody = findRequestBody(joinPoint);
 
       if (requestBody != null) {
