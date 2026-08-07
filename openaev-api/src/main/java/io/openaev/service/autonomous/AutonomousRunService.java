@@ -407,16 +407,25 @@ public class AutonomousRunService {
   }
 
   /**
-   * Launches an existing chained scenario in AUTONOMOUS mode: seeds a live simulation from the
-   * scenario's authored attack-path steps and engages the orchestrator to verify, execute, and
-   * adapt/extend the path from live findings. This is the scenario-side entry point behind {@code
-   * POST /scenarios/{id}/exercise/autonomous}; the plain {@code exercise} endpoint keeps launching
-   * a normal (operator-driven) simulation.
+   * Launches an existing chained scenario in AUTONOMOUS mode and engages the orchestrator to drive
+   * it live. This is the scenario-side entry point behind {@code POST
+   * /scenarios/{id}/exercise/autonomous}; the plain {@code exercise} endpoint keeps launching a
+   * normal (operator-driven) simulation.
+   *
+   * <p>Autonomy is a launch-time MODE, not a scenario type, so it works whether or not the scenario
+   * already has logic:
+   *
+   * <ul>
+   *   <li>If the scenario already has authored steps (built by hand OR by the AI builder), those are
+   *       seeded onto the live simulation as the starting attack path - the orchestrator executes
+   *       them first, then adapts/extends from live findings.
+   *   <li>If the scenario is still empty (no steps), there is nothing to seed - the orchestrator
+   *       builds the attack path live "as it goes" from the objective and scope.
+   * </ul>
    *
    * <p>Creates the run bound to the scenario and immediately engages the orchestrator in one
    * transaction (the {@code afterCommit} engage still fires once this method's transaction commits,
-   * exactly like {@link #start}). No scenario is ever provisioned here - the operator authored (or
-   * AI-planned) the scenario beforehand.
+   * exactly like {@link #start}). No scenario is ever provisioned here.
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun launchFromScenario(String scenarioId, AutonomousRunCreateInput input) {
@@ -438,11 +447,21 @@ public class AutonomousRunService {
     effective.setPlanMode(false);
     if (!hasText(effective.getObjective()) && !hasText(effective.getObjectiveTemplateKey())) {
       Scenario scenario = scenarioService.scenario(scenarioId);
+      // The default mission depends on whether the scenario already carries any logic: with authored
+      // steps the run executes them first then adapts; on an empty scenario there is nothing to
+      // execute, so the orchestrator designs and drives the path live ("as it goes").
+      boolean hasAuthoredSteps = !workflowService.readAuthoredAttackPathForScenario(scenarioId).isEmpty();
       effective.setObjective(
-          "Run the chained scenario \""
-              + scenario.getName()
-              + "\" autonomously: verify and execute its authored attack path, then adapt and"
-              + " extend it from live findings to achieve the objective.");
+          hasAuthoredSteps
+              ? "Run the chained scenario \""
+                  + scenario.getName()
+                  + "\" autonomously: verify and execute its authored attack path, then adapt and"
+                  + " extend it from live findings to achieve the objective."
+              : "Run the chained scenario \""
+                  + scenario.getName()
+                  + "\" autonomously: it has no predefined logic yet, so design and drive the attack"
+                  + " path live - recon, exploitation, lateral movement - adapting to findings and"
+                  + " expanding within the authorized scope to achieve the objective.");
     }
     // The un-annotated internals run inside THIS transaction: doCreate() builds + saves the run,
     // doStart() flips it live and registers the post-commit orchestrator engagement. Calling the

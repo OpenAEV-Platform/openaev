@@ -158,10 +158,13 @@ public class AutonomousRunApi extends RestBehavior {
   @Operation(
       summary = "Launch an existing chained scenario in autonomous mode",
       description =
-          "Seeds a live simulation from the scenario's authored attack-path steps and engages the"
-              + " orchestrator to verify, execute, and adapt/extend the path from live findings."
-              + " The plain scenario 'exercise/running' launch stays operator-driven; this is the"
-              + " autonomous launch mode. Creates AND starts the run in one call.")
+          "Spins up a live simulation and engages the orchestrator to drive it. If the scenario"
+              + " already has authored steps (built by hand or by the AI builder), they are seeded"
+              + " as the starting attack path and the orchestrator verifies, executes, and"
+              + " adapts/extends from live findings; if the scenario is still empty, the"
+              + " orchestrator builds the attack path live 'as it goes' from the objective and"
+              + " scope. The plain scenario 'exercise/running' launch stays operator-driven; this is"
+              + " the autonomous launch mode. Creates AND starts the run in one call.")
   @PostMapping("/from-scenario/{scenarioId}")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
