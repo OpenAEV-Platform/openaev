@@ -1609,6 +1609,18 @@ public class AutonomousRunService {
         "Operator directive queued",
         content,
         null);
+    // A queued directive answers whatever the run was parked on. If it was
+    // WAITING_INPUT, the operator has now responded, so leave that state right
+    // away instead of waiting for the next orchestrator cycle to flip it -
+    // otherwise the header keeps reading "Waiting for input" while the run has
+    // in fact resumed (the reported header/cockpit contradiction). A plan run
+    // returns to PLANNING (still authoring), a live run to RUNNING; the
+    // orchestrator refines this on its next cycle. Only WAITING_INPUT is
+    // touched, so a directive on an already-active run never perturbs it.
+    if (run.getStatus() == AutonomousRunStatus.WAITING_INPUT) {
+      run.setStatus(run.isPlanMode() ? AutonomousRunStatus.PLANNING : AutonomousRunStatus.RUNNING);
+      runRepository.save(run);
+    }
     // Re-arm the orchestrator so it picks up the directive now, not only at its next scheduled
     // re-check - crucial when the run is parked in WAITING_INPUT after asking the operator a
     // question. Fired after commit so the orchestrator can never consume before the row is visible.
@@ -3368,6 +3380,16 @@ public class AutonomousRunService {
       // operator can always stop a parked or plan run; only the FINISHED->COMPLETED sync is
       // skipped.
       if (run.isPlanMode() || current == AutonomousRunStatus.WAITING_INPUT) {
+        return run;
+      }
+      // An unconsumed (PENDING) directive is proof-of-life, not a desync: the operator just
+      // steered - addDirective flips WAITING_INPUT to RUNNING right away - and the orchestrator
+      // has not picked the directive up yet, so the simulation legitimately still reads FINISHED
+      // underneath the now-RUNNING run. Completing here would kill the run inside that
+      // answer-to-consume window: the same premature termination the WAITING_INPUT guard above
+      // fixes, just shifted a few seconds later.
+      if (directiveRepository.existsByRunIdAndStatus(
+          run.getId(), AutonomousDirectiveStatus.PENDING)) {
         return run;
       }
       target = AutonomousRunStatus.COMPLETED;

@@ -911,6 +911,7 @@ const ScenarioHeader = ({
         // budget to 1h rather than surfacing the misleading 24h execution budget. A live autonomous
         // launch keeps the 24h default (recon + human-in-the-loop steps make it long-lived).
         defaultTimeoutHours={aiDrawerIntent === 'build' ? 1 : undefined}
+        planMode={aiDrawerIntent === 'build'}
         title={aiDrawerTitle}
         infoText={aiDrawerIntent === 'build'
           ? t('Let the AI build this scenario\'s logic for you - set the objective, the specialist agents the orchestrator may consult, and the scope. Save it to build or launch later, or Build now to have the orchestrator author the steps onto the scenario. Nothing runs while building; you launch the scenario afterwards, in normal or autonomous mode.')

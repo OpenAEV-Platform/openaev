@@ -144,6 +144,14 @@ export interface UseAutonomousRunConfigOptions {
    * (from {@link initialInput}) still wins.
    */
   defaultTimeoutHours?: number;
+  /**
+   * The host is the AI builder (a build / plan-authoring pass), not a live launch. Plan mode is
+   * untimed server-side, so the time budget is meaningless here: we always show {@link
+   * defaultTimeoutHours} (ignoring any timeout a previously-saved build config carried) and omit
+   * `timeout_seconds` from the built payload so a stale value can never be persisted and surfaced
+   * back as a misleading budget on the next open.
+   */
+  isPlanMode?: boolean;
 }
 
 /** Fallback time budget (hours) when a host does not override it: autonomous execution is long-lived. */
@@ -194,6 +202,7 @@ export const useAutonomousRunConfig = ({
   initialInput,
   defaultObjective,
   defaultTimeoutHours = DEFAULT_TIMEOUT_HOURS,
+  isPlanMode = false,
 }: UseAutonomousRunConfigOptions): AutonomousRunConfig => {
   const [templates, setTemplates] = useState<AutonomousObjectiveTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -284,9 +293,10 @@ export const useAutonomousRunConfig = ({
       setName(initialInput.name ?? '');
       setDescription(initialInput.description ?? '');
       // A saved timeout wins; otherwise fall back to this host's default (24h launch / 1h planning)
-      // rather than leaving whatever a previous open left behind.
+      // rather than leaving whatever a previous open left behind. In plan mode the budget is
+      // server-untimed and meaningless, so always show the default (never a stale saved value).
       setTimeoutHours(
-        initialInput.timeout_seconds && initialInput.timeout_seconds > 0
+        !isPlanMode && initialInput.timeout_seconds && initialInput.timeout_seconds > 0
           ? Math.round(initialInput.timeout_seconds / 3600)
           : defaultTimeoutHours,
       );
@@ -302,7 +312,7 @@ export const useAutonomousRunConfig = ({
         setObjective(defaultObjective);
       }
     }
-  }, [open, initialInput, defaultObjective, defaultTimeoutHours]);
+  }, [open, initialInput, defaultObjective, defaultTimeoutHours, isPlanMode]);
 
   const selectTemplate = (template: AutonomousObjectiveTemplate) => {
     setSelectedTemplateKey(template.autonomous_objective_template_key);
@@ -363,27 +373,39 @@ export const useAutonomousRunConfig = ({
     setAgentsLoaded(false);
   };
 
-  const buildInput = (planMode = false): AutonomousRunCreateInput => ({
-    objective: objective.trim(),
-    objective_template_key: selectedTemplateKey ?? undefined,
-    name: name.trim() || undefined,
-    description: description.trim() || undefined,
-    scope_rules: scopeRules.length > 0 ? scopeRules : undefined,
-    // Authoritative selection: send it as soon as the agents loaded (even empty, i.e. the operator
-    // disabled every agent). Only omit it when the fetch failed, so the backend can fall back to
-    // the tenant defaults rather than silently running with no specialist agents.
-    agent_ids: agentsLoaded ? selectedAgentIds : undefined,
-    agent_modes: agentsLoaded
-      ? {
-          [ORCHESTRATOR_AGENT_ID]: selectedAgentModes[ORCHESTRATOR_AGENT_ID] ?? ORCHESTRATOR_DEFAULT_DISCOVERY_MODE,
-          ...Object.fromEntries(selectedAgentIds.map(id => [id, selectedAgentModes[id] ?? SPECIALIST_DEFAULT_DISCOVERY_MODE])),
-        }
-      : undefined,
-    plan_mode: planMode || undefined,
-    // OpenAEV-enforced run deadline (seconds). Clamp to the advertised 1h-720h range (the HTML
-    // min/max only guard the spinner, not typed input); ignored server-side in build mode.
-    timeout_seconds: Math.min(720 * 3600, Math.max(3600, Math.round(timeoutHours * 3600))),
-  });
+  const buildInput = (planMode = false): AutonomousRunCreateInput => {
+    // A plan-mode HOST builds a plan payload whatever action was pressed: the AI builder's primary
+    // "Build" action goes through the generic launch callback (buildInput(false)), so keying off
+    // the per-call argument alone would still carry timeout_seconds (which the build flow persists
+    // as the scenario's saved config) and omit plan_mode. A live-launch host (isPlanMode false)
+    // keeps the per-call argument as the sole switch.
+    const effectivePlanMode = isPlanMode || planMode;
+    return {
+      objective: objective.trim(),
+      objective_template_key: selectedTemplateKey ?? undefined,
+      name: name.trim() || undefined,
+      description: description.trim() || undefined,
+      scope_rules: scopeRules.length > 0 ? scopeRules : undefined,
+      // Authoritative selection: send it as soon as the agents loaded (even empty, i.e. the operator
+      // disabled every agent). Only omit it when the fetch failed, so the backend can fall back to
+      // the tenant defaults rather than silently running with no specialist agents.
+      agent_ids: agentsLoaded ? selectedAgentIds : undefined,
+      agent_modes: agentsLoaded
+        ? {
+            [ORCHESTRATOR_AGENT_ID]: selectedAgentModes[ORCHESTRATOR_AGENT_ID] ?? ORCHESTRATOR_DEFAULT_DISCOVERY_MODE,
+            ...Object.fromEntries(selectedAgentIds.map(id => [id, selectedAgentModes[id] ?? SPECIALIST_DEFAULT_DISCOVERY_MODE])),
+          }
+        : undefined,
+      plan_mode: effectivePlanMode || undefined,
+      // OpenAEV-enforced run deadline (seconds). Clamp to the advertised 1h-720h range (the HTML
+      // min/max only guard the spinner, not typed input). Omitted entirely in build/plan mode: the
+      // server does not enforce a deadline while planning, and persisting one would carry a stale,
+      // misleading budget back into the next open of the saved config.
+      timeout_seconds: effectivePlanMode
+        ? undefined
+        : Math.min(720 * 3600, Math.max(3600, Math.round(timeoutHours * 3600))),
+    };
+  };
 
   return {
     templates,

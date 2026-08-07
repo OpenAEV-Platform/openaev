@@ -25,6 +25,10 @@ interface AutonomousRunConfigDrawerProps {
   /** Default time budget (hours) when nothing pre-fills it: 24h for a live launch, a smaller value
    *  for the AI builder (planning is a quick, untimed design pass). Omit to keep the 24h default. */
   defaultTimeoutHours?: number;
+  /** The drawer hosts the AI builder (a plan-authoring pass), not a live launch. Plan mode is
+   *  untimed server-side, so the time budget always shows the default and is omitted from the
+   *  payload (never persisted as a stale value). Defaults to false (live launch). */
+  planMode?: boolean;
   submitting?: boolean;
   error?: string | null;
   /** Show the "Save for later" action (persist config, start nothing). Defaults to false. */
@@ -53,6 +57,7 @@ const AutonomousRunConfigDrawer = ({
   defaultObjective,
   demoteTemplates,
   defaultTimeoutHours,
+  planMode,
   submitting = false,
   error,
   showSave = false,
@@ -69,6 +74,7 @@ const AutonomousRunConfigDrawer = ({
     initialInput,
     defaultObjective,
     defaultTimeoutHours,
+    isPlanMode: planMode,
   });
 
   // Clear the selection every time the drawer closes so a fresh open starts clean (and a preset
