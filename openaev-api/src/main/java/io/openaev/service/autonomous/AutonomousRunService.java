@@ -1300,14 +1300,14 @@ public class AutonomousRunService {
   /**
    * Tears down the autonomous run owning {@code scenarioId} - its coordination row, timeline and
    * directives - and halts the orchestration, so deleting the scenario never leaves an orphan run
-   * driving a simulation whose scenario is gone. It does NOT delete a finished LIVE simulation: that
-   * is history, detached by the scenario delete like any other simulation (see {@link
+   * driving a simulation whose scenario is gone. It does NOT delete a finished LIVE simulation:
+   * that is history, detached by the scenario delete like any other simulation (see {@link
    * #tearDownRun}). Only a non-executing plan-mode substrate simulation is removed with the run.
    *
    * <p>Deliberately a best-effort no-op for manual scenarios (and when the preview feature is off),
    * so the generic scenario-delete endpoint can call it unconditionally. A still-active run
-   * (created / running / paused / waiting-input) is refused with 409: the operator must stop it
-   * first, mirroring the UI's disabled Delete entry.
+   * (created / planning / running / paused / waiting-input) is refused with 409: the operator must
+   * stop it first, mirroring the UI's disabled Delete entry.
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteForScenario(String scenarioId) {
@@ -1322,7 +1322,10 @@ public class AutonomousRunService {
     // treated as terminal so a stale "still running" status can't wrongly block the delete.
     run = reconcileWithSimulation(run);
     AutonomousRunStatus status = run.getStatus();
+    // Same active set as supersedePriorRun (and the frontend's isActive): PLANNING counts - the
+    // orchestrator is still designing the plan, so the delete must be refused mid-design too.
     if (status == AutonomousRunStatus.CREATED
+        || status == AutonomousRunStatus.PLANNING
         || status == AutonomousRunStatus.RUNNING
         || status == AutonomousRunStatus.PAUSED
         || status == AutonomousRunStatus.WAITING_INPUT) {
@@ -2891,9 +2894,9 @@ public class AutonomousRunService {
   /**
    * Returns the CURRENT autonomous run of a given scenario, if any. A scenario keeps at most one
    * live run at a time (a rebuild or relaunch supersedes the prior run row, though its finished
-   * simulation stays as history - see {@link #supersedePriorRun}), so this is the scenario-side twin
-   * of {@link #getBySimulation}: it lets the scenario detail page render the AI-driven cockpit and
-   * steer the current run's simulation. 404 when the scenario has no autonomous run.
+   * simulation stays as history - see {@link #supersedePriorRun}), so this is the scenario-side
+   * twin of {@link #getBySimulation}: it lets the scenario detail page render the AI-driven cockpit
+   * and steer the current run's simulation. 404 when the scenario has no autonomous run.
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun getByScenario(String scenarioId) {

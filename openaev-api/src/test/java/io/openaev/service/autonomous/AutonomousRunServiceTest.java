@@ -41,6 +41,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -754,15 +756,19 @@ class AutonomousRunServiceTest {
     verify(runRepository).delete(run);
   }
 
-  @Test
+  @ParameterizedTest(name = "deleteForScenario refuses (409) a still-active {0} run")
+  @EnumSource(
+      value = AutonomousRunStatus.class,
+      names = {"CREATED", "PLANNING", "RUNNING", "PAUSED", "WAITING_INPUT"})
   @DisplayName("deleteForScenario refuses (409) while the run is still active and touches nothing")
-  void deleteForScenarioRefusesActiveRun() {
+  void deleteForScenarioRefusesActiveRun(AutonomousRunStatus activeStatus) {
     when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = new AutonomousRun();
     run.setId("run-1");
     run.setScenarioId("scenario-1");
-    run.setPlanMode(false);
-    run.setStatus(AutonomousRunStatus.RUNNING);
+    // PLANNING is the dry-run design phase, so it only ever occurs on a plan-mode run.
+    run.setPlanMode(activeStatus == AutonomousRunStatus.PLANNING);
+    run.setStatus(activeStatus);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(run));
 
     assertThatThrownBy(() -> service.deleteForScenario("scenario-1"))
