@@ -2577,10 +2577,7 @@ public class InjectExpectationService {
   // -- AUDIT LOGGING --
 
   private void logExpectationResultEvent(
-      @NotNull BaseInjectExpectation expectation,
-      @Nullable InjectExpectationResult sourceResult,
-      @NotNull AuditEventOrigin origin,
-      @NotBlank String sourceType) {
+      @NotNull BaseInjectExpectation expectation, @Nullable InjectExpectationResult sourceResult) {
     auditLogger.ifPresent(
         logger -> {
           String injectId =
@@ -2592,6 +2589,7 @@ public class InjectExpectationService {
                   ? sourceResult.getSourceName()
                   : null;
           String sourceId = sourceResult != null ? sourceResult.getSourceId() : null;
+          String sourceType = sourceResult != null ? sourceResult.getSourceType() : null;
           String detectionTimestamp = sourceResult != null ? sourceResult.getDate() : null;
 
           Map<String, Object> contextData = new LinkedHashMap<>();
@@ -2616,7 +2614,7 @@ public class InjectExpectationService {
                       "Expectation '%s' for inject '%s', result: %s"
                           .formatted(expectation.getType().name(), injectId, expectationResult))
                   .contextData(contextData)
-                  .origin(origin)
+                  .origin(AuditEventOrigin.SYSTEM)
                   .build());
         });
   }
@@ -2646,7 +2644,6 @@ public class InjectExpectationService {
               .date(Instant.now().toString())
               .build();
     }
-    logExpectationResultEvent(
-        expectation, sourceResult, AuditEventOrigin.SYSTEM, EXPECTATION_SOURCE_TYPE_AUTOMATIC);
+    logExpectationResultEvent(expectation, sourceResult);
   }
 }
