@@ -3645,6 +3645,7 @@
   "Vpn_gateway": "VPN Gateway",
   "Vulnerabilities": "Schwachstellen",
   "Vulnerability": "Schwachstelle",
+  "Misconfiguration": "Fehlkonfiguration",
   "VULNERABILITY": "Schwachstelle",
   "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.": "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.",
   "VULNERABILITY ID": "SCHWACHSTELLEN-ID",

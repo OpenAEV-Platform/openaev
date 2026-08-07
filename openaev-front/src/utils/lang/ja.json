@@ -3645,6 +3645,7 @@
   "Vpn_gateway": "VPN Gateway",
   "Vulnerabilities": "脆弱性",
   "Vulnerability": "脆弱性",
+  "Misconfiguration": "設定ミス",
   "VULNERABILITY": "脆弱性",
   "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.": "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.",
   "VULNERABILITY ID": "脆弱性ID",

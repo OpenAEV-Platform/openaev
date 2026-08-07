@@ -3645,6 +3645,7 @@
   "Vpn_gateway": "VPN Gateway",
   "Vulnerabilities": "취약점",
   "Vulnerability": "취약점",
+  "Misconfiguration": "잘못된 구성",
   "VULNERABILITY": "취약점",
   "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.": "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.",
   "VULNERABILITY ID": "취약점 ID",

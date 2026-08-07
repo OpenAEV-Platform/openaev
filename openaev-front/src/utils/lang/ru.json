@@ -3645,6 +3645,7 @@
   "Vpn_gateway": "VPN Gateway",
   "Vulnerabilities": "Уязвимости",
   "Vulnerability": "Уязвимость",
+  "Misconfiguration": "Неправильная конфигурация",
   "VULNERABILITY": "Уязвимость",
   "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.": "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.",
   "VULNERABILITY ID": "ИДЕНТИФИКАТОР УЯЗВИМОСТИ",

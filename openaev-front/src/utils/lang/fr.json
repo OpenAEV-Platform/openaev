@@ -3650,6 +3650,7 @@
   "Vpn_gateway": "VPN Gateway",
   "Vulnerabilities": "Vulnerabilités",
   "Vulnerability": "Vulnérabilité",
+  "Misconfiguration": "Mauvaise configuration",
   "VULNERABILITY": "Vulnérabilité",
   "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.": "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.",
   "VULNERABILITY ID": "ID VULNERABILITY",

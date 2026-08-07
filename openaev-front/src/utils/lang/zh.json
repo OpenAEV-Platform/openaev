@@ -3645,6 +3645,7 @@
   "Vpn_gateway": "VPN Gateway",
   "Vulnerabilities": "漏洞",
   "Vulnerability": "漏洞",
+  "Misconfiguration": "错误配置",
   "VULNERABILITY": "漏洞",
   "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.": "Vulnerability checks whether the endpoint was actually found vulnerable to this technique.",
   "VULNERABILITY ID": "VULNERABILITY ID",
