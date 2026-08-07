@@ -767,7 +767,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   if (captionStale && thinkingPhase.active) {
     thinkingPhase = {
       key: 'idle',
-      label: isWaitingInput ? t('Waiting for your input') : t('Paused between moves'),
+      label: isWaitingInput ? t('Waiting for your input') : t('Awaiting the next event'),
       color: theme.palette.text.secondary,
       active: false,
     };
