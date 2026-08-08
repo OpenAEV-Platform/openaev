@@ -145,7 +145,15 @@ const ScenarioHeader = ({
     } catch {
       saved = null;
     }
-    setAiInitialInput(saved);
+    // A live autonomous launch always re-proposes the 24h default budget: drop only the saved
+    // timeout (a legacy builder config may carry the former 1h plan budget) so the objective,
+    // agents and scope stay prefilled while the advertised 24h default is actually applied.
+    setAiInitialInput(intent === 'launch' && saved
+      ? {
+          ...saved,
+          timeout_seconds: undefined,
+        }
+      : saved);
     setAiDrawerIntent(intent);
     setAiDrawerOpen(true);
   };

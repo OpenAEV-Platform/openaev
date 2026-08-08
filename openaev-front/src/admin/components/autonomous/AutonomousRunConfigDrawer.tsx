@@ -26,8 +26,9 @@ interface AutonomousRunConfigDrawerProps {
    *  for the AI builder (planning is a quick, untimed design pass). Omit to keep the 24h default. */
   defaultTimeoutHours?: number;
   /** The drawer hosts the AI builder (a plan-authoring pass), not a live launch. Plan mode is
-   *  untimed server-side, so the time budget always shows the default and is omitted from the
-   *  payload (never persisted as a stale value). Defaults to false (live launch). */
+   *  untimed server-side, so the time-budget field is hidden entirely and `timeout_seconds` is
+   *  omitted from the payload (never persisted as a stale value). Defaults to false (live
+   *  launch). */
   planMode?: boolean;
   /**
    * Short note rendered just above the time-budget field. The autonomous launch drawer uses it to
