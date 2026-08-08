@@ -1983,11 +1983,21 @@ class WorkflowServiceTest {
     @Test
     @DisplayName("marks the simulation template and its live run keep-alive with timeout off")
     void given_templateAndLiveRun_should_markBothKeepAlive() {
-      // Arrange
+      // Arrange - distinct ids matter: Workflow equality is id-only, so two id-less instances
+      // would be equal and the per-instance save verifications below would blur together.
       String simulationId = UUID.randomUUID().toString();
       Workflow template =
-          Workflow.builder().status(WorkflowStatus.TEMPLATE).timeoutEnabled(true).build();
-      Workflow run = Workflow.builder().status(WorkflowStatus.RUN).timeoutEnabled(true).build();
+          Workflow.builder()
+              .id(UUID.randomUUID().toString())
+              .status(WorkflowStatus.TEMPLATE)
+              .timeoutEnabled(true)
+              .build();
+      Workflow run =
+          Workflow.builder()
+              .id(UUID.randomUUID().toString())
+              .status(WorkflowStatus.RUN)
+              .timeoutEnabled(true)
+              .build();
       when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
           .thenReturn(template);
       when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN))
