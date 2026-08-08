@@ -462,13 +462,14 @@ const ScenarioHeader = ({
   // Autonomous launch always defaults to a 24h run budget (recon + human-in-the-loop steps make a
   // live run long-lived), overriding the scenario's own "Simulation time out" whatever it is. Warn
   // the operator with a tiny note, but ONLY when the scenario's configured timeout actually differs
-  // from 24h - if they already set 24h (or we are already at 24h), the override is invisible so no
-  // note is needed. A disabled/unset scenario timeout also differs from 24h, so it still warns.
-  const scenarioTimeoutHours = workflowConfiguration?.workflow_configuration_timeout_enabled
+  // from 24h - if they already set exactly 24h, the override is invisible so no note is needed.
+  // Compared in raw seconds (the scope editor supports minutes, e.g. 23h30) so a near-24h config
+  // never rounds into a false match. A disabled/unset timeout also differs from 24h, so it warns.
+  const scenarioTimeoutSeconds = workflowConfiguration?.workflow_configuration_timeout_enabled
     && workflowConfiguration.workflow_configuration_timeout_seconds
-    ? Math.round(workflowConfiguration.workflow_configuration_timeout_seconds / 3600)
+    ? workflowConfiguration.workflow_configuration_timeout_seconds
     : null;
-  const aiTimeBudgetNote = aiDrawerIntent === 'launch' && scenarioTimeoutHours !== DEFAULT_TIMEOUT_HOURS
+  const aiTimeBudgetNote = aiDrawerIntent === 'launch' && scenarioTimeoutSeconds !== DEFAULT_TIMEOUT_HOURS * 3600
     ? t('Autonomous runs default to a 24h budget for the best experience, overriding this scenario\'s configured timeout. You can still reduce it below.')
     : undefined;
 

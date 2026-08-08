@@ -734,14 +734,14 @@ public class WorkflowService {
    * Turns OFF keep-alive on a scenario's chaining workflow template (and re-enables the normal
    * timeout), making it behave like a hand-built chained scenario again.
    *
-   * <p>Keep-alive (and {@code timeoutEnabled = false}) now lives on the launched SIMULATION, not the
-   * scenario template ({@link #markSimulationWorkflowKeepAlive}), so a fresh autonomous scenario no
-   * longer carries it. This method remains the safe healer for LEGACY scenarios whose template was
-   * marked keep-alive before that change: taking such a scenario manual would otherwise leave a
-   * launched run hanging open forever (no orchestrator ever appends steps or ends it). Called when
-   * dropping the {@code autonomous_runs} row (in-place conversion) or copying an autonomous workflow
-   * into a fresh manual scenario (duplicate). A no-op when the scenario has no workflow template, or
-   * when the template is already clean.
+   * <p>Keep-alive (and {@code timeoutEnabled = false}) now lives on the launched SIMULATION, not
+   * the scenario template ({@link #markSimulationWorkflowKeepAlive}), so a fresh autonomous
+   * scenario no longer carries it. This method remains the safe healer for LEGACY scenarios whose
+   * template was marked keep-alive before that change: taking such a scenario manual would
+   * otherwise leave a launched run hanging open forever (no orchestrator ever appends steps or ends
+   * it). Called when dropping the {@code autonomous_runs} row (in-place conversion) or copying an
+   * autonomous workflow into a fresh manual scenario (duplicate). A no-op when the scenario has no
+   * workflow template, or when the template is already clean.
    *
    * @param scenarioId the scenario whose workflow should stop keeping itself alive
    */
@@ -1413,8 +1413,8 @@ public class WorkflowService {
    * Marks a launched SIMULATION's chaining workflows (its TEMPLATE and every RUN) as keep-alive and
    * disables their timeout, so an autonomous simulation parks in RUN awaiting the orchestrator
    * between decision cycles instead of ending when it runs out of ready steps, and {@code
-   * WorkflowTimeoutJob} never force-ends it (the autonomous run's own OpenAEV-owned deadline, 24h by
-   * default, hard-stops a live run; a plan substrate is untimed).
+   * WorkflowTimeoutJob} never force-ends it (the autonomous run's own OpenAEV-owned deadline, 24h
+   * by default, hard-stops a live run; a plan substrate is untimed).
    *
    * <p>Applied to the SIMULATION - never to the reusable scenario TEMPLATE - so building or
    * launching an autonomous run never mutates the scenario's own "Simulation time out" config: a

@@ -299,7 +299,8 @@ public class AutonomousRunService {
     // Keep the LAUNCHED simulation's workflow alive: an autonomous run launches with an EMPTY
     // workflow and the orchestrator authors its steps incrementally, so the simulation must not be
     // ended at launch or between decision cycles (and its timeout must be off - the run's own
-    // OpenAEV-owned deadline hard-stops a live run). Applied to the simulation only, so the reusable
+    // OpenAEV-owned deadline hard-stops a live run). Applied to the simulation only, so the
+    // reusable
     // scenario keeps its own "Simulation time out" config (default 1h) and can still be relaunched
     // in normal mode.
     workflowService.markSimulationWorkflowKeepAlive(simulation.getId());
@@ -1190,7 +1191,8 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to start the live run: " + e.getMessage(), e);
     }
-    // Keep the promoted (fresh, live) simulation alive so it parks empty and awaits the orchestrator
+    // Keep the promoted (fresh, live) simulation alive so it parks empty and awaits the
+    // orchestrator
     // - applied to the simulation, never the scenario template, so the scenario's timeout config is
     // left untouched.
     workflowService.markSimulationWorkflowKeepAlive(simulation.getId());
