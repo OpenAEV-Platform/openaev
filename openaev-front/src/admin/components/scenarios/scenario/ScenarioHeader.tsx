@@ -74,6 +74,7 @@ import AutonomousRunConfigDrawer from '../../autonomous/AutonomousRunConfigDrawe
 import AutonomousRunControls from '../../autonomous/AutonomousRunControls';
 import AutonomousRunStatusChip from '../../autonomous/AutonomousRunStatusChip';
 import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/autonomousStatus';
+import { DEFAULT_TIMEOUT_HOURS } from '../../autonomous/useAutonomousRunConfig';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -456,6 +457,19 @@ const ScenarioHeader = ({
   const aiDemoteTemplates = aiDrawerIntent === 'launch' && launchHasDefinition;
   const aiDefaultObjective = aiDemoteTemplates
     ? t('Execute the attack path already defined in this scenario first, then continue autonomously: adapt to live findings, progress toward the objective, and expand within the authorized scope.')
+    : undefined;
+
+  // Autonomous launch always defaults to a 24h run budget (recon + human-in-the-loop steps make a
+  // live run long-lived), overriding the scenario's own "Simulation time out" whatever it is. Warn
+  // the operator with a tiny note, but ONLY when the scenario's configured timeout actually differs
+  // from 24h - if they already set 24h (or we are already at 24h), the override is invisible so no
+  // note is needed. A disabled/unset scenario timeout also differs from 24h, so it still warns.
+  const scenarioTimeoutHours = workflowConfiguration?.workflow_configuration_timeout_enabled
+    && workflowConfiguration.workflow_configuration_timeout_seconds
+    ? Math.round(workflowConfiguration.workflow_configuration_timeout_seconds / 3600)
+    : null;
+  const aiTimeBudgetNote = aiDrawerIntent === 'launch' && scenarioTimeoutHours !== DEFAULT_TIMEOUT_HOURS
+    ? t('Autonomous runs default to a 24h budget for the best experience, overriding this scenario\'s configured timeout. You can still reduce it below.')
     : undefined;
 
   // Launch actions for the hero, resolved here (rather than as nested ternaries in the JSX). A
@@ -907,11 +921,13 @@ const ScenarioHeader = ({
         initialInput={aiInitialInput}
         defaultObjective={aiDefaultObjective}
         demoteTemplates={aiDemoteTemplates}
-        // Planning (the AI builder) is a quick, server-side-untimed design pass, so default its time
-        // budget to 1h rather than surfacing the misleading 24h execution budget. A live autonomous
-        // launch keeps the 24h default (recon + human-in-the-loop steps make it long-lived).
+        // Planning (the AI builder) is a quick, server-side-untimed design pass: plan mode hides the
+        // time-budget field entirely and never sends a timeout, so this 1h default is only a belt (a
+        // safety net if the field is ever shown). A live autonomous launch keeps the 24h default
+        // (recon + human-in-the-loop steps make it long-lived).
         defaultTimeoutHours={aiDrawerIntent === 'build' ? 1 : undefined}
         planMode={aiDrawerIntent === 'build'}
+        timeBudgetNote={aiTimeBudgetNote}
         title={aiDrawerTitle}
         infoText={aiDrawerIntent === 'build'
           ? t('Let the AI build this scenario\'s logic for you - set the objective, the specialist agents the orchestrator may consult, and the scope. Save it to build or launch later, or Build now to have the orchestrator author the steps onto the scenario. Nothing runs while building; you launch the scenario afterwards, in normal or autonomous mode.')

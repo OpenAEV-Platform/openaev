@@ -272,12 +272,6 @@ public class AutonomousRunService {
       scenarioId = scenario.getId();
     }
 
-    // Keep the chaining workflow alive: an autonomous run launches with an EMPTY workflow and the
-    // orchestrator authors its steps incrementally, so the workflow must not be ended at launch or
-    // between decision cycles (and its 1h timeout must be off). Marked on the scenario template
-    // BEFORE launch so the flag propagates to the simulation template and RUN workflow.
-    markWorkflowKeepAlive(scenarioId);
-
     boolean planMode = input.isPlanMode();
     Exercise simulation =
         scenarioToExerciseService.toExercise(
@@ -302,6 +296,13 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to start the chained simulation: " + e.getMessage(), e);
     }
+    // Keep the LAUNCHED simulation's workflow alive: an autonomous run launches with an EMPTY
+    // workflow and the orchestrator authors its steps incrementally, so the simulation must not be
+    // ended at launch or between decision cycles (and its timeout must be off - the run's own
+    // OpenAEV-owned deadline hard-stops a live run). Applied to the simulation only, so the reusable
+    // scenario keeps its own "Simulation time out" config (default 1h) and can still be relaunched
+    // in normal mode.
+    workflowService.markSimulationWorkflowKeepAlive(simulation.getId());
 
     AutonomousRun run = new AutonomousRun();
     run.setObjective(objective);
@@ -513,8 +514,10 @@ public class AutonomousRunService {
     }
     String objective = resolveObjective(effective);
 
-    // Keep the scenario workflow alive so the authoring window survives (no timeout, not ended).
-    markWorkflowKeepAlive(scenarioId);
+    // Author-scenario mode provisions NO simulation and executes nothing, so there is no run to end
+    // and no keep-alive is needed. Crucially, it must NOT touch the scenario workflow's own timeout
+    // config: the built scenario keeps its default 1h "Simulation time out" (editable in the Scope
+    // tab) so it can later be launched in normal mode and run-and-end normally.
 
     AutonomousRun run = new AutonomousRun();
     run.setObjective(objective);
@@ -1093,9 +1096,6 @@ public class AutonomousRunService {
     // clear is safe and is exactly the "fully recreate on launch" behaviour operators expect.
     workflowService.deleteAllScenarioSteps(run.getScenarioId());
     run.setStepMirror(new HashMap<>());
-    // Re-assert keep-alive on the scenario workflow before relaunching, so the restarted simulation
-    // parks empty and awaits the orchestrator exactly like the first launch.
-    markWorkflowKeepAlive(run.getScenarioId());
     Exercise simulation =
         scenarioToExerciseService.toExercise(
             scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
@@ -1112,6 +1112,10 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to start the restarted simulation: " + e.getMessage(), e);
     }
+    // Keep the freshly provisioned simulation alive so the restarted run parks empty and awaits the
+    // orchestrator exactly like the first launch - applied to the simulation, never the scenario
+    // template, so the scenario's own timeout config is left untouched.
+    workflowService.markSimulationWorkflowKeepAlive(simulation.getId());
     // Full reset of the run's decision history + steering so the cockpit starts clean.
     directiveRepository.deleteByRunId(runId);
     eventService.deleteByRun(runId);
@@ -1177,7 +1181,6 @@ public class AutonomousRunService {
     // an un-mirrored plan step can't survive and re-seed the live simulation.
     workflowService.deleteAllScenarioSteps(run.getScenarioId());
     run.setStepMirror(new HashMap<>());
-    markWorkflowKeepAlive(run.getScenarioId());
     Exercise simulation =
         scenarioToExerciseService.toExercise(
             scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
@@ -1187,6 +1190,10 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to start the live run: " + e.getMessage(), e);
     }
+    // Keep the promoted (fresh, live) simulation alive so it parks empty and awaits the orchestrator
+    // - applied to the simulation, never the scenario template, so the scenario's timeout config is
+    // left untouched.
+    workflowService.markSimulationWorkflowKeepAlive(simulation.getId());
     directiveRepository.deleteByRunId(runId);
     eventService.deleteByRun(runId);
     simulation.setAutonomous(true);
@@ -3176,23 +3183,6 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
           "Failed to provision the autonomous attack-path scenario: " + e.getMessage(),
-          e);
-    }
-  }
-
-  /**
-   * Marks the scenario's chaining workflow as keep-alive (and disables its timeout) so an
-   * autonomous run survives an empty launch and long idle gaps between decision cycles. Best-effort
-   * on a missing workflow so an advanced caller-provided scenario without a workflow surfaces the
-   * standard chaining error at launch rather than here.
-   */
-  private void markWorkflowKeepAlive(String scenarioId) {
-    try {
-      workflowService.markScenarioWorkflowKeepAlive(scenarioId);
-    } catch (ChainingException e) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST,
-          "Failed to prepare the autonomous attack-path workflow: " + e.getMessage(),
           e);
     }
   }
