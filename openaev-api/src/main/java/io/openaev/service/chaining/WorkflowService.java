@@ -1422,6 +1422,14 @@ public class WorkflowService {
    * scenario can be relaunched in normal mode and run-and-end normally. A no-op when the simulation
    * has no workflow yet.
    *
+   * <p>Must be called at launch time, in the SAME transaction as the launch, on a freshly
+   * provisioned simulation. The initial evaluation inside {@code startWorkflow} ENDs an empty
+   * non-keep-alive run on the spot - and an autonomous run always launches empty - so the freshly
+   * ended run is invisible to the RUN-status finder. This method therefore also picks up the
+   * simulation's END runs and restores them to RUN: on a fresh simulation the only possible END run
+   * is the one the launch itself just ended (nothing ever executed), so the restore can never
+   * resurrect a legitimately finished run.
+   *
    * @param simulationId the launched simulation whose workflows should keep themselves alive
    */
   @Transactional(rollbackFor = Exception.class)
@@ -1432,10 +1440,22 @@ public class WorkflowService {
     List<Workflow> workflows = new ArrayList<>();
     findWorkflowTemplateBySimulationId(simulationId).ifPresent(workflows::add);
     workflows.addAll(findWorkflowRunBySimulationId(simulationId));
+    // Recover the empty run the launch evaluation just ended (see javadoc): parked back in RUN, it
+    // awaits the orchestrator's first authored step instead of staying terminally closed.
+    workflows.addAll(
+        workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END));
     for (Workflow workflow : workflows) {
+      boolean dirty = false;
+      if (workflow.getStatus() == WorkflowStatus.END) {
+        workflow.setStatus(WorkflowStatus.RUN);
+        dirty = true;
+      }
       if (!workflow.isKeepAlive() || workflow.isTimeoutEnabled()) {
         workflow.setKeepAlive(true);
         workflow.setTimeoutEnabled(false);
+        dirty = true;
+      }
+      if (dirty) {
         workflowRepository.save(workflow);
       }
     }

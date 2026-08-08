@@ -1972,4 +1972,99 @@ class WorkflowServiceTest {
       assertEquals(WorkflowStatus.END, result.getStatus());
     }
   }
+
+  // ========================================================================
+  // markSimulationWorkflowKeepAlive Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("markSimulationWorkflowKeepAlive")
+  class MarkSimulationWorkflowKeepAliveTests {
+
+    @Test
+    @DisplayName("marks the simulation template and its live run keep-alive with timeout off")
+    void given_templateAndLiveRun_should_markBothKeepAlive() {
+      // Arrange
+      String simulationId = UUID.randomUUID().toString();
+      Workflow template =
+          Workflow.builder().status(WorkflowStatus.TEMPLATE).timeoutEnabled(true).build();
+      Workflow run = Workflow.builder().status(WorkflowStatus.RUN).timeoutEnabled(true).build();
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN))
+          .thenReturn(List.of(run));
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END))
+          .thenReturn(Collections.emptyList());
+
+      // Act
+      workflowService.markSimulationWorkflowKeepAlive(simulationId);
+
+      // Assert
+      assertTrue(template.isKeepAlive());
+      assertFalse(template.isTimeoutEnabled());
+      assertTrue(run.isKeepAlive());
+      assertFalse(run.isTimeoutEnabled());
+      verify(workflowRepository).save(template);
+      verify(workflowRepository).save(run);
+    }
+
+    @Test
+    @DisplayName("restores the empty run the launch evaluation just ended back to RUN")
+    void given_freshlyEndedEmptyRun_should_restoreToRunAndMarkKeepAlive() {
+      // Arrange - an autonomous launch starts EMPTY, so the initial evaluation inside
+      // startWorkflow ENDs the run before this method executes; the RUN finder cannot see it.
+      String simulationId = UUID.randomUUID().toString();
+      Workflow endedRun =
+          Workflow.builder().status(WorkflowStatus.END).timeoutEnabled(true).build();
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
+          .thenReturn(null);
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN))
+          .thenReturn(Collections.emptyList());
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END))
+          .thenReturn(List.of(endedRun));
+
+      // Act
+      workflowService.markSimulationWorkflowKeepAlive(simulationId);
+
+      // Assert - parked back in RUN awaiting the orchestrator, keep-alive on, watchdog off.
+      assertEquals(WorkflowStatus.RUN, endedRun.getStatus());
+      assertTrue(endedRun.isKeepAlive());
+      assertFalse(endedRun.isTimeoutEnabled());
+      verify(workflowRepository).save(endedRun);
+    }
+
+    @Test
+    @DisplayName("does not re-save a workflow already keep-alive with timeout off")
+    void given_alreadyMarkedWorkflow_should_notSaveAgain() {
+      // Arrange
+      String simulationId = UUID.randomUUID().toString();
+      Workflow run =
+          Workflow.builder()
+              .status(WorkflowStatus.RUN)
+              .keepAlive(true)
+              .timeoutEnabled(false)
+              .build();
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
+          .thenReturn(null);
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN))
+          .thenReturn(List.of(run));
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END))
+          .thenReturn(Collections.emptyList());
+
+      // Act
+      workflowService.markSimulationWorkflowKeepAlive(simulationId);
+
+      // Assert
+      verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("is a no-op on a blank simulation id")
+    void given_blankSimulationId_should_doNothing() {
+      // Act
+      workflowService.markSimulationWorkflowKeepAlive("  ");
+
+      // Assert
+      verifyNoInteractions(workflowRepository);
+    }
+  }
 }
