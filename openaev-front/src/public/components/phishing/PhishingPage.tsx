@@ -14,14 +14,19 @@ interface PhishingLandingPageReader {
 
 /**
  * Public, unauthenticated renderer for a phishing landing page. Reached when the victim clicks the
- * tracking link: the backend marks the click and 302s to /phishing/{tenantId}/{token}, which this
- * route handles. It fetches the sanitized page content by token, renders it full-screen, and
- * intercepts the first form submit to capture the entered fields (posted to the submit endpoint),
- * then follows the configured redirect URL.
+ * link embedded in the lure email. Two shapes are supported:
  *
- * Every call targets the token-authenticated public tracking endpoints directly (never the
- * tenant-rewritten API client) since the victim has no session and the tenant lives in the path.
+ * - Benign, tenant-less link (current): `/auth/{token}`. The tenant is resolved server-side from the
+ *   globally unique token, so the URL leaks neither the tenant id nor the word "phishing". Content,
+ *   click tracking and form capture go through the token-authenticated `/api/hosted/*` endpoints.
+ * - Legacy link (already-sent emails): `/phishing/{tenantId}/{token}`, served through the older
+ *   `/api/phishing/tracking/{tenantId}/*` endpoints. Kept so links sent before the redesign keep
+ *   working.
+ *
+ * Every call targets the token-authenticated public endpoints directly (never the tenant-rewritten
+ * API client) since the victim has no session.
  */
+
 /**
  * Defense-in-depth mirror of the server-side redirect validation
  * (PhishingLandingPageService.validateRedirectUrl): only relative paths and http(s) URLs may reach
@@ -44,9 +49,19 @@ const isSafeRedirect = (url: string): boolean => {
 
 const PhishingPage = () => {
   const { tenantId, token } = useParams() as {
-    tenantId: string;
+    tenantId?: string;
     token: string;
   };
+
+  // The benign route omits the tenant (resolved server-side from the token). The legacy route still
+  // carries it, so target the matching public endpoint family.
+  const pageUrl = tenantId
+    ? `${APP_BASE_PATH}/api/phishing/tracking/${tenantId}/page/${token}`
+    : `${APP_BASE_PATH}/api/hosted/page/${token}`;
+  const submitUrl = tenantId
+    ? `${APP_BASE_PATH}/api/phishing/tracking/${tenantId}/s/${token}`
+    : `${APP_BASE_PATH}/api/hosted/s/${token}`;
+
   const [page, setPage] = useState<PhishingLandingPageReader | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +70,7 @@ const PhishingPage = () => {
   useEffect(() => {
     let active = true;
     api<PhishingLandingPageReader>()
-      .get(`${APP_BASE_PATH}/api/phishing/tracking/${tenantId}/page/${token}`)
+      .get(pageUrl)
       .then((response) => {
         if (!active) return;
         if (response.data) {
@@ -70,15 +85,12 @@ const PhishingPage = () => {
     return () => {
       active = false;
     };
-  }, [tenantId, token]);
+  }, [pageUrl]);
 
   const submit = async (fields: Record<string, string>) => {
     setSubmitting(true);
     try {
-      const response = await api<{ redirect_url?: string }>().post(
-        `${APP_BASE_PATH}/api/phishing/tracking/${tenantId}/s/${token}`,
-        { data: fields },
-      );
+      const response = await api<{ redirect_url?: string }>().post(submitUrl, { data: fields });
       const redirectUrl = response.data?.redirect_url;
       if (redirectUrl && isSafeRedirect(redirectUrl)) {
         window.location.href = redirectUrl;

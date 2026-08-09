@@ -1,8 +1,9 @@
+import { AutoAwesomeOutlined } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, SvgIcon, TextField } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon, TextField, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type AgentOption, fetchAgentsForIntent } from '../../../../utils/ai/agentApi';
@@ -15,10 +16,17 @@ import FiligranAiCguDialog from '../../ariane/FiligranAiCguDialog';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import EETooltip from '../../common/entreprise_edition/EETooltip';
 
+export interface PhishingAiSuggestion {
+  /** Short chip label shown to the operator. */
+  label: string;
+  /** Instruction text inserted into the free-text field when the chip is clicked. */
+  instruction: string;
+}
+
 export interface PhishingAiGenerateButtonProps {
   /** XTM One catalog intent used to list eligible agents and for telemetry. */
   intent: string;
-  /** Existing field content, appended to the prompt as reference context. */
+  /** Existing field content: drives create-vs-refine copy and is appended as reference. */
   currentValue?: string;
   /** Trigger button label. Defaults to "Generate with AI". */
   label?: string;
@@ -26,10 +34,15 @@ export interface PhishingAiGenerateButtonProps {
   promptPlaceholder?: string;
   /** Builds the base structured prompt sent to the agent. */
   buildPrompt: () => string;
-  /** Applies the accepted result to the form. */
+  /** Applies the accepted raw agent response to the form. */
   onAccept: (content: string) => void;
-  /** Extracts the target field(s) from the raw agent response. Defaults to identity. */
-  parseResponse?: (raw: string) => string;
+  /** One-click instruction presets (e.g. "Microsoft 365 sign-in", "Match our brand"). */
+  suggestions?: PhishingAiSuggestion[];
+  /** Rich renderer for the streamed/final result (live preview + code). Falls back to a raw text area. */
+  renderResult?: (args: {
+    raw: string;
+    loading: boolean;
+  }) => ReactNode;
   disabled?: boolean;
 }
 
@@ -40,7 +53,8 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
   promptPlaceholder,
   buildPrompt,
   onAccept,
-  parseResponse,
+  suggestions = [],
+  renderResult,
   disabled = false,
 }) => {
   const { t } = useFormatter();
@@ -61,6 +75,8 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
 
   const { content, setContent, loading, error, execute, abort } = useAgentStream();
 
+  const isRefine = isNotEmptyField(currentValue) && isNotEmptyField(currentValue?.trim());
+
   // Load eligible agents when the dialog opens.
   useEffect(() => {
     if (!open || !xtmOneConfigured) return;
@@ -74,6 +90,14 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
       })
       .finally(() => setLoadingAgents(false));
   }, [open, xtmOneConfigured, intent]);
+
+  const hasResult = isNotEmptyField(content);
+  const contextualPlaceholder = useMemo(() => {
+    if (promptPlaceholder) return promptPlaceholder;
+    return isRefine
+      ? t('Refine the current design, e.g. match a brand or add a logo')
+      : t('Describe what you want to generate');
+  }, [promptPlaceholder, isRefine, t]);
 
   // Hide entirely when AI is explicitly disabled.
   if (enabled === false) {
@@ -110,8 +134,8 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
     if (isNotEmptyField(userPrompt.trim())) {
       prompt += `\n\nUser instructions: ${userPrompt.trim()}`;
     }
-    if (isNotEmptyField(currentValue) && isNotEmptyField(currentValue?.trim())) {
-      prompt += `\n\nExisting content for reference:\n${currentValue?.trim()}`;
+    if (isRefine) {
+      prompt += `\n\nExisting content to refine (keep what works, improve the rest):\n${currentValue?.trim()}`;
     }
     return prompt;
   };
@@ -122,13 +146,18 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
   };
 
   const handleAccept = () => {
-    const parsed = parseResponse ? parseResponse(content) : content;
-    onAccept(parsed);
+    onAccept(content);
     handleClose();
   };
 
-  const noAgents = Boolean(xtmOneConfigured) && !loadingAgents && agentOptions.length === 0;
+  // Clicking a preset replaces the instruction field with that preset - the
+  // chips are starting points, not additive fragments (appending stacked every
+  // click into one run-on prompt).
+  const applySuggestion = (instruction: string) => {
+    setUserPrompt(instruction);
+  };
 
+  const noAgents = Boolean(xtmOneConfigured) && !loadingAgents && agentOptions.length === 0;
   const actionColor = isEnterpriseEdition ? 'ai.main' : 'action.disabled';
   const actionBorderColor = isEnterpriseEdition ? 'ai.main' : 'action.disabledBackground';
 
@@ -179,7 +208,7 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
         fullWidth={true}
         maxWidth="md"
       >
-        <DialogTitle>
+        <DialogTitle sx={{ paddingBottom: 1 }}>
           <Box sx={{
             display: 'flex',
             alignItems: 'center',
@@ -187,7 +216,15 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
             gap: 2,
           }}
           >
-            <span>{btnLabel}</span>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+            >
+              <SvgIcon component={LogoXtmOneIcon} inheritViewBox sx={{ color: 'ai.main' }} />
+              <span>{btnLabel}</span>
+            </Box>
             {xtmOneConfigured && (
               <AgentSelector
                 options={agentOptions}
@@ -207,17 +244,47 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
             mt: 1,
           }}
           >
-            <TextField
-              label={t('Instructions')}
-              placeholder={promptPlaceholder}
-              value={userPrompt}
-              onChange={event => setUserPrompt(event.target.value)}
-              multiline
-              minRows={2}
-              maxRows={4}
-              fullWidth
-              disabled={loading}
-            />
+            <div>
+              <TextField
+                label={t('Instructions')}
+                placeholder={contextualPlaceholder}
+                value={userPrompt}
+                onChange={event => setUserPrompt(event.target.value)}
+                multiline
+                minRows={2}
+                maxRows={4}
+                fullWidth
+                disabled={loading}
+              />
+              {suggestions.length > 0 && (
+                <Box sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 0.75,
+                  mt: 1,
+                }}
+                >
+                  {suggestions.map(suggestion => (
+                    <Chip
+                      key={suggestion.label}
+                      label={suggestion.label}
+                      size="small"
+                      variant="outlined"
+                      icon={<AutoAwesomeOutlined sx={{ fontSize: 14 }} />}
+                      onClick={() => applySuggestion(suggestion.instruction)}
+                      disabled={loading}
+                      sx={{
+                        'borderColor': alpha(theme.palette.ai.main, 0.4),
+                        'color': 'text.secondary',
+                        '& .MuiChip-icon': { color: 'ai.main' },
+                        '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.08) },
+                      }}
+                    />
+                  ))}
+                </Box>
+              )}
+            </div>
+
             <Box sx={{
               display: 'flex',
               justifyContent: 'flex-start',
@@ -231,7 +298,7 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
                 onClick={handleGenerate}
                 startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
               >
-                {t('Generate')}
+                {hasResult ? t('Regenerate') : t('Generate')}
               </LoadingButton>
             </Box>
 
@@ -245,28 +312,41 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
                 {error}
               </Alert>
             )}
-            {loading && !content && (
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                py: 4,
-              }}
-              >
-                <CircularProgress size={32} />
+
+            {loading && !hasResult && (
+              <Box>
+                <LinearProgress color="primary" />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    mt: 1,
+                    color: 'text.secondary',
+                  }}
+                >
+                  {t('Generating the preview...')}
+                </Typography>
               </Box>
             )}
-            {(content || (!loading && isNotEmptyField(content))) && (
-              <TextField
-                label={t('Result')}
-                value={content}
-                onChange={event => setContent(event.target.value)}
-                multiline
-                minRows={10}
-                maxRows={20}
-                fullWidth
-                disabled={loading}
-              />
+
+            {hasResult && (
+              renderResult
+                ? renderResult({
+                    raw: content,
+                    loading,
+                  })
+                : (
+                    <TextField
+                      label={t('Result')}
+                      value={content}
+                      onChange={event => setContent(event.target.value)}
+                      multiline
+                      minRows={10}
+                      maxRows={20}
+                      fullWidth
+                      disabled={loading}
+                    />
+                  )
             )}
           </Box>
         </DialogContent>
@@ -274,15 +354,14 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
           <Button variant="outlined" color="primary" onClick={handleClose}>
             {t('Close')}
           </Button>
-          <LoadingButton
+          <Button
             variant="contained"
             color="primary"
-            loading={loading}
-            disabled={!isNotEmptyField(content)}
+            disabled={loading || !hasResult}
             onClick={handleAccept}
           >
             {t('Accept')}
-          </LoadingButton>
+          </Button>
         </DialogActions>
       </Dialog>
     </div>

@@ -1,40 +1,40 @@
-import { DevicesOutlined, FormatListNumberedOutlined, ShieldOutlined } from '@mui/icons-material';
+import { DevicesOutlined, FormatListNumberedOutlined, Groups3Outlined, PersonOutlined, ShieldOutlined } from '@mui/icons-material';
 import { Box, Chip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchFinding, searchFindings } from '../../../actions/findings/finding-actions';
+import { fetchFinding, fetchFindingSummary, searchFindings } from '../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
-import { DetailHero, Field, HeroStat, InformationGrid, SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
-import { buildFilter } from '../../../components/common/queryable/filter/FilterUtils';
-import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
+import { DetailHero, Field, HeroStat, InformationGrid } from '../../../components/common/detail/EntityDetailCommon';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
-import { INJECT, SCENARIO, SIMULATION } from '../../../constants/Entities';
-import type { AggregatedFindingOutput, Finding, RelatedFindingOutput } from '../../../utils/api-types';
+import type { Finding, FindingSummaryOutput } from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
 import ContractOutputElementType from './ContractOutputElementType';
-import FindingContextLink from './FindingContextLink';
-import FindingDetail from './FindingDetail';
+import FindingOccurrences from './FindingOccurrences';
+import FindingVulnerabilityPanel from './FindingVulnerabilityPanel';
 
-// Full-page finding overview: replaces the former drawer so every finding
-// exposes all of its metadata and full pivots (assets, injects,
-// simulations, scenarios and - for CVEs - the vulnerability + remediation).
+// Full-page finding overview: one deduplicated finding (type + value) with its
+// group-wide summary (true first/last seen, occurrences, impact spread), the
+// vulnerability context when it is a CVE, and the occurrence timeline.
 const FindingOverview = () => {
   const { t, fldt } = useFormatter();
   const theme = useTheme();
   const { findingId } = useParams() as { findingId: string };
 
   const [finding, setFinding] = useState<Finding | null>(null);
+  // Group-wide aggregates are computed server-side: a Finding row is ONE
+  // occurrence (per inject), so its own dates/links cannot answer "since when
+  // and how widely has this been seen?".
+  const [summary, setSummary] = useState<FindingSummaryOutput | null>(null);
   const [cvssScore, setCvssScore] = useState<number | null>(null);
-  const [occurrences, setOccurrences] = useState<number | null>(null);
-  const [assetCount, setAssetCount] = useState<number | null>(null);
 
   useEffect(() => {
     fetchFinding(findingId).then(response => setFinding(response.data as Finding));
+    fetchFindingSummary(findingId).then(response => setSummary(response.data as FindingSummaryOutput));
   }, [findingId]);
 
   const typeLabel = useMemo(
@@ -42,95 +42,7 @@ const FindingOverview = () => {
     [finding, t],
   );
 
-  // Aggregate view expected by FindingDetail / RelatedInjectsTab (keyed on
-  // type + value, not on a single occurrence id).
-  const aggregated: AggregatedFindingOutput | null = useMemo(() => (finding
-    ? {
-        finding_id: finding.finding_id,
-        finding_type: finding.finding_type,
-        finding_value: finding.finding_value,
-        finding_assets: [],
-        finding_created_at: finding.finding_created_at,
-        finding_updated_at: finding.finding_updated_at,
-      }
-    : null), [finding]);
-
-  // Count occurrences and impacted assets across the whole platform. The
-  // asset count needs every occurrence's assets, so page through the
-  // occurrences (bounded, to stay cheap on pathological findings) and dedupe.
-  useEffect(() => {
-    if (!finding) return undefined;
-    let cancelled = false;
-    const pageSize = 500;
-    const maxPages = 10;
-    const baseFilters = {
-      mode: 'and' as const,
-      filters: [
-        buildFilter('finding_value', [finding.finding_value], 'eq'),
-        // The values must match the backend enum names (EnumType.STRING
-        // column), which the display mapping mirrors - not the raw JSON keys.
-        buildFilter('finding_type', [ContractOutputElementType[finding.finding_type] ?? finding.finding_type], 'eq'),
-      ],
-    };
-    const fetchPage = (page: number) => searchFindings(buildSearchPagination({
-      page,
-      size: pageSize,
-      filterGroup: baseFilters,
-    })) as Promise<{
-      data: {
-        totalElements?: number;
-        totalPages?: number;
-        content?: RelatedFindingOutput[];
-      };
-    }>;
-    (async () => {
-      try {
-        const ids = new Set<string>();
-        const collect = (rows?: RelatedFindingOutput[]) =>
-          (rows ?? []).forEach(row => (row.finding_assets ?? []).forEach(asset => ids.add(asset.asset_id)));
-        const first = await fetchPage(0);
-        if (!cancelled) setOccurrences(first.data.totalElements ?? 0);
-        collect(first.data.content);
-        const totalPages = Math.min(first.data.totalPages ?? 1, maxPages);
-        const rest = await Promise.all(Array.from({ length: Math.max(totalPages - 1, 0) }, (_, index) => fetchPage(index + 1)));
-        rest.forEach(page => collect(page.data.content));
-        if (!cancelled) setAssetCount(ids.size);
-      } catch {
-        if (!cancelled) {
-          setOccurrences(0);
-          setAssetCount(null);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [finding]);
-
-  const additionalHeaders = useMemo(() => [
-    {
-      field: 'finding_inject',
-      label: 'Inject',
-      isSortable: false,
-      value: (row: RelatedFindingOutput) => <FindingContextLink finding={row} type={INJECT} />,
-    },
-    {
-      field: 'finding_simulation',
-      label: 'Simulation',
-      isSortable: false,
-      value: (row: RelatedFindingOutput) => <FindingContextLink finding={row} type={SIMULATION} />,
-    },
-    {
-      field: 'finding_scenario',
-      label: 'Scenario',
-      isSortable: false,
-      value: (row: RelatedFindingOutput) => <FindingContextLink finding={row} type={SCENARIO} />,
-    },
-  ], []);
-
-  const additionalFilterNames = ['finding_inject_id', 'finding_simulation', 'finding_scenario'];
-
-  if (!finding || !aggregated) {
+  if (!finding) {
     return <Loader />;
   }
 
@@ -168,8 +80,16 @@ const FindingOverview = () => {
           : undefined}
         stats={(
           <>
-            <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={occurrences ?? '-'} />
-            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={assetCount ?? '-'} color={theme.palette.primary.main} />
+            <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={summary?.finding_occurrences ?? '-'} />
+            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={summary?.finding_assets_count ?? '-'} color={theme.palette.primary.main} />
+            {/* Team / person spread only shows when the finding actually touched people
+                (e.g. phishing credentials): machine findings keep a compact stat row. */}
+            {(summary?.finding_teams_count ?? 0) > 0 && (
+              <HeroStat icon={Groups3Outlined} label={t('Impacted teams')} value={summary?.finding_teams_count ?? '-'} color={theme.palette.success.main} />
+            )}
+            {(summary?.finding_users_count ?? 0) > 0 && (
+              <HeroStat icon={PersonOutlined} label={t('Impacted persons')} value={summary?.finding_users_count ?? '-'} color={theme.palette.success.main} />
+            )}
             {isCVE && (
               <HeroStat icon={ShieldOutlined} label={t('CVSS score')} value={cvssScore != null ? cvssScore.toFixed(1) : '-'} color={theme.palette.warning.main} />
             )}
@@ -200,26 +120,32 @@ const FindingOverview = () => {
           </Box>
         </Field>
         <Field label={t('Field')}>{emptyFilled(finding.finding_field)}</Field>
-        <Field label={t('First seen')}>{fldt(finding.finding_created_at)}</Field>
-        <Field label={t('Last seen')}>{fldt(finding.finding_updated_at)}</Field>
+        {/* Group-wide dates from the summary: the fetched row's own dates only
+            cover one occurrence and would understate the group (the historical
+            "first seen shows a later date" bug). */}
+        <Field label={t('First seen')}>{summary ? fldt(summary.finding_first_seen) : '-'}</Field>
+        <Field label={t('Last seen')}>{summary ? fldt(summary.finding_last_seen) : '-'}</Field>
         <Field label={t('Tags')}>
           <ItemTags variant="list" tags={finding.finding_tags ?? []} />
         </Field>
       </InformationGrid>
 
-      {/* Flat list (no surrounding Paper): the section label sits directly above
-          the related-reports list, matching OpenCTI's plain list sections. The
-          extra top margin gives this section a clear break from the Information
-          card above (the shared page gap alone reads as too tight here). */}
-      <div style={{ marginTop: theme.spacing(1) }}>
-        <SectionLabel>{t('Affected assets & context')}</SectionLabel>
-        <FindingDetail
-          searchFindings={searchFindings}
-          selectedFinding={aggregated}
-          additionalHeaders={additionalHeaders}
-          additionalFilterNames={additionalFilterNames}
-          contextId={findingId}
+      {/* CVE context: everything known about the vulnerability (identity,
+          description, remediation, weaknesses, references) in ONE paper. */}
+      {isCVE && (
+        <FindingVulnerabilityPanel
+          cveId={finding.finding_value}
           onCvssScore={setCvssScore}
+        />
+      )}
+
+      {/* Occurrence timeline: one entry per inject that produced this finding,
+          as a table or a horizontal time strip. */}
+      <div style={{ marginTop: theme.spacing(1) }}>
+        <FindingOccurrences
+          searchFindings={searchFindings}
+          finding={finding}
+          contextId={findingId}
         />
       </div>
     </Box>

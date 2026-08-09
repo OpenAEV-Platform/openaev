@@ -123,6 +123,7 @@ public class PhishingLandingPageApi extends RestBehavior {
     copy.setPrimaryColorLight(source.getPrimaryColorLight());
     copy.setLogoDark(source.getLogoDark());
     copy.setLogoLight(source.getLogoLight());
+    copy.setCustomDomain(source.getCustomDomain());
     return landingPageService.upsert(copy);
   }
 
@@ -154,5 +155,7 @@ public class PhishingLandingPageApi extends RestBehavior {
     landingPage.setRedirectUrl(input.getRedirectUrl());
     landingPage.setPrimaryColorDark(input.getPrimaryColorDark());
     landingPage.setPrimaryColorLight(input.getPrimaryColorLight());
+    landingPage.setCustomDomain(
+        landingPageService.resolveVerifiedCustomDomain(input.getCustomDomainId()));
   }
 }

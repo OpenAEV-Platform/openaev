@@ -14,6 +14,8 @@ const Channels = lazy(() => import('./channels/Channels'));
 const Phishing = lazy(() => import('./phishing/Phishing'));
 const IndexPhishingLandingPage = lazy(() => import('./phishing/landing_pages/Index'));
 const IndexPhishingEmailTemplate = lazy(() => import('./phishing/email_templates/Index'));
+const PhishingLandingPageEditor = lazy(() => import('./phishing/landing_pages/PhishingLandingPageEditor'));
+const PhishingEmailTemplateEditor = lazy(() => import('./phishing/email_templates/PhishingEmailTemplateEditor'));
 const Documents = lazy(() => import('./documents/Documents'));
 const Challenges = lazy(() => import('./challenges/Challenges'));
 
@@ -113,6 +115,56 @@ const Index = () => {
                   subject: SUBJECTS.PHISHING,
                 }]}
                 Component={errorWrapper(Phishing)()}
+              />
+            )}
+          />
+          {/* Full-page create / edit editors (replace the old drawer). Static
+              "create" and "edit" segments out-rank the :id detail routes. */}
+          <Route
+            path="phishing/landing_pages/create"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.MANAGE,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(PhishingLandingPageEditor)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/landing_pages/:landingPageId/edit"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.MANAGE,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(PhishingLandingPageEditor)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/email_templates/create"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.MANAGE,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(PhishingEmailTemplateEditor)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/email_templates/:emailTemplateId/edit"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.MANAGE,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(PhishingEmailTemplateEditor)()}
               />
             )}
           />

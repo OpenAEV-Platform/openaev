@@ -1,10 +1,11 @@
 import { MailOutlineOutlined } from '@mui/icons-material';
 import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { bulkDeletePhishingEmailTemplates, searchPhishingEmailTemplates } from '../../../../../actions/phishing/phishing-action';
+import ButtonCreate from '../../../../../components/common/ButtonCreate';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
@@ -19,7 +20,6 @@ import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import ToolBar from '../../../common/ToolBar';
-import CreatePhishingEmailTemplate from './CreatePhishingEmailTemplate';
 import PhishingEmailTemplatePopover from './PhishingEmailTemplatePopover';
 
 const useStyles = makeStyles()(() => ({
@@ -38,6 +38,7 @@ const PhishingEmailTemplates = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
+  const navigate = useNavigate();
   const ability = useContext(AbilityContext);
 
   // Query param
@@ -136,7 +137,7 @@ const PhishingEmailTemplates = () => {
         topBarButtons={(
           <Box display="flex" gap={1} alignItems="center">
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.PHISHING}>
-              <CreatePhishingEmailTemplate onCreate={result => setEmailTemplates([result, ...emailTemplates])} />
+              <ButtonCreate onClick={() => navigate('/admin/components/phishing/email_templates/create')} />
             </Can>
           </Box>
         )}
@@ -203,7 +204,6 @@ const PhishingEmailTemplates = () => {
                     emailTemplate={emailTemplate}
                     inList
                     openEditOnInit={emailTemplate.phishing_email_template_id === searchId}
-                    onUpdate={result => setEmailTemplates(emailTemplates.map(v => (v.phishing_email_template_id !== result.phishing_email_template_id ? v : result)))}
                     onDelete={result => setEmailTemplates(emailTemplates.filter(v => v.phishing_email_template_id !== result))}
                   />
                 )}

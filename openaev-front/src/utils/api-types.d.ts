@@ -277,6 +277,7 @@ export interface AiAttack {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -636,6 +637,7 @@ export interface Asset {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -893,6 +895,7 @@ export interface AssetOutput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -1872,6 +1875,7 @@ interface BasePayload {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -1945,6 +1949,7 @@ interface BasePayloadCreateInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -2546,6 +2551,7 @@ export interface Command {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -3197,6 +3203,47 @@ export interface CustomDashboardParametersInput {
     | "scenario";
 }
 
+export interface CustomDomain {
+  /** @format date-time */
+  custom_domain_created_at: string;
+  /** @minLength 1 */
+  custom_domain_hostname: string;
+  /** @minLength 1 */
+  custom_domain_id: string;
+  /** @format date-time */
+  custom_domain_last_checked_at?: string;
+  custom_domain_last_error?: string;
+  custom_domain_status: "PENDING" | "VERIFIED" | "FAILED";
+  /** @format date-time */
+  custom_domain_updated_at: string;
+  /** @minLength 1 */
+  custom_domain_verification_token: string;
+  /** @format date-time */
+  custom_domain_verified_at?: string;
+  listened?: boolean;
+}
+
+export interface CustomDomainInput {
+  /**
+   * Fully-qualified hostname to serve landing pages on, e.g. security.acme.com
+   * @minLength 1
+   */
+  custom_domain_hostname: string;
+}
+
+export interface CustomDomainInstructions {
+  /** Name of the CNAME record to create (the custom hostname itself) */
+  cname_record_name?: string;
+  /** Target the CNAME should point to (the platform host) */
+  cname_record_value?: string;
+  /** The custom hostname these instructions apply to */
+  hostname?: string;
+  /** Name of the TXT ownership challenge record */
+  txt_record_name?: string;
+  /** Value the TXT ownership challenge record must carry */
+  txt_record_value?: string;
+}
+
 /** Payload to create a CVE */
 export interface CveCreateInput {
   /**
@@ -3408,6 +3455,7 @@ export interface DnsResolution {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -3669,6 +3717,7 @@ export interface Endpoint {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -3805,6 +3854,7 @@ export interface EndpointInput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -3956,6 +4006,7 @@ export interface EndpointOutput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -4158,6 +4209,7 @@ export interface EndpointOverviewOutput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -4304,6 +4356,7 @@ export interface EndpointRegisterInput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -4919,6 +4972,7 @@ export interface Executable {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -5381,6 +5435,7 @@ export interface FileDrop {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -5529,6 +5584,74 @@ export interface FindingInput {
     | "expectation_signature";
   /** @minLength 1 */
   finding_value: string;
+}
+
+export interface FindingSummaryOutput {
+  /**
+   * Number of distinct impacted asset groups across all occurrences
+   * @format int64
+   */
+  finding_asset_groups_count?: number;
+  /**
+   * Number of distinct impacted assets across all occurrences
+   * @format int64
+   */
+  finding_assets_count?: number;
+  /**
+   * First time this finding was seen across all occurrences
+   * @format date-time
+   */
+  finding_first_seen?: string;
+  /** Representative finding id used to resolve the (type, value) group */
+  finding_id?: string;
+  /**
+   * Last time this finding was seen across all occurrences
+   * @format date-time
+   */
+  finding_last_seen?: string;
+  /**
+   * Number of occurrences (one per inject that produced this finding)
+   * @format int64
+   */
+  finding_occurrences?: number;
+  /**
+   * Number of distinct impacted teams across all occurrences
+   * @format int64
+   */
+  finding_teams_count?: number;
+  /** Finding type */
+  finding_type:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature";
+  /**
+   * Number of distinct impacted persons across all occurrences
+   * @format int64
+   */
+  finding_users_count?: number;
+  /** Finding value */
+  finding_value?: string;
 }
 
 export interface FlagInput {
@@ -5959,6 +6082,7 @@ export interface InjectExpectationOutput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER"
@@ -7391,6 +7515,7 @@ export interface NetworkTraffic {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -7951,6 +8076,25 @@ export interface PageCredentialOutput {
 
 export interface PageCustomDashboard {
   content?: CustomDashboard[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageCustomDomain {
+  content?: CustomDomain[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -8765,6 +8909,7 @@ export interface PayloadInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -8848,6 +8993,7 @@ export interface PayloadOutput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -8949,6 +9095,7 @@ export interface PayloadUpdateInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -9016,6 +9163,7 @@ export interface PayloadUpsertInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -9102,6 +9250,7 @@ export interface PhishingLandingPage {
   /** @format date-time */
   phishing_landing_page_created_at: string;
   phishing_landing_page_css?: string;
+  phishing_landing_page_custom_domain?: string;
   phishing_landing_page_description?: string;
   phishing_landing_page_html?: string;
   /** @minLength 1 */
@@ -9127,6 +9276,7 @@ export interface PhishingLandingPageInput {
   phishing_landing_page_capture_passwords?: boolean;
   phishing_landing_page_capture_submitted_data?: boolean;
   phishing_landing_page_css?: string;
+  phishing_landing_page_custom_domain?: string;
   phishing_landing_page_description?: string;
   phishing_landing_page_html?: string;
   /** @minLength 1 */
@@ -9777,6 +9927,11 @@ export interface RelatedFindingOutput {
   /** Simulation linked to inject */
   finding_simulation?: ExerciseSimple;
   /**
+   * Teams linked to the finding occurrence
+   * @uniqueItems true
+   */
+  finding_teams?: TargetSimple[];
+  /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
@@ -9810,6 +9965,11 @@ export interface RelatedFindingOutput {
    * @format date-time
    */
   finding_updated_at: string;
+  /**
+   * Players (persons) linked to the finding occurrence
+   * @uniqueItems true
+   */
+  finding_users?: TargetSimple[];
   /**
    * Finding Value
    * @minLength 1
@@ -10740,6 +10900,7 @@ export interface SecurityPlatform {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -10761,6 +10922,7 @@ export interface SecurityPlatform {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -10781,6 +10943,7 @@ export interface SecurityPlatformInput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -10805,6 +10968,7 @@ export interface SecurityPlatformSimpleOutput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -10825,6 +10989,7 @@ export interface SecurityPlatformUpsertInput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -11662,6 +11827,7 @@ export interface ThreatArsenalActionCreateInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -11743,6 +11909,7 @@ export interface ThreatArsenalActionFullOutput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -11831,6 +11998,7 @@ export interface ThreatArsenalActionUpdateInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"

@@ -39,4 +39,8 @@ public class PhishingLandingPageInput {
 
   @JsonProperty("phishing_landing_page_primary_color_light")
   private String primaryColorLight;
+
+  /** Optional verified custom domain to serve this page on; null uses the platform domain. */
+  @JsonProperty("phishing_landing_page_custom_domain")
+  private String customDomainId;
 }

@@ -1,26 +1,22 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import {
   deletePhishingLandingPage,
   duplicatePhishingLandingPage,
-  updatePhishingLandingPage,
 } from '../../../../../actions/phishing/phishing-action';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../../components/common/DialogDelete';
-import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import { type PhishingLandingPage } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
-import PhishingLandingPageForm, { type PhishingLandingPageFormInput } from './PhishingLandingPageForm';
 
 interface Props {
   landingPage: PhishingLandingPage;
   inList?: boolean;
   openEditOnInit?: boolean;
-  onUpdate?: (result: PhishingLandingPage) => void;
   onDelete?: (result: string) => void;
 }
 
@@ -28,7 +24,6 @@ const PhishingLandingPagePopover: FunctionComponent<Props> = ({
   landingPage,
   inList = false,
   openEditOnInit = false,
-  onUpdate,
   onDelete,
 }) => {
   const { t } = useFormatter();
@@ -36,16 +31,17 @@ const PhishingLandingPagePopover: FunctionComponent<Props> = ({
   const navigate = useNavigate();
   const ability = useContext(AbilityContext);
 
-  const [openEdit, setOpenEdit] = useState(openEditOnInit);
   const [openDelete, setOpenDelete] = useState(false);
 
-  const onSubmitEdit = async (data: PhishingLandingPageFormInput) => {
-    const result = await dispatch(updatePhishingLandingPage(landingPage.phishing_landing_page_id, data));
-    if (onUpdate && result.entities) {
-      onUpdate(result.entities.phishinglandingpages[result.result]);
+  const editPath = `/admin/components/phishing/landing_pages/${landingPage.phishing_landing_page_id}/edit`;
+
+  // Legacy deep link (?id=...) used to auto-open the edit drawer; now it lands
+  // directly on the full-page editor.
+  useEffect(() => {
+    if (openEditOnInit) {
+      navigate(editPath);
     }
-    setOpenEdit(false);
-  };
+  }, [openEditOnInit]);
 
   const submitDelete = async () => {
     await dispatch(deletePhishingLandingPage(landingPage.phishing_landing_page_id));
@@ -62,25 +58,17 @@ const PhishingLandingPagePopover: FunctionComponent<Props> = ({
     await dispatch(duplicatePhishingLandingPage(landingPage.phishing_landing_page_id));
   };
 
-  const initialValues: PhishingLandingPageFormInput = {
-    phishing_landing_page_name: landingPage.phishing_landing_page_name ?? '',
-    phishing_landing_page_description: landingPage.phishing_landing_page_description ?? '',
-    phishing_landing_page_html: landingPage.phishing_landing_page_html ?? '',
-    phishing_landing_page_css: landingPage.phishing_landing_page_css ?? '',
-    phishing_landing_page_capture_submitted_data: landingPage.phishing_landing_page_capture_submitted_data ?? true,
-    phishing_landing_page_capture_passwords: landingPage.phishing_landing_page_capture_passwords ?? true,
-    phishing_landing_page_redirect_url: landingPage.phishing_landing_page_redirect_url ?? '',
-    phishing_landing_page_primary_color_dark: landingPage.phishing_landing_page_primary_color_dark ?? '',
-    phishing_landing_page_primary_color_light: landingPage.phishing_landing_page_primary_color_light ?? '',
-  };
-
   const entries = [{
     label: 'Update',
-    action: () => setOpenEdit(true),
+    action: () => {
+      navigate(editPath);
+    },
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PHISHING),
   }, {
     label: 'Duplicate',
-    action: () => submitDuplicate(),
+    action: () => {
+      submitDuplicate();
+    },
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PHISHING),
   }, {
     label: 'Delete',
@@ -91,18 +79,6 @@ const PhishingLandingPagePopover: FunctionComponent<Props> = ({
   return (
     <>
       <ButtonPopover entries={entries} variant="icon" />
-      <Drawer
-        open={openEdit}
-        handleClose={() => setOpenEdit(false)}
-        title={t('Update the phishing landing page')}
-      >
-        <PhishingLandingPageForm
-          initialValues={initialValues}
-          editing
-          onSubmit={onSubmitEdit}
-          handleClose={() => setOpenEdit(false)}
-        />
-      </Drawer>
       <DialogDelete
         open={openDelete}
         handleClose={() => setOpenDelete(false)}

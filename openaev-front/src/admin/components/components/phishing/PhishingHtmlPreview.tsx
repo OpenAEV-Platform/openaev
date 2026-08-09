@@ -15,8 +15,10 @@ interface Props {
   srcDoc: string;
   /** Optional chrome rendered above the iframe (e.g. email From / Subject bar). */
   chrome?: ReactNode;
-  /** Inline preview height in px. Fullscreen fills the dialog. */
-  height?: number;
+  /** Inline preview height: a px number, or a CSS length string (e.g. "100%")
+   * to fill a sized parent (used by the full-page editor's sticky pane).
+   * Fullscreen always fills the dialog. */
+  height?: number | string;
 }
 
 /**

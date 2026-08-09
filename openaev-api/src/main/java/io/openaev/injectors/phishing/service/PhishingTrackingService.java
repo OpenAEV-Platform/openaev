@@ -26,6 +26,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -67,7 +68,25 @@ public class PhishingTrackingService {
   /**
    * Creates and persists the tracking row for one recipient at send time. The token is embedded in
    * the lure email's tracking pixel and click link.
+   *
+   * <p>Runs in its OWN committed transaction ({@code REQUIRES_NEW}), independent of the inject
+   * execution transaction that drives the send loop. This is load-bearing, not an optimization: the
+   * phishing injector performs an irreversible side effect (a real email leaves the platform)
+   * inside that execution transaction. If this per-recipient write instead joined it and failed a
+   * constraint, the failure would surface only at the execution transaction's commit - AFTER every
+   * lure email was already sent - roll the whole execution back to its pre-run {@code QUEUING}
+   * status, and the minutely {@code InjectsExecutionJob} would re-select and re-execute the inject,
+   * re-sending the emails every minute (an unbounded loop that gets the sender blacklisted). By
+   * committing on its own here, a tracking-write failure rolls back only this row: the executor's
+   * per-recipient catch skips that single recipient, the execution transaction is never poisoned,
+   * and the inject reaches a terminal status. Committing before the trackable link is published
+   * also guarantees an early recipient's open/click always finds a row to fulfill.
+   *
+   * <p>The {@code inject} / {@code landingPage} associations are set from the passed entities and
+   * {@code user} / {@code team} from reference proxies: this row is a fresh insert with no cascade,
+   * so Hibernate only needs their FK ids and never touches the suspended outer persistence context.
    */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public PhishingResult createResult(
       @NotNull final Inject inject,
       @NotNull final PhishingLandingPage landingPage,
@@ -88,6 +107,15 @@ public class PhishingTrackingService {
 
   public Optional<PhishingResult> resolveByToken(@NotBlank final String token) {
     return phishingResultRepository.findByToken(token);
+  }
+
+  /**
+   * Resolves the owning tenant of a tracking token with no tenant context set. The public landing /
+   * tracking endpoints no longer carry the tenant in the URL (the token is globally unique), so the
+   * caller uses this to recover and set the tenant before any tenant-filtered work runs.
+   */
+  public Optional<String> resolveTenantIdByToken(@NotBlank final String token) {
+    return phishingResultRepository.findTenantIdByToken(token);
   }
 
   /** Marks the email as opened (first open wins) and records request metadata. */

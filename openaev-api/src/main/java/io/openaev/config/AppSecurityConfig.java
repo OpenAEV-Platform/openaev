@@ -97,6 +97,8 @@ public class AppSecurityConfig {
                     // Public phishing tracking is hit by an unauthenticated victim browser (token
                     // authenticated), so it cannot carry a CSRF token.
                     .ignoringRequestMatchers("/api/phishing/tracking/**")
+                    // Benign, tenant-less public landing/tracking endpoints (token authenticated).
+                    .ignoringRequestMatchers("/api/hosted/**")
                     .ignoringRequestMatchers(bearerWithoutCookiesMatcher()))
         .formLogin(AbstractHttpConfigurer::disable)
         // Spring Security defaults X-Frame-Options to DENY, which blocks the reporting
@@ -123,6 +125,9 @@ public class AppSecurityConfig {
                     .permitAll()
                     // Public phishing tracking (pixel/click/page/submit), token-authenticated only.
                     .requestMatchers("/api/phishing/tracking/**")
+                    .permitAll()
+                    // Benign, tenant-less public landing/tracking + on-demand-TLS domain-check.
+                    .requestMatchers("/api/hosted/**")
                     .permitAll()
                     // TODO multi-tenancy to delete after the multi tenancy upgrade
                     .requestMatchers("/api/agent/**")
