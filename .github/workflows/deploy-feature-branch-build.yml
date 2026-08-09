@@ -86,15 +86,12 @@ jobs:
           platform: ${{ matrix.platform }}
           download-release-assets: "true"
           allow-registry: "false"
-          # fds-git-token is deliberately NOT passed here, and this workflow is
-          # therefore expected to fail at the frontend install step.
-          # This workflow checks out untrusted PR code (ref: head_sha) and then
-          # resolves `./.github/actions/docker-build` from that same untrusted
-          # tree, so any credential handed to it is attacker-controlled. A read
-          # token for the private design-system repository must not cross that
-          # boundary. Fixing feature-branch deploys requires a design change
-          # (build the front in a trusted pre-step, or vendor the dependency),
-          # not a secret passed into the sandbox.
+          # Deliberately NOT armed — resolves when the library is published to
+          # npm. Do not wire the token here: this workflow checks out untrusted
+          # PR code (ref: head_sha) and resolves the docker-build action from
+          # that same tree, so any credential passed in is attacker-controlled.
+          # Feature-branch deploys touching the front fail until then: accepted.
+          # Enforced by openaev-front/src/__tests__/ci-design-system-secret.test.ts.
           fds-git-token: ""
 
   docker-merge:
