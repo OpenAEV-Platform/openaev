@@ -127,6 +127,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // target search path.
           "io.openaev.rest.scenario.ScenarioApi#endpoints",
           "io.openaev.rest.scenario.ScenarioApi#endpointsByIds",
+          // workflow scope inventory (chaining RBAC, #4824): same EndpointMapper agent/executor
+          // walk as the scenario/exercise endpoint reads above.
+          "io.openaev.api.chaining.WorkflowApi#getScopeEndpoints",
+          "io.openaev.api.chaining.WorkflowApi#findScopeEndpoints",
           "io.openaev.rest.scenario.ScenarioApi#updateScenarioRecurrence",
           "io.openaev.rest.scenario.ScenarioApi#createRunningExerciseFromScenario",
           "io.openaev.rest.exercise.ExerciseApi#endpoints",

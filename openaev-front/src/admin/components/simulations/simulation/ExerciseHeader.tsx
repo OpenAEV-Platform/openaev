@@ -367,6 +367,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   } else if (isSimulationChaining) {
     actions = ['Update', 'Export', 'Delete'];
   }
+  const canDisplaySimulationActions = permissions.canManage || permissions.canLaunch || permissions.canDelete;
 
   // Headline stats surfaced right in the hero so they are visible on every
   // tab. The hero adapts to how the simulation is actually built: injects are
@@ -581,11 +582,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 entityName={exercise.exercise_name}
               />
               {/* CRUD actions in one overflow menu. */}
-              <ExercisePopover
-                exercise={exercise}
-                actions={actions}
-                onDelete={() => navigate('/admin/simulations')}
-              />
+              {canDisplaySimulationActions && (
+                <ExercisePopover
+                  exercise={exercise}
+                  actions={actions}
+                  onDelete={() => navigate('/admin/simulations')}
+                />
+              )}
             </>
           )}
           stats={(

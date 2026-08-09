@@ -159,7 +159,7 @@ const LogicGraph = ({
 
     const parsedActionMetas = buildActionMetas(stepsRes.data);
     const { eventMetas: parsedEventMetas } = buildEventData(eventsRes.data);
-    const enrichedActionMetas = await enrichActionMetasWithContracts(parsedActionMetas);
+    const enrichedActionMetas = await enrichActionMetasWithContracts(parsedActionMetas, workflowId);
 
     setActionMetas(enrichedActionMetas);
     setContextProviders(buildOutputProvidersMap(enrichedActionMetas));

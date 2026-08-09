@@ -144,6 +144,20 @@ The API uses standard HTTP status codes:
 
 Validation errors (400) return a structured body with per-field error messages. Other errors return a JSON body with a `message` field describing the issue.
 
+## Grant-scoped endpoints
+
+Global inventory endpoints such as `/api/endpoints`, `/api/asset_groups` or `/api/injector_contracts` require the corresponding platform capability (Assets, Threat Arsenal). A user who only holds a grant on a specific Simulation or Scenario can instead use resource-scoped counterparts that expose only the elements referenced by that resource. The chaining Workflow API follows this pattern:
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/workflows/{workflowId}/scope/endpoints` | Endpoints referenced by the workflow scope rules (allowlist and denylist) |
+| `POST /api/workflows/{workflowId}/scope/endpoints/find` | Same as above, restricted to the requested IDs |
+| `GET /api/workflows/{workflowId}/scope/asset-groups` | Asset groups referenced by the workflow scope rules |
+| `POST /api/workflows/{workflowId}/scope/asset-groups/find` | Same as above, restricted to the requested IDs |
+| `GET /api/workflows/{workflowId}/injector_contracts/{injectorContractId}` | An injector contract, returned only if one of the workflow steps references it |
+
+These endpoints check the caller's grant on the workflow's parent Simulation or Scenario instead of the global capabilities, so the chaining scope and logic screens work for grant-only users. IDs that are not referenced by the workflow are silently ignored, which prevents using these endpoints to read arbitrary platform data.
+
 ## Multi-tenant context
 
 When multi-tenancy is enabled, the API exposes two sets of endpoints:

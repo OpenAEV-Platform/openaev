@@ -12528,6 +12528,17 @@ export interface WorkflowConfigurationOutput {
   workflow_scope_variables?: ScopeVariableOutput[];
 }
 
+/** Injector contract referenced by a workflow step, exposed for the logic screen. Only the fields needed to render the action form are returned. */
+export interface WorkflowInjectorContractOutput {
+  /** Injector contract content (serialized fields) */
+  injector_contract_content?: string;
+  /**
+   * Injector contract Id
+   * @minLength 1
+   */
+  injector_contract_id: string;
+}
+
 export interface WorkflowScopeRule {
   listened?: boolean;
   /** @format date-time */
