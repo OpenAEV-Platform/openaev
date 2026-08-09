@@ -3758,6 +3758,7 @@
   "Who is sending?": "Кто отправляет?",
   "Who receives this inject.": "Кто получает эту инъекцию.",
   "will be started, do you want to continue?": "начнется, хотите ли вы продолжить?",
+  "will be stopped, collected results are kept. Do you want to continue?": "будет остановлена, уже собранные результаты сохранятся. Продолжить?",
   "Windows": "Windows",
   "Windows Command Line": "Командная строка Windows",
   "Windows documentation.": "Документация по Windows.",

@@ -3758,6 +3758,7 @@
   "Who is sending?": "Chi sta inviando?",
   "Who receives this inject.": "Chi riceve questa iniezione.",
   "will be started, do you want to continue?": "sarà avviato, volete continuare?",
+  "will be stopped, collected results are kept. Do you want to continue?": "verrà interrotta, i risultati già raccolti vengono conservati. Vuoi continuare?",
   "Windows": "Windows",
   "Windows Command Line": "Riga di comando di Windows",
   "Windows documentation.": "Documentazione Windows.",

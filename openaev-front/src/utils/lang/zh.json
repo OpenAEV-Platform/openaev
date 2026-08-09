@@ -3758,6 +3758,7 @@
   "Who is sending?": "谁在发送？",
   "Who receives this inject.": "谁接收此注入。",
   "will be started, do you want to continue?": "将要开始,你想要继续么?",
+  "will be stopped, collected results are kept. Do you want to continue?": "将被停止，已收集的结果将保留。是否继续？",
   "Windows": "Windows",
   "Windows Command Line": "Windows命令行",
   "Windows documentation.": "Windows 文档。",

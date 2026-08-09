@@ -206,8 +206,10 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         return `${t('Injects will be paused, do you want to continue?')}`;
       case 'SCHEDULED':
         return `${exerciseName} ${t('data will be reset, do you want to restart?')}`;
+      // Stopping keeps everything that ran - only Reset clears it - so this must not borrow the
+      // reset wording, which had users expecting their results to be wiped by a stop.
       case 'CANCELED':
-        return `${exerciseName} ${t('data will be reset, do you want to restart?')}`;
+        return `${exerciseName} ${t('will be stopped, collected results are kept. Do you want to continue?')}`;
       default:
         return 'Do you want to change the status of this simulation?';
     }

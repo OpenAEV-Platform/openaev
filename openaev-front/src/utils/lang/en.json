@@ -3751,6 +3751,7 @@
   "Who is sending?": "Who is sending?",
   "Who receives this inject.": "Who receives this inject.",
   "will be started, do you want to continue?": "will be started, do you want to continue?",
+  "will be stopped, collected results are kept. Do you want to continue?": "will be stopped, collected results are kept. Do you want to continue?",
   "Windows": "Windows",
   "Windows Command Line": "Windows Command Line",
   "Windows documentation.": "Windows documentation.",
