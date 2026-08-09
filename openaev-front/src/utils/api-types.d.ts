@@ -5714,6 +5714,10 @@ export interface ImportPostSummary {
   import_id: string;
 }
 
+export interface ImportResult {
+  missingActions?: MissingImportedAction[];
+}
+
 export interface ImportTestSummary {
   import_message?: ImportMessage[];
   injects?: InjectOutput[];
@@ -7302,6 +7306,11 @@ export interface MapperConditionOutput {
   )[];
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
+}
+
+export interface MissingImportedAction {
+  name?: string;
+  type?: string;
 }
 
 export interface Mitigation {

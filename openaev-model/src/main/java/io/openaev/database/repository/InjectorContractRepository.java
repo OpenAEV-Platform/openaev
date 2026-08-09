@@ -1,11 +1,6 @@
 package io.openaev.database.repository;
 
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.InjectorContractId;
-import io.openaev.database.model.Payload;
-import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.*;
 import io.openaev.database.model.attackpath.projection.AttackPathInjectorPatternRow;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.raw.RawPayloadRelatedIds;
@@ -116,6 +111,22 @@ public interface InjectorContractRepository
 
   @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id")
   boolean existsByContractId(@Param("id") @NotNull String id);
+
+  @Query(
+      "SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
+  boolean existsByContractIdAndTenant(
+      @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
+
+  /**
+   * Tenant-scoped counterpart of {@link #findById(String)}: the composite PK is (tenant_id, id), so
+   * a bare-id lookup can match another tenant's contract (or throw on duplicate ids across tenants
+   * when the Hibernate tenant filter is not enabled). Use for user-supplied ids (e.g. imports).
+   */
+  @NotNull
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
+  Optional<InjectorContract> findByContractIdAndTenant(
+      @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
   @NotNull
   @Query(

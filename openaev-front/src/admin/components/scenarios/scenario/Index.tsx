@@ -134,7 +134,7 @@ const IndexScenarioComponent: FunctionComponent<{
               component={Link}
               to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
               value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-              label={t('Attack path')}
+              label={t('Attack Path')}
             />
           )}
           <Tab

@@ -27,6 +27,7 @@ const Simulations = () => {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [exercises, setExercises] = useState<ExerciseSimple[]>([]);
+  const [reloadCount, setReloadCount] = useState<number>(0);
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   // Index of the tenant's autonomous runs so each row's popover can mirror the simulation cockpit:
   // an AI-driven simulation is observe-only, so its overflow exposes only a read-only Export
@@ -130,6 +131,7 @@ const Simulations = () => {
       />
       <PaginationComponentV2
         fetch={search}
+        reloadContentCount={reloadCount}
         searchPaginationInput={searchPaginationInput}
         setContent={setExercises}
         entityPrefix="exercise"
@@ -143,7 +145,7 @@ const Simulations = () => {
                 exportProps={exportProps}
               />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-                <ImportUploaderExercise />
+                <ImportUploaderExercise refresh={() => setReloadCount(count => count + 1)} />
               </Can>
             </ToggleButtonGroup>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
