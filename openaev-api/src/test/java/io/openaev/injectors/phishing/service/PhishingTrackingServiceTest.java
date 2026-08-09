@@ -170,6 +170,27 @@ class PhishingTrackingServiceTest {
   }
 
   @Test
+  @DisplayName("markSubmitted should capture credentials only once across repeated submits")
+  void markSubmitted_should_beIdempotentOnRepeatedSubmit() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(true, true);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    when(injectExpectationRepository.findAllByInjectAndPlayer(anyString(), anyString()))
+        .thenReturn(List.of());
+
+    // -- ACT --
+    phishingTrackingService.markSubmitted(
+        "token-1", "victim@corp.test", "hunter2", "1.2.3.4", "ua");
+    phishingTrackingService.markSubmitted(
+        "token-1", "victim@corp.test", "hunter2", "1.2.3.4", "ua");
+
+    // -- ASSERT --
+    verify(findingService, org.mockito.Mockito.times(1)).createFindings(anyList(), anyString());
+  }
+
+  @Test
   @DisplayName("markOpened should be a no-op for an unknown token")
   void markOpened_should_returnEmptyForUnknownToken() {
     when(phishingResultRepository.findByToken("nope")).thenReturn(Optional.empty());

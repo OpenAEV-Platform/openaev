@@ -149,13 +149,21 @@ public class PhishingTrackingService {
               if (result.getClickedAt() == null) {
                 result.setClickedAt(timestamp);
               }
-              if (result.getSubmittedAt() == null) {
+              // Capture only on the request that wins the submit transition. A repeat or concurrent
+              // POST (a victim double-submitting) would otherwise re-insert the same Credentials
+              // finding, break its unique constraint at flush and roll back the tracking write.
+              boolean firstSubmit = result.getSubmittedAt() == null;
+              if (firstSubmit) {
                 result.setSubmittedAt(timestamp);
               }
               applyRequestMetadata(result, ip, userAgent);
-              captureCredentials(result, username, password);
+              if (firstSubmit) {
+                captureCredentials(result, username, password);
+              }
               PhishingResult saved = phishingResultRepository.save(result);
-              fulfillManualExpectation(saved, "Submitted data on the phishing page");
+              if (firstSubmit) {
+                fulfillManualExpectation(saved, "Submitted data on the phishing page");
+              }
               return saved;
             });
   }
