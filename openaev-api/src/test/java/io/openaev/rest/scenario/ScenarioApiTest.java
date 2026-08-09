@@ -214,6 +214,27 @@ public class ScenarioApiTest extends IntegrationTest {
     assertEquals(customDashboardSaved.getId(), newScenario.getCustomDashboard().getId());
   }
 
+  @DisplayName("Create chained scenario fails without enterprise edition")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_chainedScenarioCreationWithoutEE_should_fail() throws Exception {
+    // Arrange
+    ScenarioInput scenarioInput = new ScenarioInput();
+    scenarioInput.setName("My chained scenario");
+    scenarioInput.setIsChaining(true);
+
+    // Act & Assert
+    this.mvc
+        .perform(
+            post(SCENARIO_URI)
+                .content(asJsonString(scenarioInput))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+  }
+
   @DisplayName("Retrieve scenarios")
   @Test
   @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
