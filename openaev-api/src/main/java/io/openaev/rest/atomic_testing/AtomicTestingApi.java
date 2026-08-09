@@ -72,7 +72,13 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public InjectResultOverviewOutput findAtomicTesting(@PathVariable String injectId) {
+  public InjectResultOverviewOutput findAtomicTesting(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this read. InjectResultOverviewOutput serializes Inject#getType(), which
+      // resolves the inject's injector through the contract's (eager) injector link on the
+      // v2-scoped injectors table. Without the scope the read fails closed and inject_type comes
+      // back null, which changes how the frontend renders the atomic-testing result panel.
+      TxCtx ctx, @PathVariable String injectId) {
     return atomicTestingService.findById(injectId);
   }
 
@@ -83,7 +89,10 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public StatusPayloadOutput findAtomicTestingPayload(@PathVariable String injectId) {
+  public StatusPayloadOutput findAtomicTestingPayload(
+      // Signals the transaction aspect to set the tenant scope: resolving the payload output reads
+      // the inject's injector contract / injector on the v2-scoped injectors table.
+      TxCtx ctx, @PathVariable String injectId) {
     return atomicTestingService.findPayloadOutputByInjectId(injectId);
   }
 

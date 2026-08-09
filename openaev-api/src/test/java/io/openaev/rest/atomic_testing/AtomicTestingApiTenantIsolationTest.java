@@ -2,9 +2,12 @@ package io.openaev.rest.atomic_testing;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -35,9 +38,11 @@ import org.springframework.transaction.annotation.Transactional;
 class AtomicTestingApiTenantIsolationTest extends IntegrationTest {
 
   private static final String CREATE = "/api/tenants/{tenantId}/atomic-testings";
+  private static final String DETAIL = "/api/tenants/{tenantId}/atomic-testings/{injectId}";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private ObjectMapper objectMapper;
 
   private String tenantA;
   private String injectorA;
@@ -62,6 +67,28 @@ class AtomicTestingApiTenantIsolationTest extends IntegrationTest {
   @DisplayName("under tenant A's path: B's injector is not found (cross-tenant lookup blocked)")
   void underTenantAWithCrossTenantInjectorIsNotFound() throws Exception {
     mvc.perform(request(tenantA, injectorB)).andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName(
+      "GET atomic-testing detail resolves inject_type through the v2-scoped injectors table")
+  void detailExposesInjectTypeUnderV2Activation() throws Exception {
+    // Regression for a gap found in the side-by-side of the agent-implant E2E: the detail read
+    // AtomicTestingApi#findAtomicTesting had no TxCtx, so Inject#getType() resolved the inject's
+    // injector on the v2-scoped injectors table with no tenant scope and returned null. The
+    // frontend gates the "Results by target" panel (and its execution-trace fetch) on a non-null
+    // inject_type, so a null value silently broke the atomic-testing result view.
+    String body =
+        mvc.perform(request(tenantA, injectorA))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String injectId = objectMapper.readTree(body).get("inject_id").asText();
+
+    mvc.perform(get(DETAIL, tenantA, injectId).with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.inject_type").value("openaev_email"));
   }
 
   private MockHttpServletRequestBuilder request(String tenantId, String injectorId)
