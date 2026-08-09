@@ -992,3 +992,36 @@ rot into a silent pass. Both are marked `PRODUCT-SPECIFIC ADDITION` in the file.
 asserted negatively, with the staleness check. "Must not be armed" is a normal
 state for a workflow handling untrusted input, not an exception — every product
 adopting this artifact will meet it.
+
+---
+
+## Step 5b — computed-style diff against the documentation site
+
+Run at pin `c0d6f07`, docs site at the same SHA, product on the same machine,
+one measurement function applied to both pages. Script kept at
+`fds-migration/scripts/compare-header-vs-docs.cjs`; re-run it at every pin bump.
+
+Every value the library owns is **identical** on both sides:
+
+| Property | Docs | Product |
+|---|---|---|
+| `height` | 68px | 68px |
+| `padding` | 16px | 16px |
+| `display` / `align-items` / `justify-content` | flex / center / space-between | flex / center / space-between |
+| `border-bottom-width` | 1px | 1px |
+| `backdrop-filter` | blur(4px) | blur(4px) |
+| `::before` `opacity` | 0.94 | 0.94 |
+| `::before` `inset` / `z-index` | 0px / -10 | 0px / -10 |
+| `background-color` | transparent | transparent |
+
+The five differences, each with a named cause — none is a defect:
+
+| Property | Docs | Product | Cause |
+|---|---|---|---|
+| `position` | `relative` | `fixed` | **By design.** The Header ships no positioning, only `relative` as a containing block; the doctrine is never sticky, always fixed to the top of the viewport. The product supplies the fixing. |
+| `z-index` | `auto` | `1100` | Set by the product, above content and below MUI's poppers at 1300. |
+| `min-height` | `auto` | `0px` | The product's MUI `CssBaseline` reset. Does not affect layout: `height` resolves to 68px on both sides. |
+| `font-size` | 16px | 14.4px | The product's MUI theme sets a 90% base font size product-wide; pre-existing and intentional, not Header-specific. |
+| `font-family` | `…, "IBM Plex Sans Fallback"` | `…, sans-serif` | `next/font` local fallback, an artifact of the documentation site only. Same first family on both sides. |
+
+**Verdict.** No host CSS bleed, no missing reset, no pin lag, no design delta.
