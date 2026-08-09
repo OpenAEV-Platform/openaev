@@ -35,6 +35,7 @@ import io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorContext
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorContextService;
 import io.openaev.executors.tanium.service.TaniumExecutorContextService;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.injectors.phishing.service.PhishingLandingPageService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.migration.ConfigurationMigration;
 import io.openaev.processor.core.V20260420_Migrate_rabbitmq_queues;
@@ -64,7 +65,6 @@ import io.openaev.rest.lessons.ScenarioLessonsApi;
 import io.openaev.rest.lessons_template.LessonsTemplateApi;
 import io.openaev.rest.mapper.MapperApi;
 import io.openaev.rest.mitigation.MitigationApi;
-import io.openaev.injectors.phishing.service.PhishingLandingPageService;
 import io.openaev.rest.payload.PayloadApi;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpsertService;
