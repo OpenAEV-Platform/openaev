@@ -64,6 +64,7 @@ import io.openaev.rest.lessons.ScenarioLessonsApi;
 import io.openaev.rest.lessons_template.LessonsTemplateApi;
 import io.openaev.rest.mapper.MapperApi;
 import io.openaev.rest.mitigation.MitigationApi;
+import io.openaev.injectors.phishing.service.PhishingLandingPageService;
 import io.openaev.rest.payload.PayloadApi;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpsertService;
@@ -337,7 +338,11 @@ class TenantActiveTableAccessArchTest {
               // Autonomous arsenal inventory reads injectors via inspector-scoped findAll() under
               // the caller's TxCtx / per-tenant background scope; with no scope it fails closed
               // (empty inventory), never cross-tenant:
-              CapabilityResolverService.class)
+              CapabilityResolverService.class,
+              // Phishing landing-page service synchronises its injector contract via the
+              // tenant-explicit findByTypeAndTenantId(PhishingContract.TYPE, tenantId), mirroring
+              // PayloadService's contract sync; the tenant is resolved from the landing page:
+              PhishingLandingPageService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(InjectorRepository.class)
