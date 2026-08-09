@@ -39,9 +39,9 @@ import org.springframework.web.multipart.MultipartFile;
  * <p>Covers the Nuclei injector registration OOM: {@code InjectorApi.registerInjector} passes its
  * DTO via {@code @RequestPart} (multipart, because the endpoint also accepts an icon). The aspect
  * used to only recognise {@code @RequestBody}, so the payload fell through to the {@code signature}
- * node — which, unlike {@code input}, is not size-capped by {@code ObjectNormalizationUtils}. The
- * full, uncapped contract payload was then deep-copied several times and queued on the bounded
- * audit executor, exhausting the heap.
+ * node — which, unlike {@code input}, was not size-capped by {@code ObjectNormalizationUtils} at
+ * the time (it now is). The full, uncapped contract payload was then deep-copied several times and
+ * queued on the bounded audit executor, exhausting the heap.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AccessControlAuditLogAspect — request payload resolution")

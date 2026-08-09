@@ -283,8 +283,9 @@ public class AccessControlAuditLogAspect {
    *
    * <p>Recognizes {@code @RequestBody}, {@code @RequestPart} and {@code @ModelAttribute}. Multipart
    * endpoints (e.g. {@code InjectorApi.registerInjector}) pass their DTO via {@code @RequestPart};
-   * missing them made the payload fall through to the {@code signature} node, which is not
-   * size-capped by {@code ObjectNormalizationUtils} — a heap-exhaustion risk on large payloads.
+   * missing them made the payload fall through to the {@code signature} node, which at the time was
+   * not size-capped by {@code ObjectNormalizationUtils} — a heap-exhaustion risk on large payloads.
+   * {@code LogService} now normalizes the signature node as well, as defense in depth.
    *
    * @return the argument index, or {@code -1} if none matches
    */
@@ -336,7 +337,8 @@ public class AccessControlAuditLogAspect {
       ObjectNode params = objectMapper.createObjectNode();
       if (paramNames != null) {
         for (int i = 0; i < paramNames.length; i++) {
-          // The payload is already captured as inputNode (normalized and size-capped there).
+          // Never re-serialize the payload into the signature; for mutating scopes it is captured
+          // separately as inputNode (normalized and size-capped downstream).
           if (i == payloadIndex) {
             params.put(paramNames[i], "@RequestBody");
           } else {
