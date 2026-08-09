@@ -83,6 +83,7 @@ import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
+import io.openaev.service.autonomous.CapabilityResolverService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.scenario.ScenarioService;
@@ -328,7 +329,15 @@ class TenantActiveTableAccessArchTest {
               V20260708_Dynamic_injectors_base_url.class,
               // Builtin injector registration for tenant bootstrap is scoped in
               // createDependencyForTenant:
-              ManagerFactory.class)
+              ManagerFactory.class,
+              // Security-platform registration links the registering injector using an explicit
+              // tenant predicate (findByTypeAndTenantId with the platform row's own tenant), safe
+              // under v2 regardless of the ambient scope:
+              SecurityPlatformApi.class,
+              // Autonomous arsenal inventory reads injectors via inspector-scoped findAll() under
+              // the caller's TxCtx / per-tenant background scope; with no scope it fails closed
+              // (empty inventory), never cross-tenant:
+              CapabilityResolverService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(InjectorRepository.class)

@@ -97,6 +97,9 @@ public class StarterPackTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", false);
 
     // EXECUTE
@@ -138,6 +141,9 @@ public class StarterPackTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
 
     // EXECUTE
     datapack.process(new Tenant(TenantContext.getCurrentTenant()));
@@ -182,6 +188,9 @@ public class StarterPackTest extends IntegrationTest {
             mockImportService,
             zipJsonService,
             resolver);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new Exception()).when(mockImportService).handleFileImport(any(), isNull(), isNull());
 
@@ -216,6 +225,9 @@ public class StarterPackTest extends IntegrationTest {
             importService,
             mockZipJsonService,
             resolver);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new IOException())
         .when(mockZipJsonService)
@@ -249,6 +261,9 @@ public class StarterPackTest extends IntegrationTest {
             importService,
             zipJsonService,
             mockResolver);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new IOException())
         .when(mockResolver)
@@ -286,6 +301,9 @@ public class StarterPackTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
@@ -322,6 +340,9 @@ public class StarterPackTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
@@ -371,6 +392,9 @@ public class StarterPackTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
@@ -430,6 +454,9 @@ public class StarterPackTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
@@ -474,6 +501,9 @@ public class StarterPackTest extends IntegrationTest {
             importService,
             zipJsonService,
             resolver);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE

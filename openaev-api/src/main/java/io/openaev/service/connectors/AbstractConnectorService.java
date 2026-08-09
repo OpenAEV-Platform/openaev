@@ -308,6 +308,8 @@ public abstract class AbstractConnectorService<
    * @param tenantId the requesting tenant, resolved by the caller from the request's single-tenant
    *     scope, or from the specific connector when iterating a broader scope
    * @return connector instance ID and catalog connector ID if available, null values if not found
+   * @throws ElementNotFoundException if the connector is not visible in the requesting tenant's
+   *     scope (wrong tenant, or the id does not exist at all)
    */
   public ConnectorIds getConnectorRelationsId(String connectorId, String tenantId) {
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
@@ -321,7 +323,10 @@ public abstract class AbstractConnectorService<
     }
 
     if (connector == null) {
-      return catalogConnectorMapper.toConnectorIds(null, null, false);
+      // Not visible in the requesting tenant's scope (wrong tenant, or the id does not exist at
+      // all): 404, so the API does not leak whether the id exists in another tenant. The frontend
+      // (ConnectorLayout) relies on this 404 to notify and redirect.
+      throw new ElementNotFoundException("Connector not found with id: " + connectorId);
     }
 
     // Connector already deployed without catalog, we will try to search matching catalog comparing
