@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, expandPathSet, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -312,6 +312,88 @@ describe('maskFindingValue', () => {
 
   it('returns an empty string for an undefined value', () => {
     expect(maskFindingValue('port', undefined)).toBe('');
+  });
+});
+
+describe('expandPathSet', () => {
+  // A linear chain a -> b -> c -> ... deep enough that any fixed pass cap under its length would
+  // truncate it: the walk must run to a fixpoint, not an arbitrary number of passes. Edges are
+  // listed in REVERSE order so a single pass over the list can only propagate one upstream hop —
+  // the worst case for pass-count-based walks.
+  const chain = (length: number): AttackPathFlowEdge[] =>
+    Array.from({ length }, (_, i) => ({
+      id: `e${i}`,
+      source: `n${i}`,
+      target: `n${i + 1}`,
+    }));
+
+  it('walks upstream to a fixpoint with no arbitrary pass cap', () => {
+    const edges = chain(20);
+    const set = expandPathSet(new Set(['n20']), edges, 'upstream');
+    // Every node of the 20-hop chain is adopted, including the far end.
+    expect(set.size).toBe(21);
+    expect(set.has('n0')).toBe(true);
+  });
+
+  it('walks downstream to a fixpoint symmetrically', () => {
+    // Reverse the edge order too, so downstream also needs one pass per hop.
+    const edges = chain(20).reverse();
+    const set = expandPathSet(new Set(['n0']), edges, 'downstream');
+    expect(set.size).toBe(21);
+    expect(set.has('n20')).toBe(true);
+  });
+
+  it('never adopts a blocked candidate, and does not walk through it', () => {
+    const edges = chain(5);
+    const set = expandPathSet(new Set(['n5']), edges, 'upstream', { blocked: candidate => candidate === 'n2' });
+    // n2 is vetoed, so the walk stops there: n0/n1 are only reachable through it.
+    expect([...set].sort()).toEqual(['n3', 'n4', 'n5']);
+  });
+
+  it('passes the edge to the blocked predicate so edge-level vetoes work', () => {
+    const edges: AttackPathFlowEdge[] = [
+      {
+        id: 'causal',
+        source: 'a',
+        target: 'b',
+        type: 'causal',
+      },
+      {
+        id: 'plain',
+        source: 'c',
+        target: 'b',
+      },
+    ];
+    const set = expandPathSet(new Set(['b']), edges, 'upstream', { blocked: (_candidate, e) => e.type === 'causal' });
+    expect(set.has('c')).toBe(true);
+    expect(set.has('a')).toBe(false);
+  });
+
+  it('honours maxPasses as a cap for deliberately shallow child walks', () => {
+    const edges = chain(10).reverse();
+    const set = expandPathSet(new Set(['n0']), edges, 'downstream', { maxPasses: AP_CHILD_WALK_PASSES });
+    // One upstream-ordered hop per pass: exactly AP_CHILD_WALK_PASSES hops adopted, no more.
+    expect(set.size).toBe(1 + AP_CHILD_WALK_PASSES);
+    expect(set.has(`n${AP_CHILD_WALK_PASSES}`)).toBe(true);
+    expect(set.has(`n${AP_CHILD_WALK_PASSES + 1}`)).toBe(false);
+  });
+
+  it('ignores edges with an empty source or target', () => {
+    const edges: AttackPathFlowEdge[] = [
+      {
+        id: 'dangling',
+        source: '',
+        target: 'seed',
+      },
+      {
+        id: 'ok',
+        source: 'up',
+        target: 'seed',
+      },
+    ];
+    const set = expandPathSet(new Set(['seed']), edges, 'upstream');
+    expect(set.has('')).toBe(false);
+    expect(set.has('up')).toBe(true);
   });
 });
 
