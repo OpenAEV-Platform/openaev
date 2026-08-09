@@ -36,6 +36,12 @@ export interface AttackPathPursuitRequest {
   nonce: number;
 }
 
+/** Keep the view on one node across a layout change the user caused (expanding a cluster). */
+export interface AttackPathAnchorRequest {
+  nodeId: string;
+  nonce: number;
+}
+
 interface AttackPathCanvasProps {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -61,6 +67,14 @@ interface AttackPathCanvasProps {
    * pursuit and by explicit fit/focus requests, so a live run stays framed on the action.
    */
   pursuitActive?: boolean;
+  /**
+   * Expanding a cluster: hold the view on the node that was clicked instead of re-fitting the whole
+   * graph. The growth-driven fit below cannot tell a user expansion from the graph changing shape on
+   * its own, and re-framing everything threw the user back to the graph's entrance. Pans at the
+   * CURRENT zoom, because the surrounding layout reflows around the newly revealed nodes, so holding
+   * the camera still would not hold the clicked node still.
+   */
+  anchorRequest?: AttackPathAnchorRequest | null;
   showMiniMap?: boolean;
   /** Overlay rendered in the bottom-right stack, under the minimap (the graph legend). */
   legend?: ReactNode;
@@ -113,6 +127,7 @@ const AttackPathCanvas = ({
   fitRequest,
   pursuitRequest,
   pursuitActive = false,
+  anchorRequest,
   showMiniMap = true,
   legend,
 }: AttackPathCanvasProps) => {
@@ -131,7 +146,7 @@ const AttackPathCanvas = ({
   });
 
   // Card rectangles (world coords) normalised so the content bounds start at (0,0).
-  const { rects, worldWidth, worldHeight, edgeGeometries } = useMemo(() => {
+  const { rects, worldWidth, worldHeight } = useMemo(() => {
     const raw = computeCardRects(nodes);
     const bounds = computeContentBounds(raw);
     const normalised = new Map<string, CanvasRect>();
@@ -147,9 +162,41 @@ const AttackPathCanvas = ({
       rects: normalised,
       worldWidth: bounds.width,
       worldHeight: bounds.height,
-      edgeGeometries: computeEdgeGeometry(edges, normalised),
     };
-  }, [nodes, edges]);
+  }, [nodes]);
+
+  // Manual drag offsets, keyed by node id (world units, applied on top of the auto-layout rect).
+  // Purely a rendering-time adjustment: the layout/compaction pass above never sees it, so a
+  // dragged node still snaps back onto its column/row once the auto layout itself changes (a new
+  // node arrives, the graph is re-fit, etc.) — the user is nudging the same computed layout, not
+  // replacing it.
+  const [dragOffsets, setDragOffsets] = useState<Map<string, {
+    dx: number;
+    dy: number;
+  }>>(new Map());
+
+  const effectiveRects = useMemo(() => {
+    if (dragOffsets.size === 0) {
+      return rects;
+    }
+    const merged = new Map(rects);
+    dragOffsets.forEach((off, id) => {
+      const r = rects.get(id);
+      if (r) {
+        merged.set(id, {
+          ...r,
+          x: r.x + off.dx,
+          y: r.y + off.dy,
+        });
+      }
+    });
+    return merged;
+  }, [rects, dragOffsets]);
+
+  const edgeGeometries = useMemo(
+    () => computeEdgeGeometry(edges, effectiveRects),
+    [edges, effectiveRects],
+  );
 
   const nodeById = useMemo(() => {
     const m = new Map<string, AttackPathFlowNode>();
@@ -221,6 +268,9 @@ const AttackPathCanvas = ({
   const pursuitActiveRef = useRef(pursuitActive);
   pursuitActiveRef.current = pursuitActive;
   const fittedSig = useRef<string>('');
+  // Set while an anchored expansion is in flight: the world change it causes is adopted WITHOUT a
+  // re-fit, and the camera is then panned onto the anchor instead (see the anchorRequest effect).
+  const holdForAnchorRef = useRef(false);
   const worldSig = `${Math.round(worldWidth)}x${Math.round(worldHeight)}`;
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -237,7 +287,7 @@ const AttackPathCanvas = ({
       if (w > 0 && h > 0 && fittedSig.current !== worldSig) {
         const firstFit = fittedSig.current === '';
         fittedSig.current = worldSig;
-        if (firstFit || !pursuitActiveRef.current) {
+        if (firstFit || (!pursuitActiveRef.current && !holdForAnchorRef.current)) {
           setCamera(fitCamera(w, h));
         }
       }
@@ -254,24 +304,29 @@ const AttackPathCanvas = ({
   const markManual = useCallback(() => {
     lastManualAt.current = performance.now();
   }, []);
+  const markManualRef = useRef(markManual);
+  markManualRef.current = markManual;
 
-  // Ctrl/Cmd + wheel zoom around the cursor (native listener so we can preventDefault).
+  // Mouse-wheel / trackpad zoom around the cursor (native, non-passive listener so we can
+  // preventDefault). Plain scroll zooms - no modifier required - and Ctrl/Cmd still works. The delta
+  // is normalized across wheel modes (pixel / line / page) and mapped through exp() so a notched
+  // mouse and a fine-grained trackpad both zoom by a sensible, consistent amount.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) {
       return undefined;
     }
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) {
-        return;
-      }
       e.preventDefault();
       stopAnim();
       markManual();
       const rect = el.getBoundingClientRect();
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
-      const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+      let unit = 1;
+      if (e.deltaMode === 1) unit = 16;
+      else if (e.deltaMode === 2) unit = el.clientHeight;
+      const factor = Math.exp(-e.deltaY * unit * 0.0015);
       setCamera((prev) => {
         const next = clampZoom(prev.zoom * factor);
         return {
@@ -311,31 +366,73 @@ const AttackPathCanvas = ({
     }
   }, [animateTo, fitCamera]);
 
-  // Center the camera on one node at a comfortable zoom (click-to-focus / cross-focus).
-  const centerOnNode = useCallback((nodeId: string) => {
+  /**
+   * Frame the highlighted path, anchored on the node that was just selected.
+   *
+   * <p>The zoom tries to contain the whole highlighted path (the nodes still lit, i.e. not dimmed)
+   * but never drops below the readable floor used by the initial fit, and the camera centres on the
+   * anchor rather than on the box centre — so the clicked finding is always the visual subject even
+   * when its chain is too long to fit and overflows.
+   *
+   * <p>Centring alone (the previous {@link centerOnNode}) kept the current zoom, which is what made
+   * a selection unreadable: zoomed out the finding was centred but tiny, zoomed in its connectors
+   * stretched off-screen.
+   */
+  const focusOnPath = useCallback((anchorNodeId: string) => {
     const el = containerRef.current;
-    const r = rects.get(nodeId);
-    if (!el || !r) {
+    const anchor = effectiveRects.get(anchorNodeId);
+    if (!el || !anchor) {
       return;
     }
-    const zoom = clampZoom(Math.max(0.8, Math.min(1.4, camera.zoom)));
-    const worldCx = r.x + r.width / 2;
-    const worldCy = r.y + r.height / 2;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    nodes.forEach((n) => {
+      if (n.data?.dimmed) {
+        return;
+      }
+      const r = effectiveRects.get(n.id);
+      if (!r) {
+        return;
+      }
+      minX = Math.min(minX, r.x);
+      minY = Math.min(minY, r.y);
+      maxX = Math.max(maxX, r.x + r.width);
+      maxY = Math.max(maxY, r.y + r.height);
+    });
+    // Nothing lit (or no rects yet): fall back to framing the anchor alone.
+    if (minX === Infinity) {
+      minX = anchor.x;
+      minY = anchor.y;
+      maxX = anchor.x + anchor.width;
+      maxY = anchor.y + anchor.height;
+    }
+    const availW = el.clientWidth - FIT_PADDING * 2;
+    const availH = el.clientHeight - FIT_PADDING * 2;
+    if (availW <= 0 || availH <= 0) {
+      return;
+    }
+    const raw = Math.min(availW / Math.max(maxX - minX, 1), availH / Math.max(maxY - minY, 1));
+    const zoom = clampZoom(Math.min(INITIAL_MAX_ZOOM, Math.max(INITIAL_MIN_ZOOM, raw)));
     animateTo({
       zoom,
-      x: el.clientWidth / 2 - worldCx * zoom,
-      y: el.clientHeight / 2 - worldCy * zoom,
+      x: el.clientWidth / 2 - (anchor.x + anchor.width / 2) * zoom,
+      y: el.clientHeight / 2 - (anchor.y + anchor.height / 2) * zoom,
     });
-  }, [rects, camera.zoom, clampZoom, animateTo]);
+  }, [nodes, effectiveRects, clampZoom, animateTo]);
 
-  // Re-fires on nonce only (repeat focus on the same node re-centers without re-running on every
+  // Re-fires on nonce only (repeat focus on the same node re-frames without re-running on every
   // camera change, hence the ref-carried callback).
-  const centerOnNodeRef = useRef(centerOnNode);
-  centerOnNodeRef.current = centerOnNode;
+  const focusOnPathRef = useRef(focusOnPath);
+  focusOnPathRef.current = focusOnPath;
   useEffect(() => {
     if (focusRequest?.nodeId) {
-      centerOnNodeRef.current(focusRequest.nodeId);
+      // Let the focused layout settle before measuring it.
+      const id = window.setTimeout(() => focusOnPathRef.current(focusRequest.nodeId), 80);
+      return () => window.clearTimeout(id);
     }
+    return undefined;
   }, [focusRequest?.nodeId, focusRequest?.nonce]);
 
   const fitAllRef = useRef(fitAll);
@@ -349,13 +446,11 @@ const AttackPathCanvas = ({
     return undefined;
   }, [fitRequest]);
 
-  // Live pursuit: pan to center the bounding box of the delta's new nodes, keeping the CURRENT zoom
-  // (that is the whole point — the run stops "unzooming" and the camera chases the action instead).
-  // Backs off while a manual interaction is fresh, so a user inspecting the graph — or holding the
-  // full overview after a fit — is not fought over the camera.
-  const pursueNodes = useCallback((nodeIds: readonly string[]) => {
+  // Pan to center a set of nodes, keeping the CURRENT zoom. Unconditional: the caller decides whether
+  // the camera may move (live pursuit backs off, a user expansion does not).
+  const centerOnNodes = useCallback((nodeIds: readonly string[]) => {
     const el = containerRef.current;
-    if (!el || performance.now() - lastManualAt.current < PURSUIT_MANUAL_PAUSE_MS) {
+    if (!el) {
       return;
     }
     let minX = Infinity;
@@ -363,7 +458,7 @@ const AttackPathCanvas = ({
     let maxX = -Infinity;
     let maxY = -Infinity;
     nodeIds.forEach((id) => {
-      const r = rects.get(id);
+      const r = effectiveRects.get(id);
       if (!r) {
         return;
       }
@@ -372,7 +467,7 @@ const AttackPathCanvas = ({
       maxX = Math.max(maxX, r.x + r.width);
       maxY = Math.max(maxY, r.y + r.height);
     });
-    // None of the delta's nodes exist in this view (e.g. clustered away): leave the camera alone.
+    // None of the nodes exist in this view (e.g. clustered away): leave the camera alone.
     if (minX === Infinity) {
       return;
     }
@@ -382,9 +477,22 @@ const AttackPathCanvas = ({
       x: el.clientWidth / 2 - ((minX + maxX) / 2) * zoom,
       y: el.clientHeight / 2 - ((minY + maxY) / 2) * zoom,
     });
-  }, [rects, camera.zoom, animateTo]);
+  }, [effectiveRects, camera.zoom, animateTo]);
+
+  // Live pursuit: chase the nodes the latest delta introduced (that is the whole point — the run stops
+  // "unzooming" and the camera follows the action instead). Backs off while a manual interaction is
+  // fresh, so a user inspecting the graph — or holding the full overview after a fit — is not fought
+  // over the camera.
+  const pursueNodes = useCallback((nodeIds: readonly string[]) => {
+    if (performance.now() - lastManualAt.current < PURSUIT_MANUAL_PAUSE_MS) {
+      return;
+    }
+    centerOnNodes(nodeIds);
+  }, [centerOnNodes]);
   const pursueNodesRef = useRef(pursueNodes);
   pursueNodesRef.current = pursueNodes;
+  const centerOnNodesRef = useRef(centerOnNodes);
+  centerOnNodesRef.current = centerOnNodes;
   useEffect(() => {
     if (pursuitRequest && pursuitRequest.nodeIds.length > 0) {
       // Let the delta's new cards lay out before chasing them.
@@ -395,6 +503,27 @@ const AttackPathCanvas = ({
     return undefined;
     // Keyed on the nonce alone: nodeIds travel with it, and the ref keeps pursueNodes fresh.
   }, [pursuitRequest?.nonce]);
+  // Anchored expansion: raise the hold BEFORE the expanded nodes land (this effect runs on the same
+  // commit as the click, the bigger world arrives on the next one), then re-center the anchor at the
+  // current zoom once the layout has settled, and drop the hold. Uses centerOnNodes, not pursueNodes:
+  // the user just asked for this, so it is not subject to pursuit's manual-interaction back-off. It
+  // counts as a manual move itself, so a live delta does not immediately yank the camera off it.
+  useEffect(() => {
+    if (!anchorRequest?.nodeId) {
+      return undefined;
+    }
+    holdForAnchorRef.current = true;
+    const nodeId = anchorRequest.nodeId;
+    const id = window.setTimeout(() => {
+      centerOnNodesRef.current([nodeId]);
+      markManualRef.current();
+      holdForAnchorRef.current = false;
+    }, 80);
+    return () => {
+      window.clearTimeout(id);
+      holdForAnchorRef.current = false;
+    };
+  }, [anchorRequest?.nodeId, anchorRequest?.nonce]);
 
   // Drag-to-pan on the empty canvas: a move past the threshold pans; a click without movement
   // clears the selection (background click). Cards stop propagation of their own pointerdown.
@@ -456,6 +585,89 @@ const AttackPathCanvas = ({
     }
   };
 
+  // Per-card drag, mirroring the canvas-level pan: a pointer-down on a card starts tracking, a move
+  // past DRAG_THRESHOLD commits to a drag (captures the pointer, records the offset in world units
+  // so it stays correct at any zoom), and a pointer-up either drops the card (drag) or is treated as
+  // a plain click on the card (no movement) — a genuine drag never also fires the click callback.
+  const nodeDrag = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    baseDx: number;
+    baseDy: number;
+    moved: boolean;
+    pointerId: number;
+  } | null>(null);
+  const justDraggedIds = useRef<Set<string>>(new Set());
+
+  const handleCardPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>, nodeId: string) => {
+    if (e.button !== 0) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const current = dragOffsets.get(nodeId);
+    nodeDrag.current = {
+      id: nodeId,
+      startX: e.clientX,
+      startY: e.clientY,
+      baseDx: current?.dx ?? 0,
+      baseDy: current?.dy ?? 0,
+      moved: false,
+      pointerId: e.pointerId,
+    };
+  }, [dragOffsets]);
+
+  const handleCardPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const state = nodeDrag.current;
+    if (!state) {
+      return;
+    }
+    const dx = e.clientX - state.startX;
+    const dy = e.clientY - state.startY;
+    if (!state.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+      state.moved = true;
+      stopAnim();
+      markManual();
+    }
+    if (state.moved) {
+      const worldDx = state.baseDx + dx / camera.zoom;
+      const worldDy = state.baseDy + dy / camera.zoom;
+      setDragOffsets((prev) => {
+        const next = new Map(prev);
+        next.set(state.id, {
+          dx: worldDx,
+          dy: worldDy,
+        });
+        return next;
+      });
+    }
+  }, [camera.zoom, stopAnim, markManual]);
+
+  const handleCardPointerUp = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const state = nodeDrag.current;
+    nodeDrag.current = null;
+    if (!state) {
+      return;
+    }
+    if (state.moved) {
+      e.currentTarget.releasePointerCapture?.(state.pointerId);
+      justDraggedIds.current.add(state.id);
+    } else {
+      e.currentTarget.releasePointerCapture?.(state.pointerId);
+    }
+  }, []);
+
+  const handleCardPointerCancel = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const state = nodeDrag.current;
+    nodeDrag.current = null;
+    if (!state) {
+      return;
+    }
+    e.currentTarget.releasePointerCapture?.(state.pointerId);
+  }, []);
+
   const dispatchNodeClick = useCallback((node: AttackPathFlowNode) => {
     const data = node.data;
     if (node.type === AP_FLOW_NODE_TYPE.asset) {
@@ -487,7 +699,7 @@ const AttackPathCanvas = ({
     const right = size.w + CULL_MARGIN;
     const bottom = size.h + CULL_MARGIN;
     return nodes.filter((n) => {
-      const r = rects.get(n.id);
+      const r = effectiveRects.get(n.id);
       if (!r) {
         return false;
       }
@@ -497,7 +709,7 @@ const AttackPathCanvas = ({
       const sh = r.height * camera.zoom;
       return sx + sw >= left && sx <= right && sy + sh >= top && sy <= bottom;
     });
-  }, [nodes, rects, camera, size]);
+  }, [nodes, effectiveRects, camera, size]);
 
   const controlButtonSx = {
     'padding': 0.75,
@@ -569,7 +781,7 @@ const AttackPathCanvas = ({
       >
         <AttackPathConnectors geometries={edgeGeometries} width={worldWidth} height={worldHeight} />
         {visibleNodes.map((node) => {
-          const r = rects.get(node.id);
+          const r = effectiveRects.get(node.id);
           if (!r) {
             return null;
           }
@@ -578,20 +790,30 @@ const AttackPathCanvas = ({
             <Box
               key={node.id}
               className={isEntering ? AP_NODE_ENTER_CLASS : undefined}
-              onPointerDown={e => e.stopPropagation()}
+              onPointerDown={e => handleCardPointerDown(e, node.id)}
+              onPointerMove={handleCardPointerMove}
+              onPointerUp={handleCardPointerUp}
+              onPointerCancel={handleCardPointerCancel}
               onClick={(e) => {
                 e.stopPropagation();
+                if (justDraggedIds.current.has(node.id)) {
+                  justDraggedIds.current.delete(node.id);
+                  return;
+                }
                 const n = nodeById.get(node.id);
                 if (n) {
                   dispatchNodeClick(n);
                 }
               }}
               sx={{
-                position: 'absolute',
-                left: r.x,
-                top: r.y,
-                width: r.width,
-                height: r.height,
+                'position': 'absolute',
+                'left': r.x,
+                'top': r.y,
+                'width': r.width,
+                'height': r.height,
+                'cursor': 'grab',
+                '&:active': { cursor: 'grabbing' },
+                'touchAction': 'none',
               }}
             >
               {renderCard(node)}
@@ -656,7 +878,7 @@ const AttackPathCanvas = ({
       >
         {showMiniMap && size.w > 0 && (
           <AttackPathMiniMap
-            rects={[...rects.values()]}
+            rects={[...effectiveRects.values()]}
             worldWidth={worldWidth}
             worldHeight={worldHeight}
             viewport={viewport}

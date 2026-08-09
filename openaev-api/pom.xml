@@ -26,7 +26,7 @@
         <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
         <datasource-proxy.version>1.11.0</datasource-proxy.version>
         <!-- Server-side report rendering (headless Chromium). Apache-2.0. -->
-        <playwright.version>1.61.0</playwright.version>
+        <playwright.version>1.62.0</playwright.version>
     </properties>
 
     <profiles>
@@ -265,7 +265,7 @@
         <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
-            <version>1.4.2</version>
+            <version>1.5.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

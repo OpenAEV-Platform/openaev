@@ -576,7 +576,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             contractDB, matchingContract.get(), isPayloads, injector);
         existingIds.add(contractDB.getId());
         toUpdate.add(contractDB);
-      } else if (shouldDeleteContract(contractDB, injector)) {
+      } else if (shouldDeleteContract(contractDB, injector, staticContracts)) {
         toDelete.add(contractDB.getId());
       }
     }
@@ -613,8 +613,28 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     }
   }
 
-  private boolean shouldDeleteContract(InjectorContract contractDB, Injector injector) {
-    return !contractDB.getCustom() && (!injector.isPayloads() || contractDB.getPayload() == null);
+  /**
+   * Decides whether a DB contract that is missing from the contractor's static catalog should be
+   * removed during builtin re-registration.
+   *
+   * <p>Payload injectors keep contracts still linked to a payload. Injectors that expose no static
+   * contracts (dynamic synthesis only, e.g. phishing landing pages) also keep theirs: the owning
+   * service creates/deletes those contracts. Without this guard, every restart wiped phishing
+   * arsenal actions because {@code PhishingContract.contracts()} is empty.
+   */
+  private boolean shouldDeleteContract(
+      InjectorContract contractDB, Injector injector, List<Contract> staticContracts) {
+    if (Boolean.TRUE.equals(contractDB.getCustom())) {
+      return false;
+    }
+    if (injector.isPayloads()) {
+      return contractDB.getPayload() == null;
+    }
+    // Dynamic-only injectors: leave synthesized contracts alone.
+    if (staticContracts == null || staticContracts.isEmpty()) {
+      return false;
+    }
+    return true;
   }
 
   private Injector createNewBuiltinInjector(

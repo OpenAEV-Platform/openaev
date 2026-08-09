@@ -208,6 +208,18 @@ public class Exercise implements GrantableBase, TenantBase {
   @JsonProperty("exercise_lessons_enabled")
   private boolean lessonsEnabled = false;
 
+  /**
+   * Durable marker that this simulation was created by an autonomous (orchestrator-driven) run. It
+   * survives the teardown of the {@code autonomous_runs} row (rebuild / relaunch supersede), so the
+   * simulations history and the simulation hero can keep telling Normal from Autonomous long after
+   * the run itself is gone.
+   */
+  @Getter
+  @Column(name = "exercise_autonomous")
+  @JsonProperty("exercise_autonomous")
+  @Queryable(filterable = true, sortable = true)
+  private boolean autonomous = false;
+
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore

@@ -200,3 +200,5 @@ runs:
         name: jfrog-dry-run-archives
         path: |
           openaev-*.tar.gz
+        # Already gzipped — re-zipping costs CPU for ~0% gain
+        compression-level: 0

@@ -6,13 +6,14 @@ import {
   ExtensionOutlined,
   GroupsOutlined,
   InsertChartOutlined,
+  KeyOutlined,
   LayersOutlined,
   PersonOutlined,
+  PhishingOutlined,
   PlayCircleOutlineOutlined,
   RocketLaunchOutlined,
   RouteOutlined,
   RowingOutlined,
-  SchoolOutlined,
 } from '@mui/icons-material';
 import {
   Binoculars,
@@ -116,6 +117,12 @@ const LeftBar = () => {
           label: 'Asset groups',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
+        {
+          path: `/admin/credentials`,
+          icon: () => (<KeyOutlined />),
+          label: 'Credentials',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
+        },
       ],
     },
     {
@@ -163,8 +170,8 @@ const LeftBar = () => {
           href: 'components',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DOCUMENTS)
             || ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS)
-            || ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES)
-            || ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED),
+            || ability.can(ACTIONS.ACCESS, SUBJECTS.PHISHING)
+            || ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES),
           subItems: [
             {
               link: '/admin/components/documents',
@@ -179,16 +186,16 @@ const LeftBar = () => {
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS),
             },
             {
+              link: '/admin/components/phishing',
+              label: 'Phishing',
+              icon: () => (<PhishingOutlined fontSize="small" />),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PHISHING),
+            },
+            {
               link: '/admin/components/challenges',
               label: 'Challenges',
               icon: () => (<RowingOutlined fontSize="small" />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES),
-            },
-            {
-              link: '/admin/components/lessons',
-              label: 'Lessons learned',
-              icon: () => (<SchoolOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED),
             },
           ],
         },

@@ -478,6 +478,55 @@ const LogicGraph = ({
         onZoomChange={(zoom) => { zoomRef.current = zoom; }}
         onAutoLayout={readOnly ? undefined : handleAutoLayout}
       >
+        {/* MITRE-tactic columns: one padded band behind each tactic's action cards, headed by the
+            tactic name. Every band uses the SAME theme blue — a real chain carries far too many
+            tactics for a colour cycle to stay legible, and near-identical hues would read as a
+            meaning they do not carry; the column and its header already identify the tactic. The
+            layout gives every tactic its own column, so bands are side by side and can never overlap.
+            Rendered first so they sit behind the connectors and cards, and they never intercept
+            pointer events. */}
+        {layout.columns.map(column => (
+          <div
+            key={`tactic-col-${column.tactic}`}
+            style={{
+              position: 'absolute',
+              left: column.x,
+              top: column.y,
+              width: column.width,
+              height: column.height,
+              pointerEvents: 'none',
+              borderRadius: 16,
+              backgroundColor: alpha(theme.palette.primary.main, 0.06),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.28)}`,
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                height: column.headerHeight,
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 12px',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.09em',
+                textTransform: 'uppercase',
+                color: theme.palette.primary.main,
+              }}
+            >
+              {column.tactic || t('Other')}
+            </div>
+          </div>
+        ))}
         <Connectors
           edges={routedEdges}
           width={contentSize.width}
@@ -487,46 +536,6 @@ const LogicGraph = ({
           onDeleteEdge={handleDeleteEdge}
           readOnly={readOnly}
         />
-        {/* MITRE-tactic column bands: a faint coloured rectangle behind each column's nodes, with the
-            tactic name as a header, so it reads which nodes belong to which tactic. */}
-        {layout.columns.map(col => (
-          <div
-            key={`tactic-col-${col.tactic}`}
-            style={{
-              position: 'absolute',
-              left: col.x,
-              top: col.top,
-              width: col.width,
-              height: col.height,
-              pointerEvents: 'none',
-              borderRadius: 8,
-              backgroundColor: alpha(theme.palette.primary.main, 0.05),
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.22)}`,
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                top: col.headerY - col.top,
-                left: 0,
-                width: '100%',
-                textAlign: 'center',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                padding: '0 8px',
-                boxSizing: 'border-box',
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: theme.palette.text.secondary,
-              }}
-            >
-              {col.tactic || t('Other')}
-            </div>
-          </div>
-        ))}
         {positionedNodes.map((node) => {
           const dimmed = isDimmed(node.id);
           if (node.kind === 'action') {

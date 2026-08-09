@@ -277,6 +277,7 @@ export interface AiAttack {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -636,6 +637,7 @@ export interface Asset {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -893,6 +895,7 @@ export interface AssetOutput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -1041,6 +1044,7 @@ export interface AttackPathExecutionDetailDTO {
   detectionStatus?: string;
   endpointKey?: string;
   executedAt?: string;
+  executionStatus?: string;
   findings?: AttackPathExecutionFindingItemDTO[];
   injectId?: string;
   injectorCommandLine?: string;
@@ -1101,6 +1105,7 @@ export interface AttackPathNodeDTO {
   dependsOn?: string[];
   entityKind?: string;
   executedAt?: string;
+  executionStatus?: string;
   executionsTraces?: any[];
   expectations?: any[];
   findingCounts?: Record<string, number>;
@@ -1108,10 +1113,12 @@ export interface AttackPathNodeDTO {
   findingsTypeNodeId?: string;
   hostname?: string;
   id?: string;
+  injectId?: string;
   injectorType?: string;
   ip?: string;
   isFinding?: boolean;
   label?: string;
+  payloadId?: string;
   payloadName?: string;
   platform?: string;
   privilege?: string;
@@ -1274,6 +1281,12 @@ export interface AutonomousAttackPathStepState {
   traces?: string[];
   /** Inject type (injector) of the step */
   type?: string;
+}
+
+/** How to convert an autonomous scenario into a manual chained scenario */
+export interface AutonomousConvertToManualInput {
+  /** DUPLICATE creates a new manual chained scenario from a copy and leaves the AI run untouched; IN_PLACE turns this scenario manual for good (irreversible). */
+  mode: "DUPLICATE" | "IN_PLACE";
 }
 
 /** Tenant default additional agents for autonomous runs */
@@ -1499,9 +1512,9 @@ export interface AutonomousRun {
   autonomous_run_objective: string;
   /** Key of the objective template the run was seeded from, if any */
   autonomous_run_objective_template_key?: string;
-  /** Plan summary captured from a dry-run and handed to the promoted real run as guidance, so the live run follows the plan while still adapting to what it finds. */
+  /** Plan summary captured while building the logic and handed to a subsequent live autonomous run as guidance, so the live run follows the plan while still adapting to what it finds. */
   autonomous_run_plan_guidance?: string;
-  /** Dry-run flag. When true the orchestrator only designs the attack path (scope + steps + decisions) and nothing is executed; the run is shown in draft orange and can be promoted to a real, executing run. */
+  /** Build flag. When true the orchestrator only authors the scenario's logic (scope + steps + decisions) and nothing is executed; the built logic is shown in draft orange and can then be launched (in normal or autonomous mode). */
   autonomous_run_plan_mode: boolean;
   /** Scenario the simulation was created from, if any */
   autonomous_run_scenario_id?: string;
@@ -1530,7 +1543,7 @@ export interface AutonomousRun {
     | "FAILED"
     | "CANCELED";
   /**
-   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Null means no OpenAEV-enforced timeout (e.g. plan/dry-run mode).
+   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Null means no OpenAEV-enforced timeout (e.g. build mode).
    * @format int64
    */
   autonomous_run_timeout_seconds?: number;
@@ -1562,7 +1575,7 @@ export interface AutonomousRunCreateInput {
   objective?: string;
   /** Key of an objective template to seed the objective from */
   objective_template_key?: string;
-  /** Dry-run: when true the orchestrator only designs the attack path (scope, steps, decisions) and executes nothing. The operator can review the plan and later run it for real. Defaults to false (immediate live run). */
+  /** Build mode: when true the orchestrator only authors the scenario's logic (scope, steps, decisions) and executes nothing. The operator can review the built logic and later launch the scenario (in normal or autonomous mode). Defaults to false (immediate live autonomous run). */
   plan_mode?: boolean;
   /** Advanced/optional: seed from an existing chaining scenario instead of auto-provisioning. Leave empty for a fully autonomous run. */
   scenario_id?: string;
@@ -1575,7 +1588,7 @@ export interface AutonomousRunCreateInput {
   /** Optional team defining the in-scope audience for identity-targeted objectives (phishing, human credential harvesting). Legacy single-team shortcut; prefer the mixed 'scope' list. */
   scope_team_id?: string;
   /**
-   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Defaults to 24h when omitted; ignored in plan/dry-run mode.
+   * Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers the orchestrator with winddown signals shortly before it, then hard-stops the run (exactly like an operator Stop) when it is reached. Defaults to 24h when omitted; ignored in build mode (authoring the logic is untimed).
    * @format int64
    */
   timeout_seconds?: number;
@@ -1640,6 +1653,8 @@ export interface AutonomousStatusUpdateInput {
 
 /** A finding-driven trigger: react to findings and consume their values */
 export interface AutonomousStepTrigger {
+  /** Short, human-readable name for the EVENT this trigger represents - the discovery it fires on, phrased as an operator would read it (e.g. "SMB service exposed", "Valid credentials found", "Open web port discovered"). It becomes the event node's title in the Logic graph. When omitted, a readable name is derived from the filters so the event is never shown as "Untitled event". */
+  event_name?: string;
   /** The predicates that make this step fire. Empty means: fire as soon as any of the mapped key_types is present in the finding pool. */
   filters?: AutonomousTriggerFilter[];
   /** Which finding values to bind into this step's inject inputs (GLOBAL mappers). This is how the step attacks what upstream steps discovered. */
@@ -1860,6 +1875,7 @@ interface BasePayload {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -1933,6 +1949,7 @@ interface BasePayloadCreateInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -2534,6 +2551,7 @@ export interface Command {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -2652,6 +2670,8 @@ export interface ConditionCreateInput {
   )[];
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
+  /** Optional display name. On a trigger's root condition this is the event name shown in the Logic graph; leave null on child/mapper conditions. */
+  condition_name?: string;
   /** ID of the step linked to the key */
   condition_step_from?: string;
   /** Temporary ID of the condition */
@@ -3027,6 +3047,111 @@ export interface CreateExerciseInput {
   exercise_tags?: string[];
 }
 
+export interface CredentialBulkProcessingInput {
+  credential_ids_to_ignore?: string[];
+  credential_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
+export interface CredentialContractField {
+  choices?: string[];
+  field_name?: string;
+  field_type?: "text" | "password" | "select" | "number" | "checkbox";
+  required?: boolean;
+}
+
+export interface CredentialContractOutput {
+  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
+  credential_type: "IDENTITY";
+  fields?: CredentialContractField[];
+}
+
+export interface CredentialCreatedByOutput {
+  /** Creator user ID */
+  user_id?: string;
+  /** Creator display name */
+  user_name?: string;
+}
+
+export interface CredentialFullOutput {
+  /** Credential authentication method */
+  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
+  /**
+   * Credential creation timestamp
+   * @format date-time
+   */
+  credential_created_at: string;
+  /** User who created the credential */
+  credential_created_by: CredentialCreatedByOutput;
+  /** Credential description */
+  credential_description?: string;
+  /** Credential description */
+  credential_hash_algorithm?: "SHA" | "NTLM";
+  /** Credential ID */
+  credential_id: string;
+  /**
+   * Last credential verification timestamp
+   * @format date-time
+   */
+  credential_last_verified_at?: string;
+  /** Credential name */
+  credential_name: string;
+  /** Credential status */
+  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
+  /**
+   * Tag IDs linked to the credential
+   * @uniqueItems true
+   */
+  credential_tags_ids?: string[];
+  /** Credential type */
+  credential_type: "IDENTITY";
+  /** Secret username */
+  credential_username?: string;
+}
+
+export interface CredentialInput {
+  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
+  credential_description?: string;
+  credential_hash?: string;
+  credential_hash_algorithm?: "SHA" | "NTLM";
+  /** @minLength 1 */
+  credential_name: string;
+  credential_password?: string;
+  credential_tags?: string[];
+  credential_type: "IDENTITY";
+  credential_username?: string;
+}
+
+export interface CredentialOutput {
+  /** Credential authentication method */
+  credential_auth_method?: "USERNAME_PASSWORD" | "HASH";
+  /**
+   * Credential creation timestamp
+   * @format date-time
+   */
+  credential_created_at?: string;
+  /** User who created the credential */
+  credential_created_by?: CredentialCreatedByOutput;
+  /** Credential ID */
+  credential_id?: string;
+  /**
+   * Last credential verification timestamp
+   * @format date-time
+   */
+  credential_last_verified_at?: string;
+  /** Credential name */
+  credential_name?: string;
+  /** Credential status */
+  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
+  /**
+   * Tag IDs linked to the credential
+   * @uniqueItems true
+   */
+  credential_tags_ids?: string[];
+  /** Credential type */
+  credential_type?: "IDENTITY";
+}
+
 export interface CustomDashboard {
   /** @format date-time */
   custom_dashboard_created_at: string;
@@ -3076,6 +3201,47 @@ export interface CustomDashboardParametersInput {
     | "startDate"
     | "endDate"
     | "scenario";
+}
+
+export interface CustomDomain {
+  /** @format date-time */
+  custom_domain_created_at: string;
+  /** @minLength 1 */
+  custom_domain_hostname: string;
+  /** @minLength 1 */
+  custom_domain_id: string;
+  /** @format date-time */
+  custom_domain_last_checked_at?: string;
+  custom_domain_last_error?: string;
+  custom_domain_status: "PENDING" | "VERIFIED" | "FAILED";
+  /** @format date-time */
+  custom_domain_updated_at: string;
+  /** @minLength 1 */
+  custom_domain_verification_token: string;
+  /** @format date-time */
+  custom_domain_verified_at?: string;
+  listened?: boolean;
+}
+
+export interface CustomDomainInput {
+  /**
+   * Fully-qualified hostname to serve landing pages on, e.g. security.acme.com
+   * @minLength 1
+   */
+  custom_domain_hostname: string;
+}
+
+export interface CustomDomainInstructions {
+  /** Name of the CNAME record to create (the custom hostname itself) */
+  cname_record_name?: string;
+  /** Target the CNAME should point to (the platform host) */
+  cname_record_value?: string;
+  /** The custom hostname these instructions apply to */
+  hostname?: string;
+  /** Name of the TXT ownership challenge record */
+  txt_record_name?: string;
+  /** Value the TXT ownership challenge record must carry */
+  txt_record_value?: string;
 }
 
 /** Payload to create a CVE */
@@ -3289,6 +3455,7 @@ export interface DnsResolution {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -3550,6 +3717,7 @@ export interface Endpoint {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -3686,6 +3854,7 @@ export interface EndpointInput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -3837,6 +4006,7 @@ export interface EndpointOutput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -4039,6 +4209,7 @@ export interface EndpointOverviewOutput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -4185,6 +4356,7 @@ export interface EndpointRegisterInput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -4800,6 +4972,7 @@ export interface Executable {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -4985,6 +5158,7 @@ export interface Exercise {
   /** @format int64 */
   exercise_all_users_number?: number;
   exercise_articles?: string[];
+  exercise_autonomous?: boolean;
   exercise_category?: string;
   /** @format int64 */
   exercise_communications_number?: number;
@@ -5079,6 +5253,8 @@ export interface ExerciseBulkProcessingInput {
 }
 
 export interface ExerciseSimple {
+  /** Whether this simulation was created by an autonomous (AI-driven) run */
+  exercise_autonomous?: boolean;
   /** Exercise Category */
   exercise_category?: string;
   exercise_global_score: ExpectationResultsByType[];
@@ -5259,6 +5435,7 @@ export interface FileDrop {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -5407,6 +5584,74 @@ export interface FindingInput {
     | "expectation_signature";
   /** @minLength 1 */
   finding_value: string;
+}
+
+export interface FindingSummaryOutput {
+  /**
+   * Number of distinct impacted asset groups across all occurrences
+   * @format int64
+   */
+  finding_asset_groups_count?: number;
+  /**
+   * Number of distinct impacted assets across all occurrences
+   * @format int64
+   */
+  finding_assets_count?: number;
+  /**
+   * First time this finding was seen across all occurrences
+   * @format date-time
+   */
+  finding_first_seen?: string;
+  /** Representative finding id used to resolve the (type, value) group */
+  finding_id?: string;
+  /**
+   * Last time this finding was seen across all occurrences
+   * @format date-time
+   */
+  finding_last_seen?: string;
+  /**
+   * Number of occurrences (one per inject that produced this finding)
+   * @format int64
+   */
+  finding_occurrences?: number;
+  /**
+   * Number of distinct impacted teams across all occurrences
+   * @format int64
+   */
+  finding_teams_count?: number;
+  /** Finding type */
+  finding_type:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature";
+  /**
+   * Number of distinct impacted persons across all occurrences
+   * @format int64
+   */
+  finding_users_count?: number;
+  /** Finding value */
+  finding_value?: string;
 }
 
 export interface FlagInput {
@@ -5837,6 +6082,7 @@ export interface InjectExpectationOutput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER"
@@ -7269,6 +7515,7 @@ export interface NetworkTraffic {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -7382,8 +7629,11 @@ export interface NotificationTriggerInput {
     | "THREAT_ARSENAL"
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
+    | "CREDENTIAL_ASSET"
     | "DOCUMENT"
     | "CHANNEL"
+    | "PHISHING_LANDING_PAGE"
+    | "PHISHING_EMAIL_TEMPLATE"
     | "FINDING"
     | "DASHBOARD"
     | "REPORT"
@@ -7482,8 +7732,11 @@ export interface NotificationTriggerOutput {
     | "THREAT_ARSENAL"
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
+    | "CREDENTIAL_ASSET"
     | "DOCUMENT"
     | "CHANNEL"
+    | "PHISHING_LANDING_PAGE"
+    | "PHISHING_EMAIL_TEMPLATE"
     | "FINDING"
     | "DASHBOARD"
     | "REPORT"
@@ -7802,8 +8055,46 @@ export interface PageConnectorInstanceLog {
   totalPages?: number;
 }
 
+export interface PageCredentialOutput {
+  content?: CredentialOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageCustomDashboard {
   content?: CustomDashboard[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageCustomDomain {
+  content?: CustomDomain[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -8127,6 +8418,44 @@ export interface PageOrganization {
 
 export interface PagePayload {
   content?: Payload[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePhishingEmailTemplate {
+  content?: PhishingEmailTemplate[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePhishingLandingPage {
+  content?: PhishingLandingPage[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -8580,6 +8909,7 @@ export interface PayloadInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -8663,6 +8993,7 @@ export interface PayloadOutput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -8764,6 +9095,7 @@ export interface PayloadUpdateInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -8831,6 +9163,7 @@ export interface PayloadUpsertInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -8868,6 +9201,110 @@ export interface PayloadUpsertInput {
 export interface PayloadsDeprecateInput {
   collector_id: string;
   payload_external_ids: string[];
+}
+
+export interface PhishingEmailTemplate {
+  listened?: boolean;
+  phishing_email_template_add_tracking_pixel?: boolean;
+  /** @format date-time */
+  phishing_email_template_created_at: string;
+  phishing_email_template_description?: string;
+  phishing_email_template_from_email?: string;
+  phishing_email_template_from_name?: string;
+  phishing_email_template_html_body?: string;
+  /** @minLength 1 */
+  phishing_email_template_id: string;
+  /** @minLength 1 */
+  phishing_email_template_name: string;
+  /** @minLength 1 */
+  phishing_email_template_subject: string;
+  phishing_email_template_text_body?: string;
+  /** @format date-time */
+  phishing_email_template_updated_at: string;
+}
+
+export interface PhishingEmailTemplateBulkProcessingInput {
+  email_template_ids_to_ignore?: string[];
+  email_template_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
+export interface PhishingEmailTemplateInput {
+  phishing_email_template_add_tracking_pixel?: boolean;
+  phishing_email_template_description?: string;
+  phishing_email_template_from_email?: string;
+  phishing_email_template_from_name?: string;
+  phishing_email_template_html_body?: string;
+  /** @minLength 1 */
+  phishing_email_template_name: string;
+  /** @minLength 1 */
+  phishing_email_template_subject: string;
+  phishing_email_template_text_body?: string;
+}
+
+export interface PhishingLandingPage {
+  listened?: boolean;
+  logos?: Document[];
+  phishing_landing_page_capture_passwords?: boolean;
+  phishing_landing_page_capture_submitted_data?: boolean;
+  /** @format date-time */
+  phishing_landing_page_created_at: string;
+  phishing_landing_page_css?: string;
+  phishing_landing_page_custom_domain?: string;
+  phishing_landing_page_description?: string;
+  phishing_landing_page_html?: string;
+  /** @minLength 1 */
+  phishing_landing_page_id: string;
+  phishing_landing_page_logo_dark?: string;
+  phishing_landing_page_logo_light?: string;
+  /** @minLength 1 */
+  phishing_landing_page_name: string;
+  phishing_landing_page_primary_color_dark?: string;
+  phishing_landing_page_primary_color_light?: string;
+  phishing_landing_page_redirect_url?: string;
+  /** @format date-time */
+  phishing_landing_page_updated_at: string;
+}
+
+export interface PhishingLandingPageBulkProcessingInput {
+  landing_page_ids_to_ignore?: string[];
+  landing_page_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
+export interface PhishingLandingPageInput {
+  phishing_landing_page_capture_passwords?: boolean;
+  phishing_landing_page_capture_submitted_data?: boolean;
+  phishing_landing_page_css?: string;
+  phishing_landing_page_custom_domain?: string;
+  phishing_landing_page_description?: string;
+  phishing_landing_page_html?: string;
+  /** @minLength 1 */
+  phishing_landing_page_name: string;
+  phishing_landing_page_primary_color_dark?: string;
+  phishing_landing_page_primary_color_light?: string;
+  phishing_landing_page_redirect_url?: string;
+}
+
+export interface PhishingLandingPageLogoInput {
+  phishing_landing_page_logo_dark?: string;
+  phishing_landing_page_logo_light?: string;
+}
+
+export interface PhishingLandingPageReader {
+  phishing_landing_page_css?: string;
+  phishing_landing_page_html?: string;
+  phishing_landing_page_logo_dark?: string;
+  phishing_landing_page_logo_light?: string;
+  phishing_landing_page_name?: string;
+  phishing_landing_page_primary_color_dark?: string;
+  phishing_landing_page_primary_color_light?: string;
+}
+
+export interface PhishingSubmitInput {
+  data?: Record<string, string>;
+  password?: string;
+  username?: string;
 }
 
 export interface PlatformGroupInput {
@@ -8929,6 +9366,9 @@ export interface PlatformRoleInput {
     | "ACCESS_CHANNELS"
     | "MANAGE_CHANNELS"
     | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
     | "ACCESS_CHALLENGES"
     | "MANAGE_CHALLENGES"
     | "DELETE_CHALLENGES"
@@ -8997,7 +9437,6 @@ export interface PlatformSettings {
     | "CREDENTIAL_ASSET"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
-    | "AUTONOMOUS_ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** True if the Tanium Executor is enabled */
@@ -9081,6 +9520,8 @@ export interface PlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
+  /** Current platform run mode (normal or safe) */
+  platform_run_mode?: "normal" | "safe";
   /**
    * Idle timeout in milliseconds before the UI locks the screen (0 = disabled). Read-only, driven by server configuration
    * @format int64
@@ -9294,7 +9735,6 @@ export interface PublicPlatformSettings {
     | "CREDENTIAL_ASSET"
     | "INJECT_CHAINING"
     | "ATTACK_PATH"
-    | "AUTONOMOUS_ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
@@ -9312,6 +9752,8 @@ export interface PublicPlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
+  /** Current platform run mode (normal or safe) */
+  platform_run_mode?: "normal" | "safe";
   /**
    * Theme of the platform
    * @minLength 1
@@ -9485,6 +9927,11 @@ export interface RelatedFindingOutput {
   /** Simulation linked to inject */
   finding_simulation?: ExerciseSimple;
   /**
+   * Teams linked to the finding occurrence
+   * @uniqueItems true
+   */
+  finding_teams?: TargetSimple[];
+  /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
@@ -9518,6 +9965,11 @@ export interface RelatedFindingOutput {
    * @format date-time
    */
   finding_updated_at: string;
+  /**
+   * Players (persons) linked to the finding occurrence
+   * @uniqueItems true
+   */
+  finding_users?: TargetSimple[];
   /**
    * Finding Value
    * @minLength 1
@@ -9739,6 +10191,9 @@ export interface RoleInput {
     | "ACCESS_CHANNELS"
     | "MANAGE_CHANNELS"
     | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
     | "ACCESS_CHALLENGES"
     | "MANAGE_CHALLENGES"
     | "DELETE_CHALLENGES"
@@ -10445,6 +10900,7 @@ export interface SecurityPlatform {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -10466,6 +10922,7 @@ export interface SecurityPlatform {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -10486,6 +10943,7 @@ export interface SecurityPlatformInput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -10510,6 +10968,7 @@ export interface SecurityPlatformSimpleOutput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -10530,6 +10989,7 @@ export interface SecurityPlatformUpsertInput {
     | "SOAR"
     | "NDR"
     | "ISPM"
+    | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
@@ -10602,6 +11062,7 @@ export interface SimulationChallengesReader {
 export interface SimulationDetails {
   /** @format int64 */
   exercise_all_users_number?: number;
+  exercise_autonomous?: boolean;
   exercise_category?: string;
   /** @format int64 */
   exercise_communications_number?: number;
@@ -11366,6 +11827,7 @@ export interface ThreatArsenalActionCreateInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -11447,6 +11909,7 @@ export interface ThreatArsenalActionFullOutput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -11535,6 +11998,7 @@ export interface ThreatArsenalActionUpdateInput {
       | "SOAR"
       | "NDR"
       | "ISPM"
+      | "EMAIL_SECURITY"
       | "LLM_FIREWALL"
       | "AI_GATEWAY"
       | "VULNERABILITY_SCANNER"
@@ -11781,6 +12245,9 @@ export interface User {
     | "ACCESS_CHANNELS"
     | "MANAGE_CHANNELS"
     | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
     | "ACCESS_CHALLENGES"
     | "MANAGE_CHALLENGES"
     | "DELETE_CHALLENGES"

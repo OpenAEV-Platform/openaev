@@ -4,93 +4,77 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
+permissions: {}
+
+concurrency:
+  group: copilot-review-${{ github.event.issue.number }}
+  cancel-in-progress: false
 
 jobs:
-  on-demand-review:
-    name: "🤖 On-demand agent review"
+  request-review:
+    name: "🤖 Request Copilot review"
     if: >-
       github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, '/review')
+      startsWith(github.event.comment.body, '/review') &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR'
+      )
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: write
     steps:
-      - name: Parse review command
-        id: parse
-        env:
-          COMMENT: ${{ github.event.comment.body }}
-        run: |
-          AGENT=""
-
-          case "$COMMENT" in
-            */review\ security*)   AGENT="security-reviewer" ;;
-            */review\ perf*)       AGENT="performance-reviewer" ;;
-            */review\ tenancy*)    AGENT="multi-tenancy-reviewer" ;;
-            */review\ test*)       AGENT="test-specialist" ;;
-            */review\ frontend*)   AGENT="frontend-reviewer" ;;
-            */review\ docs*)       AGENT="docs-reviewer" ;;
-            */review\ all*)        AGENT="all" ;;
-            *)
-              echo "Unknown review command: $COMMENT"
-              AGENT="unknown"
-              ;;
-          esac
-
-          echo "agent=$AGENT" >> "$GITHUB_OUTPUT"
-
-      - name: Acknowledge command
-        if: steps.parse.outputs.agent != 'unknown'
+      - name: Request GitHub Copilot code review
         uses: actions/github-script@v9
         with:
           script: |
-            const agent = '${{ steps.parse.outputs.agent }}';
-            const agentNames = {
-              'security-reviewer': '🔒 Security Reviewer',
-              'performance-reviewer': '⚡ Performance Reviewer',
-              'multi-tenancy-reviewer': '🏠 Multi-Tenancy Reviewer',
-              'test-specialist': '🧪 Test Specialist',
-              'frontend-reviewer': '🎨 Frontend Reviewer',
-              'docs-reviewer': '📖 Docs Reviewer',
-              'all': '🔒⚡🏠🧪🎨📖 All Agents',
+            const command = context.payload.comment.body.trim();
+            const request = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
             };
 
-            await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: context.payload.comment.id,
-              content: 'rocket',
-            });
+            if (command !== '/review') {
+              await github.rest.issues.createComment({
+                owner: request.owner,
+                repo: request.repo,
+                issue_number: request.pull_number,
+                body: '❓ The token-free workflow supports `/review` only. '
+                  + 'GitHub-hosted Copilot review applies repository instructions and '
+                  + 'relevant review skills automatically, but it cannot select a custom agent.',
+              });
+              return;
+            }
 
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `🤖 **${agentNames[agent] || agent}** review requested by @${context.payload.comment.user.login}.\n\n> Agent will analyze the PR and post findings as a review comment.`,
-            });
-
-      - name: Unknown command
-        if: steps.parse.outputs.agent == 'unknown'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: [
-                '❓ Unknown review command. Available commands:',
-                '',
-                '| Command | Agent |',
-                '|---|---|',
-                '| `/review security` | 🔒 Security Reviewer |',
-                '| `/review perf` | ⚡ Performance Reviewer |',
-                '| `/review tenancy` | 🏠 Multi-Tenancy Reviewer |',
-                '| `/review tests` | 🧪 Test Specialist |',
-                '| `/review frontend` | 🎨 Frontend Reviewer |',
-                '| `/review docs` | 📖 Docs Reviewer |',
-                '| `/review all` | All agents |',
-              ].join('\n'),
-            });
-
+            try {
+              await github.rest.pulls.requestReviewers({
+                ...request,
+                reviewers: ['copilot-pull-request-reviewer[bot]'],
+              });
+              await github.rest.reactions.createForIssueComment({
+                owner: request.owner,
+                repo: request.repo,
+                comment_id: context.payload.comment.id,
+                content: 'rocket',
+              });
+              await github.rest.issues.createComment({
+                owner: request.owner,
+                repo: request.repo,
+                issue_number: request.pull_number,
+                body: `🤖 GitHub Copilot code review requested by `
+                  + `@${context.payload.comment.user.login}.`,
+              });
+            } catch (error) {
+              await github.rest.issues.createComment({
+                owner: request.owner,
+                repo: request.repo,
+                issue_number: request.pull_number,
+                body: '❌ Could not request GitHub Copilot code review. Ensure Copilot '
+                  + 'code review is enabled for this repository; see the workflow log for details.',
+              });
+              core.setFailed(error.message);
+            }

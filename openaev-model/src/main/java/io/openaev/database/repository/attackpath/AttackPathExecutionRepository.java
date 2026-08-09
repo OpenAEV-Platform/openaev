@@ -90,7 +90,8 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
+          + "e.stepId, e.payloadId) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
   List<AttackPathExecutionRow> findGraphRows(@Param("simulationId") String simulationId);
 
@@ -104,7 +105,8 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
+          + "e.stepId, e.payloadId) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.rowVersion > :since")
   List<AttackPathExecutionRow> findGraphRowsSince(
@@ -191,7 +193,8 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
+          + "e.stepId, e.payloadId) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.id IN :ids")
   List<AttackPathExecutionRow> findGraphRowsByIds(
@@ -206,7 +209,8 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
+          + "e.stepId, e.payloadId) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey")
   List<AttackPathExecutionRow> findByTarget(
@@ -227,7 +231,8 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform) "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
+          + "e.stepId, e.payloadId) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey "
           + "ORDER BY e.executedAt, e.id")

@@ -4,18 +4,21 @@ import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
 import static io.openaev.utils.JpaUtils.createLeftJoin;
 
 import io.openaev.database.model.Team;
+import io.openaev.database.model.User;
 import io.openaev.rest.team.output.TeamOutput;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Root;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 
 public class TeamQueryHelper {
 
@@ -24,9 +27,24 @@ public class TeamQueryHelper {
   // -- SELECT --
 
   public static void select(CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<Team> teamRoot) {
+    HibernateCriteriaBuilder hcb = (HibernateCriteriaBuilder) cb;
+
     // Array aggregations
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, teamRoot, "tags");
-    Expression<String[]> userIdsExpression = createJoinArrayAggOnId(cb, teamRoot, "users");
+    // Reserved service/connector accounts (*@openaev.invalid - see ReservedKeyValidator) are
+    // system users, not players: they are excluded from every player list
+    // (PlayerService#playerPagination), so they must not be aggregated into team_users either -
+    // otherwise team_users_number shows a count the persons list can never match.
+    Join<Team, User> usersJoin = createLeftJoin(teamRoot, "users");
+    Expression<String> nullString = hcb.nullLiteral(String.class);
+    Expression<String> playerIdOrNull =
+        hcb.<String>selectCase()
+            .when(
+                hcb.notLike(hcb.lower(usersJoin.get("email")), "%@openaev.invalid"),
+                usersJoin.<String>get("id"))
+            .otherwise(nullString);
+    Expression<String[]> aggregatedPlayerIds = hcb.arrayAgg(null, playerIdOrNull);
+    Expression<String[]> userIdsExpression = hcb.arrayRemove(aggregatedPlayerIds, nullString);
     Expression<String[]> exerciseIdsExpression = createJoinArrayAggOnId(cb, teamRoot, "exercises");
     Expression<String[]> scenarioIdsExpression = createJoinArrayAggOnId(cb, teamRoot, "scenarios");
     Expression<String> organizationIdExpression =

@@ -49,7 +49,7 @@ kubectl auth can-i --list --as=system:serviceaccount:xtm-composer:xtm-composer -
 
 Regardless of environment, verify:
 
-1. **RSA Key**: Ensure the private key is properly mounted and accessible
+1. **RSA (Rivest-Shamir-Adleman) key**: Ensure the private key is properly mounted and accessible
 2. **Configuration**: Confirm configuration files are loaded correctly
 3. **Network**: Test connectivity to OpenCTI/OpenAEV instances
 4. **Logs**: Check for any error messages or warnings
@@ -163,7 +163,7 @@ If access is denied:
 #### Common Kubernetes errors
 
 **"pods is forbidden"**: The service account lacks necessary permissions
-- Solution: Apply the correct RBAC configuration (see Installation Guide)
+- Solution: Apply the correct RBAC configuration (see [Installation guide](installation.md))
 
 **"no such host"**: Kubernetes API server cannot be reached
 - Solution: Check the cluster endpoint configuration

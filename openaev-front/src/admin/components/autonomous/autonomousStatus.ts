@@ -8,15 +8,27 @@ import { type AutonomousRun, type AutonomousRunStatus } from '../../../actions/a
  */
 export const isAutonomousRunActive = (run: AutonomousRun | null | undefined): boolean => {
   const status = run?.autonomous_run_status;
-  // PLANNING (the orchestrator is still designing a dry-run) is active so the cockpit polls it.
-  // PLANNED is deliberately excluded: a finished plan is settled and can be promoted or deleted,
-  // and it never owns a live simulation.
+  // PLANNING (the orchestrator is still building the scenario's logic) is active so the cockpit
+  // polls it. PLANNED is deliberately excluded: finished logic is settled and can be launched
+  // (normal or autonomous) or deleted, and it never owns a live simulation.
   return status === 'CREATED'
     || status === 'PLANNING'
     || status === 'RUNNING'
     || status === 'PAUSED'
     || status === 'WAITING_INPUT';
 };
+
+/** Whether a run row exists at all (any status). Distinct from "active" - a settled run still exists. */
+export const hasAutonomousRun = (run: AutonomousRun | null | undefined): boolean => !!run;
+
+/**
+ * A run is "settled" once it exists but is no longer active: PLANNED (finished, built logic) or a terminal
+ * COMPLETED / FAILED / CANCELED. This is the state where the scenario keeps a durable, read-only AI
+ * outcome (timeline, gaps, proofs) while scope/logic unlock for editing and the hero offers
+ * Rebuild / Relaunch.
+ */
+export const isAutonomousRunSettled = (run: AutonomousRun | null | undefined): boolean =>
+  hasAutonomousRun(run) && !isAutonomousRunActive(run);
 
 /**
  * Maps an autonomous run status to an MUI palette color. Kept in its own module (not on a component

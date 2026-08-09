@@ -91,8 +91,8 @@ grep -rn "AccessControl\|@Filter\|Capability\|Permission\|nativeQuery" --include
 # Performance signals
 grep -rn "OneToMany\|ManyToMany\|FetchType\|findAll\|Pageable" --include="*.java" $(git diff --name-only HEAD~1) 2>/dev/null | head -10
 
-# Tenancy signals
-grep -rn "TenantBase\|tenant_id\|TenantContext" --include="*.java" $(git diff --name-only HEAD~1) 2>/dev/null | head -10
+# Tenancy signals (v1 @Filter + v2 TxCtx/active-tables)
+grep -rn "TenantBase\|tenant_id\|TenantContext\|TxCtx\|active-tables\|TenantScopedTransaction\|RequireTenantSelector\|can_access_tenant" --include="*.java" $(git diff --name-only HEAD~1) 2>/dev/null | head -10
 
 # Frontend signals
 git diff --name-only HEAD~1 | grep -E "\.tsx$|\.ts$" | head -10

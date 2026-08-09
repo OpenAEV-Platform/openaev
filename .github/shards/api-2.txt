@@ -1,0 +1,16 @@
+io/openaev/api/attackpath/**/*Test.java
+io/openaev/api/stix_process/**/*Test.java
+io/openaev/config/security/**/*Test.java
+io/openaev/executors/**/*Test.java
+io/openaev/export/**/*Test.java
+io/openaev/helper/**/*Test.java
+io/openaev/processor/**/*Test.java
+io/openaev/rest/asset/**/*Test.java
+io/openaev/rest/collector/**/*Test.java
+io/openaev/rest/expectation/**/*Test.java
+io/openaev/rest/helper/**/*Test.java
+io/openaev/rest/rbac/**/*Test.java
+io/openaev/rest/scenario/**/*Test.java
+io/openaev/rest/search/**/*Test.java
+io/openaev/stix/**/*Test.java
+io/openaev/telemetry/**/*Test.java

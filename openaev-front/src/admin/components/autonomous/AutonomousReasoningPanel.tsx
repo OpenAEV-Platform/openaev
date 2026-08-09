@@ -27,13 +27,20 @@ import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, sanitizeEventTex
 import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 
 // An "active" run is one the orchestrator is currently driving, so the panel keeps polling the
-// timeline, shows the live thinking/hourglass indicator, and enables steering. PLANNING (dry-run
-// plan design in progress) MUST be here alongside RUNNING/WAITING_INPUT: it is an in-progress phase
-// where the AI is authoring the plan, so without it the right panel would sit frozen with no
-// indicator and never refresh until a question flips the run to WAITING_INPUT. PLANNED is settled
-// (planning done), so it is intentionally NOT active.
+// timeline, shows the live thinking/hourglass indicator, and enables steering. PLANNING (the AI is
+// still building the scenario's logic) MUST be here alongside RUNNING/WAITING_INPUT: it is an
+// in-progress phase where the AI is authoring the logic, so without it the right panel would sit
+// frozen with no indicator and never refresh until a question flips the run to WAITING_INPUT.
+// PLANNED is settled (logic done), so it is intentionally NOT active.
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['PLANNING', 'RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 3000;
+// A live ("active") caption keeps pulsing as if the orchestrator were computing right now. If the
+// newest timeline event is older than this, it is NOT: the run is parked between cycles, waiting on
+// a directive re-check, or an upstream cycle stalled. Past this age we settle any active caption
+// into a calm idle one so the cockpit never lies with a frozen "Deciding the next move" for minutes
+// (the reported stuck-cockpit symptom). A fresh event re-animates it. Sized above a normal cycle's
+// event cadence so an ordinary long action does not flip it to idle prematurely.
+const STALE_CAPTION_AFTER_MS = 180000;
 
 // Cap the proposed one-click choices so the callout stays scannable: at most this many radio options
 // are ever shown, and the always-present free-text composer below is the escape hatch for anything
@@ -607,14 +614,37 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // as the next cycle emits an activity event, the newest event is no longer a STATUS and the
   // window animates again.
   const newestEvent = events.length > 0 ? events[events.length - 1] : undefined;
-  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS';
+  // A STATUS stamped `{"phase":"engaged"}` (start / restart-then-start / resume) means the
+  // orchestrator has JUST engaged and is actively working - it can churn for minutes (building
+  // arsenal, resolving contracts) before its first DECISION lands. That is the opposite of a park,
+  // so it must NOT read as the calm "Awaiting the next event": the cockpit looked frozen for that
+  // whole window even though a burst of work had already begun the instant the operator clicked.
+  const engagedOnStatus = (() => {
+    if (newestEvent?.autonomous_event_type !== 'STATUS' || !newestEvent.autonomous_event_data) {
+      return false;
+    }
+    try {
+      return (JSON.parse(newestEvent.autonomous_event_data) as { phase?: string }).phase === 'engaged';
+    } catch {
+      return false;
+    }
+  })();
+  // Parked only when the newest STATUS is a genuine end-of-cycle wait (NOT an engagement marker).
+  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS' && !engagedOnStatus;
   // Has the orchestrator RESUMED since the operator answered? The backend run status stays
   // WAITING_INPUT until a later 3s poll flips it, so it lies about "still waiting" for a while. The
   // truthful signal is a fresh activity event: once the newest event is a DECISION / TOOL_ACTION /
   // ... the AI is demonstrably working again, so the caption must narrate THAT instead of freezing
   // on "Processing your answer" (the exact "it says processing while it is already executing" bug).
   const newestIsActivity = isActivityType(newestEvent?.autonomous_event_type);
-  const thinkingPhase: ThinkingPhase = (() => {
+  // How long since the newest event? A stale timeline means the orchestrator is not actively
+  // working, whatever the last event type was - used below to stop an active caption pulsing over a
+  // frozen cockpit.
+  const newestEventAgeMs = newestEvent?.autonomous_event_created_at
+    ? Date.now() - new Date(newestEvent.autonomous_event_created_at).getTime()
+    : 0;
+  const captionStale = newestEventAgeMs > STALE_CAPTION_AFTER_MS;
+  let thinkingPhase: ThinkingPhase = (() => {
     if (isWaitingInput && pendingQuestion) {
       // Genuinely idle on the operator: static wait, not a pulsing "still working" animation.
       return {
@@ -633,6 +663,19 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       return {
         key: 'resuming',
         label: t('Processing your answer'),
+        color: accent,
+        active: true,
+      };
+    }
+    if (engagedOnStatus && !newestIsActivity) {
+      // Freshly engaged (start / restart / resume) but the first activity event has not landed yet.
+      // The orchestrator is demonstrably working (a cycle is running); narrate that with a pulsing
+      // caption instead of the static parked one, until the first DECISION / TOOL_ACTION arrives and
+      // the switch below takes over. Fixes the "stuck on Awaiting the next event for minutes after I
+      // clicked Redo plan, but the iterations had already begun" report.
+      return {
+        key: 'engaging',
+        label: run.autonomous_run_plan_mode === true ? t('Building the scenario logic') : t('Getting to work'),
         color: accent,
         active: true,
       };
@@ -716,6 +759,19 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         };
     }
   })();
+  // Staleness backstop: never keep an active caption pulsing over a timeline that has not moved in
+  // minutes. Settle it into a calm idle caption that tells the truth (still awaiting the operator,
+  // or simply parked between moves). Static captions (open question, end-of-cycle park) already
+  // reflect an idle state, so leave them untouched. A newer event clears captionStale and the live
+  // caption resumes on the next 3s poll.
+  if (captionStale && thinkingPhase.active) {
+    thinkingPhase = {
+      key: 'idle',
+      label: isWaitingInput ? t('Waiting for your input') : t('Awaiting the next event'),
+      color: theme.palette.text.secondary,
+      active: false,
+    };
+  }
 
   return (
     <Box
@@ -779,7 +835,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               fontWeight: 600,
             }}
           >
-            {t('Autonomous orchestrator')}
+            {run.autonomous_run_plan_mode === true
+              ? t('Scenario planner')
+              : t('Autonomous orchestrator')}
           </Typography>
           {isActive && (thinkingPhase.active
             ? <CircularProgress size={14} sx={{ color: accent }} />

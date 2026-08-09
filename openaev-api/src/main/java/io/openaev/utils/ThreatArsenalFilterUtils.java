@@ -1,11 +1,8 @@
 package io.openaev.utils;
 
-import io.openaev.database.model.Filters;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import io.openaev.utils.pagination.SortField;
+import io.openaev.utils.pagination.SearchPaginationInputMapper;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -60,39 +57,6 @@ public class ThreatArsenalFilterUtils {
    */
   public static SearchPaginationInput translateSearchInput(
       @NotNull final SearchPaginationInput input) {
-    SearchPaginationInput translated = new SearchPaginationInput();
-    translated.setPage(input.getPage());
-    translated.setSize(input.getSize());
-    translated.setTextSearch(input.getTextSearch());
-
-    if (input.getFilterGroup() != null) {
-      Filters.FilterGroup translatedGroup = new Filters.FilterGroup();
-      translatedGroup.setMode(input.getFilterGroup().getMode());
-      List<Filters.Filter> translatedFilters = new ArrayList<>();
-      for (Filters.Filter filter : input.getFilterGroup().getFilters()) {
-        Filters.Filter copy = new Filters.Filter();
-        copy.setKey(ACTION_TO_ENTITY_FIELDS.getOrDefault(filter.getKey(), filter.getKey()));
-        copy.setOperator(filter.getOperator());
-        copy.setValues(filter.getValues());
-        copy.setMode(filter.getMode());
-        translatedFilters.add(copy);
-      }
-      translatedGroup.setFilters(translatedFilters);
-      translated.setFilterGroup(translatedGroup);
-    }
-
-    if (input.getSorts() != null) {
-      List<SortField> translatedSorts = new ArrayList<>();
-      for (SortField sort : input.getSorts()) {
-        translatedSorts.add(
-            new SortField(
-                ACTION_TO_ENTITY_FIELDS.getOrDefault(sort.property(), sort.property()),
-                sort.direction(),
-                sort.nullHandling()));
-      }
-      translated.setSorts(translatedSorts);
-    }
-
-    return translated;
+    return SearchPaginationInputMapper.translateFields(input, ACTION_TO_ENTITY_FIELDS);
   }
 }

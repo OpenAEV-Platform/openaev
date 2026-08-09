@@ -1,0 +1,143 @@
+name: "[Core] Deploy Feature Branch Build"
+
+# Unprivileged build workflow dispatched by deploy-feature-branch.yml.
+# SECURITY: This workflow has read-only contents/actions access — no secrets
+# and no write-capable token.
+# It checks out and builds untrusted PR code in a safe sandbox.
+#
+# The application is built from source via a multi-stage Dockerfile. Agent,
+# implant, and catalog assets are prepared once and included in both platform
+# images. On success, the OCI archive is uploaded for downstream promotion.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number"
+        required: true
+        type: string
+      head_ref:
+        description: "PR branch name"
+        required: true
+        type: string
+      head_sha:
+        description: "PR head commit SHA"
+        required: true
+        type: string
+      comment_id:
+        description: "PR comment ID to update"
+        required: true
+        type: string
+
+concurrency:
+  # The dispatcher finishes immediately, so concurrency must cover the actual
+  # build workflow. A newer /deploy request for the same PR supersedes the old one.
+  group: feature-deploy-build-${{ inputs.pr_number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read # strictly read-only — no secrets, no write token
+  actions: read
+
+jobs:
+  prepare-build:
+    name: "📦 Prepare feature build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      image-tag: ${{ steps.image-tag.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.head_sha }}
+          fetch-depth: 0
+      - name: Compute immutable Docker tag
+        id: image-tag
+        env:
+          HEAD_SHA: ${{ inputs.head_sha }}
+        run: echo "value=openaev:feat-${HEAD_SHA:0:12}" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/prepare-bundled-assets
+
+  docker-build:
+    name: "🐳 Docker Build (${{ matrix.arch }})"
+    needs: prepare-build
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.head_sha }}
+          # prepare-bundled-assets derives the local asset version from `git describe`
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/docker-build
+        with:
+          tags: ${{ needs.prepare-build.outputs.image-tag }}
+          platform: ${{ matrix.platform }}
+          download-release-assets: "true"
+          allow-registry: "false"
+          # fds-git-token is deliberately NOT passed here, and this workflow is
+          # therefore expected to fail at the frontend install step.
+          # This workflow checks out untrusted PR code (ref: head_sha) and then
+          # resolves `./.github/actions/docker-build` from that same untrusted
+          # tree, so any credential handed to it is attacker-controlled. A read
+          # token for the private design-system repository must not cross that
+          # boundary. Fixing feature-branch deploys requires a design change
+          # (build the front in a trusted pre-step, or vendor the dependency),
+          # not a secret passed into the sandbox.
+          fds-git-token: ""
+
+  docker-merge:
+    name: "🐳 Merge Platforms"
+    needs: docker-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.head_sha }}
+      - uses: ./.github/actions/docker-merge-platforms
+        with:
+          artifact-name: openaev-image
+          allow-registry: "false"
+
+  # Save metadata as artifact for the workflow_run follow-up
+  save-metadata:
+    name: "💾 Save metadata"
+    needs: docker-merge
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write metadata file
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          COMMENT_ID: ${{ inputs.comment_id }}
+          BUILD_RESULT: ${{ needs.docker-merge.result }}
+        run: |
+          mkdir -p metadata
+          jq -n \
+            --arg pr "$PR_NUMBER" \
+            --arg ref "$HEAD_REF" \
+            --arg sha "$HEAD_SHA" \
+            --arg cid "$COMMENT_ID" \
+            --arg res "$BUILD_RESULT" \
+            '{pr_number: $pr, head_ref: $ref, head_sha: $sha, comment_id: $cid, build_result: $res}' \
+            > metadata/deploy-metadata.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deploy-metadata
+          path: metadata/

@@ -20,7 +20,14 @@ const inject18n = <P extends object>(WrappedComponent: ComponentType<P>) => {
     const intl = useIntl();
     // formatjs throws an invariant error when the id is missing, which crashes the
     // whole render tree: degrade gracefully instead when a dynamic key is absent.
-    const translate = (message: string, values?: Record<string, string>) => (message ? intl.formatMessage({ id: message }, values) : '');
+    // Same defaultMessage rule as useFormatter below: parametrized messages keep
+    // interpolating even when the key is missing from the catalog.
+    const translate = (message: string, values?: Record<string, string>) => (message
+      ? intl.formatMessage({
+          id: message,
+          defaultMessage: values ? message : undefined,
+        }, values)
+      : '');
     const formatNumber = (number: number | '') => {
       if (number === null || number === '') {
         return '-';
@@ -175,7 +182,17 @@ export const useFormatter = () => {
   const intl = useIntl();
   // formatjs throws an invariant error when the id is missing, which crashes the
   // whole render tree: degrade gracefully instead when a dynamic key is absent.
-  const translate: Translate = ((message, values) => (message ? intl.formatMessage({ id: message }, values) : '')) as Translate;
+  // For parametrized messages, the english id doubles as defaultMessage so a key
+  // missing from the catalog still interpolates its {placeholders} instead of
+  // rendering them raw (e.g. "{count} questions"). Only done when values are
+  // provided: dynamic keys (t(someRuntimeString)) are not guaranteed to be valid
+  // ICU and must keep falling back to the raw string without being parsed.
+  const translate: Translate = ((message, values) => (message
+    ? intl.formatMessage({
+        id: message,
+        defaultMessage: values ? message : undefined,
+      }, values)
+    : '')) as Translate;
   const formatNumber = (number: number | '') => {
     if (number === null || number === '') {
       return '-';

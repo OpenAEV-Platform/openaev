@@ -2,6 +2,8 @@ package io.openaev.importer;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +13,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.utils.constants.Constants;
@@ -26,6 +30,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +55,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Autowired private StepRepository stepRepository;
   @Autowired private ConditionRepository conditionRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   private JsonNode importNode;
 
@@ -74,6 +80,7 @@ class V1_DataImporterTest extends IntegrationTest {
     injectorContractRepository.deleteAll();
     injectorRepository.deleteAll();
     MockitoAnnotations.openMocks(this);
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
         new String(
@@ -373,6 +380,33 @@ class V1_DataImporterTest extends IntegrationTest {
     assertTrue(
         prerequisites == null || prerequisites.isEmpty(),
         "Prerequisites should be empty when field is explicit null in JSON");
+  }
+
+  @Test
+  @Transactional
+  void given_scenarioWithWorkflow_when_enterpriseLicenseInactive_should_failImport()
+      throws Exception {
+    // -- Arrange --
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(true);
+    JsonNode workflowImport =
+        new ObjectMapper()
+            .readTree(
+                Files.readAllBytes(
+                    Paths.get(
+                        "src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+
+    // -- Act & Assert --
+    assertThrows(
+        EnterpriseEditionException.class,
+        () ->
+            importer.importData(
+                workflowImport,
+                Map.of(),
+                null,
+                null,
+                null,
+                null,
+                Constants.IMPORTED_OBJECT_NAME_SUFFIX));
   }
 
   @Test

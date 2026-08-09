@@ -35,7 +35,6 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
-import AutonomousAttackCreation from '../../autonomous/AutonomousAttackCreation';
 import FindingList from '../../findings/FindingList';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import AssetCategoryIcon from '../AssetCategoryIcon';
@@ -196,13 +195,6 @@ const AssetGroupDetail = () => {
         title={assetGroup.asset_group_name}
         action={(
           <>
-            {/* Autonomous (AI-driven) attack scoped to this group - self-hides
-                unless the preview feature is on and XTM One is configured. */}
-            <AutonomousAttackCreation
-              variant="icon"
-              presetScopeAssetGroupId={assetGroupId}
-              presetScopeAssetGroupName={assetGroup.asset_group_name}
-            />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel

@@ -4,29 +4,42 @@ USER root
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front ./
-RUN set -eux; \
-    npm install -g corepack; \
-    yarn install; \
-    yarn build;
-
+# git resolves @filigran/design-system, a private direct git dependency of
+# openaev-front. The credential is a BuildKit secret mounted for this RUN only
+# and stored in no layer. `set -eu`, never `-eux`: with -x the shell would echo
+# the expanded token into the build log.
+RUN --mount=type=secret,id=fds_git_token \
+set -eu                                  ; \
+if [ ! -s /run/secrets/fds_git_token ]; then \
+  echo "fds_git_token build secret is missing or empty: yarn install cannot clone the design system." >&2 ; \
+  exit 1                                 ; \
+fi                                       ; \
+command -v git >/dev/null || microdnf install -y git-core ; \
+git config --global url."https://x-access-token:$(cat /run/secrets/fds_git_token)@github.com/".insteadOf "https://github.com/" ; \
+npm install -g corepack                  ; \
+yarn install                             ; \
+git config --global --unset-all url."https://x-access-token:$(cat /run/secrets/fds_git_token)@github.com/".insteadOf ; \
+yarn build                               ;
 
 FROM registry.access.redhat.com/ubi9/openjdk-21 AS api-builder
 
 USER root
 
-RUN set -eux; \
-    microdnf install -y maven; \
-    microdnf clean all; \
-    mvn --version;
+RUN set -eux              ; \
+microdnf install -y maven ; \
+microdnf clean all        ; \
+mvn --version             ;
 
 WORKDIR /opt/openaev-build/openaev
+
+COPY openaev-annotation-processor ./openaev-annotation-processor
+COPY openaev-maven-plugin ./openaev-maven-plugin
 COPY openaev-model ./openaev-model
 COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api
 COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev
-
 
 FROM registry.access.redhat.com/ubi9/openjdk-21-runtime AS app
 
@@ -35,14 +48,18 @@ USER root
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-# Apply all available RHEL9 security errata (libacl, glib2, python3, openssl-libs, ...) so the
-# runtime image ships with the current fixes at build time (CVE-2026-54369/54370/15308/58016 et al.)
-RUN set -eux; \
-    microdnf upgrade -y --refresh; \
-    curl -L -o /usr/bin/tini https://github.com/krallin/tini/releases/download/v0.19.0/tini; \
-    echo "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c /usr/bin/tini" | sha256sum -c -; \
-    chmod +x /usr/bin/tini; \
-    microdnf clean all
+ARG TARGETARCH
+RUN set -eux                                                                                                   ; \
+microdnf upgrade -y --refresh                                                                                  ; \
+TINI_VERSION="v0.19.0"                                                                                         ; \
+TINI_BINARY=$([ "$TARGETARCH" = "arm64" ] && echo "tini-arm64" || echo "tini")                                 ; \
+TINI_SHA256=$([ "$TARGETARCH" = "arm64" ] \
+&& echo "07952557df20bfd2a95f9bef198b445e006171969499a1d361bd9e6f8e5e0e81" \
+|| echo "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c")                                    ; \
+curl -fsSL -o /usr/bin/tini "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/${TINI_BINARY}" ; \
+echo "${TINI_SHA256}  /usr/bin/tini" | sha256sum -c -                                                          ; \
+chmod +x /usr/bin/tini                                                                                         ; \
+microdnf clean all
 
 # Chromium runtime libraries for server-side report rendering. Playwright's
 # "install --with-deps" does not support RHEL/UBI, so the dependency set is installed

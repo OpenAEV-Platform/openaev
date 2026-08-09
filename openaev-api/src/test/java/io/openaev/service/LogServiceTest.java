@@ -3,14 +3,20 @@ package io.openaev.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.model.EventStatus;
+import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.model.log.LogEvent;
@@ -48,11 +54,23 @@ class LogServiceTest {
     io.openaev.engine.EngineService engineService = mock(io.openaev.engine.EngineService.class);
     lenient().when(engineService.getObjectMapper()).thenReturn(objectMapper);
 
+    // Normalization is exercised in LogServiceSignatureNormalizationTest; here it must behave as a
+    // pass-through so the assertions below target redaction only. Returning Mockito's default
+    // (null) would blank out input/output/signature before they reach the transport.
+    io.openaev.utils.object.ObjectNormalizationUtils objectNormalizationUtils =
+        mock(io.openaev.utils.object.ObjectNormalizationUtils.class);
+    lenient()
+        .when(objectNormalizationUtils.normalize(any(JsonNode.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    lenient()
+        .when(objectNormalizationUtils.normalize(any(JsonNode.class), anyString()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
     logService =
         new LogService(
             auditLogProperties,
             auditLogTransportDispatcherUtils,
-            mock(io.openaev.utils.object.ObjectNormalizationUtils.class),
+            objectNormalizationUtils,
             engineService,
             mock(UserService.class),
             enterpriseEditionService,
@@ -672,6 +690,124 @@ class LogServiceTest {
 
     private JsonNode captureSignature() {
       return captureEvent().getRequestMetadata().getSignature();
+    }
+  }
+
+  @Nested
+  @DisplayName("logGenericEvent")
+  class LogGenericEvent {
+
+    @Test
+    @DisplayName("given_systemOriginEvent_should_nullifyUserMetadata")
+    void given_systemOriginEvent_should_nullifyUserMetadata() {
+      // Arrange
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+
+      AuditEvent event =
+          AuditEvent.builder()
+              .eventType(EventType.EXECUTION)
+              .eventScope(AuditEventScope.INJECT_STATUS_TRANSITION)
+              .eventStatus(EventStatus.SUCCESS)
+              .resourceType(ResourceType.INJECT)
+              .resourceId("inject-1")
+              .message("Inject transitioned from PENDING to EXECUTED")
+              .contextData(
+                  Map.of(
+                      "inject_id", "inject-1",
+                      "previous_status", "PENDING",
+                      "new_status", "EXECUTED"))
+              .origin(AuditEventOrigin.SYSTEM)
+              .build();
+
+      // Act
+      boolean result = logService.logGenericEvent(event, Level.WARNING, "uuid-gen-1");
+
+      // Assert
+      assertTrue(result);
+
+      ArgumentCaptor<LogEvent> captor = ArgumentCaptor.forClass(LogEvent.class);
+      verify(auditLogTransportDispatcherUtils).dispatch(captor.capture(), any());
+
+      LogEvent logEvent = captor.getValue();
+      assertThat(logEvent.getEventType()).isEqualTo("execution");
+      assertThat(logEvent.getEventScope()).isEqualTo("inject_status_transition");
+      assertThat(logEvent.getEventStatus()).isEqualTo("success");
+      assertNull(logEvent.getUserId());
+      assertNull(logEvent.getUserMetadata());
+      assertThat(logEvent.getContextData())
+          .containsEntry("message", "Inject transitioned from PENDING to EXECUTED");
+      assertThat(logEvent.getContextData()).containsEntry("previous_status", "PENDING");
+      assertThat(logEvent.getContextData()).containsEntry("resource_id", "inject-1");
+    }
+
+    @Test
+    @DisplayName("given_dispatchThrowsException_should_returnFalse")
+    void given_dispatchThrowsException_should_returnFalse() {
+      // Arrange
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any()))
+          .thenThrow(new RuntimeException("transport failure"));
+
+      AuditEvent event =
+          AuditEvent.builder()
+              .eventType(EventType.SYSTEM)
+              .eventScope(AuditEventScope.JOB_EXECUTION)
+              .eventStatus(EventStatus.ERROR)
+              .message("Job failed")
+              .origin(AuditEventOrigin.SYSTEM)
+              .build();
+
+      // Act
+      boolean result =
+          assertDoesNotThrow(() -> logService.logGenericEvent(event, Level.WARNING, "uuid-gen-2"));
+
+      // Assert
+      assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("given_auditDisabled_should_returnTrueWithoutDispatching")
+    void given_auditDisabled_should_returnTrueWithoutDispatching() {
+      // Arrange
+      when(auditLogProperties.isEnabled()).thenReturn(false);
+
+      AuditEvent event =
+          AuditEvent.builder()
+              .eventType(EventType.EXECUTION)
+              .eventScope(AuditEventScope.SCHEDULED_LAUNCH)
+              .eventStatus(EventStatus.SUCCESS)
+              .message("Simulation started")
+              .origin(AuditEventOrigin.SYSTEM)
+              .build();
+
+      // Act
+      boolean result = logService.logGenericEvent(event, Level.WARNING, "uuid-gen-3");
+
+      // Assert
+      assertTrue(result);
+      verify(auditLogTransportDispatcherUtils, never()).dispatch(any(LogEvent.class), any());
+    }
+
+    @Test
+    @DisplayName("given_dispatchReturnsFalse_should_returnFalse")
+    void given_dispatchReturnsFalse_should_returnFalse() {
+      // Arrange
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(false);
+
+      AuditEvent event =
+          AuditEvent.builder()
+              .eventType(EventType.SYSTEM)
+              .eventScope(AuditEventScope.RETENTION_PURGE)
+              .eventStatus(EventStatus.SUCCESS)
+              .message("Purged 1000 records")
+              .origin(AuditEventOrigin.SYSTEM)
+              .build();
+
+      // Act
+      boolean result = logService.logGenericEvent(event, Level.WARNING, "uuid-gen-4");
+
+      // Assert
+      assertFalse(result);
+      verify(auditLogTransportDispatcherUtils).dispatch(any(LogEvent.class), any());
     }
   }
 }

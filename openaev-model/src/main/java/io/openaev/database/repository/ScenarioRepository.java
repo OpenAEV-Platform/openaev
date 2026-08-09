@@ -43,6 +43,9 @@ public interface ScenarioRepository
         StatisticRepository,
         JpaSpecificationExecutor<Scenario> {
 
+  @Query("SELECT s.name FROM Scenario s WHERE s.id = :scenarioId")
+  Optional<String> findNameById(@Param("scenarioId") String scenarioId);
+
   @Query(
       value =
           """

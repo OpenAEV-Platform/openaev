@@ -777,7 +777,7 @@ public class ExerciseService {
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-        // End WORKFLOW + STEP + delete injects + delete workflow states
+        // End WORKFLOW + STEP + delete workflow states
         List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
         if (!run.isEmpty()) {
           List<Step> stepsToUpdate = new ArrayList<>();
@@ -791,16 +791,21 @@ public class ExerciseService {
           stepService.saveSteps(stepsToUpdate);
           workflowService.saveAll(run);
           workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
-          List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
-          // A manual chained simulation is reset on cancel (all injects dropped). An autonomous
-          // (AI-driven) run is different: its executed steps ARE the deliverable, so cancelling
-          // must PRESERVE what already ran - the operator keeps the executed record on the
-          // Execution screen - and only drop the never-started injects the orchestrator had queued
-          // (which are also where the duplicate-inject storms pile up).
-          boolean isAutonomous = autonomousRunRepository.existsBySimulationId(exercise.getId());
-          List<Inject> injectsToDelete =
-              isAutonomous ? injects.stream().filter(Inject::isNotExecuted).toList() : injects;
-          this.injectRepository.deleteAll(injectsToDelete);
+          // Stopping is not resetting: it ends the run and keeps its record. A manual chained
+          // simulation used to drop ALL its injects here, which emptied the Execution screen while
+          // the attack path (whose rows are only cleared on reset) still showed the same run - the
+          // simulation looked half-erased. Clearing the executed record is the explicit Reset
+          // action's job (RUNNING/FINISHED -> SCHEDULED above), not a side effect of stopping.
+          //
+          // An autonomous (AI-driven) run additionally drops the injects the orchestrator had
+          // queued but never started: they are where the duplicate-inject storms pile up, and a
+          // never-started inject is not part of the deliverable.
+          if (autonomousRunRepository.existsBySimulationId(exercise.getId())) {
+            this.injectRepository.deleteAll(
+                this.injectRepository.findByExerciseId(exerciseId).stream()
+                    .filter(Inject::isNotExecuted)
+                    .toList());
+          }
         }
       }
     }
@@ -961,6 +966,7 @@ public class ExerciseService {
     selections.add(exerciseRoot.get("start").alias("exercise_start_date"));
     selections.add(exerciseRoot.get("end").alias("exercise_end_date"));
     selections.add(exerciseRoot.get("updatedAt").alias("exercise_updated_at"));
+    selections.add(exerciseRoot.get("autonomous").alias("exercise_autonomous"));
     selections.add(tagIdsExpression.alias("exercise_tags"));
     selections.add(injectIdsExpression.alias("exercise_injects"));
 
@@ -995,6 +1001,8 @@ public class ExerciseService {
                   new HashSet<>(Arrays.asList(tuple.get("exercise_tags", String[].class))));
               exerciseSimple.setInjectIds(tuple.get("exercise_injects", String[].class));
               exerciseSimple.setWorkflowId(tuple.get("exercise_workflow_id", String.class));
+              exerciseSimple.setAutonomous(
+                  Boolean.TRUE.equals(tuple.get("exercise_autonomous", Boolean.class)));
               return exerciseSimple;
             })
         .toList();

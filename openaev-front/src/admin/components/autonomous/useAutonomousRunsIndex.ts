@@ -25,7 +25,9 @@ export interface AutonomousRunsIndex {
 const useAutonomousRunsIndex = (): AutonomousRunsIndex => {
   const { settings } = useAuth();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
-  const featureEnabled = isFeatureEnabled('AUTONOMOUS_ATTACK_PATH');
+  // Autonomy is a launch mode of chained scenarios, so it rides the chaining feature flag - there is
+  // no dedicated autonomous flag anymore.
+  const featureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const xtmOneReady = settings.platform_xtm_one_configured === true;
   const eligible = featureEnabled && isEnterpriseEdition && xtmOneReady;
 

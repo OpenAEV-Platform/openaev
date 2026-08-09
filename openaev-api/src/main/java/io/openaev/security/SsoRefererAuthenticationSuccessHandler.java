@@ -2,10 +2,10 @@ package io.openaev.security;
 
 import static org.springframework.http.HttpHeaders.REFERER;
 
+import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionManager;
-import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.utils.log.LogUtils;
 import jakarta.servlet.ServletException;
@@ -46,9 +46,7 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
 
     auditLogger.ifPresent(
         logger -> {
-          String eventScope = LogUtils.getEventScope(Action.LOGIN);
-          String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
-          logger.logAuthEvent(eventScope, eventStatus, provider, null, null);
+          logger.logAuthEvent(AuditEventScope.LOGIN, EventStatus.SUCCESS, provider, null);
         });
 
     // Capture auth context in session for reliable expiry audit metadata and index the session

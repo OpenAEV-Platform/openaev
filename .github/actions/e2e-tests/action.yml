@@ -1,7 +1,9 @@
 name: E2E Tests
 description: >
   Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
-  download and run the backend JAR, and run Playwright E2E tests.
+  download and run the backend Docker image, and run Playwright E2E tests.
+  The Docker image is built in parallel by the docker-build job; this action
+  waits for a registry marker or image artifact and loads the first usable source.
   Requires job-level env vars: SPRING_DATASOURCE_URL,
   SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD,
   MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_ACCESS_SECRET,
@@ -11,27 +13,42 @@ description: >
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
 
 inputs:
-  playwright-config:
-    description: "Playwright config file to use (relative to openaev-front/)."
-    required: true
   browser:
-    description: "Browser name (chrome, chromium, webkit, or firefox) — used for artifact naming and browser install."
+    description: "Browser name (chrome, chromium, webkit, firefox, or edge) — used for project selection, artifact naming, and browser install."
     required: true
-  artifact-name-prefix:
-    description: >
-      Base name for the uploaded Playwright report artifact. Override
-      per caller when the matrix does NOT vary on `browser` (e.g.
-      e2e-infra-tests varies on `arch` instead, with `browser` fixed to
-      `chromium`), so the two callers' artifacts stay visually distinct
-      in the Actions UI.
+  playwright-config:
+    description: "Playwright config file to use (relative to openaev-front/). Defaults to playwright.config.ts."
     required: false
-    default: "playwright-report"
-  artifact-suffix:
+    default: "playwright.config.ts"
+  docker-image:
+    description: "Docker image artifact name to download and test against."
+    required: false
+    default: "openaev-image-amd64"
+  search-engine:
+    description: "Search engine type: elasticsearch or opensearch"
+    required: false
+    default: "elasticsearch"
+  search-engine-image:
+    description: "Docker image for the search engine (default from openaev-dev/docker-compose.yml)"
+    required: false
+    default: ""
+  project:
+    description: "Playwright project name to run (defaults to the browser input value)."
+    required: false
+    default: ""
+  includes:
     description: >
-      Suffix appended to the report artifact name to keep it unique per
-      matrix leg when `browser` alone doesn't vary across the matrix
-      (e.g. matrix.arch for e2e-infra-tests). Leave empty when `browser`
-      already uniquely identifies the leg (e.g. e2e-tests).
+      Newline-separated path filters (regex, matched against the spec path) selecting
+      which specs this shard runs. Use "catchall" to run every spec not claimed by
+      another shard (see excludes). Empty runs the project's whole set.
+    required: false
+    default: ""
+  excludes:
+    description: "Newline-separated path filters owned by explicit shards. Only read when includes is 'catchall'."
+    required: false
+    default: ""
+  artifact-suffix:
+    description: "Suffix appended to artifact names to avoid conflicts (e.g. '-opensearch')"
     required: false
     default: ""
   fds-git-token:
@@ -41,49 +58,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Start all services (non-blocking)
-      shell: bash
-      run: |
-        docker run -d --name pgsql \
-          -p 5432:5432 \
-          -e POSTGRES_USER=openaev \
-          -e POSTGRES_PASSWORD=openaev \
-          -e POSTGRES_DB=openaev \
-          postgres:17-alpine \
-          -c max_connections=1000
-        docker run -d --name elasticsearch \
-          -p 9200:9200 \
-          -e discovery.type=single-node \
-          -e xpack.security.enabled=false \
-          -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
-          docker.elastic.co/elasticsearch/elasticsearch:8.18.3
-        docker run -d --name rabbitmq \
-          -p 5672:5672 \
-          -p 15672:15672 \
-          -e RABBITMQ_DEFAULT_USER=guest \
-          -e RABBITMQ_DEFAULT_PASS=guest \
-          rabbitmq:4.1-management
-        docker run -d --name minio \
-          -p 11000:9000 \
-          -e MINIO_ROOT_USER=minioadmin \
-          -e MINIO_ROOT_PASSWORD=minioadmin \
-          minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
-
-        echo "🔍 Verifying containers started..."
-        for name in pgsql elasticsearch rabbitmq minio; do
-          if ! docker inspect --format='{{.State.Running}}' "$name" 2>/dev/null | grep -q true; then
-            echo "❌ Container '$name' failed to start"
-            docker logs "$name" 2>/dev/null || true
-            exit 1
-          fi
-        done
-        echo "✅ All containers started"
-
-    - name: Set up Java 21
-      uses: actions/setup-java@v5
+    - name: Start service containers
+      uses: ./.github/actions/start-dev-services
       with:
-        java-version: "21"
-        distribution: temurin
+        search-engine: ${{ inputs.search-engine }}
+        search-engine-image: ${{ inputs.search-engine-image }}
+
     - name: Set up Node.js 22.11
       uses: actions/setup-node@v7
       with:
@@ -110,69 +90,74 @@ runs:
       run: yarn install --immutable
       shell: bash
       working-directory: openaev-front
+    - name: Resolve Playwright version
+      id: pw-version
+      run: |
+        VERSION=$(node -p "require('./package.json').devDependencies['@playwright/test']")
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "Playwright $VERSION"
+      shell: bash
+      working-directory: openaev-front
     - name: Cache Playwright browsers
       id: playwright-cache
       uses: actions/cache@v6
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('openaev-front/yarn.lock') }}
-    - name: Install Playwright browser (${{ inputs.browser }})
+        # Browser builds track the Playwright version, not the whole lockfile, so an
+        # unrelated dependency bump no longer forces a re-download.
+        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw-version.outputs.version }}
+        restore-keys: |
+          playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-
+    - name: Install Playwright browsers (${{ inputs.browser }} + chromium for setup)
       if: steps.playwright-cache.outputs.cache-hit != 'true'
-      run: yarn playwright install --with-deps ${{ inputs.browser }}
+      run: |
+        BROWSER="${{ inputs.browser }}"
+        [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
+        yarn playwright install --with-deps chromium $BROWSER
       shell: bash
       working-directory: openaev-front
     - name: Install Playwright system dependencies (cache hit)
       if: steps.playwright-cache.outputs.cache-hit == 'true'
-      run: yarn playwright install-deps ${{ inputs.browser }}
+      run: |
+        BROWSER="${{ inputs.browser }}"
+        [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
+        yarn playwright install-deps chromium $BROWSER
       shell: bash
       working-directory: openaev-front
 
-    - name: Wait for backend JAR artifact
-      shell: bash
-      run: |
-        echo "⏳ Waiting for backend-package artifact (services booting in parallel)..."
-        for i in $(seq 1 180); do
-          # Check if backend-compile has failed — abort immediately
-          COMPILE_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select(.name | test("Backend Compile")) | .conclusion] | first' 2>/dev/null || echo "")
-          if [ "$COMPILE_CONCLUSION" = "failure" ] || [ "$COMPILE_CONCLUSION" = "cancelled" ]; then
-            echo "❌ Backend Compile job $COMPILE_CONCLUSION — aborting"
-            exit 1
-          fi
-          NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-            --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
-          if echo "$NAMES" | grep -q '"openaev-api-jar"'; then
-            echo "✅ Artifact available (after ~$((i * 5))s)"
-            break
-          fi
-          if [ "$i" -eq 180 ]; then
-            echo "❌ Timed out waiting for artifact (15 min)"
-            exit 1
-          fi
-          echo "  Attempt $i/180 — not ready, retrying in 5s..."
-          sleep 5
-        done
-
-    - name: Download backend JAR artifact
-      uses: actions/download-artifact@v8
+    - name: Obtain Docker image
+      id: image-source
+      uses: ./.github/actions/ci-image-handoff
       with:
-        name: openaev-api-jar
-        path: openaev-api/target
+        artifact-names: ${{ inputs.docker-image }}
+        artifact-pattern: ${{ inputs.docker-image }}
+        artifact-path: /tmp/openaev-image
+        merge-artifacts: "true"
+        registry-mode: pull
+        local-tags: openaev:ci
+        build-job-names: "Docker Build (${{ startsWith(inputs.docker-image, 'openaev-ubi9-') && 'ubi9' || 'standard' }} ${{ endsWith(inputs.docker-image, '-arm64') && 'arm64' || 'amd64' }})"
 
-    - name: Verify backend JAR
+    - name: Load Docker image
+      if: ${{ steps.image-source.outputs.source == 'artifact' }}
       shell: bash
       run: |
-        if [ ! -f "openaev-api/target/openaev-api.jar" ]; then
-          echo "❌ openaev-api.jar not found after download"
-          ls -la openaev-api/target/ 2>/dev/null || echo "  target/ directory does not exist"
+        cd /tmp/openaev-image
+        echo "🐳 Loading Docker image (${{ inputs.docker-image }})..."
+        gunzip -k ${{ inputs.docker-image }}.tar.gz
+        # Convert OCI archive → docker-archive (file-based, avoids pipe issues with docker-daemon)
+        skopeo copy \
+          oci-archive:${{ inputs.docker-image }}.tar \
+          docker-archive:docker-image.tar:openaev:ci
+        rm -f ${{ inputs.docker-image }}.tar ${{ inputs.docker-image }}.tar.gz
+        # Load into Docker daemon from file (reliable)
+        docker load -i docker-image.tar
+        rm -f docker-image.tar
+        IMAGE_ID=$(docker images openaev:ci --format '{{.ID}}')
+        if [ -z "$IMAGE_ID" ]; then
+          echo "❌ Failed to load Docker image"
           exit 1
         fi
-        JAR_SIZE=$(stat --format=%s openaev-api/target/openaev-api.jar 2>/dev/null || stat -f%z openaev-api/target/openaev-api.jar 2>/dev/null)
-        if [ "$JAR_SIZE" -lt 1000 ] 2>/dev/null; then
-          echo "❌ openaev-api.jar is suspiciously small ($JAR_SIZE bytes)"
-          exit 1
-        fi
-        echo "✅ openaev-api.jar present ($JAR_SIZE bytes)"
+        echo "✅ Docker image loaded (ID: $IMAGE_ID)"
 
     - name: Wait for services
       shell: bash
@@ -184,12 +169,12 @@ runs:
         done
         docker exec pgsql pg_isready -U openaev || { echo "❌ PostgreSQL failed to start"; exit 1; }
 
-        echo "⏳ Waiting for Elasticsearch..."
+        echo "⏳ Waiting for ${{ inputs.search-engine }}..."
         for i in $(seq 1 30); do
           curl -sf http://localhost:9200/_cluster/health && break
           sleep 2
         done
-        curl -sf http://localhost:9200/_cluster/health || { echo "❌ Elasticsearch failed to start"; exit 1; }
+        curl -sf http://localhost:9200/_cluster/health || { echo "❌ ${{ inputs.search-engine }} failed to start"; exit 1; }
 
         echo "⏳ Waiting for RabbitMQ..."
         for i in $(seq 1 30); do
@@ -208,8 +193,29 @@ runs:
         echo "✅ All services ready"
 
     - name: Start application
-      run: java -jar openaev-api/target/openaev-api.jar > /tmp/openaev-app.log 2>&1 &
       shell: bash
+      run: |
+        echo "🚀 Starting OpenAEV from Docker image..."
+        docker run -d --name openaev-app --network host \
+          -e SPRING_DATASOURCE_URL \
+          -e SPRING_DATASOURCE_USERNAME \
+          -e SPRING_DATASOURCE_PASSWORD \
+          -e MINIO_ENDPOINT \
+          -e MINIO_PORT \
+          -e MINIO_ACCESS_KEY \
+          -e MINIO_ACCESS_SECRET \
+          -e ENGINE_URL \
+          -e ENGINE_ENGINESELECTOR \
+          -e OPENBAS_RABBITMQ_HOSTNAME \
+          -e OPENAEV_ADMIN_EMAIL \
+          -e OPENAEV_ADMIN_PASSWORD \
+          -e OPENAEV_ADMIN_TOKEN \
+          -e OPENAEV_ADMIN_ENCRYPTION_KEY \
+          -e OPENAEV_ADMIN_ENCRYPTION_SALT \
+          -e SPRING_PROFILES_ACTIVE \
+          -e OPENAEV_APPLICATION_LICENSE \
+          openaev:ci
+        echo "✅ Container started"
     - name: Wait for application to be ready
       shell: bash
       run: |
@@ -218,6 +224,14 @@ runs:
         echo "⏳ Waiting for API to be fully initialized (GET /api/me)..."
         APP_UP=false
         for i in $(seq 1 150); do
+          # Check container is still running
+          if ! docker inspect --format='{{.State.Running}}' openaev-app 2>/dev/null | grep -q true; then
+            echo "❌ Container openaev-app stopped unexpectedly"
+            echo "  Last 80 lines of container log:"
+            docker logs --tail 80 openaev-app 2>&1 || true
+            exit 1
+          fi
+
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             http://localhost:8080/api/me \
             -H "Authorization: Bearer ${ADMIN_TOKEN}" 2>/dev/null || echo -e "\n000")
@@ -237,14 +251,14 @@ runs:
           if [ $((i % 15)) -eq 0 ]; then
             BODY=$(echo "$RESPONSE" | sed '$d')
             echo "  Attempt $i/150 — HTTP ${HTTP_CODE} — ${BODY}"
-            echo "  Last 10 lines of app log:"
-            tail -10 /tmp/openaev-app.log 2>/dev/null || echo "  (no app log)"
+            echo "  Last 10 lines of container log:"
+            docker logs --tail 10 openaev-app 2>&1 || echo "  (no container log)"
           fi
 
           if [ "$i" -eq 150 ]; then
             echo "❌ API /api/me not returning 200 after 300s (last HTTP ${HTTP_CODE})"
-            echo "  Last 80 lines of app log:"
-            tail -80 /tmp/openaev-app.log 2>/dev/null || echo "  (no app log)"
+            echo "  Last 80 lines of container log:"
+            docker logs --tail 80 openaev-app 2>&1 || echo "  (no container log)"
             exit 1
           fi
           sleep 2
@@ -255,22 +269,55 @@ runs:
       with:
         openaev-url: http://localhost:8080
 
-    - name: Run E2E tests (${{ inputs.browser }})
-      run: yarn playwright test --config ${{ inputs.playwright-config }}
+    - name: Run E2E tests (${{ inputs.project || inputs.browser }})
+      run: |
+        set -euo pipefail
+        CONFIG="${{ inputs.playwright-config }}"
+        PROJECT="${{ inputs.project || inputs.browser }}"
+        ARGS="--config $CONFIG --project=setup --project=$PROJECT"
+
+        FILTERS=""
+        if [ "$SHARD_INCLUDES" = "catchall" ]; then
+          SPECS=$(find tests_e2e -name '*.spec.ts' | sed 's|^\./||' | sort)
+          if [ -n "$SHARD_EXCLUDES" ]; then
+            EXCL_RE=$(printf '%s\n' "$SHARD_EXCLUDES" | grep -v '^[[:space:]]*$' | paste -sd'|' -)
+            SPECS=$(printf '%s\n' "$SPECS" | grep -Ev "$EXCL_RE" || true)
+          fi
+          if [ -z "$SPECS" ]; then
+            echo "⏭️ Catch-all shard: every spec is claimed by another shard — nothing to run"
+            exit 0
+          fi
+          echo "🔄 Catch-all shard running:"
+          printf '  %s\n' $SPECS
+          FILTERS=$(printf '%s\n' "$SPECS" | paste -sd' ' -)
+        elif [ -n "$SHARD_INCLUDES" ]; then
+          FILTERS=$(printf '%s\n' "$SHARD_INCLUDES" | grep -v '^[[:space:]]*$' | paste -sd' ' -)
+          echo "📋 Shard filters: $FILTERS"
+        fi
+
+        # auth.setup.ts must stay in scope or the setup project matches nothing
+        # and every dependent project starts without a storageState.
+        if [ -n "$FILTERS" ]; then
+          ARGS="$ARGS tests_e2e/auth\.setup\.ts $FILTERS"
+        fi
+
+        yarn playwright test $ARGS
       shell: bash
       working-directory: openaev-front
       env:
         APP_URL: http://localhost:8080
         E2E_COVERAGE: "true"
+        SHARD_INCLUDES: ${{ inputs.includes }}
+        SHARD_EXCLUDES: ${{ inputs.excludes }}
     - name: Upload Playwright report (${{ inputs.browser }})
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
-        name: ${{ inputs.artifact-name-prefix }}-${{ inputs.browser }}${{ inputs.artifact-suffix != '' && format('-{0}', inputs.artifact-suffix) || '' }}
+        name: playwright-report-${{ inputs.browser }}${{ inputs.artifact-suffix }}
         path: openaev-front/test-results/
     - name: Upload E2E coverage report (${{ inputs.browser }})
       if: ${{ !cancelled() && inputs.browser == 'chrome' }}
       uses: actions/upload-artifact@v7
       with:
-        name: playwright-coverage-${{ inputs.browser }}
+        name: playwright-coverage-${{ inputs.browser }}${{ inputs.artifact-suffix }}
         path: openaev-front/test-results/coverage/

@@ -11,8 +11,13 @@ import { AbilityContext } from '../../../../../../utils/permissions/permissionsC
 type FlowProps = {
   focusRequest?: { nodeId: string };
   fitRequest?: number;
+  anchorRequest?: {
+    nodeId: string;
+    nonce: number;
+  } | null;
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
   onInjectorSelect?: (injectorId: string, label?: string) => void;
+  onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow' | 'typeOverflow') => void;
 };
 
 // Capture the props AttackPathCanvas receives (mocked so the canvas is not instantiated), and stub
@@ -244,6 +249,41 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     // the width the focus just revealed. The graph stays rendered, the detail is one node click away.
     expect(await screen.findByTestId('attack-path-flow')).toBeTruthy();
     expect(screen.queryByText(/Executions/)).toBeNull();
+  });
+
+  it('holds the view on an expanded finding cluster instead of re-fitting the whole graph', async () => {
+    setup();
+    await screen.findByTestId('attack-path-flow');
+    // Both initial reads (the collapsed seed, then the causal overlay merged in) bump the fit nonce as
+    // part of the initial framing; settle them before measuring what the click alone does.
+    await waitFor(() => {
+      expect(mocks.fetchAttackPathGraph).toHaveBeenCalled();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const fitBefore = mocks.flowProps.current?.fitRequest ?? 0;
+
+    // Expanding reveals nodes and so grows the world. Without an anchor the canvas reads that growth
+    // as the graph changing shape and re-frames everything, dumping the user back at its entrance.
+    act(() => {
+      mocks.flowProps.current?.onFindingClusterClick?.('cl-type|file|host-x', 'file', undefined, 'host-x', 'header');
+    });
+
+    await waitFor(() => {
+      expect(mocks.flowProps.current?.anchorRequest?.nodeId).toBe('cl-type|file|host-x');
+    });
+    // Anchoring is not fitting: the whole-graph fit must NOT have been requested.
+    expect(mocks.flowProps.current?.fitRequest ?? 0).toBe(fitBefore);
+
+    // Collapsing the same cluster removes nodes, where re-fitting IS the readable behaviour.
+    act(() => {
+      mocks.flowProps.current?.onFindingClusterClick?.('cl-type|file|host-x', 'file', undefined, 'host-x', 'header');
+    });
+    await waitFor(() => {
+      expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(fitBefore);
+    });
   });
 
   it('opens the result & terminal panel for a clicked execution and focuses its endpoint on the map', async () => {

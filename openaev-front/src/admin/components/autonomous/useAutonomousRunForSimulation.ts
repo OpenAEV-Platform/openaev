@@ -17,6 +17,11 @@ interface AutonomousRunDetection {
   /** Push a fresher run (status transitions) up from the live reasoning panel / header controls,
    *  so the hero and tab set stay in lockstep with the orchestrator without a second poll loop. */
   setRun: (run: AutonomousRun) => void;
+  /** Forget the detected run and treat the entity as manual, WITHOUT waiting for the discovery poll
+   *  to re-probe. Used when an operator action has just torn the run down server-side (a normal
+   *  launch supersedes a settled AI outcome): the by-scenario lookup now 404s, but the latched run
+   *  would otherwise keep rendering the stale AI plan outcome until a full page reload. */
+  clearRun: () => void;
 }
 
 /**
@@ -36,7 +41,9 @@ const useAutonomousRunDetection = (
 ): AutonomousRunDetection => {
   const { settings } = useAuth();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
-  const featureEnabled = isFeatureEnabled('AUTONOMOUS_ATTACK_PATH');
+  // Autonomy is a launch mode of chained scenarios, so it rides the chaining feature flag - there is
+  // no dedicated autonomous flag anymore.
+  const featureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const xtmOneReady = settings.platform_xtm_one_configured === true;
   // A positive "this entity is manual" hint makes the run non-existent by definition, so there is
   // nothing to look up regardless of EE / feature / XTM One state.
@@ -68,6 +75,16 @@ const useAutonomousRunDetection = (
     detectedRef.current = true;
     setManual(false);
     setRun(next);
+  }, []);
+
+  // Drop the detected run and pin the entity to manual so the discovery poll does NOT immediately
+  // re-detect it (the run was just torn down server-side, so a probe would 404 and land on manual
+  // anyway - pinning avoids a redundant round-trip and a flash of the stale outcome). A later real
+  // run (a fresh AI build / launch) clears this again through pushRun.
+  const clearRun = useCallback(() => {
+    detectedRef.current = false;
+    setManual(true);
+    setRun(null);
   }, []);
 
   useEffect(() => {
@@ -139,6 +156,7 @@ const useAutonomousRunDetection = (
     run,
     resolved,
     setRun: pushRun,
+    clearRun,
   };
 };
 
@@ -151,8 +169,10 @@ const useAutonomousRunForSimulation = (simulationId: string | undefined): Autono
   useAutonomousRunDetection(simulationId, fetchAutonomousRunBySimulation);
 
 /**
- * Scenario-side twin: detects the autonomous run owning a scenario so the scenario detail page can
- * render the same AI cockpit and steer its single underlying simulation.
+ * Scenario-side twin: detects the CURRENT autonomous run of a scenario so the scenario detail page
+ * can render the same AI cockpit and steer that run's simulation. A scenario carries at most one
+ * live run at a time (older runs are superseded, their finished simulations kept as history), so
+ * this resolves to the current/last run - never assuming a scenario owns exactly one simulation.
  *
  * <p>Pass the scenario's own {@code scenario_autonomous} flag once the scenario is loaded: when it
  * is {@code false} the scenario is authoritatively manual and the lookup is skipped entirely, so a

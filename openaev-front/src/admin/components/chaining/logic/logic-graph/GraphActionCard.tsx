@@ -17,7 +17,10 @@ export interface GraphActionCardProps {
   injectorType?: string;
   payloadType?: string;
   isPayload?: boolean;
-  /** MITRE tactic this action belongs to (shown as a chip). */
+  /**
+   * MITRE tactic this action belongs to. Surfaced in the tooltip only: the canvas already groups the
+   * cards under a per-tactic hull whose header names the tactic, so a chip on the card would repeat it.
+   */
   tacticLabel?: string;
   /** Finding/output types this action produces (feeds triggers). */
   outputTypes?: string[];
@@ -226,29 +229,9 @@ const GraphActionCard = ({
           >
             {typeLabel}
           </Typography>
-          {tacticLabel && (
-            <Box
-              component="span"
-              sx={{
-                flexShrink: 0,
-                maxWidth: 96,
-                fontSize: '0.5625rem',
-                fontWeight: 700,
-                letterSpacing: '0.03em',
-                textTransform: 'uppercase',
-                color: theme.palette.primary.main,
-                backgroundColor: `${theme.palette.primary.main}1f`,
-                borderRadius: 0.5,
-                paddingInline: 0.5,
-                paddingBlock: '1px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {tacticLabel}
-            </Box>
-          )}
+          {/* No tactic chip here: the canvas draws a hull around the cards sharing a tactic and puts
+              the tactic name in its header, so repeating it per card was pure duplication. The tactic
+              stays reachable in the tooltip above. */}
           {!readOnly && (
             <IconButton
               size="small"

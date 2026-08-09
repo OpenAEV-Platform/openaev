@@ -4,6 +4,8 @@ import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
@@ -100,7 +102,7 @@ public class LogService {
     try {
       // Build human-readable message
       String message = LogUtils.buildAuthLogMessage(eventScope, eventStatus, provider);
-      String eventType = LogUtils.getEventType(EventType.AUTHENTICATION);
+      String eventType = EventType.AUTHENTICATION.name().toLowerCase();
       String eventAccess = LogUtils.getAuthEventAccess();
       LogEvent doc = buildBaseAuditLog(eventType, eventStatus, eventAccess, eventScope, logUUID);
 
@@ -150,7 +152,7 @@ public class LogService {
         message = LogUtils.buildRequestLogMessage(eventScope, entityTypeName, displayName);
       }
 
-      String eventType = LogUtils.getEventType(EventType.MUTATION);
+      String eventType = EventType.MUTATION.name().toLowerCase();
       String eventAccess = LogUtils.getEventAccess(resourceType);
       LogEvent doc = buildBaseAuditLog(eventType, eventStatus, eventAccess, eventScope, logUUID);
       Map<String, Object> ctx = new LinkedHashMap<>();
@@ -158,15 +160,16 @@ public class LogService {
       ctx.put("entity_type", entityTypeName);
 
       if (input != null) {
-        // Redacted input
-        input = objectNormalizationUtils.normalize(input);
+        // Redact before normalizing: the normalization size-cap fallback serializes the tree into
+        // a scalar "preview" that field-name-based redaction cannot scrub afterwards.
         input = ObjectRedactionUtils.redact(input, resourceType);
+        input = objectNormalizationUtils.normalize(input);
         ctx.put("input", toContextValue(input));
       }
 
       if (output != null) {
-        output = objectNormalizationUtils.normalize(output);
         output = ObjectRedactionUtils.redact(output, resourceType);
+        output = objectNormalizationUtils.normalize(output);
         ctx.put("output", toContextValue(output));
       }
 
@@ -178,6 +181,7 @@ public class LogService {
 
       if (signatureNode != null) {
         signatureNode = ObjectRedactionUtils.redact(signatureNode, resourceType);
+        signatureNode = objectNormalizationUtils.normalize(signatureNode);
         doc.getRequestMetadata().setSignature(signatureNode);
       }
 
@@ -193,6 +197,143 @@ public class LogService {
   }
 
   // -- Internal helpers --
+
+  /**
+   * Logs a generic audit event. This is the single transport method for all event types — both
+   * legacy utility methods ({@code logAuthEvent}, {@code logRequestEvent}) and the new generic
+   * entry point ({@code AuditLogger.logEvent}) delegate here.
+   *
+   * @param event the audit event descriptor
+   * @param logLevel the log level for console emission
+   * @param logUUID the unique ID for this audit entry
+   * @return {@code true} if the event was successfully emitted
+   */
+  public boolean logGenericEvent(AuditEvent event, Object logLevel, String logUUID) {
+    if (!isEnabled()) {
+      return true;
+    }
+
+    try {
+      String eventType = event.getEventType().name().toLowerCase();
+      String eventStatus = event.getEventStatus().name().toLowerCase();
+      String eventScope = event.getEventScope().name().toLowerCase();
+
+      // For MUTATION events, resolve access based on ResourceType
+      String eventAccess;
+      ResourceType resourceType = event.getResourceType();
+      if (event.getEventType() == EventType.MUTATION && resourceType != null) {
+        eventAccess = LogUtils.getEventAccess(resourceType);
+      } else {
+        eventAccess = resolveEventAccess(event);
+      }
+
+      LogEvent doc = buildBaseAuditLog(eventType, eventStatus, eventAccess, eventScope, logUUID);
+
+      Map<String, Object> ctx =
+          new LinkedHashMap<>(event.getContextData() != null ? event.getContextData() : Map.of());
+
+      // Capture raw JsonNode input BEFORE processMutationContext converts it to Map
+      JsonNode rawInputNode =
+          (event.getEventType() == EventType.MUTATION && ctx.get("input") instanceof JsonNode jn)
+              ? jn
+              : null;
+
+      // MUTATION events: normalize, redact, and build message from input/output
+      if (event.getEventType() == EventType.MUTATION) {
+        processMutationContext(ctx, resourceType, eventScope, doc);
+      }
+
+      if (event.getMessage() != null) {
+        ctx.put("message", event.getMessage());
+      } else if (event.getEventType() == EventType.MUTATION) {
+        // Build message from mutation context if not explicitly provided
+        String entityTypeName = resourceType != null ? formatResourceType(resourceType) : null;
+        String displayName =
+            rawInputNode != null ? LogUtils.extractNameFromSnapshot(rawInputNode) : null;
+        displayName = displayName != null ? displayName : event.getResourceId();
+
+        String message;
+        if ("status_change".equals(eventScope)) {
+          message = LogUtils.buildStatusChangeMessage(rawInputNode, entityTypeName, displayName);
+        } else {
+          message = LogUtils.buildRequestLogMessage(eventScope, entityTypeName, displayName);
+        }
+        ctx.put("message", message);
+      }
+
+      if (resourceType != null && !ctx.containsKey("entity_type")) {
+        ctx.put("entity_type", formatResourceType(resourceType));
+      }
+      if (event.getResourceId() != null && !ctx.containsKey("resource_id")) {
+        ctx.put("resource_id", event.getResourceId());
+      }
+
+      // Entity diffs — normalize and redact
+      if (event.getEntityDiffs() != null && !event.getEntityDiffs().isEmpty()) {
+        JsonNode redactedDiffs = ObjectRedactionUtils.redact(event.getEntityDiffs(), resourceType);
+        ctx.put("entity_diffs", toContextValue(redactedDiffs));
+      }
+
+      doc.setContextData(ctx);
+
+      // For SYSTEM-origin: skip user metadata population (no servlet context)
+      if (event.getOrigin() == AuditEventOrigin.SYSTEM) {
+        doc.setUserId(null);
+        doc.setUserMetadata(null);
+      }
+
+      return emit(doc, logLevel);
+    } catch (Exception e) {
+      log.warn("[AUDIT] Failed to log generic event: {}", e.getMessage(), e);
+    }
+    return false;
+  }
+
+  /**
+   * Processes MUTATION-specific contextData entries: redacts and normalizes input/output JsonNodes,
+   * and extracts the signature into request metadata.
+   *
+   * <p>Redaction always runs before normalization: when a tree is still oversized after truncation,
+   * the normalization fallback serializes it into a scalar {@code preview} field that field-name
+   * based redaction cannot scrub afterwards. Redacting first guarantees the preview can only ever
+   * contain already-redacted data.
+   */
+  private void processMutationContext(
+      Map<String, Object> ctx, ResourceType resourceType, String eventScope, LogEvent doc) {
+    // Redact and normalize input
+    Object inputObj = ctx.get("input");
+    if (inputObj instanceof JsonNode inputNode && !inputNode.isNull()) {
+      inputNode = ObjectRedactionUtils.redact(inputNode, resourceType);
+      inputNode = objectNormalizationUtils.normalize(inputNode);
+      ctx.put("input", toContextValue(inputNode));
+    }
+
+    // Redact and normalize output
+    Object outputObj = ctx.get("output");
+    if (outputObj instanceof JsonNode outputNode && !outputNode.isNull()) {
+      outputNode = ObjectRedactionUtils.redact(outputNode, resourceType);
+      outputNode = objectNormalizationUtils.normalize(outputNode);
+      ctx.put("output", toContextValue(outputNode));
+    }
+
+    // Extract signature into request metadata. Normalization is what enforces the max event size:
+    // without it a large payload reaching the signature node (e.g. a @RequestPart DTO) is logged
+    // uncapped and can exhaust the heap.
+    Object signatureObj = ctx.remove("signature");
+    if (signatureObj instanceof JsonNode signatureNode && !signatureNode.isNull()) {
+      JsonNode redactedSignature = ObjectRedactionUtils.redact(signatureNode, resourceType);
+      JsonNode normalizedSignature = objectNormalizationUtils.normalize(redactedSignature);
+      doc.getRequestMetadata().setSignature(normalizedSignature);
+    }
+  }
+
+  /** Resolves the event access level based on the event type. */
+  private String resolveEventAccess(AuditEvent event) {
+    if (event.getEventType() == EventType.AUTHENTICATION) {
+      return "administration";
+    }
+    return "extended";
+  }
 
   /**
    * Logs a session expiry audit event. Called from the session listener (no HTTP request context).

@@ -966,21 +966,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@hookform/resolvers@npm:5.6.0":
-  version: 5.6.0
-  resolution: "@hookform/resolvers@npm:5.6.0"
+"@hookform/resolvers@npm:5.7.1":
+  version: 5.7.1
+  resolution: "@hookform/resolvers@npm:5.7.1"
   dependencies:
     "@standard-schema/utils": "npm:^0.3.0"
   peerDependencies:
     "@sinclair/typebox": ">=0.25.24"
     "@standard-schema/spec": ^1.0.0
     "@typeschema/main": ">=0.13.7"
-    "@vinejs/vine": ^2.0.0 || ^3.0.0
+    "@vinejs/vine": ^2.0.0 || ^3.0.0 || ^4.0.0
     ajv: ^8.12.0
     ajv-errors: ^3.0.0
     ajv-formats: ^2.1.1
     arktype: ^2.0.0
-    ata-validator: ^0.7.0
+    ata-validator: ^1.2.0
     class-transformer: ">=0.4.0"
     class-validator: ">=0.12.0"
     computed-types: ^1.0.0
@@ -1046,7 +1046,7 @@ __metadata:
       optional: true
     zod:
       optional: true
-  checksum: 10c0/7b0a10300e2610095e7165effdaa62a3b864d53adad0e0a40fac337c7ac70b026911630a8024330deb1006dd752e07036502488d8947a81a54092b1835b55f57
+  checksum: 10c0/a1e9608ca62488ad80883e421e2cf973e87668864993f490af6ea286c270530f04584a4f1b88159eee2a8207a52c92efeca363ddd6ea86b029d902a135101cdb
   languageName: node
   linkType: hard
 
@@ -5275,7 +5275,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dompurify@npm:3.4.12, dompurify@npm:^3.4.11":
+"dompurify@npm:3.4.13":
+  version: 3.4.13
+  resolution: "dompurify@npm:3.4.13"
+  dependencies:
+    "@types/trusted-types": "npm:^2.0.7"
+  dependenciesMeta:
+    "@types/trusted-types":
+      optional: true
+  checksum: 10c0/9c2a1a71e1a1d8b77953db7a39ffc935ef4ed4f10fe40770232128c2cbfd4c3dc677d3d7bae51eb24cc52d9ff3548612dc540ecb4343e89b26e809d2be2e0cfe
+  languageName: node
+  linkType: hard
+
+"dompurify@npm:^3.4.11":
   version: 3.4.12
   resolution: "dompurify@npm:3.4.12"
   dependencies:
@@ -9624,7 +9636,7 @@ __metadata:
     "@fontsource/geologica": "npm:5.3.0"
     "@fontsource/ibm-plex-sans": "npm:5.3.0"
     "@hello-pangea/dnd": "npm:18.0.1"
-    "@hookform/resolvers": "npm:5.6.0"
+    "@hookform/resolvers": "npm:5.7.1"
     "@microsoft/fetch-event-source": "npm:2.0.1"
     "@mui/icons-material": "npm:7.3.11"
     "@mui/lab": "npm:7.0.0-beta.17"
@@ -9658,7 +9670,7 @@ __metadata:
     cross-env: "npm:10.1.0"
     d3-hierarchy: "npm:3.1.2"
     date-fns: "npm:4.4.0"
-    dompurify: "npm:3.4.12"
+    dompurify: "npm:3.4.13"
     esbuild: "npm:0.28.1"
     eslint: "npm:9.39.5"
     eslint-import-resolver-next: "npm:0.6.0"
@@ -9701,7 +9713,7 @@ __metadata:
     react-final-form-arrays: "npm:4.0.0"
     react-grid-layout: "npm:2.2.4"
     react-hook-form: "npm:7.84.0"
-    react-intl: "npm:10.1.19"
+    react-intl: "npm:10.1.20"
     react-markdown: "npm:10.1.0"
     react-redux: "npm:9.3.0"
     react-router: "npm:7.18.2"
@@ -10490,9 +10502,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-intl@npm:10.1.19":
-  version: 10.1.19
-  resolution: "react-intl@npm:10.1.19"
+"react-intl@npm:10.1.20":
+  version: 10.1.20
+  resolution: "react-intl@npm:10.1.20"
   dependencies:
     "@formatjs/icu-messageformat-parser": "npm:3.5.16"
     "@formatjs/intl": "npm:4.1.18"
@@ -10500,7 +10512,7 @@ __metadata:
   peerDependencies:
     "@types/react": ">=18.0.0"
     react: ">=18.0.0"
-  checksum: 10c0/b3bda12caaa7bc44ba32763d946a136bae84c4a6d83ac2970ad35a6147b62f410df15eb8826d0084e00600e8620a2c5aa8411fe235044c327a923266d92d9d79
+  checksum: 10c0/96b27aadfc7943284307414a871d3ebf87c0fa073d8fa521c5dbb3784edddc41eafae5b7b0f861a45041fda1a087513570f81035732cdf1e17f37864d0a59723
   languageName: node
   linkType: hard
 

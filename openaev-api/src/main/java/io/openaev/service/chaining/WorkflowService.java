@@ -46,6 +46,7 @@ public class WorkflowService {
   private static final Gson GSON = new Gson();
 
   private final StepService stepService;
+  private final ConditionService conditionService;
   private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
@@ -670,30 +671,135 @@ public class WorkflowService {
   }
 
   /**
-   * Deletes the given scenario step templates (and their conditions), skipping any already gone.
+   * Clears the ENTIRE logic map of a scenario's chaining workflow - every step template AND every
+   * condition (event/trigger trees included) - keeping the (now empty) workflow row itself.
    *
-   * <p>Used to clear the steps an autonomous run mirrored onto its scenario before a restart: the
-   * scenario workflow doubles as the seed a fresh simulation is copied from, so stale mirrored
-   * steps must be removed or the restarted simulation would not park empty and the scenario would
-   * accumulate a duplicated attack path. Best-effort per id so a missing step never aborts restart.
+   * <p>The deterministic reset used before an autonomous run is restarted, a plan is promoted to a
+   * real run, or the AI builder re-plans (rebuilds) the scenario. The scenario workflow doubles as
+   * the seed a fresh simulation is copied from, so anything left on it re-seeds that simulation -
+   * leaving the Logic tab and the attack-path map populated right after a reset the operator
+   * expected to wipe them. Two past regressions shaped this method: (1) the reset once only removed
+   * the steps named in the run's best-effort {@code stepMirror}, so a single un-mirrored step
+   * survived and duplicated the attack path; (2) deleting the steps alone leaves the event/trigger
+   * condition trees behind, because per-step condition cleanup only deletes a condition once it has
+   * no more step links AND no children - a root condition with children (exactly what an authored
+   * event is) always survived as an orphan on the logic map. An AI-rebuilt scenario starts from an
+   * empty logic map, so clearing everything is both safe and the behaviour the operator wants:
+   * "build (or launch for real) fully recreates everything". The workflow row is preserved so the
+   * simulation is still recognised as chaining and keep-alive holds.
    *
-   * @param scenarioStepTemplateIds step template ids previously mirrored onto the scenario
+   * @param scenarioId the autonomous run's scenario
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteScenarioMirrorSteps(java.util.Collection<String> scenarioStepTemplateIds) {
-    if (scenarioStepTemplateIds == null) {
+  public void deleteAllScenarioSteps(String scenarioId) {
+    if (!hasText(scenarioId)) {
       return;
     }
-    for (String stepId : scenarioStepTemplateIds) {
-      if (!hasText(stepId)) {
-        continue;
-      }
+    Optional<Workflow> template;
+    try {
+      template = findWorkflowTemplateByScenarioId(scenarioId);
+    } catch (ChainingException e) {
+      log.warn(
+          "Failed to resolve scenario {} workflow for a full step reset: {}",
+          scenarioId,
+          e.getMessage());
+      return;
+    }
+    if (template.isEmpty()) {
+      return;
+    }
+    for (Step step : stepService.findAllStepTemplateByWorkflow(template.get().getId())) {
       try {
-        stepService.deleteStepTemplate(stepId);
+        stepService.deleteStepTemplate(step.getId());
       } catch (Exception e) {
-        log.warn("Failed to delete mirrored scenario step {}: {}", stepId, e.getMessage());
+        log.warn(
+            "Failed to delete scenario step {} during autonomous reset: {}",
+            step.getId(),
+            e.getMessage());
       }
     }
+    // Sweep the conditions AFTER the steps: per-step cleanup only removed conditions left with no
+    // step links and no children, so event/trigger trees survive it by construction.
+    try {
+      conditionService.deleteAllConditionsByWorkflowId(template.get().getId());
+    } catch (Exception e) {
+      log.warn(
+          "Failed to delete scenario {} workflow conditions during autonomous reset: {}",
+          scenarioId,
+          e.getMessage());
+    }
+  }
+
+  /**
+   * Turns OFF keep-alive on a scenario's chaining workflow template (and re-enables the normal
+   * timeout), making it behave like a hand-built chained scenario again.
+   *
+   * <p>Keep-alive (and {@code timeoutEnabled = false}) now lives on the launched SIMULATION, not
+   * the scenario template ({@link #markSimulationWorkflowKeepAlive}), so a fresh autonomous
+   * scenario no longer carries it. This method remains the safe healer for LEGACY scenarios whose
+   * template was marked keep-alive before that change: taking such a scenario manual would
+   * otherwise leave a launched run hanging open forever (no orchestrator ever appends steps or ends
+   * it). Called when dropping the {@code autonomous_runs} row (in-place conversion) or copying an
+   * autonomous workflow into a fresh manual scenario (duplicate). A no-op when the scenario has no
+   * workflow template, or when the template is already clean.
+   *
+   * @param scenarioId the scenario whose workflow should stop keeping itself alive
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void clearScenarioWorkflowKeepAlive(String scenarioId) {
+    if (!hasText(scenarioId)) {
+      return;
+    }
+    Optional<Workflow> template;
+    try {
+      template = findWorkflowTemplateByScenarioId(scenarioId);
+    } catch (ChainingException e) {
+      log.warn(
+          "Failed to resolve scenario {} workflow to clear keep-alive: {}",
+          scenarioId,
+          e.getMessage());
+      return;
+    }
+    if (template.isEmpty()) {
+      return;
+    }
+    Workflow workflow = template.get();
+    if (workflow.isKeepAlive() || !workflow.isTimeoutEnabled()) {
+      // Restore a run-and-end manual chained workflow: timeout watchdog back on.
+      workflow.setKeepAlive(false);
+      workflow.setTimeoutEnabled(true);
+      workflowRepository.save(workflow);
+    }
+  }
+
+  /**
+   * Copies an existing scenario's chaining workflow TEMPLATE (configuration, scope rules and every
+   * step template) onto {@code scenarioTo} as a plain <b>manual</b> chained workflow: keep-alive is
+   * forced OFF so the copy runs-and-ends like a hand-built scenario rather than parking forever for
+   * an orchestrator. Used to duplicate an autonomous scenario into a fresh, editable manual chained
+   * scenario without touching the original AI run. A no-op (returns null) when the source has no
+   * workflow template.
+   *
+   * @param scenarioIdFrom source scenario whose workflow (steps + config) is copied
+   * @param scenarioTo already-persisted destination scenario to attach the copied workflow to
+   * @return the new manual workflow template, or null if the source has no workflow
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Workflow copyScenarioChainingWorkflowAsManual(
+      @NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo) throws ChainingException {
+    Optional<Workflow> sourceOpt = findWorkflowTemplateByScenarioId(scenarioIdFrom);
+    if (sourceOpt.isEmpty()) {
+      return null;
+    }
+    Workflow source = sourceOpt.get();
+    Workflow copy = copyWorkflowTemplateToScenario(source, scenarioTo);
+    // A duplicated autonomous workflow must never inherit the "park forever" contract
+    // (keepAlive on, timeout watchdog off) that a legacy autonomous scenario template may carry.
+    copy.setKeepAlive(false);
+    copy.setTimeoutEnabled(true);
+    copy = workflowRepository.save(copy);
+    stepService.copyStepTemplate(source, copy);
+    return copy;
   }
 
   /**
@@ -1304,27 +1410,54 @@ public class WorkflowService {
   // -- Autonomous authoring facade --
 
   /**
-   * Marks the scenario's TEMPLATE workflow as keep-alive and disables its timeout, so an autonomous
-   * (AI-driven) run built on top of it survives an empty launch and long idle gaps between decision
-   * cycles. The flag propagates to the simulation TEMPLATE and RUN workflows through the standard
-   * copy chain at launch, so this must be called BEFORE {@link
-   * #startWorkflowByScenarioIdAndSimulation}.
+   * Marks a launched SIMULATION's chaining workflows (its TEMPLATE and every RUN) as keep-alive and
+   * disables their timeout, so an autonomous simulation parks in RUN awaiting the orchestrator
+   * between decision cycles instead of ending when it runs out of ready steps, and {@code
+   * WorkflowTimeoutJob} never force-ends it (the autonomous run's own OpenAEV-owned deadline, 24h
+   * by default, hard-stops a live run; a plan substrate is untimed).
    *
-   * @param scenarioId the autonomous scenario whose workflow should be kept alive
+   * <p>Applied to the SIMULATION - never to the reusable scenario TEMPLATE - so building or
+   * launching an autonomous run never mutates the scenario's own "Simulation time out" config: a
+   * chained scenario keeps its default 1h expiration (editable in the Scope tab), and the very same
+   * scenario can be relaunched in normal mode and run-and-end normally. A no-op when the simulation
+   * has no workflow yet.
+   *
+   * <p>Must be called at launch time, in the SAME transaction as the launch, on a freshly
+   * provisioned simulation. The initial evaluation inside {@code startWorkflow} ENDs an empty
+   * non-keep-alive run on the spot - and an autonomous run always launches empty - so the freshly
+   * ended run is invisible to the RUN-status finder. This method therefore also picks up the
+   * simulation's END runs and restores them to RUN: on a fresh simulation the only possible END run
+   * is the one the launch itself just ended (nothing ever executed), so the restore can never
+   * resurrect a legitimately finished run.
+   *
+   * @param simulationId the launched simulation whose workflows should keep themselves alive
    */
   @Transactional(rollbackFor = Exception.class)
-  public void markScenarioWorkflowKeepAlive(String scenarioId) throws ChainingException {
-    Workflow template =
-        findWorkflowTemplateByScenarioId(scenarioId)
-            .orElseThrow(
-                () ->
-                    new ElementNotFoundException(
-                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-    if (!template.isKeepAlive() || template.isTimeoutEnabled()) {
-      template.setKeepAlive(true);
-      // A long-lived incremental build must not be force-ended by WorkflowTimeoutJob.
-      template.setTimeoutEnabled(false);
-      workflowRepository.save(template);
+  public void markSimulationWorkflowKeepAlive(String simulationId) {
+    if (!hasText(simulationId)) {
+      return;
+    }
+    List<Workflow> workflows = new ArrayList<>();
+    findWorkflowTemplateBySimulationId(simulationId).ifPresent(workflows::add);
+    workflows.addAll(findWorkflowRunBySimulationId(simulationId));
+    // Recover the empty run the launch evaluation just ended (see javadoc): parked back in RUN, it
+    // awaits the orchestrator's first authored step instead of staying terminally closed.
+    workflows.addAll(
+        workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END));
+    for (Workflow workflow : workflows) {
+      boolean dirty = false;
+      if (workflow.getStatus() == WorkflowStatus.END) {
+        workflow.setStatus(WorkflowStatus.RUN);
+        dirty = true;
+      }
+      if (!workflow.isKeepAlive() || workflow.isTimeoutEnabled()) {
+        workflow.setKeepAlive(true);
+        workflow.setTimeoutEnabled(false);
+        dirty = true;
+      }
+      if (dirty) {
+        workflowRepository.save(workflow);
+      }
     }
   }
 
@@ -1516,7 +1649,25 @@ public class WorkflowService {
    */
   @Transactional(readOnly = true)
   public List<AuthoredAttackStep> readAuthoredAttackPath(String simulationId) {
-    Optional<Workflow> template = findWorkflowTemplateBySimulationId(simulationId);
+    return readAuthoredAttackPathFromTemplate(findWorkflowTemplateBySimulationId(simulationId));
+  }
+
+  /**
+   * Scenario-side twin of {@link #readAuthoredAttackPath(String)} for author-scenario (AI planning)
+   * runs: reads the steps authored directly onto the scenario's workflow TEMPLATE, since a plan run
+   * has no simulation. Run inject ids are always empty here - a plan never executes.
+   */
+  @Transactional(readOnly = true)
+  public List<AuthoredAttackStep> readAuthoredAttackPathForScenario(String scenarioId) {
+    try {
+      return readAuthoredAttackPathFromTemplate(findWorkflowTemplateByScenarioId(scenarioId));
+    } catch (ChainingException e) {
+      log.warn("[Chaining] Could not read authored attack path for scenario {}", scenarioId, e);
+      return List.of();
+    }
+  }
+
+  private List<AuthoredAttackStep> readAuthoredAttackPathFromTemplate(Optional<Workflow> template) {
     if (template.isEmpty()) {
       return List.of();
     }

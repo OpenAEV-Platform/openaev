@@ -1,0 +1,111 @@
+name: Wait for Workflow Artifacts
+description: >
+  Wait for required artifacts while monitoring their producer jobs. Aborts as
+  soon as a producer reaches any terminal non-success conclusion.
+
+inputs:
+  artifact-names:
+    description: "Newline-separated required workflow artifact names"
+    required: true
+  producer-job-names:
+    description: "Newline-separated producer job-name substrings"
+    required: true
+  wait-seconds:
+    description: "Maximum time to wait for all artifacts"
+    required: false
+    default: "900"
+  poll-interval-seconds:
+    description: "Interval between artifact and producer checks"
+    required: false
+    default: "15"
+
+runs:
+  using: composite
+  steps:
+    - name: Wait for artifacts and producers
+      shell: bash
+      env:
+        ARTIFACT_NAMES: ${{ inputs.artifact-names }}
+        PRODUCER_JOB_NAMES: ${{ inputs.producer-job-names }}
+        WAIT_SECONDS: ${{ inputs.wait-seconds }}
+        POLL_INTERVAL_SECONDS: ${{ inputs.poll-interval-seconds }}
+      run: |
+        set -euo pipefail
+
+        mapfile -t ARTIFACTS < <(printf '%s\n' "$ARTIFACT_NAMES" \
+          | sed -e 's/\r$//' -e '/^[[:space:]]*$/d')
+        mapfile -t PRODUCERS < <(printf '%s\n' "$PRODUCER_JOB_NAMES" \
+          | sed -e 's/\r$//' -e '/^[[:space:]]*$/d')
+
+        if [ "${#ARTIFACTS[@]}" -eq 0 ] || [ "${#PRODUCERS[@]}" -eq 0 ]; then
+          echo "artifact-names and producer-job-names must not be empty" >&2
+          exit 1
+        fi
+        for value_name in WAIT_SECONDS POLL_INTERVAL_SECONDS; do
+          value="${!value_name}"
+          if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -eq 0 ]; then
+            input_name=$(printf '%s' "${value_name,,}" | tr '_' '-')
+            echo "${input_name} must be a positive integer" >&2
+            exit 1
+          fi
+        done
+
+        required_artifacts_ready() {
+          local artifact names="$1"
+          for artifact in "${ARTIFACTS[@]}"; do
+            grep -qxF "$artifact" <<< "$names" || return 1
+          done
+        }
+
+        check_producers() {
+          local conclusion expected job_name rows="$1"
+          for expected in "${PRODUCERS[@]}"; do
+            while IFS=$'\t' read -r job_name conclusion; do
+              [[ "$job_name" == *"$expected"* ]] || continue
+              case "$conclusion" in
+                ""|success) ;;
+                *)
+                  echo "Required producer did not succeed: ${job_name} (${conclusion})" >&2
+                  return 0
+                  ;;
+              esac
+            done <<< "$rows"
+          done
+          return 1
+        }
+
+        START_TIME=$SECONDS
+        DEADLINE=$((SECONDS + WAIT_SECONDS))
+        echo "Waiting for workflow artifacts: ${ARTIFACTS[*]}"
+
+        while true; do
+          REMAINING=$((DEADLINE - SECONDS))
+          if [ "$REMAINING" -le 0 ]; then
+            echo "Timed out after ${WAIT_SECONDS}s waiting for artifacts: ${ARTIFACTS[*]}" >&2
+            exit 1
+          fi
+          API_TIMEOUT=$((REMAINING < 15 ? REMAINING : 15))
+
+          ARTIFACT_ROWS=$(timeout --kill-after=5s "${API_TIMEOUT}s" gh api --paginate \
+            "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" \
+            --jq '.artifacts[].name' 2>/dev/null || true)
+          JOB_ROWS=$(timeout --kill-after=5s "${API_TIMEOUT}s" gh api --paginate \
+            "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" \
+            --jq '.jobs[] | [.name, (.conclusion // "")] | @tsv' 2>/dev/null || true)
+          if check_producers "$JOB_ROWS"; then
+            exit 1
+          fi
+
+          if required_artifacts_ready "$ARTIFACT_ROWS"; then
+            echo "Artifacts ready after $((SECONDS - START_TIME))s"
+            exit 0
+          fi
+
+          REMAINING=$((DEADLINE - SECONDS))
+          if [ "$REMAINING" -le 0 ]; then
+            echo "Timed out after ${WAIT_SECONDS}s waiting for artifacts: ${ARTIFACTS[*]}" >&2
+            exit 1
+          fi
+          SLEEP_SECONDS=$((REMAINING < POLL_INTERVAL_SECONDS ? REMAINING : POLL_INTERVAL_SECONDS))
+          sleep "$SLEEP_SECONDS"
+        done

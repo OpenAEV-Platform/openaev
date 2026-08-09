@@ -18,6 +18,14 @@ public interface AutonomousDirectiveRepository extends JpaRepository<AutonomousD
 
   List<AutonomousDirective> findByRunIdOrderByCreatedAtAsc(String runId);
 
+  /**
+   * Cheap existence probe: does the run still have a directive in the given status? Used by the
+   * run/simulation reconciliation as a proof-of-life signal - a PENDING directive means the
+   * operator just steered and the orchestrator has not consumed it yet, so the run must not be
+   * settled from a stale simulation status.
+   */
+  boolean existsByRunIdAndStatus(String runId, AutonomousDirectiveStatus status);
+
   /** Bulk-purges a run's steering directives when the run is deleted. */
   @Modifying
   @Query("DELETE FROM AutonomousDirective d WHERE d.runId = :runId")

@@ -7,6 +7,7 @@ const BUILTIN_CONNECTOR_DESCRIPTIONS: Record<string, string> = {
   // Injectors
   openaev_manual: 'Log manual actions carried out outside the platform so they are tracked in a scenario.',
   openaev_email: 'Send emails to your targets to run phishing and awareness simulations.',
+  openaev_phishing: 'Launch credential-harvesting phishing campaigns with reusable lure emails and landing pages from the Threat Arsenal.',
   openaev_channel: 'Publish media pressure articles on channels to simulate information operations.',
   openaev_challenge: 'Deliver challenges to players to test their detection and response reflexes.',
   openaev_implant: 'Execute payloads on endpoints through the built-in OpenAEV agent.',
@@ -15,6 +16,8 @@ const BUILTIN_CONNECTOR_DESCRIPTIONS: Record<string, string> = {
   // Collectors
   openaev_fake_detector: 'Automatically expire inject expectations left unfilled past their time window.',
   openaev_expectations_vulnerability_manager: 'Score vulnerability expectations against detected findings to track exposure.',
+  // Secrets providers
+  openaev_local_secret_provider: 'Store and retrieve simulation credentials directly inside the platform, without an external secrets manager.',
 };
 
 /** Returns the fallback description for a built-in connector type, or undefined. */

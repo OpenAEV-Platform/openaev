@@ -63,6 +63,8 @@ export const entitiesInitializer = Map({
     tenant_capabilities: Map({}),
     tenantXtmHubRegistrations: Map({}),
     notifications: Map({}),
+    phishinglandingpages: Map({}),
+    phishingemailtemplates: Map({}),
   }),
 });
 

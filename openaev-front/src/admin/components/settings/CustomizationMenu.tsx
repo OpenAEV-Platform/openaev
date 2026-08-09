@@ -1,10 +1,13 @@
-import { AutoAwesome, NotificationsOutlined } from '@mui/icons-material';
+import { AutoAwesome, DnsOutlined, NotificationsOutlined, SchoolOutlined } from '@mui/icons-material';
 import { SelectGroup } from 'mdi-material-ui';
-import { type FunctionComponent, memo } from 'react';
+import { type FunctionComponent, memo, useContext } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/RightMenu';
+import { LESSONS_TEMPLATES_BASE_URL } from '../../../constants/BaseUrls';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import EEChip from '../common/entreprise_edition/EEChip';
 
@@ -14,11 +17,13 @@ import EEChip from '../common/entreprise_edition/EEChip';
  */
 const CustomizationMenuComponent: FunctionComponent = () => {
   const { settings } = useAuth();
+  const ability = useContext(AbilityContext);
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   // The autonomous-attack customization is driven by XTM One (the AI brain); show it only when the
-  // feature is on and XTM One is connected, matching the launch entry point's own gate.
+  // chaining feature is on (autonomy is a launch mode of chained scenarios, no dedicated flag) and
+  // XTM One is connected, matching the launch entry point's own gate.
   const autonomousReady
-    = isFeatureEnabled('AUTONOMOUS_ATTACK_PATH')
+    = isFeatureEnabled('INJECT_CHAINING')
       && settings.platform_xtm_one_configured === true;
 
   const entries: RightMenuEntry[] = [
@@ -28,10 +33,22 @@ const CustomizationMenuComponent: FunctionComponent = () => {
       label: 'Default asset rules',
     },
     {
+      path: '/admin/settings/customization/custom_domains',
+      icon: () => (<DnsOutlined />),
+      label: 'Custom domains',
+    },
+    {
       path: '/admin/settings/customization/notifiers',
       icon: () => (<NotificationsOutlined />),
       label: 'Notifiers',
     },
+    ...(ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED)
+      ? [{
+          path: LESSONS_TEMPLATES_BASE_URL,
+          icon: () => (<SchoolOutlined />),
+          label: 'Lessons learned',
+        }]
+      : []),
     ...(autonomousReady
       ? [{
           path: '/admin/settings/customization/autonomous_attack',

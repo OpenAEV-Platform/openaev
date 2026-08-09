@@ -7,6 +7,12 @@ export const fetchFinding = (findingId: string) => {
   return simpleCall(`${FINDING_URI}/${findingId}`);
 };
 
+// Group-wide summary (deduplicated by type + value): true first/last seen and
+// distinct impact counts across every occurrence, computed server-side.
+export const fetchFindingSummary = (findingId: string) => {
+  return simpleCall(`${FINDING_URI}/${findingId}/summary`);
+};
+
 export const searchFindings = (searchPaginationInput: SearchPaginationInput) => {
   const data = searchPaginationInput;
   const uri = `${FINDING_URI}/search`;

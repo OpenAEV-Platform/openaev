@@ -15,6 +15,7 @@ import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -23,6 +24,8 @@ import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
@@ -92,6 +95,8 @@ public class ScenarioApi extends RestBehavior {
   private final PreviewFeatureService previewFeatureService;
   private final ExpectationsDriftService expectationsDriftService;
   private final AutonomousRunService autonomousRunService;
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -123,6 +128,12 @@ public class ScenarioApi extends RestBehavior {
     // workflow to the scenario
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
         && Boolean.TRUE.equals(input.getIsChaining())) {
+      // Chaining is an Enterprise Edition feature: reject the creation of a chaining scenario
+      // when the enterprise license is inactive
+      if (enterpriseEditionService.isEnterpriseLicenseInactive(
+          licenseCacheManager.getEnterpriseEditionInfo())) {
+        throw new EnterpriseEditionException("Enterprise Edition license required");
+      }
       workflowService.creationWorkflow(savedScenario);
     }
 
@@ -323,8 +334,9 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
   public void deleteScenario(@PathVariable @NotBlank final String scenarioId) {
-    // An autonomous scenario and its single simulation are one unit: tear the run + simulation down
-    // first (409 if the run is still active), then delete the scenario. No-op for manual scenarios.
+    // Tear down the autonomous run's coordination first (409 if it is still active), then delete
+    // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
+    // any chained simulation. No-op for manual scenarios.
     this.autonomousRunService.deleteForScenario(scenarioId);
     this.scenarioService.deleteScenario(scenarioId);
   }
@@ -634,6 +646,11 @@ public class ScenarioApi extends RestBehavior {
 
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
         && workflowService.isScenarioChaining(scenarioId)) {
+      // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
+      // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
+      // plan or run outcome is no longer the latest activity). No-op when the scenario carries no
+      // run or the feature is off, and never tears down a still-active run.
+      autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
       simulation =
           scenarioToExerciseService.toExercise(
               scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);

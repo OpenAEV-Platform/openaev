@@ -4,8 +4,24 @@ WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages
 COPY openaev-front/patches ./patches
 COPY openaev-front/package.json openaev-front/yarn.lock openaev-front/.yarnrc.yml ./
+# git is required to resolve @filigran/design-system, which openaev-front
+# consumes as a direct git dependency. The Alpine node images do not ship it,
+# and without it the failure reads as an authentication error.
+RUN apk --no-cache add git
 RUN npm install -g corepack
-RUN yarn install
+# The design system lives in a private repository, so the install needs a
+# credential. It is mounted as a BuildKit secret for this RUN only and is
+# stored in no layer — `docker history` and /root/.gitconfig stay clean.
+# `set -eu`, never `-eux`: with -x the shell would echo the expanded token.
+RUN --mount=type=secret,id=fds_git_token \
+    set -eu; \
+    if [ ! -s /run/secrets/fds_git_token ]; then \
+      echo "fds_git_token build secret is missing or empty: yarn install cannot clone the design system." >&2; \
+      exit 1; \
+    fi; \
+    git config --global url."https://x-access-token:$(cat /run/secrets/fds_git_token)@github.com/".insteadOf "https://github.com/"; \
+    yarn install; \
+    git config --global --unset-all url."https://x-access-token:$(cat /run/secrets/fds_git_token)@github.com/".insteadOf
 COPY openaev-front /opt/openaev-build/openaev-front
 RUN yarn build
 
@@ -13,6 +29,7 @@ FROM maven:3.9.16-eclipse-temurin-21 AS api-builder
 
 WORKDIR /opt/openaev-build/openaev
 COPY openaev-annotation-processor ./openaev-annotation-processor
+COPY openaev-maven-plugin ./openaev-maven-plugin
 COPY openaev-model ./openaev-model
 COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api

@@ -35,6 +35,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Entity representing a simulation scenario in OpenAEV.
@@ -200,6 +201,21 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @Column(name = "scenario_autonomous")
   @JsonProperty("scenario_autonomous")
   private boolean autonomous;
+
+  /**
+   * Saved autonomous-run configuration for this chained scenario: the serialized {@code
+   * AutonomousRunCreateInput} (objective, specialist agents + discovery modes, allow/deny scope,
+   * time budget) the operator configured in the AI builder but has not yet launched. Lets the
+   * parameters be persisted to "build later" WITHOUT parking a CREATED run (which would lock the
+   * scenario into the AI cockpit). The scenario stays a normal, editable chained scenario until the
+   * operator actually plans (Build) or launches it. Served only through the dedicated {@code
+   * /autonomous-runs/scenario-config/{scenarioId}} endpoint, never on the Scenario payload, and
+   * kept as a generic map so the model does not depend on the api DTO.
+   */
+  @JsonIgnore
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "scenario_autonomous_config")
+  private Map<String, Object> autonomousConfig;
 
   /**
    * Virtual filter facet exposing the scenario "engine type" (Time-based / Chained / Autonomous) to

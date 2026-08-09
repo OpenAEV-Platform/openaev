@@ -221,7 +221,7 @@ const Endpoints = () => {
       <Breadcrumbs
         variant="list"
         elements={[{
-          label: t('Assets'),
+          label: t('Endpoints'),
           current: true,
         }]}
       />
