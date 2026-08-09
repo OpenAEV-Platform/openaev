@@ -1,12 +1,12 @@
 import { Chip } from '@mui/material';
-import { type FunctionComponent } from 'react';
+import { type CSSProperties, type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type CustomDomain } from '../../../../utils/api-types';
 
 interface Props {
   status: CustomDomain['custom_domain_status'];
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
 // Status-driven colour, aligned with the platform's severity palette: verified is a positive

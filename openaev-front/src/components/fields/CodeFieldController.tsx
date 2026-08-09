@@ -1,4 +1,4 @@
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, type ReactNode } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import CodeEditor from './CodeEditor';
@@ -11,7 +11,7 @@ interface Props {
   placeholder?: string;
   disabled?: boolean;
   minHeight?: number;
-  headerAction?: React.ReactNode;
+  headerAction?: ReactNode;
 }
 
 /** react-hook-form wrapper around the syntax-highlighting CodeEditor. */
