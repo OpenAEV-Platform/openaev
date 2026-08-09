@@ -22,7 +22,7 @@ import { AP_GLOBAL_STYLES, AP_PANEL_DEFAULT_WIDTH, AP_PANEL_MAX_WIDTH, AP_PANEL_
 import AttackPathHeader, { type FindingCard, type SearchOption } from './AttackPathHeader';
 import AttackPathLegend from './AttackPathLegend';
 import AttackPathTableView, { type AttackPathEndpointRow } from './AttackPathTableView';
-import AttackPathCanvas, { type AttackPathFocusRequest, type AttackPathPursuitRequest } from './canvas/AttackPathCanvas';
+import AttackPathCanvas, { type AttackPathAnchorRequest, type AttackPathFocusRequest, type AttackPathPursuitRequest } from './canvas/AttackPathCanvas';
 import CategoryFindingsPanel from './CategoryFindingsPanel';
 import EndpointDetailPanel from './EndpointDetailPanel';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
@@ -368,6 +368,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // endpoint -> finding path that produced the finding picked in the drawer. fitNonce bumps to frame it.
   const [pathFinding, setPathFinding] = useState<PathFinding | null>(null);
   const [fitNonce, setFitNonce] = useState(0);
+  // Expanding a cluster holds the view on the clicked node: the canvas's growth-driven fit would
+  // otherwise re-frame the whole graph and throw the user back to its entrance.
+  const [anchorRequest, setAnchorRequest] = useState<AttackPathAnchorRequest | null>(null);
+  const anchorOnNode = useCallback((nodeId: string) => {
+    setAnchorRequest(prev => ({
+      nodeId,
+      nonce: (prev?.nonce ?? 0) + 1,
+    }));
+  }, []);
   // Bumped whenever a side panel/drawer opens so the graph legend folds away (reopenable by the user).
   const [legendCollapseNonce, setLegendCollapseNonce] = useState(0);
 
@@ -748,15 +757,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     });
     if (collapsing) {
       setFitNonce(n => n + 1);
+    } else {
+      // Expanding: hold the view on the injector whose endpoints just appeared.
+      anchorOnNode(injectorId);
     }
-  }, [endpointBatch]);
+  }, [endpointBatch, anchorOnNode]);
 
   // Causal-chain view: reveal another ENDPOINT_BATCH_SIZE of a depth's hidden endpoints per click — never
   // the whole overflow at once, so drilling into a heavy step doesn't dump the user back into a wall of
   // nodes. Keeps the current view (no refit): the newly revealed hosts appear near where the user clicked.
   const onEndpointClusterClick = useCallback((clusterId: string) => {
     setEndpointClusterBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + ENDPOINT_BATCH_SIZE));
-  }, []);
+    anchorOnNode(clusterId);
+  }, [anchorOnNode]);
 
   // injector id -> refs of the endpoints it reached (asset ref or id), for the bounded finding fetch.
   const injectorEndpointRefs = useMemo(() => {
@@ -848,6 +861,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow' | 'typeOverflow') => {
       if (kind === 'overflow') {
         setFindingBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + FINDING_BATCH_SIZE));
+        anchorOnNode(clusterId);
         return;
       }
       // "+N other types": purely a layout toggle (reveal/hide the type clusters the column capped
@@ -879,6 +893,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       }
       setExpandedFindingClusters(prev => new Set(prev).add(clusterId));
       setFindingBatch(prev => new Map(prev).set(clusterId, FINDING_BATCH_SIZE));
+      // Hold the view on the cluster that was clicked: the revealed findings grow the world, which the
+      // canvas would otherwise read as the graph changing shape and re-fit from the entrance.
+      anchorOnNode(clusterId);
       setSelectedFindingId(clusterId);
       setFindingDetail(null);
       // In the focused view, scope the highlight to the action(s) that PRODUCED this finding type — so
@@ -934,7 +951,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         }
       }
     },
-    [expandedFindingClusters, findingsByCluster, fetchClusterFindings, simulationId, pathFinding, fullDto],
+    [expandedFindingClusters, findingsByCluster, fetchClusterFindings, simulationId, pathFinding, fullDto, anchorOnNode],
   );
 
   // Auto-expand the focused finding's own type cluster (fetching its individual findings if not
@@ -2146,6 +2163,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         statusColor: attackPathStatusColor(theme, e.status),
         statusLabel: t(statusLabelKey(e.status)),
         subtitle: [e.agentName, e.privilege].filter(Boolean).join(' · '),
+        injectId: e.injectId,
+        payloadId: e.payloadId,
+        executionStatus: e.executionStatus,
       }));
   }, [findingDetail, highlightedExecutionIds, executions, fullDto?.attackPathExecutions, theme, t]);
 
@@ -2809,6 +2829,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                 onBackgroundClick={onCanvasBackgroundClick}
                 focusRequest={focusRequest}
                 fitRequest={fitNonce}
+                anchorRequest={anchorRequest}
                 pursuitRequest={pathFinding ? null : pursuitRequest}
                 pursuitActive={pursuitActive && !pathFinding}
                 showMiniMap={!pathFinding && nodes.length > 40}
@@ -2858,8 +2879,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                 <FindingDetailPanel
                   value={maskFindingValue(findingDetail.type, findingDetail.value)}
                   type={findingDetail.type}
+                  simulationId={simulationId}
                   endpointLabel={findingEndpoint?.hostname || findingEndpoint?.label || findingEndpoint?.ref || pathFinding?.endpointKey || t('Endpoint')}
                   endpointSub={[findingEndpoint?.ip, findingEndpoint?.platform].filter(Boolean).join(' · ')}
+                  endpointName={findingEndpoint?.hostname}
                   expectations={findingExpectations}
                   isFinding={findingDetailIsFinding}
                   actions={producingActions}

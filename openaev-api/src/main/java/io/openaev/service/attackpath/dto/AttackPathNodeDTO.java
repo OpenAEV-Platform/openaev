@@ -65,6 +65,18 @@ public class AttackPathNodeDTO {
   private String agentName;
   private String privilege;
   private String stepTemplateId;
+  // EXECUTION: the run's inject and, when it has one, the payload it ran — resolved from the
+  // durable
+  // step the frozen row is keyed by, exactly as the Result drawer's detail read does. They let the
+  // front address this execution's live inject without first fetching its detail row.
+  private String injectId;
+  private String payloadId;
+  // EXECUTION: whether the inject actually RAN (EXECUTED / ERROR / PENDING…), as opposed to whether
+  // it was caught, which is what `status` above carries. Shipped with the graph so a list of
+  // executions renders it on first paint; the front previously needed two sequential fetches per
+  // visible row (detail for the injectId, then the inject's status) and so showed nothing for a
+  // second or two. Null when the row has no resolvable inject or its inject has no status yet.
+  private String executionStatus;
   // Kill-chain, resolved per step template (keyed by stepTemplateId): the step templates this one
   // depends on, and the finding keys it consumes. Full mode only; the front correlates by
   // stepTemplateId to draw the causal edges.

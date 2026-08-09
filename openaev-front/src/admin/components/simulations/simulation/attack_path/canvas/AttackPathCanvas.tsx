@@ -36,6 +36,12 @@ export interface AttackPathPursuitRequest {
   nonce: number;
 }
 
+/** Keep the view on one node across a layout change the user caused (expanding a cluster). */
+export interface AttackPathAnchorRequest {
+  nodeId: string;
+  nonce: number;
+}
+
 interface AttackPathCanvasProps {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -61,6 +67,14 @@ interface AttackPathCanvasProps {
    * pursuit and by explicit fit/focus requests, so a live run stays framed on the action.
    */
   pursuitActive?: boolean;
+  /**
+   * Expanding a cluster: hold the view on the node that was clicked instead of re-fitting the whole
+   * graph. The growth-driven fit below cannot tell a user expansion from the graph changing shape on
+   * its own, and re-framing everything threw the user back to the graph's entrance. Pans at the
+   * CURRENT zoom, because the surrounding layout reflows around the newly revealed nodes, so holding
+   * the camera still would not hold the clicked node still.
+   */
+  anchorRequest?: AttackPathAnchorRequest | null;
   showMiniMap?: boolean;
   /** Overlay rendered in the bottom-right stack, under the minimap (the graph legend). */
   legend?: ReactNode;
@@ -113,6 +127,7 @@ const AttackPathCanvas = ({
   fitRequest,
   pursuitRequest,
   pursuitActive = false,
+  anchorRequest,
   showMiniMap = true,
   legend,
 }: AttackPathCanvasProps) => {
@@ -253,6 +268,9 @@ const AttackPathCanvas = ({
   const pursuitActiveRef = useRef(pursuitActive);
   pursuitActiveRef.current = pursuitActive;
   const fittedSig = useRef<string>('');
+  // Set while an anchored expansion is in flight: the world change it causes is adopted WITHOUT a
+  // re-fit, and the camera is then panned onto the anchor instead (see the anchorRequest effect).
+  const holdForAnchorRef = useRef(false);
   const worldSig = `${Math.round(worldWidth)}x${Math.round(worldHeight)}`;
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -269,7 +287,7 @@ const AttackPathCanvas = ({
       if (w > 0 && h > 0 && fittedSig.current !== worldSig) {
         const firstFit = fittedSig.current === '';
         fittedSig.current = worldSig;
-        if (firstFit || !pursuitActiveRef.current) {
+        if (firstFit || (!pursuitActiveRef.current && !holdForAnchorRef.current)) {
           setCamera(fitCamera(w, h));
         }
       }
@@ -286,6 +304,8 @@ const AttackPathCanvas = ({
   const markManual = useCallback(() => {
     lastManualAt.current = performance.now();
   }, []);
+  const markManualRef = useRef(markManual);
+  markManualRef.current = markManual;
 
   // Ctrl/Cmd + wheel zoom around the cursor (native listener so we can preventDefault).
   useEffect(() => {
@@ -423,13 +443,11 @@ const AttackPathCanvas = ({
     return undefined;
   }, [fitRequest]);
 
-  // Live pursuit: pan to center the bounding box of the delta's new nodes, keeping the CURRENT zoom
-  // (that is the whole point — the run stops "unzooming" and the camera chases the action instead).
-  // Backs off while a manual interaction is fresh, so a user inspecting the graph — or holding the
-  // full overview after a fit — is not fought over the camera.
-  const pursueNodes = useCallback((nodeIds: readonly string[]) => {
+  // Pan to center a set of nodes, keeping the CURRENT zoom. Unconditional: the caller decides whether
+  // the camera may move (live pursuit backs off, a user expansion does not).
+  const centerOnNodes = useCallback((nodeIds: readonly string[]) => {
     const el = containerRef.current;
-    if (!el || performance.now() - lastManualAt.current < PURSUIT_MANUAL_PAUSE_MS) {
+    if (!el) {
       return;
     }
     let minX = Infinity;
@@ -446,7 +464,7 @@ const AttackPathCanvas = ({
       maxX = Math.max(maxX, r.x + r.width);
       maxY = Math.max(maxY, r.y + r.height);
     });
-    // None of the delta's nodes exist in this view (e.g. clustered away): leave the camera alone.
+    // None of the nodes exist in this view (e.g. clustered away): leave the camera alone.
     if (minX === Infinity) {
       return;
     }
@@ -457,8 +475,21 @@ const AttackPathCanvas = ({
       y: el.clientHeight / 2 - ((minY + maxY) / 2) * zoom,
     });
   }, [effectiveRects, camera.zoom, animateTo]);
+
+  // Live pursuit: chase the nodes the latest delta introduced (that is the whole point — the run stops
+  // "unzooming" and the camera follows the action instead). Backs off while a manual interaction is
+  // fresh, so a user inspecting the graph — or holding the full overview after a fit — is not fought
+  // over the camera.
+  const pursueNodes = useCallback((nodeIds: readonly string[]) => {
+    if (performance.now() - lastManualAt.current < PURSUIT_MANUAL_PAUSE_MS) {
+      return;
+    }
+    centerOnNodes(nodeIds);
+  }, [centerOnNodes]);
   const pursueNodesRef = useRef(pursueNodes);
   pursueNodesRef.current = pursueNodes;
+  const centerOnNodesRef = useRef(centerOnNodes);
+  centerOnNodesRef.current = centerOnNodes;
   useEffect(() => {
     if (pursuitRequest && pursuitRequest.nodeIds.length > 0) {
       // Let the delta's new cards lay out before chasing them.
@@ -469,6 +500,27 @@ const AttackPathCanvas = ({
     return undefined;
     // Keyed on the nonce alone: nodeIds travel with it, and the ref keeps pursueNodes fresh.
   }, [pursuitRequest?.nonce]);
+  // Anchored expansion: raise the hold BEFORE the expanded nodes land (this effect runs on the same
+  // commit as the click, the bigger world arrives on the next one), then re-center the anchor at the
+  // current zoom once the layout has settled, and drop the hold. Uses centerOnNodes, not pursueNodes:
+  // the user just asked for this, so it is not subject to pursuit's manual-interaction back-off. It
+  // counts as a manual move itself, so a live delta does not immediately yank the camera off it.
+  useEffect(() => {
+    if (!anchorRequest?.nodeId) {
+      return undefined;
+    }
+    holdForAnchorRef.current = true;
+    const nodeId = anchorRequest.nodeId;
+    const id = window.setTimeout(() => {
+      centerOnNodesRef.current([nodeId]);
+      markManualRef.current();
+      holdForAnchorRef.current = false;
+    }, 80);
+    return () => {
+      window.clearTimeout(id);
+      holdForAnchorRef.current = false;
+    };
+  }, [anchorRequest?.nodeId, anchorRequest?.nonce]);
 
   // Drag-to-pan on the empty canvas: a move past the threshold pans; a click without movement
   // clears the selection (background click). Cards stop propagation of their own pointerdown.

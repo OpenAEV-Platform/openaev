@@ -5,7 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.StepActionClass;
+import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
@@ -20,9 +24,18 @@ import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectStatusFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
+import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.InjectStatusComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.StepComposer;
+import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import java.time.Instant;
@@ -53,6 +66,11 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   @Autowired private AssetRepository assetRepository;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private InjectStatusComposer injectStatusComposer;
+  @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private StepComposer stepComposer;
+  @Autowired private ExerciseComposer simulationComposer;
 
   private Tenant tenant;
   private String exec1Id;
@@ -169,6 +187,64 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     assertThat(feedNode.getRef())
         .as("the feed node carries the raw execution id for the drawer cross-focus")
         .isEqualTo(exec1Id);
+  }
+
+  @Test
+  @DisplayName(
+      "An execution feed node carries its inject and its execution status, resolved from the step")
+  void fills_execution_status_from_the_step() {
+    // A run's inject id lives in the durable step's data (the frozen row only keys the step), and
+    // its
+    // "did it run" status on the inject itself - exactly what the Result drawer's detail read
+    // resolves.
+    Inject inject =
+        injectComposer
+            .forInject(InjectFixture.getDefaultInject())
+            .withInjectStatus(
+                injectStatusComposer.forInjectStatus(InjectStatusFixture.createSuccessStatus()))
+            .persist()
+            .get();
+    Step step =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"inject_id\": \"" + inject.getId() + "\"}")
+            .build();
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+        .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withStep(stepComposer.forStep(step))
+        .persist();
+    String execId =
+        injectorExecution(
+            "NMAP", "status-01", "CORP-STATUS-01", "Not Prevented", "Not Detected", "Nmap", at(9));
+    AttackPathExecution row = executionRepository.findById(execId).orElseThrow();
+    row.setStepId(step.getId());
+    executionRepository.save(row);
+    entityManager.flush();
+    entityManager.clear();
+
+    AttackPathDTO dto = service.buildGraph(SIM);
+
+    String feedNodeId = AttackPathIds.executionNode(execId, "status-01", null);
+    AttackPathNodeDTO feedNode =
+        dto.attackPathExecutions().stream()
+            .filter(n -> feedNodeId.equals(n.getId()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(feedNode.getInjectId()).isEqualTo(inject.getId());
+    assertThat(feedNode.getExecutionStatus())
+        .as("shipped with the graph, so a list of executions renders it without a round-trip")
+        .isEqualTo("EXECUTED");
+    // A row with no step resolves to nothing rather than guessing.
+    String noStepNodeId = AttackPathIds.executionNode(exec1Id, "dc-01", null);
+    AttackPathNodeDTO noStepNode =
+        dto.attackPathExecutions().stream()
+            .filter(n -> noStepNodeId.equals(n.getId()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(noStepNode.getInjectId()).isNull();
+    assertThat(noStepNode.getExecutionStatus()).isNull();
   }
 
   @Test
