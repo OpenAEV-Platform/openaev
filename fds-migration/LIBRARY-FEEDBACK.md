@@ -855,3 +855,105 @@ was never brought up. Per the paragraph above, this entry is closed only by a
 computed-style reading, and asserting `pointer` from the library diff alone is
 precisely the shortcut that let this defect survive its first checkpoint. To be
 executed at the first checkpoint where the product runs.
+
+---
+
+Raised during: the **Header pilot** (replacing the hand-built MUI
+`AppBar`/`Toolbar` admin top bar with `Header`), library pin
+`c0d6f0753df6d295d6a9de04060ad3f7b7ad232b`.
+
+---
+
+## 17. A themeable surface has no supported hook for a product-driven colour
+
+**Needed.** This product's top bar is **customer-configurable**: the platform
+`background_color` setting (per-tenant, editable from the admin UI) reaches the
+bar through `palette.background.gradient`, and the bar's gradient has always
+followed it. Adopting `Header` must not take that away.
+
+**Today.** `Header` paints its glass layer with `before:bg-gradient-default`,
+i.e. the library token `--gradient-default`, which is assembled at `:root` from
+two stop tokens. The component exposes **no** prop, slot or documented custom
+property for a consumer-supplied background. `--fds-header-height` was added for
+the height, so the pattern exists — it simply was not extended to the colour.
+
+**Consequence.** The product had to re-declare `--gradient-default` itself as an
+inline style on the bar. That works, and `Header.tsx` even documents *why* it
+works, but it is a consumer reaching into a token the library considers
+internal:
+
+- it depends on the current internal shape (a single assembled gradient
+  property). If the library later inlines the two stops into the utility, or
+  renames the token, this product's customers silently lose their colour again
+  — with no build error and no visual marker beyond "a slightly different
+  shade";
+- overriding the two *stop* tokens instead is not an option at this scope: a
+  `var()` inside a custom-property declaration is substituted on the element
+  that declares it, so stops re-declared on a wrapper cannot reach a gradient
+  already assembled at `:root`. Only `:root` works for the stops, and that
+  would repaint every other library surface — a far larger blast radius than
+  the one change the product actually wants.
+
+**Suggested.** Publish a first-class hook, in the same spirit as
+`--fds-header-height`: either a `--fds-header-background` custom property read
+by the component (`before:[background:var(--fds-header-background,var(--gradient-default))]`),
+or a documented guarantee that `--gradient-default` may be re-declared per
+element. Either makes the product's intent expressible and the contract stable;
+today it is neither.
+
+**Generalisation.** This is not about the Header. Any library surface a product
+lets its customers colour will hit the same wall — the question "how does a
+consumer supply a colour without forking the component or overriding a global
+token?" has no answer yet. Worth settling once, at token level.
+
+---
+
+## 18. `grow` and `grow="unbounded"` — the cap is right, its discoverability is not
+
+**Needed.** A search cluster whose window is `min-width: 550px`,
+`width: 50%`, `max-width: 680px`.
+
+**Today.** `HeaderGroup grow` caps at Figma's 400px — **below this product's
+minimum**, not merely tighter than its preference. `grow="unbounded"` exists
+precisely for this and was, per the RFC, added after measuring this bar. The
+capability is correct and the pilot used it as intended.
+
+**The gap is that nothing steers you to it.** `grow={true}` is the obvious
+choice from the prop name, it type-checks, and it renders a plausible-looking
+bar — just a silently narrower search field. Nothing fails.
+
+**Suggested.** Nothing in the component API. In the docs/meta: state the 400px
+cap and the `"unbounded"` escape on the `grow` prop description itself, where an
+implementer reads it, rather than only in the RFC's rationale.
+
+---
+
+## 19. The CI-secret guard artifact cannot express a call site that must stay unarmed
+
+**Context.** `process/artifacts/ci-design-system-secret.test.ts` is designed to
+be copied verbatim into a consuming product, and was — it is now
+`openaev-front/src/__tests__/ci-design-system-secret.test.ts`. It is a good
+artifact and it caught real wiring.
+
+**Needed.** This product has a workflow that must **never** receive the
+credential: `deploy-feature-branch-build.yml` checks out untrusted pull-request
+code (`ref: head_sha`) and then resolves the composite action from *that same
+tree*, so any secret passed in is attacker-controlled. It is deliberately left
+unarmed, and stays that way until the library is published to npm and the token
+disappears entirely.
+
+**Today.** The artifact's composite rule is "every caller of an action that
+declares the input passes it". That rule cannot express "this caller must not".
+The only offered escape is to exclude the file, which **silently un-guards it** —
+the one site where the guard matters most.
+
+**What this product did.** Inverted the exemption into an assertion: exempt
+sites are asserted to be *free* of the credential, so the security decision is
+machine-enforced rather than resting on a comment. Plus a staleness assertion
+that fails if an exemption stops matching a real call site, so the list cannot
+rot into a silent pass. Both are marked `PRODUCT-SPECIFIC ADDITION` in the file.
+
+**Suggested.** Fold the concept upstream: a `NEVER_ARMED` list in the artifact,
+asserted negatively, with the staleness check. "Must not be armed" is a normal
+state for a workflow handling untrusted input, not an exception — every product
+adopting this artifact will meet it.
