@@ -1927,7 +1927,9 @@ public class V1_DataImporter implements Importer {
    *
    * <ol>
    *   <li>Step 1 — match by SOURCE payload UUID ({@code payload_id}).
-   *   <li>Step 2 — match by name + type-specific content.
+   *   <li>Step 2 — match by name + type-specific content (Executable/FileDrop by the resolved
+   *       TARGET document id), then by execution-relevant semantics (platforms, arch, elevation,
+   *       cleanup, arguments, prerequisites, expectations) via {@link #hasSameExecutionSemantics}.
    *   <li>Step 3 — no reusable candidate: caller creates a new payload.
    * </ol>
    *
@@ -1992,8 +1994,12 @@ public class V1_DataImporter implements Importer {
 
   /**
    * Looks up existing payloads of the same {@code payload_type} discriminator sharing the imported
-   * payload's identifying fields. Executable/FileDrop are matched by the attached {@code
-   * Document.name} only (Document carries no content hash — see the fix report limitation note).
+   * payload's identifying fields. Executable/FileDrop are matched by the attached document ID (the
+   * imported file has already been resolved to a TARGET document at this point): document names are
+   * non-unique, so a name match could reuse a payload wrapping a different binary. The
+   * type-specific queries are a coarse pre-filter; candidates are then narrowed by {@link
+   * #hasSameExecutionSemantics} so a payload differing on any execution-relevant field is never
+   * reused.
    */
   private List<Payload> findEquivalentPayloadsByNameAndContent(JsonNode payloadNode) {
     String type = getTextValue(payloadNode, "payload_type");
@@ -2002,49 +2008,123 @@ public class V1_DataImporter implements Importer {
       return List.of();
     }
     String tenantId = TenantContext.getCurrentTenant();
-    return switch (type) {
-      case Command.COMMAND_TYPE ->
-          payloadRepository.findCommandDuplicates(
-              name,
-              textOrNull(payloadNode, "command_executor"),
-              textOrNull(payloadNode, "command_content"),
-              tenantId);
-      case Executable.EXECUTABLE_TYPE -> {
-        // executable_file has already been swapped to the TARGET document id above.
-        String fileName = resolveDocumentName(textOrNull(payloadNode, "executable_file"));
-        yield hasText(fileName)
-            ? payloadRepository.findExecutableDuplicates(name, fileName, tenantId)
-            : List.of();
-      }
-      case FileDrop.FILE_DROP_TYPE -> {
-        // file_drop_file has already been swapped to the TARGET document id above.
-        String fileName = resolveDocumentName(textOrNull(payloadNode, "file_drop_file"));
-        yield hasText(fileName)
-            ? payloadRepository.findFileDropDuplicates(name, fileName, tenantId)
-            : List.of();
-      }
-      case DnsResolution.DNS_RESOLUTION_TYPE ->
-          payloadRepository.findDnsResolutionDuplicates(
-              name, textOrNull(payloadNode, "dns_resolution_hostname"), tenantId);
-      case NetworkTraffic.NETWORK_TRAFFIC_TYPE ->
-          payloadRepository.findNetworkTrafficDuplicates(
-              name,
-              textOrNull(payloadNode, "network_traffic_ip_src"),
-              textOrNull(payloadNode, "network_traffic_ip_dst"),
-              intOrNull(payloadNode, "network_traffic_port_src"),
-              intOrNull(payloadNode, "network_traffic_port_dst"),
-              textOrNull(payloadNode, "network_traffic_protocol"),
-              tenantId);
-      default -> List.of();
-    };
+    List<Payload> candidates =
+        switch (type) {
+          case Command.COMMAND_TYPE ->
+              payloadRepository.findCommandDuplicates(
+                  name,
+                  textOrNull(payloadNode, "command_executor"),
+                  textOrNull(payloadNode, "command_content"),
+                  tenantId);
+          case Executable.EXECUTABLE_TYPE -> {
+            // executable_file has already been swapped to the TARGET document id above.
+            String documentId = textOrNull(payloadNode, "executable_file");
+            yield hasText(documentId)
+                ? payloadRepository.findExecutableDuplicates(name, documentId, tenantId)
+                : List.of();
+          }
+          case FileDrop.FILE_DROP_TYPE -> {
+            // file_drop_file has already been swapped to the TARGET document id above.
+            String documentId = textOrNull(payloadNode, "file_drop_file");
+            yield hasText(documentId)
+                ? payloadRepository.findFileDropDuplicates(name, documentId, tenantId)
+                : List.of();
+          }
+          case DnsResolution.DNS_RESOLUTION_TYPE ->
+              payloadRepository.findDnsResolutionDuplicates(
+                  name, textOrNull(payloadNode, "dns_resolution_hostname"), tenantId);
+          case NetworkTraffic.NETWORK_TRAFFIC_TYPE ->
+              payloadRepository.findNetworkTrafficDuplicates(
+                  name,
+                  textOrNull(payloadNode, "network_traffic_ip_src"),
+                  textOrNull(payloadNode, "network_traffic_ip_dst"),
+                  intOrNull(payloadNode, "network_traffic_port_src"),
+                  intOrNull(payloadNode, "network_traffic_port_dst"),
+                  textOrNull(payloadNode, "network_traffic_protocol"),
+                  tenantId);
+          default -> List.of();
+        };
+    return candidates.stream()
+        .filter(candidate -> hasSameExecutionSemantics(payloadNode, candidate))
+        .toList();
   }
 
-  /** Resolves the TARGET document name for a (already-swapped) document id, or null if unknown. */
-  private String resolveDocumentName(String documentId) {
-    if (!hasText(documentId)) {
-      return null;
+  /**
+   * Whether an existing candidate payload matches the imported node on the execution-relevant
+   * fields that the coarse name + type-specific content queries cannot express: platforms,
+   * execution architecture, elevation requirement, cleanup executor/command, arguments,
+   * prerequisites and expectations. Reusing a payload that differs on any of these would silently
+   * change the runtime behaviour of the imported chain, so any mismatch falls through to creation
+   * (safe direction: worst case a duplicate payload is created, never a wrong execution).
+   */
+  private boolean hasSameExecutionSemantics(JsonNode payloadNode, Payload candidate) {
+    if (!jsonStringSet(payloadNode, "payload_platforms")
+        .equals(enumNames(candidate.getPlatforms()))) {
+      return false;
     }
-    return documentRepository.findById(documentId).map(Document::getName).orElse(null);
+    String importedArch =
+        ofNullable(textOrNull(payloadNode, "payload_execution_arch"))
+            .orElse(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES.name());
+    if (!importedArch.equals(candidate.getExecutionArch().name())) {
+      return false;
+    }
+    boolean importedElevation = payloadNode.path("payload_elevation_required").asBoolean(false);
+    if (importedElevation != candidate.isElevationRequired()) {
+      return false;
+    }
+    if (!Objects.equals(
+            textOrNull(payloadNode, "payload_cleanup_executor"), candidate.getCleanupExecutor())
+        || !Objects.equals(
+            textOrNull(payloadNode, "payload_cleanup_command"), candidate.getCleanupCommand())) {
+      return false;
+    }
+    if (!jsonStringSet(payloadNode, "payload_expectations")
+        .equals(enumNames(candidate.getExpectations()))) {
+      return false;
+    }
+    return jsonArrayEquals(payloadNode, "payload_arguments", candidate.getArguments())
+        && jsonArrayEquals(payloadNode, "payload_prerequisites", candidate.getPrerequisites());
+  }
+
+  /** Reads a JSON array of strings into a set; absent/null fields yield an empty set. */
+  private Set<String> jsonStringSet(JsonNode node, String field) {
+    JsonNode arrayNode = node.get(field);
+    Set<String> values = new LinkedHashSet<>();
+    if (arrayNode != null && arrayNode.isArray()) {
+      arrayNode.forEach(
+          entry -> {
+            if (entry != null && entry.isTextual()) {
+              values.add(entry.asText());
+            }
+          });
+    }
+    return values;
+  }
+
+  /** Enum array to name set; null arrays yield an empty set. */
+  private Set<String> enumNames(Enum<?>[] values) {
+    Set<String> names = new LinkedHashSet<>();
+    if (values != null) {
+      for (Enum<?> value : values) {
+        if (value != null) {
+          names.add(value.name());
+        }
+      }
+    }
+    return names;
+  }
+
+  /**
+   * Compares an imported JSON array field with an entity list serialized through the shared mapper,
+   * treating absent/null as empty. A structural mismatch (including a serialization-shape
+   * difference) yields false, which makes the dedup fall through to creation - the safe direction.
+   */
+  private boolean jsonArrayEquals(JsonNode node, String field, Object entityValue) {
+    JsonNode imported = node.get(field);
+    JsonNode importedArray =
+        imported != null && imported.isArray() ? imported : mapper.createArrayNode();
+    JsonNode entityArray = mapper.valueToTree(entityValue == null ? List.of() : entityValue);
+    return importedArray.equals(entityArray);
   }
 
   /** Reads a text field returning null (not "") for absent/null nodes, without trimming. */

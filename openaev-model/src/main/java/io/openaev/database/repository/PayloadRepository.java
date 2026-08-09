@@ -77,6 +77,9 @@ public interface PayloadRepository
   // -- Import de-duplication (chaining pipeline): find existing payloads equivalent to an imported
   // one, matched by name + type-specific content, scoped to the current tenant. Return type is the
   // base Payload so no subtype import is needed; the JPQL entity name selects the discriminator.
+  // These queries are a COARSE pre-filter only: the importer additionally compares the
+  // execution-relevant fields (platforms, arch, elevation, cleanup, arguments, prerequisites,
+  // expectations) in hasSameExecutionSemantics() before reusing a candidate.
 
   @Query(
       "SELECT p FROM Command p "
@@ -88,22 +91,32 @@ public interface PayloadRepository
       @Param("content") String content,
       @Param("tenantId") String tenantId);
 
+  /**
+   * Executable dedup candidates are matched on the attached document ID (the importer resolves the
+   * imported file to a TARGET document before deduplicating), never on {@code Document.name}:
+   * document names are explicitly non-unique, so a name match could reuse a payload wrapping a
+   * different binary.
+   */
   @Query(
       "SELECT p FROM Executable p "
-          + "WHERE p.name = :name AND p.executableFile.name = :fileName "
+          + "WHERE p.name = :name AND p.executableFile.id = :documentId "
           + "AND p.tenant.id = :tenantId")
   List<Payload> findExecutableDuplicates(
       @Param("name") String name,
-      @Param("fileName") String fileName,
+      @Param("documentId") String documentId,
       @Param("tenantId") String tenantId);
 
+  /**
+   * Same document-ID matching rationale as {@link #findExecutableDuplicates(String, String,
+   * String)}.
+   */
   @Query(
       "SELECT p FROM FileDrop p "
-          + "WHERE p.name = :name AND p.fileDropFile.name = :fileName "
+          + "WHERE p.name = :name AND p.fileDropFile.id = :documentId "
           + "AND p.tenant.id = :tenantId")
   List<Payload> findFileDropDuplicates(
       @Param("name") String name,
-      @Param("fileName") String fileName,
+      @Param("documentId") String documentId,
       @Param("tenantId") String tenantId);
 
   @Query(

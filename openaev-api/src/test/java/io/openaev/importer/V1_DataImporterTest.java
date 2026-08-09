@@ -2270,6 +2270,69 @@ class V1_DataImporterTest extends IntegrationTest {
   @Transactional
   @WithMockUser
   void
+      given_equivalentPayloadWithDifferentExecutionSemantics_when_reimporting_should_notReuseCandidate()
+          throws Exception {
+    // -- Arrange --
+    // The name + type-specific content match is only a coarse pre-filter: a candidate sharing the
+    // command name/executor/content but differing on an execution-relevant field (here: platforms)
+    // must NOT be reused - reusing it would silently change the runtime behaviour of the imported
+    // chain. The dedup must fall through and create a fresh payload.
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+
+    // First import: creates the payload (Linux) + its injector contract, readable by the user so
+    // only the semantics check can block reuse.
+    this.importer.importData(
+        readMissingContractWithPayloadFixture(),
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Payload created = findSinglePayloadByName("step missing contract payload");
+    InjectorContract createdContract =
+        injectorContractRepository.findInjectorContractByPayload(created).orElseThrow();
+    addGrantToCurrentUser(
+        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
+        Grant.GRANT_TYPE.OBSERVER,
+        createdContract.getId());
+    long payloadCountAfterFirst = payloadRepository.count();
+
+    // Second import: same name/executor/content but Windows platforms in the export.
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
+    ObjectNode payloadNode =
+        (ObjectNode)
+            importData
+                .get("scenario_workflow")
+                .get("workflow_steps")
+                .get(0)
+                .get("step_data")
+                .get("inject_injector_contract")
+                .get("injector_contract_payload");
+    ArrayNode windowsOnly = om.createArrayNode();
+    windowsOnly.add("Windows");
+    payloadNode.set("payload_platforms", windowsOnly);
+
+    // -- Act --
+    this.importer.importData(
+        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    assertEquals(
+        payloadCountAfterFirst + 1,
+        payloadRepository.count(),
+        "a candidate differing on platforms must not be reused: a fresh payload is created");
+    assertEquals(
+        2,
+        countPayloadsByName("step missing contract payload"),
+        "both the Linux original and the Windows import must exist after the second import");
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void
       given_stepDataContractIdExistingOnlyInAnotherTenant_when_resolving_should_notTreatForeignContractAsPresent()
           throws Exception {
     // -- Arrange --
