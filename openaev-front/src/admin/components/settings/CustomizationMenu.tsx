@@ -1,10 +1,13 @@
-import { AutoAwesome, NotificationsOutlined } from '@mui/icons-material';
+import { AutoAwesome, NotificationsOutlined, SchoolOutlined } from '@mui/icons-material';
 import { SelectGroup } from 'mdi-material-ui';
-import { type FunctionComponent, memo } from 'react';
+import { type FunctionComponent, memo, useContext } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/RightMenu';
+import { LESSONS_TEMPLATES_BASE_URL } from '../../../constants/BaseUrls';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import EEChip from '../common/entreprise_edition/EEChip';
 
@@ -14,6 +17,7 @@ import EEChip from '../common/entreprise_edition/EEChip';
  */
 const CustomizationMenuComponent: FunctionComponent = () => {
   const { settings } = useAuth();
+  const ability = useContext(AbilityContext);
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   // The autonomous-attack customization is driven by XTM One (the AI brain); show it only when the
   // chaining feature is on (autonomy is a launch mode of chained scenarios, no dedicated flag) and
@@ -33,6 +37,13 @@ const CustomizationMenuComponent: FunctionComponent = () => {
       icon: () => (<NotificationsOutlined />),
       label: 'Notifiers',
     },
+    ...(ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED)
+      ? [{
+          path: LESSONS_TEMPLATES_BASE_URL,
+          icon: () => (<SchoolOutlined />),
+          label: 'Lessons learned',
+        }]
+      : []),
     ...(autonomousReady
       ? [{
           path: '/admin/settings/customization/autonomous_attack',

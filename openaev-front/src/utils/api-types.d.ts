@@ -3041,6 +3041,12 @@ export interface CreateExerciseInput {
   exercise_tags?: string[];
 }
 
+export interface CredentialBulkProcessingInput {
+  credential_ids_to_ignore?: string[];
+  credential_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface CredentialContractField {
   choices?: string[];
   field_name?: string;
@@ -7501,6 +7507,8 @@ export interface NotificationTriggerInput {
     | "CREDENTIAL_ASSET"
     | "DOCUMENT"
     | "CHANNEL"
+    | "PHISHING_LANDING_PAGE"
+    | "PHISHING_EMAIL_TEMPLATE"
     | "FINDING"
     | "DASHBOARD"
     | "REPORT"
@@ -7602,6 +7610,8 @@ export interface NotificationTriggerOutput {
     | "CREDENTIAL_ASSET"
     | "DOCUMENT"
     | "CHANNEL"
+    | "PHISHING_LANDING_PAGE"
+    | "PHISHING_EMAIL_TEMPLATE"
     | "FINDING"
     | "DASHBOARD"
     | "REPORT"
@@ -8264,6 +8274,44 @@ export interface PageOrganization {
 
 export interface PagePayload {
   content?: Payload[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePhishingEmailTemplate {
+  content?: PhishingEmailTemplate[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePhishingLandingPage {
+  content?: PhishingLandingPage[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -9007,6 +9055,108 @@ export interface PayloadsDeprecateInput {
   payload_external_ids: string[];
 }
 
+export interface PhishingEmailTemplate {
+  listened?: boolean;
+  phishing_email_template_add_tracking_pixel?: boolean;
+  /** @format date-time */
+  phishing_email_template_created_at: string;
+  phishing_email_template_description?: string;
+  phishing_email_template_from_email?: string;
+  phishing_email_template_from_name?: string;
+  phishing_email_template_html_body?: string;
+  /** @minLength 1 */
+  phishing_email_template_id: string;
+  /** @minLength 1 */
+  phishing_email_template_name: string;
+  /** @minLength 1 */
+  phishing_email_template_subject: string;
+  phishing_email_template_text_body?: string;
+  /** @format date-time */
+  phishing_email_template_updated_at: string;
+}
+
+export interface PhishingEmailTemplateBulkProcessingInput {
+  email_template_ids_to_ignore?: string[];
+  email_template_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
+export interface PhishingEmailTemplateInput {
+  phishing_email_template_add_tracking_pixel?: boolean;
+  phishing_email_template_description?: string;
+  phishing_email_template_from_email?: string;
+  phishing_email_template_from_name?: string;
+  phishing_email_template_html_body?: string;
+  /** @minLength 1 */
+  phishing_email_template_name: string;
+  /** @minLength 1 */
+  phishing_email_template_subject: string;
+  phishing_email_template_text_body?: string;
+}
+
+export interface PhishingLandingPage {
+  listened?: boolean;
+  logos?: Document[];
+  phishing_landing_page_capture_passwords?: boolean;
+  phishing_landing_page_capture_submitted_data?: boolean;
+  /** @format date-time */
+  phishing_landing_page_created_at: string;
+  phishing_landing_page_css?: string;
+  phishing_landing_page_description?: string;
+  phishing_landing_page_html?: string;
+  /** @minLength 1 */
+  phishing_landing_page_id: string;
+  phishing_landing_page_logo_dark?: string;
+  phishing_landing_page_logo_light?: string;
+  /** @minLength 1 */
+  phishing_landing_page_name: string;
+  phishing_landing_page_primary_color_dark?: string;
+  phishing_landing_page_primary_color_light?: string;
+  phishing_landing_page_redirect_url?: string;
+  /** @format date-time */
+  phishing_landing_page_updated_at: string;
+}
+
+export interface PhishingLandingPageBulkProcessingInput {
+  landing_page_ids_to_ignore?: string[];
+  landing_page_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
+export interface PhishingLandingPageInput {
+  phishing_landing_page_capture_passwords?: boolean;
+  phishing_landing_page_capture_submitted_data?: boolean;
+  phishing_landing_page_css?: string;
+  phishing_landing_page_description?: string;
+  phishing_landing_page_html?: string;
+  /** @minLength 1 */
+  phishing_landing_page_name: string;
+  phishing_landing_page_primary_color_dark?: string;
+  phishing_landing_page_primary_color_light?: string;
+  phishing_landing_page_redirect_url?: string;
+}
+
+export interface PhishingLandingPageLogoInput {
+  phishing_landing_page_logo_dark?: string;
+  phishing_landing_page_logo_light?: string;
+}
+
+export interface PhishingLandingPageReader {
+  phishing_landing_page_css?: string;
+  phishing_landing_page_html?: string;
+  phishing_landing_page_logo_dark?: string;
+  phishing_landing_page_logo_light?: string;
+  phishing_landing_page_name?: string;
+  phishing_landing_page_primary_color_dark?: string;
+  phishing_landing_page_primary_color_light?: string;
+}
+
+export interface PhishingSubmitInput {
+  data?: Record<string, string>;
+  password?: string;
+  username?: string;
+}
+
 export interface PlatformGroupInput {
   group_default_user_assign?: boolean;
   platform_group_description?: string;
@@ -9066,6 +9216,9 @@ export interface PlatformRoleInput {
     | "ACCESS_CHANNELS"
     | "MANAGE_CHANNELS"
     | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
     | "ACCESS_CHALLENGES"
     | "MANAGE_CHALLENGES"
     | "DELETE_CHALLENGES"
@@ -9878,6 +10031,9 @@ export interface RoleInput {
     | "ACCESS_CHANNELS"
     | "MANAGE_CHANNELS"
     | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
     | "ACCESS_CHALLENGES"
     | "MANAGE_CHALLENGES"
     | "DELETE_CHALLENGES"
@@ -11921,6 +12077,9 @@ export interface User {
     | "ACCESS_CHANNELS"
     | "MANAGE_CHANNELS"
     | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
     | "ACCESS_CHALLENGES"
     | "MANAGE_CHALLENGES"
     | "DELETE_CHALLENGES"

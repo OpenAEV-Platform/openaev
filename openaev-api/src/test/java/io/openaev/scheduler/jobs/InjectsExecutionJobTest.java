@@ -666,6 +666,43 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
     @Test
     @DisplayName(
+        "given agentless pending inject should mark status error with an explicit agentless timeout trace")
+    void given_agentlessPendingInject_should_addAgentlessTimeoutTrace() {
+      // Arrange: an inject with no endpoint/agent (network scanner style, e.g. Nuclei) stuck
+      // PENDING past the threshold. getAgentsByInject returns empty, so the per-agent timeout loop
+      // records nothing.
+      InjectStatus statusToSave = InjectStatusFixture.createPendingInjectStatus();
+      statusToSave.setTrackingSentDate(Instant.now().minus(20, ChronoUnit.MINUTES));
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectStatus(injectStatusComposer.forInjectStatus(statusToSave))
+              .persist()
+              .get();
+      entityManager.flush();
+
+      // Act
+      job.handlePendingInject();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert: the inject is finalized ERROR, but now carries a clear agentless timeout trace
+      // instead of an empty COMPLETE-trace list.
+      Inject savedInject = injectRepository.findById(inject.getId()).orElseThrow();
+      InjectStatus savedStatus = savedInject.getStatus().orElseThrow();
+      assertEquals(ExecutionStatus.ERROR, savedStatus.getName());
+      assertTrue(
+          savedStatus.getTraces().stream()
+              .anyMatch(
+                  trace ->
+                      ExecutionTraceStatus.TIMEOUT.equals(trace.getStatus())
+                          && ExecutionTraceAction.COMPLETE.equals(trace.getAction())
+                          && trace.getAgent() == null
+                          && trace.getMessage().contains("did not complete within the")));
+    }
+
+    @Test
+    @DisplayName(
         "given pending inject without complete traces should mark status as error with timeout")
     void given_pendingInjectWithoutCompleteTraces_should_markStatusAsMaybePrevented() {
       // Arrange

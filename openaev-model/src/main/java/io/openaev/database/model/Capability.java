@@ -219,6 +219,28 @@ public enum Capability {
       pair(ResourceType.CHANNEL, Action.CREATE)),
   DELETE_CHANNELS(MANAGE_CHANNELS, pair(ResourceType.CHANNEL, Action.DELETE)),
 
+  // Phishing (landing pages + email templates)
+  ACCESS_PHISHING(
+      null,
+      CapabilityGroup.CONTENT,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.READ),
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.SEARCH),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.READ),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.SEARCH)),
+  MANAGE_PHISHING(
+      ACCESS_PHISHING,
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.WRITE),
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.CREATE),
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.DUPLICATE),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.WRITE),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.CREATE),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.DUPLICATE)),
+  DELETE_PHISHING(
+      MANAGE_PHISHING,
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.DELETE),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.DELETE)),
+
   // Challenges
   ACCESS_CHALLENGES(
       null,

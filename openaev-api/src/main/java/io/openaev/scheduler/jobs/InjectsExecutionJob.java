@@ -195,10 +195,25 @@ public class InjectsExecutionJob implements Job {
       // Get all agents expected to execute this inject
       List<Agent> allAgents = injectService.getAgentsByInject(inject);
 
-      // Add a COMPLETE/TIMEOUT trace for each agent that never responded
-      for (Agent agent : allAgents) {
-        if (!completedAgentIds.contains(agent.getId())) {
-          ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
+      if (allAgents.isEmpty()) {
+        // Agentless inject: network scanners (e.g. Nuclei) target assets that have no agent, so the
+        // per-agent timeout loop below can never record anything. Without an explicit trace,
+        // updateFinalInjectStatus finalizes the inject ERROR from an empty COMPLETE-trace list and
+        // the execution details show only the initial "waiting to be consumed" info trace - a red
+        // inject with no reason. Add a clear agentless timeout trace instead, unless a terminal
+        // COMPLETE trace was already recorded (e.g. the injector reported the timeout itself).
+        boolean hasCompleteTrace =
+            status.getTraces().stream()
+                .anyMatch(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()));
+        if (!hasCompleteTrace) {
+          ExecutionTraceUtils.addAgentlessTimeoutTrace(status, this.injectExecutionThreshold);
+        }
+      } else {
+        // Add a COMPLETE/TIMEOUT trace for each agent that never responded
+        for (Agent agent : allAgents) {
+          if (!completedAgentIds.contains(agent.getId())) {
+            ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
+          }
         }
       }
       injectStatusService.updateFinalInjectStatus(status);

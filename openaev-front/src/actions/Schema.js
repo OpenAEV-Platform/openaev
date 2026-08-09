@@ -452,6 +452,13 @@ export const storeHelper = state => ({
   getChannels: () => entities('channels', state),
   getChannel: id => entity(id, 'channels', state),
   getChannelsMap: () => maps('channels', state),
+  // phishing
+  getPhishingLandingPages: () => entities('phishinglandingpages', state),
+  getPhishingLandingPage: id => entity(id, 'phishinglandingpages', state),
+  getPhishingLandingPagesMap: () => maps('phishinglandingpages', state),
+  getPhishingEmailTemplates: () => entities('phishingemailtemplates', state),
+  getPhishingEmailTemplate: id => entity(id, 'phishingemailtemplates', state),
+  getPhishingEmailTemplatesMap: () => maps('phishingemailtemplates', state),
   // payloads
   getPayloads: () => entities('payloads', state),
   getPayload: id => entity(id, 'payloads', state),

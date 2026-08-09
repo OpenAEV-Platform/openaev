@@ -1,6 +1,6 @@
 # Built-in Injects
 
-OpenAEV ships with several built-in Injectors that are always available without installing external components. These Injectors cover the most common Simulation needs: email delivery, manual actions, media pressure, challenges, and endpoint execution.
+OpenAEV ships with several built-in Injectors that are always available without installing external components. These Injectors cover the most common Simulation needs: email delivery, manual actions, media pressure, phishing, challenges, and endpoint execution.
 
 ## Why use built-in Injectors?
 
@@ -42,6 +42,16 @@ The "Publish channel pressure" contract requires:
 - One or more **Articles** with title, author, and content
 
 Published articles appear in the Player interface during the Simulation. See [Media pressure](../build/components/media-pressure.md) for details on creating articles and channels.
+
+## Phishing Injector
+
+The phishing Injector (`openaev_phishing`) runs built-in (internal) phishing exercises. It reuses the platform's global SMTP configuration to send lure emails and does not require any external component.
+
+Each phishing [Landing Page](../build/components/phishing.md) synthesizes its own Threat Arsenal action, so running a phishing exercise is a regular Inject that uses the generated action. The Inject targets Teams and references a reusable Email Template, with optional subject and sender overrides.
+
+On execution, each recipient receives a per-recipient lure email with a unique tracking link. Open (tracking pixel), click (landing page), and submit (captured credentials) events are recorded per recipient and automatically fulfill the Inject expectations. Submitted credentials are stored as a Credentials Finding.
+
+See [Phishing](../build/components/phishing.md) for details on creating Landing Pages and Email Templates.
 
 ## Challenge Injector
 

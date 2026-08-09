@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.api.credentials.form.CredentialBulkProcessingInput;
 import io.openaev.api.credentials.form.CredentialInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
@@ -667,6 +668,164 @@ class CredentialApiTest extends IntegrationTest {
       assertThat(secretRepository.findById(secret.getId())).isEmpty();
     }
   }
+
+  @Nested
+  @DisplayName("Bulk delete credentials")
+  class BulkDeleteCredentials {
+
+    @Test
+    @DisplayName("given_idsToProcess_should_deleteOnlySelectedCredentialsAndSecrets")
+    void given_idsToProcess_should_deleteOnlySelectedCredentialsAndSecrets() throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-bulk-ids");
+      Persisted first = persistFullCredential(tenant, "bulk-ids-1");
+      Persisted second = persistFullCredential(tenant, "bulk-ids-2");
+      Persisted kept = persistFullCredential(tenant, "bulk-ids-kept");
+
+      CredentialBulkProcessingInput input = new CredentialBulkProcessingInput();
+      input.setCredentialIdsToProcess(List.of(first.credentialId(), second.credentialId()));
+
+      // Act
+      String response =
+          mvc.perform(
+                  delete(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> deletedIds = JsonPath.read(response, "$");
+      assertThat(deletedIds).containsExactlyInAnyOrder(first.credentialId(), second.credentialId());
+      assertThat(credentialSecretReferenceRepository.findById(first.credentialId())).isEmpty();
+      assertThat(credentialSecretReferenceRepository.findById(second.credentialId())).isEmpty();
+      assertThat(secretRepository.findById(first.secretId())).isEmpty();
+      assertThat(secretRepository.findById(second.secretId())).isEmpty();
+      // Not selected -> untouched
+      assertThat(credentialSecretReferenceRepository.findById(kept.credentialId())).isPresent();
+      assertThat(secretRepository.findById(kept.secretId())).isPresent();
+    }
+
+    @Test
+    @DisplayName("given_searchInputWithIgnore_should_deleteAllExceptIgnored")
+    void given_searchInputWithIgnore_should_deleteAllExceptIgnored() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-bulk-search");
+      Persisted first = persistFullCredential(tenant, "bulk-search-1");
+      Persisted second = persistFullCredential(tenant, "bulk-search-2");
+      Persisted ignored = persistFullCredential(tenant, "bulk-search-ignored");
+
+      // Select-all (empty search) with one exclusion.
+      CredentialBulkProcessingInput input = new CredentialBulkProcessingInput();
+      input.setSearchPaginationInput(new SearchPaginationInput());
+      input.setCredentialIdsToIgnore(List.of(ignored.credentialId()));
+
+      // Act
+      String response =
+          mvc.perform(
+                  delete(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> deletedIds = JsonPath.read(response, "$");
+      assertThat(deletedIds)
+          .containsExactlyInAnyOrder(first.credentialId(), second.credentialId())
+          .doesNotContain(ignored.credentialId());
+      assertThat(credentialSecretReferenceRepository.findById(ignored.credentialId())).isPresent();
+      assertThat(secretRepository.findById(ignored.secretId())).isPresent();
+    }
+
+    @Test
+    @DisplayName("given_bothIdsAndSearchInput_should_failBadRequest")
+    void given_bothIdsAndSearchInput_should_failBadRequest() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-bulk-invalid");
+      Persisted credential = persistFullCredential(tenant, "bulk-invalid");
+
+      CredentialBulkProcessingInput input = new CredentialBulkProcessingInput();
+      input.setCredentialIdsToProcess(List.of(credential.credentialId()));
+      input.setSearchPaginationInput(new SearchPaginationInput());
+
+      // Act & Assert
+      mvc.perform(
+              delete(tenantCredentialsUri(tenant.getId()))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isBadRequest());
+      // Nothing deleted
+      assertThat(credentialSecretReferenceRepository.findById(credential.credentialId()))
+          .isPresent();
+    }
+
+    @Test
+    @DisplayName("given_otherTenantCredentials_should_notBeDeleted")
+    void given_otherTenantCredentials_should_notBeDeleted() throws Exception {
+      // Arrange
+      Tenant tenantA =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-bulk-tenant-a");
+      Tenant tenantB =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-bulk-tenant-b");
+      Persisted credentialA = persistFullCredential(tenantA, "bulk-tenant-a");
+      Persisted credentialB = persistFullCredential(tenantB, "bulk-tenant-b");
+
+      // Select-all within tenant A's scope.
+      CredentialBulkProcessingInput input = new CredentialBulkProcessingInput();
+      input.setSearchPaginationInput(new SearchPaginationInput());
+
+      // Act
+      String response =
+          mvc.perform(
+                  delete(tenantCredentialsUri(tenantA.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert: only tenant A's credential is deleted; tenant B's is untouched.
+      List<String> deletedIds = JsonPath.read(response, "$");
+      assertThat(deletedIds)
+          .containsExactly(credentialA.credentialId())
+          .doesNotContain(credentialB.credentialId());
+      assertThat(credentialSecretReferenceRepository.findById(credentialB.credentialId()))
+          .isPresent();
+      assertThat(secretRepository.findById(credentialB.secretId())).isPresent();
+    }
+
+    private Persisted persistFullCredential(Tenant tenant, String name) {
+      UsernamePasswordSecret secret = new UsernamePasswordSecret();
+      secret.setTenant(tenant);
+      secret.setUsername("user-" + name);
+      secret.setPassword("pass-" + name);
+      Secret savedSecret = secretRepository.save(secret);
+
+      CredentialSecretReference reference =
+          CredentialFixture.createDefaultUsernameCredentialReference(name, tenant);
+      reference.setLocation(savedSecret.getId());
+      reference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
+      CredentialSecretReference saved = credentialSecretReferenceRepository.save(reference);
+      return new Persisted(saved.getId(), savedSecret.getId());
+    }
+  }
+
+  private record Persisted(String credentialId, String secretId) {}
 
   private Filters.Filter filter(String key, String value) {
     Filters.Filter filter = new Filters.Filter();

@@ -181,6 +181,7 @@ nav:
         - Custom variables: usage/build/components/variables.md
         - Channels: usage/build/components/channels.md
         - Media pressure: usage/build/components/media-pressure.md
+        - Phishing: usage/build/components/phishing.md
         - Challenges: usage/build/components/challenges.md
         - Lessons: usage/build/components/lessons.md
       - Threat Arsenal:
