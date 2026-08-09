@@ -54,9 +54,11 @@ const ThemeLight = (
   logo: logo || fileUri(LogoText),
   logo_collapsed: logo_collapsed || fileUri(LogoCollapsed),
   borderRadius: 4,
-  // OpenCTI-aligned top bar height (68px): every toolbar spacer in the app
-  // follows it through theme.mixins.toolbar.
-  mixins: { toolbar: { minHeight: 68 } },
+  // Top header height: taken from the design system's own custom property so
+  // the spacer under the fixed header can never drift from the bar itself.
+  // The fallback repeats the library default and applies only if its
+  // stylesheet failed to load. MUI passes this string through to CSS.
+  mixins: { toolbar: { minHeight: 'var(--fds-header-height, 68px)' } },
   palette: {
     mode: 'light',
     common: {
