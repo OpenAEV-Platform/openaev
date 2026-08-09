@@ -1,4 +1,13 @@
-import { BlockOutlined, DnsOutlined, EditOutlined, GroupsOutlined, InfoOutlined, PersonOutlined, PublicOutlined, TaskAltOutlined } from '@mui/icons-material';
+import {
+  BlockOutlined,
+  DnsOutlined,
+  EditOutlined,
+  GroupsOutlined,
+  InfoOutlined,
+  PersonOutlined,
+  PublicOutlined,
+  TaskAltOutlined,
+} from '@mui/icons-material';
 import { Box, Button, Chip, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
@@ -82,7 +91,7 @@ interface ScopeColumnProps {
   rules: WorkflowScopeRuleOutput[];
   resolveLabel: (rule: WorkflowScopeRuleOutput) => string;
   /** Per-entry glyph (asset platform / category, team, person, ...) so a chip reads like it does
-   *  everywhere else in the app rather than a bare label. */
+     *  everywhere else in the app rather than a bare label. */
   resolveIcon: (rule: WorkflowScopeRuleOutput) => ReactElement;
   onAdd: () => void;
   /** Semantic accent - green for the allow-list, red for the deny-list - for instant scanning. */
@@ -94,7 +103,16 @@ interface ScopeColumnProps {
 
 // Each list (allow / deny) is a self-contained card: a colored top strip for instant semantic
 // scanning, a header with its typed icon + count + Add affordance, and a grouped, chip-based body.
-const ScopeColumn = ({ title, rules, resolveLabel, resolveIcon, onAdd, accent, headerIcon, infoTooltip }: ScopeColumnProps) => {
+const ScopeColumn = ({
+  title,
+  rules,
+  resolveLabel,
+  resolveIcon,
+  onAdd,
+  accent,
+  headerIcon,
+  infoTooltip,
+}: ScopeColumnProps) => {
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
@@ -212,7 +230,7 @@ const ScopeColumn = ({ title, rules, resolveLabel, resolveIcon, onAdd, accent, h
                           {resolveIcon(rule)}
                         </Box>
                       )}
-                      label={label}
+                      label={rule.workflow_scope_rule_snapshot_start_label ?? label}
                       size="small"
                       variant="outlined"
                       sx={{

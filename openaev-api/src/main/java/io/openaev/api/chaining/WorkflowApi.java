@@ -8,6 +8,7 @@ import io.openaev.api.chaining.dto.ScopeAssetOutput;
 import io.openaev.api.chaining.dto.ScopeTeamOutput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -39,6 +40,7 @@ public class WorkflowApi extends RestBehavior {
   private final WorkflowService workflowService;
   private final ScopeService scopeService;
   private final PreviewFeatureService previewFeatureService;
+  private final WorkflowConfigurationMapper workflowConfigurationMapper;
 
   // -- READ --
 
@@ -61,9 +63,9 @@ public class WorkflowApi extends RestBehavior {
       isEnterpriseEdition = true)
   @LogExecutionTime
   public WorkflowConfigurationOutput getWorkflowConfiguration(
-      @PathVariable @NotBlank final String workflowId) {
+      TxCtx ctx, @PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
-    return WorkflowConfigurationMapper.toOutput(
+    return workflowConfigurationMapper.toOutput(
         workflowService.getWorkflowConfiguration(workflowId));
   }
 
@@ -126,10 +128,11 @@ public class WorkflowApi extends RestBehavior {
       resourceType = ResourceType.WORKFLOW,
       isEnterpriseEdition = true)
   public WorkflowConfigurationOutput updateWorkflowConfiguration(
+      TxCtx ctx,
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {
     checkWorkflowFeatureEnabled();
-    return WorkflowConfigurationMapper.toOutput(
+    return workflowConfigurationMapper.toOutput(
         workflowService.updateWorkflowConfiguration(workflowId, input));
   }
 

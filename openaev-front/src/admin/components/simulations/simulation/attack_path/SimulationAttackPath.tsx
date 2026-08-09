@@ -1,11 +1,27 @@
-import { AccountTreeOutlined, BugReportOutlined, GroupOutlined, InsertDriveFileOutlined, LabelOutlined, PlayArrowOutlined, TrackChangesOutlined, VpnKeyOutlined } from '@mui/icons-material';
+import {
+  AccountTreeOutlined,
+  BugReportOutlined,
+  GroupOutlined,
+  InsertDriveFileOutlined,
+  LabelOutlined,
+  PlayArrowOutlined,
+  TrackChangesOutlined,
+  VpnKeyOutlined,
+} from '@mui/icons-material';
 import { Alert, Box, Button, GlobalStyles, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FolderNetworkOutline } from 'mdi-material-ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
-import { fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
+import {
+  fetchAttackPathSimulations,
+  fetchEndpointFindings,
+  fetchEndpointRelations,
+  fetchExecutionDetail,
+  fetchFindingsByCategory,
+  fetchSimulationsMetaById,
+} from '../../../../../actions/attack-path/attack-path-actions';
 import { createRunningExerciseFromScenario } from '../../../../../actions/scenarios/scenario-actions';
 import EmptyPlaceholder from '../../../../../components/common/EmptyPlaceholder';
 import { criticalityColor } from '../../../../../components/criticalityColor';
@@ -13,9 +29,19 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import ScoreExplainerDialog, { type ScoreBreakdownRow } from '../../../../../components/ScoreExplainerDialog';
 import { SIMULATION_BASE_URL } from '../../../../../constants/BaseUrls';
-import type { AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
+import type {
+  AttackPathEdges,
+  AttackPathExecutionDetailDTO,
+  AttackPathFindingItemDTO,
+  AttackPathFindingPageDTO,
+  AttackPathNodeDTO,
+  AttackPathSimSummaryRow,
+  ExerciseSimple,
+} from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import useRemainingViewportHeight from '../../../../../utils/hooks/useRemainingViewportHeight';
+import ChainingUpdatedBanner from '../../../chaining/ChainingUpdatedBanner';
+import useSnapshotUpdated from '../../../chaining/useSnapshotUpdated';
 import attackPathStatusColor from './attack-path-colors';
 import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, expandPathSet, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from './attack-path-flow-helpers';
 import { AP_GLOBAL_STYLES, AP_PANEL_DEFAULT_WIDTH, AP_PANEL_MAX_WIDTH, AP_PANEL_MIN_WIDTH, AP_VIEW_HEIGHT, AP_VISUALLY_HIDDEN } from './attack-path-styles';
@@ -26,7 +52,11 @@ import AttackPathCanvas, { type AttackPathAnchorRequest, type AttackPathFocusReq
 import CategoryFindingsPanel from './CategoryFindingsPanel';
 import EndpointDetailPanel from './EndpointDetailPanel';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
-import FindingDetailPanel, { type ExpectationVerdict, type FindingExpectations, type ProducingAction } from './FindingDetailPanel';
+import FindingDetailPanel, {
+  type ExpectationVerdict,
+  type FindingExpectations,
+  type ProducingAction,
+} from './FindingDetailPanel';
 import useAttackPathLiveGraph from './useAttackPathLiveGraph';
 
 // A hot endpoint can have many executions; the read is bounded to the one endpoint, but the side
@@ -185,19 +215,19 @@ const findingValuesMatch = (type: string, a: string, b: string): boolean => {
  */
 interface SimulationAttackPathProps {
   /**
-   * Scenario context: the ids of the scenario's simulations. When provided, the simulation picker is
-   * shown but restricted to these runs (a scenario groups several simulations) and defaults to the most
-   * recent one. When omitted (simulation context) the picker is hidden and the view is locked to the
-   * route's exerciseId — the current simulation only.
-   */
+     * Scenario context: the ids of the scenario's simulations. When provided, the simulation picker is
+     * shown but restricted to these runs (a scenario groups several simulations) and defaults to the most
+     * recent one. When omitted (simulation context) the picker is hidden and the view is locked to the
+     * route's exerciseId — the current simulation only.
+     */
   scenarioExerciseIds?: string[];
   /** Scenario context: the scenario id, used by the empty-state "Launch a simulation" CTA. */
   scenarioId?: string;
   /**
-   * Autonomous scenario context: an autonomous run owns exactly one simulation and is never launched
-   * by hand (the AI drives it; the operator restarts from the hero), so the empty-state "Launch a
-   * simulation" CTA is suppressed and the message points at the live run instead.
-   */
+     * Autonomous scenario context: an autonomous run owns exactly one simulation and is never launched
+     * by hand (the AI drives it; the operator restarts from the hero), so the empty-state "Launch a
+     * simulation" CTA is suppressed and the message points at the live run instead.
+     */
   hideLaunchCta?: boolean;
 }
 
@@ -215,6 +245,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   const [simulationId, setSimulationId] = useState(exerciseId ?? '');
   const [simulations, setSimulations] = useState<AttackPathSimSummaryRow[]>([]);
   const [metaById, setMetaById] = useState<Map<string, ExerciseSimple>>(new Map());
+  // Chained scope drift for the selected run (asset updated / deleted during or after execution). The
+  // hook resolves the run's workflow and loads what it needs; it returns an empty list when the run is
+  // not chained or has not drifted, so the banner below simply hides.
+  const scopeUpdatedAssets = useSnapshotUpdated({ simulationId });
   // The selected run's status, from the picker metadata. A finished/canceled run produces nothing more,
   // so live updating stops there; an unknown status (synthetic seed simulations) is treated as live.
   const selectedRunStatus = metaById.get(simulationId)?.exercise_status;
@@ -263,10 +297,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     fullEligible,
     terminal: runTerminal,
   });
-  // Render the causal execution-chain layout whenever the size-gated full graph is available and carries
-  // executions (small runs). Large runs never fetch it (fullDto stays null) and keep the aggregated view.
-  // Declared early (not next to its other consumers below) because click handlers defined above those
-  // need it in their dependency arrays, evaluated at render time.
+    // Render the causal execution-chain layout whenever the size-gated full graph is available and carries
+    // executions (small runs). Large runs never fetch it (fullDto stays null) and keep the aggregated view.
+    // Declared early (not next to its other consumers below) because click handlers defined above those
+    // need it in their dependency arrays, evaluated at render time.
   const chainMode = !!fullDto && (fullDto.attackPathExecutions?.length ?? 0) > 0;
   // Per-injector kill-chain metadata (dependsOn / consumedFindingKeys) for the causal overlay, derived
   // from the full projection. It describes the graph's SHAPE, so it is rebuilt only when the shape
@@ -292,7 +326,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     },
     [fullDto, structuralNonce],
   );
-  // Card focus: a summary card mapped to its finding types (dim everything off that path).
+    // Card focus: a summary card mapped to its finding types (dim everything off that path).
   const [activeCard, setActiveCard] = useState<AttackPathFindingFilter | null>(null);
 
   // Per-injector progressive endpoint reveal: injector id -> number of endpoints shown (0 = collapsed).
@@ -658,10 +692,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   }, [simulationId]);
 
   /**
-   * Appends the next page of the selected endpoint's executions. Guarded against overlap so a double
-   * click cannot fetch the same page twice, and it dedupes by id: a live merge may already have
-   * inserted a row this page also carries.
-   */
+     * Appends the next page of the selected endpoint's executions. Guarded against overlap so a double
+     * click cannot fetch the same page twice, and it dedupes by id: a live merge may already have
+     * inserted a row this page also carries.
+     */
   const loadMoreEndpointExecutions = useCallback(() => {
     if (!simulationId || !selectedEndpointRef || endpointExecLoadingMore) {
       return;
@@ -1233,8 +1267,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       .filter(r => r.score > 0),
     [dto],
   );
-  // When the graph is focused on one endpoint's path, the table follows the focus (single endpoint),
-  // consistent with the summary cards; otherwise it lists every exposed endpoint.
+    // When the graph is focused on one endpoint's path, the table follows the focus (single endpoint),
+    // consistent with the summary cards; otherwise it lists every exposed endpoint.
   const tableRows = useMemo(
     () => (pathFinding
       ? endpointRows.filter(r => r.nodeId === pathFinding.endpointNodeId)
@@ -2380,9 +2414,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       });
     });
     const extras: FindingCard[] = [...extraTotals.entries()]
-      // Count first, type key as a tie-break: the header caps how many of these show inline, so ties
-      // must not fall back to Map insertion order or which types stay visible would shift across
-      // renders.
+    // Count first, type key as a tie-break: the header caps how many of these show inline, so ties
+    // must not fall back to Map insertion order or which types stay visible would shift across
+    // renders.
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([type, count]) => {
         const noun = t(findingCategoryNoun(type));
@@ -2610,8 +2644,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     }
     return t('No attack-path data for this simulation.');
   })();
-  // A short title above the detailed message, so the empty-state matches the platform's zero-state
-  // language (title + explanation) rather than a lone sentence.
+    // A short title above the detailed message, so the empty-state matches the platform's zero-state
+    // language (title + explanation) rather than a lone sentence.
   const emptyStateTitle = runInProgress ? t('Simulation running') : t('No attack path to display');
   const [launching, setLaunching] = useState(false);
   // Empty-state CTA (scenario context): instantiate + start a fresh simulation from this scenario and
@@ -2735,6 +2769,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         />
       )}
 
+      <ChainingUpdatedBanner updatedAssets={scopeUpdatedAssets} />
+
       <Box sx={{
         display: 'flex',
         flex: 1,
@@ -2781,8 +2817,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               </Alert>
             )}
             {!loading && !chainLoading && !forbidden && !error && !graphHasContent && (
-              // Inset the placeholder inside the (relative) graph Paper so its dashed frame sits
-              // within the Paper's own outline instead of doubling up against it.
+            // Inset the placeholder inside the (relative) graph Paper so its dashed frame sits
+            // within the Paper's own outline instead of doubling up against it.
               <Box sx={{
                 position: 'absolute',
                 inset: 0,
@@ -2933,7 +2969,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                   executions={injectorExecutions}
                   totalExecutions={injectorExecTotal}
                   highlightedExecutionIds={highlightedExecutionIds}
-                  registerRow={() => {}}
+                  registerRow={() => {
+                  }}
                   onSelectExecution={openExecutionDetail}
                   execStatusLabel={status => t(statusLabelKey(status))}
                   onClose={() => {

@@ -2,8 +2,10 @@ package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ScopeRuleSelectedMode;
+import io.openaev.database.model.ScopeRuleSnapshotStatus;
 import io.openaev.database.model.ScopeRuleSource;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -27,6 +29,29 @@ public class WorkflowScopeRuleOutput {
   @Schema(description = "Selected item value")
   @JsonProperty("workflow_scope_rule_value")
   private String ruleValue;
+
+  @Schema(
+      description =
+          "Change status vs the frozen snapshots (launched simulation only; null for draft / "
+              + "scenario, where the frontend resolves live).")
+  @JsonProperty("workflow_scope_rule_status")
+  private ScopeRuleSnapshotStatus status;
+
+  @Schema(description = "Frozen label at launch (for display when the target was deleted).")
+  @JsonProperty("workflow_scope_rule_snapshot_start_label")
+  private String snapshotStartLabel;
+
+  @Schema(description = "Frozen composition at launch, with agents (asset / group rules).")
+  @JsonProperty("workflow_scope_rule_snapshot_start_assets")
+  private List<AssetSnapshotOutput> snapshotStartAssets;
+
+  @Schema(description = "Frozen label at end of run (null while the simulation is still running).")
+  @JsonProperty("workflow_scope_rule_snapshot_end_label")
+  private String snapshotEndLabel;
+
+  @Schema(description = "Frozen composition at end of run (empty while still running).")
+  @JsonProperty("workflow_scope_rule_snapshot_end_assets")
+  private List<AssetSnapshotOutput> snapshotEndAssets;
 
   @Schema(
       description =

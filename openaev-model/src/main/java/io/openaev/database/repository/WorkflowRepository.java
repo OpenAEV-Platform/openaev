@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -51,6 +52,18 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
   Workflow findBySimulation_IdAndStatus(String simulationId, WorkflowStatus status);
 
   List<Workflow> findAllBySimulation_IdAndStatus(String simulationId, WorkflowStatus status);
+
+  /**
+   * Retrieves the most recent workflow of a given status for a simulation. A simulation reuses the
+   * same id across launch / reset / relaunch cycles and old RUN rows are not deleted, so it may own
+   * several RUN rows; the latest (by creation date) is the current execution view. See ADR-006.
+   *
+   * @param simulationId the ID of the simulation
+   * @param status the status of the workflow
+   * @return the latest matching workflow, or empty if none
+   */
+  Optional<Workflow> findFirstBySimulation_IdAndStatusInOrderByWorkflowCreatedAtDesc(
+      @NotBlank String simulationId, List<WorkflowStatus> status);
 
   Optional<Workflow> findByIdAndStatus(String workflowId, WorkflowStatus status);
 
