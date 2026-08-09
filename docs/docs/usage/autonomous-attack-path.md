@@ -7,7 +7,8 @@ and keeps going until the objective is reached or it needs your input - all anim
 and a decision timeline.
 
 This is the highest level of automation in OpenAEV. It builds directly on **chained Scenarios**: a chained Scenario is
-a Scenario whose Injects are linked into an attack-path workflow (see **inject chaining**). **Autonomy is not a separate
+a Scenario whose Injects are linked into an attack-path workflow (see
+[Inject chaining](evaluate/injects/inject-overview.md#conditional-execution-of-injects)). **Autonomy is not a separate
 kind of Scenario - it is a way to launch a chained Scenario.** You author (or AI-plan) the chained Scenario once, then
 choose at launch time whether to run it yourself (normal mode) or hand it to the orchestrator (autonomous mode), which
 seeds itself with your authored steps and then adapts, extends, and drives them live.
@@ -176,7 +177,7 @@ back into its plan. This keeps a run progressing instead of stalling on a single
 
 ## What's next?
 
-- Inject chaining and transfer - the conditional-execution engine autonomous runs build on.
+- [Inject chaining](evaluate/injects/inject-overview.md#conditional-execution-of-injects) - the conditional-execution engine autonomous runs build on.
 - [Scenarios and Simulations](foundations/scenarios-and-simulations.md) - the hand-authored counterpart to autonomous runs.
 - [Threat Arsenal](build/threat-arsenals/threat-arsenals.md) - the injectors and contracts the AI draws from.
 - [Enterprise editions](../administration/enterprise.md) - enabling the license required for AI features.
