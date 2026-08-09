@@ -531,6 +531,37 @@ set `--fds-z-overlay` in the host stylesheet, open the ProductSwitcher menu
 over the header in both themes and both rail states, and check the computed
 `z-index` of `body > [data-radix-popper-content-wrapper]` is above `1100`.
 
+**Status — RESOLVED upstream** by library PR #96, adopted here at pin
+`c0d6f0753df6d295d6a9de04060ad3f7b7ad232b`. The ask was implemented as stated:
+six floating surfaces now resolve their level from `z-[var(--fds-z-overlay,50)]`
+(Dialog panel + scrim, `TooltipContent`, `SelectContent`, `Menu`'s shared panel
+surface, `NavbarSubmenu`'s flyout). The compensation has been deleted and
+replaced by the one-line host declaration this entry asked for:
+
+```css
+:root { --fds-z-overlay: 1300; }
+```
+
+*Why the variable reaches the wrapper the old rule had to target.* The element
+carrying the z-index for popper-positioned surfaces is Radix-generated, takes no
+`className`, and is styled inline — which is why the compensation needed
+`!important`. Radix derives that inline value from
+`getComputedStyle(content).zIndex`, so once the content resolves to 1300 Radix
+copies 1300 outward on its own. The declaration must sit on `:root`, not on an
+app wrapper: portalled content mounts on `document.body`, so a variable scoped
+to a subtree never reaches it.
+
+**Adoption verification — OUTSTANDING.** The removal test above is a
+*measurement in the running product*, and it has not been run yet: this pin bump
+was made ahead of the Header implementation, with no visual checkpoint attached.
+Recording it as verified on the strength of the library's own tests would repeat
+the mistake [#16](#16-the-productswitcher-trigger-has-no-pointer-cursor)
+documents — a defect that survived a full visual checkpoint because it was
+looked at rather than measured. To be executed at the first checkpoint where the
+product runs: computed `z-index` of `body > [data-radix-popper-content-wrapper]`
+with the ProductSwitcher menu open, in both themes × both rail states, expected
+above `1100`.
+
 ---
 
 ## 13. The stylesheet only carries the utilities the library itself uses
@@ -763,7 +794,11 @@ surfaces it. That lesson is now in the playbook's visual-verification step.
 
 ## 16. The `ProductSwitcher` trigger has no pointer cursor
 
-**Status.** Open. **No product compensation.** Found while verifying that
+**Status.** Fixed upstream by library PR #94, shipped in pin
+`c0d6f0753df6d295d6a9de04060ad3f7b7ad232b`. **Adoption not yet measured** — see
+the bottom of this entry. **No product compensation** existed, so there is
+nothing to remove; closing this entry is a measurement, not a deletion.
+Found while verifying that
 [#15](#15-the-collapse-toggle-has-no-pointer-cursor) was fixed — the same
 defect class, on a component the fix did not reach.
 
@@ -806,3 +841,17 @@ nothing in the product is broken by waiting for the pin that carries it.
 `getComputedStyle(trigger).cursor` on the ProductSwitcher trigger in both rail
 states and both themes; it must be `pointer`. Hovering by hand is not enough —
 this exact defect survived a full visual checkpoint before it was measured.
+
+**What #94 shipped.** The library took the argument above rather than a third
+per-component patch: the affordance moved to the shared interactive layers —
+`buttonVariants`, `iconButtonVariants`, `TabsTrigger`, `SelectTrigger` and the
+`Switch` root — so the `ProductSwitcher` trigger inherits it as an icon button,
+and any future button-rendered control starts out right by default. This is the
+cause-level fix this entry asked for.
+
+**Adoption verification — OUTSTANDING.** Not yet measured in this product. The
+pin bump carrying #94 was made ahead of the Header implementation, so the app
+was never brought up. Per the paragraph above, this entry is closed only by a
+computed-style reading, and asserting `pointer` from the library diff alone is
+precisely the shortcut that let this defect survive its first checkpoint. To be
+executed at the first checkpoint where the product runs.
