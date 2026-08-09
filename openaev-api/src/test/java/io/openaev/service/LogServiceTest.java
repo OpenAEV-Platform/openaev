@@ -3,6 +3,7 @@ package io.openaev.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -53,11 +54,23 @@ class LogServiceTest {
     io.openaev.engine.EngineService engineService = mock(io.openaev.engine.EngineService.class);
     lenient().when(engineService.getObjectMapper()).thenReturn(objectMapper);
 
+    // Normalization is exercised in LogServiceSignatureNormalizationTest; here it must behave as a
+    // pass-through so the assertions below target redaction only. Returning Mockito's default
+    // (null) would blank out input/output/signature before they reach the transport.
+    io.openaev.utils.object.ObjectNormalizationUtils objectNormalizationUtils =
+        mock(io.openaev.utils.object.ObjectNormalizationUtils.class);
+    lenient()
+        .when(objectNormalizationUtils.normalize(any(JsonNode.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    lenient()
+        .when(objectNormalizationUtils.normalize(any(JsonNode.class), anyString()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
     logService =
         new LogService(
             auditLogProperties,
             auditLogTransportDispatcherUtils,
-            mock(io.openaev.utils.object.ObjectNormalizationUtils.class),
+            objectNormalizationUtils,
             engineService,
             mock(UserService.class),
             enterpriseEditionService,
