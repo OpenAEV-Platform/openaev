@@ -2,6 +2,7 @@ package io.openaev.service.attackpath.ingestion;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -26,6 +27,7 @@ import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -124,6 +126,12 @@ public class AttackPathExecutionIngestionService {
       return null;
     }
     PayloadArgument argument = endpointArguments.getFirst();
+    // A targeted-asset field is a JSON array of endpoint ids, not a scalar: it must go through
+    // the same resolver execution uses, or reading the array as text (blank) silently falls back
+    // to the payload default.
+    if (argument.getType() == PrimitiveType.TargetedAsset) {
+      return resolveTargetedAssetTargetValue(inject, argument.getKey());
+    }
     JsonNode override =
         inject.getContent() == null ? null : inject.getContent().get(argument.getKey());
     // A JSON null node must not read as the literal string "null" (asText would).
@@ -133,6 +141,60 @@ public class AttackPathExecutionIngestionService {
             ? overrideValue
             : argument.getDefaultValue();
     return remoteTargetOrNull(value);
+  }
+
+  /**
+   * The endpoint value a targeted-asset argument resolves to, or {@code null} when it does not name
+   * exactly one remote destination.
+   *
+   * <p>Execution resolves this argument through {@link
+   * InjectService#retrieveValuesOfTargetedAssetFromInject}: the inject field holds the selected
+   * endpoint ids and a linked contract field selects which property (hostname, seen IP, local IP)
+   * is substituted into the command. Reusing that resolver here makes the graph show the value the
+   * command actually ran with instead of the payload default.
+   *
+   * <p>The row model keys exactly one row per agent — {@link #getExecutionIndex} must be able to
+   * recompute the persisted id from {@code (inject, agent)} alone — so a selection resolving to
+   * several destinations is ambiguous under the same rule as several endpoint-ish arguments, and
+   * falls back to the executing endpoint. Fanning one argument out to one row per destination needs
+   * the Phase-B index to become multi-valued first.
+   *
+   * <p>Resolution failures (contract without the linked targeted-property field, malformed content,
+   * deleted endpoints) also fall back: ingestion must degrade to the always-true "ran on its
+   * endpoint" edge rather than fail the run's write.
+   */
+  @Nullable
+  private String resolveTargetedAssetTargetValue(Inject inject, String argumentKey) {
+    try {
+      InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
+      if (injectorContract == null || inject.getContent() == null) {
+        return null;
+      }
+      JsonNode fieldsNode =
+          injectorContract.getConvertedContent().get(InjectorContract.CONTRACT_CONTENT_FIELDS);
+      if (fieldsNode == null || !fieldsNode.isArray()) {
+        return null;
+      }
+      List<ObjectNode> fields =
+          StreamSupport.stream(fieldsNode.spliterator(), false)
+              .map(ObjectNode.class::cast)
+              .toList();
+      Map<String, Endpoint> destinations =
+          injectService.retrieveValuesOfTargetedAssetFromInject(
+              fields, inject.getContent(), argumentKey);
+      if (destinations.size() != 1) {
+        return null;
+      }
+      return remoteTargetOrNull(destinations.keySet().iterator().next());
+    } catch (Exception e) {
+      log.warn(
+          "Attack path: could not resolve targeted-asset argument '{}' of inject {}; attaching to"
+              + " the endpoint it ran on",
+          argumentKey,
+          inject.getId(),
+          e);
+      return null;
+    }
   }
 
   /**

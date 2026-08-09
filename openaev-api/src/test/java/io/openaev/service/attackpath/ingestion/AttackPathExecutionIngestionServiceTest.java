@@ -31,6 +31,7 @@ import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionRemediation;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
+import io.openaev.injector_contract.ContractTargetedProperty;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.DetectionRemediationFixture;
@@ -344,7 +345,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   @DisplayName(
       "A command whose host argument names the executing machine targets its endpoint, not a"
           + " 'localhost' node")
-  void commandTargetingLoopbackStaysOnItsEndpoint() {
+  void given_commandWithLoopbackHostArgument_should_targetItsOwnEndpoint() {
     // Arrange
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-loopback"));
     TenantContext.setCurrentTenant(tenant.getId());
@@ -378,7 +379,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   @Test
   @DisplayName(
       "A command's target comes from the inject's own argument value, not the payload default")
-  void commandTargetUsesInjectArgumentOverride() {
+  void given_injectArgumentOverride_should_targetTheOverriddenValue() {
     // Arrange
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-override"));
     TenantContext.setCurrentTenant(tenant.getId());
@@ -419,7 +420,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
 
   @Test
   @DisplayName("A NetworkTraffic payload lands on the graph instead of writing no row at all")
-  void networkTrafficPayloadIsIngested() {
+  void given_networkTrafficPayload_should_ingestOneExecutionRow() {
     // Arrange
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-network-traffic"));
     TenantContext.setCurrentTenant(tenant.getId());
@@ -445,7 +446,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
 
   @Test
   @DisplayName("A NetworkTraffic payload whose destination is loopback stays on its endpoint")
-  void networkTrafficLoopbackStaysOnItsEndpoint() {
+  void given_loopbackNetworkTrafficDestination_should_targetItsOwnEndpoint() {
     // Arrange
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-network-loopback"));
     TenantContext.setCurrentTenant(tenant.getId());
@@ -468,7 +469,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
 
   @Test
   @DisplayName("A blank inject override does not name a target: the payload default still applies")
-  void commandBlankOverrideFallsBackToPayloadDefault() {
+  void given_blankInjectOverride_should_fallBackToPayloadDefault() {
     // Arrange
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-blank"));
     TenantContext.setCurrentTenant(tenant.getId());
@@ -496,7 +497,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   @Test
   @DisplayName(
       "The persisted target value is trimmed, so stray whitespace never forks a second node")
-  void commandTargetValueIsTrimmedBeforePersisting() {
+  void given_paddedTargetValue_should_persistTheTrimmedValue() {
     // Arrange
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-trim"));
     TenantContext.setCurrentTenant(tenant.getId());
@@ -519,6 +520,102 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     // node from "192.168.56.11", and would diverge from the loopback check, which trims.
     assertThat(rows).hasSize(1);
     assertThat(rows.getFirst().getTargetKey()).isEqualTo("192.168.56.11");
+    assertThat(ingestionService.getExecutionIndex(inject, "agt-1"))
+        .isEqualTo(rows.getFirst().getId());
+  }
+
+  /** A second endpoint the targeted-asset tests select as the command's destination. */
+  private Endpoint persistTargetedEndpoint(Tenant tenant, String hostname, String ip) {
+    Endpoint targeted = EndpointFixture.createEndpoint(hostname);
+    targeted.setHostname(hostname);
+    targeted.setIps(new String[] {ip});
+    targeted.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
+    targeted.setTenant(tenant);
+    endpointComposer.forEndpoint(targeted).persist();
+    return targeted;
+  }
+
+  @Test
+  @DisplayName(
+      "A targeted-asset argument resolves to the selected endpoint's property value, like"
+          + " execution does, not to the payload default")
+  void given_targetedAssetArgument_should_targetTheResolvedEndpointValue() {
+    // Arrange
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-targeted-asset"));
+    TenantContext.setCurrentTenant(tenant.getId());
+
+    Command command =
+        (Command)
+            PayloadFixture.createDefaultCommandWithArguments(
+                List.of(argument(PrimitiveType.TargetedAsset, "asset-key", null)));
+    command.setName("lateral");
+
+    Inject inject = injectRunningPayload(tenant, "exec-targeted-asset", command);
+    // The contract carries the targeted-asset field and its linked targeted-property selector
+    // (hostname), exactly what InjectService#retrieveValuesOfTargetedAssetFromInject reads.
+    InjectorContractFixture.addTargetedAssetFields(
+        inject.getInjectorContract().orElseThrow(), "asset-key", ContractTargetedProperty.hostname);
+
+    Endpoint targeted = persistTargetedEndpoint(tenant, "db-server", "10.0.0.9");
+    inject.setContent(
+        JsonNodeFactory.instance
+            .objectNode()
+            .set("asset-key", JsonNodeFactory.instance.arrayNode().add(targeted.getId())));
+
+    // Act
+    List<AttackPathExecution> rows =
+        ingestionService.getAttackPathExecution(inject, stepOf("tmpl-1", "step-1"), "lateral");
+
+    // Assert
+    // The inject field is an array of endpoint ids: read as text it is blank, which used to fall
+    // back to the payload default. The resolved property value is what the command ran with.
+    assertThat(rows).hasSize(1);
+    assertThat(rows.getFirst().getTargetKind()).isEqualTo("DISCOVERED");
+    assertThat(rows.getFirst().getTargetKey()).isEqualTo("db-server");
+    assertThat(ingestionService.getExecutionIndex(inject, "agt-1"))
+        .isEqualTo(rows.getFirst().getId());
+  }
+
+  @Test
+  @DisplayName(
+      "A targeted-asset selection resolving to several destinations is ambiguous and stays on the"
+          + " executing endpoint")
+  void given_targetedAssetArgumentWithSeveralEndpoints_should_fallBackToExecutingEndpoint() {
+    // Arrange
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-targeted-multi"));
+    TenantContext.setCurrentTenant(tenant.getId());
+
+    Command command =
+        (Command)
+            PayloadFixture.createDefaultCommandWithArguments(
+                List.of(argument(PrimitiveType.TargetedAsset, "asset-key", null)));
+    command.setName("sweep");
+
+    Inject inject = injectRunningPayload(tenant, "exec-targeted-multi", command);
+    InjectorContractFixture.addTargetedAssetFields(
+        inject.getInjectorContract().orElseThrow(), "asset-key", ContractTargetedProperty.hostname);
+
+    Endpoint first = persistTargetedEndpoint(tenant, "db-server", "10.0.0.9");
+    Endpoint second = persistTargetedEndpoint(tenant, "web-server", "10.0.0.10");
+    String executingEndpointId = inject.getAssets().getFirst().getId();
+    inject.setContent(
+        JsonNodeFactory.instance
+            .objectNode()
+            .set(
+                "asset-key",
+                JsonNodeFactory.instance.arrayNode().add(first.getId()).add(second.getId())));
+
+    // Act
+    List<AttackPathExecution> rows =
+        ingestionService.getAttackPathExecution(inject, stepOf("tmpl-1", "step-1"), "sweep");
+
+    // Assert
+    // One row per agent, recomputable from (inject, agent): several destinations cannot key that
+    // one row, so the edge falls back to the endpoint the command ran on (same ambiguity rule as
+    // several endpoint-ish arguments).
+    assertThat(rows).hasSize(1);
+    assertThat(rows.getFirst().getTargetKind()).isEqualTo("ASSET");
+    assertThat(rows.getFirst().getTargetKey()).isEqualTo(executingEndpointId);
     assertThat(ingestionService.getExecutionIndex(inject, "agt-1"))
         .isEqualTo(rows.getFirst().getId());
   }
