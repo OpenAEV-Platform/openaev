@@ -12,7 +12,7 @@ import { ATOMIC_BASE_URL, SIMULATION_BASE_URL } from '../../../constants/BaseUrl
 import type { Finding, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { buildOccurrencesFilter, occurrenceTargets } from './FindingOccurrencesList';
+import { buildOccurrencesFilter, occurrenceTargets } from './FindingOccurrencesUtils';
 
 // Maximum markers stacked per time bucket before collapsing into a "+N" badge.
 const MAX_DOTS_PER_GROUP = 4;

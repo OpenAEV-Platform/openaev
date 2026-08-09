@@ -3203,6 +3203,47 @@ export interface CustomDashboardParametersInput {
     | "scenario";
 }
 
+export interface CustomDomain {
+  /** @format date-time */
+  custom_domain_created_at: string;
+  /** @minLength 1 */
+  custom_domain_hostname: string;
+  /** @minLength 1 */
+  custom_domain_id: string;
+  /** @format date-time */
+  custom_domain_last_checked_at?: string;
+  custom_domain_last_error?: string;
+  custom_domain_status: "PENDING" | "VERIFIED" | "FAILED";
+  /** @format date-time */
+  custom_domain_updated_at: string;
+  /** @minLength 1 */
+  custom_domain_verification_token: string;
+  /** @format date-time */
+  custom_domain_verified_at?: string;
+  listened?: boolean;
+}
+
+export interface CustomDomainInput {
+  /**
+   * Fully-qualified hostname to serve landing pages on, e.g. security.acme.com
+   * @minLength 1
+   */
+  custom_domain_hostname: string;
+}
+
+export interface CustomDomainInstructions {
+  /** Name of the CNAME record to create (the custom hostname itself) */
+  cname_record_name?: string;
+  /** Target the CNAME should point to (the platform host) */
+  cname_record_value?: string;
+  /** The custom hostname these instructions apply to */
+  hostname?: string;
+  /** Name of the TXT ownership challenge record */
+  txt_record_name?: string;
+  /** Value the TXT ownership challenge record must carry */
+  txt_record_value?: string;
+}
+
 /** Payload to create a CVE */
 export interface CveCreateInput {
   /**
@@ -5545,12 +5586,6 @@ export interface FindingInput {
   finding_value: string;
 }
 
-/**
- * Group-wide summary of a finding, deduplicated across every occurrence sharing the same (type,
- * value) in the tenant. Unlike a single Finding row (one occurrence per inject), the dates and
- * counts here span the whole group, so the finding overview hero shows the true first/last seen
- * and the real impact spread (assets, teams, persons, asset groups).
- */
 export interface FindingSummaryOutput {
   /**
    * Number of distinct impacted asset groups across all occurrences
@@ -8058,6 +8093,25 @@ export interface PageCustomDashboard {
   totalPages?: number;
 }
 
+export interface PageCustomDomain {
+  content?: CustomDomain[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageEndpointOutput {
   content?: EndpointOutput[];
   empty?: boolean;
@@ -9196,7 +9250,6 @@ export interface PhishingLandingPage {
   /** @format date-time */
   phishing_landing_page_created_at: string;
   phishing_landing_page_css?: string;
-  /** Verified custom domain this page is served on; null uses the platform domain */
   phishing_landing_page_custom_domain?: string;
   phishing_landing_page_description?: string;
   phishing_landing_page_html?: string;
@@ -9223,7 +9276,6 @@ export interface PhishingLandingPageInput {
   phishing_landing_page_capture_passwords?: boolean;
   phishing_landing_page_capture_submitted_data?: boolean;
   phishing_landing_page_css?: string;
-  /** Optional verified custom domain to serve this page on; null uses the platform domain */
   phishing_landing_page_custom_domain?: string;
   phishing_landing_page_description?: string;
   phishing_landing_page_html?: string;
@@ -11367,36 +11419,6 @@ export interface TagRuleOutput {
   tag_rule_id: string;
   /** The tag rule is protected and cannot change the associated tag or be deleted. */
   tag_rule_protected: boolean;
-}
-
-export interface CustomDomain {
-  /** Fully-qualified hostname serving landing pages, e.g. security.acme.com */
-  custom_domain_hostname: string;
-  custom_domain_id: string;
-  /** @format date-time */
-  custom_domain_last_checked_at?: string;
-  custom_domain_last_error?: string;
-  custom_domain_status: "PENDING" | "VERIFIED" | "FAILED";
-  /** Random secret published as a TXT record to prove ownership of the hostname */
-  custom_domain_verification_token: string;
-  /** @format date-time */
-  custom_domain_verified_at?: string;
-}
-
-export interface CustomDomainInput {
-  /**
-   * Fully-qualified hostname to serve landing pages on, e.g. security.acme.com
-   * @minLength 1
-   */
-  custom_domain_hostname: string;
-}
-
-export interface CustomDomainInstructions {
-  cname_record_name?: string;
-  cname_record_value?: string;
-  hostname?: string;
-  txt_record_name?: string;
-  txt_record_value?: string;
 }
 
 export interface TagUpdateInput {
