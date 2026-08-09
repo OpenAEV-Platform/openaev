@@ -17,7 +17,7 @@ Raised during: the navigation pilot (replacing the legacy left menu with
 fixed upstream and verified here by re-measurement after a pin bump; each says
 so in its own **Status** line, with the library change that closed it. Entry 3
 is **resolved** too, by the `Menu` component (#74). The entries left open are 2,
-3b, 3c, 5, 8, 11, 12 and 13; 10 is a recorded decision, not a gap. Entry 14 was
+3b, 3c, 5, 8, 11 and 13; 10 is a recorded decision, not a gap. Entry 14 was
 blocking and is now **resolved** (#79), with a consumer-install proof running on
 every library pull request.
 
@@ -551,7 +551,26 @@ copies 1300 outward on its own. The declaration must sit on `:root`, not on an
 app wrapper: portalled content mounts on `document.body`, so a variable scoped
 to a subtree never reaches it.
 
-**Adoption verification — OUTSTANDING.** The removal test above is a
+**Adoption verification — DONE, entry CLOSED.** Measured in the running
+product during the Header pilot checkpoint (library pin `c0d6f07`), with the
+compensation removed:
+
+| state | `body > [data-radix-popper-content-wrapper]` z-index | header z-index |
+|---|---|---|
+| dark / rail expanded | **1300** | 1100 |
+| light / rail expanded | **1300** | 1100 |
+
+The portalled surface stacks above the bar with **no `!important` anywhere** —
+`:root { --fds-z-overlay: 1300 }` alone is sufficient, which is exactly what
+library PR #96 promised. Radix copies the resolved level outward on its own.
+
+The collapsed rail is reported as not applicable rather than passed: the
+`ProductSwitcher` trigger is **not rendered at all** when the rail is
+collapsed (it exposes only the footer and the expand control), so there is no
+surface to open from it. Established by enumerating the collapsed rail's
+controls, not assumed.
+
+**Original outstanding note, for the record.** The removal test above is a
 *measurement in the running product*, and it has not been run yet: this pin bump
 was made ahead of the Header implementation, with no visual checkpoint attached.
 Recording it as verified on the strength of the library's own tests would repeat
@@ -849,7 +868,23 @@ per-component patch: the affordance moved to the shared interactive layers —
 and any future button-rendered control starts out right by default. This is the
 cause-level fix this entry asked for.
 
-**Adoption verification — OUTSTANDING.** Not yet measured in this product. The
+**Adoption verification — DONE, entry CLOSED.** Measured in the running
+product during the Header pilot checkpoint (library pin `c0d6f07`), reading
+`getComputedStyle(trigger).cursor`, never by hovering:
+
+| state | `ProductSwitcher` trigger | other rail controls |
+|---|---|---|
+| dark / rail expanded | **pointer** | Components, Settings, By Filigran, Collapse — all `pointer` |
+| light / rail expanded | **pointer** | idem |
+| dark / rail collapsed | not rendered | By Filigran, Expand — both `pointer` |
+| light / rail collapsed | not rendered | idem |
+
+The cause-level fix in #94 holds: every button-rendered control in the rail
+reports `pointer`, not just the one that was patched. As with entry 12, the
+collapsed rail does not render this trigger at all, so it is recorded as not
+applicable rather than silently counted as a pass.
+
+**Original outstanding note, for the record.** Not yet measured in this product. The
 pin bump carrying #94 was made ahead of the Header implementation, so the app
 was never brought up. Per the paragraph above, this entry is closed only by a
 computed-style reading, and asserting `pointer` from the library diff alone is
