@@ -67,12 +67,32 @@ const toFormInput = (emailTemplate: PhishingEmailTemplate): PhishingEmailTemplat
   phishing_email_template_add_tracking_pixel: emailTemplate.phishing_email_template_add_tracking_pixel ?? true,
 });
 
-const previewSrcDoc = (html: string) =>
-  '<!doctype html><html><head><meta charset="utf-8">'
-  + '<meta name="viewport" content="width=device-width, initial-scale=1">'
-  + '<style>html,body{margin:0;padding:16px;background:#ffffff;color:#111111;'
-  + 'font-family:Arial,Helvetica,sans-serif;}</style></head>'
-  + `<body>${html}</body></html>`;
+const escapeHtml = (value: string) => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;');
+
+// Preview the rendered HTML body, but fall back to the plain-text alternative
+// (wrapped so line breaks survive) when there is no HTML yet, so a text-only
+// template previews its real content instead of a blank page.
+const previewBody = (html: string, text: string) => {
+  if (html.trim()) {
+    return html;
+  }
+  if (text.trim()) {
+    return `<pre style="white-space:pre-wrap;word-wrap:break-word;font-family:Arial,Helvetica,sans-serif;margin:0">${escapeHtml(text)}</pre>`;
+  }
+  return '';
+};
+
+const previewSrcDoc = (html: string, text: string) => {
+  const body = previewBody(html, text);
+  return '<!doctype html><html><head><meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width, initial-scale=1">'
+    + '<style>html,body{margin:0;padding:16px;background:#ffffff;color:#111111;'
+    + 'font-family:Arial,Helvetica,sans-serif;}</style></head>'
+    + `<body>${body}</body></html>`;
+};
 
 const PhishingEmailTemplateEditor: FunctionComponent = () => {
   const { t } = useFormatter();
@@ -319,7 +339,7 @@ const PhishingEmailTemplateEditor: FunctionComponent = () => {
     <PhishingHtmlPreview
       title={t('Preview')}
       iframeTitle={title}
-      srcDoc={previewSrcDoc(watch('phishing_email_template_html_body') ?? '')}
+      srcDoc={previewSrcDoc(watch('phishing_email_template_html_body') ?? '', watch('phishing_email_template_text_body') ?? '')}
       chrome={emailChrome}
       height="100%"
     />
