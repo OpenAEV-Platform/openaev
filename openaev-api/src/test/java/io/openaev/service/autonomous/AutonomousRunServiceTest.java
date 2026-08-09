@@ -309,6 +309,9 @@ class AutonomousRunServiceTest {
     verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
     verify(exerciseService).deleteById("sim-old");
     verify(workflowService).startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any());
+    // Keep-alive is applied to the freshly provisioned SIMULATION, never the reusable scenario
+    // template, so the scenario keeps its own "Simulation time out" config.
+    verify(workflowService).markSimulationWorkflowKeepAlive("sim-new");
     // Decision timeline + steering reset so the cockpit starts clean.
     verify(directiveRepository).deleteByRunId("run-1");
     verify(eventService).deleteByRun("run-1");
@@ -569,8 +572,10 @@ class AutonomousRunServiceTest {
     // Build always starts from a blank logic map: the full wipe (steps AND event/trigger
     // conditions) runs before the orchestrator is engaged.
     verify(workflowService).deleteAllScenarioSteps("scenario-1");
-    // The scenario workflow is kept alive so the authoring window survives.
-    verify(workflowService).markScenarioWorkflowKeepAlive("scenario-1");
+    // Author-scenario mode provisions NO simulation and runs nothing, so it must NEVER touch a
+    // keep-alive / timeout flag: the built scenario keeps its own "Simulation time out" config
+    // (default 1h) so it can later be launched in normal mode and run-and-end normally.
+    verify(workflowService, never()).markSimulationWorkflowKeepAlive(anyString());
     // Scope is written onto the scenario workflow only (null simulation id), never a simulation.
     verify(workflowService).writeScopeRules(eq("scenario-1"), isNull(), anyList());
     // The orchestrator is engaged in AUTHOR-SCENARIO mode: author_scenario=true, the scenario id is

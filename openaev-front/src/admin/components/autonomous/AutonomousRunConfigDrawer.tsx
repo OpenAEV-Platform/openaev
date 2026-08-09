@@ -26,9 +26,17 @@ interface AutonomousRunConfigDrawerProps {
    *  for the AI builder (planning is a quick, untimed design pass). Omit to keep the 24h default. */
   defaultTimeoutHours?: number;
   /** The drawer hosts the AI builder (a plan-authoring pass), not a live launch. Plan mode is
-   *  untimed server-side, so the time budget always shows the default and is omitted from the
-   *  payload (never persisted as a stale value). Defaults to false (live launch). */
+   *  untimed server-side, so the time-budget field is hidden entirely and `timeout_seconds` is
+   *  omitted from the payload (never persisted as a stale value). Defaults to false (live
+   *  launch). */
   planMode?: boolean;
+  /**
+   * Short note rendered just above the time-budget field. The autonomous launch drawer uses it to
+   * warn that the default 24h run budget overrides the scenario's own configured "Simulation time
+   * out" - shown only when they actually differ (omit it when they already match). Ignored when the
+   * time budget is hidden (plan mode).
+   */
+  timeBudgetNote?: string;
   submitting?: boolean;
   error?: string | null;
   /** Show the "Save for later" action (persist config, start nothing). Defaults to false. */
@@ -58,6 +66,7 @@ const AutonomousRunConfigDrawer = ({
   demoteTemplates,
   defaultTimeoutHours,
   planMode,
+  timeBudgetNote,
   submitting = false,
   error,
   showSave = false,
@@ -94,6 +103,10 @@ const AutonomousRunConfigDrawer = ({
           submitting={submitting}
           error={error}
           demoteTemplates={demoteTemplates}
+          // Plan mode (AI builder) is untimed server-side, so the time budget is hidden entirely
+          // rather than shown with a meaningless default.
+          hideTimeBudget={planMode}
+          timeBudgetNote={planMode ? undefined : timeBudgetNote}
           infoText={infoText
             ?? t('In autonomous mode an AI orchestrator drives the run live and adapts in real time - reacting to findings, adding steps and consulting specialist agents to pursue the objective. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope.')}
           showSave={showSave}

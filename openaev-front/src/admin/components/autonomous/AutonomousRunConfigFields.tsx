@@ -140,6 +140,18 @@ export interface AutonomousRunConfigFieldsProps {
    * false (no plan / no logic yet), the gallery stays front-and-center to define the objective.
    */
   demoteTemplates?: boolean;
+  /**
+   * Hide the time-budget field entirely. Used by the AI builder (planning): plan mode is untimed
+   * server-side and only ever takes a few minutes, so surfacing a budget is meaningless. A hidden
+   * budget is never sent (the hook omits `timeout_seconds` in plan mode).
+   */
+  hideTimeBudget?: boolean;
+  /**
+   * Optional short note rendered just above the time-budget field. The autonomous launch drawer uses
+   * it to warn that the default 24h budget overrides the scenario's own configured timeout - shown
+   * only when they actually differ.
+   */
+  timeBudgetNote?: string;
 }
 
 /**
@@ -149,7 +161,7 @@ export interface AutonomousRunConfigFieldsProps {
  * picker at full width). The run is NOT labelled here - the scenario already exists and its name /
  * description are edited on the scenario itself - so there is no name / description field.
  */
-export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demoteTemplates }: AutonomousRunConfigFieldsProps) => {
+export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demoteTemplates, hideTimeBudget, timeBudgetNote }: AutonomousRunConfigFieldsProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { settings } = useAuth();
@@ -325,30 +337,41 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
             />
           </Box>
 
-          <Box>
-            <Typography variant="h2" gutterBottom>
-              {t('Time budget')}
-            </Typography>
-            <TextField
-              type="number"
-              value={config.timeoutHours}
-              onChange={(event) => {
-                const parsed = Number(event.target.value);
-                config.setTimeoutHours(Number.isFinite(parsed) && parsed > 0 ? parsed : 1);
-              }}
-              label={t('Timeout (hours)')}
-              slotProps={{
-                htmlInput: {
-                  min: 1,
-                  max: 720,
-                  step: 1,
-                },
-              }}
-              helperText={t('Maximum duration of a live run. OpenAEV steers the orchestrator to converge a few minutes before this deadline, then hard-stops the run. Planning (the AI builder) is untimed and ignores this.')}
-              fullWidth
-              disabled={disabled}
-            />
-          </Box>
+          {!hideTimeBudget && (
+            <Box>
+              <Typography variant="h2" gutterBottom>
+                {t('Time budget')}
+              </Typography>
+              {timeBudgetNote && (
+                <Alert
+                  severity="info"
+                  variant="outlined"
+                  sx={{ marginBottom: theme.spacing(1.5) }}
+                >
+                  {timeBudgetNote}
+                </Alert>
+              )}
+              <TextField
+                type="number"
+                value={config.timeoutHours}
+                onChange={(event) => {
+                  const parsed = Number(event.target.value);
+                  config.setTimeoutHours(Number.isFinite(parsed) && parsed > 0 ? parsed : 1);
+                }}
+                label={t('Timeout (hours)')}
+                slotProps={{
+                  htmlInput: {
+                    min: 1,
+                    max: 720,
+                    step: 1,
+                  },
+                }}
+                helperText={t('Maximum duration of a live run. OpenAEV steers the orchestrator to converge a few minutes before this deadline, then hard-stops the run.')}
+                fullWidth
+                disabled={disabled}
+              />
+            </Box>
+          )}
         </>
       )}
 
@@ -402,6 +425,12 @@ export interface AutonomousRunConfigPanelProps {
   /** Demote the objective-template gallery into a collapsed accordion (already-defined scenario
    *  launched autonomously - see {@link AutonomousRunConfigFieldsProps.demoteTemplates}). */
   demoteTemplates?: boolean;
+  /** Hide the time-budget field entirely (AI builder / plan mode - see
+   *  {@link AutonomousRunConfigFieldsProps.hideTimeBudget}). */
+  hideTimeBudget?: boolean;
+  /** Short note above the time-budget field (24h-overrides-scenario-config warning - see
+   *  {@link AutonomousRunConfigFieldsProps.timeBudgetNote}). */
+  timeBudgetNote?: string;
   /**
    * Show the "Save for later" action: a neutral secondary button that persists the configuration
    * WITHOUT starting anything (the scenario AI builder). Built with plan_mode so the saved input is
@@ -429,6 +458,8 @@ export const AutonomousRunConfigPanel = ({
   error,
   infoText,
   demoteTemplates,
+  hideTimeBudget,
+  timeBudgetNote,
   showSave = false,
   showLaunch = true,
   saveLabel,
@@ -483,7 +514,14 @@ export const AutonomousRunConfigPanel = ({
         ))}
       </Stepper>
 
-      <AutonomousRunConfigFields config={config} activeStep={activeStep} disabled={submitting} demoteTemplates={demoteTemplates} />
+      <AutonomousRunConfigFields
+        config={config}
+        activeStep={activeStep}
+        disabled={submitting}
+        demoteTemplates={demoteTemplates}
+        hideTimeBudget={hideTimeBudget}
+        timeBudgetNote={timeBudgetNote}
+      />
 
       {error && <Alert severity="error">{error}</Alert>}
 

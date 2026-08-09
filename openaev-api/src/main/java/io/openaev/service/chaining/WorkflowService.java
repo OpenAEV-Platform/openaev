@@ -732,16 +732,16 @@ public class WorkflowService {
 
   /**
    * Turns OFF keep-alive on a scenario's chaining workflow template (and re-enables the normal
-   * timeout it disabled), making it behave like a hand-built chained scenario again.
+   * timeout), making it behave like a hand-built chained scenario again.
    *
-   * <p>An autonomous scenario's workflow is marked {@code keepAlive} (and {@code timeoutEnabled =
-   * false}) so a launched simulation parks in RUN forever, awaiting the orchestrator between
-   * decision cycles instead of ending when it runs out of ready steps. That is exactly wrong for a
-   * scenario an operator has taken manual: with no orchestrator ever appending steps, a launched
-   * run would hang open indefinitely rather than completing. This is the single step that must
-   * accompany dropping the {@code autonomous_runs} row (in-place conversion) or copying an
-   * autonomous workflow into a fresh manual scenario (duplicate), so the resulting chained scenario
-   * runs its authored steps and ends normally. A no-op when the scenario has no workflow template.
+   * <p>Keep-alive (and {@code timeoutEnabled = false}) now lives on the launched SIMULATION, not
+   * the scenario template ({@link #markSimulationWorkflowKeepAlive}), so a fresh autonomous
+   * scenario no longer carries it. This method remains the safe healer for LEGACY scenarios whose
+   * template was marked keep-alive before that change: taking such a scenario manual would
+   * otherwise leave a launched run hanging open forever (no orchestrator ever appends steps or ends
+   * it). Called when dropping the {@code autonomous_runs} row (in-place conversion) or copying an
+   * autonomous workflow into a fresh manual scenario (duplicate). A no-op when the scenario has no
+   * workflow template, or when the template is already clean.
    *
    * @param scenarioId the scenario whose workflow should stop keeping itself alive
    */
@@ -765,7 +765,7 @@ public class WorkflowService {
     }
     Workflow workflow = template.get();
     if (workflow.isKeepAlive() || !workflow.isTimeoutEnabled()) {
-      // Exact inverse of markScenarioWorkflowKeepAlive: run-and-end, timeout watchdog back on.
+      // Restore a run-and-end manual chained workflow: timeout watchdog back on.
       workflow.setKeepAlive(false);
       workflow.setTimeoutEnabled(true);
       workflowRepository.save(workflow);
@@ -794,7 +794,7 @@ public class WorkflowService {
     Workflow source = sourceOpt.get();
     Workflow copy = copyWorkflowTemplateToScenario(source, scenarioTo);
     // A duplicated autonomous workflow must never inherit the "park forever" contract
-    // (keepAlive on, timeout watchdog off) that markScenarioWorkflowKeepAlive installed.
+    // (keepAlive on, timeout watchdog off) that a legacy autonomous scenario template may carry.
     copy.setKeepAlive(false);
     copy.setTimeoutEnabled(true);
     copy = workflowRepository.save(copy);
@@ -1410,27 +1410,54 @@ public class WorkflowService {
   // -- Autonomous authoring facade --
 
   /**
-   * Marks the scenario's TEMPLATE workflow as keep-alive and disables its timeout, so an autonomous
-   * (AI-driven) run built on top of it survives an empty launch and long idle gaps between decision
-   * cycles. The flag propagates to the simulation TEMPLATE and RUN workflows through the standard
-   * copy chain at launch, so this must be called BEFORE {@link
-   * #startWorkflowByScenarioIdAndSimulation}.
+   * Marks a launched SIMULATION's chaining workflows (its TEMPLATE and every RUN) as keep-alive and
+   * disables their timeout, so an autonomous simulation parks in RUN awaiting the orchestrator
+   * between decision cycles instead of ending when it runs out of ready steps, and {@code
+   * WorkflowTimeoutJob} never force-ends it (the autonomous run's own OpenAEV-owned deadline, 24h
+   * by default, hard-stops a live run; a plan substrate is untimed).
    *
-   * @param scenarioId the autonomous scenario whose workflow should be kept alive
+   * <p>Applied to the SIMULATION - never to the reusable scenario TEMPLATE - so building or
+   * launching an autonomous run never mutates the scenario's own "Simulation time out" config: a
+   * chained scenario keeps its default 1h expiration (editable in the Scope tab), and the very same
+   * scenario can be relaunched in normal mode and run-and-end normally. A no-op when the simulation
+   * has no workflow yet.
+   *
+   * <p>Must be called at launch time, in the SAME transaction as the launch, on a freshly
+   * provisioned simulation. The initial evaluation inside {@code startWorkflow} ENDs an empty
+   * non-keep-alive run on the spot - and an autonomous run always launches empty - so the freshly
+   * ended run is invisible to the RUN-status finder. This method therefore also picks up the
+   * simulation's END runs and restores them to RUN: on a fresh simulation the only possible END run
+   * is the one the launch itself just ended (nothing ever executed), so the restore can never
+   * resurrect a legitimately finished run.
+   *
+   * @param simulationId the launched simulation whose workflows should keep themselves alive
    */
   @Transactional(rollbackFor = Exception.class)
-  public void markScenarioWorkflowKeepAlive(String scenarioId) throws ChainingException {
-    Workflow template =
-        findWorkflowTemplateByScenarioId(scenarioId)
-            .orElseThrow(
-                () ->
-                    new ElementNotFoundException(
-                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-    if (!template.isKeepAlive() || template.isTimeoutEnabled()) {
-      template.setKeepAlive(true);
-      // A long-lived incremental build must not be force-ended by WorkflowTimeoutJob.
-      template.setTimeoutEnabled(false);
-      workflowRepository.save(template);
+  public void markSimulationWorkflowKeepAlive(String simulationId) {
+    if (!hasText(simulationId)) {
+      return;
+    }
+    List<Workflow> workflows = new ArrayList<>();
+    findWorkflowTemplateBySimulationId(simulationId).ifPresent(workflows::add);
+    workflows.addAll(findWorkflowRunBySimulationId(simulationId));
+    // Recover the empty run the launch evaluation just ended (see javadoc): parked back in RUN, it
+    // awaits the orchestrator's first authored step instead of staying terminally closed.
+    workflows.addAll(
+        workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END));
+    for (Workflow workflow : workflows) {
+      boolean dirty = false;
+      if (workflow.getStatus() == WorkflowStatus.END) {
+        workflow.setStatus(WorkflowStatus.RUN);
+        dirty = true;
+      }
+      if (!workflow.isKeepAlive() || workflow.isTimeoutEnabled()) {
+        workflow.setKeepAlive(true);
+        workflow.setTimeoutEnabled(false);
+        dirty = true;
+      }
+      if (dirty) {
+        workflowRepository.save(workflow);
+      }
     }
   }
 
