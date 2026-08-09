@@ -243,6 +243,75 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Technical defaults are restricted to the expected security platform collectors")
+  void given_expectedSecurityPlatformTypes_should_seedOnlyMatchingCollectors() throws Exception {
+    InjectorContract contract = mock(InjectorContract.class);
+    when(contract.getNeedsExecutorEffective()).thenReturn(false);
+    inject.setInjectorContract(contract);
+    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "expectationPropertiesConfig",
+        new io.openaev.expectation.ExpectationPropertiesConfig());
+
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setId("asset-id");
+    endpoint.setAgents(List.of());
+    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
+    when(injectService.resolveAllAssetsToExecute(inject))
+        .thenReturn(List.of(new AssetToExecute(endpoint)));
+    when(collectorService.securityPlatformCollectors(any()))
+        .thenReturn(
+            List.of(
+                collectorOfType("edr", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR),
+                collectorOfType("xdr", SecurityPlatform.SECURITY_PLATFORM_TYPE.XDR)));
+
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(inject);
+
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "behaviors",
+        List.of(
+            new DetectionBehavior(collectorService, injectService, injectExpectationRepository)));
+
+    io.openaev.model.inject.form.Expectation detection =
+        createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION);
+    detection.setExpectedSecurityPlatformTypes(
+        List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR));
+
+    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
+        executableInject, List.of(detection), "implant");
+
+    // Tenant collectors are loaded once for the whole batch, and the pending default results are
+    // restricted to the expected security platform types (EDR only, XDR excluded).
+    verify(collectorService, times(1)).securityPlatformCollectors(any());
+    ArgumentCaptor<List<BaseInjectExpectation>> savedCaptor = ArgumentCaptor.captor();
+    verify(injectExpectationRepository).saveAll(savedCaptor.capture());
+    List<InjectExpectationResult> seededResults =
+        savedCaptor.getValue().stream()
+            .filter(e -> e.getResults() != null)
+            .flatMap(e -> e.getResults().stream())
+            .toList();
+    assertFalse(seededResults.isEmpty());
+    assertTrue(seededResults.stream().allMatch(r -> "edr".equals(r.getSourceId())));
+  }
+
+  private static Collector collectorOfType(
+      String id, SecurityPlatform.SECURITY_PLATFORM_TYPE type) {
+    Collector collector = new Collector();
+    collector.setId(id);
+    collector.setName(id);
+    collector.setPeriod(60);
+    SecurityPlatform platform = new SecurityPlatform();
+    platform.setSecurityPlatformType(type);
+    collector.setSecurityPlatform(platform);
+    return collector;
+  }
+
+  @Test
   @DisplayName(
       "Reset/relaunch fallback: contract expectations are used when the inject content has none")
   void given_contentWithoutExpectations_should_fallBackToContractExpectations() throws Exception {

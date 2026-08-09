@@ -1,6 +1,8 @@
 package io.openaev.service.expectation;
 
+import static io.openaev.service.InjectExpectationUtils.applyExpirationOrderingGuarantee;
 import static io.openaev.service.InjectExpectationUtils.computeChildrenScore;
+import static io.openaev.service.InjectExpectationUtils.filterCollectorsForExpectation;
 import static io.openaev.service.InjectExpectationUtils.reconcileWithDirectVulnerableVerdict;
 import static io.openaev.utils.AgentUtils.getActiveAgents;
 import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
@@ -110,11 +112,13 @@ public abstract class AbstractTechnicalBehavior
                         || isAgentlessAssetExpectationNecessary(e.getAsset(), inject))
             .toList();
     if (!leafExpectations.isEmpty()) {
-      // Fetched once per invocation (not per leaf), and only when a leaf actually needs it.
+      // Fetched once per invocation (not per leaf), and only when a leaf actually needs them.
+      List<Collector> tenantCollectors =
+          collectorService.securityPlatformCollectors(inject.getTenant().getId());
       Map<String, Endpoint> valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
       leafExpectations.forEach(
           e -> {
-            initializeResults(e);
+            initializeResults(e, tenantCollectors);
             String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
             List<ExpectationSignature> expectationSignatures =
                 computeSignatures(
@@ -142,16 +146,35 @@ public abstract class AbstractTechnicalBehavior
   /** {@inheritDoc} Sets default results from collectors on leaf expectations. */
   @Override
   public void initializeResults(BaseInjectExpectation expectation) {
-    List<InjectExpectationResult> defaults = buildDefaultResults(expectation);
+    initializeResults(
+        expectation,
+        collectorService.securityPlatformCollectors(expectation.getInject().getTenant().getId()));
+  }
+
+  /** Batch-friendly variant reusing tenant collectors already loaded by the caller. */
+  protected void initializeResults(
+      BaseInjectExpectation expectation, List<Collector> tenantCollectors) {
+    List<InjectExpectationResult> defaults = buildDefaultResults(expectation, tenantCollectors);
     if (!defaults.isEmpty()) {
       expectation.setResults(defaults);
     }
   }
 
-  /** Provides the default result entries for agent-level expectations. */
-  protected List<InjectExpectationResult> buildDefaultResults(BaseInjectExpectation expectation) {
-    String tenantId = expectation.getInject().getTenant().getId();
-    return setUpFromCollectors(collectorService.securityPlatformCollectors(tenantId));
+  /**
+   * Provides the default result entries for leaf expectations: pending rows restricted to the
+   * collectors matching the expectation's expected security platform types (empty/null = every
+   * connected security platform), with the expiration floor guaranteeing that the real collectors
+   * get to answer before the expiration manager - the same rules the legacy creation path applied.
+   */
+  protected List<InjectExpectationResult> buildDefaultResults(
+      BaseInjectExpectation expectation, List<Collector> tenantCollectors) {
+    if (!(expectation instanceof TechnicalInjectExpectation tech)) {
+      return List.of();
+    }
+    List<Collector> expectedCollectors =
+        filterCollectorsForExpectation(tenantCollectors, tech.getExpectedSecurityPlatforms());
+    applyExpirationOrderingGuarantee(tech, expectedCollectors);
+    return setUpFromCollectors(expectedCollectors);
   }
 
   // ----- END INITIALIZE
