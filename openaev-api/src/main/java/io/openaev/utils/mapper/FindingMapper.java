@@ -33,9 +33,11 @@ public class FindingMapper {
   }
 
   /**
-   * Aggregated (deduplicated by type + value) output. The representative {@code finding} row is
-   * arbitrary (smallest id in the group), so callers that know the group-wide first/last seen must
-   * pass them explicitly - the representative row's own dates are just one occurrence's dates.
+   * Aggregated (deduplicated by type + value) output. The representative {@code finding} row is the
+   * most recent occurrence in the group (greatest {@code updateDate}, tie-broken by smallest id -
+   * see {@code FindingSpecification.distinctTypeValueWithFilter}), so its own {@code updateDate}
+   * already matches the group last seen; its {@code creationDate}, however, is that single
+   * occurrence's, so callers must still pass the group-wide first/last seen explicitly.
    */
   public AggregatedFindingOutput toAggregatedFindingOutput(
       Finding finding, List<Asset> relatedAssets, Instant firstSeen, Instant lastSeen) {

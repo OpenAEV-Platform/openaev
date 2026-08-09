@@ -70,7 +70,7 @@ const CustomDomains = () => {
       value: (domain: CustomDomain) =>
         (domain.custom_domain_verified_at ? fldt(domain.custom_domain_verified_at) : '-'),
     },
-  ], []);
+  ], [fldt]);
 
   return (
     <div style={{ display: 'flex' }}>
@@ -119,7 +119,7 @@ const CustomDomains = () => {
               secondaryAction={(
                 <CustomDomainPopover
                   customDomain={domain}
-                  onDelete={result => setCustomDomains(customDomains.filter(d => d.custom_domain_id !== result))}
+                  onDelete={result => setCustomDomains(prev => prev.filter(d => d.custom_domain_id !== result))}
                   onUpdate={upsert}
                 />
               )}
