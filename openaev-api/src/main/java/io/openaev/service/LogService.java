@@ -160,15 +160,16 @@ public class LogService {
       ctx.put("entity_type", entityTypeName);
 
       if (input != null) {
-        // Redacted input
-        input = objectNormalizationUtils.normalize(input);
+        // Redact before normalizing: the normalization size-cap fallback serializes the tree into
+        // a scalar "preview" that field-name-based redaction cannot scrub afterwards.
         input = ObjectRedactionUtils.redact(input, resourceType);
+        input = objectNormalizationUtils.normalize(input);
         ctx.put("input", toContextValue(input));
       }
 
       if (output != null) {
-        output = objectNormalizationUtils.normalize(output);
         output = ObjectRedactionUtils.redact(output, resourceType);
+        output = objectNormalizationUtils.normalize(output);
         ctx.put("output", toContextValue(output));
       }
 
@@ -179,8 +180,8 @@ public class LogService {
       }
 
       if (signatureNode != null) {
-        signatureNode = objectNormalizationUtils.normalize(signatureNode);
         signatureNode = ObjectRedactionUtils.redact(signatureNode, resourceType);
+        signatureNode = objectNormalizationUtils.normalize(signatureNode);
         doc.getRequestMetadata().setSignature(signatureNode);
       }
 
@@ -289,36 +290,40 @@ public class LogService {
   }
 
   /**
-   * Processes MUTATION-specific contextData entries: normalizes and redacts input/output JsonNodes,
+   * Processes MUTATION-specific contextData entries: redacts and normalizes input/output JsonNodes,
    * and extracts the signature into request metadata.
+   *
+   * <p>Redaction always runs before normalization: when a tree is still oversized after truncation,
+   * the normalization fallback serializes it into a scalar {@code preview} field that field-name
+   * based redaction cannot scrub afterwards. Redacting first guarantees the preview can only ever
+   * contain already-redacted data.
    */
   private void processMutationContext(
       Map<String, Object> ctx, ResourceType resourceType, String eventScope, LogEvent doc) {
-    // Normalize and redact input
+    // Redact and normalize input
     Object inputObj = ctx.get("input");
     if (inputObj instanceof JsonNode inputNode && !inputNode.isNull()) {
-      inputNode = objectNormalizationUtils.normalize(inputNode);
       inputNode = ObjectRedactionUtils.redact(inputNode, resourceType);
+      inputNode = objectNormalizationUtils.normalize(inputNode);
       ctx.put("input", toContextValue(inputNode));
     }
 
-    // Normalize and redact output
+    // Redact and normalize output
     Object outputObj = ctx.get("output");
     if (outputObj instanceof JsonNode outputNode && !outputNode.isNull()) {
-      outputNode = objectNormalizationUtils.normalize(outputNode);
       outputNode = ObjectRedactionUtils.redact(outputNode, resourceType);
+      outputNode = objectNormalizationUtils.normalize(outputNode);
       ctx.put("output", toContextValue(outputNode));
     }
 
-    // Extract signature into request metadata
+    // Extract signature into request metadata. Normalization is what enforces the max event size:
+    // without it a large payload reaching the signature node (e.g. a @RequestPart DTO) is logged
+    // uncapped and can exhaust the heap.
     Object signatureObj = ctx.remove("signature");
     if (signatureObj instanceof JsonNode signatureNode && !signatureNode.isNull()) {
-      // Normalize before redacting: this is what enforces the max event size. Without it a large
-      // payload reaching the signature node (e.g. a @RequestPart DTO) is logged uncapped and can
-      // exhaust the heap.
-      JsonNode normalizedSignature = objectNormalizationUtils.normalize(signatureNode);
-      JsonNode redactedSignature = ObjectRedactionUtils.redact(normalizedSignature, resourceType);
-      doc.getRequestMetadata().setSignature(redactedSignature);
+      JsonNode redactedSignature = ObjectRedactionUtils.redact(signatureNode, resourceType);
+      JsonNode normalizedSignature = objectNormalizationUtils.normalize(redactedSignature);
+      doc.getRequestMetadata().setSignature(normalizedSignature);
     }
   }
 

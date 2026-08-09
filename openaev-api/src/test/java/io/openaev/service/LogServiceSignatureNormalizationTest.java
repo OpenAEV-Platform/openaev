@@ -120,6 +120,23 @@ class LogServiceSignatureNormalizationTest {
     return signature;
   }
 
+  /**
+   * Builds a signature that stays oversized even after per-string truncation (many small fields),
+   * forcing the {@code buildTruncatedEnvelope} fallback whose {@code preview} embeds serialized
+   * JSON. The sensitive field comes first so it would land inside the preview window.
+   */
+  private JsonNode oversizedSignatureWithLeadingSecret(String secretValue) {
+    ObjectNode params = objectMapper.createObjectNode();
+    params.put("user_password", secretValue);
+    for (int i = 0; i < 60; i++) {
+      params.put("param_" + i, "value-" + i + "-0123456789012345678901234567890123456789");
+    }
+    ObjectNode signature = objectMapper.createObjectNode();
+    signature.put("method", "io.openaev.rest.injector.InjectorApi.registerInjector");
+    signature.set("parameters", params);
+    return signature;
+  }
+
   private JsonNode dispatchedSignature() {
     verify(dispatcher).dispatch(logEventCaptor.capture(), any());
     return logEventCaptor.getValue().getRequestMetadata().getSignature();
@@ -207,6 +224,33 @@ class LogServiceSignatureNormalizationTest {
       String emitted = dispatchedSignature().toString();
       assertThat(emitted).doesNotContain("s3cr3t-value").doesNotContain("another-secret");
     }
+
+    @Test
+    @DisplayName("the truncation-envelope preview never contains unredacted secrets")
+    void given_oversizedSignatureWithSecret_should_notLeakSecretInPreview() {
+      // Arrange
+      String secret = "s3cr3t-preview-leak";
+      JsonNode signature = oversizedSignatureWithLeadingSecret(secret);
+
+      // Act
+      logService.logRequestEvent(
+          "create",
+          "success",
+          ResourceType.INJECTOR,
+          UUID.randomUUID().toString(),
+          null,
+          null,
+          signature,
+          null,
+          Level.INFO,
+          UUID.randomUUID().toString());
+
+      // Assert - the envelope fallback triggered, and the secret is absent even from the preview
+      // (redaction runs before normalization, so the preview only sees redacted data).
+      String emitted = dispatchedSignature().toString();
+      assertThat(emitted).contains("\"truncated\":true");
+      assertThat(emitted).doesNotContain(secret);
+    }
   }
 
   @Nested
@@ -241,6 +285,34 @@ class LogServiceSignatureNormalizationTest {
           .satisfiesAnyOf(
               s -> assertThat(s).contains(TRUNCATED_SUFFIX),
               s -> assertThat(s).contains("\"truncated\":true"));
+    }
+
+    @Test
+    @DisplayName("the truncation-envelope preview never contains unredacted secrets")
+    void given_oversizedSignatureWithSecretInContext_should_notLeakSecretInPreview() {
+      // Arrange
+      String secret = "s3cr3t-preview-leak-generic";
+      Map<String, Object> ctx = new LinkedHashMap<>();
+      ctx.put("signature", oversizedSignatureWithLeadingSecret(secret));
+
+      AuditEvent event =
+          AuditEvent.builder()
+              .eventType(EventType.MUTATION)
+              .eventScope(AuditEventScope.CREATE)
+              .eventStatus(EventStatus.SUCCESS)
+              .resourceType(ResourceType.INJECTOR)
+              .resourceId(UUID.randomUUID().toString())
+              .contextData(ctx)
+              .origin(AuditEventOrigin.REQUEST)
+              .build();
+
+      // Act
+      logService.logGenericEvent(event, Level.INFO, UUID.randomUUID().toString());
+
+      // Assert - redaction runs before normalization on the generic path too
+      String emitted = dispatchedSignature().toString();
+      assertThat(emitted).contains("\"truncated\":true");
+      assertThat(emitted).doesNotContain(secret);
     }
   }
 }
