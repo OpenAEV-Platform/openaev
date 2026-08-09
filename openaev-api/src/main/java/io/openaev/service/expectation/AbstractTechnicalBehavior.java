@@ -145,6 +145,14 @@ public abstract class AbstractTechnicalBehavior
     expectation.setAssetGroup(assetGroup);
     expectation.setAsset(asset);
     expectation.setAgent(agent);
+    // Level-specific evaluation flag (legacy factory semantics): agent rows are always evaluated
+    // individually, asset rows are grouped exactly when they belong to an asset group, and only
+    // the group parent row keeps the flag configured in the inject content (the template's).
+    if (agent != null) {
+      expectation.setExpectationGroup(false);
+    } else if (asset != null) {
+      expectation.setExpectationGroup(assetGroup != null);
+    }
     return expectation;
   }
 

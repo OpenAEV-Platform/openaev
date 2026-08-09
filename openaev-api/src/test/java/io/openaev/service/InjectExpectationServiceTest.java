@@ -322,6 +322,80 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Hierarchy rows get level-specific expectation group flags like legacy factories")
+  void given_groupFlagInContent_should_applyLevelSpecificFlags() throws Exception {
+    InjectorContract contract = mock(InjectorContract.class);
+    when(contract.getNeedsExecutorEffective()).thenReturn(false);
+    inject.setInjectorContract(contract);
+    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "expectationPropertiesConfig",
+        new io.openaev.expectation.ExpectationPropertiesConfig());
+
+    AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("ag");
+    assetGroup.setId("ag-id");
+    Endpoint directEndpoint = EndpointFixture.createEndpoint();
+    directEndpoint.setId("asset-direct");
+    directEndpoint.setAgents(List.of());
+    Endpoint groupedEndpoint = EndpointFixture.createEndpoint();
+    groupedEndpoint.setId("asset-grouped");
+    groupedEndpoint.setAgents(List.of());
+    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
+    when(injectService.resolveAllAssetsToExecute(inject))
+        .thenReturn(
+            List.of(
+                new AssetToExecute(directEndpoint),
+                new AssetToExecute(groupedEndpoint, false, List.of(assetGroup))));
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
+
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(inject);
+
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "behaviors",
+        List.of(
+            new DetectionBehavior(collectorService, injectService, injectExpectationRepository)));
+
+    io.openaev.model.inject.form.Expectation detection =
+        createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION);
+    detection.setExpectationGroup(true);
+
+    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
+        executableInject, List.of(detection), "implant");
+
+    ArgumentCaptor<List<BaseInjectExpectation>> savedCaptor = ArgumentCaptor.captor();
+    verify(injectExpectationRepository).saveAll(savedCaptor.capture());
+    List<TechnicalInjectExpectation> saved =
+        savedCaptor.getValue().stream().map(TechnicalInjectExpectation.class::cast).toList();
+
+    TechnicalInjectExpectation directRow =
+        saved.stream()
+            .filter(e -> e.getAsset() != null && e.getAssetGroup() == null)
+            .findFirst()
+            .orElseThrow();
+    TechnicalInjectExpectation groupedRow =
+        saved.stream()
+            .filter(e -> e.getAsset() != null && e.getAssetGroup() != null)
+            .findFirst()
+            .orElseThrow();
+    TechnicalInjectExpectation parentRow =
+        saved.stream()
+            .filter(e -> e.getAsset() == null && e.getAssetGroup() != null)
+            .findFirst()
+            .orElseThrow();
+
+    // Legacy factory semantics: direct asset rows are individual regardless of the content flag,
+    // asset rows under a group are grouped, and only the parent keeps the configured flag.
+    assertFalse(directRow.isExpectationGroup());
+    assertTrue(groupedRow.isExpectationGroup());
+    assertTrue(parentRow.isExpectationGroup());
+  }
+
+  @Test
   @DisplayName("A null score in stored content defaults to 100.0 like the legacy factories")
   void given_nullScoreInContent_should_defaultExpectedScore() {
     io.openaev.model.inject.form.Expectation raw =
