@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,8 +29,11 @@ class InjectorActivationConfigTest {
       props.load(in);
     }
     String active = props.getProperty("openaev.tenant.active-tables", "");
+    // Exact token comparison, not substring: a value like "injectors_archive" must not satisfy
+    // this guard once the real table has been deactivated.
+    List<String> tables = Arrays.stream(active.split(",")).map(String::trim).toList();
     assertTrue(
-        active.contains("injectors"),
+        tables.contains("injectors"),
         "injectors must stay in openaev.tenant.active-tables: its v1 @Filter was removed, so"
             + " dropping it would leave the table with no tenant isolation. Found: '"
             + active

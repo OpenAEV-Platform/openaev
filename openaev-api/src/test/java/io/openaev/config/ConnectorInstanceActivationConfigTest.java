@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,8 +31,11 @@ class ConnectorInstanceActivationConfigTest {
       props.load(in);
     }
     String active = props.getProperty("openaev.tenant.active-tables", "");
+    // Exact token comparison, not substring: a value like "connector_instances_archive" must not
+    // satisfy this guard once the real table has been deactivated.
+    List<String> tables = Arrays.stream(active.split(",")).map(String::trim).toList();
     assertTrue(
-        active.contains("connector_instances"),
+        tables.contains("connector_instances"),
         "connector_instances must stay in openaev.tenant.active-tables: its v1 @Filter was"
             + " removed, so dropping it would leave the table with no tenant isolation. Found: '"
             + active
