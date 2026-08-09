@@ -1,13 +1,13 @@
-package io.openaev.rest.custom_domain;
+package io.openaev.api.custom_domain;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.custom_domain.form.CustomDomainInput;
+import io.openaev.api.custom_domain.response.CustomDomainInstructions;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDomain;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.custom_domain.form.CustomDomainInput;
-import io.openaev.rest.custom_domain.response.CustomDomainInstructions;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;

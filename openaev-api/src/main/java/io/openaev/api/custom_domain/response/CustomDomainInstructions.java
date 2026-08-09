@@ -1,4 +1,4 @@
-package io.openaev.rest.custom_domain.response;
+package io.openaev.api.custom_domain.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;

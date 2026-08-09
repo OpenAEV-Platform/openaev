@@ -1,4 +1,4 @@
-package io.openaev.rest.custom_domain;
+package io.openaev.api.custom_domain;
 
 import java.util.Hashtable;
 import javax.naming.NamingEnumeration;

@@ -1,12 +1,12 @@
-package io.openaev.rest.custom_domain;
+package io.openaev.api.custom_domain;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.api.custom_domain.response.CustomDomainInstructions;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.CustomDomain;
 import io.openaev.database.model.CustomDomain.CustomDomainStatus;
 import io.openaev.database.repository.CustomDomainRepository;
-import io.openaev.rest.custom_domain.response.CustomDomainInstructions;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -128,8 +128,16 @@ public class CustomDomainService {
     if (hostname == null || hostname.isBlank()) {
       return false;
     }
+    // Public, unauthenticated allow-list check: an invalid hostname is simply "not verified", never
+    // a 400/500, so normalization failures degrade to false instead of propagating.
+    final String normalized;
+    try {
+      normalized = normalizeHostname(hostname);
+    } catch (BadRequestException e) {
+      return false;
+    }
     return customDomainRepository
-        .findStatusByHostname(normalizeHostname(hostname))
+        .findStatusByHostname(normalized)
         .map(CustomDomainStatus.VERIFIED.name()::equals)
         .orElse(false);
   }

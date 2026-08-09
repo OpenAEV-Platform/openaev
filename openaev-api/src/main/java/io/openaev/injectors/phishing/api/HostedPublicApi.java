@@ -1,13 +1,13 @@
 package io.openaev.injectors.phishing.api;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.custom_domain.CustomDomainService;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.injectors.phishing.form.PhishingSubmitInput;
 import io.openaev.injectors.phishing.response.PhishingLandingPageReader;
 import io.openaev.injectors.phishing.service.PhishingTrackingService;
-import io.openaev.rest.custom_domain.CustomDomainService;
 import io.openaev.rest.helper.RestBehavior;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Base64;
