@@ -111,6 +111,21 @@ public class PhishingExecutor extends Injector {
             ? exercise.getReplyTos()
             : List.of(this.context.getOpenAEVConfig().getDefaultReplyTo());
 
+    // Persist the expectations before any trackable link is published: createResult commits each
+    // per-recipient tracking token before its email is sent, so an early recipient can open/click
+    // while the loop is still sending. If the expectations did not exist yet, that open/click would
+    // find nothing to fulfill and would never be retried.
+    List<Expectation> expectations =
+        content.getExpectations().stream()
+            .flatMap(
+                entry ->
+                    switch (entry.getType()) {
+                      case MANUAL -> Stream.of((Expectation) new ManualExpectation(entry));
+                      default -> Stream.of();
+                    })
+            .toList();
+    injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
+
     for (ExecutionContext userContext : users) {
       try {
         ProtectUser targetUser = userContext.getUser();
@@ -145,17 +160,6 @@ public class PhishingExecutor extends Injector {
         getNewInfoTrace(
             "Phishing emails sent to " + users.size() + " target(s)",
             ExecutionTraceAction.EXECUTION));
-
-    List<Expectation> expectations =
-        content.getExpectations().stream()
-            .flatMap(
-                entry ->
-                    switch (entry.getType()) {
-                      case MANUAL -> Stream.of((Expectation) new ManualExpectation(entry));
-                      default -> Stream.of();
-                    })
-            .toList();
-    injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
 
     return new ExecutionProcess(false);
   }
