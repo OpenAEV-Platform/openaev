@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -23,10 +24,18 @@ import org.hibernate.annotations.UuidGenerator;
  * Per-recipient tracking record for a phishing inject. Holds the opaque tracking token embedded in
  * the lure email and records the open/click/submit lifecycle plus captured metadata. Persisted (the
  * external native-phishing injector kept this in memory only).
+ *
+ * <p>{@link DynamicUpdate} is required because the open/click/submit transitions run as
+ * independent, concurrent public requests that each set a different monotonic timestamp on the same
+ * row. With Hibernate's default full-row update, a stale {@code markOpened} committing after {@code
+ * markSubmitted} would rewrite {@code clickedAt}/{@code submittedAt} back to null. Emitting an
+ * UPDATE for only the columns a transition actually dirties removes that cross-field clobbering: a
+ * {@code markOpened} update never references the click/submit columns, so it cannot overwrite them.
  */
 @Getter
 @Setter
 @Entity
+@DynamicUpdate
 @Table(name = "phishing_results")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
