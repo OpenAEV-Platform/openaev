@@ -2333,6 +2333,193 @@ class V1_DataImporterTest extends IntegrationTest {
   @Transactional
   @WithMockUser
   void
+      given_workflowStepWithPartialEmbeddedPayload_when_importing_should_skipStepAndReportMissingAction()
+          throws Exception {
+    // -- Arrange --
+    // The embedded payload node carries only a stale payload_id: buildPayload() would NPE on the
+    // mandatory fields (payload_type/name/source/status) and roll back the whole import. Such a
+    // partial shape must take the skip path and be reported as a missing action instead.
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
+    ObjectNode contractNode =
+        (ObjectNode)
+            importData
+                .get("scenario_workflow")
+                .get("workflow_steps")
+                .get(0)
+                .get("step_data")
+                .get("inject_injector_contract");
+    ObjectNode partialPayload = om.createObjectNode();
+    partialPayload.put("payload_id", "cccccccc-0003-0003-0003-000000000004");
+    contractNode.set("injector_contract_payload", partialPayload);
+    long payloadCountBefore = payloadRepository.count();
+
+    // -- Act --
+    ImportResult result =
+        assertDoesNotThrow(
+            () ->
+                this.importer.importData(
+                    importData,
+                    Map.of(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    Constants.IMPORTED_OBJECT_NAME_SUFFIX));
+
+    // -- Assert --
+    assertEquals(
+        1,
+        result.missingActions().size(),
+        "a step with partial embedded payload data must be reported as a missing action");
+    Workflow workflow = findImportedWorkflow("wf step missing contract payload");
+    assertEquals(
+        0,
+        stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId()).size(),
+        "a step whose embedded payload cannot be recreated must be skipped, not persisted broken");
+    assertEquals(
+        payloadCountBefore,
+        payloadRepository.count(),
+        "no payload must be created from partial embedded data");
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void given_equivalentPayloadWithDifferentOutputParsers_when_reimporting_should_notReuseCandidate()
+      throws Exception {
+    // -- Arrange --
+    // Output parsers drive runtime result processing: a candidate sharing name/executor/content
+    // but differing on parsers must not be reused.
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+
+    // First import: creates the payload WITHOUT parsers, readable by the user.
+    this.importer.importData(
+        readMissingContractWithPayloadFixture(),
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Payload created = findSinglePayloadByName("step missing contract payload");
+    InjectorContract createdContract =
+        injectorContractRepository.findInjectorContractByPayload(created).orElseThrow();
+    addGrantToCurrentUser(
+        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
+        Grant.GRANT_TYPE.OBSERVER,
+        createdContract.getId());
+    long payloadCountAfterFirst = payloadRepository.count();
+
+    // Second import: identical content but WITH an output parser.
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
+    ObjectNode payloadNode = fixtureEmbeddedPayloadNode(importData);
+    ArrayNode parsers = om.createArrayNode();
+    parsers.add(fixtureOutputParserNode(om));
+    payloadNode.set("payload_output_parsers", parsers);
+
+    // -- Act --
+    this.importer.importData(
+        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    assertEquals(
+        payloadCountAfterFirst + 1,
+        payloadRepository.count(),
+        "a candidate differing on output parsers must not be reused: a fresh payload is created");
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void given_equivalentPayloadWithIdenticalOutputParsers_when_reimporting_should_reuseCandidate()
+      throws Exception {
+    // -- Arrange --
+    // Counterpart of the mismatch test: identical parsers must still deduplicate, proving the
+    // normalized signature comparison aligns the export JSON shape with the entity shape
+    // (ids/timestamps/tags never break the equivalence).
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    ObjectMapper om = new ObjectMapper();
+
+    ObjectNode firstImport = (ObjectNode) readMissingContractWithPayloadFixture();
+    ArrayNode firstParsers = om.createArrayNode();
+    firstParsers.add(fixtureOutputParserNode(om));
+    fixtureEmbeddedPayloadNode(firstImport).set("payload_output_parsers", firstParsers);
+    this.importer.importData(
+        firstImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Payload created = findSinglePayloadByName("step missing contract payload");
+    InjectorContract createdContract =
+        injectorContractRepository.findInjectorContractByPayload(created).orElseThrow();
+    addGrantToCurrentUser(
+        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
+        Grant.GRANT_TYPE.OBSERVER,
+        createdContract.getId());
+    long payloadCountAfterFirst = payloadRepository.count();
+
+    ObjectNode secondImport = (ObjectNode) readMissingContractWithPayloadFixture();
+    ArrayNode secondParsers = om.createArrayNode();
+    secondParsers.add(fixtureOutputParserNode(om));
+    fixtureEmbeddedPayloadNode(secondImport).set("payload_output_parsers", secondParsers);
+
+    // -- Act --
+    this.importer.importData(
+        secondImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    assertEquals(
+        payloadCountAfterFirst,
+        payloadRepository.count(),
+        "identical output parsers must still deduplicate: no new payload on re-import");
+    assertEquals(
+        1,
+        countPayloadsByName("step missing contract payload"),
+        "the second import must reuse the parser-carrying payload");
+  }
+
+  /** Returns the embedded payload node of the missing-contract-with-payload fixture. */
+  private ObjectNode fixtureEmbeddedPayloadNode(ObjectNode importData) {
+    return (ObjectNode)
+        importData
+            .get("scenario_workflow")
+            .get("workflow_steps")
+            .get(0)
+            .get("step_data")
+            .get("inject_injector_contract")
+            .get("injector_contract_payload");
+  }
+
+  /** Builds a minimal, valid output parser node in the export JSON shape. */
+  private ObjectNode fixtureOutputParserNode(ObjectMapper om) {
+    ObjectNode group = om.createObjectNode();
+    group.put("regex_group_field", "ip");
+    group.put("regex_group_index_values", "$1");
+    ArrayNode groups = om.createArrayNode();
+    groups.add(group);
+
+    ObjectNode element = om.createObjectNode();
+    element.put("contract_output_element_is_finding", true);
+    element.put("contract_output_element_rule", "(\\d+\\.\\d+\\.\\d+\\.\\d+)");
+    element.put("contract_output_element_name", "ip");
+    element.put("contract_output_element_key", "ip");
+    element.put("contract_output_element_type", "ipv4");
+    element.set("contract_output_element_tags", om.createArrayNode());
+    element.set("contract_output_element_regex_groups", groups);
+    ArrayNode elements = om.createArrayNode();
+    elements.add(element);
+
+    ObjectNode parser = om.createObjectNode();
+    parser.put("output_parser_type", "REGEX");
+    parser.put("output_parser_mode", "STDOUT");
+    parser.set("output_parser_contract_output_elements", elements);
+    return parser;
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void
       given_stepDataContractIdExistingOnlyInAnotherTenant_when_resolving_should_notTreatForeignContractAsPresent()
           throws Exception {
     // -- Arrange --

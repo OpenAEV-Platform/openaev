@@ -2082,8 +2082,124 @@ public class V1_DataImporter implements Importer {
         .equals(enumNames(candidate.getExpectations()))) {
       return false;
     }
-    return jsonArrayEquals(payloadNode, "payload_arguments", candidate.getArguments())
-        && jsonArrayEquals(payloadNode, "payload_prerequisites", candidate.getPrerequisites());
+    if (!jsonArrayEquals(payloadNode, "payload_arguments", candidate.getArguments())
+        || !jsonArrayEquals(payloadNode, "payload_prerequisites", candidate.getPrerequisites())) {
+      return false;
+    }
+    // Output parsers drive runtime result processing (StructuredOutputUtils): two payloads with
+    // identical content but different parsers have different execution semantics. Compared through
+    // normalized signatures (type, mode, per-element key/type/rule/name/finding flag and regex
+    // groups) so instance-specific ids/timestamps/tags never break the equivalence.
+    return outputParserSignaturesFromNode(payloadNode.get("payload_output_parsers"))
+        .equals(outputParserSignaturesFromEntities(candidate.getOutputParsers()));
+  }
+
+  /** Normalized, order-independent signatures of the imported payload_output_parsers array. */
+  private List<String> outputParserSignaturesFromNode(JsonNode parsersNode) {
+    List<String> signatures = new ArrayList<>();
+    if (parsersNode != null && parsersNode.isArray()) {
+      for (JsonNode parser : parsersNode) {
+        List<String> elements = new ArrayList<>();
+        JsonNode elementsNode = parser.get("output_parser_contract_output_elements");
+        if (elementsNode != null && elementsNode.isArray()) {
+          for (JsonNode element : elementsNode) {
+            List<String> regexGroups = new ArrayList<>();
+            JsonNode groupsNode = element.get("contract_output_element_regex_groups");
+            if (groupsNode != null && groupsNode.isArray()) {
+              for (JsonNode group : groupsNode) {
+                regexGroups.add(
+                    regexGroupSignature(
+                        textOrNull(group, "regex_group_field"),
+                        textOrNull(group, "regex_group_index_values")));
+              }
+            }
+            elements.add(
+                outputElementSignature(
+                    textOrNull(element, "contract_output_element_key"),
+                    normalizeOutputElementType(textOrNull(element, "contract_output_element_type")),
+                    textOrNull(element, "contract_output_element_rule"),
+                    textOrNull(element, "contract_output_element_name"),
+                    element.path("contract_output_element_is_finding").asBoolean(false),
+                    regexGroups));
+          }
+        }
+        signatures.add(
+            outputParserSignature(
+                textOrNull(parser, "output_parser_type"),
+                textOrNull(parser, "output_parser_mode"),
+                elements));
+      }
+    }
+    Collections.sort(signatures);
+    return signatures;
+  }
+
+  /** Normalized, order-independent signatures of a candidate payload's output parser entities. */
+  private List<String> outputParserSignaturesFromEntities(Set<OutputParser> parsers) {
+    List<String> signatures = new ArrayList<>();
+    if (parsers != null) {
+      for (OutputParser parser : parsers) {
+        List<String> elements = new ArrayList<>();
+        if (parser.getContractOutputElements() != null) {
+          for (ContractOutputElement element : parser.getContractOutputElements()) {
+            List<String> regexGroups = new ArrayList<>();
+            if (element.getRegexGroups() != null) {
+              for (RegexGroup group : element.getRegexGroups()) {
+                regexGroups.add(regexGroupSignature(group.getField(), group.getIndexValues()));
+              }
+            }
+            elements.add(
+                outputElementSignature(
+                    element.getKey(),
+                    element.getType() != null
+                        ? element.getType().getLabel().toLowerCase(Locale.ROOT)
+                        : null,
+                    element.getRule(),
+                    element.getName(),
+                    element.isFinding(),
+                    regexGroups));
+          }
+        }
+        signatures.add(
+            outputParserSignature(
+                parser.getType() != null ? parser.getType().name() : null,
+                parser.getMode() != null ? parser.getMode().name() : null,
+                elements));
+      }
+    }
+    Collections.sort(signatures);
+    return signatures;
+  }
+
+  /**
+   * The export writes {@code contract_output_element_type} as the type LABEL (matched
+   * case-insensitively by {@code formatStringToContractOutputType}); normalize to lowercase so the
+   * node side aligns with the entity's {@code getType().getLabel()}.
+   */
+  private static String normalizeOutputElementType(String rawType) {
+    return rawType != null ? rawType.toLowerCase(Locale.ROOT) : null;
+  }
+
+  private static String outputParserSignature(String type, String mode, List<String> elements) {
+    List<String> sorted = new ArrayList<>(elements);
+    Collections.sort(sorted);
+    return type + "|" + mode + "|" + sorted;
+  }
+
+  private static String outputElementSignature(
+      String key,
+      String type,
+      String rule,
+      String name,
+      boolean isFinding,
+      List<String> regexGroups) {
+    List<String> sorted = new ArrayList<>(regexGroups);
+    Collections.sort(sorted);
+    return key + "|" + type + "|" + rule + "|" + name + "|" + isFinding + "|" + sorted;
+  }
+
+  private static String regexGroupSignature(String field, String indexValues) {
+    return field + ":" + indexValues;
   }
 
   /** Reads a JSON array of strings into a set; absent/null fields yield an empty set. */
@@ -2603,15 +2719,31 @@ public class V1_DataImporter implements Importer {
    * payload). Such steps must not be skipped by {@link #evaluateChainingStepResolvability}: their
    * creation is delegated to {@link #resolveStepData}.
    *
+   * <p>"Self-sufficient" requires the fields {@code PayloadUtils.buildPayload()} dereferences
+   * unconditionally ({@code payload_type}, {@code payload_name}, {@code payload_source}, {@code
+   * payload_status}): a partial shape (e.g. only a stale {@code payload_id}) must take the skip
+   * path and be reported as a missing action instead of crashing the recreation mid-import.
+   *
    * @return true when {@code injectContractNode} is an object whose {@code
-   *     injector_contract_payload} field is non-null and non-empty, false otherwise
+   *     injector_contract_payload} field carries recreatable payload data, false otherwise
    */
   private static boolean hasEmbeddedPayloadData(JsonNode injectContractNode) {
     if (injectContractNode == null || !injectContractNode.isObject()) {
       return false;
     }
     JsonNode payloadNode = injectContractNode.get("injector_contract_payload");
-    return payloadNode != null && !payloadNode.isNull() && !payloadNode.isEmpty();
+    if (payloadNode == null || !payloadNode.isObject() || payloadNode.isEmpty()) {
+      return false;
+    }
+    return hasNonBlankTextField(payloadNode, "payload_type")
+        && hasNonBlankTextField(payloadNode, "payload_name")
+        && hasNonBlankTextField(payloadNode, "payload_source")
+        && hasNonBlankTextField(payloadNode, "payload_status");
+  }
+
+  private static boolean hasNonBlankTextField(JsonNode node, String field) {
+    JsonNode fieldNode = node.get(field);
+    return fieldNode != null && fieldNode.isTextual() && hasText(fieldNode.asText());
   }
 
   private static String extractInjectorType(JsonNode injectContractNode) {
@@ -2890,7 +3022,32 @@ public class V1_DataImporter implements Importer {
           sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
     }
 
-    InjectorContract resolvedStepContract = resolveInjectorContract(injectContractObject, baseIds);
+    // A partial payload shape (e.g. only a stale payload_id, missing the fields buildPayload()
+    // dereferences unconditionally) is NOT recreatable: surface a skipped step instead of letting
+    // the recreation throw and roll back the whole import. evaluateChainingStepResolvability
+    // normally skips these upfront; this guard protects direct/other entry orders.
+    if (!hasEmbeddedPayloadData(injectContractObject)) {
+      log.warn(
+          "Step data references missing injector contract {} with partial payload data that"
+              + " cannot be recreated",
+          injectorContractId);
+      return StepDataResolution.failed(
+          missingContractSkip(dataJson, injectContractObject, injectorContractId));
+    }
+
+    InjectorContract resolvedStepContract;
+    try {
+      resolvedStepContract = resolveInjectorContract(injectContractObject, baseIds);
+    } catch (Exception e) {
+      // Recreation failed on unexpected embedded data: degrade to a skipped step (partial import
+      // with a reported missing action) rather than aborting and rolling back the whole import.
+      log.warn(
+          "Failed to recreate the payload/contract for missing injector contract {}",
+          injectorContractId,
+          e);
+      return StepDataResolution.failed(
+          missingContractSkip(dataJson, injectContractObject, injectorContractId));
+    }
     String newContractId = resolvedStepContract != null ? resolvedStepContract.getId() : null;
 
     // Update step_data and cache the mapping
@@ -2909,17 +3066,30 @@ public class V1_DataImporter implements Importer {
     // target, so surface it as a missing step (same type/name convention as
     // evaluateChainingStepResolvability) instead of persisting a step pointing to a broken id.
     if (resolvedStepContract != null) {
-      String injectTitle = getTextValue(dataJson, "inject_title");
-      String payloadName = extractPayloadName(injectContractNode);
-      String injectorType = extractInjectorType(injectContractNode);
-      String resourceName = hasText(payloadName) ? payloadName : injectorType;
       return StepDataResolution.failed(
-          new SkippedWorkflowStep(
-              SkippedWorkflowStepType.INJECTOR_CONTRACT, injectTitle, resourceName));
+          missingContractSkip(dataJson, injectContractNode, injectorContractId));
     }
 
     return StepDataResolution.resolved(
         sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
+  }
+
+  /**
+   * Builds the skip descriptor for a step whose injector contract / payload could not be resolved
+   * or recreated, using the same type/name convention as {@link
+   * #evaluateChainingStepResolvability}.
+   */
+  private SkippedWorkflowStep missingContractSkip(
+      JsonNode dataJson, JsonNode injectContractNode, String injectorContractId) {
+    String injectTitle = getTextValue(dataJson, "inject_title");
+    String payloadName = extractPayloadName(injectContractNode);
+    String injectorType = extractInjectorType(injectContractNode);
+    String resourceName =
+        hasText(payloadName)
+            ? payloadName
+            : hasText(injectorType) ? injectorType : injectorContractId;
+    return new SkippedWorkflowStep(
+        SkippedWorkflowStepType.INJECTOR_CONTRACT, injectTitle, resourceName);
   }
 
   /**
