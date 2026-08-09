@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
  * "Components"), plus a per-recipient tracking result table. All tenant-scoped.
  */
 @Component
-public class V6_20260805130000000__Add_phishing extends BaseJavaMigration {
+public class V6_20260809100000000__Add_phishing extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
