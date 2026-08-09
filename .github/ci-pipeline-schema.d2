@@ -87,7 +87,7 @@ fq: "🧪 Frontend Quality & Unit Tests\ntimeout 20 min · ESLint + Vitest" {cla
 docker: "DOCKER" {
 class: lane
 db: "🐳 Docker Build  ×4\nstd / ubi9  ×  amd64 / arm64\ntimeout 25 min · fail-fast: false\nbundled assets prepared inline" {class: docker}
-dm: "🐳 Merge Platforms  ×2\ntimeout 20 min · multi-arch OCI index" {class: docker}
+dm: "🐳 Merge Platforms  ×2\ntimeout 45 min · registry or artifact fallback" {class: docker}
 scan: "🔒 Container Vulnerability Scan\ntimeout 25 min · threshold high\nCore ⚠️ advisory\nNightly ❌ blocking" {class: docker}
 }
 
@@ -135,11 +135,11 @@ style: {fill: "#EDE7F6"; stroke: "#4527A0"; stroke-width: 3                     
 gate -> retry: "on failure" {class: loop}
 
 # ═══ Polling waits — replace `needs:` wherever the payload matters ═══════════
-wave0.build.bc -> wave0.tests.at: "POLLS artifact\napi-build-output\npoll cap 120 × 5s = 10 min" {class: poll}
-wave0.docker.db -> wave0.tests.e2e: "POLLS GHCR image\n(fallback: artifact)\npoll cap 180 × 5s = 15 min" {class: poll}
-wave0.docker.db -> wave0.docker.dm: "POLLS amd64 + arm64\npoll cap 15 min each" {class: poll}
-wave0.docker.db -> wave0.docker.scan: "POLLS std + ubi9 amd64\npoll cap 15 min each" {class: poll}
-gated.bp -> wave0.tests.atc: "POLLS artifact openaev-api-jar · poll cap 180 × 5s = 15 min" {class: poll}
+wave0.build.bc -> wave0.tests.at: "POLLS backend artifacts\nevery 15s · poll cap 10 min\nterminal producer failure aborts" {class: poll}
+wave0.docker.db -> wave0.tests.e2e: "POLLS marker / artifact\nGHCR touched after marker\npoll cap 15 min" {class: poll}
+wave0.docker.db -> wave0.docker.dm: "POLLS architecture markers / artifacts\npoll cap 15 min" {class: poll}
+wave0.docker.db -> wave0.docker.scan: "POLLS amd64 markers / artifacts\npoll cap 15 min" {class: poll}
+gated.bp -> wave0.tests.atc: "POLLS artifact openaev-api-jar\nevery 15s · poll cap 15 min\nterminal producer failure aborts" {class: poll}
 
 # ═══ Legend ══════════════════════════════════════════════════════════════════
 # Real edges, not text arrows: the swatches use the same classes as the graph,
@@ -161,9 +161,9 @@ a -> b {class: needs}
 
 row2: "" {
 direction: right
-style: {fill: transparent                                                                                                                                                                                                                                                                                                                                                              ; stroke: transparent}
+style: {fill: transparent                                                                                                                                                                                                                                                                                                                                                             ; stroke: transparent}
 a: "upstream\njob" {class: swatch}
-b: "POLLING WAIT  —  no needs: in the YAML at all\nThe consumer starts at t = 0 and boots its service containers in parallel\n(Postgres, Elasticsearch or OpenSearch, RabbitMQ, MinIO), then loops on the\nGitHub API or GHCR until the payload appears. It self-aborts the moment the\nupstream job reports failure or cancelled. This keeps the critical path short." {shape: text ; class: note}
+b: "POLLING WAIT  —  no needs: in the YAML at all\nThe consumer starts at t = 0 and boots its services in parallel, then polls\nGitHub artifact metadata and producer conclusions every 15 seconds. A successful push\npublishes an attempt-scoped marker; only then does the consumer touch GHCR.\nTerminal producer failures abort immediately; image artifacts remain the fallback." {shape: text ; class: note}
 a -> b {class: poll}
 }
 

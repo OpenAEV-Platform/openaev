@@ -398,13 +398,13 @@ jobs:
           tags: ${{ matrix.tags }}
 
   # No `needs: [docker-build]`: that waits for job completion, i.e. ~2.5 min of
-  # gzip/validate/upload this job never consumes. It polls for the platform images
-  # instead and aborts by itself if a build fails.
+  # gzip/validate/upload this job never consumes. Build jobs publish tiny registry
+  # markers after a successful push, so consumers do not poll GHCR while waiting.
   docker-merge:
     name: "🐳 Merge Platforms (${{ matrix.variant }})"
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       GH_TOKEN: ${{ github.token }}
     strategy:
@@ -420,11 +420,14 @@ jobs:
       - uses: ./.github/actions/docker-merge-platforms
         with:
           artifact-name: ${{ matrix.artifact-name }}
+          build-job-names: |
+            Docker Build (${{ matrix.variant }} amd64)
+            Docker Build (${{ matrix.variant }} arm64)
 
   # Reported through the Pipeline Gate, but only enforced there when
   # vulnerability-scan-fail-on-error is set — advisory in Core CI, blocking in Nightly.
-  # Like docker-merge, it polls for the images rather than waiting on the whole
-  # docker-build job, which it would otherwise trail by ~2.5 min.
+  # Like docker-merge, it waits for registry markers or image artifacts rather than
+  # the whole docker-build job, which it would otherwise trail by ~2.5 min.
   container-vulnerability-scan:
     name: "🔒 Container Vulnerability Scan"
     if: ${{ !cancelled() }}

@@ -19,96 +19,59 @@ inputs:
       per-platform archives are then merged from artifacts.
     required: false
     default: "true"
+  build-job-names:
+    description: "Newline-separated producer job-name substrings for failure detection"
+    required: false
+    default: "Docker Build"
 
 outputs:
   digest:
     description: Manifest list digest
+    # Keyed off the digest value itself: a skipped/failed (or future digest-less)
+    # registry merge falls through to the artifact merge output.
     value: ${{ steps.merge-registry.outputs.digest || steps.merge.outputs.digest }}
 
 runs:
   using: composite
   steps:
-    - name: Resolve CI registry
-      id: registry
-      uses: ./.github/actions/ci-registry
-      with:
-        allow-registry: ${{ inputs.allow-registry }}
-
-    - name: Log in to GHCR
-      if: ${{ steps.registry.outputs.available == 'true' }}
-      uses: docker/login-action@v4
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ github.token }}
-
-    - name: Wait for platform images
+    - name: Compute platform artifact names
+      id: platform-artifacts
       shell: bash
       env:
-        REPO: ${{ steps.registry.outputs.repository }}
-        PREFIX: ${{ steps.registry.outputs.tag-prefix }}
         ARTIFACT: ${{ inputs.artifact-name }}
         PLATFORMS: ${{ inputs.platforms }}
-        USE_REGISTRY: ${{ steps.registry.outputs.available }}
       run: |
-        set -euo pipefail
-        IFS=',' read -ra PLATS <<< "$PLATFORMS"
-
-        # Counts Docker Build cells that already failed, so a broken build aborts the
-        # poll instead of running it out to the timeout.
-        build_failed() {
-          local n
-          n=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-                --jq '[.jobs[] | select(.name | test("Docker Build")) | .conclusion]
-                      | map(select(. == "failure" or . == "cancelled")) | length' 2>/dev/null) || n=""
-          echo "${n:-0}"
-        }
-
-        ready() {
-          if [ "$USE_REGISTRY" = "true" ]; then
-            docker buildx imagetools inspect "$1" >/dev/null 2>&1
-          else
-            gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-              --jq '[.artifacts[].name]' 2>/dev/null | grep -qF "\"$1\""
-          fi
-        }
-
-        for plat in "${PLATS[@]}"; do
-          plat=$(echo "$plat" | xargs)
-          ARCH="${plat#*/}"
-          if [ "$USE_REGISTRY" = "true" ]; then
-            TARGET="${REPO}:${PREFIX}-${ARTIFACT}-${ARCH}"
-          else
-            TARGET="${ARTIFACT}-${ARCH}"
-          fi
-          echo "⏳ Waiting for ${TARGET}..."
-
-          for i in $(seq 1 180); do
-            if ready "$TARGET"; then
-              echo "  ✅ ${TARGET} ready (after ~$((i * 5))s)"
-              break
-            fi
-            if [ "$(build_failed)" -gt 0 ]; then
-              echo "❌ A Docker Build job failed or was cancelled — aborting"
-              exit 1
-            fi
-            if [ "$i" -eq 180 ]; then
-              echo "❌ Timed out waiting for ${TARGET} (15 min)"
-              exit 1
-            fi
-            sleep 5
+        {
+          echo "names<<EOF"
+          IFS=',' read -ra PLATS <<< "$PLATFORMS"
+          for plat in "${PLATS[@]}"; do
+            plat=$(echo "$plat" | xargs)
+            echo "${ARTIFACT}-${plat#*/}"
           done
-        done
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Obtain platform images
+      id: image-source
+      uses: ./.github/actions/ci-image-handoff
+      with:
+        artifact-names: ${{ steps.platform-artifacts.outputs.names }}
+        artifact-pattern: ${{ inputs.artifact-name }}-*
+        artifact-path: platform-archives/
+        registry-mode: inspect
+        allow-registry: ${{ inputs.allow-registry }}
+        build-job-names: ${{ inputs.build-job-names }}
 
     # Registry path: the index is assembled server-side from manifests that already
     # exist, so no ~1.9 GB of archives are moved just to staple them together.
     - name: Merge platforms via registry
       id: merge-registry
-      if: ${{ steps.registry.outputs.available == 'true' }}
+      if: ${{ steps.image-source.outputs.source == 'registry' }}
+      continue-on-error: true
       shell: bash
       env:
-        REPO: ${{ steps.registry.outputs.repository }}
-        PREFIX: ${{ steps.registry.outputs.tag-prefix }}
+        REPO: ${{ steps.image-source.outputs.repository }}
+        PREFIX: ${{ steps.image-source.outputs.tag-prefix }}
         ARTIFACT: ${{ inputs.artifact-name }}
         PLATFORMS: ${{ inputs.platforms }}
       run: |
@@ -121,22 +84,35 @@ runs:
         done
 
         echo "── Creating multi-arch index from: $SRC ──"
-        docker buildx imagetools create -t "${REPO}:${PREFIX}-${ARTIFACT}" $SRC
+        timeout --kill-after=5s 3m \
+          docker buildx imagetools create -t "${REPO}:${PREFIX}-${ARTIFACT}" $SRC
 
-        DIGEST=$(docker buildx imagetools inspect "${REPO}:${PREFIX}-${ARTIFACT}" \
+        DIGEST=$(timeout --kill-after=5s 1m \
+          docker buildx imagetools inspect "${REPO}:${PREFIX}-${ARTIFACT}" \
           --format '{{json .Manifest.Digest}}' | tr -d '"')
         echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
         echo "  ✅ Multi-arch manifest digest: ${DIGEST}"
 
         # The reviewable artifact is still produced, just pulled from the index
         echo "── Exporting multi-arch OCI archive ──"
-        skopeo copy --all \
+        timeout --kill-after=5s 5m skopeo copy --all \
           "docker://${REPO}:${PREFIX}-${ARTIFACT}" \
           "oci-archive:${ARTIFACT}.tar"
         gzip "${ARTIFACT}.tar"
 
+    - name: Obtain platform artifact fallback
+      if: ${{ steps.merge-registry.outcome == 'failure' }}
+      uses: ./.github/actions/ci-image-handoff
+      with:
+        artifact-names: ${{ steps.platform-artifacts.outputs.names }}
+        artifact-pattern: ${{ inputs.artifact-name }}-*
+        artifact-path: platform-archives/
+        allow-registry: "false"
+        build-job-names: ${{ inputs.build-job-names }}
+        wait-seconds: "300"
+
     - name: Install crane
-      if: ${{ steps.registry.outputs.available != 'true' }}
+      if: ${{ steps.image-source.outputs.source == 'artifact' || steps.merge-registry.outcome == 'failure' }}
       shell: bash
       run: |
         CRANE_VERSION="0.20.3"
@@ -144,22 +120,15 @@ runs:
           | tar -xzf - -C /usr/local/bin crane
         crane version
 
-    - name: Download per-platform artifacts
-      if: ${{ steps.registry.outputs.available != 'true' }}
-      uses: actions/download-artifact@v8
-      with:
-        pattern: ${{ inputs.artifact-name }}-*
-        path: platform-archives/
-        merge-multiple: false
-
     - name: Merge into multi-arch OCI archive
       id: merge
-      if: ${{ steps.registry.outputs.available != 'true' }}
+      if: ${{ steps.image-source.outputs.source == 'artifact' || steps.merge-registry.outcome == 'failure' }}
       shell: bash
       run: |
         set -euo pipefail
         ARTIFACT="${{ inputs.artifact-name }}"
         PLATFORMS="${{ inputs.platforms }}"
+        rm -f "${ARTIFACT}.tar" "${ARTIFACT}.tar.gz"
 
         echo "── Merging per-platform archives into multi-arch image ──"
 
