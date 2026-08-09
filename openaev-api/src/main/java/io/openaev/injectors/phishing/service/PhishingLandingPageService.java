@@ -365,10 +365,7 @@ public class PhishingLandingPageService {
         contractConfig,
         landingPage.getId(),
         Map.of(
-            en,
-            "Phishing: " + landingPage.getName(),
-            fr,
-            "Hameconnage : " + landingPage.getName()),
+            en, "Phishing: " + landingPage.getName(), fr, "Hameconnage : " + landingPage.getName()),
         fields,
         List.of(Endpoint.PLATFORM_TYPE.Internal),
         false,
