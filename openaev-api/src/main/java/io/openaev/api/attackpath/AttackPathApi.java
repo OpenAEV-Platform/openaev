@@ -10,20 +10,24 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.attackpath.AttackPathAccessControl;
+import io.openaev.service.attackpath.AttackPathCausalSeedService;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathSeedService;
+import io.openaev.service.attackpath.dto.AttackPathCausalSeedResultDTO;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathDeltaDTO;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExecutionDetailDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
+import io.openaev.service.attackpath.dto.AttackPathReplayStepDTO;
 import io.openaev.service.attackpath.dto.AttackPathSeedInput;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
 import io.openaev.utils.TxCtxScopeUtils;
 import jakarta.validation.constraints.Min;
+import java.util.Collection;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -64,6 +68,7 @@ public class AttackPathApi extends RestBehavior {
   private final AttackPathDeltaService deltaService;
   private final AttackPathVersionService versionService;
   private final AttackPathSeedService seedService;
+  private final AttackPathCausalSeedService causalSeedService;
   private final PreviewFeatureService previewFeatureService;
   private final AttackPathAccessControl attackPathAccessControl;
 
@@ -72,6 +77,20 @@ public class AttackPathApi extends RestBehavior {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }
+  }
+
+  /**
+   * The single tenant the seed writes under. Seeding is a one-tenant operation, so a scope that
+   * does not resolve to exactly one tenant (none, or several from a multi-tenant header) is
+   * rejected rather than silently picking one and seeding the wrong tenant.
+   */
+  private String requireSingleTenant(TxCtx ctx) {
+    Collection<String> tenants = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (tenants.size() != 1) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "seed under exactly one tenant: use the /tenant/{id}/ route");
+    }
+    return tenants.iterator().next();
   }
 
   /**
@@ -243,5 +262,73 @@ public class AttackPathApi extends RestBehavior {
     }
     AttackPathSeedInput params = input != null ? input : new AttackPathSeedInput(null, null, null);
     return seedService.generate(params.toParams(), params.tenantId());
+  }
+
+  /**
+   * Generate a causal attack-path scenario under the request's tenant, for developing and demoing
+   * the causal view at will: {@code scenario=realistic} (default) is one deep recon-to-DC chain,
+   * {@code scenario=scaled} is {@code footholds} independent paths converging on one DC chokepoint,
+   * {@code scenario=intrusion} is a deep host-to-host targeted intrusion that reads left to right,
+   * and {@code scenario=ransomware} is a deep-and-wide kill chain (phishing to DCSync to
+   * domain-wide impact) whose workstation tier and impacted fleet are both sized by {@code
+   * footholds}. Admin-only and only reachable when the feature flag is on, like {@link #seed}.
+   * Returns the id of the created simulation, whose Attack path tab renders the seeded graph.
+   *
+   * <p>With {@code scenario=ransomware&live=step} the simulation is created empty and its kill
+   * chain is landed one stage at a time by {@link #replayNextStage}, so an open view shows it build
+   * up.
+   *
+   * <p>TODO(#6647): a development data generator; remove before production.
+   */
+  @PostMapping("/seed/causal")
+  @Transactional
+  @AccessControl(skipRBAC = true)
+  public AttackPathCausalSeedResultDTO seedCausal(
+      TxCtx ctx,
+      @RequestParam(required = false, defaultValue = "realistic") String scenario,
+      @RequestParam(required = false, defaultValue = "20") int footholds,
+      @RequestParam(required = false, defaultValue = "") String live) {
+    requireAttackPathFeature();
+    if (!SessionHelper.currentUser().isAdmin()) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
+    }
+    String tenantId = requireSingleTenant(ctx);
+    String simulationId =
+        switch (scenario) {
+          case "realistic" -> causalSeedService.seedRealisticChain(tenantId);
+          case "scaled" -> causalSeedService.seedScaledChain(tenantId, footholds);
+          case "intrusion" -> causalSeedService.seedDeepIntrusion(tenantId, footholds);
+          case "ransomware" ->
+              "step".equals(live)
+                  ? causalSeedService.createRansomwareSimulation(tenantId)
+                  : causalSeedService.seedRansomwareChain(tenantId, footholds);
+          default ->
+              throw new ResponseStatusException(
+                  HttpStatus.BAD_REQUEST, "unknown scenario: " + scenario);
+        };
+    return new AttackPathCausalSeedResultDTO(simulationId);
+  }
+
+  /**
+   * Play the next stage of a live ransomware replay onto the simulation created with {@code
+   * live=step}, and report which stage ran and whether the replay is complete. Admin-only and
+   * feature-gated like {@link #seedCausal}. Call it repeatedly, or on a timer, to watch the kill
+   * chain build up stage by stage in the Attack path tab.
+   *
+   * <p>TODO(#6647): a development data generator; remove before production.
+   */
+  @PostMapping("/simulations/{simulationId}/replay")
+  @Transactional
+  @AccessControl(skipRBAC = true)
+  public AttackPathReplayStepDTO replayNextStage(
+      TxCtx ctx,
+      @PathVariable String simulationId,
+      @RequestParam(required = false, defaultValue = "20") int footholds) {
+    requireAttackPathFeature();
+    if (!SessionHelper.currentUser().isAdmin()) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
+    }
+    String tenantId = requireSingleTenant(ctx);
+    return causalSeedService.replayRansomwareNextStage(simulationId, tenantId, footholds);
   }
 }
