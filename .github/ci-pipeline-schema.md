@@ -45,11 +45,12 @@ Almost nothing in this pipeline waits. Of the 16 job definitions in `_ci-pipelin
 `needs:` waits for the *entire* upstream job to finish — including the artifact
 gzip / validate / upload tail, roughly 2.5 min the consumer never actually reads. So
 wherever only the *payload* matters, the consumer starts immediately, boots its service
-containers in parallel, and polls the GitHub API or GHCR until the payload appears.
+containers in parallel, and polls the GitHub Actions artifact list until the payload or
+a tiny registry-ready marker appears. Consumers never poll GHCR while builds are running.
 
-Every polling loop also watches the upstream job's conclusion and aborts the moment it
-reports `failure` or `cancelled`, so a broken build fails fast instead of burning the
-full timeout.
+The Docker handoff checks producer conclusions every 15 seconds and aborts on any
+terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
+`skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
 ### The four real `needs:` edges
 
@@ -67,14 +68,21 @@ gives up and fails the job — not how long the wait normally lasts.
 
 | Consumer | Waits for | Poll cap | Aborts early when |
 |----------|-----------|----------|-------------------|
-| **API Tests** | artifact `api-build-output` | 120 × 5s = 10 min | Backend Compile is `failure`/`cancelled` |
-| **API Types Check** | artifact `openaev-api-jar` | 180 × 5s = 15 min | Backend Compile is `failure`/`cancelled` |
-| **E2E Tests** | GHCR image tag, falling back to the image artifact | 180 × 5s = 15 min | the arch-matched Docker Build cell fails |
-| **Docker Merge** | both `amd64` and `arm64` images of its variant | 180 × 5s = 15 min each | any Docker Build cell fails |
-| **Container Vulnerability Scan** | `standard-amd64` and `ubi9-amd64` images | 180 × 5s = 15 min each | any Docker Build cell fails |
+| **API Tests** | artifacts `backend-compiled` + `api-build-output` | 10 min | Backend Compile reaches any terminal non-success result |
+| **API Types Check** | artifact `openaev-api-jar` | 15 min | Backend Package (glibc) reaches any terminal non-success result |
+| **E2E Tests** | registry marker or image artifact for its architecture | 15 min | the arch-matched Docker Build cell reaches any terminal non-success result |
+| **Docker Merge** | markers or artifacts for both architectures of its variant | 15 min | either variant-matched Docker Build cell reaches any terminal non-success result |
+| **Container Vulnerability Scan** | markers or artifacts for both amd64 variants | 15 min | either required amd64 Docker Build cell reaches any terminal non-success result |
 
-E2E additionally tolerates a flaky control plane: after 10 consecutive GitHub API errors
-it stops polling and attempts the download directly.
+Each Docker build uploads an attempt-scoped marker only after its optional GHCR push
+succeeds. Consumers poll artifact metadata every 15 seconds, prefer a current-attempt
+marker when both sources are ready, and touch GHCR only once all required markers exist.
+Producer conclusions are queried every 15 seconds. This replaces the old five-second
+GHCR inspection loops.
+
+Backend artifact waits use the same 15-second fail-fast cadence. They query both
+artifact availability and the actual producer job, so a producer that fails, times out,
+is cancelled, or is skipped cannot leave consumers waiting until the poll cap.
 
 ### Docker Build has no upstream at all
 
@@ -100,7 +108,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🔍 **Spotless Check** | 10 min | Java formatting |
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + Vitest + coverage |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
-| 🐳 **Merge Platforms** ×2 | 20 min | Multi-arch OCI index per variant, assembled server-side in the registry |
+| 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
 | 🔒 **Container Vulnerability Scan** | 25 min | CVE scan of both amd64 images, threshold `high` |
 | 🧪 **API Tests** | 30 min | Spring Boot integration tests vs PostgreSQL + search engine. `fail-fast: false` |
 | 🔎 **API Types Check** | 20 min | Generated TS types must match the live API schema |

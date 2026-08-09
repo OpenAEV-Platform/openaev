@@ -3,7 +3,7 @@ description: >
   Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
   download and run the backend Docker image, and run Playwright E2E tests.
   The Docker image is built in parallel by the docker-build job; this action
-  polls for the image artifact and loads it once available.
+  waits for a registry marker or image artifact and loads the first usable source.
   Requires job-level env vars: SPRING_DATASOURCE_URL,
   SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD,
   MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_ACCESS_SECRET,
@@ -119,99 +119,20 @@ runs:
       shell: bash
       working-directory: openaev-front
 
-    - name: Resolve CI registry
-      id: registry
-      uses: ./.github/actions/ci-registry
-
-    - name: Log in to GHCR
-      if: ${{ steps.registry.outputs.available == 'true' }}
-      uses: docker/login-action@v4
+    - name: Obtain Docker image
+      id: image-source
+      uses: ./.github/actions/ci-image-handoff
       with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ github.token }}
-
-    - name: Pull image from registry
-      if: ${{ steps.registry.outputs.available == 'true' }}
-      shell: bash
-      env:
-        IMAGE_REF: ${{ steps.registry.outputs.repository }}:${{ steps.registry.outputs.tag-prefix }}-${{ inputs.docker-image }}
-      run: |
-        set -euo pipefail
-        echo "⏳ Waiting for $IMAGE_REF (services booting in parallel)..."
-        ARCH="${{ inputs.docker-image }}"
-        ARCH="${ARCH##*-}"
-        for i in $(seq 1 180); do
-          if docker buildx imagetools inspect "$IMAGE_REF" >/dev/null 2>&1; then
-            echo "✅ Image published (after ~$((i * 5))s)"
-            break
-          fi
-          BUILD_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq "[.jobs[] | select(.name | test(\"Docker Build.*$ARCH\")) | .conclusion] | first // \"\"" 2>/dev/null || echo "")
-          if [ "$BUILD_CONCLUSION" = "failure" ] || [ "$BUILD_CONCLUSION" = "cancelled" ]; then
-            echo "❌ Docker Build ($ARCH) $BUILD_CONCLUSION — aborting"
-            exit 1
-          fi
-          if [ "$i" -eq 180 ]; then
-            echo "❌ Timed out waiting for $IMAGE_REF (15 min)"
-            exit 1
-          fi
-          sleep 5
-        done
-        docker pull "$IMAGE_REF"
-        docker tag "$IMAGE_REF" openaev:ci
-        echo "✅ Loaded as openaev:ci"
-
-    - name: Wait for Docker image artifact
-      if: ${{ steps.registry.outputs.available != 'true' }}
-      shell: bash
-      run: |
-        echo "⏳ Waiting for Docker image artifact (services booting in parallel)..."
-        API_FAILURES=0
-        for i in $(seq 1 180); do
-          # Check if the matching docker-build job has failed — abort immediately
-          ARCH="${{ inputs.docker-image }}"
-          ARCH="${ARCH##*-}"
-          BUILD_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq "[.jobs[] | select(.name | test(\"Docker Build.*$ARCH\")) | .conclusion] | first // \"\"" 2>/dev/null || echo "__API_ERROR__")
-          if [ "$BUILD_CONCLUSION" = "__API_ERROR__" ]; then
-            API_FAILURES=$((API_FAILURES + 1))
-            if [ "$API_FAILURES" -ge 10 ]; then
-              echo "⚠️ GitHub API unreachable ($API_FAILURES consecutive failures) — skipping artifact poll, will try download directly"
-              break
-            fi
-            [ $((i % 10)) -eq 0 ] && echo "  ⚠️ API call failed ($API_FAILURES times) — network may be degraded"
-            sleep 5
-            continue
-          fi
-          API_FAILURES=0
-          if [ "$BUILD_CONCLUSION" = "failure" ] || [ "$BUILD_CONCLUSION" = "cancelled" ]; then
-            echo "❌ Docker Build ($ARCH) job $BUILD_CONCLUSION — aborting"
-            exit 1
-          fi
-          NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-            --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
-          if echo "$NAMES" | grep -qF '${{ inputs.docker-image }}'; then
-            echo "✅ Artifact ${{ inputs.docker-image }} available (after ~$((i * 5))s)"
-            break
-          fi
-          if [ "$i" -eq 180 ]; then
-            echo "❌ Timed out waiting for artifact ${{ inputs.docker-image }} (15 min)"
-            exit 1
-          fi
-          echo "  Attempt $i/180 — waiting for ${{ inputs.docker-image }}..."
-          sleep 5
-        done
-
-    - name: Download Docker image artifact
-      if: ${{ steps.registry.outputs.available != 'true' }}
-      uses: actions/download-artifact@v8
-      with:
-        name: ${{ inputs.docker-image }}
-        path: /tmp/openaev-image
+        artifact-names: ${{ inputs.docker-image }}
+        artifact-pattern: ${{ inputs.docker-image }}
+        artifact-path: /tmp/openaev-image
+        merge-artifacts: "true"
+        registry-mode: pull
+        local-tags: openaev:ci
+        build-job-names: "Docker Build (${{ startsWith(inputs.docker-image, 'openaev-ubi9-') && 'ubi9' || 'standard' }} ${{ endsWith(inputs.docker-image, '-arm64') && 'arm64' || 'amd64' }})"
 
     - name: Load Docker image
-      if: ${{ steps.registry.outputs.available != 'true' }}
+      if: ${{ steps.image-source.outputs.source == 'artifact' }}
       shell: bash
       run: |
         cd /tmp/openaev-image

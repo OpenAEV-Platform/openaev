@@ -52,30 +52,11 @@ runs:
       working-directory: openaev-front
 
     - name: Wait for backend JAR artifact
-      shell: bash
-      run: |
-        echo "⏳ Waiting for backend-package artifact (services booting in parallel)..."
-        for i in $(seq 1 180); do
-          # Check if backend-compile has failed — abort immediately
-          COMPILE_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select(.name | test("Backend Compile")) | .conclusion] | first' 2>/dev/null || echo "")
-          if [ "$COMPILE_CONCLUSION" = "failure" ] || [ "$COMPILE_CONCLUSION" = "cancelled" ]; then
-            echo "❌ Backend Compile job $COMPILE_CONCLUSION — aborting"
-            exit 1
-          fi
-          NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-            --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
-          if echo "$NAMES" | grep -q '"openaev-api-jar"'; then
-            echo "✅ Artifact available (after ~$((i * 5))s)"
-            break
-          fi
-          if [ "$i" -eq 180 ]; then
-            echo "❌ Timed out waiting for artifact (15 min)"
-            exit 1
-          fi
-          echo "  Attempt $i/180 — not ready, retrying in 5s..."
-          sleep 5
-        done
+      uses: ./.github/actions/wait-for-artifacts
+      with:
+        artifact-names: openaev-api-jar
+        producer-job-names: Backend Package (glibc)
+        wait-seconds: "900"
 
     - name: Download backend JAR artifact
       uses: actions/download-artifact@v8
