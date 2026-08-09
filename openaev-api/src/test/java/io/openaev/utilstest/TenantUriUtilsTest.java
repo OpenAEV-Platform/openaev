@@ -46,7 +46,11 @@ public class TenantUriUtilsTest {
           Arguments.of(generateTenantUri(tenantId, "/more"), Optional.of(tenantId)),
           Arguments.of(generateTenantUri("subpath/" + tenantId, "/more"), Optional.empty()),
           Arguments.of("/generic/" + tenantId, Optional.empty()),
-          Arguments.of("/generic/api/tenants/" + tenantId, Optional.empty()));
+          Arguments.of("/generic/api/tenants/" + tenantId, Optional.empty()),
+          // tenant segment must be a full UUID ending at a path-segment boundary
+          Arguments.of(generateTenantUri(tenantId + "garbage", "/more"), Optional.empty()),
+          Arguments.of(generateTenantUri("deadbeef", "/more"), Optional.empty()),
+          Arguments.of(generateTenantUri("not-a-uuid"), Optional.empty()));
     }
 
     @ParameterizedTest(name = "given uri={0} should return {1}")

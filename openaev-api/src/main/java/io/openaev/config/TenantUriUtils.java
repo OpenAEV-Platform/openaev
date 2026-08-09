@@ -10,26 +10,34 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerMapping;
 
 @Component
-@SuppressWarnings("unchecked")
 public final class TenantUriUtils {
 
   public static final String TENANT_ID_PATH_VARIABLE = "tenantId";
   public static final String TENANT_BASE_PATH = "/api/tenants/";
   public static final String TENANT_PREFIX = TENANT_BASE_PATH + "{" + TENANT_ID_PATH_VARIABLE + "}";
+
+  private static final String UUID_REGEX =
+      "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+
+  // Tenant detection feeds security decisions (connector JWT verification), so the
+  // fallback regex is strict: the tenant segment must be a full UUID and must end at a
+  // path-segment boundary to avoid extracting a truncated id from a malformed URI.
   private final Pattern tenantPattern =
-      Pattern.compile("^" + TENANT_BASE_PATH + "([A-Fa-f0-9-]+)/?");
+      Pattern.compile("^" + TENANT_BASE_PATH + "(" + UUID_REGEX + ")(?:/|$)");
 
   public Optional<String> getTenantIdFromRequestUrl(HttpServletRequest request) {
-    Map<String, String> pathVariables =
-        (Map<String, String>) request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
-    if (pathVariables != null && pathVariables.containsKey(TENANT_ID_PATH_VARIABLE)) {
-      return Optional.of(pathVariables.get(TENANT_ID_PATH_VARIABLE));
+    Object pathVariablesAttribute =
+        request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+    if (pathVariablesAttribute instanceof Map<?, ?> pathVariables
+        && pathVariables.get(TENANT_ID_PATH_VARIABLE) instanceof String tenantId) {
+      return Optional.of(tenantId);
     }
 
-    // second attempt
+    // Fallback for callers running before handler mapping populated the path variables
+    // (e.g. authentication filters): parse the tenant id straight from the request URI.
     String uri = request.getRequestURI();
     if (!StringUtils.isBlank(uri)) {
-      Matcher matcher = tenantPattern.matcher(request.getRequestURI());
+      Matcher matcher = tenantPattern.matcher(uri);
       if (matcher.find()) {
         return Optional.of(matcher.group(1));
       }

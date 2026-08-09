@@ -28,16 +28,13 @@ public class ConnectorJwtExtractor implements ExtractorBase {
   @Override
   public Optional<User> authUser(String value, HttpServletRequest request)
       throws ConnectorError, JwtException {
-    Optional<String> tenantId = tenantUriUtils.getTenantIdFromRequestUrl(request);
-    if (tenantId.isEmpty()) {
-      // if no tenant can be found,
-      // backwards compatibility fallback to default tenant ID
-      tenantId = Optional.of(DEFAULT_TENANT_UUID);
-    }
+    // if no tenant can be found in the request URL,
+    // backwards compatibility fallback to default tenant ID
+    String tenantId = tenantUriUtils.getTenantIdFromRequestUrl(request).orElse(DEFAULT_TENANT_UUID);
 
-    Optional<ConnectorBase> connector = openCTIConnectorService.getConnectorBase(tenantId.get());
+    Optional<ConnectorBase> connector = openCTIConnectorService.getConnectorBase(tenantId);
     if (connector.isEmpty()) {
-      throw new ConnectorError("Connector for tenant '%s' not found".formatted(tenantId.get()));
+      throw new ConnectorError("Connector for tenant '%s' not found".formatted(tenantId));
     }
 
     try {
@@ -58,7 +55,7 @@ public class ConnectorJwtExtractor implements ExtractorBase {
       return userService.findByTokenAndTenantId(
           connector.get().getToken(), connector.get().getTenantId());
     } catch (Exception e) {
-      // No exception needed here because thrown above
+      log.debug("Connector JWT verification failed for tenant {}", tenantId, e);
     }
 
     throw new ConnectorError("Token or JWT not valid");
