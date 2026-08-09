@@ -1927,6 +1927,7 @@ interface BasePayloadCreateInput {
   payload_detection_remediations?: DetectionRemediationInput[];
   /** Set list of domains */
   payload_domains: string[];
+  payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "ARTICLE"

@@ -2482,6 +2482,158 @@ class V1_DataImporterTest extends IntegrationTest {
   @Transactional
   @WithMockUser
   void
+      given_sameTenantPayloadUuidCollisionWithDifferentContent_when_importing_should_notReuseUnrelatedPayload()
+          throws Exception {
+    // -- Arrange --
+    // The import file's payload_id collides with a SAME-TENANT payload that is semantically
+    // unrelated (different name/content). The Step 1 UUID fast path must not trust the id alone:
+    // the candidate has to pass the same name + content + semantics equivalence as Step 2,
+    // otherwise the imported chain would execute an unrelated existing payload.
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    String sourcePayloadId = "cccccccc-0003-0003-0003-000000000004";
+    Command colliding = PayloadFixture.createCommand("sh", "rm -f /tmp/unrelated", null, null);
+    colliding.setId(sourcePayloadId);
+    colliding.setName("unrelated colliding payload");
+    colliding.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    payloadRepository.save(colliding);
+    InjectorContract collidingContract = new InjectorContract();
+    collidingContract.setId(UUID.randomUUID().toString());
+    collidingContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    collidingContract.setContent("{}");
+    collidingContract.setLabels(Map.of("en", "unrelated colliding contract"));
+    collidingContract.setCustom(false);
+    collidingContract.setManual(false);
+    collidingContract.setNeedsExecutor(false);
+    collidingContract.setPlatforms(new Endpoint.PLATFORM_TYPE[0]);
+    collidingContract.setPayload(colliding);
+    injectorContractRepository.save(collidingContract);
+    // Make the RBAC check pass on the colliding contract, so only the semantics gate protects.
+    addGrantToCurrentUser(
+        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
+        Grant.GRANT_TYPE.OBSERVER,
+        collidingContract.getId());
+    long payloadCountBefore = payloadRepository.count();
+
+    // -- Act --
+    this.importer.importData(
+        readMissingContractWithPayloadFixture(),
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    assertEquals(
+        payloadCountBefore + 1,
+        payloadRepository.count(),
+        "a same-tenant UUID collision with different content must not be reused: a fresh payload"
+            + " is created");
+    assertEquals(
+        1,
+        countPayloadsByName("step missing contract payload"),
+        "the embedded payload must be recreated under its own name");
+    assertEquals(
+        1,
+        countPayloadsByName("unrelated colliding payload"),
+        "the unrelated colliding payload must be left untouched");
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void
+      given_missingContractWithElevatedPayloadAndExpectedPlatforms_when_importing_should_preserveRuntimeFieldsOnRecreation()
+          throws Exception {
+    // -- Arrange --
+    // Recreation goes through PayloadUtils.buildPayload(): runtime fields present in exports
+    // (elevation requirement, expected security platform map) must survive, otherwise a recreated
+    // elevated payload runs unelevated and expectation collectors are pre-seeded differently.
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
+    ObjectNode payloadNode = fixtureEmbeddedPayloadNode(importData);
+    payloadNode.put("payload_elevation_required", true);
+    ObjectNode expectedPlatforms = om.createObjectNode();
+    ArrayNode preventionPlatforms = om.createArrayNode();
+    preventionPlatforms.add("EDR");
+    expectedPlatforms.set("PREVENTION", preventionPlatforms);
+    payloadNode.set("payload_expected_security_platforms", expectedPlatforms);
+
+    // -- Act --
+    this.importer.importData(
+        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    Payload recreated = findSinglePayloadByName("step missing contract payload");
+    assertTrue(
+        recreated.isElevationRequired(),
+        "payload_elevation_required must survive the recreation (privileged execution)");
+    List<SecurityPlatform.SECURITY_PLATFORM_TYPE> preventionExpected =
+        recreated
+            .getExpectedSecurityPlatforms()
+            .get(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION);
+    assertNotNull(
+        preventionExpected,
+        "payload_expected_security_platforms must survive the recreation (collector pre-seeding)");
+    assertTrue(
+        preventionExpected.contains(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR),
+        "the PREVENTION entry must carry the exported EDR platform type");
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void
+      given_equivalentPayloadWithDifferentExpectedSecurityPlatforms_when_reimporting_should_notReuseCandidate()
+          throws Exception {
+    // -- Arrange --
+    // Same name/executor/content, but the second import carries an expected security platform map
+    // the candidate does not have: the dedup must not reuse it (different runtime expectation
+    // behaviour).
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    this.importer.importData(
+        readMissingContractWithPayloadFixture(),
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Payload created = findSinglePayloadByName("step missing contract payload");
+    InjectorContract createdContract =
+        injectorContractRepository.findInjectorContractByPayload(created).orElseThrow();
+    addGrantToCurrentUser(
+        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
+        Grant.GRANT_TYPE.OBSERVER,
+        createdContract.getId());
+    long payloadCountAfterFirst = payloadRepository.count();
+
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
+    ObjectNode payloadNode = fixtureEmbeddedPayloadNode(importData);
+    ObjectNode expectedPlatforms = om.createObjectNode();
+    ArrayNode detectionPlatforms = om.createArrayNode();
+    detectionPlatforms.add("SIEM");
+    expectedPlatforms.set("DETECTION", detectionPlatforms);
+    payloadNode.set("payload_expected_security_platforms", expectedPlatforms);
+
+    // -- Act --
+    this.importer.importData(
+        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    assertEquals(
+        payloadCountAfterFirst + 1,
+        payloadRepository.count(),
+        "a candidate differing on expected security platforms must not be reused");
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void
       given_classicInjectContractIdExistingOnlyInAnotherTenant_when_importing_should_notReuseForeignContract()
           throws Exception {
     // -- Arrange --

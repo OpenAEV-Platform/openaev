@@ -57,7 +57,9 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.NoTransactionException;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 @Component
 @Slf4j
@@ -1957,12 +1959,16 @@ public class V1_DataImporter implements Importer {
 
     // Step 1 — match by SOURCE UUID. Tenant-scoped on purpose: findById is a PK load that bypasses
     // the Hibernate tenant filter, so a source UUID colliding with another tenant's payload must
-    // never be reused (cross-tenant leak).
+    // never be reused (cross-tenant leak). The UUID alone is NOT trusted as an equivalence proof:
+    // the id comes from the import file and a same-tenant collision could otherwise swap in an
+    // unrelated payload, so the candidate must also pass the same name + type-specific content +
+    // execution-semantics equivalence used by the content-based Step 2.
     String sourcePayloadId = getTextValue(payloadNode, "payload_id");
     if (hasText(sourcePayloadId)) {
       Optional<InjectorContract> reusable =
           payloadRepository
               .findByIdAndTenantId(sourcePayloadId, TenantContext.getCurrentTenant())
+              .filter(candidate -> matchesImportedPayloadIdentity(payloadNode, candidate))
               .flatMap(candidate -> readableContractForPayload(candidate, currentUser));
       if (reusable.isPresent()) {
         return reusable;
@@ -1979,6 +1985,18 @@ public class V1_DataImporter implements Importer {
 
     // Step 3 — no reusable candidate: caller creates a new payload.
     return Optional.empty();
+  }
+
+  /**
+   * Whether a UUID-matched candidate is genuinely the same payload as the imported node: it must be
+   * found by the same coarse name + type-specific content queries AND pass {@link
+   * #hasSameExecutionSemantics} (both applied by {@link #findEquivalentPayloadsByNameAndContent}).
+   * Used to harden the Step 1 fast path against same-tenant UUID collisions from a crafted or stale
+   * import file.
+   */
+  private boolean matchesImportedPayloadIdentity(JsonNode payloadNode, Payload candidate) {
+    return findEquivalentPayloadsByNameAndContent(payloadNode).stream()
+        .anyMatch(equivalent -> Objects.equals(equivalent.getId(), candidate.getId()));
   }
 
   /**
@@ -2090,6 +2108,13 @@ public class V1_DataImporter implements Importer {
     }
     if (!jsonStringSet(payloadNode, "payload_expectations")
         .equals(enumNames(candidate.getExpectations()))) {
+      return false;
+    }
+    // The expected security platform map drives which collectors are pre-seeded for
+    // prevention/detection expectations (PayloadService / InjectExpectationService): two payloads
+    // differing only on this map have different runtime expectation behaviour.
+    if (!expectedSecurityPlatformsFromNode(payloadNode)
+        .equals(expectedSecurityPlatformsFromEntity(candidate.getExpectedSecurityPlatforms()))) {
       return false;
     }
     if (!jsonArrayEquals(payloadNode, "payload_arguments", candidate.getArguments())
@@ -2210,6 +2235,65 @@ public class V1_DataImporter implements Importer {
 
   private static String regexGroupSignature(String field, String indexValues) {
     return field + ":" + indexValues;
+  }
+
+  /**
+   * Normalizes the imported {@code payload_expected_security_platforms} object into a map of
+   * expectation-type name to platform-type name set; absent/null yields an empty map and empty
+   * platform lists are dropped so "absent" and "explicitly empty" compare equal.
+   */
+  private Map<String, Set<String>> expectedSecurityPlatformsFromNode(JsonNode payloadNode) {
+    Map<String, Set<String>> normalized = new LinkedHashMap<>();
+    JsonNode mapNode = payloadNode.get("payload_expected_security_platforms");
+    if (mapNode != null && mapNode.isObject()) {
+      mapNode
+          .fields()
+          .forEachRemaining(
+              entry -> {
+                if (entry.getValue() == null || !entry.getValue().isArray()) {
+                  return;
+                }
+                Set<String> platforms = new LinkedHashSet<>();
+                entry
+                    .getValue()
+                    .forEach(
+                        value -> {
+                          if (value != null && value.isTextual()) {
+                            platforms.add(value.asText());
+                          }
+                        });
+                if (!platforms.isEmpty()) {
+                  normalized.put(entry.getKey(), platforms);
+                }
+              });
+    }
+    return normalized;
+  }
+
+  /** Entity-side counterpart of {@link #expectedSecurityPlatformsFromNode}. */
+  private Map<String, Set<String>> expectedSecurityPlatformsFromEntity(
+      Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+          expected) {
+    Map<String, Set<String>> normalized = new LinkedHashMap<>();
+    if (expected != null) {
+      expected.forEach(
+          (type, platforms) -> {
+            if (type == null || platforms == null || platforms.isEmpty()) {
+              return;
+            }
+            Set<String> names = new LinkedHashSet<>();
+            platforms.forEach(
+                platform -> {
+                  if (platform != null) {
+                    names.add(platform.name());
+                  }
+                });
+            if (!names.isEmpty()) {
+              normalized.put(type.name(), names);
+            }
+          });
+    }
+    return normalized;
   }
 
   /** Reads a JSON array of strings into a set; absent/null fields yield an empty set. */
@@ -3049,8 +3133,19 @@ public class V1_DataImporter implements Importer {
     try {
       resolvedStepContract = resolveInjectorContract(injectContractObject, baseIds);
     } catch (Exception e) {
-      // Recreation failed on unexpected embedded data: degrade to a skipped step (partial import
-      // with a reported missing action) rather than aborting and rolling back the whole import.
+      // Recreation failed on unexpected embedded data BEFORE any transactional work (e.g. a
+      // malformed field slipping past hasEmbeddedPayloadData in buildPayloadCreateInput, which
+      // runs outside PayloadCreationService#createPayload): degrade to a skipped step (partial
+      // import with a reported missing action). When the failure escaped createPayload itself,
+      // its @Transactional interceptor has already marked the joined import transaction
+      // rollback-only - a partial result is impossible (commit would raise
+      // UnexpectedRollbackException), so rethrow and let the import fail loudly instead of
+      // pretending a partial import succeeded.
+      if (isCurrentTransactionMarkedRollbackOnly()) {
+        throw e instanceof RuntimeException runtimeException
+            ? runtimeException
+            : new IllegalStateException(e);
+      }
       log.warn(
           "Failed to recreate the payload/contract for missing injector contract {}",
           injectorContractId,
@@ -3082,6 +3177,20 @@ public class V1_DataImporter implements Importer {
 
     return StepDataResolution.resolved(
         sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
+  }
+
+  /**
+   * Whether the surrounding Spring transaction (if any) has been marked rollback-only, e.g. by the
+   * {@code @Transactional} interceptor of a nested service call whose exception was caught. When
+   * true, converting the failure into a partial result is impossible: the commit would raise {@code
+   * UnexpectedRollbackException} anyway.
+   */
+  private static boolean isCurrentTransactionMarkedRollbackOnly() {
+    try {
+      return TransactionAspectSupport.currentTransactionStatus().isRollbackOnly();
+    } catch (NoTransactionException e) {
+      return false;
+    }
   }
 
   /**
@@ -3278,9 +3387,11 @@ public class V1_DataImporter implements Importer {
         continue;
       }
       String rawId = tagIdNode.asText();
-      Base resolved = baseIds.get(rawId);
-      if (resolved != null && resolved.getId() != null) {
-        rewritten.add(resolved.getId());
+      // baseIds caches every imported entity type under its SOURCE id: only accept a cached TAG,
+      // otherwise a source id shared with e.g. a domain would inject that entity's target id into
+      // the tag array and recreate the dangling-reference runtime failure this rewrite prevents.
+      if (baseIds.get(rawId) instanceof Tag resolvedTag && resolvedTag.getId() != null) {
+        rewritten.add(resolvedTag.getId());
       } else if (tagRepository.findByIdAndTenantId(rawId, tenantId).isPresent()) {
         // Not seeded in baseIds but already present on the target tenant: keep it (safe fallback).
         rewritten.add(rawId);
