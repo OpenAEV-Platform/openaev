@@ -961,6 +961,7 @@
   "Deleted": "Удалено",
   "Deleted asset": "Deleted asset",
   "Deleted asset group": "Deleted asset group",
+  "Deleting a running simulation will stop its execution.": "Удаление запущенной симуляции остановит её выполнение.",
   "Deleting actions": "Удаление действий",
   "Deleting asset groups": "Удаление групп активов",
   "Deleting assets": "Удаление активов",

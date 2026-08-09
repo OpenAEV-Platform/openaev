@@ -961,6 +961,7 @@
   "Deleted": "已删除",
   "Deleted asset": "Deleted asset",
   "Deleted asset group": "Deleted asset group",
+  "Deleting a running simulation will stop its execution.": "删除正在运行的模拟将停止其执行。",
   "Deleting actions": "正在删除动作",
   "Deleting asset groups": "正在删除资产组",
   "Deleting assets": "正在删除资产",

@@ -961,6 +961,7 @@
   "Deleted": "Supprimé",
   "Deleted asset": "Deleted asset",
   "Deleted asset group": "Deleted asset group",
+  "Deleting a running simulation will stop its execution.": "Supprimer une simulation en cours arrêtera son exécution.",
   "Deleting actions": "Suppression des actions",
   "Deleting asset groups": "Suppression des groupes d'actifs",
   "Deleting assets": "Suppression des actifs",

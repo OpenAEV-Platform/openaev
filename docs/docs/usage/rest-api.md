@@ -129,6 +129,40 @@ Available operators: `eq`, `not_eq`, `contains`, `not_contains`, `starts_with`, 
 
 For the complete filter format reference, see [Filters](../reference/apis/filters.md).
 
+### Bulk operations on Injects
+
+Bulk update and bulk delete of Injects are scoped to their parent resource. The parent identifier is part of the URL, so authorization is evaluated against the Scenario or Simulation you are working on -- users with the relevant capabilities on the parent can operate on its Injects without platform-wide privileges.
+
+| Operation | Endpoint |
+|---|---|
+| Bulk update Injects of a Scenario | `PUT /api/scenarios/{scenarioId}/injects` |
+| Bulk delete Injects of a Scenario | `DELETE /api/scenarios/{scenarioId}/injects` |
+| Bulk update Injects of a Simulation | `PUT /api/exercises/{exerciseId}/injects` |
+| Bulk delete Injects of a Simulation | `DELETE /api/exercises/{exerciseId}/injects` |
+
+Each endpoint accepts a JSON body that selects the target Injects either by explicit identifiers (`inject_ids_to_process`) or by a search query (`search_pagination_input`), but not both at the same time. Injects selected by a search can be excluded individually with `inject_ids_to_ignore`.
+
+Example -- delete two Injects of a Scenario:
+
+```http
+DELETE /api/scenarios/{scenarioId}/injects
+```
+
+```json
+{
+  "inject_ids_to_process": [
+    "5f8317eb-e19f-4234-9d34-7b65a52ea82f",
+    "9a4f9138-9163-40c2-bd21-b579d4a26428"
+  ]
+}
+```
+
+Calling one of these endpoints on a parent you are not authorized to modify returns a `403` response.
+
+!!! note
+
+    Earlier versions exposed generic `PUT /api/injects` and `DELETE /api/injects` endpoints taking a `simulation_or_scenario_id` in the body. They are replaced by the scoped endpoints above.
+
 ### Error responses
 
 The API uses standard HTTP status codes:

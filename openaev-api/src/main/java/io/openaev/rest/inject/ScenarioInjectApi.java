@@ -6,14 +6,13 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.inject.form.InjectAssistantInput;
-import io.openaev.rest.inject.form.InjectInput;
-import io.openaev.rest.inject.form.InjectUpdateActivationInput;
+import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
@@ -32,6 +31,7 @@ import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,6 +47,7 @@ public class ScenarioInjectApi extends RestBehavior {
   private final InjectDuplicateService injectDuplicateService;
   private final ScenarioInjectService scenarioInjectService;
   private final InjectMapper injectMapper;
+  private final BulkInjectService bulkInjectService;
 
   // -- READ --
 
@@ -237,6 +238,56 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
     return scenarioInjectService.updateInjectActivationForScenario(scenarioId, injectId, input);
+  }
+
+  // -- BULK UPDATE --
+
+  @Operation(
+      summary = "Bulk update of injects for a scenario",
+      description = "Updates in bulk the injects of the given scenario.")
+  // SUPPORTS (not REQUIRED) on purpose: the update itself runs in the service's own transaction,
+  // wrapped in a massive-operation scope (header progress indicator + per-entity stream event
+  // suppression) that must cover the commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/injects",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects"
+  })
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  @LogExecutionTime
+  public List<Inject> bulkUpdateInjectsForScenario(
+      @PathVariable @NotBlank final String scenarioId,
+      @RequestBody @Valid final InjectBulkUpdateInputs input) {
+    input.setSimulationOrScenarioId(scenarioId);
+    return bulkInjectService.bulkUpdateWithMonitoring(input);
+  }
+
+  // -- BULK DELETE --
+
+  @Operation(
+      summary = "Bulk delete of injects for a scenario",
+      description = "Deletes in bulk the injects of the given scenario.")
+  // SUPPORTS (not REQUIRED) on purpose: the deletion itself runs in the service's own
+  // transaction, wrapped in a massive-operation scope (header progress indicator + per-entity
+  // stream event suppression) that must cover the commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @DeleteMapping({
+    SCENARIO_URI + "/{scenarioId}/injects",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects"
+  })
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  @LogExecutionTime
+  public List<Inject> bulkDeleteInjectsForScenario(
+      @PathVariable @NotBlank final String scenarioId,
+      @RequestBody @Valid final InjectBulkProcessingInput input) {
+    input.setSimulationOrScenarioId(scenarioId);
+    return bulkInjectService.bulkDeleteWithMonitoring(input);
   }
 
   // -- DELETE --

@@ -4,16 +4,13 @@ import { type Dispatch } from 'redux';
 import { DATA_DELETE_BATCH_SUCCESS } from '../constants/ActionTypes';
 import { store } from '../store';
 import {
-  bulkDeleteReferential,
   delReferential,
   getReferential,
   postReferential,
   putReferential,
-  simpleDelCall,
   simplePostCall,
-  simplePutCall,
 } from '../utils/Action';
-import type { Inject, InjectAssistantInput, InjectBulkProcessingInput, InjectBulkUpdateInputs, InjectInput, InjectUpdateActivationInput } from '../utils/api-types';
+import type { Inject, InjectAssistantInput, InjectInput, InjectUpdateActivationInput } from '../utils/api-types';
 import * as schema from './Schema';
 
 type AppDispatch = Dispatch;
@@ -23,26 +20,6 @@ type AppDispatch = Dispatch;
 export const fetchInject = (injectId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/injects/${injectId}`;
   return getReferential(schema.inject, uri)(dispatch);
-};
-
-export const bulkDeleteInjects = (data: InjectBulkProcessingInput) => (dispatch: AppDispatch) => {
-  const uri = '/api/injects';
-  return bulkDeleteReferential(uri, 'injects', data)(dispatch);
-};
-
-export const bulkDeleteInjectsSimple = (data: InjectBulkProcessingInput) => {
-  const uri = '/api/injects';
-  return simpleDelCall(uri, { data });
-};
-
-export const bulkUpdateInject = (data: InjectBulkUpdateInputs) => (dispatch: AppDispatch) => {
-  const uri = '/api/injects';
-  return putReferential(schema.inject, uri, data)(dispatch);
-};
-
-export const bulkUpdateInjectSimple = (data: InjectBulkUpdateInputs) => {
-  const uri = '/api/injects';
-  return simplePutCall(uri, data);
 };
 
 // -- EXERCISES --

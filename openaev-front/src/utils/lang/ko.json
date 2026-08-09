@@ -961,6 +961,7 @@
   "Deleted": "삭제됨",
   "Deleted asset": "Deleted asset",
   "Deleted asset group": "Deleted asset group",
+  "Deleting a running simulation will stop its execution.": "실행 중인 시뮬레이션을 삭제하면 실행이 중지됩니다.",
   "Deleting actions": "액션 삭제 중",
   "Deleting asset groups": "자산 그룹 삭제 중",
   "Deleting assets": "자산 삭제 중",
