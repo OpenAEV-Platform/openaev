@@ -35,8 +35,14 @@ public final class TenantUriUtils {
 
     // Fallback for callers running before handler mapping populated the path variables
     // (e.g. authentication filters): parse the tenant id straight from the request URI.
+    // getRequestURI() includes the servlet context path, so strip it first to keep the
+    // anchored pattern working for deployments served under a non-root context path.
     String uri = request.getRequestURI();
     if (!StringUtils.isBlank(uri)) {
+      String contextPath = request.getContextPath();
+      if (!StringUtils.isBlank(contextPath) && uri.startsWith(contextPath)) {
+        uri = uri.substring(contextPath.length());
+      }
       Matcher matcher = tenantPattern.matcher(uri);
       if (matcher.find()) {
         return Optional.of(matcher.group(1));

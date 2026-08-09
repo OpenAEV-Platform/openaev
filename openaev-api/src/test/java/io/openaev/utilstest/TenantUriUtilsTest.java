@@ -59,6 +59,29 @@ public class TenantUriUtilsTest {
       when(mockRequest.getRequestURI()).thenReturn(uri);
       assertThat(tenantUriUtils.getTenantIdFromRequestUrl(mockRequest)).isEqualTo(outcome);
     }
+
+    static Stream<Arguments> contextPathUris() {
+      return Stream.of(
+          // context path is stripped before matching the anchored pattern
+          Arguments.of(
+              "/openaev" + generateTenantUri(tenantId, "/more"), "/openaev", Optional.of(tenantId)),
+          Arguments.of("/openaev" + generateTenantUri(tenantId), "/openaev", Optional.of(tenantId)),
+          // root context path (empty string) leaves the URI untouched
+          Arguments.of(generateTenantUri(tenantId, "/more"), "", Optional.of(tenantId)),
+          // URI not under the context path is matched as-is
+          Arguments.of(generateTenantUri(tenantId), "/other", Optional.of(tenantId)),
+          // a tenant-looking path nested under another prefix still does not match
+          Arguments.of(
+              "/openaev/generic" + generateTenantUri(tenantId), "/openaev", Optional.empty()));
+    }
+
+    @ParameterizedTest(name = "given uri={0} and contextPath={1} should return {2}")
+    @MethodSource("contextPathUris")
+    void contextPathMatchTest(String uri, String contextPath, Optional<String> outcome) {
+      when(mockRequest.getRequestURI()).thenReturn(uri);
+      when(mockRequest.getContextPath()).thenReturn(contextPath);
+      assertThat(tenantUriUtils.getTenantIdFromRequestUrl(mockRequest)).isEqualTo(outcome);
+    }
   }
 
   @Nested

@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -156,5 +157,44 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
     } else {
       mvc.perform(request).andExpect(status().isUnauthorized());
     }
+  }
+
+  @Test
+  void processBundle_withServletContextPath_authorizesConnectorJwtForUrlTenant() throws Exception {
+    JwtFixture.Bundle validJwtJwk = JwtFixture.generateConnectorJwtBundle(false);
+    String tenantId = TenantContext.getCurrentTenant();
+
+    SecurityCoverageConnector c = new SecurityCoverageConnector();
+    c.setJwks(validJwtJwk.jwks());
+    c.setOpenCTIConfig(openCTIConfig.getOpencti().get(tenantId));
+    c.setTenantId(tenantId);
+    Mockito.doReturn(Optional.of(c)).when(openCTIConnectorService).getConnectorBase(tenantId);
+
+    User user =
+        userComposer
+            .forUser(UserFixture.getUserWithDefaultEmail())
+            .withToken(tokenComposer.forToken(TokenFixture.getTokenWithValue("auth token")))
+            .persist()
+            .get();
+    tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
+    entityManager.flush();
+
+    String contextPath = "/openaev";
+    String urlPrefix = TENANT_STIX_URI.replaceAll("\\{" + TENANT_ID_PATH_VARIABLE + "}", tenantId);
+
+    // the tenant resolution used for connector JWT auth must still work when the
+    // application is deployed under a non-root servlet context path
+    var request =
+        post(contextPath + urlPrefix + "/process-bundle")
+            .contextPath(contextPath)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("")
+            .with(csrf())
+            .header("Authorization", "Bearer " + validJwtJwk.jwtToken());
+
+    mvc.perform(request)
+        .andExpect(
+            result ->
+                assertNotEquals(HttpStatus.UNAUTHORIZED.value(), result.getResponse().getStatus()));
   }
 }
