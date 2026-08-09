@@ -101,21 +101,27 @@ public abstract class AbstractTechnicalBehavior
                   });
         });
 
-    Map<String, Endpoint> valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
-    allExpectations.stream()
-        .filter(e -> !isAssetGroupExpectation(e))
-        .filter(
-            e ->
-                isAgentExpectation(e) || isAgentlessAssetExpectationNecessary(e.getAsset(), inject))
-        .forEach(
-            e -> {
-              initializeResults(e);
-              String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
-              List<ExpectationSignature> expectationSignatures =
-                  computeSignatures(
-                      implantType, inject.getId(), e.getAsset(), agentId, valueTargetedAssetsMap);
-              e.setSignatures(convertToInjectExpectationSignatures(expectationSignatures, e));
-            });
+    List<TechnicalInjectExpectation> leafExpectations =
+        allExpectations.stream()
+            .filter(e -> !isAssetGroupExpectation(e))
+            .filter(
+                e ->
+                    isAgentExpectation(e)
+                        || isAgentlessAssetExpectationNecessary(e.getAsset(), inject))
+            .toList();
+    if (!leafExpectations.isEmpty()) {
+      // Fetched once per invocation (not per leaf), and only when a leaf actually needs it.
+      Map<String, Endpoint> valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
+      leafExpectations.forEach(
+          e -> {
+            initializeResults(e);
+            String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
+            List<ExpectationSignature> expectationSignatures =
+                computeSignatures(
+                    implantType, inject.getId(), e.getAsset(), agentId, valueTargetedAssetsMap);
+            e.setSignatures(convertToInjectExpectationSignatures(expectationSignatures, e));
+          });
+    }
     injectExpectationRepository.saveAll(allExpectations);
   }
 

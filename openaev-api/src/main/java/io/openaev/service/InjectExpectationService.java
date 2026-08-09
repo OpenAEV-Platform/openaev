@@ -136,7 +136,7 @@ public class InjectExpectationService {
       @Nullable List<AssetToExecute> preResolvedAssets)
       throws JsonProcessingException {
     BaseInjectContent content = contentConvert(executableInject, BaseInjectContent.class);
-    computeAndSaveExpectationsUsingBehaviors(
+    doComputeAndSaveExpectationsUsingBehaviors(
         executableInject,
         content != null ? content.getExpectations() : null,
         implantType,
@@ -157,7 +157,7 @@ public class InjectExpectationService {
       List<io.openaev.model.inject.form.Expectation> expectationsFromInjectContent,
       @Nullable String implantType)
       throws JsonProcessingException {
-    computeAndSaveExpectationsUsingBehaviors(
+    doComputeAndSaveExpectationsUsingBehaviors(
         executableInject, expectationsFromInjectContent, implantType, null);
   }
 
@@ -176,6 +176,21 @@ public class InjectExpectationService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void computeAndSaveExpectationsUsingBehaviors(
+      ExecutableInject executableInject,
+      List<io.openaev.model.inject.form.Expectation> expectationsFromInjectContent,
+      @Nullable String implantType,
+      @Nullable List<AssetToExecute> preResolvedAssets)
+      throws JsonProcessingException {
+    doComputeAndSaveExpectationsUsingBehaviors(
+        executableInject, expectationsFromInjectContent, implantType, preResolvedAssets);
+  }
+
+  /**
+   * Non-transactional worker shared by the public entry points above, so they never self-invoke a
+   * {@code @Transactional} method of the same class (an intra-class call bypasses the Spring
+   * proxy).
+   */
+  private void doComputeAndSaveExpectationsUsingBehaviors(
       ExecutableInject executableInject,
       List<io.openaev.model.inject.form.Expectation> expectationsFromInjectContent,
       @Nullable String implantType,
