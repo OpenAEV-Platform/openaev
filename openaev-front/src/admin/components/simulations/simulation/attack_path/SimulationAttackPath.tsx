@@ -2006,19 +2006,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
       );
       const producingInjectors = new Set<string>();
-      let hasProducingExecution = false;
       for (const e of fullDto?.attackPathEdges ?? []) {
         if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId
           && (e.executionIds ?? []).some(id => highlightedExecutionIds.has(id))) {
-          hasProducingExecution = true;
-          // A self-loop (endpoint-local action) has no injector node to light: it still activates the
-          // restriction (the producer is known — it is the endpoint itself), but adds no injector.
-          if (e.edgeSourceId !== e.edgeTargetId) {
-            producingInjectors.add(e.edgeSourceId);
-          }
+          producingInjectors.add(e.edgeSourceId);
         }
       }
-      const restrictInjectors = hasProducingExecution;
+      const restrictInjectors = producingInjectors.size > 0;
       pathSet.add(selectedFindingId);
       expandPathSet(pathSet, baseFlow.edges, 'upstream', {
         blocked: (candidate, e) => e.type === AP_FLOW_CAUSAL_EDGE_TYPE
@@ -2038,8 +2032,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       pathSet.add(selectedNodeId);
       pathSet.add(AP_SHARED_EP_CLUSTER_ID);
       for (const e of dto?.attackPathEdges ?? []) {
-        if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === selectedNodeId && e.edgeSourceId
-          && e.edgeSourceId !== e.edgeTargetId) {
+        if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === selectedNodeId && e.edgeSourceId) {
           pathSet.add(e.edgeSourceId);
         }
       }

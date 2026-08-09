@@ -627,19 +627,16 @@ export const buildClusteredAttackPathFlow = (
     if (srcKind === 'TEAM' || srcKind === 'PERSON' || srcKind === 'ASSET_GROUP') {
       continue;
     }
-    // The endpoint is a reached node even for endpoint-local actions.
-    if (!reachedOrder.includes(tgt)) {
-      reachedOrder.push(tgt);
-    }
-    // Endpoint-local action (source === target): not reached "by" an injector — no self arrow.
-    if (src === tgt) {
-      continue;
-    }
+    // An endpoint-local action (source === target) registers the endpoint as its own injector and
+    // marks it reached, like any other producing execution (self-executions are displayed, not hidden).
     const injs = injectorsByEndpoint.get(tgt) ?? [];
     if (!injs.includes(src)) {
       injs.push(src);
     }
     injectorsByEndpoint.set(tgt, injs);
+    if (!reachedOrder.includes(tgt)) {
+      reachedOrder.push(tgt);
+    }
   }
 
   // Reveal the most-exposed endpoints first (most findings = highest chokepoint score), so expanding
@@ -970,8 +967,7 @@ export const buildFindingPathFlow = (
   const injectorIds = new Set<string>();
   const statusesByInjector = new Map<string, Array<string | undefined>>();
   for (const e of dto.attackPathEdges ?? []) {
-    if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === endpointId && e.edgeSourceId
-      && e.edgeSourceId !== e.edgeTargetId) {
+    if (e.type === 'EDGE_EXECUTIONS' && e.edgeTargetId === endpointId && e.edgeSourceId) {
       injectorIds.add(e.edgeSourceId);
       const statuses = (e.executionIds ?? []).map(ref => execByRef.get(ref)?.status);
       statusesByInjector.set(
@@ -1663,10 +1659,10 @@ export const buildCausalChainFlow = (
   // a finding whose type happens to fall past the cap (ties are broken by name, so "share" can lose to
   // "cve") leaves it with no node to focus at all, and the view silently falls back to another path.
   pinnedTypes: ReadonlySet<string> = new Set(),
-  // Render endpoint-local (self-loop) executions as their own ACTION nodes instead of collapsing them
-  // into the endpoint. Off by default (the finding-centric BAS chain hides the self-arrow); ON for an
-  // AUTONOMOUS run, whose story is the ACTION TIMELINE on a mostly single, already-compromised host, so
-  // a chain of local steps stays visible even when it produces no new distinct finding.
+  // Render each endpoint-local (self-loop) execution as its OWN ACTION node instead of aggregating
+  // them into one self-execution step per endpoint. Off by default; ON for an AUTONOMOUS run, whose
+  // story is the ACTION TIMELINE on a mostly single, already-compromised host, so a chain of local
+  // steps stays visible step by step even when it produces no new distinct finding.
   localActionsAsNodes = false,
 ): {
   nodes: AttackPathFlowNode[];
@@ -1733,14 +1729,14 @@ export const buildCausalChainFlow = (
   }
   // Endpoint-local actions (recon, credential dumps, local privilege ops) run ON the host the agent is
   // already on, so the backend records them as a self-loop (execution edge source == target == that
-  // endpoint). The finding-centric BAS chain deliberately hides that self-arrow and represents the
-  // action purely by the findings it produced (see the self-loop tests). But an AUTONOMOUS engagement is
-  // an ACTION TIMELINE on a mostly single, already-compromised host: a run of local steps that yields no
-  // NEW distinct finding would then leave the graph visually frozen even though every step executed.
+  // endpoint). By default all of an endpoint's local executions aggregate into ONE step keyed by the
+  // endpoint itself, rendered as a single self-execution ACTION card pointing at the endpoint. But an
+  // AUTONOMOUS engagement is an ACTION TIMELINE on a mostly single, already-compromised host: a run of
+  // several local steps would then collapse into that one card even though every step executed.
   // When localActionsAsNodes is set, re-key each self-loop to its OWN authored step so each local action
-  // becomes its own ACTION node anchored on the endpoint (drawn to the left, exactly like an injector)
-  // instead of collapsing into the endpoint node. Keyed by stepTemplateId so re-runs of the same step
-  // coalesce and dependsOn between local steps still resolves to a real causal depth.
+  // becomes its own ACTION node anchored on the endpoint (drawn to the left, exactly like an injector).
+  // Keyed by stepTemplateId so re-runs of the same step coalesce and dependsOn between local steps
+  // still resolves to a real causal depth.
   if (localActionsAsNodes) {
     for (const [ref, ex] of execByRef) {
       const src = injByExec.get(ref);
@@ -1960,11 +1956,12 @@ export const buildCausalChainFlow = (
     let cursorY = PADDING;
     const injectorPlaced = new Set<string>();
     for (const epId of visibleAssetIds) {
-      // Endpoint-local action whose "injector" is this very endpoint (self-loop). Unless it was promoted
-      // to its own ACTION node (localActionsAsNodes re-keys it to chain-local|<step>, so injId !== epId),
-      // drop it BEFORE the layout so no injector node, no self arrow, and no empty injector slot is
-      // reserved for it — the endpoint node and its findings still render.
-      const injectors = (assetInjectors.get(epId) as string[]).filter(injId => injId !== epId);
+      // An endpoint-local action keeps the endpoint itself as its "injector" (injId === epId): it is
+      // laid out like any other producing step — an ACTION card (labelled from its contract name, the
+      // injector-node lookup below misses on the asset id) pointing at the endpoint node — so a
+      // self-execution is displayed instead of silently dropped. localActionsAsNodes additionally
+      // re-keys each authored local step to its own chain-local|<step> node.
+      const injectors = assetInjectors.get(epId) as string[];
       const findingIds = assetFindings.get(epId) as string[];
       // Group the endpoint's findings by type; a type with more than the cap collapses into ONE "+N"
       // cluster row (unless the user expanded it), so a heavy endpoint stays a handful of rows tall.
@@ -2312,8 +2309,10 @@ export const buildCausalChainFlow = (
   const drawnCausalEdges = new Set<string>();
   const labelledCausal = new Set<string>();
   for (const [injId, s] of steps) {
-    // An endpoint-local step (self-loop) has no injector node in the graph, so there is nothing to
-    // anchor a causal edge on — emitting one would target a node React Flow cannot resolve.
+    // A malformed execution ref (e.g. an edge carrying a source but no target) yields a step that was
+    // never placed as a node — skip it, or the emitted edge would point React Flow at a node id that
+    // does not exist. Endpoint-local steps (self-executions) ARE placed like any other producing step,
+    // so they pass this guard and get their causal edges.
     if (!nodeById.has(injId)) {
       continue;
     }
@@ -2372,7 +2371,7 @@ export const buildCausalChainFlow = (
     }
     if (!matched) {
       for (const dep of s.deps) {
-        // The depended step's node may itself be an unplaced endpoint-local step — same guard.
+        // The depended step's node may itself be unplaced (malformed ref) — same guard as above.
         if (steps.has(dep) && nodeById.has(dep)) {
           edges.push({
             id: `${AP_FLOW_CAUSAL_EDGE_TYPE}-depend-${dep}-${injId}`,
