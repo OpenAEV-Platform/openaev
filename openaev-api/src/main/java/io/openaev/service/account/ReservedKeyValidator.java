@@ -6,11 +6,15 @@ import static io.openaev.service.account.Constants.*;
 import static io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN;
 
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.User;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.AbstractPrivilegeService;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * Validates that user-provided names do not conflict with system-reserved names used by service
@@ -79,5 +83,18 @@ public final class ReservedKeyValidator {
     if (isReservedUserEmail(email)) {
       throw new BadRequestException("The user is reserved for system use and cannot be used.");
     }
+  }
+
+  /**
+   * Strips reserved service/connector accounts from a collection of users about to become team
+   * members. Reserved accounts are system users, not players: they are hidden from every player
+   * list (see PlayerService#playerPagination), so team membership must enforce the same contract -
+   * otherwise team_users_number reports members that no player list can ever display.
+   */
+  public static List<User> excludeReservedUsers(Iterable<User> users) {
+    // Mutable list on purpose: callers hand the result to JPA entity collections.
+    return StreamSupport.stream(users.spliterator(), false)
+        .filter(user -> !isReservedUserEmail(user.getEmail()))
+        .collect(Collectors.toCollection(ArrayList::new));
   }
 }

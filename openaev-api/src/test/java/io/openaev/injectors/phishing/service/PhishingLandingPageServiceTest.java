@@ -23,7 +23,9 @@ import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injectors.phishing.PhishingContract;
 import io.openaev.injectors.phishing.form.PhishingLandingPageBulkProcessingInput;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.organization.OrganizationService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +47,8 @@ class PhishingLandingPageServiceTest {
   @Mock private ExpectationBuilderService expectationBuilderService;
   @Mock private PhishingContract phishingContract;
   @Mock private DocumentService documentService;
+  @Mock private DomainService domainService;
+  @Mock private OrganizationService organizationService;
   @Mock private ObjectMapper mapper;
 
   @InjectMocks private PhishingLandingPageService phishingLandingPageService;

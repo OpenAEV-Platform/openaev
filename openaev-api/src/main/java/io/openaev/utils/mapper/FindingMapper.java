@@ -2,8 +2,11 @@ package io.openaev.utils.mapper;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
+import io.openaev.utils.TargetType;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -25,12 +28,23 @@ public class FindingMapper {
 
   public AggregatedFindingOutput toAggregatedFindingOutput(
       Finding finding, List<Asset> relatedAssets) {
+    return toAggregatedFindingOutput(
+        finding, relatedAssets, finding.getCreationDate(), finding.getUpdateDate());
+  }
+
+  /**
+   * Aggregated (deduplicated by type + value) output. The representative {@code finding} row is
+   * arbitrary (smallest id in the group), so callers that know the group-wide first/last seen must
+   * pass them explicitly - the representative row's own dates are just one occurrence's dates.
+   */
+  public AggregatedFindingOutput toAggregatedFindingOutput(
+      Finding finding, List<Asset> relatedAssets, Instant firstSeen, Instant lastSeen) {
     return AggregatedFindingOutput.builder()
         .id(finding.getId())
         .value(finding.getValue())
         .type(finding.getType())
-        .creationDate(finding.getCreationDate())
-        .updateDate(finding.getUpdateDate())
+        .creationDate(firstSeen)
+        .updateDate(lastSeen)
         // Findings can attach to ANY asset type (agentless websites, AI targets, cloud/network
         // assets), so no instanceof Endpoint filtering here.
         .assets(
@@ -64,6 +78,28 @@ public class FindingMapper {
                 .map(Exercise::getScenario)
                 .map(scenario -> scenarioMapper.toScenarioSimple(scenario))
                 .orElse(null))
+        // Teams and persons attached to this occurrence (e.g. phishing credential findings): the
+        // occurrence list needs them to show WHO was impacted, not only which machine.
+        .teams(
+            finding.getTeams().stream()
+                .map(
+                    team ->
+                        TargetSimple.builder()
+                            .id(team.getId())
+                            .name(team.getName())
+                            .type(TargetType.TEAMS)
+                            .build())
+                .collect(Collectors.toSet()))
+        .users(
+            finding.getUsers().stream()
+                .map(
+                    user ->
+                        TargetSimple.builder()
+                            .id(user.getId())
+                            .name(user.getNameOrEmail())
+                            .type(TargetType.PLAYERS)
+                            .build())
+                .collect(Collectors.toSet()))
         .creationDate(finding.getCreationDate())
         .build();
   }

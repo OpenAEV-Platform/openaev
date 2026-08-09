@@ -1,4 +1,4 @@
-import { AutoAwesome, NotificationsOutlined, SchoolOutlined } from '@mui/icons-material';
+import { AutoAwesome, DnsOutlined, NotificationsOutlined, SchoolOutlined } from '@mui/icons-material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent, memo, useContext } from 'react';
 
@@ -31,6 +31,11 @@ const CustomizationMenuComponent: FunctionComponent = () => {
       path: '/admin/settings/customization/asset_rules',
       icon: () => (<SelectGroup />),
       label: 'Default asset rules',
+    },
+    {
+      path: '/admin/settings/customization/custom_domains',
+      icon: () => (<DnsOutlined />),
+      label: 'Custom domains',
     },
     {
       path: '/admin/settings/customization/notifiers',

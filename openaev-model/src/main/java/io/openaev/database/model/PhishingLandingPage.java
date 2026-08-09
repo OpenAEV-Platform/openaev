@@ -109,6 +109,13 @@ public class PhishingLandingPage implements TenantBase {
   @Schema(implementation = String.class)
   private Document logoLight;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "phishing_landing_page_custom_domain")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("phishing_landing_page_custom_domain")
+  @Schema(implementation = String.class)
+  private CustomDomain customDomain;
+
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
