@@ -3041,6 +3041,12 @@ export interface CreateExerciseInput {
   exercise_tags?: string[];
 }
 
+export interface CredentialBulkProcessingInput {
+  credential_ids_to_ignore?: string[];
+  credential_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface CredentialContractField {
   choices?: string[];
   field_name?: string;
@@ -8285,6 +8291,44 @@ export interface PagePayload {
   totalPages?: number;
 }
 
+export interface PagePhishingEmailTemplate {
+  content?: PhishingEmailTemplate[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePhishingLandingPage {
+  content?: PhishingLandingPage[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PagePlatformGroupOutput {
   content?: PlatformGroupOutput[];
   empty?: boolean;
@@ -9031,6 +9075,12 @@ export interface PhishingEmailTemplate {
   phishing_email_template_updated_at: string;
 }
 
+export interface PhishingEmailTemplateBulkProcessingInput {
+  email_template_ids_to_ignore?: string[];
+  email_template_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface PhishingEmailTemplateInput {
   phishing_email_template_add_tracking_pixel?: boolean;
   phishing_email_template_description?: string;
@@ -9065,6 +9115,12 @@ export interface PhishingLandingPage {
   phishing_landing_page_redirect_url?: string;
   /** @format date-time */
   phishing_landing_page_updated_at: string;
+}
+
+export interface PhishingLandingPageBulkProcessingInput {
+  landing_page_ids_to_ignore?: string[];
+  landing_page_ids_to_process?: string[];
+  search_pagination_input?: SearchPaginationInput;
 }
 
 export interface PhishingLandingPageInput {

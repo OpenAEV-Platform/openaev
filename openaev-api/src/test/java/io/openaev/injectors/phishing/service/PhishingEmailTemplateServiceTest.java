@@ -43,7 +43,6 @@ class PhishingEmailTemplateServiceTest {
     second.setName("Second");
     when(emailTemplateRepository.findAll(any(Specification.class)))
         .thenReturn(List.of(first, second));
-    when(landingPageService.landingPages()).thenReturn(List.of());
 
     PhishingEmailTemplateBulkProcessingInput input = new PhishingEmailTemplateBulkProcessingInput();
     input.setEmailTemplateIdsToProcess(List.of("et-1", "et-2"));
@@ -55,7 +54,7 @@ class PhishingEmailTemplateServiceTest {
     assertEquals(List.of("et-1", "et-2"), deleted);
     verify(emailTemplateRepository).deleteAllById(List.of("et-1", "et-2"));
     // A single re-sync for the whole batch, not one per deleted template.
-    verify(landingPageService).landingPages();
+    verify(landingPageService).resyncAllContracts();
   }
 
   @Test
@@ -73,7 +72,7 @@ class PhishingEmailTemplateServiceTest {
     // -- ASSERT --
     assertTrue(deleted.isEmpty());
     verify(emailTemplateRepository, never()).deleteAllById(any());
-    verify(landingPageService, never()).landingPages();
+    verify(landingPageService, never()).resyncAllContracts();
   }
 
   @Test
