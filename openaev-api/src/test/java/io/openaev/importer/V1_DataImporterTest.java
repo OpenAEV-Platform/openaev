@@ -2478,6 +2478,64 @@ class V1_DataImporterTest extends IntegrationTest {
         "the second import must reuse the parser-carrying payload");
   }
 
+  @Test
+  @Transactional
+  @WithMockUser
+  void
+      given_classicInjectContractIdExistingOnlyInAnotherTenant_when_importing_should_notReuseForeignContract()
+          throws Exception {
+    // -- Arrange --
+    // Classic (non-workflow) pipeline counterpart of the step_data cross-tenant tests: the
+    // imported inject references a contract id that exists ONLY in another tenant. A bare findById
+    // (matching only compositeId.id) would link the inject to the foreign tenant's contract; the
+    // tenant-scoped lookup must miss and fall through to recreating the embedded payload/contract
+    // in the current tenant.
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    Tenant foreignTenant =
+        tenantRepository.save(TenantFixture.getTenant("v1-import-foreign-tenant-classic"));
+    String sourceContractId = "bb128f18-c5ad-4f1a-b08b-93582ff0ae1c";
+    persistResolvableStepContractForTenant(sourceContractId, foreignTenant);
+
+    ObjectMapper om = new ObjectMapper();
+    JsonNode importData =
+        om.readTree(
+            Files.readAllBytes(
+                Paths.get(
+                    "src/test/resources/importer-v1/import-scenario-with-attack-pattern.json")));
+
+    // Simulate a session WITHOUT the Hibernate tenant filter (the filter aspect only arms it
+    // around @Transactional entry points): the tenant-scoped repository query must protect on its
+    // own.
+    entityManager.flush();
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+
+    // -- Act --
+    this.importer.importData(
+        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    List<Inject> imported = new ArrayList<>();
+    injectRepository
+        .findAll()
+        .forEach(
+            inject -> {
+              if ("whoami".equals(inject.getTitle())) {
+                imported.add(inject);
+              }
+            });
+    assertEquals(1, imported.size(), "the classic inject must be imported");
+    InjectorContract linkedContract = imported.getFirst().getInjectorContract().orElse(null);
+    assertNotNull(linkedContract, "the imported inject must carry an injector contract");
+    assertNotEquals(
+        sourceContractId,
+        linkedContract.getId(),
+        "the inject must never be linked to a contract id that only exists in another tenant");
+    assertTrue(
+        injectorContractRepository.existsByContractIdAndTenant(
+            linkedContract.getId(), TenantContext.getCurrentTenant()),
+        "the inject must point to a contract recreated in the current tenant");
+  }
+
   /** Returns the embedded payload node of the missing-contract-with-payload fixture. */
   private ObjectNode fixtureEmbeddedPayloadNode(ObjectNode importData) {
     return (ObjectNode)

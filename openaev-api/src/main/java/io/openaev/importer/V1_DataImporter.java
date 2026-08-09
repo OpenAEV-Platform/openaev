@@ -157,7 +157,12 @@ public class V1_DataImporter implements Importer {
       // newly uploaded document UUID rather than the original export UUID.
       default -> {
         try {
-          Optional<InjectorContract> contractOpt = injectorContractRepository.findById(contract);
+          // Tenant-scoped: the id is already resolved to the current tenant, but a bare findById
+          // matches only compositeId.id and can throw on ids duplicated across tenants (e.g.
+          // starter-pack contracts imported into every tenant with the same id).
+          Optional<InjectorContract> contractOpt =
+              injectorContractRepository.findByContractIdAndTenant(
+                  contract, TenantContext.getCurrentTenant());
           if (contractOpt.isEmpty() || contractOpt.get().getPayload() == null) {
             break;
           }
@@ -1390,8 +1395,13 @@ public class V1_DataImporter implements Importer {
             log.warn("Import Inject Failed: Missing injector contract ID on inject: {}", injectId);
             return;
           }
+          // Tenant-scoped on purpose: the contract id comes from the import file and
+          // InjectorContract's PK is composite (tenant_id, id), so a bare findById could resolve
+          // another tenant's contract (cross-tenant reuse) or throw on duplicate ids across
+          // tenants. A foreign-only id must fall through to resolveInjectorContract instead.
           Optional<InjectorContract> injectorContract =
-              this.injectorContractRepository.findById(injectorContractIdFromNode);
+              this.injectorContractRepository.findByContractIdAndTenant(
+                  injectorContractIdFromNode, TenantContext.getCurrentTenant());
 
           String injectorContractId;
           InjectorContract resolvedContract = null;
