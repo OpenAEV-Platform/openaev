@@ -36,11 +36,7 @@ public class PhishingContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE,
-        Map.of(en, "Phishing", fr, "Hameconnage"),
-        "#e91e63",
-        "#e91e63",
-        "/img/phishing.png");
+        TYPE, Map.of(en, "Phishing", fr, "Hameconnage"), "#e91e63", "#e91e63", "/img/phishing.png");
   }
 
   @Override

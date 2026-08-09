@@ -78,9 +78,9 @@ public class ExecutionTraceUtils {
 
   /**
    * Adds an agentless COMPLETE/TIMEOUT trace for an inject that has no agent to attribute a timeout
-   * to (network scanners such as Nuclei target assets without an agent). Without it, a stuck-PENDING
-   * agentless inject is finalized ERROR from an empty COMPLETE-trace list and the UI shows a red
-   * inject with no explanation beyond the initial "waiting to be consumed" trace.
+   * to (network scanners such as Nuclei target assets without an agent). Without it, a
+   * stuck-PENDING agentless inject is finalized ERROR from an empty COMPLETE-trace list and the UI
+   * shows a red inject with no explanation beyond the initial "waiting to be consumed" trace.
    */
   public static void addAgentlessTimeoutTrace(InjectStatus status, int thresholdMinutes) {
     status.addTrace(

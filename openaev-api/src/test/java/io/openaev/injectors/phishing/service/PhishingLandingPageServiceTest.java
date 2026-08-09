@@ -197,8 +197,7 @@ class PhishingLandingPageServiceTest {
     PhishingLandingPageBulkProcessingInput input = new PhishingLandingPageBulkProcessingInput();
 
     // -- ACT / ASSERT --
-    assertThrows(
-        BadRequestException.class, () -> phishingLandingPageService.bulkDelete(input));
+    assertThrows(BadRequestException.class, () -> phishingLandingPageService.bulkDelete(input));
     verify(landingPageRepository, never()).deleteById(any());
   }
 }

@@ -31,7 +31,8 @@ class PhishingEmailTemplateServiceTest {
   @InjectMocks private PhishingEmailTemplateService phishingEmailTemplateService;
 
   @Test
-  @DisplayName("bulkDelete removes every resolved template and re-syncs landing page contracts once")
+  @DisplayName(
+      "bulkDelete removes every resolved template and re-syncs landing page contracts once")
   void bulkDelete_should_deleteResolvedTemplatesAndResyncOnce() {
     // -- ARRANGE --
     PhishingEmailTemplate first = new PhishingEmailTemplate();
@@ -84,8 +85,7 @@ class PhishingEmailTemplateServiceTest {
     input.setSearchPaginationInput(new io.openaev.utils.pagination.SearchPaginationInput());
 
     // -- ACT / ASSERT --
-    assertThrows(
-        BadRequestException.class, () -> phishingEmailTemplateService.bulkDelete(input));
+    assertThrows(BadRequestException.class, () -> phishingEmailTemplateService.bulkDelete(input));
     verify(emailTemplateRepository, never()).deleteAllById(any());
   }
 }

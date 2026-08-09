@@ -700,8 +700,7 @@ class CredentialApiTest extends IntegrationTest {
 
       // Assert
       List<String> deletedIds = JsonPath.read(response, "$");
-      assertThat(deletedIds)
-          .containsExactlyInAnyOrder(first.credentialId(), second.credentialId());
+      assertThat(deletedIds).containsExactlyInAnyOrder(first.credentialId(), second.credentialId());
       assertThat(credentialSecretReferenceRepository.findById(first.credentialId())).isEmpty();
       assertThat(credentialSecretReferenceRepository.findById(second.credentialId())).isEmpty();
       assertThat(secretRepository.findById(first.secretId())).isEmpty();
