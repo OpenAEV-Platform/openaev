@@ -243,6 +243,85 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Behavior-based creation skips direct non-atomic non-chaining executions")
+  void given_directNonAtomicNonChainingExecution_should_notCreateBehaviorExpectations()
+      throws Exception {
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    Inject directInject = mock(Inject.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(directInject);
+    when(directInject.isAtomicTesting()).thenReturn(false);
+    when(executableInject.isDirect()).thenReturn(true);
+    when(executableInject.isChainingExecution()).thenReturn(false);
+
+    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
+        executableInject,
+        List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION)),
+        "implant");
+
+    // Same guard as the legacy path: nothing is resolved and nothing is persisted.
+    verify(injectService, never()).resolveAllAssetsToExecute(any());
+    verify(injectExpectationRepository, never()).saveAll(any());
+  }
+
+  @Test
+  @DisplayName("An asset group with several assets gets a single group-level parent expectation")
+  void given_assetGroupWithSeveralAssets_should_createSingleGroupParentExpectation()
+      throws Exception {
+    InjectorContract contract = mock(InjectorContract.class);
+    when(contract.getNeedsExecutorEffective()).thenReturn(false);
+    inject.setInjectorContract(contract);
+    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "expectationPropertiesConfig",
+        new io.openaev.expectation.ExpectationPropertiesConfig());
+
+    AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("ag");
+    assetGroup.setId("ag-id");
+    Endpoint endpoint1 = EndpointFixture.createEndpoint();
+    endpoint1.setId("asset-1");
+    endpoint1.setAgents(List.of());
+    Endpoint endpoint2 = EndpointFixture.createEndpoint();
+    endpoint2.setId("asset-2");
+    endpoint2.setAgents(List.of());
+    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
+    when(injectService.resolveAllAssetsToExecute(inject))
+        .thenReturn(
+            List.of(
+                new AssetToExecute(endpoint1, false, List.of(assetGroup)),
+                new AssetToExecute(endpoint2, false, List.of(assetGroup))));
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
+
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(inject);
+
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "behaviors",
+        List.of(
+            new DetectionBehavior(collectorService, injectService, injectExpectationRepository)));
+
+    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
+        executableInject,
+        List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION)),
+        "implant");
+
+    ArgumentCaptor<List<BaseInjectExpectation>> savedCaptor = ArgumentCaptor.captor();
+    verify(injectExpectationRepository).saveAll(savedCaptor.capture());
+    List<TechnicalInjectExpectation> saved =
+        savedCaptor.getValue().stream().map(TechnicalInjectExpectation.class::cast).toList();
+    // One asset-level row per asset, but exactly ONE group parent row for the shared group.
+    assertEquals(
+        2, saved.stream().filter(e -> e.getAsset() != null && e.getAssetGroup() != null).count());
+    assertEquals(
+        1, saved.stream().filter(e -> e.getAsset() == null && e.getAssetGroup() != null).count());
+  }
+
+  @Test
   @DisplayName("Contract fallback tolerates a contract without predefined expectations")
   void given_contractFallbackWithoutPredefinedExpectations_should_notFail() throws Exception {
     // Stored content carries an explicit null expectations field and the contract declares no

@@ -198,6 +198,16 @@ public class InjectExpectationService {
       throws JsonProcessingException {
 
     Inject inject = executableInject.getInjection().getInject();
+
+    // Same guard as doBuildAndSaveInjectExpectations: direct executions that are neither atomic
+    // testing nor chaining runs never create expectations (legacy behaviour of the removed
+    // computeAndSaveExpectations path).
+    if (executableInject.isDirect()
+        && !inject.isAtomicTesting()
+        && !executableInject.isChainingExecution()) {
+      return;
+    }
+
     List<io.openaev.model.inject.form.Expectation> expectations =
         resolveExpectationsWithContractFallback(inject, expectationsFromInjectContent);
 

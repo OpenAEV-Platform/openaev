@@ -19,8 +19,10 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 
@@ -64,6 +66,9 @@ public abstract class AbstractTechnicalBehavior
             : this.injectService.resolveAllAssetsToExecute(inject);
 
     List<TechnicalInjectExpectation> allExpectations = new ArrayList<>();
+    // A group parent row must exist exactly once per asset group (with at least one eligible
+    // asset), not once per eligible asset of the group.
+    Set<String> assetGroupsWithParentRow = new HashSet<>();
 
     assetToExecutes.forEach(
         assetToExecute -> {
@@ -98,8 +103,10 @@ public abstract class AbstractTechnicalBehavior
                     allExpectations.add(
                         buildExpectationForTarget(
                             expectationTemplate, assetGroup, assetToExecute.asset(), null));
-                    allExpectations.add(
-                        buildExpectationForTarget(expectationTemplate, assetGroup, null, null));
+                    if (assetGroupsWithParentRow.add(assetGroup.getId())) {
+                      allExpectations.add(
+                          buildExpectationForTarget(expectationTemplate, assetGroup, null, null));
+                    }
                   });
         });
 
