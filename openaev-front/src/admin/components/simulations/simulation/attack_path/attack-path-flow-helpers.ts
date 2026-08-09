@@ -1226,6 +1226,53 @@ export const FILTER_TO_FINDING_TYPES: Record<Exclude<AttackPathFindingFilter, 'e
   cves: ['cve'],
 };
 
+// Pass cap for the deliberately SHALLOW downstream walks (a selection's own expanded children:
+// endpoint -> its finding clusters -> their expanded findings). Those walks must stay scoped to the
+// selection's immediate subtree, not sweep in the whole downstream cone the way the full-path walks
+// do — expandPathSet with no cap would keep going through shared nodes into unrelated branches.
+export const AP_CHILD_WALK_PASSES = 3;
+
+/**
+ * Expand `set` in place along `edges` until a full pass adds nothing (a fixpoint): 'upstream'
+ * adopts each edge's source once its target is in the set (everything that eventually leads INTO
+ * the seed), 'downstream' the reverse. The set only grows and is bounded by the graph's node ids,
+ * so the fixpoint always terminates — no arbitrary pass cap needed for full-path walks. `blocked`
+ * vetoes adopting a candidate node for a given edge (e.g. "never walk into another endpoint's own
+ * chain node", or "skip causal edges"). `maxPasses` bounds the expansion for the deliberately
+ * shallow child walks (see {@link AP_CHILD_WALK_PASSES}); note a single pass over the edge list can
+ * propagate several hops when the edge order permits, so it is a cap, not an exact depth.
+ */
+export const expandPathSet = (
+  set: Set<string>,
+  edges: readonly AttackPathFlowEdge[],
+  direction: 'upstream' | 'downstream',
+  options?: {
+    blocked?: (candidate: string, edge: AttackPathFlowEdge) => boolean;
+    maxPasses?: number;
+  },
+): Set<string> => {
+  const blocked = options?.blocked;
+  const maxPasses = options?.maxPasses ?? Number.POSITIVE_INFINITY;
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    let changed = false;
+    for (const e of edges) {
+      if (!e.source || !e.target) {
+        continue;
+      }
+      const from = direction === 'upstream' ? e.target : e.source;
+      const candidate = direction === 'upstream' ? e.source : e.target;
+      if (set.has(from) && !set.has(candidate) && !blocked?.(candidate, e)) {
+        set.add(candidate);
+        changed = true;
+      }
+    }
+    if (!changed) {
+      break;
+    }
+  }
+  return set;
+};
+
 const DIMMED_OPACITY = 0.18;
 
 /**
