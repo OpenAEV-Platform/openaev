@@ -201,7 +201,8 @@ public class PhishingLandingPageService {
    * when none exist yet. Called once per tenant at startup (after the phishing injector is
    * registered), so the seeded landing page immediately gets its Threat Arsenal contract.
    * Idempotent on the tenant scope: the tenant filter is active during per-tenant registration, so
-   * existing rows short-circuit both seeds.
+   * existing rows short-circuit both seeds. Always ends with {@link #resyncAllContracts()} so
+   * existing landing pages keep (or regain) arsenal actions after injector re-registration.
    */
   public void seedDefaultsIfEmpty() {
     if (!emailTemplateRepository.findAll().iterator().hasNext()) {
@@ -247,8 +248,20 @@ public class PhishingLandingPageService {
           """);
       landingPage.setCaptureSubmittedData(true);
       landingPage.setCapturePasswords(true);
+      // upsert already synchronises the contract; resyncAllContracts below is still needed for
+      // tenants that already had landing pages before a wipe / upgrade.
       upsert(landingPage);
     }
+
+    resyncAllContracts();
+  }
+
+  /**
+   * Rebuilds the Threat Arsenal contract for every landing page in the current tenant. Safe to call
+   * after injector registration and after email-template mutations that change select choices.
+   */
+  public void resyncAllContracts() {
+    landingPages().forEach(this::synchroniseInjectorContract);
   }
 
   // -- CONTRACT SYNC --
@@ -278,7 +291,13 @@ public class PhishingLandingPageService {
                   return created;
                 });
 
-    Map<String, String> labels = Map.of("en", landingPage.getName(), "fr", landingPage.getName());
+    // Prefix so Threat Arsenal search / category browsing makes the phishing origin obvious.
+    Map<String, String> labels =
+        Map.of(
+            "en",
+            "Phishing: " + landingPage.getName(),
+            "fr",
+            "Hameconnage : " + landingPage.getName());
     injectorContract.setLabels(labels);
     injectorContract.setNeedsExecutor(true);
     injectorContract.setManual(false);
@@ -345,7 +364,11 @@ public class PhishingLandingPageService {
     return executableContract(
         contractConfig,
         landingPage.getId(),
-        Map.of(en, landingPage.getName(), fr, landingPage.getName()),
+        Map.of(
+            en,
+            "Phishing: " + landingPage.getName(),
+            fr,
+            "Hameconnage : " + landingPage.getName()),
         fields,
         List.of(Endpoint.PLATFORM_TYPE.Internal),
         false,

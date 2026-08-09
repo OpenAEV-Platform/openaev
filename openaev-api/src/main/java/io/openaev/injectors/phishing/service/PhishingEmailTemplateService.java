@@ -116,6 +116,6 @@ public class PhishingEmailTemplateService {
 
   /** Rebuilds every landing page contract so the email-template chooser reflects current rows. */
   private void resyncLandingPageContracts() {
-    landingPageService.landingPages().forEach(landingPageService::synchroniseInjectorContract);
+    landingPageService.resyncAllContracts();
   }
 }

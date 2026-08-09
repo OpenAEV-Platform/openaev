@@ -1,4 +1,4 @@
-import { CloseOutlined, OpenInFullOutlined } from '@mui/icons-material';
+import { CloseOutlined, FullscreenOutlined } from '@mui/icons-material';
 import { Box, Dialog, DialogContent, DialogTitle, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { type ReactNode, useCallback, useState } from 'react';
 
@@ -108,7 +108,7 @@ const PhishingHtmlPreview = ({ title, iframeTitle, srcDoc, chrome, height = 560 
                 height: 32,
               }}
             >
-              <OpenInFullOutlined fontSize="small" />
+              <FullscreenOutlined fontSize="small" />
             </IconButton>
           </Tooltip>
         </Box>

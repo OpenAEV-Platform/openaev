@@ -1,6 +1,5 @@
-import { InfoOutlined } from '@mui/icons-material';
+import { LinkOutlined, MailOutline, SportsEsportsOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
 import { useParams } from 'react-router';
 
 import { type PhishingEmailTemplatesHelper } from '../../../../../actions/phishing/phishing-helper';
@@ -11,9 +10,9 @@ import { useHelper } from '../../../../../store';
 import { type PhishingEmailTemplate as PhishingEmailTemplateType } from '../../../../../utils/api-types';
 import { emptyFilled } from '../../../../../utils/String';
 import PhishingHtmlPreview from '../PhishingHtmlPreview';
+import PhishingUsageStep from '../PhishingUsageStep';
 
 const PhishingEmailTemplate = () => {
-  const theme = useTheme();
   const { emailTemplateId } = useParams() as { emailTemplateId: PhishingEmailTemplateType['phishing_email_template_id'] };
   const { t } = useFormatter();
   const { emailTemplate } = useHelper(
@@ -154,36 +153,28 @@ const PhishingEmailTemplate = () => {
             </Field>
           </InformationGrid>
 
-          <SectionBlock title={t('Usage')}>
+          <SectionBlock title={t('How to use')}>
             <Box sx={{
               display: 'flex',
-              gap: 1.5,
-              alignItems: 'flex-start',
+              flexDirection: 'column',
+              gap: 2,
             }}
             >
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 32,
-                height: 32,
-                borderRadius: 1,
-                flexShrink: 0,
-                color: 'primary.main',
-                backgroundColor: alpha(theme.palette.primary.main, 0.1),
-              }}
-              >
-                <InfoOutlined sx={{ fontSize: 18 }} />
-              </Box>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'text.secondary',
-                  lineHeight: 1.55,
-                }}
-              >
-                {t('Use the {{phishing_url}} placeholder in the body to insert the per-recipient tracking link that leads to the landing page.')}
-              </Typography>
+              <PhishingUsageStep
+                icon={<SportsEsportsOutlined sx={{ fontSize: 20 }} />}
+                title={t('Pair with a landing page')}
+                body={t('Email templates are not Threat Arsenal actions. Add a phishing landing page from the arsenal, then select this template in the inject form.')}
+              />
+              <PhishingUsageStep
+                icon={<LinkOutlined sx={{ fontSize: 20 }} />}
+                title={t('Insert the tracking link')}
+                body={t('Put the {{phishing_url}} placeholder in the HTML body so each recipient gets a unique link to the chosen landing page.')}
+              />
+              <PhishingUsageStep
+                icon={<MailOutline sx={{ fontSize: 20 }} />}
+                title={t('Optional sender overrides')}
+                body={t('Leave sender fields empty to use the platform default mailer, or set them here (inject form can still override per campaign).')}
+              />
             </Box>
           </SectionBlock>
         </div>

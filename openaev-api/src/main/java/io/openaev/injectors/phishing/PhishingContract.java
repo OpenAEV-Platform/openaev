@@ -13,12 +13,16 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * Contractor for the internal phishing injector. Unlike static injectors, this contractor exposes
- * NO static contracts: each {@code PhishingLandingPage} synthesizes its own {@code
- * InjectorContract} (a Threat Arsenal action) through {@code
- * PhishingLandingPageService.synchroniseInjectorContract}, mirroring how payloads generate their
- * contracts. The synthesized contract id equals the landing page id, so {@code PhishingExecutor}
- * resolves the landing page directly from the inject contract.
+ * Contractor for the internal phishing injector. Static {@link #contracts()} is intentionally
+ * empty: each {@code PhishingLandingPage} synthesizes its own {@code InjectorContract} (a Threat
+ * Arsenal action) through {@code PhishingLandingPageService.synchroniseInjectorContract}, mirroring
+ * how payloads generate their contracts. The synthesized contract id equals the landing page id, so
+ * {@code PhishingExecutor} resolves the landing page from the inject contract and the lure email
+ * from the inject content's email-template field.
+ *
+ * <p>Important: builtin injector re-registration must not delete these dynamic contracts when the
+ * static catalog is empty (see {@code InjectorService}), and {@code seedDefaultsIfEmpty} always
+ * re-syncs so arsenal actions survive upgrades / restarts.
  */
 @Component
 public class PhishingContract extends Contractor {

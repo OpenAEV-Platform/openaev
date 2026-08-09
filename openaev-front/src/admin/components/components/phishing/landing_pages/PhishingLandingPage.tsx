@@ -1,6 +1,5 @@
-import { InfoOutlined } from '@mui/icons-material';
+import { MailOutline, PublicOutlined, SportsEsportsOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
 import { useParams } from 'react-router';
 
 import { type PhishingLandingPagesHelper } from '../../../../../actions/phishing/phishing-helper';
@@ -11,9 +10,9 @@ import { useHelper } from '../../../../../store';
 import { type PhishingLandingPage as PhishingLandingPageType } from '../../../../../utils/api-types';
 import { emptyFilled } from '../../../../../utils/String';
 import PhishingHtmlPreview from '../PhishingHtmlPreview';
+import PhishingUsageStep from '../PhishingUsageStep';
 
 const PhishingLandingPage = () => {
-  const theme = useTheme();
   const { landingPageId } = useParams() as { landingPageId: PhishingLandingPageType['phishing_landing_page_id'] };
   const { t } = useFormatter();
   const { landingPage } = useHelper(
@@ -21,6 +20,7 @@ const PhishingLandingPage = () => {
   );
 
   const previewDocument = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body{margin:0;padding:0;background:#ffffff;}</style><style>${landingPage.phishing_landing_page_css ?? ''}</style></head><body>${landingPage.phishing_landing_page_html ?? ''}</body></html>`;
+  const arsenalName = `Phishing: ${landingPage.phishing_landing_page_name || '-'}`;
 
   return (
     <div style={{
@@ -68,36 +68,28 @@ const PhishingLandingPage = () => {
             </Field>
           </InformationGrid>
 
-          <SectionBlock title={t('Usage')}>
+          <SectionBlock title={t('How to use')}>
             <Box sx={{
               display: 'flex',
-              gap: 1.5,
-              alignItems: 'flex-start',
+              flexDirection: 'column',
+              gap: 2,
             }}
             >
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 32,
-                height: 32,
-                borderRadius: 1,
-                flexShrink: 0,
-                color: 'primary.main',
-                backgroundColor: alpha(theme.palette.primary.main, 0.1),
-              }}
-              >
-                <InfoOutlined sx={{ fontSize: 18 }} />
-              </Box>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'text.secondary',
-                  lineHeight: 1.55,
-                }}
-              >
-                {t('This landing page is available as a phishing action in the Threat Arsenal. Add it to an inject to launch a phishing campaign targeting teams and players.')}
-              </Typography>
+              <PhishingUsageStep
+                icon={<SportsEsportsOutlined sx={{ fontSize: 20 }} />}
+                title={t('Add from Threat Arsenal')}
+                body={t('This landing page is published as the phishing action "{name}". Pick it when adding an inject to a scenario or simulation.', { name: arsenalName })}
+              />
+              <PhishingUsageStep
+                icon={<MailOutline sx={{ fontSize: 20 }} />}
+                title={t('Choose the lure email')}
+                body={t('In the inject form, select which email template to send and which teams to target. Recipients who click the lure open this page.')}
+              />
+              <PhishingUsageStep
+                icon={<PublicOutlined sx={{ fontSize: 20 }} />}
+                title={t('Capture and redirect')}
+                body={t('Submitted form data is tracked per recipient. Optional redirect runs after submit when a URL is configured above.')}
+              />
             </Box>
           </SectionBlock>
         </div>
