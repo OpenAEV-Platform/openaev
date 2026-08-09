@@ -322,6 +322,25 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("A null score in stored content defaults to 100.0 like the legacy factories")
+  void given_nullScoreInContent_should_defaultExpectedScore() {
+    io.openaev.model.inject.form.Expectation raw =
+        createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION);
+    raw.setScore(null);
+
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(inject);
+
+    BaseInjectExpectation template =
+        InjectExpectationUtils.expectationConverter(
+            executableInject, raw, new io.openaev.expectation.ExpectationPropertiesConfig());
+
+    assertEquals(100.0, template.getExpectedScore());
+  }
+
+  @Test
   @DisplayName("Contract fallback tolerates a contract without predefined expectations")
   void given_contractFallbackWithoutPredefinedExpectations_should_notFail() throws Exception {
     // Stored content carries an explicit null expectations field and the contract declares no

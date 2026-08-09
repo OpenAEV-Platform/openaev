@@ -183,7 +183,10 @@ public class InjectExpectationUtils {
     setCommonFields(
         baseInjectExpectation,
         executableInject,
-        expectation.getScore(),
+        // Old or partially populated content can carry a null score: normalize it to the same
+        // 100.0 default the legacy expectation factories applied, otherwise the first collector
+        // update unboxes a null expected score.
+        Objects.requireNonNullElse(expectation.getScore(), 100.0),
         expectation.isExpectationGroup(),
         expectation.getName(),
         expectation.getOrder(),
