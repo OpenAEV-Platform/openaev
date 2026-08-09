@@ -261,7 +261,11 @@ public class InjectExpectationService {
     if (enrichedContent == null) {
       return expectations;
     }
-    return this.mapper.treeToValue(enrichedContent, BaseInjectContent.class).getExpectations();
+    // The contract may declare no predefined expectations (or the stored field is an explicit
+    // null): the deserialized list is then null and must be normalized to empty.
+    List<io.openaev.model.inject.form.Expectation> fallbackExpectations =
+        this.mapper.treeToValue(enrichedContent, BaseInjectContent.class).getExpectations();
+    return fallbackExpectations != null ? fallbackExpectations : List.of();
   }
 
   /**

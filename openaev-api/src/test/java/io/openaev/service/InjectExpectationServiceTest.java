@@ -243,6 +243,33 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Contract fallback tolerates a contract without predefined expectations")
+  void given_contractFallbackWithoutPredefinedExpectations_should_notFail() throws Exception {
+    // Stored content carries an explicit null expectations field and the contract declares no
+    // predefined expectations: the enriched content still deserializes to a null list, which must
+    // be normalized instead of blowing up on expectations.isEmpty().
+    ObjectNode storedContent = mapper.createObjectNode();
+    storedContent.putNull("expectations");
+    inject.setContent(storedContent);
+    InjectorContract contract = mock(InjectorContract.class);
+    inject.setInjectorContract(contract);
+    when(injectorContractContentUtils.setExpectations(eq(contract), any(ObjectNode.class)))
+        .thenAnswer(invocation -> invocation.getArgument(1));
+
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(inject);
+
+    assertDoesNotThrow(
+        () ->
+            injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
+                executableInject, null, "implant"));
+
+    verify(injectExpectationRepository, never()).saveAll(any());
+  }
+
+  @Test
   @DisplayName("Technical defaults are restricted to the expected security platform collectors")
   void given_expectedSecurityPlatformTypes_should_seedOnlyMatchingCollectors() throws Exception {
     InjectorContract contract = mock(InjectorContract.class);
