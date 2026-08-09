@@ -35,12 +35,14 @@ import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.injectors.phishing.PhishingContract;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -81,10 +83,36 @@ public class PhishingLandingPageService {
   }
 
   public PhishingLandingPage upsert(@NotNull final PhishingLandingPage landingPage) {
+    validateRedirectUrl(landingPage.getRedirectUrl());
     landingPage.setUpdatedAt(Instant.now());
     PhishingLandingPage saved = landingPageRepository.save(landingPage);
     synchroniseInjectorContract(saved);
     return saved;
+  }
+
+  /**
+   * Rejects redirect URLs that are neither a relative path nor an http(s) URL. The public landing
+   * page assigns this value to {@code window.location.href} after the victim submits, so a {@code
+   * javascript:} (or {@code data:}) scheme would execute script in the OpenAEV origin, bypassing
+   * the page's DOMPurify sanitization. Only relative, {@code http}, and {@code https} targets are
+   * allowed. Browsers strip ASCII control/whitespace characters before parsing a URL scheme, so the
+   * value is normalized the same way before the scheme is inspected.
+   */
+  private void validateRedirectUrl(final String redirectUrl) {
+    if (redirectUrl == null || redirectUrl.isBlank()) {
+      return;
+    }
+    String normalized = redirectUrl.replaceAll("[\\u0000-\\u0020]", "");
+    int schemeSeparator = normalized.indexOf(':');
+    int firstSlash = normalized.indexOf('/');
+    boolean hasScheme = schemeSeparator > 0 && (firstSlash < 0 || schemeSeparator < firstSlash);
+    if (!hasScheme) {
+      return;
+    }
+    String scheme = normalized.substring(0, schemeSeparator).toLowerCase(Locale.ROOT);
+    if (!"http".equals(scheme) && !"https".equals(scheme)) {
+      throw new BadRequestException("Redirect URL must be a relative path or an http(s) URL");
+    }
   }
 
   /**

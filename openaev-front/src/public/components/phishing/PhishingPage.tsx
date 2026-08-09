@@ -22,6 +22,26 @@ interface PhishingLandingPageReader {
  * Every call targets the token-authenticated public tracking endpoints directly (never the
  * tenant-rewritten API client) since the victim has no session and the tenant lives in the path.
  */
+/**
+ * Defense-in-depth mirror of the server-side redirect validation
+ * (PhishingLandingPageService.validateRedirectUrl): only relative paths and http(s) URLs may reach
+ * window.location.href, so a stored `javascript:` or `data:` scheme can never execute in the
+ * OpenAEV origin. Browsers strip ASCII control/whitespace before parsing a scheme, so the value is
+ * normalized the same way before inspection.
+ */
+const isSafeRedirect = (url: string): boolean => {
+  // eslint-disable-next-line no-control-regex
+  const normalized = url.replace(/[\u0000-\u0020]/g, '');
+  const schemeSeparator = normalized.indexOf(':');
+  const firstSlash = normalized.indexOf('/');
+  const hasScheme = schemeSeparator > 0 && (firstSlash < 0 || schemeSeparator < firstSlash);
+  if (!hasScheme) {
+    return true;
+  }
+  const scheme = normalized.slice(0, schemeSeparator).toLowerCase();
+  return scheme === 'http' || scheme === 'https';
+};
+
 const PhishingPage = () => {
   const { tenantId, token } = useParams() as {
     tenantId: string;
@@ -60,7 +80,7 @@ const PhishingPage = () => {
         { data: fields },
       );
       const redirectUrl = response.data?.redirect_url;
-      if (redirectUrl) {
+      if (redirectUrl && isSafeRedirect(redirectUrl)) {
         window.location.href = redirectUrl;
       }
     } catch {

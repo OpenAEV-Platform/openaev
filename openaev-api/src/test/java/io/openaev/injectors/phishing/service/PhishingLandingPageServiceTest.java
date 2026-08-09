@@ -2,6 +2,7 @@ package io.openaev.injectors.phishing.service;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -20,6 +21,7 @@ import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injectors.phishing.PhishingContract;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -102,5 +104,57 @@ class PhishingLandingPageServiceTest {
     assertSame(darkLogo, updated.getLogoDark());
     assertNull(updated.getLogoLight());
     verify(documentService).document("doc-dark");
+  }
+
+  @Test
+  @DisplayName("upsert rejects a javascript: redirect URL and never persists it")
+  void upsert_should_rejectDangerousRedirectScheme() {
+    // -- ARRANGE --
+    PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setId("lp-1");
+    landingPage.setName("Login page");
+    landingPage.setRedirectUrl("javascript:alert(document.cookie)");
+
+    // -- ACT / ASSERT --
+    assertThrows(BadRequestException.class, () -> phishingLandingPageService.upsert(landingPage));
+    verify(landingPageRepository, never()).save(any(PhishingLandingPage.class));
+  }
+
+  @Test
+  @DisplayName("upsert rejects a javascript: redirect URL disguised with control characters")
+  void upsert_should_rejectRedirectSchemeWithControlChars() {
+    // -- ARRANGE --
+    PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setId("lp-1");
+    landingPage.setName("Login page");
+    landingPage.setRedirectUrl("java\tscript:alert(1)");
+
+    // -- ACT / ASSERT --
+    assertThrows(BadRequestException.class, () -> phishingLandingPageService.upsert(landingPage));
+    verify(landingPageRepository, never()).save(any(PhishingLandingPage.class));
+  }
+
+  @Test
+  @DisplayName("upsert accepts relative and http(s) redirect URLs")
+  void upsert_should_acceptRelativeAndHttpRedirectUrls() {
+    // -- ARRANGE --
+    when(landingPageRepository.save(any(PhishingLandingPage.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(injectorRepository.findByTypeAndTenantId(eq(PhishingContract.TYPE), any()))
+        .thenReturn(Optional.empty());
+
+    for (String url :
+        new String[] {"/dashboard", "https://example.com/next", "http://example.com"}) {
+      PhishingLandingPage landingPage = new PhishingLandingPage();
+      landingPage.setId("lp-1");
+      landingPage.setName("Login page");
+      landingPage.setRedirectUrl(url);
+
+      // -- ACT --
+      PhishingLandingPage saved = phishingLandingPageService.upsert(landingPage);
+
+      // -- ASSERT --
+      assertSame(landingPage, saved);
+    }
   }
 }
