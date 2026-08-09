@@ -152,10 +152,12 @@ public class FindingDistinctSearchService {
                     Map.Entry::getKey,
                     Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
 
-    // Step 3b: Group-wide first/last seen per (type, value). The page rows are arbitrary
-    // representatives (smallest id per group), so their own dates reflect ONE occurrence, not the
-    // group: first seen must be the MIN creation date and last seen the MAX update date across all
-    // occurrences in scope - findingsWithAssets already holds exactly that set.
+    // Step 3b: Group-wide first/last seen per (type, value). The page row is the most recent
+    // occurrence per group (see FindingSpecification.distinctTypeValueWithFilter), so its own
+    // updateDate already matches the group last seen; its creationDate, however, is that single
+    // occurrence's, not the group's. Compute first seen as the MIN creation date and last seen as
+    // the MAX update date across all occurrences in scope - findingsWithAssets holds exactly that
+    // set - so both cells stay group-correct.
     Map<TypeValueKey, Instant> firstSeenByKey = new HashMap<>();
     Map<TypeValueKey, Instant> lastSeenByKey = new HashMap<>();
     for (Finding occurrence : findingsWithAssets) {
