@@ -18,23 +18,30 @@ import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 
-/**
- * Shared behavior for technical expectations (detection/prevention/vulnerability).
- *
- * <p><strong>Dead code — not wired into any service yet.</strong> Part of the {@code
- * InjectExpectation} refactoring (Vertical 2).
- */
+/** Shared behavior for technical expectations (detection/prevention/vulnerability). */
 @RequiredArgsConstructor
-public abstract class AbstractTechnicalBehavior implements ExpectationBehavior {
+public abstract class AbstractTechnicalBehavior
+    implements ExpectationBehavior<TechnicalInjectExpectation> {
 
   protected final CollectorService collectorService;
   protected final InjectService injectService;
   protected final InjectExpectationRepository injectExpectationRepository;
 
   // -- INITIALIZE AND SAVE --
+
+  /** {@inheritDoc} Resolves asset targets itself before delegating. */
+  @Override
+  public void initializeAndSaveInjectExpectationsFromExecutableInject(
+      ExecutableInject executableInject,
+      TechnicalInjectExpectation expectationTemplate,
+      String implantType) {
+    initializeAndSaveInjectExpectationsFromExecutableInject(
+        executableInject, expectationTemplate, implantType, null);
+  }
 
   /**
    * Creates and persists expectations for each asset target (agent → asset → asset-group). Results
@@ -45,12 +52,16 @@ public abstract class AbstractTechnicalBehavior implements ExpectationBehavior {
   @Override
   public void initializeAndSaveInjectExpectationsFromExecutableInject(
       ExecutableInject executableInject,
-      BaseInjectExpectation expectationTemplate,
-      String implantType) {
+      TechnicalInjectExpectation expectationTemplate,
+      @Nullable String implantType,
+      @Nullable List<AssetToExecute> preResolvedAssets) {
     Inject inject = executableInject.getInjection().getInject();
-    List<AssetToExecute> assetToExecutes = this.injectService.resolveAllAssetsToExecute(inject);
+    List<AssetToExecute> assetToExecutes =
+        preResolvedAssets != null
+            ? preResolvedAssets
+            : this.injectService.resolveAllAssetsToExecute(inject);
 
-    List<BaseInjectExpectation> allExpectations = new ArrayList<>();
+    List<TechnicalInjectExpectation> allExpectations = new ArrayList<>();
 
     assetToExecutes.forEach(
         assetToExecute -> {
@@ -90,8 +101,8 @@ public abstract class AbstractTechnicalBehavior implements ExpectationBehavior {
                   });
         });
 
+    Map<String, Endpoint> valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
     allExpectations.stream()
-        .map(TechnicalInjectExpectation.class::cast)
         .filter(e -> !isAssetGroupExpectation(e))
         .filter(
             e ->
@@ -102,22 +113,18 @@ public abstract class AbstractTechnicalBehavior implements ExpectationBehavior {
               String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
               List<ExpectationSignature> expectationSignatures =
                   computeSignatures(
-                      implantType,
-                      inject.getId(),
-                      e.getAsset(),
-                      agentId,
-                      injectService.getValueTargetedAssetMap(inject));
+                      implantType, inject.getId(), e.getAsset(), agentId, valueTargetedAssetsMap);
               e.setSignatures(convertToInjectExpectationSignatures(expectationSignatures, e));
             });
     injectExpectationRepository.saveAll(allExpectations);
   }
 
   private static TechnicalInjectExpectation buildExpectationForTarget(
-      BaseInjectExpectation template,
+      TechnicalInjectExpectation template,
       @Nullable AssetGroup assetGroup,
       Asset asset,
       @Nullable Agent agent) {
-    TechnicalInjectExpectation expectation = (TechnicalInjectExpectation) template.clone();
+    TechnicalInjectExpectation expectation = template.clone();
     expectation.setAssetGroup(assetGroup);
     expectation.setAsset(asset);
     expectation.setAgent(agent);

@@ -22,7 +22,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class InjectExpectationUtils {
 
   private InjectExpectationUtils() {}
@@ -97,15 +99,16 @@ public class InjectExpectationUtils {
       @NotNull final Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
 
-    baseInjectExpectation.setExercise(executableInject.getInjection().getExercise());
-    baseInjectExpectation.setInject(executableInject.getInjection().getInject());
-    baseInjectExpectation.setExpectedScore(expectation.getScore());
-    baseInjectExpectation.setExpectationGroup(expectation.isExpectationGroup());
-    baseInjectExpectation.setName(expectation.getName());
-    baseInjectExpectation.setOrder(expectation.getOrder());
-    baseInjectExpectation.setExpirationTime(
-        ofNullable(expectation.getExpirationTime())
-            .orElse(expectationPropertiesConfig.getExpirationTimeByType(expectation.type())));
+    setCommonFields(
+        baseInjectExpectation,
+        executableInject,
+        expectation.getScore(),
+        expectation.isExpectationGroup(),
+        expectation.getName(),
+        expectation.getOrder(),
+        expectation.getExpirationTime(),
+        expectation.type(),
+        expectationPropertiesConfig);
 
     switch (expectation) {
       case ChannelExpectation e when expectation.type() == ARTICLE ->
@@ -152,6 +155,54 @@ public class InjectExpectationUtils {
           baseInjectExpectation.setDescription(e.getDescription());
       default -> throw new IllegalStateException("Unexpected value: " + expectation);
     }
+    return baseInjectExpectation;
+  }
+
+  /**
+   * Converts a raw, untargeted expectation declared in the inject's content (JSON form payload)
+   * into a BaseInjectExpectation *template*: common attributes (score, name, expiration,
+   * expectationGroup, description for MANUAL) are set, but no target (agent/asset/assetGroup) is
+   * attached yet.
+   *
+   * <p>Target resolution is deferred to the matching {@link
+   * io.openaev.service.expectation.ExpectationBehavior}, which resolves concrete targets
+   * (agents/assets/asset groups) for its own expectation type from the {@link ExecutableInject}.
+   *
+   * @param executableInject the executable inject (for exercise/inject linkage)
+   * @param expectation the raw expectation declared in the inject content
+   * @param expectationPropertiesConfig default expiration times per type
+   * @return an untargeted BaseInjectExpectation template
+   */
+  public static BaseInjectExpectation expectationConverter(
+      @NotNull final ExecutableInject executableInject,
+      @NotNull final io.openaev.model.inject.form.Expectation expectation,
+      ExpectationPropertiesConfig expectationPropertiesConfig) {
+
+    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.getType());
+
+    setCommonFields(
+        baseInjectExpectation,
+        executableInject,
+        expectation.getScore(),
+        expectation.isExpectationGroup(),
+        expectation.getName(),
+        expectation.getOrder(),
+        expectation.getExpirationTime(),
+        expectation.getType(),
+        expectationPropertiesConfig);
+
+    if (MANUAL.equals(expectation.getType())) {
+      baseInjectExpectation.setDescription(expectation.getDescription());
+    }
+
+    // Without this the expectation loses its expected platform types, so every connected
+    // collector is seeded as a pending result instead of only the expected ones.
+    // Only technical expectations carry expected security platforms.
+    if (baseInjectExpectation instanceof TechnicalInjectExpectation technicalInjectExpectation) {
+      technicalInjectExpectation.setExpectedSecurityPlatforms(
+          expectation.getExpectedSecurityPlatformTypes());
+    }
+
     return baseInjectExpectation;
   }
 
@@ -400,5 +451,90 @@ public class InjectExpectationUtils {
         .map(BaseInjectExpectation::getScore)
         .filter(Objects::nonNull)
         .anyMatch(predicate);
+  }
+
+  private static void setCommonFields(
+      BaseInjectExpectation baseInjectExpectation,
+      ExecutableInject executableInject,
+      Double score,
+      boolean isGroup,
+      String name,
+      Integer order,
+      Long expirationTime,
+      BaseInjectExpectation.EXPECTATION_TYPE type,
+      ExpectationPropertiesConfig config) {
+
+    baseInjectExpectation.setExercise(executableInject.getInjection().getExercise());
+    baseInjectExpectation.setInject(executableInject.getInjection().getInject());
+    baseInjectExpectation.setExpectedScore(score);
+    baseInjectExpectation.setExpectationGroup(isGroup);
+    baseInjectExpectation.setName(name);
+    baseInjectExpectation.setOrder(order);
+    baseInjectExpectation.setExpirationTime(
+        ofNullable(expirationTime).orElse(config.getExpirationTimeByType(type)));
+  }
+
+  // -- EXPECTED SECURITY PLATFORMS --
+
+  /**
+   * Restricts the tenant's security-platform collectors to those matching an expectation's expected
+   * platform types. When the expectation declares no expected type, every collector is kept (legacy
+   * behaviour). Expected types that have no connected collector are logged so the misconfiguration
+   * is visible instead of the expectation silently hanging until expiration.
+   *
+   * @param collectors all connected security-platform collectors of the tenant
+   * @param expectedTypes the expectation's expected security platform types (may be null/empty)
+   * @return the collectors expected to answer this expectation
+   */
+  public static List<Collector> filterCollectorsForExpectation(
+      final List<Collector> collectors,
+      final List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes) {
+    if (expectedTypes == null || expectedTypes.isEmpty()) {
+      return collectors;
+    }
+    List<Collector> matching =
+        collectors.stream()
+            .filter(
+                c ->
+                    c.getSecurityPlatform() != null
+                        && expectedTypes.contains(
+                            c.getSecurityPlatform().getSecurityPlatformType()))
+            .toList();
+    Set<SecurityPlatform.SECURITY_PLATFORM_TYPE> connectedTypes =
+        collectors.stream()
+            .map(Collector::getSecurityPlatform)
+            .filter(Objects::nonNull)
+            .map(SecurityPlatform::getSecurityPlatformType)
+            .collect(Collectors.toSet());
+    expectedTypes.stream()
+        .filter(type -> !connectedTypes.contains(type))
+        .forEach(
+            type ->
+                log.warn(
+                    "Expectation expects security platform type {} but no connected collector of that type exists; it will only be finalized by the expiration manager",
+                    type));
+    return matching;
+  }
+
+  /**
+   * Expiration ordering guarantee: when specific security platforms are expected, make sure the
+   * expectation's expiration is long enough for the real collectors to answer first (at least two
+   * of their poll cycles), so the expiration manager only ever acts as a fallback for genuinely
+   * unanswered expectations.
+   *
+   * @param expectation the technical expectation being seeded
+   * @param expectedCollectors the collectors expected to answer it
+   */
+  public static void applyExpirationOrderingGuarantee(
+      final TechnicalInjectExpectation expectation, final List<Collector> expectedCollectors) {
+    if (expectedCollectors.isEmpty()) {
+      return;
+    }
+    long maxPeriodSeconds =
+        expectedCollectors.stream().mapToLong(Collector::getPeriod).max().orElse(0L);
+    long floor = maxPeriodSeconds * 2L;
+    if (expectation.getExpirationTime() == null || expectation.getExpirationTime() < floor) {
+      expectation.setExpirationTime(floor);
+    }
   }
 }

@@ -7,12 +7,7 @@ import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.InjectService;
 import org.springframework.stereotype.Component;
 
-/**
- * Behavior implementation for {@link DetectionInjectExpectation}.
- *
- * <p><strong>Dead code — not wired into any service yet.</strong> Part of the {@code
- * InjectExpectation} refactoring (Vertical 2).
- */
+/** Behavior implementation for {@link DetectionInjectExpectation}. */
 @Component
 public class DetectionBehavior extends AbstractTechnicalBehavior {
 

@@ -6,6 +6,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.rest.inject.service.AssetToExecute;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -13,10 +14,10 @@ import java.util.List;
 /**
  * Strategy interface for the inject expectation lifecycle.
  *
- * <p><strong>Dead code — not wired into any service yet.</strong> Part of the {@code
- * InjectExpectation} refactoring (Vertical 2).
+ * @param <T> the concrete expectation type this behavior builds templates for (technical or
+ *     table-top)
  */
-public interface ExpectationBehavior {
+public interface ExpectationBehavior<T extends BaseInjectExpectation> {
 
   /**
    * Returns {@code true} if this behavior handles the given expectation type.
@@ -32,9 +33,28 @@ public interface ExpectationBehavior {
    * @param expectationTemplate the expectation template to apply on each target
    */
   void initializeAndSaveInjectExpectationsFromExecutableInject(
+      ExecutableInject executableInject, T expectationTemplate, @Nullable String implantType);
+
+  /**
+   * Creates and persists inject expectations for each target from a template expectation, reusing
+   * asset targets already resolved by the caller when provided.
+   *
+   * <p>The default implementation ignores the pre-resolved assets (table-top behaviors resolve
+   * their own team/player targets); technical behaviors override it to avoid re-running the
+   * expensive asset resolution once per expectation type.
+   *
+   * @param executableInject the executable inject containing targets
+   * @param expectationTemplate the expectation template to apply on each target
+   * @param preResolvedAssets asset targets already resolved by the caller, or {@code null}
+   */
+  default void initializeAndSaveInjectExpectationsFromExecutableInject(
       ExecutableInject executableInject,
-      BaseInjectExpectation expectationTemplate,
-      @Nullable String implantType);
+      T expectationTemplate,
+      @Nullable String implantType,
+      @Nullable List<AssetToExecute> preResolvedAssets) {
+    initializeAndSaveInjectExpectationsFromExecutableInject(
+        executableInject, expectationTemplate, implantType);
+  }
 
   /**
    * Initialize expectation result.
@@ -61,7 +81,6 @@ public interface ExpectationBehavior {
    * @throws IllegalArgumentException if direct update is not allowed
    */
   default void throwIfCannotUpdateThisExpectation(BaseInjectExpectation expectation) {}
-  ;
 
   /**
    * Applies a result to every leaf expectation and recomputes their score.

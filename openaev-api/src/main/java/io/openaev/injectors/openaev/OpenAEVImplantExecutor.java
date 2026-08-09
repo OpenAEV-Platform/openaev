@@ -46,9 +46,8 @@ public class OpenAEVImplantExecutor extends Injector {
               ExecutionTraceAction.COMPLETE));
     }
 
-    // Compute expectations
-    injectExpectationService.computeAndSaveExpectations(
-        injection, inject, OAEV_IMPLANT, assetToExecutes);
+    injectExpectationService.computeAndSaveExpectationsFromInjectContent(
+        injection, OAEV_IMPLANT, assetToExecutes);
 
     return new ExecutionProcess(true);
   }

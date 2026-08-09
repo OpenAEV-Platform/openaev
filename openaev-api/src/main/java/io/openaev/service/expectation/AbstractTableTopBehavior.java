@@ -13,14 +13,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 
-/**
- * Shared behavior for table-top style expectations (manual/challenge/article).
- *
- * <p>Dead code — not wired into any service yet. Part of the {@code InjectExpectation} refactoring
- * (Vertical 2).
- */
+/** Shared behavior for table-top style expectations (manual/challenge/article). */
 @RequiredArgsConstructor
-public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
+public abstract class AbstractTableTopBehavior
+    implements ExpectationBehavior<TableTopInjectExpectation> {
 
   protected final InjectExpectationRepository injectExpectationRepository;
 
@@ -36,12 +32,13 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
   @Override
   public void initializeAndSaveInjectExpectationsFromExecutableInject(
       ExecutableInject executableInject,
-      BaseInjectExpectation expectationTemplate,
+      TableTopInjectExpectation expectationTemplate,
       @Nullable String implantType) {
 
     boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
     boolean isExerciseInject = !executableInject.isDirect();
-    if (!isExerciseInject && !isAtomicTesting) {
+    boolean isChainingExecution = executableInject.isChainingExecution();
+    if (!isExerciseInject && !isAtomicTesting && !isChainingExecution) {
       return;
     }
 
@@ -50,7 +47,7 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
       return;
     }
 
-    List<BaseInjectExpectation> allExpectations = new ArrayList<>();
+    List<TableTopInjectExpectation> allExpectations = new ArrayList<>();
 
     if (isAtomicTesting) {
       buildExpectationsForAtomicTesting(expectationTemplate, teams, allExpectations);
@@ -68,9 +65,9 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
    * team/user combination.
    */
   private void buildExpectationsForAtomicTesting(
-      BaseInjectExpectation template,
+      TableTopInjectExpectation template,
       List<Team> teams,
-      List<BaseInjectExpectation> allExpectations) {
+      List<TableTopInjectExpectation> allExpectations) {
     teams.forEach(
         team -> {
           allExpectations.add(buildExpectationForTarget(template, team, null));
@@ -89,12 +86,12 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
    */
   private void buildExpectationsForExerciseInject(
       ExecutableInject executableInject,
-      BaseInjectExpectation template,
+      TableTopInjectExpectation template,
       List<Team> teams,
-      List<BaseInjectExpectation> allExpectations) {
+      List<TableTopInjectExpectation> allExpectations) {
     String exerciseId = executableInject.getInjection().getExercise().getId();
 
-    List<BaseInjectExpectation> playerExpectations = new ArrayList<>();
+    List<TableTopInjectExpectation> playerExpectations = new ArrayList<>();
 
     // Create expectations for every enabled player in every team
     for (Team team : teams) {
@@ -108,7 +105,6 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
     // Create a set of teams that have at least one enabled player
     Set<Team> teamsWithPlayers =
         playerExpectations.stream()
-            .map(TableTopInjectExpectation.class::cast)
             .map(TableTopInjectExpectation::getTeam)
             .collect(Collectors.toSet());
 
@@ -129,8 +125,8 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
    * @return a new expectation ready to be persisted
    */
   private static TableTopInjectExpectation buildExpectationForTarget(
-      BaseInjectExpectation template, Team team, @Nullable User user) {
-    TableTopInjectExpectation expectation = (TableTopInjectExpectation) template.clone();
+      TableTopInjectExpectation template, Team team, @Nullable User user) {
+    TableTopInjectExpectation expectation = template.clone();
     expectation.setTeam(team);
     expectation.setUser(user);
     return expectation;

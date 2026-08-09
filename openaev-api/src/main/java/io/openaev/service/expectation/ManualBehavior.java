@@ -8,12 +8,7 @@ import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
 import org.springframework.stereotype.Component;
 
-/**
- * Behavior implementation for {@link ManualInjectExpectation}.
- *
- * <p><strong>Dead code — not wired into any service yet.</strong> Part of the {@code
- * InjectExpectation} refactoring (Vertical 2).
- */
+/** Behavior implementation for {@link ManualInjectExpectation}. */
 @Component
 public class ManualBehavior extends AbstractTableTopBehavior {
 

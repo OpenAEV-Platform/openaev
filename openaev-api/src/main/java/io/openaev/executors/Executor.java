@@ -60,8 +60,8 @@ public class Executor {
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
 
-    injectExpectationService.computeAndSaveExpectations(
-        executableInject, inject, injector.getType(), assetToExecutes);
+    injectExpectationService.computeAndSaveExpectationsFromInjectContent(
+        executableInject, injector.getType(), assetToExecutes);
 
     rabbitmqService.publish(injector.getId(), jsonInject);
     injectStatus.addInfoTrace(

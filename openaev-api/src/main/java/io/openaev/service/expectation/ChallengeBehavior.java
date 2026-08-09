@@ -7,12 +7,7 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.utils.challenge.ChallengeExpectationUtils;
 import org.springframework.stereotype.Component;
 
-/**
- * Behavior implementation for {@link ChallengeInjectExpectation}.
- *
- * <p><strong>Dead code — not wired into any service yet.</strong> Part of the {@code
- * InjectExpectation} refactoring (Vertical 2).
- */
+/** Behavior implementation for {@link ChallengeInjectExpectation}. */
 @Component
 public class ChallengeBehavior extends AbstractTableTopBehavior {
 

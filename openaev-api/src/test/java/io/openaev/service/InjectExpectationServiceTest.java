@@ -15,13 +15,9 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.expectation.DetectionExpectation;
 import io.openaev.expectation.Expectation;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.expectation.ExpectationType;
-import io.openaev.expectation.ManualExpectation;
-import io.openaev.expectation.PreventionExpectation;
-import io.openaev.expectation.VulnerabilityExpectation;
 import io.openaev.injectors.common.model.BaseInjectContent;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
@@ -30,10 +26,12 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.expectation.DetectionBehavior;
+import io.openaev.service.expectation.PreventionBehavior;
+import io.openaev.service.expectation.VulnerabilityBehavior;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
-import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -121,44 +119,6 @@ class InjectExpectationServiceTest {
     return expectation;
   }
 
-  private void invokeComputeExpectationsForAssetAndAgents(
-      List<Expectation> expectations,
-      BaseInjectContent content,
-      AssetToExecute assetToExecute,
-      Inject currentInject,
-      String implantType)
-      throws Exception {
-    Method method =
-        InjectExpectationService.class.getDeclaredMethod(
-            "computeExpectationsForAssetAndAgents",
-            List.class,
-            BaseInjectContent.class,
-            AssetToExecute.class,
-            Inject.class,
-            String.class);
-    method.setAccessible(true);
-    method.invoke(
-        injectExpectationService,
-        expectations,
-        content,
-        assetToExecute,
-        currentInject,
-        implantType);
-  }
-
-  private void invokeComputeExpectationsForAssetGroup(
-      List<Expectation> expectations, BaseInjectContent content, AssetGroup assetGroup)
-      throws Exception {
-    Method method =
-        InjectExpectationService.class.getDeclaredMethod(
-            "computeExpectationsForAssetGroup",
-            List.class,
-            BaseInjectContent.class,
-            AssetGroup.class);
-    method.setAccessible(true);
-    method.invoke(injectExpectationService, expectations, content, assetGroup);
-  }
-
   @Test
   @DisplayName("Should return early when build input expectations are null or empty")
   void given_nullOrEmptyExpectations_should_notSaveAnyInjectExpectation() {
@@ -216,175 +176,70 @@ class InjectExpectationServiceTest {
   }
 
   @Test
-  @DisplayName(
-      "Should skip asset and agent expectation computation when content expectations are empty")
-  void given_emptyContentExpectations_should_notComputeAssetAndAgentExpectations()
-      throws Exception {
-    // Arrange
-    BaseInjectContent content = new BaseInjectContent();
-    List<Expectation> expectations = new ArrayList<>();
-    Endpoint endpoint = EndpointFixture.createEndpoint();
-    endpoint.setId("asset-id");
+  @DisplayName("Content-based creation: a null stored content must not fail and creates nothing")
+  void given_injectWithoutContent_should_notFailNorCreateExpectations() throws Exception {
+    // An inject without stored content converts to a null BaseInjectContent: the content-based
+    // entry point must stay null-safe instead of failing on content.getExpectations().
+    inject.setContent(null);
+    inject.setInjectorContract(null);
 
-    // Act
-    invokeComputeExpectationsForAssetAndAgents(
-        expectations, content, new AssetToExecute(endpoint), inject, "implant");
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(inject);
 
-    // Assert
-    assertTrue(expectations.isEmpty());
-    verifyNoInteractions(injectService);
+    assertDoesNotThrow(
+        () ->
+            injectExpectationService.computeAndSaveExpectationsFromInjectContent(
+                executableInject, "implant", null));
+
+    verify(injectExpectationRepository, never()).saveAll(any());
   }
 
   @Test
-  @DisplayName("Should ignore unsupported expectation type for asset and agent computation")
-  void given_unsupportedExpectationType_should_notCreateAssetAndAgentExpectations()
-      throws Exception {
-    // Arrange
-    BaseInjectContent content = new BaseInjectContent();
-    content.setExpectations(
-        List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE)));
-    List<Expectation> expectations = new ArrayList<>();
-    Endpoint endpoint = EndpointFixture.createEndpoint();
-    endpoint.setId("asset-id");
-    inject.setId("inject-id");
-    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
-
-    // Act
-    invokeComputeExpectationsForAssetAndAgents(
-        expectations, content, new AssetToExecute(endpoint), inject, "implant");
-
-    // Assert
-    assertTrue(expectations.isEmpty());
-    verify(injectService).getValueTargetedAssetMap(inject);
-  }
-
-  @Test
-  @DisplayName(
-      "Should skip asset group expectation computation when content expectations are empty")
-  void given_emptyContentExpectations_should_notComputeAssetGroupExpectations() throws Exception {
-    // Arrange
-    BaseInjectContent content = new BaseInjectContent();
-    List<Expectation> expectations = new ArrayList<>();
-    AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("ag");
-    assetGroup.setId("ag-id");
-
-    // Act
-    invokeComputeExpectationsForAssetGroup(expectations, content, assetGroup);
-
-    // Assert
-    assertTrue(expectations.isEmpty());
-    verifyNoInteractions(assetGroupService);
-  }
-
-  @Test
-  @DisplayName(
-      "Should execute false branches and default branch for asset group expectation matching when no asset matches")
-  void
-      given_nonMatchingAssetExpectations_should_notCreateAssetGroupExpectationAndCoverFalseBranches()
-          throws Exception {
-    // Arrange
-    BaseInjectContent content = new BaseInjectContent();
-    content.setExpectations(
-        List.of(
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE)));
-
-    Asset matchingAsset = AssetFixture.createDefaultAsset("matching");
-    matchingAsset.setId("asset-matching-id");
-    Asset nonMatchingAsset = AssetFixture.createDefaultAsset("other");
-    nonMatchingAsset.setId("asset-other-id");
-
-    AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("ag");
-    assetGroup.setId("ag-id");
-    when(assetGroupService.assetsFromAssetGroup(assetGroup.getId()))
-        .thenReturn(List.of(matchingAsset));
-
-    PreventionExpectation preventionWithNullAsset =
-        PreventionExpectation.preventionExpectationForAsset(
-            100.0, "p-null", "desc", matchingAsset, assetGroup, 60L);
-    preventionWithNullAsset.setAsset(null);
-    PreventionExpectation preventionWithNonMatchingAsset =
-        PreventionExpectation.preventionExpectationForAsset(
-            100.0, "p-other", "desc", nonMatchingAsset, assetGroup, 60L);
-
-    DetectionExpectation detectionWithNullAsset =
-        DetectionExpectation.detectionExpectationForAsset(
-            100.0, "d-null", "desc", matchingAsset, assetGroup, 60L);
-    detectionWithNullAsset.setAsset(null);
-    DetectionExpectation detectionWithNonMatchingAsset =
-        DetectionExpectation.detectionExpectationForAsset(
-            100.0, "d-other", "desc", nonMatchingAsset, assetGroup, 60L);
-
-    VulnerabilityExpectation vulnerabilityWithNullAsset = new VulnerabilityExpectation();
-    vulnerabilityWithNullAsset.setName("v-null");
-    vulnerabilityWithNullAsset.setScore(100.0);
-    vulnerabilityWithNullAsset.setAsset(null);
-    VulnerabilityExpectation vulnerabilityWithNonMatchingAsset = new VulnerabilityExpectation();
-    vulnerabilityWithNonMatchingAsset.setName("v-other");
-    vulnerabilityWithNonMatchingAsset.setScore(100.0);
-    vulnerabilityWithNonMatchingAsset.setAsset(nonMatchingAsset);
-
-    ManualExpectation manualWithNullAsset =
-        ManualExpectation.manualExpectationForAsset(
-            100.0, "m-null", "desc", matchingAsset, assetGroup, 60L);
-    manualWithNullAsset.setAsset(null);
-    ManualExpectation manualWithNonMatchingAsset =
-        ManualExpectation.manualExpectationForAsset(
-            100.0, "m-other", "desc", nonMatchingAsset, assetGroup, 60L);
-
-    List<Expectation> expectations =
-        new ArrayList<>(
-            List.of(
-                preventionWithNullAsset,
-                preventionWithNonMatchingAsset,
-                detectionWithNullAsset,
-                detectionWithNonMatchingAsset,
-                vulnerabilityWithNullAsset,
-                vulnerabilityWithNonMatchingAsset,
-                manualWithNullAsset,
-                manualWithNonMatchingAsset));
-    int initialSize = expectations.size();
-
-    // Act
-    invokeComputeExpectationsForAssetGroup(expectations, content, assetGroup);
-
-    // Assert
-    assertEquals(initialSize, expectations.size());
-    verify(assetGroupService).assetsFromAssetGroup(assetGroup.getId());
-  }
-
-  @Test
-  @DisplayName(
-      "Should execute all supported switch branches for asset and agent expectation computation")
-  void given_supportedExpectationTypes_should_computeAssetAndAgentExpectationsAcrossAllCases()
-      throws Exception {
-    // Arrange
-    BaseInjectContent content = new BaseInjectContent();
-    content.setExpectations(
-        List.of(
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)));
+  @DisplayName("Behavior-based creation resolves asset targets once for all expectation types")
+  void given_multipleTechnicalExpectations_should_resolveAssetTargetsOnlyOnce() throws Exception {
+    InjectorContract contract = mock(InjectorContract.class);
+    when(contract.getNeedsExecutorEffective()).thenReturn(false);
+    inject.setInjectorContract(contract);
+    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "expectationPropertiesConfig",
+        new io.openaev.expectation.ExpectationPropertiesConfig());
 
     Endpoint endpoint = EndpointFixture.createEndpoint();
     endpoint.setId("asset-id");
     endpoint.setAgents(List.of());
-    inject.setId("inject-id");
-
     when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
-    List<Expectation> expectations = new ArrayList<>();
+    when(injectService.resolveAllAssetsToExecute(inject))
+        .thenReturn(List.of(new AssetToExecute(endpoint)));
 
-    // Act
-    invokeComputeExpectationsForAssetAndAgents(
-        expectations, content, new AssetToExecute(endpoint), inject, "implant");
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(inject);
 
-    // Assert
-    assertNotNull(expectations);
-    verify(injectService).getValueTargetedAssetMap(inject);
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "behaviors",
+        List.of(
+            new PreventionBehavior(collectorService, injectService, injectExpectationRepository),
+            new DetectionBehavior(collectorService, injectService, injectExpectationRepository),
+            new VulnerabilityBehavior(
+                collectorService, injectService, injectExpectationRepository)));
+
+    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
+        executableInject,
+        List.of(
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)),
+        "implant");
+
+    // The expensive target resolution runs once for the whole call, not once per behavior.
+    verify(injectService, times(1)).resolveAllAssetsToExecute(inject);
+    verify(injectExpectationRepository, times(3)).saveAll(any());
   }
 
   @Test
@@ -417,19 +272,25 @@ class InjectExpectationServiceTest {
     endpoint.setId("asset-id");
     endpoint.setAgents(List.of());
     when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
-    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
+    when(injectService.resolveAllAssetsToExecute(inject))
+        .thenReturn(List.of(new AssetToExecute(endpoint)));
 
     ExecutableInject executableInject = mock(ExecutableInject.class);
     Injection injection = mock(Injection.class);
     when(executableInject.getInjection()).thenReturn(injection);
     when(injection.getInject()).thenReturn(inject);
-    when(executableInject.isDirect()).thenReturn(false);
-    when(executableInject.getTeams()).thenReturn(List.of());
-    when(executableInject.getAssets()).thenReturn(List.of(endpoint));
-    when(executableInject.getAssetGroups()).thenReturn(List.of());
 
-    injectExpectationService.computeAndSaveExpectations(
-        executableInject, inject, "implant", List.of(new AssetToExecute(endpoint)));
+    // Constructor-injected in production by Spring: wire the behavior handling VULNERABILITY.
+    ReflectionTestUtils.setField(
+        injectExpectationService,
+        "behaviors",
+        List.of(
+            new VulnerabilityBehavior(
+                collectorService, injectService, injectExpectationRepository)));
+
+    // A null list is what an inject whose content never carried the "expectations" field yields.
+    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
+        executableInject, null, "implant");
 
     // The contract's predefined expectations were resolved and materialized as a persisted
     // asset-level vulnerability expectation.
@@ -458,73 +319,17 @@ class InjectExpectationServiceTest {
     inject.setContent(storedContent);
     inject.setInjectorContract(mock(InjectorContract.class));
 
-    Endpoint endpoint = EndpointFixture.createEndpoint();
-    endpoint.setId("asset-id");
-    endpoint.setAgents(List.of());
-
     ExecutableInject executableInject = mock(ExecutableInject.class);
     Injection injection = mock(Injection.class);
     when(executableInject.getInjection()).thenReturn(injection);
     when(injection.getInject()).thenReturn(inject);
-    when(executableInject.getAssetGroups()).thenReturn(List.of());
 
-    injectExpectationService.computeAndSaveExpectations(
-        executableInject, inject, "implant", List.of(new AssetToExecute(endpoint)));
+    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
+        executableInject, List.of(), "implant");
 
     // No contract fallback and no expectation persisted: the empty list is the user's choice.
     verify(injectorContractContentUtils, never()).setExpectations(any(), any());
     verify(injectExpectationRepository, never()).saveAll(any());
-  }
-
-  @Test
-  @DisplayName(
-      "Should create one asset group expectation per supported type when at least one asset matches")
-  void given_matchingAssetExpectations_should_createAssetGroupExpectationsForAllSupportedTypes()
-      throws Exception {
-    // Arrange
-    BaseInjectContent content = new BaseInjectContent();
-    content.setExpectations(
-        List.of(
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)));
-
-    Asset matchingAsset = AssetFixture.createDefaultAsset("matching");
-    matchingAsset.setId("asset-matching-id");
-    AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("ag-match");
-    assetGroup.setId("ag-match-id");
-    when(assetGroupService.assetsFromAssetGroup(assetGroup.getId()))
-        .thenReturn(List.of(matchingAsset));
-
-    PreventionExpectation preventionMatching =
-        PreventionExpectation.preventionExpectationForAsset(
-            100.0, "p", "desc", matchingAsset, assetGroup, 60L);
-    DetectionExpectation detectionMatching =
-        DetectionExpectation.detectionExpectationForAsset(
-            100.0, "d", "desc", matchingAsset, assetGroup, 60L);
-    VulnerabilityExpectation vulnerabilityMatching = new VulnerabilityExpectation();
-    vulnerabilityMatching.setName("v");
-    vulnerabilityMatching.setDescription("desc");
-    vulnerabilityMatching.setScore(100.0);
-    vulnerabilityMatching.setAsset(matchingAsset);
-    vulnerabilityMatching.setAssetGroup(assetGroup);
-    vulnerabilityMatching.setExpirationTime(60L);
-    ManualExpectation manualMatching =
-        ManualExpectation.manualExpectationForAsset(
-            100.0, "m", "desc", matchingAsset, assetGroup, 60L);
-
-    List<Expectation> expectations =
-        new ArrayList<>(
-            List.of(preventionMatching, detectionMatching, vulnerabilityMatching, manualMatching));
-    int initialSize = expectations.size();
-
-    // Act
-    invokeComputeExpectationsForAssetGroup(expectations, content, assetGroup);
-
-    // Assert
-    assertEquals(initialSize + 4, expectations.size());
-    verify(assetGroupService).assetsFromAssetGroup(assetGroup.getId());
   }
 
   @Test
