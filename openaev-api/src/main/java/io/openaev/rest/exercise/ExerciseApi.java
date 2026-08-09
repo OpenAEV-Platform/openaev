@@ -17,6 +17,7 @@ import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -25,6 +26,8 @@ import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ComcheckSpecification;
 import io.openaev.database.specification.ExerciseLogSpecification;
+import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
@@ -120,6 +123,8 @@ public class ExerciseApi extends RestBehavior {
   private final WorkflowService workflowService;
   private final PreviewFeatureService previewFeatureService;
   private final ExpectationsDriftService expectationsDriftService;
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
 
   // endregion
 
@@ -504,6 +509,12 @@ public class ExerciseApi extends RestBehavior {
     // workflow to the simulation
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
         && Boolean.TRUE.equals(input.getIsChaining())) {
+      // Chaining is an Enterprise Edition feature: reject the creation of a chaining simulation
+      // when the enterprise license is inactive
+      if (enterpriseEditionService.isEnterpriseLicenseInactive(
+          licenseCacheManager.getEnterpriseEditionInfo())) {
+        throw new EnterpriseEditionException("Enterprise Edition license required");
+      }
       workflowService.creationWorkflow(savedExercise);
     }
 

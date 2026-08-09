@@ -143,6 +143,27 @@ public class ExerciseApiTest extends IntegrationTest {
     assertEquals(customDashboardSaved.getId(), newExercise.getCustomDashboard().getId());
   }
 
+  @DisplayName("Create chained exercise fails without enterprise edition")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_chainedExerciseCreationWithoutEE_should_fail() throws Exception {
+    // Arrange
+    CreateExerciseInput exerciseInput = new CreateExerciseInput();
+    exerciseInput.setName("My chained exercise");
+    exerciseInput.setIsChaining(true);
+
+    // Act & Assert
+    this.mvc
+        .perform(
+            post(EXERCISE_URI)
+                .content(asJsonString(exerciseInput))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+  }
+
   @Nested
   @DisplayName("Retrieving exercise informations")
   class RetrievingExercises {

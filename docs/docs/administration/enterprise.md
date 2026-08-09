@@ -69,6 +69,14 @@ according to the [OpenAEV architecture](../deployment/platform/overview.md#archi
 
 OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE Executor deployment guide](../deployment/ecosystem/executors.md#mde-agent) for the required Azure app permissions and Live Response setup.
 
+### Inject chaining workflows
+
+Inject chaining orchestrates conditional, automated execution of injects within a scenario or simulation workflow. Creating or importing a chaining scenario or simulation requires an active Enterprise Edition license: without one, the platform rejects the operation with a license restriction error.
+
+!!! note
+
+    Inject chaining is currently gated behind the `INJECT_CHAINING` preview feature flag in addition to the Enterprise Edition license.
+
 ## Remediations in CVEs
 
 More detail: [CVEs](taxonomies.md) and [Findings view](../usage/evaluate/findings/findings.md).

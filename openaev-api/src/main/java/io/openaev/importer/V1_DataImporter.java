@@ -16,10 +16,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.domain.DomainService;
@@ -91,6 +94,8 @@ public class V1_DataImporter implements Importer {
   private final io.openaev.service.chaining.WorkflowService workflowService;
   private final io.openaev.service.chaining.StepService chainingStepService;
   private final io.openaev.service.chaining.ConditionService chainingConditionService;
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
 
   private final InjectorContractContentUtils injectorContractContentUtils;
 
@@ -1844,6 +1849,12 @@ public class V1_DataImporter implements Importer {
     JsonNode workflowNode = importNode.get(workflowKey);
     if (workflowNode == null || workflowNode.isNull() || workflowNode.isEmpty()) {
       return;
+    }
+    // return an exception if the enterprise license is inactive when trying to create a chaining
+    // simulation
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
+      throw new EnterpriseEditionException("Enterprise Edition license required");
     }
 
     try {
