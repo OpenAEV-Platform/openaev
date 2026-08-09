@@ -158,9 +158,11 @@ class TenantServiceTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
     TenantContext.setCurrentTenant(created.getId());
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
 
+    // injectors is on v2 isolation (no v1 @Filter anymore) but this test's context does not
+    // activate it (application-test.properties keeps active-tables empty), so a bare findByType
+    // would return every tenant's row unfiltered: assert by explicit tenant attribution instead,
+    // using the tenant-scoped repository method kept for exactly this purpose.
     Injector emailInjector =
         injectorRepository
             .findByTypeAndTenantId(EmailContract.TYPE, created.getId())
@@ -175,8 +177,6 @@ class TenantServiceTest extends IntegrationTest {
     // to EMAIL_DEFAULT (the broken re-tenant/clear variants stole or deleted the source link).
     entityManager.clear();
     TenantContext.setCurrentTenant(DEFAULT_TENANT_UUID);
-    session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", DEFAULT_TENANT_UUID);
     Injector defaultEmailInjector =
         injectorRepository
             .findByTypeAndTenantId(EmailContract.TYPE, DEFAULT_TENANT_UUID)

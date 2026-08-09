@@ -88,8 +88,7 @@ public class PayloadService {
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
-    List<Injector> injectors =
-        this.injectorRepository.findAllByPayloadsAndTenantId(true, payload.getTenant().getId());
+    List<Injector> injectors = this.injectorRepository.findAllByPayloads(true);
 
     Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
     if (referenceInjector == null) {

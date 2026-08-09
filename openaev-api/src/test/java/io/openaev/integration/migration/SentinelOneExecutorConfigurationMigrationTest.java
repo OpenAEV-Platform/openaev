@@ -6,6 +6,7 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.Tenant;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -65,7 +66,7 @@ public class SentinelOneExecutorConfigurationMigrationTest {
                   SentinelOneExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      sentinelOneExecutorConfigurationMigration.migrate();
+      sentinelOneExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -89,7 +90,7 @@ public class SentinelOneExecutorConfigurationMigrationTest {
                   SentinelOneExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      sentinelOneExecutorConfigurationMigration.migrate();
+      sentinelOneExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -161,7 +162,7 @@ public class SentinelOneExecutorConfigurationMigrationTest {
                   SentinelOneExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      sentinelOneExecutorConfigurationMigration.migrate();
+      sentinelOneExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(

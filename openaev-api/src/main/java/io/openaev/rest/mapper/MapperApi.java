@@ -222,6 +222,10 @@ public class MapperApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary testImportXLSFile(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this read (importInjectIntoScenarioFromXLS reads InjectorContract#
+      // getFirstInjector() to attach an injector to each previewed inject).
+      TxCtx ctx,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportTestInput input) {
     ImportMapper importMapper = mapperService.createImportMapper(input.getImportMapper());

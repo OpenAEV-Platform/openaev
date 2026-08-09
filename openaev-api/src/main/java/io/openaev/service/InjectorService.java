@@ -3,7 +3,6 @@ package io.openaev.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -114,9 +113,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   @Override
   protected Injector getConnectorById(String injectorId) {
-    return injectorRepository
-        .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-        .orElse(null);
+    return injectorRepository.findByInjectorId(injectorId).orElse(null);
   }
 
   @Override
@@ -148,11 +145,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteInjector(@NotBlank final String injectorId) throws ConnectorStatusException {
-    String tenantId = TenantContext.getCurrentTenant();
     Injector injector =
-        injectorRepository
-            .findByIdAndTenantId(injectorId, tenantId)
-            .orElseThrow(ElementNotFoundException::new);
+        injectorRepository.findByInjectorId(injectorId).orElseThrow(ElementNotFoundException::new);
+    String tenantId = injector.getTenantId();
     if (PlatformConnectors.isPlatformInjector(injector.getType())) {
       throw new BadRequestException(
           "The implant injector is required by the platform and cannot be deleted");
@@ -176,14 +171,14 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Tear the deployment down with the injector, and only delete the row ourselves when the
     // injector was not deployed through the Integration Manager.
     if (!deleteOwningConnectorInstance(injectorId)) {
-      injectorRepository.deleteByIdAndTenantId(injectorId, tenantId);
+      injectorRepository.deleteByInjectorId(injectorId);
     }
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
   }
 
   public Injector injector(String id) {
     return injectorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByInjectorId(id)
         .orElseThrow(() -> new ElementNotFoundException("Injector not found with id: " + id));
   }
 
@@ -192,10 +187,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         .collect(Collectors.toList());
   }
 
-  public List<Injector> findAllByIds(List<String> ids, String tenantId) {
-    List<ConnectorCompositeId> compositeIds =
-        ids.stream().map(id -> new ConnectorCompositeId(id, tenantId)).toList();
-    return injectorRepository.findAllById(compositeIds);
+  public List<Injector> findAllByIds(List<String> ids) {
+    return injectorRepository.findAllByInjectorIdIn(ids);
   }
 
   public InjectorOutput injectorOutput(String id) {
@@ -219,21 +212,23 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    * @return an Optional containing the injector if found, empty otherwise
    */
   public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
-    return injectorRepository.findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant());
+    return injectorRepository.findByType(injectorType);
   }
 
   /**
    * Retrieves IDs of resources associated with an injector.
    *
    * @param injectorId injector identifier.
+   * @param tenantId the requesting tenant, resolved by the caller from the request's single-tenant
+   *     scope
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
-  public ConnectorIds getInjectorRelationsId(String injectorId) {
-    return getConnectorRelationsId(injectorId);
+  public ConnectorIds getInjectorRelationsId(String injectorId, String tenantId) {
+    return getConnectorRelationsId(injectorId, tenantId);
   }
 
   public InjectorRegistration registerExternalInjector(
-      InjectorCreateInput input, Optional<MultipartFile> file) {
+      InjectorCreateInput input, Optional<MultipartFile> file, String tenantId) {
     try {
       // Upload icon
       if (file.isPresent() && "image/png".equals(file.get().getContentType())) {
@@ -247,10 +242,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       // nor mis-attributed to a generic default).
       Organization authorOrganization = resolveInjectorAuthor(input.getAuthor(), input.getName());
       // We need to support upsert for registration
-      Injector injector =
-          injectorRepository
-              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
-              .orElse(null);
+      Injector injector = injectorRepository.findByInjectorId(input.getId()).orElse(null);
       if (injector != null) {
         updateExistingExternalInjector(
             injector,
@@ -275,7 +267,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         newInjector.setExecutorCommands(input.getExecutorCommands());
         newInjector.setExecutorClearCommands(input.getExecutorClearCommands());
         newInjector.setPayloads(input.getPayloads());
-        newInjector.setTenantId(TenantContext.getCurrentTenant());
+        newInjector.setTenantId(tenantId);
         Injector savedInjector = injectorRepository.save(newInjector);
         // Save the contracts
         List<InjectorContract> injectorContracts =

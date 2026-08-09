@@ -730,8 +730,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertNotNull(injectorIdsJson);
     String[] injectorIds = mapper.readValue(injectorIdsJson, String[].class);
     for (String id : injectorIds) {
-      injectorRepository.deleteByIdAndTenantId(
-          id, io.openaev.context.TenantContext.getCurrentTenant());
+      injectorRepository.deleteByInjectorId(id);
     }
     entityManager.flush();
     entityManager.clear();

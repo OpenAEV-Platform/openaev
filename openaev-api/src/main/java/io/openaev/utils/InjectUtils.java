@@ -62,12 +62,11 @@ public class InjectUtils {
    * @return the resolved Injector, or {@code null} if no contract is provided
    * @throws ElementNotFoundException if the explicit injector ID does not exist
    */
-  @SuppressWarnings("deprecation")
   public Injector resolveInjector(
       @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
     if (StringUtils.isNotBlank(injectorId)) {
       return injectorRepository
-          .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+          .findByInjectorId(injectorId)
           .orElseThrow(
               () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
     }
@@ -78,6 +77,9 @@ public class InjectUtils {
       return injectorContract.getInjectors().getFirst();
     }
     if (injectorContract != null) {
+      // The inject entity itself is still on multi-tenancy v1, so there is no TxCtx to read
+      // here yet; TenantContext is the legitimate source of the current tenant for this
+      // v1-scoped call site until injects are activated on v2.
       return injectorRepository
           .findFirstByContractsCompositeIdIdAndTenantId(
               injectorContract.getId(), TenantContext.getCurrentTenant())

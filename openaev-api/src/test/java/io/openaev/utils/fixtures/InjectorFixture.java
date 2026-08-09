@@ -41,6 +41,8 @@ public class InjectorFixture {
     injector.setExternal(false);
     injector.setCreatedAt(Instant.now());
     injector.setUpdatedAt(Instant.now());
+    // Write attribution is explicit since injectors went fully v2 (no more TenantIdBaseListener).
+    injector.setTenantId(TenantContext.getCurrentTenant());
     return injector;
   }
 

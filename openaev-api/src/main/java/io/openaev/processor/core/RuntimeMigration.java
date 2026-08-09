@@ -6,7 +6,6 @@ import io.openaev.processor.Processable;
 import io.openaev.service.DataPackService;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 /**
@@ -16,6 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Implementations must follow the {@code V{YYYYMMDD}_Description} naming convention to ensure
  * correct chronological ordering when mixed with {@link io.openaev.processor.datapack.DataPack
  * DataPack} instances.
+ *
+ * <p>Deliberately NOT {@code @Transactional}: this class is background code, driven by {@link
+ * io.openaev.processor.MigrationProcessor MigrationProcessor}, which opens the single tenant-scoped
+ * transaction (via {@code TenantScopedTransaction.execute}) around the whole {@link
+ * #process(Tenant)} call, idempotency check included. A subclass's {@link #doMigrate()} must NOT
+ * open its own transaction/scope — it runs inside the caller's transaction and inherits its scope
+ * automatically.
  */
 public abstract class RuntimeMigration implements Processable {
   private final DataPackService dataPackService;
@@ -29,7 +35,6 @@ public abstract class RuntimeMigration implements Processable {
   @Getter private final String migrationId = getProcessableId();
 
   @Override
-  @Transactional(rollbackFor = Exception.class)
   public MigrationProcessingResult process(Tenant tenant) {
     return dataPackService
         .findByIdAndTenant(migrationId, tenant)
