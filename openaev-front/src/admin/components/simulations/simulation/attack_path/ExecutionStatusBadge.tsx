@@ -62,11 +62,12 @@ const TERMINAL_INJECT_STATUSES = new Set(['EXECUTED', 'PARTIAL', 'ERROR']);
 // injector's status renders on FIRST PAINT — it used to cost two sequential fetches per visible row
 // (detail for the injectId, then the inject's status) and showed nothing for a second or two.
 //
-// Two cases still fetch:
+// Two cases still resolve live, but from the graph-provided injectId, with no detail fetch:
 //   - a payload-backed execution, because "did it run" is per AGENT there, read from that target's
 //     traces; the inject-level status cannot answer it for one agent among several;
 //   - a row with no status, or a non-terminal one (a live run): the graph's value would go stale until
 //     the next delta touching that row, so it is refined here rather than trusted.
+// The detail fetch only remains for a row the graph could not resolve (no injectId shipped).
 export const ExecutionRowStatusBadge = ({ simulationId, executionRef, endpointName, injectId, payloadId, executionStatus }: {
   simulationId: string;
   executionRef?: string;
@@ -79,32 +80,36 @@ export const ExecutionRowStatusBadge = ({ simulationId, executionRef, endpointNa
     && !payloadId
     && !!executionStatus
     && TERMINAL_INJECT_STATUSES.has(executionStatus.toUpperCase());
-  const [detail, setDetail] = useState<{
+  // Fetched fallback for a row the graph shipped no injectId for. Derived per render from the props
+  // otherwise, so a prop update (a delta filling the ids in) is picked up without a remount.
+  const [fetchedDetail, setFetchedDetail] = useState<{
     injectId?: string;
     payloadId?: string;
-  } | null>(injectId
-    ? {
-        injectId,
-        payloadId,
-      }
-    : null);
+  } | null>(null);
   useEffect(() => {
     let active = true;
-    if (!executionRef || settledFromGraph) {
+    if (!executionRef || injectId) {
+      setFetchedDetail(null);
       return () => {
         active = false;
       };
     }
     fetchExecutionDetail(simulationId, executionRef)
-      .then(r => active && setDetail(r.data))
-      .catch(() => active && setDetail(null));
+      .then(r => active && setFetchedDetail(r.data))
+      .catch(() => active && setFetchedDetail(null));
     return () => {
       active = false;
     };
-  }, [simulationId, executionRef, settledFromGraph]);
+  }, [simulationId, executionRef, injectId]);
   if (settledFromGraph) {
     return <InjectStatus status={executionStatus as InjectStatusType['status_name']} />;
   }
+  const detail = injectId
+    ? {
+        injectId,
+        payloadId,
+      }
+    : fetchedDetail;
   if (!detail?.injectId) {
     return null;
   }

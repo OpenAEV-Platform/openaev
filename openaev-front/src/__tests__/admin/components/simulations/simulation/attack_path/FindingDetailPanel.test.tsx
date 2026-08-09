@@ -78,6 +78,34 @@ describe('FindingDetailPanel value clamping', () => {
     expect(screen.getByText('Show more')).toBeDefined();
   });
 
+  it('re-collapses when a different value is shown while the panel stays mounted', () => {
+    // The panel is not remounted between two findings: without a reset the second long value would
+    // open already expanded because the first one's toggle left the state on.
+    const panel = (value: string) => (
+      <ThemeProvider theme={createTheme()}>
+        <FindingDetailPanel
+          value={value}
+          type="port"
+          simulationId="sim-1"
+          endpointLabel="CORP-HOST"
+          endpointName="CORP-HOST"
+          actions={[action('exec-1')]}
+          activeRef={null}
+          onSelect={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </ThemeProvider>
+    );
+    const { rerender } = render(panel(LONG_VALUE));
+    fireEvent.click(screen.getByText('Show more'));
+    expect(screen.getByText('Show less')).toBeDefined();
+
+    rerender(panel(`${LONG_VALUE} -- another run's output`));
+
+    expect(screen.getByText('Show more')).toBeDefined();
+    expect(screen.queryByText('Show less')).toBeNull();
+  });
+
   it('keeps the toggle when the value sits under the verdict badges', () => {
     renderPanel({
       value: LONG_VALUE,

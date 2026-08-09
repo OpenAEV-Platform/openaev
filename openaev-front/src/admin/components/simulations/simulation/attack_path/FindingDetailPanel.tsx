@@ -75,6 +75,13 @@ const FindingDetailPanel = ({
   const { t } = useFormatter();
   const isOutputOnly = isFinding === false;
   const [valueExpanded, setValueExpanded] = useState(false);
+  // The panel stays mounted while the user hops from one finding to the next: re-collapse whenever a
+  // DIFFERENT value comes in, so a long value never opens pre-expanded by the previous one's toggle.
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setValueExpanded(false);
+  }
   const isValueLong = value.length > VALUE_CLAMP_CHARS;
 
   // Colour a verdict per its expectation type: a successful prevention is green, a successful
