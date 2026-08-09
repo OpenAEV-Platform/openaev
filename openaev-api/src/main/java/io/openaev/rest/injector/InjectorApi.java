@@ -163,7 +163,8 @@ public class InjectorApi extends RestBehavior {
       resourceType = ResourceType.INJECTOR)
   // Single-id lookup on a composite-PK table (built-in injector ids repeat across tenants):
   // force a single-tenant scope so findByInjectorId stays deterministic.
-  public InjectorOutput injector(@RequireTenantSelector TxCtx ctx, @PathVariable String injectorId) {
+  public InjectorOutput injector(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String injectorId) {
     return injectorService.injectorOutput(injectorId);
   }
 
