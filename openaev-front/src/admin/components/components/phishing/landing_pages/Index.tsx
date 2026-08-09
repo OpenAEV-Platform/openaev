@@ -39,7 +39,7 @@ const Index = () => {
           elements={[
             { label: t('Components') },
             {
-              label: t('Phishing pages'),
+              label: t('Phishing'),
               link: '/admin/components/phishing/landing_pages',
             },
             {

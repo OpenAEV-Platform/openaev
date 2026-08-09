@@ -5,7 +5,10 @@ import {
   getReferential,
   postReferential,
   putReferential,
+  simpleDelCall,
+  simplePostCall,
 } from '../../utils/Action';
+import { type SearchPaginationInput } from '../../utils/api-types';
 import {
   arrayOfPhishingEmailTemplates,
   arrayOfPhishingLandingPages,
@@ -13,12 +16,32 @@ import {
   phishingLandingPage,
 } from './phishing-schema';
 
+// Bulk processing input shapes mirror the backend
+// PhishingLandingPageBulkProcessingInput / PhishingEmailTemplateBulkProcessingInput DTOs.
+export interface PhishingLandingPageBulkProcessingInput {
+  search_pagination_input?: SearchPaginationInput;
+  landing_page_ids_to_process?: string[];
+  landing_page_ids_to_ignore?: string[];
+}
+
+export interface PhishingEmailTemplateBulkProcessingInput {
+  search_pagination_input?: SearchPaginationInput;
+  email_template_ids_to_process?: string[];
+  email_template_ids_to_ignore?: string[];
+}
+
 // -- LANDING PAGES --
 
 const LANDING_PAGES_URI = '/api/phishing/landing-pages';
 
 export const fetchPhishingLandingPages = () => (dispatch: Dispatch) => {
   return getReferential(arrayOfPhishingLandingPages, LANDING_PAGES_URI)(dispatch);
+};
+export const searchPhishingLandingPages = (input: SearchPaginationInput) => {
+  return simplePostCall(`${LANDING_PAGES_URI}/search`, input);
+};
+export const bulkDeletePhishingLandingPages = (input: PhishingLandingPageBulkProcessingInput) => {
+  return simpleDelCall(LANDING_PAGES_URI, { data: input });
 };
 export const fetchPhishingLandingPage = (landingPageId: string) => (dispatch: Dispatch) => {
   return getReferential(phishingLandingPage, `${LANDING_PAGES_URI}/${landingPageId}`)(dispatch);
@@ -45,6 +68,12 @@ const EMAIL_TEMPLATES_URI = '/api/phishing/email-templates';
 
 export const fetchPhishingEmailTemplates = () => (dispatch: Dispatch) => {
   return getReferential(arrayOfPhishingEmailTemplates, EMAIL_TEMPLATES_URI)(dispatch);
+};
+export const searchPhishingEmailTemplates = (input: SearchPaginationInput) => {
+  return simplePostCall(`${EMAIL_TEMPLATES_URI}/search`, input);
+};
+export const bulkDeletePhishingEmailTemplates = (input: PhishingEmailTemplateBulkProcessingInput) => {
+  return simpleDelCall(EMAIL_TEMPLATES_URI, { data: input });
 };
 export const fetchPhishingEmailTemplate = (emailTemplateId: string) => (dispatch: Dispatch) => {
   return getReferential(phishingEmailTemplate, `${EMAIL_TEMPLATES_URI}/${emailTemplateId}`)(dispatch);

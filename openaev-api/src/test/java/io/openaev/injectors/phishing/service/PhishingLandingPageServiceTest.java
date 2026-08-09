@@ -1,5 +1,6 @@
 package io.openaev.injectors.phishing.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -20,8 +21,10 @@ import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injectors.phishing.PhishingContract;
+import io.openaev.injectors.phishing.form.PhishingLandingPageBulkProcessingInput;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +32,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Phishing landing page service tests")
@@ -156,5 +160,45 @@ class PhishingLandingPageServiceTest {
       // -- ASSERT --
       assertSame(landingPage, saved);
     }
+  }
+
+  @Test
+  @DisplayName("bulkDelete removes every resolved landing page and returns their ids")
+  void bulkDelete_should_deleteResolvedLandingPages() {
+    // -- ARRANGE --
+    PhishingLandingPage first = new PhishingLandingPage();
+    first.setId("lp-1");
+    first.setName("First");
+    PhishingLandingPage second = new PhishingLandingPage();
+    second.setId("lp-2");
+    second.setName("Second");
+    when(landingPageRepository.findAll(any(Specification.class)))
+        .thenReturn(List.of(first, second));
+    when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(first));
+    when(landingPageRepository.findById("lp-2")).thenReturn(Optional.of(second));
+    when(injectorContractRepository.existsById(any(InjectorContractId.class))).thenReturn(false);
+
+    PhishingLandingPageBulkProcessingInput input = new PhishingLandingPageBulkProcessingInput();
+    input.setLandingPageIdsToProcess(List.of("lp-1", "lp-2"));
+
+    // -- ACT --
+    List<String> deleted = phishingLandingPageService.bulkDelete(input);
+
+    // -- ASSERT --
+    assertEquals(List.of("lp-1", "lp-2"), deleted);
+    verify(landingPageRepository).deleteById("lp-1");
+    verify(landingPageRepository).deleteById("lp-2");
+  }
+
+  @Test
+  @DisplayName("bulkDelete rejects an input with neither ids nor a search input")
+  void bulkDelete_should_rejectEmptyInput() {
+    // -- ARRANGE --
+    PhishingLandingPageBulkProcessingInput input = new PhishingLandingPageBulkProcessingInput();
+
+    // -- ACT / ASSERT --
+    assertThrows(
+        BadRequestException.class, () -> phishingLandingPageService.bulkDelete(input));
+    verify(landingPageRepository, never()).deleteById(any());
   }
 }

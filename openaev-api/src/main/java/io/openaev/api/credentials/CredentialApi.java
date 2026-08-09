@@ -98,4 +98,14 @@ public class CredentialApi extends RestBehavior {
   public void deleteCredential(TxCtx ctx, @PathVariable String credentialId) {
     credentialService.deleteCredential(credentialId);
   }
+
+  @LogExecutionTime
+  @DeleteMapping
+  @Transactional
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.CREDENTIAL_ASSET)
+  @Operation(summary = "Bulk delete credentials")
+  public List<String> bulkDeleteCredentials(
+      TxCtx ctx, @RequestBody @Valid CredentialBulkProcessingInput input) {
+    return credentialService.bulkDelete(ctx, input);
+  }
 }

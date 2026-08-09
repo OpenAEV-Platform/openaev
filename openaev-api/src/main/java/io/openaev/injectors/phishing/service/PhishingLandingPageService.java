@@ -10,6 +10,8 @@ import static io.openaev.injector_contract.fields.ContractExpectations.expectati
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 import static io.openaev.injector_contract.fields.ContractText.textField;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +27,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
+import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.helper.StreamHelper;
 import io.openaev.injector_contract.Contract;
@@ -33,10 +36,13 @@ import io.openaev.injector_contract.ContractDef;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.injectors.phishing.PhishingContract;
+import io.openaev.injectors.phishing.form.PhishingLandingPageBulkProcessingInput;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -47,8 +53,12 @@ import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 /**
  * CRUD for reusable phishing landing pages plus the dynamic {@link InjectorContract} synthesis that
@@ -76,6 +86,14 @@ public class PhishingLandingPageService {
 
   public List<PhishingLandingPage> landingPages() {
     return StreamHelper.fromIterable(landingPageRepository.findAll());
+  }
+
+  public Page<PhishingLandingPage> search(@NotNull final SearchPaginationInput input) {
+    return buildPaginationJPA(
+        (Specification<PhishingLandingPage> specification, Pageable pageable) ->
+            landingPageRepository.findAll(specification, pageable),
+        input,
+        PhishingLandingPage.class);
   }
 
   public PhishingLandingPage landingPage(@NotBlank final String id) {
@@ -133,6 +151,47 @@ public class PhishingLandingPageService {
     PhishingLandingPage landingPage = landingPage(id);
     deleteInjectorContract(landingPage);
     landingPageRepository.deleteById(id);
+  }
+
+  /**
+   * Bulk delete of landing pages, either from an explicit list of ids or from a search input
+   * (select all with optional exclusions). Each page is removed through the regular {@link
+   * #delete(String)} path so its synthesized Threat Arsenal contract is cleaned up too.
+   *
+   * @param input the bulk processing input (exactly one of ids / search input must be provided)
+   * @return the ids of the deleted landing pages
+   */
+  public List<String> bulkDelete(@NotNull final PhishingLandingPageBulkProcessingInput input) {
+    boolean hasIds = !CollectionUtils.isEmpty(input.getLandingPageIdsToProcess());
+    boolean hasSearch = input.getSearchPaginationInput() != null;
+    if (hasIds == hasSearch) {
+      throw new BadRequestException(
+          "Either landing_page_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+
+    Specification<PhishingLandingPage> specification;
+    if (hasSearch) {
+      // Same specification chain as the list search (filter group + text search), so the deletion
+      // scope matches exactly what the user sees in the list.
+      specification =
+          FilterUtilsJpa.<PhishingLandingPage>computeFilterGroupJpa(
+                  input.getSearchPaginationInput().getFilterGroup())
+              .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+    } else {
+      specification = SpecificationUtils.hasIdIn(input.getLandingPageIdsToProcess());
+    }
+    if (!CollectionUtils.isEmpty(input.getLandingPageIdsToIgnore())) {
+      List<String> idsToIgnore = input.getLandingPageIdsToIgnore();
+      specification =
+          specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+    }
+
+    List<String> idsToDelete =
+        landingPageRepository.findAll(specification).stream()
+            .map(PhishingLandingPage::getId)
+            .toList();
+    idsToDelete.forEach(this::delete);
+    return idsToDelete;
   }
 
   // -- SEED --

@@ -6,12 +6,16 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.ResourceType;
+import io.openaev.injectors.phishing.form.PhishingLandingPageBulkProcessingInput;
 import io.openaev.injectors.phishing.form.PhishingLandingPageInput;
 import io.openaev.injectors.phishing.form.PhishingLandingPageLogoInput;
 import io.openaev.injectors.phishing.service.PhishingLandingPageService;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,6 +41,17 @@ public class PhishingLandingPageApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PHISHING_LANDING_PAGE)
   public Iterable<PhishingLandingPage> landingPages() {
     return landingPageService.landingPages();
+  }
+
+  @PostMapping({
+    PHISHING_LANDING_PAGE_URI + "/search",
+    TENANT_PHISHING_LANDING_PAGE_URI + "/search"
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PHISHING_LANDING_PAGE)
+  public Page<PhishingLandingPage> searchLandingPages(
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return landingPageService.search(searchPaginationInput);
   }
 
   @GetMapping({PHISHING_LANDING_PAGE_URI + "/{id}", TENANT_PHISHING_LANDING_PAGE_URI + "/{id}"})
@@ -119,6 +134,14 @@ public class PhishingLandingPageApi extends RestBehavior {
       resourceType = ResourceType.PHISHING_LANDING_PAGE)
   public void deleteLandingPage(@PathVariable String id) {
     landingPageService.delete(id);
+  }
+
+  @DeleteMapping({PHISHING_LANDING_PAGE_URI, TENANT_PHISHING_LANDING_PAGE_URI})
+  @Transactional
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PHISHING_LANDING_PAGE)
+  public List<String> bulkDeleteLandingPages(
+      @RequestBody @Valid final PhishingLandingPageBulkProcessingInput input) {
+    return landingPageService.bulkDelete(input);
   }
 
   private void applyInput(PhishingLandingPage landingPage, PhishingLandingPageInput input) {

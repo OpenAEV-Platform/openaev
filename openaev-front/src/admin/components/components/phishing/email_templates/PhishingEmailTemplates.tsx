@@ -1,172 +1,256 @@
 import { MailOutlineOutlined } from '@mui/icons-material';
-import { List, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
-import { type CSSProperties } from 'react';
-import { Link } from 'react-router';
+import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchPhishingEmailTemplates } from '../../../../../actions/phishing/phishing-action';
-import { type PhishingEmailTemplatesHelper } from '../../../../../actions/phishing/phishing-helper';
-import Breadcrumbs from '../../../../../components/Breadcrumbs';
+import { bulkDeletePhishingEmailTemplates, searchPhishingEmailTemplates } from '../../../../../actions/phishing/phishing-action';
+import { initSorting } from '../../../../../components/common/queryable/Page';
+import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
+import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
+import SortHeadersComponentV2 from '../../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../../../components/common/queryable/style/style';
+import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
+import { type Header } from '../../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../../components/i18n';
-import SearchFilter from '../../../../../components/SearchFilter';
-import { useHelper } from '../../../../../store';
-import { type PhishingEmailTemplate } from '../../../../../utils/api-types';
-import { useAppDispatch } from '../../../../../utils/hooks';
-import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { Can } from '../../../../../utils/permissions/permissionsContext';
+import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
+import { type PhishingEmailTemplate, type SearchPaginationInput } from '../../../../../utils/api-types';
+import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
+import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
-import useSearchAndFilter from '../../../../../utils/SortingFiltering';
+import ToolBar from '../../../common/ToolBar';
 import CreatePhishingEmailTemplate from './CreatePhishingEmailTemplate';
 import PhishingEmailTemplatePopover from './PhishingEmailTemplatePopover';
 
 const useStyles = makeStyles()(() => ({
-  parameters: {
-    marginTop: -10,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 52,
-  },
-  filters: {
-    display: 'flex',
-    gap: '10px',
-  },
-  itemHead: {
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-    height: 40,
-  },
+  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
 
-const headerStyles: Record<string, CSSProperties> = {
-  phishing_email_template_name: {
-    width: '30%',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  phishing_email_template_subject: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-};
-
 const inlineStyles: Record<string, CSSProperties> = {
-  phishing_email_template_name: {
-    width: '30%',
-    height: 20,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  phishing_email_template_subject: {
-    height: 20,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
+  phishing_email_template_name: { width: '25%' },
+  phishing_email_template_subject: { width: '25%' },
+  phishing_email_template_from_email: { width: '20%' },
+  phishing_email_template_updated_at: { width: '30%' },
 };
 
 const PhishingEmailTemplates = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
-  const dispatch = useAppDispatch();
-  const { t } = useFormatter();
-  const searchColumns = ['name', 'subject'];
-  const filtering = useSearchAndFilter('phishing_email_template', 'name', searchColumns);
-  const { emailTemplates }: { emailTemplates: PhishingEmailTemplate[] } = useHelper(
-    (helper: PhishingEmailTemplatesHelper) => ({ emailTemplates: helper.getPhishingEmailTemplates() }),
+  const { t, nsdt } = useFormatter();
+  const ability = useContext(AbilityContext);
+
+  // Query param
+  const [searchParams] = useSearchParams();
+  const [search] = searchParams.getAll('search');
+  const [searchId] = searchParams.getAll('id');
+
+  const headers: Header[] = useMemo(() => [
+    {
+      field: 'phishing_email_template_name',
+      label: 'Name',
+      isSortable: true,
+      value: (emailTemplate: PhishingEmailTemplate) => emailTemplate.phishing_email_template_name,
+    },
+    {
+      field: 'phishing_email_template_subject',
+      label: 'Subject',
+      isSortable: true,
+      value: (emailTemplate: PhishingEmailTemplate) => emailTemplate.phishing_email_template_subject,
+    },
+    {
+      field: 'phishing_email_template_from_email',
+      label: 'From',
+      isSortable: true,
+      value: (emailTemplate: PhishingEmailTemplate) => emailTemplate.phishing_email_template_from_email || '-',
+    },
+    {
+      field: 'phishing_email_template_updated_at',
+      label: 'Updated',
+      isSortable: true,
+      value: (emailTemplate: PhishingEmailTemplate) => nsdt(emailTemplate.phishing_email_template_updated_at),
+    },
+  ], [nsdt]);
+
+  const availableFilterNames = [
+    'phishing_email_template_name',
+    'phishing_email_template_subject',
+    'phishing_email_template_from_name',
+    'phishing_email_template_from_email',
+  ];
+
+  const [emailTemplates, setEmailTemplates] = useState<PhishingEmailTemplate[]>([]);
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
+    'phishing_email_templates',
+    buildSearchPagination({
+      sorts: initSorting('phishing_email_template_name'),
+      textSearch: search,
+    }),
   );
-  useDataLoader(() => {
-    dispatch(fetchPhishingEmailTemplates());
-  });
-  const sorted: PhishingEmailTemplate[] = filtering.filterAndSort(emailTemplates);
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const searchEmailTemplatesToLoad = (input: SearchPaginationInput) => {
+    setLoading(true);
+    return searchPhishingEmailTemplates(input).finally(() => setLoading(false));
+  };
+
+  // Bulk selection
+  const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.PHISHING);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<PhishingEmailTemplate>(
+    'phishing_email_template',
+    emailTemplates,
+    queryableHelpers.paginationHelpers.getTotalElements(),
+  );
+
+  const bulkDelete = () => {
+    bulkDeletePhishingEmailTemplates({
+      search_pagination_input: selectAll ? searchPaginationInput : undefined,
+      email_template_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+      email_template_ids_to_ignore: Object.keys(deSelectedElements),
+    }).then((result) => {
+      const deletedIds: string[] = result.data ?? [];
+      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
+      setEmailTemplates(emailTemplates.filter(emailTemplate => !deletedIds.includes(emailTemplate.phishing_email_template_id)));
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
+  };
+
   return (
     <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{ label: t('Components') }, {
-          label: t('Phishing emails'),
-          current: true,
-        }]}
+      <PaginationComponentV2
+        fetch={searchEmailTemplatesToLoad}
+        searchPaginationInput={searchPaginationInput}
+        setContent={setEmailTemplates}
+        entityPrefix="phishing_email_template"
+        availableFilterNames={availableFilterNames}
+        queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <Box display="flex" gap={1} alignItems="center">
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.PHISHING}>
+              <CreatePhishingEmailTemplate onCreate={result => setEmailTemplates([result, ...emailTemplates])} />
+            </Can>
+          </Box>
+        )}
       />
-      <div className={classes.parameters}>
-        <div className={classes.filters}>
-          <SearchFilter variant="small" onChange={filtering.handleSearch} keyword={filtering.keyword} />
-        </div>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PHISHING}>
-          <CreatePhishingEmailTemplate />
-        </Can>
-      </div>
-      <div className="clearfix" />
       <List>
-        <ListItemButton
+        <ListItem
           classes={{ root: classes.itemHead }}
-          component="div"
-          disableRipple
           divider={false}
-          sx={{
-            'cursor': 'pointer',
-            '&:hover': { backgroundColor: 'transparent' },
-          }}
+          sx={numberOfSelectedElements > 0
+            ? {
+                backgroundColor: 'background.accent',
+                paddingBlock: 0.5,
+              }
+            : { paddingTop: 0 }}
+          {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
         >
-          <ListItemIcon>
-            <span style={{
-              padding: '0 8px 0 8px',
-              fontWeight: 700,
-              fontSize: 12,
-            }}
-            >
-              &nbsp;
-            </span>
-          </ListItemIcon>
-          <ListItemText
-            primary={(
-              <div style={bodyItemsStyles.bodyItems}>
-                {filtering.buildHeader('phishing_email_template_name', 'Name', true, headerStyles)}
-                {filtering.buildHeader('phishing_email_template_subject', 'Subject', true, headerStyles)}
-              </div>
-            )}
-          />
-          <ListItemSecondaryAction>&nbsp;</ListItemSecondaryAction>
-        </ListItemButton>
-        {sorted.map(emailTemplate => (
-          <ListItemButton
-            key={emailTemplate.phishing_email_template_id}
-            classes={{ root: classes.item }}
-            divider
-            component={Link}
-            to={`/admin/components/phishing/email_templates/${emailTemplate.phishing_email_template_id}`}
-          >
-            <ListItemIcon>
-              <MailOutlineOutlined color="primary" />
+          {canDelete && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
+              />
             </ListItemIcon>
+          )}
+          {numberOfSelectedElements > 0 ? (
             <ListItemText
               primary={(
-                <div style={bodyItemsStyles.bodyItems}>
-                  <div style={{
-                    ...bodyItemsStyles.bodyItem,
-                    ...inlineStyles.phishing_email_template_name,
-                  }}
-                  >
-                    {emailTemplate.phishing_email_template_name}
-                  </div>
-                  <div style={{
-                    ...bodyItemsStyles.bodyItem,
-                    ...inlineStyles.phishing_email_template_subject,
-                  }}
-                  >
-                    {emailTemplate.phishing_email_template_subject}
-                  </div>
-                </div>
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage={canDelete}
+                  deleteConfirmationSingular={t('Do you want to delete this phishing email template?')}
+                  deleteConfirmationPlural={t('Do you want to delete these {count} phishing email templates?', { count: String(numberOfSelectedElements) })}
+                />
               )}
             />
-            <ListItemSecondaryAction>
-              <PhishingEmailTemplatePopover emailTemplate={emailTemplate} inList />
-            </ListItemSecondaryAction>
-          </ListItemButton>
-        ))}
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
+                  />
+                )}
+              />
+            </>
+          )}
+        </ListItem>
+        {loading
+          ? <PaginatedListLoader Icon={MailOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canDelete} />
+          : emailTemplates.map((emailTemplate: PhishingEmailTemplate) => (
+              <ListItem
+                key={emailTemplate.phishing_email_template_id}
+                divider
+                disablePadding
+                secondaryAction={(
+                  <PhishingEmailTemplatePopover
+                    emailTemplate={emailTemplate}
+                    inList
+                    openEditOnInit={emailTemplate.phishing_email_template_id === searchId}
+                    onUpdate={result => setEmailTemplates(emailTemplates.map(v => (v.phishing_email_template_id !== result.phishing_email_template_id ? v : result)))}
+                    onDelete={result => setEmailTemplates(emailTemplates.filter(v => v.phishing_email_template_id !== result))}
+                  />
+                )}
+              >
+                <ListItemButton
+                  classes={{ root: classes.item }}
+                  component={Link}
+                  to={`/admin/components/phishing/email_templates/${emailTemplate.phishing_email_template_id}`}
+                >
+                  {canDelete && (
+                    <ListItemIcon
+                      style={{ minWidth: 40 }}
+                      onClick={event => onToggleEntity(emailTemplate, event)}
+                    >
+                      <Checkbox
+                        edge="start"
+                        checked={
+                          (selectAll && !(emailTemplate.phishing_email_template_id in (deSelectedElements || {})))
+                          || emailTemplate.phishing_email_template_id in (selectedElements || {})
+                        }
+                        disableRipple
+                      />
+                    </ListItemIcon>
+                  )}
+                  <ListItemIcon>
+                    <MailOutlineOutlined color="primary" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={(
+                      <div style={bodyItemsStyles.bodyItems}>
+                        {headers.map(header => (
+                          <div
+                            key={header.field}
+                            style={{
+                              ...bodyItemsStyles.bodyItem,
+                              ...inlineStyles[header.field],
+                            }}
+                          >
+                            {header.value?.(emailTemplate)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
       </List>
     </>
   );

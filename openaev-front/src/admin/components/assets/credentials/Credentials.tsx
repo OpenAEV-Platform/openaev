@@ -1,9 +1,9 @@
 import { PlayCircleOutlineOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useMemo, useState } from 'react';
+import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { type CSSProperties, useContext, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
-import { fetchCredential, searchCredentials } from '../../../../actions/assets/credential-actions';
+import { bulkDeleteCredentials, fetchCredential, searchCredentials } from '../../../../actions/assets/credential-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -21,8 +21,10 @@ import {
   type CredentialOutput,
   type SearchPaginationInput,
 } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/permissionsContext';
+import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
+import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetStatus from '../AssetStatus';
@@ -44,6 +46,7 @@ const inlineStyles: Record<string, CSSProperties> = {
 const Credentials = () => {
   const { t, fldt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
+  const ability = useContext(AbilityContext);
   const [loading, setLoading] = useState<boolean>(true);
   const [credentials, setCredentials] = useState<CredentialOutput[]>([]);
 
@@ -75,6 +78,36 @@ const Credentials = () => {
   const searchCredentialsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
     return searchCredentials(input).finally(() => setLoading(false));
+  };
+
+  // Bulk selection
+  const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.PLATFORM_SETTINGS);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<CredentialOutput>(
+    'credential',
+    credentials,
+    queryableHelpers.paginationHelpers.getTotalElements(),
+  );
+
+  const bulkDelete = () => {
+    bulkDeleteCredentials({
+      search_pagination_input: selectAll ? searchPaginationInput : undefined,
+      credential_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+      credential_ids_to_ignore: Object.keys(deSelectedElements),
+    }).then((result) => {
+      const deletedIds: string[] = result.data ?? [];
+      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
+      setCredentials(current => current.filter(credential => !deletedIds.includes(credential.credential_id ?? '')));
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
   };
 
   const headers: Header[] = useMemo(() => [
@@ -159,84 +192,132 @@ const Credentials = () => {
         )}
       />
 
-      <ListItem
-        divider={false}
-        secondaryAction={<span>&nbsp;</span>}
-      >
-        <>
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
+      <List>
+        <ListItem
+          divider={false}
+          sx={numberOfSelectedElements > 0
+            ? {
+                backgroundColor: 'background.accent',
+                paddingBlock: 0.5,
+              }
+            : { paddingTop: 0 }}
+          {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
+        >
+          {canDelete && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
               />
-            )}
-          />
-        </>
-      </ListItem>
-
-      {loading
-        ? <PaginatedListLoader Icon={PlayCircleOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-        : credentials.map((credential: CredentialOutput) => (
-            <ListItem
-              key={credential.credential_id}
-              disablePadding
-              divider
-              secondaryAction={(
-                <CredentialPopover
-                  credentialId={credential.credential_id ?? ''}
-                  credentialName={credential.credential_name ?? ''}
-                  resolveInitialValues={() => resolveCredentialInitialValues(credential.credential_id ?? '')}
-                  onUpdate={(updated) => {
-                    setCredentials(current => current.map(item => (
-                      item.credential_id === updated.credential_id
-                        ? {
-                            ...item,
-                            ...updated,
-                          }
-                        : item
-                    )));
-                  }}
-                  onDelete={(deletedId) => {
-                    setCredentials(current => current.filter(item => item.credential_id !== deletedId));
-                  }}
+            </ListItemIcon>
+          )}
+          {numberOfSelectedElements > 0 ? (
+            <ListItemText
+              primary={(
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage={canDelete}
+                  deleteConfirmationSingular={t('Do you want to delete this credential?')}
+                  deleteConfirmationPlural={t('Do you want to delete these {count} credentials?', { count: String(numberOfSelectedElements) })}
                 />
               )}
-            >
-              <ListItemButton
-                sx={{ height: 50 }}
-                component={Link}
-                to={`/admin/credentials/${credential.credential_id}`}
-              >
-                <ListItemIcon>
-                  <AssetCategoryIcon
-                    scope="credential"
-                    category={credential.credential_type ?? null}
-                    color="primary"
+            />
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
                   />
-                </ListItemIcon>
-                <ListItemText
-                  primary={(
-                    <div style={bodyItemsStyles.bodyItems}>
-                      {headers.map(header => (
-                        <div
-                          key={header.field}
-                          style={{
-                            ...bodyItemsStyles.bodyItem,
-                            ...inlineStyles[header.field],
-                          }}
-                        >
-                          {header.value?.(credential)}
-                        </div>
-                      ))}
-                    </div>
+                )}
+              />
+            </>
+          )}
+        </ListItem>
+
+        {loading
+          ? <PaginatedListLoader Icon={PlayCircleOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canDelete} />
+          : credentials.map((credential: CredentialOutput) => (
+              <ListItem
+                key={credential.credential_id}
+                disablePadding
+                divider
+                secondaryAction={(
+                  <CredentialPopover
+                    credentialId={credential.credential_id ?? ''}
+                    credentialName={credential.credential_name ?? ''}
+                    resolveInitialValues={() => resolveCredentialInitialValues(credential.credential_id ?? '')}
+                    onUpdate={(updated) => {
+                      setCredentials(current => current.map(item => (
+                        item.credential_id === updated.credential_id
+                          ? {
+                              ...item,
+                              ...updated,
+                            }
+                          : item
+                      )));
+                    }}
+                    onDelete={(deletedId) => {
+                      setCredentials(current => current.filter(item => item.credential_id !== deletedId));
+                    }}
+                  />
+                )}
+              >
+                <ListItemButton
+                  sx={{ height: 50 }}
+                  component={Link}
+                  to={`/admin/credentials/${credential.credential_id}`}
+                >
+                  {canDelete && (
+                    <ListItemIcon
+                      style={{ minWidth: 40 }}
+                      onClick={event => onToggleEntity(credential, event)}
+                    >
+                      <Checkbox
+                        edge="start"
+                        checked={
+                          (selectAll && !((credential.credential_id ?? '') in (deSelectedElements || {})))
+                          || (credential.credential_id ?? '') in (selectedElements || {})
+                        }
+                        disableRipple
+                      />
+                    </ListItemIcon>
                   )}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
+                  <ListItemIcon>
+                    <AssetCategoryIcon
+                      scope="credential"
+                      category={credential.credential_type ?? null}
+                      color="primary"
+                    />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={(
+                      <div style={bodyItemsStyles.bodyItems}>
+                        {headers.map(header => (
+                          <div
+                            key={header.field}
+                            style={{
+                              ...bodyItemsStyles.bodyItem,
+                              ...inlineStyles[header.field],
+                            }}
+                          >
+                            {header.value?.(credential)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+      </List>
 
       {!loading && credentials.length === 0 && (
         <Empty

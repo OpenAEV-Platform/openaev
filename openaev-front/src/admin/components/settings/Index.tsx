@@ -4,6 +4,8 @@ import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
 import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import LessonsTemplateIndex from '../components/lessons/Index';
+import LessonsTemplates from '../components/lessons/LessonsTemplates';
 import Tenants from '../platform/tenants/Tenants';
 import AttackPatterns from './attack_patterns/AttackPatterns';
 import AutonomousAttackSettings from './autonomous_attack/AutonomousAttackSettings';
@@ -84,6 +86,30 @@ const Index = () => {
       <Route path="customization" element={<Navigate to="asset_rules" replace={true} />} />
       <Route path="customization/asset_rules" element={errorWrapper(TagRules)()} />
       <Route path="customization/notifiers" element={errorWrapper(Notifiers)()} />
+      <Route
+        path="customization/lessons"
+        element={(
+          <ProtectedRoute
+            checks={[{
+              action: ACTIONS.ACCESS,
+              subject: SUBJECTS.LESSONS_LEARNED,
+            }]}
+            Component={errorWrapper(LessonsTemplates)()}
+          />
+        )}
+      />
+      <Route
+        path="customization/lessons/:lessonsTemplateId/*"
+        element={(
+          <ProtectedRoute
+            checks={[{
+              action: ACTIONS.ACCESS,
+              subject: SUBJECTS.LESSONS_LEARNED,
+            }]}
+            Component={errorWrapper(LessonsTemplateIndex)()}
+          />
+        )}
+      />
       <Route path="customization/autonomous_attack" element={errorWrapper(AutonomousAttackSettings)()} />
       {/* Legacy flat paths kept as redirects so old bookmarks keep working. */}
       <Route path="asset_rules" element={<Navigate to="../customization/asset_rules" replace={true} />} />

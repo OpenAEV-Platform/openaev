@@ -19,25 +19,40 @@ import PhishingLandingPageForm, { type PhishingLandingPageFormInput } from './Ph
 interface Props {
   landingPage: PhishingLandingPage;
   inList?: boolean;
+  openEditOnInit?: boolean;
+  onUpdate?: (result: PhishingLandingPage) => void;
+  onDelete?: (result: string) => void;
 }
 
-const PhishingLandingPagePopover: FunctionComponent<Props> = ({ landingPage, inList = false }) => {
+const PhishingLandingPagePopover: FunctionComponent<Props> = ({
+  landingPage,
+  inList = false,
+  openEditOnInit = false,
+  onUpdate,
+  onDelete,
+}) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const ability = useContext(AbilityContext);
 
-  const [openEdit, setOpenEdit] = useState(false);
+  const [openEdit, setOpenEdit] = useState(openEditOnInit);
   const [openDelete, setOpenDelete] = useState(false);
 
   const onSubmitEdit = async (data: PhishingLandingPageFormInput) => {
-    await dispatch(updatePhishingLandingPage(landingPage.phishing_landing_page_id, data));
+    const result = await dispatch(updatePhishingLandingPage(landingPage.phishing_landing_page_id, data));
+    if (onUpdate && result.entities) {
+      onUpdate(result.entities.phishinglandingpages[result.result]);
+    }
     setOpenEdit(false);
   };
 
   const submitDelete = async () => {
     await dispatch(deletePhishingLandingPage(landingPage.phishing_landing_page_id));
     setOpenDelete(false);
+    if (onDelete) {
+      onDelete(landingPage.phishing_landing_page_id);
+    }
     if (!inList) {
       navigate('/admin/components/phishing/landing_pages');
     }

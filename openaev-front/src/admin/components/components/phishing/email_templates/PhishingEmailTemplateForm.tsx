@@ -9,6 +9,8 @@ import SwitchFieldController from '../../../../../components/fields/SwitchFieldC
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
 import { zodImplement } from '../../../../../utils/Zod';
+import PhishingAiGenerateButton from '../PhishingAiGenerateButton';
+import { parseAgentJson } from '../phishingAiJson';
 
 export interface PhishingEmailTemplateFormInput {
   phishing_email_template_name: string;
@@ -64,7 +66,7 @@ const PhishingEmailTemplateForm: FunctionComponent<Props> = ({
     ),
     defaultValues: initialValues,
   });
-  const { handleSubmit, formState: { isDirty, isSubmitting } } = methods;
+  const { handleSubmit, setValue, watch, formState: { isDirty, isSubmitting } } = methods;
 
   return (
     <FormProvider {...methods}>
@@ -80,6 +82,24 @@ const PhishingEmailTemplateForm: FunctionComponent<Props> = ({
           <TextFieldController variant="standard" name="phishing_email_template_subject" label={t('Subject')} required />
           <TextFieldController variant="standard" name="phishing_email_template_from_name" label={t('Sender name override')} />
           <TextFieldController variant="standard" name="phishing_email_template_from_email" label={t('Sender email override')} />
+          <PhishingAiGenerateButton
+            intent="aev.phishing_email_html_generator"
+            currentValue={watch('phishing_email_template_html_body')}
+            promptPlaceholder={t('Describe the phishing email you want to generate')}
+            buildPrompt={() => 'You are assisting with an authorized, educational security awareness phishing exercise. Generate a realistic phishing lure email. Return ONLY a JSON object with keys "subject" (string), "html_body" (string with valid HTML) and "text_body" (string with a plain-text alternative). The html_body MUST use the placeholder {{phishing_url}} as the href of the primary call-to-action link. Do not include any explanation or markdown fences, only the JSON object.'}
+            parseResponse={(raw) => {
+              const parsed = parseAgentJson(raw);
+              if (!parsed) return raw;
+              if (typeof parsed.subject === 'string') {
+                setValue('phishing_email_template_subject', parsed.subject, { shouldDirty: true });
+              }
+              if (typeof parsed.text_body === 'string') {
+                setValue('phishing_email_template_text_body', parsed.text_body, { shouldDirty: true });
+              }
+              return typeof parsed.html_body === 'string' ? parsed.html_body : raw;
+            }}
+            onAccept={html => setValue('phishing_email_template_html_body', html, { shouldDirty: true })}
+          />
           <TextFieldController variant="standard" name="phishing_email_template_html_body" label={t('HTML body')} multiline rows={10} />
           <TextFieldController variant="standard" name="phishing_email_template_text_body" label={t('Text body')} multiline rows={6} />
           <SwitchFieldController name="phishing_email_template_add_tracking_pixel" label={t('Add tracking pixel')} />

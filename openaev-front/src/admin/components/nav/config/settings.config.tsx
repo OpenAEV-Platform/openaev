@@ -31,6 +31,11 @@ export const SETTINGS_ACCESS_CHECKS: {
     action: ACTIONS.ACCESS,
     subject: SUBJECTS.TENANTS,
   },
+  {
+    // Lessons learned templates live under Settings > Customization.
+    action: ACTIONS.ACCESS,
+    subject: SUBJECTS.LESSONS_LEARNED,
+  },
 ];
 
 const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
@@ -38,6 +43,7 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
   const canAccessPlatformSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
   const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
+  const canAccessLessonsLearned = ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED);
 
   const subItems = [
     {
@@ -51,11 +57,12 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
       userRight: canAccessTenantSettings || canAccessPlatformUGR || canAccessTenants,
     },
     {
-      // Section root: redirects to asset_rules; Notifiers lives in the
-      // Customization right submenu (OpenCTI-aligned), not as a direct entry.
+      // Section root: redirects to asset_rules; Notifiers and Lessons learned
+      // live in the Customization right submenu (OpenCTI-aligned), not as
+      // direct entries.
       link: '/admin/settings/customization',
       label: 'Customization',
-      userRight: canAccessTenantSettings,
+      userRight: canAccessTenantSettings || canAccessLessonsLearned,
     },
     {
       link: '/admin/settings/taxonomies',

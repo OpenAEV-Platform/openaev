@@ -5,6 +5,7 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
@@ -43,21 +44,25 @@ public class PhishingLandingPage implements TenantBase {
   @NotBlank
   private String id;
 
+  @Queryable(filterable = true, sortable = true)
   @Column(name = "phishing_landing_page_created_at")
   @JsonProperty("phishing_landing_page_created_at")
   @NotNull
   private Instant createdAt = now();
 
+  @Queryable(filterable = true, sortable = true)
   @Column(name = "phishing_landing_page_updated_at")
   @JsonProperty("phishing_landing_page_updated_at")
   @NotNull
   private Instant updatedAt = now();
 
+  @Queryable(searchable = true, filterable = true, sortable = true)
   @Column(name = "phishing_landing_page_name")
   @JsonProperty("phishing_landing_page_name")
   @NotBlank
   private String name;
 
+  @Queryable(searchable = true, filterable = true, sortable = true)
   @Column(name = "phishing_landing_page_description")
   @JsonProperty("phishing_landing_page_description")
   private String description;

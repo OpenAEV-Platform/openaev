@@ -1,172 +1,247 @@
 import { PublicOutlined } from '@mui/icons-material';
-import { List, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
-import { type CSSProperties } from 'react';
-import { Link } from 'react-router';
+import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchPhishingLandingPages } from '../../../../../actions/phishing/phishing-action';
-import { type PhishingLandingPagesHelper } from '../../../../../actions/phishing/phishing-helper';
-import Breadcrumbs from '../../../../../components/Breadcrumbs';
+import { bulkDeletePhishingLandingPages, searchPhishingLandingPages } from '../../../../../actions/phishing/phishing-action';
+import { initSorting } from '../../../../../components/common/queryable/Page';
+import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
+import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
+import SortHeadersComponentV2 from '../../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../../../components/common/queryable/style/style';
+import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
+import { type Header } from '../../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../../components/i18n';
-import SearchFilter from '../../../../../components/SearchFilter';
-import { useHelper } from '../../../../../store';
-import { type PhishingLandingPage } from '../../../../../utils/api-types';
-import { useAppDispatch } from '../../../../../utils/hooks';
-import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { Can } from '../../../../../utils/permissions/permissionsContext';
+import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
+import { type PhishingLandingPage, type SearchPaginationInput } from '../../../../../utils/api-types';
+import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
+import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
-import useSearchAndFilter from '../../../../../utils/SortingFiltering';
+import ToolBar from '../../../common/ToolBar';
 import CreatePhishingLandingPage from './CreatePhishingLandingPage';
 import PhishingLandingPagePopover from './PhishingLandingPagePopover';
 
 const useStyles = makeStyles()(() => ({
-  parameters: {
-    marginTop: -10,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 52,
-  },
-  filters: {
-    display: 'flex',
-    gap: '10px',
-  },
-  itemHead: {
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-    height: 40,
-  },
+  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
 
-const headerStyles: Record<string, CSSProperties> = {
-  phishing_landing_page_name: {
-    width: '30%',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  phishing_landing_page_description: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-};
-
 const inlineStyles: Record<string, CSSProperties> = {
-  phishing_landing_page_name: {
-    width: '30%',
-    height: 20,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  phishing_landing_page_description: {
-    height: 20,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
+  phishing_landing_page_name: { width: '30%' },
+  phishing_landing_page_description: { width: '40%' },
+  phishing_landing_page_updated_at: { width: '30%' },
 };
 
 const PhishingLandingPages = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
-  const dispatch = useAppDispatch();
-  const { t } = useFormatter();
-  const searchColumns = ['name', 'description'];
-  const filtering = useSearchAndFilter('phishing_landing_page', 'name', searchColumns);
-  const { landingPages }: { landingPages: PhishingLandingPage[] } = useHelper(
-    (helper: PhishingLandingPagesHelper) => ({ landingPages: helper.getPhishingLandingPages() }),
+  const { t, nsdt } = useFormatter();
+  const ability = useContext(AbilityContext);
+
+  // Query param
+  const [searchParams] = useSearchParams();
+  const [search] = searchParams.getAll('search');
+  const [searchId] = searchParams.getAll('id');
+
+  const headers: Header[] = useMemo(() => [
+    {
+      field: 'phishing_landing_page_name',
+      label: 'Name',
+      isSortable: true,
+      value: (landingPage: PhishingLandingPage) => landingPage.phishing_landing_page_name,
+    },
+    {
+      field: 'phishing_landing_page_description',
+      label: 'Description',
+      isSortable: true,
+      value: (landingPage: PhishingLandingPage) => landingPage.phishing_landing_page_description || '-',
+    },
+    {
+      field: 'phishing_landing_page_updated_at',
+      label: 'Updated',
+      isSortable: true,
+      value: (landingPage: PhishingLandingPage) => nsdt(landingPage.phishing_landing_page_updated_at),
+    },
+  ], [nsdt]);
+
+  const availableFilterNames = [
+    'phishing_landing_page_name',
+    'phishing_landing_page_description',
+  ];
+
+  const [landingPages, setLandingPages] = useState<PhishingLandingPage[]>([]);
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
+    'phishing_landing_pages',
+    buildSearchPagination({
+      sorts: initSorting('phishing_landing_page_name'),
+      textSearch: search,
+    }),
   );
-  useDataLoader(() => {
-    dispatch(fetchPhishingLandingPages());
-  });
-  const sorted: PhishingLandingPage[] = filtering.filterAndSort(landingPages);
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const searchLandingPagesToLoad = (input: SearchPaginationInput) => {
+    setLoading(true);
+    return searchPhishingLandingPages(input).finally(() => setLoading(false));
+  };
+
+  // Bulk selection
+  const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.PHISHING);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<PhishingLandingPage>(
+    'phishing_landing_page',
+    landingPages,
+    queryableHelpers.paginationHelpers.getTotalElements(),
+  );
+
+  const bulkDelete = () => {
+    bulkDeletePhishingLandingPages({
+      search_pagination_input: selectAll ? searchPaginationInput : undefined,
+      landing_page_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+      landing_page_ids_to_ignore: Object.keys(deSelectedElements),
+    }).then((result) => {
+      const deletedIds: string[] = result.data ?? [];
+      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
+      setLandingPages(landingPages.filter(landingPage => !deletedIds.includes(landingPage.phishing_landing_page_id)));
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
+  };
+
   return (
     <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{ label: t('Components') }, {
-          label: t('Phishing pages'),
-          current: true,
-        }]}
+      <PaginationComponentV2
+        fetch={searchLandingPagesToLoad}
+        searchPaginationInput={searchPaginationInput}
+        setContent={setLandingPages}
+        entityPrefix="phishing_landing_page"
+        availableFilterNames={availableFilterNames}
+        queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <Box display="flex" gap={1} alignItems="center">
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.PHISHING}>
+              <CreatePhishingLandingPage onCreate={result => setLandingPages([result, ...landingPages])} />
+            </Can>
+          </Box>
+        )}
       />
-      <div className={classes.parameters}>
-        <div className={classes.filters}>
-          <SearchFilter variant="small" onChange={filtering.handleSearch} keyword={filtering.keyword} />
-        </div>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PHISHING}>
-          <CreatePhishingLandingPage />
-        </Can>
-      </div>
-      <div className="clearfix" />
       <List>
-        <ListItemButton
+        <ListItem
           classes={{ root: classes.itemHead }}
-          component="div"
-          disableRipple
           divider={false}
-          sx={{
-            'cursor': 'pointer',
-            '&:hover': { backgroundColor: 'transparent' },
-          }}
+          sx={numberOfSelectedElements > 0
+            ? {
+                backgroundColor: 'background.accent',
+                paddingBlock: 0.5,
+              }
+            : { paddingTop: 0 }}
+          {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
         >
-          <ListItemIcon>
-            <span style={{
-              padding: '0 8px 0 8px',
-              fontWeight: 700,
-              fontSize: 12,
-            }}
-            >
-              &nbsp;
-            </span>
-          </ListItemIcon>
-          <ListItemText
-            primary={(
-              <div style={bodyItemsStyles.bodyItems}>
-                {filtering.buildHeader('phishing_landing_page_name', 'Name', true, headerStyles)}
-                {filtering.buildHeader('phishing_landing_page_description', 'Description', true, headerStyles)}
-              </div>
-            )}
-          />
-          <ListItemSecondaryAction>&nbsp;</ListItemSecondaryAction>
-        </ListItemButton>
-        {sorted.map(landingPage => (
-          <ListItemButton
-            key={landingPage.phishing_landing_page_id}
-            classes={{ root: classes.item }}
-            divider
-            component={Link}
-            to={`/admin/components/phishing/landing_pages/${landingPage.phishing_landing_page_id}`}
-          >
-            <ListItemIcon>
-              <PublicOutlined color="primary" />
+          {canDelete && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
+              />
             </ListItemIcon>
+          )}
+          {numberOfSelectedElements > 0 ? (
             <ListItemText
               primary={(
-                <div style={bodyItemsStyles.bodyItems}>
-                  <div style={{
-                    ...bodyItemsStyles.bodyItem,
-                    ...inlineStyles.phishing_landing_page_name,
-                  }}
-                  >
-                    {landingPage.phishing_landing_page_name}
-                  </div>
-                  <div style={{
-                    ...bodyItemsStyles.bodyItem,
-                    ...inlineStyles.phishing_landing_page_description,
-                  }}
-                  >
-                    {landingPage.phishing_landing_page_description}
-                  </div>
-                </div>
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage={canDelete}
+                  deleteConfirmationSingular={t('Do you want to delete this phishing landing page?')}
+                  deleteConfirmationPlural={t('Do you want to delete these {count} phishing landing pages?', { count: String(numberOfSelectedElements) })}
+                />
               )}
             />
-            <ListItemSecondaryAction>
-              <PhishingLandingPagePopover landingPage={landingPage} inList />
-            </ListItemSecondaryAction>
-          </ListItemButton>
-        ))}
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
+                  />
+                )}
+              />
+            </>
+          )}
+        </ListItem>
+        {loading
+          ? <PaginatedListLoader Icon={PublicOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canDelete} />
+          : landingPages.map((landingPage: PhishingLandingPage) => (
+              <ListItem
+                key={landingPage.phishing_landing_page_id}
+                divider
+                disablePadding
+                secondaryAction={(
+                  <PhishingLandingPagePopover
+                    landingPage={landingPage}
+                    inList
+                    openEditOnInit={landingPage.phishing_landing_page_id === searchId}
+                    onUpdate={result => setLandingPages(landingPages.map(v => (v.phishing_landing_page_id !== result.phishing_landing_page_id ? v : result)))}
+                    onDelete={result => setLandingPages(landingPages.filter(v => v.phishing_landing_page_id !== result))}
+                  />
+                )}
+              >
+                <ListItemButton
+                  classes={{ root: classes.item }}
+                  component={Link}
+                  to={`/admin/components/phishing/landing_pages/${landingPage.phishing_landing_page_id}`}
+                >
+                  {canDelete && (
+                    <ListItemIcon
+                      style={{ minWidth: 40 }}
+                      onClick={event => onToggleEntity(landingPage, event)}
+                    >
+                      <Checkbox
+                        edge="start"
+                        checked={
+                          (selectAll && !(landingPage.phishing_landing_page_id in (deSelectedElements || {})))
+                          || landingPage.phishing_landing_page_id in (selectedElements || {})
+                        }
+                        disableRipple
+                      />
+                    </ListItemIcon>
+                  )}
+                  <ListItemIcon>
+                    <PublicOutlined color="primary" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={(
+                      <div style={bodyItemsStyles.bodyItems}>
+                        {headers.map(header => (
+                          <div
+                            key={header.field}
+                            style={{
+                              ...bodyItemsStyles.bodyItem,
+                              ...inlineStyles[header.field],
+                            }}
+                          >
+                            {header.value?.(landingPage)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
       </List>
     </>
   );

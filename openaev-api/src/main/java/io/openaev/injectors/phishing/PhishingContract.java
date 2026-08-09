@@ -36,7 +36,11 @@ public class PhishingContract extends Contractor {
   @Override
   public ContractConfig getConfig() {
     return new ContractConfig(
-        TYPE, Map.of(en, "Phishing", fr, "Hameconnage"), "#e91e63", "#e91e63", "/img/email.png");
+        TYPE,
+        Map.of(en, "Phishing", fr, "Hameconnage"),
+        "#e91e63",
+        "#e91e63",
+        "/img/phishing.png");
   }
 
   @Override
@@ -48,7 +52,8 @@ public class PhishingContract extends Contractor {
 
   @Override
   public ContractorIcon getIcon() {
-    InputStream iconStream = getClass().getResourceAsStream("/img/icon-email.png");
+    // Dedicated hook glyph on the phishing brand color — must not reuse the email envelope.
+    InputStream iconStream = getClass().getResourceAsStream("/img/icon-phishing.png");
     return new ContractorIcon(iconStream);
   }
 }

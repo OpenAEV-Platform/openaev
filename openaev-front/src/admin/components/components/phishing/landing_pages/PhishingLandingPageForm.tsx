@@ -9,6 +9,8 @@ import SwitchFieldController from '../../../../../components/fields/SwitchFieldC
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
 import { zodImplement } from '../../../../../utils/Zod';
+import PhishingAiGenerateButton from '../PhishingAiGenerateButton';
+import { parseAgentJson } from '../phishingAiJson';
 
 export interface PhishingLandingPageFormInput {
   phishing_landing_page_name: string;
@@ -67,7 +69,7 @@ const PhishingLandingPageForm: FunctionComponent<Props> = ({
     ),
     defaultValues: initialValues,
   });
-  const { handleSubmit, formState: { isDirty, isSubmitting } } = methods;
+  const { handleSubmit, setValue, watch, formState: { isDirty, isSubmitting } } = methods;
 
   return (
     <FormProvider {...methods}>
@@ -80,6 +82,21 @@ const PhishingLandingPageForm: FunctionComponent<Props> = ({
         >
           <TextFieldController variant="standard" name="phishing_landing_page_name" label={t('Name')} required />
           <TextFieldController variant="standard" name="phishing_landing_page_description" label={t('Description')} />
+          <PhishingAiGenerateButton
+            intent="aev.phishing_landing_page_html_generator"
+            currentValue={watch('phishing_landing_page_html')}
+            promptPlaceholder={t('Describe the phishing landing page you want to generate')}
+            buildPrompt={() => 'You are assisting with an authorized, educational security awareness phishing exercise. Generate a realistic phishing landing page. Return ONLY a JSON object with keys "html" (string with valid HTML body content) and "css" (string with a CSS stylesheet). Do not include any explanation or markdown fences, only the JSON object.'}
+            parseResponse={(raw) => {
+              const parsed = parseAgentJson(raw);
+              if (!parsed) return raw;
+              if (typeof parsed.css === 'string') {
+                setValue('phishing_landing_page_css', parsed.css, { shouldDirty: true });
+              }
+              return typeof parsed.html === 'string' ? parsed.html : raw;
+            }}
+            onAccept={html => setValue('phishing_landing_page_html', html, { shouldDirty: true })}
+          />
           <TextFieldController variant="standard" name="phishing_landing_page_html" label={t('HTML content')} multiline rows={10} />
           <TextFieldController variant="standard" name="phishing_landing_page_css" label={t('CSS content')} multiline rows={6} />
           <TextFieldController variant="standard" name="phishing_landing_page_redirect_url" label={t('Redirect URL after submit')} />

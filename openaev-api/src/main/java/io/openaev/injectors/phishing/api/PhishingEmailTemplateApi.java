@@ -6,11 +6,15 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.PhishingEmailTemplate;
 import io.openaev.database.model.ResourceType;
+import io.openaev.injectors.phishing.form.PhishingEmailTemplateBulkProcessingInput;
 import io.openaev.injectors.phishing.form.PhishingEmailTemplateInput;
 import io.openaev.injectors.phishing.service.PhishingEmailTemplateService;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,6 +42,19 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
   public Iterable<PhishingEmailTemplate> emailTemplates() {
     return emailTemplateService.emailTemplates();
+  }
+
+  @PostMapping({
+    PHISHING_EMAIL_TEMPLATE_URI + "/search",
+    TENANT_PHISHING_EMAIL_TEMPLATE_URI + "/search"
+  })
+  @Transactional
+  @AccessControl(
+      actionPerformed = Action.SEARCH,
+      resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
+  public Page<PhishingEmailTemplate> searchEmailTemplates(
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return emailTemplateService.search(searchPaginationInput);
   }
 
   @GetMapping({PHISHING_EMAIL_TEMPLATE_URI + "/{id}", TENANT_PHISHING_EMAIL_TEMPLATE_URI + "/{id}"})
@@ -109,6 +126,16 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
   public void deleteEmailTemplate(@PathVariable String id) {
     emailTemplateService.delete(id);
+  }
+
+  @DeleteMapping({PHISHING_EMAIL_TEMPLATE_URI, TENANT_PHISHING_EMAIL_TEMPLATE_URI})
+  @Transactional
+  @AccessControl(
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
+  public List<String> bulkDeleteEmailTemplates(
+      @RequestBody @Valid final PhishingEmailTemplateBulkProcessingInput input) {
+    return emailTemplateService.bulkDelete(input);
   }
 
   private void applyInput(PhishingEmailTemplate emailTemplate, PhishingEmailTemplateInput input) {

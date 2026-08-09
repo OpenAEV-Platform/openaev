@@ -26,3 +26,14 @@ export const updateCredential = (credentialId: string, input: CredentialInput) =
 export const deleteCredential = (credentialId: string) => {
   return simpleDelCall(`${CREDENTIAL_URI}/${credentialId}`);
 };
+
+// Bulk processing input shape mirrors the backend CredentialBulkProcessingInput DTO.
+export interface CredentialBulkProcessingInput {
+  search_pagination_input?: SearchPaginationInput;
+  credential_ids_to_process?: string[];
+  credential_ids_to_ignore?: string[];
+}
+
+export const bulkDeleteCredentials = (input: CredentialBulkProcessingInput) => {
+  return simpleDelCall(CREDENTIAL_URI, { data: input });
+};

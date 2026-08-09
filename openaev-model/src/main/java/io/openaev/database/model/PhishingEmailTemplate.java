@@ -4,6 +4,7 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
@@ -37,25 +38,30 @@ public class PhishingEmailTemplate implements TenantBase {
   @NotBlank
   private String id;
 
+  @Queryable(filterable = true, sortable = true)
   @Column(name = "phishing_email_template_created_at")
   @JsonProperty("phishing_email_template_created_at")
   @NotNull
   private Instant createdAt = now();
 
+  @Queryable(filterable = true, sortable = true)
   @Column(name = "phishing_email_template_updated_at")
   @JsonProperty("phishing_email_template_updated_at")
   @NotNull
   private Instant updatedAt = now();
 
+  @Queryable(searchable = true, filterable = true, sortable = true)
   @Column(name = "phishing_email_template_name")
   @JsonProperty("phishing_email_template_name")
   @NotBlank
   private String name;
 
+  @Queryable(searchable = true, filterable = true, sortable = true)
   @Column(name = "phishing_email_template_description")
   @JsonProperty("phishing_email_template_description")
   private String description;
 
+  @Queryable(searchable = true, filterable = true, sortable = true)
   @Column(name = "phishing_email_template_subject")
   @JsonProperty("phishing_email_template_subject")
   @NotBlank
@@ -69,10 +75,12 @@ public class PhishingEmailTemplate implements TenantBase {
   @JsonProperty("phishing_email_template_text_body")
   private String textBody;
 
+  @Queryable(searchable = true, filterable = true, sortable = true)
   @Column(name = "phishing_email_template_from_name")
   @JsonProperty("phishing_email_template_from_name")
   private String fromName;
 
+  @Queryable(searchable = true, filterable = true, sortable = true)
   @Column(name = "phishing_email_template_from_email")
   @JsonProperty("phishing_email_template_from_email")
   private String fromEmail;

@@ -2,6 +2,7 @@ package io.openaev.service.credential;
 
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.credentials.CredentialMapper;
 import io.openaev.api.credentials.form.*;
@@ -9,8 +10,10 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ManagerFactory;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
@@ -18,6 +21,7 @@ import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.SecretsProviderType;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
 import io.openaev.service.UserService;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SearchPaginationInputMapper;
@@ -34,6 +38,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -242,6 +247,62 @@ public class CredentialService {
         resolveProviderByConnectorInstanceId(
             credential.getConnectorInstanceId(), credential.getTenant().getId());
     provider.delete(credential);
+  }
+
+  /**
+   * Bulk delete of credentials, either from an explicit list of ids or from a search input (select
+   * all with optional exclusions). The resolved scope is always restricted to the caller's tenant
+   * scope so crafted filters or ids can never reach another tenant's credentials, and each
+   * credential is removed through the regular {@link #deleteCredential(String)} path so its stored
+   * secret is deleted by its provider too.
+   *
+   * @param ctx transaction context carrying tenant scope
+   * @param input the bulk processing input (exactly one of ids / search input must be provided)
+   * @return the ids of the deleted credentials
+   */
+  public List<String> bulkDelete(
+      @NotNull final TxCtx ctx, @NotNull final CredentialBulkProcessingInput input) {
+    boolean hasIds = !CollectionUtils.isEmpty(input.getCredentialIdsToProcess());
+    boolean hasSearch = input.getSearchPaginationInput() != null;
+    if (hasIds == hasSearch) {
+      throw new BadRequestException(
+          "Either credential_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (tenantIds.isEmpty()) {
+      return List.of();
+    }
+
+    Specification<CredentialSecretReference> specification;
+    if (hasSearch) {
+      // Same field translation + specification chain as the list search (filter group + text
+      // search), so the deletion scope matches exactly what the user sees in the list.
+      SearchPaginationInput normalizedInput =
+          SearchPaginationInputMapper.translateFields(
+              input.getSearchPaginationInput(), CREDENTIAL_QUERY_FIELD_MAPPING);
+      specification =
+          FilterUtilsJpa.<CredentialSecretReference>computeFilterGroupJpa(
+                  normalizedInput.getFilterGroup())
+              .and(computeSearchJpa(normalizedInput.getTextSearch()));
+    } else {
+      specification = SpecificationUtils.hasIdIn(input.getCredentialIdsToProcess());
+    }
+    if (!CollectionUtils.isEmpty(input.getCredentialIdsToIgnore())) {
+      List<String> idsToIgnore = input.getCredentialIdsToIgnore();
+      specification =
+          specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+    }
+
+    Specification<CredentialSecretReference> tenantSpecification =
+        (root, query, cb) -> root.get("tenant").get("id").in(tenantIds);
+
+    List<String> idsToDelete =
+        credentialSecretReferenceRepository.findAll(tenantSpecification.and(specification)).stream()
+            .map(CredentialSecretReference::getId)
+            .toList();
+    idsToDelete.forEach(this::deleteCredential);
+    return idsToDelete;
   }
 
   private LocalSecretsProvider getLocalProvider(String tenantId) {
