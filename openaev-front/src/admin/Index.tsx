@@ -183,6 +183,34 @@ const Index = () => {
                 />
               )}
             />
+            {/* Static tab segments used by Findings' useRoutedTabs (Vulnerability/Misconfiguration).
+                Must be declared explicitly (not a wildcard) so they outrank the dynamic
+                findings/:findingId route below, which would otherwise treat a tab key like
+                "misconfiguration" as a (non-existent) finding id. */}
+            <Route
+              path="findings/vulnerability"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.FINDINGS,
+                  }]}
+                  Component={errorWrapper(Findings)()}
+                />
+              )}
+            />
+            <Route
+              path="findings/misconfiguration"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.FINDINGS,
+                  }]}
+                  Component={errorWrapper(Findings)()}
+                />
+              )}
+            />
             <Route
               path="findings/:findingId"
               element={(
