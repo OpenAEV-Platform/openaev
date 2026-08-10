@@ -20,7 +20,7 @@ import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
-@Entity
+@Entity(name = "ConnectorInstance")
 @Table(name = "connector_instances")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
