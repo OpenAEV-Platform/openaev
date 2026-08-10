@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { MailOutlineOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useEffect, useRef } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
@@ -130,13 +130,18 @@ const PhishingEmailTemplateEditor: FunctionComponent = () => {
   const { handleSubmit, setValue, watch, reset, formState: { isDirty, isSubmitting } } = methods;
 
   // Hydrate the form once the entity for edit mode arrives (fetch is async).
-  const hydratedRef = useRef(false);
+  // Gate the whole editor on this: mounting the live-preview iframe before the
+  // real values are in the form makes it load an empty document and swap srcDoc
+  // empty -> filled mid-load, which Chrome leaves blank until the next change
+  // (e.g. typing). Waiting until hydrated means the iframe's first and only load
+  // already carries the real content.
+  const [hydrated, setHydrated] = useState(!editing);
   useEffect(() => {
-    if (editing && emailTemplate && !hydratedRef.current) {
+    if (editing && emailTemplate && !hydrated) {
       reset(toFormInput(emailTemplate));
-      hydratedRef.current = true;
+      setHydrated(true);
     }
-  }, [editing, emailTemplate, reset]);
+  }, [editing, emailTemplate, hydrated, reset]);
 
   const backToList = '/admin/components/phishing/email_templates';
   const cancelTarget = editing && emailTemplateId ? `${backToList}/${emailTemplateId}` : backToList;
@@ -155,8 +160,9 @@ const PhishingEmailTemplateEditor: FunctionComponent = () => {
     }
   };
 
-  // Editing but the entity is not loaded yet: wait so the form hydrates cleanly.
-  if (editing && !emailTemplate) {
+  // Editing but the entity is not loaded/hydrated yet: wait so the live-preview
+  // iframe mounts once with real content instead of loading empty then swapping.
+  if (editing && (!emailTemplate || !hydrated)) {
     return <Loader />;
   }
 
@@ -251,7 +257,7 @@ const PhishingEmailTemplateEditor: FunctionComponent = () => {
           gap: theme.spacing(2),
         }}
         >
-          <SectionBlock title={t('Details')}>
+          <SectionBlock title={t('Details')} action={null}>
             <div style={{
               display: 'flex',
               flexDirection: 'column',
