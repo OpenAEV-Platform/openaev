@@ -426,8 +426,8 @@ public class PhishingLandingPageService {
    *
    * <ul>
    *   <li><b>Human response</b> - the three steps of a phishing test: the recipient opening the
-   *       lure email, following the link (landing page loaded) and submitting data. Each is a MANUAL
-   *       expectation with inverted polarity (see {@link PhishingTrackingService}): GREEN
+   *       lure email, following the link (landing page loaded) and submitting data. Each is a
+   *       MANUAL expectation with inverted polarity (see {@link PhishingTrackingService}): GREEN
    *       ("resisted") while the recipient has not performed the step, flipping RED ("fell for it")
    *       the moment they do, so a recipient who never interacts keeps the green verdict through
    *       expiration.

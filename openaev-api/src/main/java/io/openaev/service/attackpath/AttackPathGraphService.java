@@ -1483,9 +1483,9 @@ public class AttackPathGraphService {
 
   /**
    * Sets each feed node's ATT&CK techniques from its own frozen contract, in ONE batched read. An
-   * endpoint-local action promoted to its own map node has no injector node to read techniques
-   * from (its source is the endpoint itself), so the feed entry must carry them for the ACTION
-   * card to render the same technique chips as a real injector node.
+   * endpoint-local action promoted to its own map node has no injector node to read techniques from
+   * (its source is the endpoint itself), so the feed entry must carry them for the ACTION card to
+   * render the same technique chips as a real injector node.
    */
   private void applyFeedAttackPatterns(
       List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {

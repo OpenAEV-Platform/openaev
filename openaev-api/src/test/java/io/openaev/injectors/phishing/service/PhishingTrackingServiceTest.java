@@ -95,10 +95,7 @@ class PhishingTrackingServiceTest {
 
   /** A team-level MANUAL step row (no user) bound to a team, with an explicit score and rule. */
   private ManualInjectExpectation teamStep(
-      final String name,
-      final String teamId,
-      final double score,
-      final boolean expectationGroup) {
+      final String name, final String teamId, final double score, final boolean expectationGroup) {
     ManualInjectExpectation expectation = new ManualInjectExpectation();
     expectation.setId(name + ":team:" + teamId);
     expectation.setName(name);
@@ -178,8 +175,7 @@ class PhishingTrackingServiceTest {
     when(phishingResultRepository.save(any(PhishingResult.class)))
         .thenAnswer(i -> i.getArgument(0));
     ManualInjectExpectation unrelated = resistedStep("Some operator check");
-    when(injectExpectationRepository.findAllByInjectId("inject-1"))
-        .thenReturn(List.of(unrelated));
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(unrelated));
 
     // -- ACT --
     phishingTrackingService.markClicked("token-1", "1.2.3.4", "curl/8");
