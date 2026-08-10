@@ -6,6 +6,7 @@ import io.openaev.database.model.Payload;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -20,6 +21,15 @@ public interface PayloadRepository
   Optional<Payload> findById(@NotNull String id);
 
   Optional<Payload> findByExternalId(@NotNull String externalId);
+
+  /**
+   * Icon metadata for a batch of payloads in one read: {@code [id, payloadType,
+   * collectorTypeName]}, the collector type name being null for a hand-authored payload with no
+   * backing collector. Lets the attack-path graph resolve each agent-executed action's real catalog
+   * icon (the collector logo, e.g. netexec / atomic-red-team) instead of the generic agent icon.
+   */
+  @Query("SELECT p.id, p.type, ct.name FROM Payload p LEFT JOIN p.collectorType ct WHERE p.id IN :ids")
+  List<Object[]> findIconMetadataByIds(@Param("ids") Set<String> ids);
 
   @Query(
       value =

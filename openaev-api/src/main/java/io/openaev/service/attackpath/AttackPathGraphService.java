@@ -26,6 +26,7 @@ import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.StepConditionRow;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
@@ -152,6 +153,7 @@ public class AttackPathGraphService {
   private final AssetRepository assetRepository;
   private final InjectStatusRepository injectStatusRepository;
   private final InjectRepository injectRepository;
+  private final PayloadRepository payloadRepository;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -645,6 +647,7 @@ public class AttackPathGraphService {
     }
     applyContractNames(page, feedByExecutionId);
     applyExecutionStatuses(page, feedByExecutionId);
+    applyPayloadIconMetadata(page, feedByExecutionId);
     return new AttackPathEndpointRelationsDTO(
         new ArrayList<>(feedByExecutionId.values()),
         new ArrayList<>(edges.values()),
@@ -697,6 +700,8 @@ public class AttackPathGraphService {
     applyEventDependencies(executions, findings, feedByExecutionId);
     Map<String, String> contractNames = applyContractNames(executions, feedByExecutionId);
     applyExecutionStatuses(executions, feedByExecutionId);
+    applyPayloadIconMetadata(executions, feedByExecutionId);
+    applyFeedAttackPatterns(executions, feedByExecutionId);
     applyInjectorNodeLabels(nodes, contractsByInjectorNode, contractNames);
 
     // Endpoint (ASSET) nodes, with attributes and colour from the executions targeting them.
@@ -859,19 +864,11 @@ public class AttackPathGraphService {
       Map<String, AttackPathNodeDTO> nodes, Map<String, Set<String>> contractsByInjectorNode) {
     Set<String> externalIds = new HashSet<>();
     contractsByInjectorNode.values().forEach(externalIds::addAll);
-    if (externalIds.isEmpty()) {
+    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract =
+        loadPatternsByContract(externalIds);
+    if (patternsByContract.isEmpty()) {
       return;
     }
-    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract = new HashMap<>();
-    injectorContractRepository
-        .findInjectorAttackPatternsByExternalIdIn(externalIds)
-        .forEach(
-            row ->
-                patternsByContract
-                    .computeIfAbsent(row.contractExternalId(), k -> new ArrayList<>())
-                    .add(
-                        new AttackPathAttackPatternDTO(
-                            row.patternExternalId(), row.patternName())));
     contractsByInjectorNode.forEach(
         (nodeId, contractIds) -> {
           Map<String, AttackPathAttackPatternDTO> deduped = new LinkedHashMap<>();
@@ -884,6 +881,29 @@ public class AttackPathGraphService {
             nodes.get(nodeId).setAttackPatterns(new ArrayList<>(deduped.values()));
           }
         });
+  }
+
+  /**
+   * The {@code contract external id -> ATT&CK techniques} map for a set of contracts, in one
+   * batched read. Shared by the injector-node and feed-node technique resolutions so each graph
+   * pass pays for at most one such query per consumer. Empty input means no query at all.
+   */
+  private Map<String, List<AttackPathAttackPatternDTO>> loadPatternsByContract(
+      Set<String> externalIds) {
+    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract = new HashMap<>();
+    if (externalIds.isEmpty()) {
+      return patternsByContract;
+    }
+    injectorContractRepository
+        .findInjectorAttackPatternsByExternalIdIn(externalIds)
+        .forEach(
+            row ->
+                patternsByContract
+                    .computeIfAbsent(row.contractExternalId(), k -> new ArrayList<>())
+                    .add(
+                        new AttackPathAttackPatternDTO(
+                            row.patternExternalId(), row.patternName())));
+    return patternsByContract;
   }
 
   /**
@@ -1423,6 +1443,76 @@ public class AttackPathGraphService {
   }
 
   /**
+   * Resolves each feed node's payload icon metadata (payload type + collector type name) from its
+   * frozen payload id, in ONE batched read for the whole feed. An agent-executed action's
+   * injectorType is always the implant, so without this the map can only draw the generic agent
+   * icon; the collector type name (e.g. openaev_netexec) is what the catalog icon is keyed by. Rows
+   * with no payload (network executions) or a deleted payload simply keep null fields.
+   */
+  private void applyPayloadIconMetadata(
+      List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
+    Set<String> payloadIds =
+        executions.stream()
+            .map(AttackPathExecutionRow::payloadId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    if (payloadIds.isEmpty()) {
+      return;
+    }
+    Map<String, String> typeByPayload = new HashMap<>();
+    Map<String, String> collectorTypeByPayload = new HashMap<>();
+    for (Object[] row : payloadRepository.findIconMetadataByIds(payloadIds)) {
+      if (row[0] instanceof String payloadId) {
+        if (row[1] instanceof String payloadType) {
+          typeByPayload.put(payloadId, payloadType);
+        }
+        if (row[2] instanceof String collectorType) {
+          collectorTypeByPayload.put(payloadId, collectorType);
+        }
+      }
+    }
+    for (AttackPathExecutionRow e : executions) {
+      AttackPathNodeDTO node = feedByExecutionId.get(e.id());
+      if (node == null || e.payloadId() == null) {
+        continue;
+      }
+      node.setPayloadType(typeByPayload.get(e.payloadId()));
+      node.setPayloadCollectorType(collectorTypeByPayload.get(e.payloadId()));
+    }
+  }
+
+  /**
+   * Sets each feed node's ATT&CK techniques from its own frozen contract, in ONE batched read. An
+   * endpoint-local action promoted to its own map node has no injector node to read techniques
+   * from (its source is the endpoint itself), so the feed entry must carry them for the ACTION
+   * card to render the same technique chips as a real injector node.
+   */
+  private void applyFeedAttackPatterns(
+      List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
+    Set<String> externalIds =
+        executions.stream()
+            .map(AttackPathExecutionRow::contractExternalId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract =
+        loadPatternsByContract(externalIds);
+    if (patternsByContract.isEmpty()) {
+      return;
+    }
+    for (AttackPathExecutionRow e : executions) {
+      AttackPathNodeDTO node =
+          e.contractExternalId() == null ? null : feedByExecutionId.get(e.id());
+      if (node == null) {
+        continue;
+      }
+      List<AttackPathAttackPatternDTO> patterns = patternsByContract.get(e.contractExternalId());
+      if (patterns != null && !patterns.isEmpty()) {
+        node.setAttackPatterns(new ArrayList<>(patterns));
+      }
+    }
+  }
+
+  /**
    * Labels each per-contract injector node with its contract's name, so two nodes of the same
    * injector are distinguishable on the map. Reuses the names already resolved for the feed nodes,
    * so no extra query; a node whose contract name did not resolve keeps its injector-name label.
@@ -1535,6 +1625,9 @@ public class AttackPathGraphService {
     node.setAgentName(e.agentName());
     node.setPrivilege(e.agentPrivilege());
     node.setStepTemplateId(e.stepTemplateId());
+    // The injector type frozen on the row (the implant for an agent-executed payload), so a feed
+    // entry promoted to its own ACTION node on the map can at least fall back to the injector icon.
+    node.setInjectorType(e.injectorType());
     return node;
   }
 
