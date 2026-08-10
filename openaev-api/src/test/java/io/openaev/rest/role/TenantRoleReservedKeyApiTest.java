@@ -118,7 +118,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_ASSETS})
     @DisplayName("Given a non-reserved id, public POST should succeed")
     void given_nonReservedId_should_succeed_onCreate() throws Exception {
       // -------- Arrange --------
