@@ -54,18 +54,19 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     this.plainTokenExtractor = plainTokenExtractor;
   }
 
-  private Optional<User> getAuthedUserFromAuthorizationHeader(String value) {
+  private Optional<User> getAuthedUserFromAuthorizationHeader(
+      String value, HttpServletRequest request) {
     Set<ExtractorBase> extractors =
         Set.of(this.connectorJwtExtractor, this.xtmJwksExtractor, this.plainTokenExtractor);
 
     if (!value.toLowerCase().startsWith(BEARER_PREFIX)) {
-      return this.plainTokenExtractor.authUser(value);
+      return this.plainTokenExtractor.authUser(value, request);
     }
 
     String candidateToken = value.substring(BEARER_PREFIX.length());
     for (ExtractorBase extractor : extractors) {
       try {
-        Optional<User> candidateUser = extractor.authUser(candidateToken);
+        Optional<User> candidateUser = extractor.authUser(candidateToken, request);
         if (candidateUser.isPresent()) {
           return candidateUser;
         }
@@ -82,9 +83,9 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     Optional<Cookie> defaultCookie =
         Arrays.stream(cookies).filter(cookie -> COOKIE_NAME.equals(cookie.getName())).findFirst();
     return hasLength(header)
-        ? getAuthedUserFromAuthorizationHeader(header)
+        ? getAuthedUserFromAuthorizationHeader(header, request)
         : this.plainTokenExtractor.authUser(
-            defaultCookie.orElseGet(() -> new Cookie(COOKIE_NAME, null)).getValue());
+            defaultCookie.orElseGet(() -> new Cookie(COOKIE_NAME, null)).getValue(), request);
   }
 
   @Override
