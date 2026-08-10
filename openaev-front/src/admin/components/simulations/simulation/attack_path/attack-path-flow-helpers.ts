@@ -1180,14 +1180,14 @@ export const buildFindingPathFlow = (
 // resolved through FILTER_TO_FINDING_TYPES, defaulting to the type itself so new types work with no code.
 export type AttackPathFindingFilter = 'endpoints' | string;
 
-// Finding types whose value is a captured secret; masked by default in the UI (spec §14). Revealing
-// them is an explicit, permission-gated action handled by the Result/Terminal increment.
-export const SENSITIVE_FINDING_TYPES = new Set(['credentials', 'password_policy', 'sid']);
+// Finding types whose value is a captured secret; masked by default in the UI (spec §14). Only
+// credentials and sid are masked here; revealing remains a permission-gated action.
+export const SENSITIVE_FINDING_TYPES = new Set(['credentials', 'sid']);
 
 // Mask a finding value for display (rendered as text by the callers — never as HTML). Credentials
-// keep the username visible but mask the secret ("user:pass" -> "user : ••••••"); other secret types
-// (sid, password_policy) are fully masked; a `file` value is the full location but displays as its
-// basename (the full path stays available in the detail panel); everything else is shown as-is.
+// keep the username visible but mask the secret ("user:pass" -> "user : ••••••"); sid is fully
+// masked; a `file` value is the full location but displays as its basename (the full path stays
+// available in the detail panel); everything else is shown as-is.
 export const maskFindingValue = (typeFindings?: string, value?: string): string => {
   if (!value) {
     return '';

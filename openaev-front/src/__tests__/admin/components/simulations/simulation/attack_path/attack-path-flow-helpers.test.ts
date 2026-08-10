@@ -295,13 +295,13 @@ describe('maskFindingValue', () => {
     expect(maskFindingValue('credentials', 'nosecrethere')).toBe('••••••••');
     expect(maskFindingValue('credentials', ':secretonly')).toBe('••••••••');
     expect(maskFindingValue('sid', 'S-1-5-21')).toBe('••••••••');
-    expect(maskFindingValue('password_policy', 'complex')).toBe('••••••••');
   });
 
   it('shows non-secret finding values as-is', () => {
     expect(maskFindingValue('cve', 'CVE-2023-1')).toBe('CVE-2023-1');
     expect(maskFindingValue('port', '443')).toBe('443');
     expect(maskFindingValue('username', 'bob')).toBe('bob');
+    expect(maskFindingValue('password_policy', 'complex')).toBe('complex');
   });
 
   it('displays a file as its basename, keeping the full path out of the label', () => {
