@@ -19,7 +19,6 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
 import io.openaev.database.repository.RoleRepository;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.role.form.RoleInput;
 import io.openaev.service.AbstractPrivilegeService;
@@ -70,52 +69,14 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
   }
 
   // --------------------------------------------------------------------------
-  // CREATE — the public endpoint generates a random UUID, so the reserved-id
-  // guard can only be exercised through the service-level overload accepting
-  // an explicit id.
+  // CREATE — nothing to guard: the public endpoint generates the id itself, and
+  // createRoleInternal deliberately accepts reserved ids since that is how the
+  // well-known roles are seeded. Reserved ids are enforced on update and delete.
   // --------------------------------------------------------------------------
 
   @Nested
   @DisplayName("Create")
   class Create {
-
-    @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("Given reserved SERVICE_ROLE_ID, should throw BadRequestException")
-    void given_reservedServiceRoleId_should_throwBadRequest_onCreate() {
-      // -------- Arrange --------
-      String reservedId = reservedServiceRoleId();
-
-      // -------- Act & Assert --------
-      assertThatThrownBy(
-              () ->
-                  tenantRoleService.createRoleInternal(
-                      reservedId,
-                      "AnyName",
-                      "desc",
-                      Set.of(Capability.ACCESS_ASSETS),
-                      TenantContext.getCurrentTenant()))
-          .isInstanceOf(BadRequestException.class);
-    }
-
-    @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("Given reserved PROCESS_STIX_ROLE_ID, should throw BadRequestException")
-    void given_reservedStixRoleId_should_throwBadRequest_onCreate() {
-      // -------- Arrange --------
-      String reservedId = reservedStixRoleId();
-
-      // -------- Act & Assert --------
-      assertThatThrownBy(
-              () ->
-                  tenantRoleService.createRoleInternal(
-                      reservedId,
-                      "AnyName",
-                      "desc",
-                      Set.of(Capability.ACCESS_ASSETS),
-                      TenantContext.getCurrentTenant()))
-          .isInstanceOf(BadRequestException.class);
-    }
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_ASSETS})
