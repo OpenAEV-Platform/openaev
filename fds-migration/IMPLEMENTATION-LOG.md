@@ -75,3 +75,13 @@ in filigran-design-system).
      correct, no error, wrong pixels. The playbook should require, at Step 5b,
      measuring the same library class on more than one element type — that is
      what surfaced it here.
+
+### 2026-08-10 — design decision: the bar's 57px overflow at 768px is accepted
+- Branch: sandyghs-miniature-enigma
+- Changed: this note only.
+- Decision (Sandy, lead design, 2026-08-10): the top bar's 57px content overflow
+  at a 768px viewport with the navigation rail expanded BY HAND is ACCEPTED — it
+  is a non-default state, the shell already carries a pre-existing 1400px page
+  floor (`openaev-front/src/admin/Index.tsx`), and global responsive behaviour
+  belongs to the Layout chantier, not to this pilot.
+- Friction / process feedback: none.
