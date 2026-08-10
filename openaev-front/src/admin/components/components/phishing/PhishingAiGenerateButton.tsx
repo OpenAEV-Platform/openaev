@@ -13,8 +13,8 @@ import useAI from '../../../../utils/hooks/useAI';
 import useAuth from '../../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { isNotEmptyField } from '../../../../utils/utils';
-import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import FiligranAiCguDialog from '../../ariane/FiligranAiCguDialog';
+import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import EETooltip from '../../common/entreprise_edition/EETooltip';
 
