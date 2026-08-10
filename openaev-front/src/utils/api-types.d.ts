@@ -1122,8 +1122,10 @@ export interface AttackPathNodeDTO {
   ip?: string;
   isFinding?: boolean;
   label?: string;
+  payloadCollectorType?: string;
   payloadId?: string;
   payloadName?: string;
+  payloadType?: string;
   platform?: string;
   privilege?: string;
   ref?: string;

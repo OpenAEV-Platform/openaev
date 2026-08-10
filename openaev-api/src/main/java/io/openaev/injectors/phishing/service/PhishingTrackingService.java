@@ -12,13 +12,13 @@ import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.database.model.TableTopInjectExpectation;
-import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.finding.FindingService;
+import io.openaev.service.InjectExpectationUtils;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.security.SecureRandom;
@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -86,6 +87,15 @@ public class PhishingTrackingService {
 
   /** Result message stamped on a step the recipient never triggered (GREEN). */
   private static final String NO_INTERACTION_MESSAGE = "No phishing interaction detected";
+
+  /** Result message stamped on a team step whose recomputed verdict is RED ("fell for it"). */
+  private static final String TEAM_COMPROMISED_MESSAGE = "A team member fell for the phishing";
+
+  /**
+   * Result message for a team step that stays GREEN under the "at least one" rule even though some
+   * member fell: "no interaction" would be factually wrong there.
+   */
+  private static final String TEAM_RESISTED_MESSAGE = "At least one team member resisted";
 
   // Form-field names accepted as the username / password of a submitted credential. Kept broad so a
   // cloned real-world login form (e.g. Microsoft's "loginfmt", not "username") is still captured.
@@ -383,9 +393,18 @@ public class PhishingTrackingService {
   }
 
   /**
-   * Flips the named phishing steps to RED (compromised) for the recipient and their team. The
-   * team-level row is flipped too: a team has fallen for the phishing as soon as any one of its
-   * members does. Idempotent per step - an already-compromised step keeps its earliest signal.
+   * Flips the named phishing steps to RED (compromised) for the recipient, then re-derives the
+   * team-level rows of those steps from their player rows.
+   *
+   * <p>The team row is NEVER written directly here: a team's verdict must follow the expectation's
+   * validation rule ({@code expectationGroup}) exactly like every other human expectation. With the
+   * default "all players must validate" rule the team turns RED as soon as one member falls for the
+   * phishing; with "at least one player" it stays GREEN until every member does. Writing the team
+   * row directly (as before) both ignored that rule and left the team stuck GREEN whenever the
+   * recipient's team could not be resolved back on the tracking row - hence a compromised person
+   * next to a green team. Deriving it from the same player rows the rest of the platform uses keeps
+   * person and team consistent by construction. Idempotent per player step - an already-compromised
+   * step keeps its earliest signal.
    */
   private void compromiseSteps(
       final PhishingResult result, final Set<String> stepNames, final String message) {
@@ -394,30 +413,98 @@ public class PhishingTrackingService {
     if (user == null || inject == null) {
       return;
     }
-    injectExpectationRepository.findAllByInjectAndPlayer(inject.getId(), user.getId()).stream()
-        .filter(expectation -> matchesSteps(expectation, stepNames))
-        .forEach(expectation -> markCompromised(expectation, message, false));
-    Team team = result.getTeam();
-    if (team != null) {
-      injectExpectationRepository.findAllByInjectAndTeam(inject.getId(), team.getId()).stream()
-          .filter(expectation -> matchesSteps(expectation, stepNames))
-          .forEach(expectation -> markCompromised(expectation, message, true));
+    // findAllByInjectId returns managed entities: the player flips below mutate the very instances
+    // the team recomputation then reads, so it sees the fresh player scores without re-querying.
+    List<BaseInjectExpectation> injectExpectations =
+        injectExpectationRepository.findAllByInjectId(inject.getId());
+    List<BaseInjectExpectation> playerSteps =
+        injectExpectations.stream()
+            .filter(expectation -> isPlayerRowForUser(expectation, user.getId()))
+            .filter(expectation -> matchesSteps(expectation, stepNames))
+            .toList();
+    playerSteps.forEach(expectation -> markCompromised(expectation, message));
+    // Only the recipient's own team(s) can have changed: recomputing every team of the inject
+    // would rewrite unrelated team rows (result text / updatedAt churn) on each click.
+    Set<String> affectedTeamIds =
+        playerSteps.stream()
+            .map(expectation -> ((TableTopInjectExpectation) expectation).getTeam())
+            .filter(Objects::nonNull)
+            .map(team -> team.getId())
+            .collect(Collectors.toSet());
+    if (affectedTeamIds.isEmpty()) {
+      return;
     }
+    injectExpectations.stream()
+        .filter(PhishingTrackingService::isTeamRow)
+        .filter(expectation -> matchesSteps(expectation, stepNames))
+        .filter(
+            expectation ->
+                expectation instanceof TableTopInjectExpectation teamRow
+                    && teamRow.getTeam() != null
+                    && affectedTeamIds.contains(teamRow.getTeam().getId()))
+        .forEach(teamRow -> recomputeTeamStepFromPlayers(teamRow, injectExpectations));
   }
 
-  private void markCompromised(
-      final BaseInjectExpectation expectation, final String message, final boolean team) {
+  private void markCompromised(final BaseInjectExpectation expectation, final String message) {
     if (expectation.getScore() != null && expectation.getScore() <= COMPROMISED_SCORE) {
       return;
     }
-    InjectExpectationResult result =
-        team
-            ? buildForTeamManualValidation(message, COMPROMISED_SCORE)
-            : buildForPlayerManualValidation(message, COMPROMISED_SCORE);
-    expectation.setResults(List.of(result));
+    expectation.setResults(List.of(buildForPlayerManualValidation(message, COMPROMISED_SCORE)));
     expectation.setScore(COMPROMISED_SCORE);
     expectation.setUpdatedAt(now());
     injectExpectationRepository.save(expectation);
+  }
+
+  /**
+   * Recomputes one team-level phishing step from its player rows, honoring the expectation's
+   * validation rule (all-vs-any) and the inverted phishing polarity, via the same {@link
+   * InjectExpectationUtils#computeChildrenScore} aggregation used for every human expectation. A
+   * team with no player rows, or whose players are all still pending, is left untouched (it keeps
+   * its pre-scored GREEN "resisted" verdict).
+   */
+  private void recomputeTeamStepFromPlayers(
+      final BaseInjectExpectation teamRow, final List<BaseInjectExpectation> injectExpectations) {
+    if (!(teamRow instanceof TableTopInjectExpectation team) || team.getTeam() == null) {
+      return;
+    }
+    String teamId = team.getTeam().getId();
+    List<BaseInjectExpectation> players =
+        injectExpectations.stream()
+            .filter(
+                expectation ->
+                    expectation instanceof TableTopInjectExpectation player
+                        && player.getUser() != null
+                        && player.getTeam() != null
+                        && teamId.equals(player.getTeam().getId())
+                        && Objects.equals(player.getName(), team.getName()))
+            .toList();
+    if (players.isEmpty()) {
+      return;
+    }
+    Double score =
+        InjectExpectationUtils.computeChildrenScore(
+            team.isExpectationGroup(), team.getExpectedScore(), players);
+    if (score == null) {
+      return;
+    }
+    boolean resisted = score >= team.getExpectedScore();
+    boolean anyCompromised =
+        players.stream().anyMatch(p -> p.getScore() != null && p.getScore() <= COMPROMISED_SCORE);
+    String message =
+        resisted
+            ? (anyCompromised ? TEAM_RESISTED_MESSAGE : NO_INTERACTION_MESSAGE)
+            : TEAM_COMPROMISED_MESSAGE;
+    team.setResults(List.of(buildForTeamManualValidation(message, score)));
+    team.setScore(score);
+    team.setUpdatedAt(now());
+    injectExpectationRepository.save(team);
+  }
+
+  private static boolean isPlayerRowForUser(
+      final BaseInjectExpectation expectation, final String userId) {
+    return expectation instanceof TableTopInjectExpectation tableTop
+        && tableTop.getUser() != null
+        && userId.equals(tableTop.getUser().getId());
   }
 
   private static boolean matchesSteps(

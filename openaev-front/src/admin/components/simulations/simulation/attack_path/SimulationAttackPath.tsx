@@ -219,14 +219,6 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   // so live updating stops there; an unknown status (synthetic seed simulations) is treated as live.
   const selectedRunStatus = metaById.get(simulationId)?.exercise_status;
   const runTerminal = selectedRunStatus === 'FINISHED' || selectedRunStatus === 'CANCELED';
-  // Render the causal chain as an ACTION TIMELINE (endpoint-local actions - recon, dumps, local
-  // escalation on a host the agent already owns - render as their own action nodes instead of being
-  // folded into the endpoint they ran on) for autonomous runs, whose engagement is almost entirely
-  // local steps on a single compromised host; without this the graph looks frozen after the first
-  // finding even though every step executed. Derived from the selected simulation's DURABLE
-  // exercise_autonomous marker (not the live run row) so a finished autonomous run keeps action-centric
-  // rendering in both the simulation and scenario contexts. Off for manual BAS runs (finding-centric).
-  const actionCentric = metaById.get(simulationId)?.exercise_autonomous ?? false;
   // The causal overlay needs the per-execution kill-chain fields, which only the full graph carries, so
   // it is seeded only under the size ceiling (mirrors the backend collapse-threshold) — a large run never
   // downloads a full payload. The gate uses the initial summary-row count; a run that grows past the
@@ -1286,9 +1278,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   );
   const fullChain = useMemo(
     () => (chainMode && fullDto
-      ? buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes, actionCentric)
+      ? buildCausalChainFlow(fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes)
       : null),
-    [chainMode, fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes, actionCentric],
+    [chainMode, fullDto, t, expandedFindingClusters, endpointClusterBatch, pinnedFindingTypes],
   );
 
   // A finding picked from a drawer/summary list (rather than clicked directly on an already-rendered
