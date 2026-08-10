@@ -20,6 +20,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
+import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.PhishingResultRepository;
@@ -67,16 +68,46 @@ class PhishingTrackingServiceTest {
   }
 
   /**
-   * A player-scoped MANUAL step expectation, pre-scored GREEN (resisted) like the executor does.
+   * A player-scoped MANUAL step expectation for the tracked recipient ({@code user-1}), pre-scored
+   * GREEN (resisted) like the executor does. Bound to {@code team-1} so team-level derivation can
+   * find it.
    */
   private ManualInjectExpectation resistedStep(final String name) {
-    ManualInjectExpectation expectation = new ManualInjectExpectation();
+    return playerStep(name, "user-1", "team-1", 100.0, false);
+  }
+
+  /** A player-scoped MANUAL step row bound to a user + team, with an explicit score and rule. */
+  private ManualInjectExpectation playerStep(
+      final String name,
+      final String userId,
+      final String teamId,
+      final double score,
+      final boolean expectationGroup) {
+    ManualInjectExpectation expectation = teamStep(name, teamId, score, expectationGroup);
     // A distinct id keeps equals()/hashCode() well-defined when several rows are matched in the
     // same verify() (an id-less expectation dereferences a null id during Mockito's comparison).
-    expectation.setId(name);
+    expectation.setId(name + ":" + userId);
+    User user = new User();
+    user.setId(userId);
+    expectation.setUser(user);
+    return expectation;
+  }
+
+  /** A team-level MANUAL step row (no user) bound to a team, with an explicit score and rule. */
+  private ManualInjectExpectation teamStep(
+      final String name,
+      final String teamId,
+      final double score,
+      final boolean expectationGroup) {
+    ManualInjectExpectation expectation = new ManualInjectExpectation();
+    expectation.setId(name + ":team:" + teamId);
     expectation.setName(name);
     expectation.setExpectedScore(100.0);
-    expectation.setScore(100.0);
+    expectation.setScore(score);
+    expectation.setExpectationGroup(expectationGroup);
+    Team team = new Team();
+    team.setId(teamId);
+    expectation.setTeam(team);
     return expectation;
   }
 
@@ -120,7 +151,7 @@ class PhishingTrackingServiceTest {
         .thenAnswer(i -> i.getArgument(0));
     ManualInjectExpectation opened = resistedStep(PhishingTrackingService.STEP_OPENED);
     ManualInjectExpectation clicked = resistedStep(PhishingTrackingService.STEP_CLICKED);
-    when(injectExpectationRepository.findAllByInjectAndPlayer("inject-1", "user-1"))
+    when(injectExpectationRepository.findAllByInjectId("inject-1"))
         .thenReturn(List.of(opened, clicked));
 
     // -- ACT --
@@ -147,7 +178,7 @@ class PhishingTrackingServiceTest {
     when(phishingResultRepository.save(any(PhishingResult.class)))
         .thenAnswer(i -> i.getArgument(0));
     ManualInjectExpectation unrelated = resistedStep("Some operator check");
-    when(injectExpectationRepository.findAllByInjectAndPlayer("inject-1", "user-1"))
+    when(injectExpectationRepository.findAllByInjectId("inject-1"))
         .thenReturn(List.of(unrelated));
 
     // -- ACT --
@@ -160,6 +191,69 @@ class PhishingTrackingServiceTest {
 
   @Test
   @DisplayName(
+      "markClicked should turn the team RED when the rule is 'all must validate' and one member"
+          + " falls")
+  void markClicked_should_failTeamUnderAllValidateRule() {
+    // -- ARRANGE -- one team, one player (the recipient); "all must validate" (expectationGroup
+    // false), both rows start GREEN (resisted).
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation playerClicked =
+        playerStep(PhishingTrackingService.STEP_CLICKED, "user-1", "team-1", 100.0, false);
+    ManualInjectExpectation teamClicked =
+        teamStep(PhishingTrackingService.STEP_CLICKED, "team-1", 100.0, false);
+    when(injectExpectationRepository.findAllByInjectId("inject-1"))
+        .thenReturn(List.of(playerClicked, teamClicked));
+
+    // -- ACT --
+    phishingTrackingService.markClicked("token-1", "1.2.3.4", "curl/8");
+
+    // -- ASSERT -- person RED and team RED (a compromised member fails the "all must validate"
+    // team), never a red person next to a green team.
+    assertEquals(0.0, playerClicked.getScore(), "the recipient who clicked must be RED");
+    assertEquals(
+        0.0,
+        teamClicked.getScore(),
+        "under 'all must validate' one fallen member turns the whole team RED");
+    verify(injectExpectationRepository).save(teamClicked);
+  }
+
+  @Test
+  @DisplayName(
+      "markClicked should keep the team GREEN under 'at least one' rule while another member"
+          + " resisted")
+  void markClicked_should_keepTeamGreenUnderAnyValidateRule() {
+    // -- ARRANGE -- one team, two players; "at least one" rule (expectationGroup true). Only the
+    // recipient (user-1) clicks; user-2 keeps resisting.
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation recipient =
+        playerStep(PhishingTrackingService.STEP_CLICKED, "user-1", "team-1", 100.0, true);
+    ManualInjectExpectation teammate =
+        playerStep(PhishingTrackingService.STEP_CLICKED, "user-2", "team-1", 100.0, true);
+    ManualInjectExpectation teamClicked =
+        teamStep(PhishingTrackingService.STEP_CLICKED, "team-1", 100.0, true);
+    when(injectExpectationRepository.findAllByInjectId("inject-1"))
+        .thenReturn(List.of(recipient, teammate, teamClicked));
+
+    // -- ACT --
+    phishingTrackingService.markClicked("token-1", "1.2.3.4", "curl/8");
+
+    // -- ASSERT -- recipient RED, teammate untouched, team still GREEN (at least one resisted).
+    assertEquals(0.0, recipient.getScore(), "the recipient who clicked must be RED");
+    assertEquals(100.0, teammate.getScore(), "a member who did not click is untouched");
+    assertEquals(
+        100.0,
+        teamClicked.getScore(),
+        "under 'at least one' the team stays GREEN while any member resisted");
+  }
+
+  @Test
+  @DisplayName(
       "markSubmitted should capture credentials as a Credentials finding when capture is on")
   void markSubmitted_should_createCredentialsFinding() {
     // -- ARRANGE --
@@ -167,8 +261,7 @@ class PhishingTrackingServiceTest {
     when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
     when(phishingResultRepository.save(any(PhishingResult.class)))
         .thenAnswer(i -> i.getArgument(0));
-    when(injectExpectationRepository.findAllByInjectAndPlayer(anyString(), anyString()))
-        .thenReturn(List.of());
+    when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
 
     // -- ACT --
     phishingTrackingService.markSubmitted(
@@ -192,8 +285,7 @@ class PhishingTrackingServiceTest {
     when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
     when(phishingResultRepository.save(any(PhishingResult.class)))
         .thenAnswer(i -> i.getArgument(0));
-    when(injectExpectationRepository.findAllByInjectAndPlayer(anyString(), anyString()))
-        .thenReturn(List.of());
+    when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
 
     // -- ACT --
     phishingTrackingService.markSubmitted(
@@ -211,8 +303,7 @@ class PhishingTrackingServiceTest {
     when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
     when(phishingResultRepository.save(any(PhishingResult.class)))
         .thenAnswer(i -> i.getArgument(0));
-    when(injectExpectationRepository.findAllByInjectAndPlayer(anyString(), anyString()))
-        .thenReturn(List.of());
+    when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
 
     // -- ACT --
     phishingTrackingService.markSubmitted(
@@ -233,8 +324,7 @@ class PhishingTrackingServiceTest {
     when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
     when(phishingResultRepository.save(any(PhishingResult.class)))
         .thenAnswer(i -> i.getArgument(0));
-    when(injectExpectationRepository.findAllByInjectAndPlayer(anyString(), anyString()))
-        .thenReturn(List.of());
+    when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
 
     // -- ACT --
     Map<String, String> fields = Map.of("username", "victim@corp.test", "password", "hunter2");
