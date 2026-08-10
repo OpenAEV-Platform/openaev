@@ -224,9 +224,20 @@ public class ExpectationUtils {
       Map<String, Endpoint> valueTargetedAssetsMap,
       Inject inject) {
     String injectId = inject != null ? inject.getId() : null;
+    // A prevention verdict for an inject that does NOT run through an OAEV agent (network
+    // scanners such as Nmap, Netexec, HTTP...) belongs to the targeted asset itself, never to
+    // the agents that merely happen to run on that endpoint. Building one per-agent row per
+    // scoped endpoint is what let a single host + time-window security-platform alert be fanned
+    // out across every endpoint of a chained execution (including endpoints with no EDR at all).
+    // So for a non-agent inject we keep only the agentless, asset-level expectation - exactly
+    // what atomic testing and normal simulations produce.
+    boolean runsThroughAgents = inject == null || injectRunsThroughAgents(inject);
+    List<Agent> effectiveAgents = runsThroughAgents ? executedAgents : List.of();
+    boolean agentless =
+        !runsThroughAgents || isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject);
     return getExpectations(
         assetToExecute,
-        executedAgents,
+        effectiveAgents,
         (AssetGroup assetGroup) -> {
           PreventionExpectation preventionExpectation =
               preventionExpectationForAsset(
@@ -264,7 +275,7 @@ public class ExpectationUtils {
               expectation.getExpectedSecurityPlatformTypes());
           return preventionExpectation;
         },
-        isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject));
+        agentless);
   }
 
   /**
@@ -286,9 +297,20 @@ public class ExpectationUtils {
       Map<String, Endpoint> valueTargetedAssetsMap,
       Inject inject) {
     String injectId = inject != null ? inject.getId() : null;
+    // A detection verdict for an inject that does NOT run through an OAEV agent (network
+    // scanners such as Nmap, Netexec, HTTP...) belongs to the targeted asset itself, never to
+    // the agents that merely happen to run on that endpoint. Building one per-agent row per
+    // scoped endpoint is what let a single host + time-window security-platform alert be fanned
+    // out across every endpoint of a chained execution (including endpoints with no EDR at all).
+    // So for a non-agent inject we keep only the agentless, asset-level expectation - exactly
+    // what atomic testing and normal simulations produce.
+    boolean runsThroughAgents = inject == null || injectRunsThroughAgents(inject);
+    List<Agent> effectiveAgents = runsThroughAgents ? executedAgents : List.of();
+    boolean agentless =
+        !runsThroughAgents || isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject);
     return getExpectations(
         assetToExecute,
-        executedAgents,
+        effectiveAgents,
         (AssetGroup assetGroup) -> {
           DetectionExpectation detectionExpectation =
               detectionExpectationForAsset(
@@ -326,7 +348,7 @@ public class ExpectationUtils {
               expectation.getExpectedSecurityPlatformTypes());
           return detectionExpectation;
         },
-        isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject));
+        agentless);
   }
 
   /**

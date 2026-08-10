@@ -4,6 +4,7 @@ import static io.openaev.utils.ExpectationSignatureUtils.*;
 import static io.openaev.utils.ExpectationUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
@@ -319,5 +320,55 @@ class ExpectationUtilsTest extends IntegrationTest {
     Inject inject = injectWithInjector(InjectorFixture.createDefaultPayloadInjector());
 
     assertFalse(isAgentlessAssetExpectationNecessary(null, inject));
+  }
+
+  @Test
+  @DisplayName(
+      "Network (non-agent) inject on an endpoint carrying an agent builds ONLY an asset-level"
+          + " detection/prevention expectation, never a per-agent one")
+  void
+      given_nonAgentInjectOnEndpointWithAgent_should_buildOnlyAssetLevelDetectionPreventionExpectation() {
+    // Regression for the chained-execution fan-out: a network scanner (Nmap, Netexec...) never
+    // runs on the OAEV agent, yet chaining pins it onto agent-bearing endpoints. Building a
+    // per-agent detection/prevention row per scoped endpoint let a single host + time-window
+    // security-platform alert be attributed to every endpoint (even endpoints with no EDR). The
+    // verdict must stay at the asset level - exactly what atomic testing and normal simulations do.
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    Agent agent = AgentFixture.createAgent(endpoint, "ext");
+    agent.setId("agentId");
+    endpoint.setAgents(List.of(agent));
+
+    // A non-payload injector => injectRunsThroughAgents(inject) == false.
+    Inject inject =
+        injectWithInjector(InjectorFixture.createInjector("injectorId", "manual", "manual"));
+    inject.setId("injectId");
+
+    AssetToExecute assetToExecute = new AssetToExecute(endpoint, true, List.of());
+
+    // Even though the buggy call site would pass the endpoint's active agents as "executed
+    // agents", the fix must ignore them for a non-agent inject.
+    List<PreventionExpectation> preventionExpectations =
+        getPreventionExpectationsByAsset(
+            OAEV_IMPLANT,
+            assetToExecute,
+            List.of(agent),
+            ExpectationFixture.createExpectation(),
+            new HashMap<>(),
+            inject);
+
+    List<DetectionExpectation> detectionExpectations =
+        getDetectionExpectationsByAsset(
+            OAEV_IMPLANT,
+            assetToExecute,
+            List.of(agent),
+            ExpectationFixture.createExpectation(),
+            new HashMap<>(),
+            inject);
+
+    assertEquals(1, preventionExpectations.size());
+    assertNull(preventionExpectations.getFirst().getAgent());
+
+    assertEquals(1, detectionExpectations.size());
+    assertNull(detectionExpectations.getFirst().getAgent());
   }
 }
