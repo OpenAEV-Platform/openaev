@@ -1198,6 +1198,13 @@ The five differences, each with a named cause — none is a defect:
 
 ## 25. `SearchField` has no clear control — the visible cross is the browser's
 
+**Status.** **Fixed upstream by library PR #100**, shipped in pin
+`c8a3289ec950289e92ee4353c4cfce2be2394f77`, and **verified in the product** —
+see "Adoption measured" at the bottom. **No product compensation existed**, so
+there is nothing to remove: the entry was deliberately filed without a local
+patch, since a product-side cross would have been exactly the hand-rolled
+control the scope rule forbids. Closing this entry is a measurement.
+
 **Severity.** Medium — visual inconsistency with the rest of the library, on
 the most exposed field of the product.
 
@@ -1248,8 +1255,44 @@ non-empty, render a real clear control composed from the library's own
 `IconButton`, invoking `onClear`.
 
 **Removal condition.** `SearchField` composes `IconButton` for its clear
-control. Until then, no local patch: a product-side cross would be one more
-hand-rolled control, which is precisely what the scope rule forbids.
+control. **Met** by library PR #100.
 
-**Status.** Open — waiting on a library fix and a pin bump. Nothing changed
-product-side.
+---
+
+### Adoption measured — pin `c8a3289`, in the product's top bar, 2026-08-10
+
+The removal condition, verbatim: *"`SearchField` composes `IconButton` for its
+clear control."* Measured in the running instance, same field, same browser:
+
+| Probe | Before (`c0d6f07`) | After (`c8a3289`) |
+|---|---|---|
+| `button` in `[role="search"]`, field empty | 0 | 0 |
+| `button` in `[role="search"]`, field filled | **0** | **1** |
+| Nodes in the wrapper, filled | **4** (unchanged from empty) | **9** |
+| The clear control | no DOM node — UA pseudo-element | `<button aria-label="Clear search" data-search-clear>` |
+| Crosses painted in the field | 1 (the browser's) | 1 (the library's) — no double cross |
+
+The decisive line is the node count: the cross used to appear without the
+wrapper gaining a single node. It now costs real markup, which is what a
+component looks like.
+
+**States now match the rest of the bar**, i.e. they are `IconButton`'s:
+
+| State | Clear cross | Other icon buttons in the bar |
+|---|---|---|
+| rest | `rgba(0, 0, 0, 0)`, `cursor: pointer` | identical |
+| hover | `color(srgb 0.258824 0.792157 1 / 0.1)` | identical |
+| keyboard focus | `rgb(7,13,24) 0 0 0 2px` + `rgb(66,202,255) 0 0 0 4px` | identical |
+
+**Behaviour, verified rather than assumed.** The product's field is controlled,
+and in controlled mode the library deliberately does not touch the DOM value —
+it only calls `onClear`. So the field emptying on click *is* the proof that
+`onClear` ran: measured `"adversar"` → `""`, cross gone, focus returned to the
+input. The product's handler is `onClear={() => setSearchValue('')}` and does
+nothing else — no panel to close, no query to re-run — so nothing is lost.
+Escape still clears (`"scenario"` → `""`), and is now vetoable by a consumer's
+own `onKeyDown`.
+
+**The second-order consequence is resolved too.** Under the old behaviour the
+UA cross cleared the DOM value and a controlled consumer stayed in sync only by
+luck, while `onClear` never ran. Both paths now go through the same `clear()`.
