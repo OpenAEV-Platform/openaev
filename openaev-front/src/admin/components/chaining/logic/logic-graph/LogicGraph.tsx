@@ -317,6 +317,7 @@ const LogicGraph = ({
     baseX: number,
     baseY: number,
     event: ReactPointerEvent<HTMLDivElement>,
+    onClick: () => void,
   ) => {
     if (event.button !== 0) return;
     event.stopPropagation();
@@ -342,11 +343,11 @@ const LogicGraph = ({
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
-      if (!moved) handleSelect(nodeId);
+      if (!moved) onClick();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-  }, [readOnly, handleSelect]);
+  }, [readOnly]);
 
   const handleAutoLayout = useCallback(() => {
     setPositionOverrides({});
@@ -546,7 +547,18 @@ const LogicGraph = ({
                 key={node.id}
                 data-node-id={node.id}
                 data-node-kind="action"
-                onPointerDown={e => handleNodePointerDown(node.id, node.x, node.y, e)}
+                onPointerDown={e => handleNodePointerDown(
+                  node.id,
+                  node.x,
+                  node.y,
+                  e,
+                  () => {
+                    handleSelect(node.id);
+                    if (readOnly) {
+                      handleEditAction(node.id);
+                    }
+                  },
+                )}
                 style={{
                   position: 'absolute',
                   left: node.x,
@@ -587,7 +599,18 @@ const LogicGraph = ({
               key={node.id}
               data-node-id={node.id}
               data-node-kind="trigger"
-              onPointerDown={e => handleNodePointerDown(node.id, node.x, node.y, e)}
+              onPointerDown={e => handleNodePointerDown(
+                node.id,
+                node.x,
+                node.y,
+                e,
+                () => {
+                  handleSelect(node.id);
+                  if (readOnly) {
+                    handleEditTrigger(node.id);
+                  }
+                },
+              )}
               style={{
                 position: 'absolute',
                 left: node.x,
