@@ -12,6 +12,7 @@ import io.openaev.rest.helper.RestBehavior;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -98,11 +99,7 @@ public class HostedPublicApi extends RestBehavior {
     }
     Optional<PhishingResult> result =
         phishingTrackingService.markSubmitted(
-            token,
-            resolveUsername(input),
-            resolvePassword(input),
-            clientIp(request),
-            request.getHeader("User-Agent"));
+            token, submittedFields(input), clientIp(request), request.getHeader("User-Agent"));
     String redirectUrl =
         result
             .map(PhishingResult::getLandingPage)
@@ -138,34 +135,23 @@ public class HostedPublicApi extends RestBehavior {
         .body(TRACKING_PIXEL);
   }
 
-  private String resolveUsername(PhishingSubmitInput input) {
+  /**
+   * Flattens the submitted payload into a single field map: the free-form {@code data} map plus the
+   * explicit {@code username} / {@code password} fields (when present). The tracking service resolves
+   * the credential out of this map and keeps every field as the completeness record.
+   */
+  private Map<String, String> submittedFields(PhishingSubmitInput input) {
+    Map<String, String> fields = new LinkedHashMap<>();
+    if (input.getData() != null) {
+      fields.putAll(input.getData());
+    }
     if (input.getUsername() != null && !input.getUsername().isBlank()) {
-      return input.getUsername();
+      fields.putIfAbsent("username", input.getUsername());
     }
-    if (input.getData() != null) {
-      for (String key : new String[] {"username", "email", "user", "login"}) {
-        String value = input.getData().get(key);
-        if (value != null && !value.isBlank()) {
-          return value;
-        }
-      }
-    }
-    return null;
-  }
-
-  private String resolvePassword(PhishingSubmitInput input) {
     if (input.getPassword() != null && !input.getPassword().isBlank()) {
-      return input.getPassword();
+      fields.putIfAbsent("password", input.getPassword());
     }
-    if (input.getData() != null) {
-      for (String key : new String[] {"password", "passwd", "pass"}) {
-        String value = input.getData().get(key);
-        if (value != null && !value.isBlank()) {
-          return value;
-        }
-      }
-    }
-    return null;
+    return fields;
   }
 
   /** Best-effort client IP, honoring a single X-Forwarded-For hop. */
