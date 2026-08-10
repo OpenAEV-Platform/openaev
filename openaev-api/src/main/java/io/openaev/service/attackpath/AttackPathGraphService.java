@@ -648,8 +648,7 @@ public class AttackPathGraphService {
     applyContractNames(page, feedByExecutionId);
     applyExecutionStatuses(page, feedByExecutionId);
     applyPayloadIconMetadata(page, feedByExecutionId);
-    applyFeedAttackPatterns(
-        page, feedByExecutionId, loadPatternsByContract(feedContractIds(page)));
+    applyFeedAttackPatterns(page, feedByExecutionId, loadPatternsByContract(feedContractIds(page)));
     return new AttackPathEndpointRelationsDTO(
         new ArrayList<>(feedByExecutionId.values()),
         new ArrayList<>(edges.values()),
