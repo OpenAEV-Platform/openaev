@@ -112,15 +112,28 @@ describe('Admin TopBar built on the design system Header', () => {
     expect(getBar().style.getPropertyValue('--gradient-default')).not.toContain('rgba');
   });
 
-  it('gives the search cluster its own width window', () => {
-    // The library's growing group is capped at 400px, which is BELOW this
-    // bar's 550px minimum - hence grow="unbounded" plus an explicit window.
+  it('bounds the search field between 200px and 500px', () => {
+    // Design decision (Sandy, round 4): the field runs from a 200px floor to a
+    // 500px ceiling. The library's growing group caps at 400px, BELOW that
+    // ceiling, so grow="unbounded" stays the supported way to say "I supply my
+    // own window" - and the window is this one.
     renderTopBar();
-    // The library's SearchField renders a role="search" wrapper; the group is
-    // its parent.
+    // The window sits on the group, not on the SearchField instance: the
+    // component forwards `className` to its wrapper but spreads its remaining
+    // props - `style` included - onto the inner <input>, so an inline width
+    // there would size the text box instead of the field. Asserted on the
+    // group the product owns; the field fills it through `fullWidth`.
     const group = screen.getByRole('search').parentElement as HTMLElement;
-    expect(group.style.minWidth).toBe('550px');
-    expect(group.style.maxWidth).toBe('680px');
+    expect(group.style.minWidth).toBe('200px');
+    expect(group.style.maxWidth).toBe('500px');
+  });
+
+  it('lets the field fill its window', () => {
+    // The window only bounds the rendered field if the field actually spans
+    // it. Without `fullWidth` the library's fixed `w-55` (220px) would sit
+    // inside the group and the ceiling would never be reached.
+    renderTopBar();
+    expect(screen.getByRole('search').className.split(/\s+/)).toContain('w-full');
   });
 
   it('does not let the bar stretch to full width while it is offset', () => {

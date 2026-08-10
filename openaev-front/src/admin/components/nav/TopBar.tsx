@@ -157,20 +157,43 @@ const TopBar: FunctionComponent = () => {
         } as CSSProperties}
       >
         <HeaderGroup
-          // The library's growing cluster is capped at Figma's 400px; this
-          // bar's MINIMUM is 550px, so the cap is not merely tight, it is
-          // below the floor. "unbounded" is the supported way to say "I
-          // supply my own window" instead of fighting the cap.
+          // The library's growing cluster is capped at Figma's 400px, which is
+          // BELOW the 500px ceiling this bar was given, so the cap is not
+          // merely tight - it is below the target. "unbounded" is the supported
+          // way to say "I supply my own window" instead of fighting the cap.
           grow="unbounded"
+          // Design decision (Sandy, round 4): the search field is bounded to a
+          // 200px floor and a 500px ceiling. The window is declared HERE, on
+          // the group the product owns, and the field fills it through its own
+          // `fullWidth` - so the rendered field is exactly 200-500 wide.
+          //
+          // It cannot be declared on the SearchField instance: the component
+          // forwards `className` to its wrapper but spreads the rest of its
+          // props - `style` included - onto the inner <input>, so an inline
+          // width there would constrain the text box inside the field instead
+          // of the field itself. The `className` route needs Tailwind classes
+          // that this app never compiles (it consumes the library's prebuilt
+          // CSS, no tailwind config of its own), and reaching for the
+          // component's internal selectors is exactly what the scope rule
+          // forbids. The group is the product layer, and it is enough.
+          //
+          // The floor is also what keeps the flex algorithm honest: this group
+          // is a flex item that `grow="unbounded"` gives `min-w-0`, which lets
+          // it shrink past its own content. Without an explicit floor it would
+          // keep shrinking at narrow viewports and squeeze the field below 200.
           style={{
-            minWidth: 550,
-            width: '50%',
-            maxWidth: 680,
+            minWidth: 200,
+            maxWidth: 500,
           }}
         >
           <SearchField
             aria-label={t('Search the platform')}
             placeholder={`${t('Search the platform')}...`}
+            // Design decision (Sandy, round 4): 200px floor, 500px ceiling.
+            // Declared on the HeaderGroup above (see the rationale there), not
+            // here: this component spreads unknown props onto its inner
+            // <input>, so a `style` passed here would size the text box, not
+            // the field. `fullWidth` makes the field fill that window.
             fullWidth={true}
             value={searchValue}
             onChange={event => setSearchValue(event.target.value)}
