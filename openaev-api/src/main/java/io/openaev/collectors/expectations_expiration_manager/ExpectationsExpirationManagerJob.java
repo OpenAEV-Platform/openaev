@@ -13,8 +13,9 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenantRegistrable {
-  private static final String FAKE_DETECTOR_COLLECTOR_TYPE = "openaev_fake_detector";
-  private static final String FAKE_DETECTOR_COLLECTOR_NAME = "Expectations Expiration Manager";
+  public static final String EXPECTATIONS_EXPIRATION_MANAGER_TYPE = "openaev_expiration_manager";
+  private static final String EXPECTATIONS_EXPIRATION_MANAGER_NAME =
+      "Expectations Expiration Manager";
   private final ExpectationsExpirationManagerService fakeDetectorService;
   private final CollectorService collectorService;
   private final ExpectationsExpirationManagerConfig config;
@@ -37,8 +38,8 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
     collectorService.register(
         tenantId,
         config.getId(),
-        FAKE_DETECTOR_COLLECTOR_TYPE,
-        FAKE_DETECTOR_COLLECTOR_NAME,
+        EXPECTATIONS_EXPIRATION_MANAGER_TYPE,
+        EXPECTATIONS_EXPIRATION_MANAGER_NAME,
         false,
         0,
         null,

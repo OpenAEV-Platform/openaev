@@ -22,14 +22,13 @@ import { isFeatureEnabled } from '../../../../utils/utils';
 import { type ConnectorItem, type ConnectorItemType } from '../catalog_connectors/catalog-facets';
 import ConnectorMarketplace from '../catalog_connectors/ConnectorMarketplace';
 import builtinConnectorDescription from '../common/builtinConnectorDescriptions';
-import { computeConnectorLiveliness } from '../common/connector-liveliness';
+import { isConnectorAlive } from '../common/connector-liveliness';
 import {
   collectorConfig,
   type ConnectorContextType,
   type ConnectorOutput,
   executorConfig,
   injectorConfig,
-  isSupportedByFiligran,
   secretsProviderConfig,
 } from '../common/ConnectorContext';
 import ConnectorStatus from '../common/ConnectorStatus';
@@ -96,13 +95,13 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
         // gating it on the catalog stranded custom or renamed-slug connectors
         // (no way to delete or manage them at all). Only pending, instance-only
         // entries keep the legacy rule.
-        const clickable = connector.isExisting === true
-          || !(connector.catalog == null && type !== 'INJECTOR');
+        const clickable = connector.canRead;
         let logoSrc: string | undefined;
-        if (connector.isExisting) {
-          logoSrc = config.logoUrl(connector.type);
-        } else if (connector.catalog?.catalog_connector_logo_url) {
+
+        if (connector.catalog?.catalog_connector_logo_url) {
           logoSrc = `/api/images/catalog/connectors/logos/${connector.catalog.catalog_connector_logo_url}`;
+        } else {
+          logoSrc = config.logoUrl(connector.type);
         }
         allItems.push({
           id: connector.id,
@@ -120,11 +119,11 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
           useCases: catalogMatch?.catalog_connector_use_cases ?? [],
           // Support badge: catalog verified flag (or built-in = Filigran), never
           // the output's is_verified which only means "has an instance".
-          verified: isSupportedByFiligran(connector, catalogMatch?.catalog_connector_verified),
-          external: connector.isExternal === true,
+          verified: connector.isFiligranVerified,
           deployedCount: connector.connectorInstance ? 1 : 0,
           logoSrc,
           detailUrl: clickable ? config.routes.detail(connector.id) : undefined,
+          external: connector.isExternal,
         });
         meta.set(connector.id, {
           connector,
@@ -186,18 +185,20 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     // visibility on the entry actually resolved from the catalog list (not just
     // the connector's embedded catalog ref) so a rendered button can never be a
     // no-op click.
-    const canMigrate = connector.isExternal && connector.connectorInstance == null
+    const canMigrate = connector.connectorInstance == null
       && isXtmComposerUp && deployed.catalogConnector != null;
-    const { started, lastSeen, healthy, builtIn } = computeConnectorLiveliness(connector);
-    const diskColor = healthy ? theme.palette.success.main : theme.palette.error.main;
+    const started = isConnectorAlive(connector);
+    const diskColor = started ? theme.palette.success.main : theme.palette.error.main;
     let diskTooltip: string;
-    if (builtIn) {
+
+    if (!connector.isExternal) {
       diskTooltip = t('Runs inside the platform');
-    } else if (lastSeen) {
-      diskTooltip = `${t('Last Seen')}: ${nsdt(lastSeen)}`;
+    } else if (connector.lastSeen) {
+      diskTooltip = `${t('Last Seen')}: ${nsdt(connector.lastSeen)}`;
     } else {
       diskTooltip = t('Never updated');
     }
+
     return (
       <div style={{
         display: 'flex',
@@ -224,7 +225,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
               boxShadow: `0 0 6px ${diskColor}`,
             }}
             />
-            {lastSeen && (
+            {connector.lastSeen && (
               <Typography
                 variant="body2"
                 sx={{
@@ -235,7 +236,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
                   color: 'text.secondary',
                 }}
               >
-                {moment(lastSeen).fromNow()}
+                {moment(connector.lastSeen).fromNow()}
               </Typography>
             )}
           </div>

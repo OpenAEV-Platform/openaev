@@ -138,10 +138,9 @@ public class SecretsProviderService
       SecretsProvider connector,
       String displayName,
       CatalogConnector catalogConnector,
-      ConnectorInstance instance,
-      boolean existingConnector) {
+      ConnectorInstance instance) {
     return secretsProviderMapper.toSecretsProviderOutput(
-        connector, displayName, catalogConnector, instance, existingConnector);
+        connector, displayName, catalogConnector, instance);
   }
 
   @Override

@@ -1,5 +1,7 @@
 package io.openaev.rest.collector.service;
 
+import static io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob.EXPECTATIONS_EXPIRATION_MANAGER_TYPE;
+import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.EXPECTATIONS_VULNERABILITY_COLLECTOR_TYPE;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
@@ -35,6 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class CollectorService extends AbstractConnectorService<Collector, CollectorOutput> {
 
   @Resource protected ObjectMapper mapper;
+
+  private static final Set<String> BUILTIN_AUTOSTART =
+      Set.of(EXPECTATIONS_VULNERABILITY_COLLECTOR_TYPE, EXPECTATIONS_EXPIRATION_MANAGER_TYPE);
 
   private final CollectorRepository collectorRepository;
 
@@ -85,10 +90,15 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       Collector collector,
       String displayName,
       CatalogConnector catalogConnector,
-      ConnectorInstance connectorInstance,
-      boolean existingCollector) {
-    return collectorMapper.toCollectorOutput(
-        collector, displayName, catalogConnector, connectorInstance, existingCollector);
+      ConnectorInstance connectorInstance) {
+    ConnectorInstance instance = connectorInstance;
+    // They are built-in collectors, always started.
+    if (instance == null && BUILTIN_AUTOSTART.contains(collector.getCollectorType().getName())) {
+      instance = new ConnectorInstanceInMemory();
+      instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+    }
+
+    return collectorMapper.toCollectorOutput(collector, displayName, catalogConnector, instance);
   }
 
   @Override

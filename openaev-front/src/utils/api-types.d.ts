@@ -2461,23 +2461,24 @@ export interface CollectorCreateInput {
 
 /** Collector output */
 export interface CollectorOutput {
+  can_manage?: boolean;
+  can_read?: boolean;
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
-  collector_external?: boolean;
   /**
    * Collector id
    * @minLength 1
    */
   collector_id: string;
-  /** @format date-time */
-  collector_last_execution?: string;
   /** @minLength 1 */
   collector_name: string;
   /** @minLength 1 */
   collector_type: string;
   connector_instance?: ConnectorInstanceOutput;
-  existing_collector?: boolean;
+  is_external?: boolean;
   is_verified?: boolean;
+  /** @format date-time */
+  last_execution?: string;
 }
 
 export interface CollectorUpdateInput {
@@ -5141,6 +5142,8 @@ export interface ExecutorCreateInput {
 
 /** Executor output */
 export interface ExecutorOutput {
+  can_manage?: boolean;
+  can_read?: boolean;
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
   connector_instance?: ConnectorInstanceOutput;
@@ -5156,10 +5159,10 @@ export interface ExecutorOutput {
   executor_platforms?: string[];
   /** @minLength 1 */
   executor_type: string;
-  /** @format date-time */
-  executor_updated_at?: string;
-  existing_executor?: boolean;
+  is_external?: boolean;
   is_verified?: boolean;
+  /** @format date-time */
+  last_execution?: string;
 }
 
 export interface ExecutorUpdateInput {
@@ -6937,11 +6940,11 @@ export interface InjectorCreateInput {
 
 /** Injector output */
 export interface InjectorOutput {
+  can_manage?: boolean;
+  can_read?: boolean;
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
   connector_instance?: ConnectorInstanceOutput;
-  existing_injector?: boolean;
-  injector_external?: boolean;
   /**
    * Injector id
    * @minLength 1
@@ -6951,9 +6954,10 @@ export interface InjectorOutput {
   injector_name: string;
   /** @minLength 1 */
   injector_type: string;
-  /** @format date-time */
-  injector_updated_at?: string;
+  is_external?: boolean;
   is_verified?: boolean;
+  /** @format date-time */
+  last_execution?: string;
 }
 
 export interface InjectorRegistration {
@@ -10760,11 +10764,15 @@ export interface SecretsProvider {
 
 /** Secrets provider output */
 export interface SecretsProviderOutput {
+  can_manage?: boolean;
+  can_read?: boolean;
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
   connector_instance?: ConnectorInstanceOutput;
-  existing_secret_provider?: boolean;
+  is_external?: boolean;
   is_verified?: boolean;
+  /** @format date-time */
+  last_execution?: string;
   /**
    * Secrets provider id
    * @minLength 1

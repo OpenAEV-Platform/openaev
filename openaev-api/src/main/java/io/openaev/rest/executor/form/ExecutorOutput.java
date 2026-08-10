@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.rest.connector.dto.ConnectorOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import java.time.Instant;
 import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
@@ -24,17 +23,11 @@ public class ExecutorOutput extends ConnectorOutput {
   @NotBlank
   private String type;
 
-  @JsonProperty("executor_updated_at")
-  private Instant updatedAt;
-
   @JsonProperty("executor_platforms")
   private String[] platforms;
 
   @JsonProperty("executor_doc")
   private String doc;
-
-  @JsonProperty("existing_executor")
-  private boolean existing;
 
   @JsonProperty("executor_background_color")
   private String backgroundColor;

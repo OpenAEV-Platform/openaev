@@ -1,10 +1,9 @@
 package io.openaev.utils.mapper;
 
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.Injector;
+import io.openaev.database.model.*;
 import io.openaev.rest.injector.form.InjectorOutput;
 import jakarta.annotation.Nullable;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -20,17 +19,32 @@ public class InjectorMapper {
       Injector injector,
       String displayName,
       @Nullable CatalogConnector catalogConnector,
-      ConnectorInstance connectorInstance,
-      boolean existingInjector) {
+      ConnectorInstance connectorInstance) {
+
     return InjectorOutput.builder()
         .id(injector.getId())
         .name(displayName)
         .type(injector.getType())
-        .external(injector.isExternal())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
-        .verified(connectorInstance != null)
-        .updatedAt(injector.getUpdatedAt())
-        .existing(existingInjector)
+        // Support semantics (same as OpenCTI): "Supported by Filigran" comes from the
+        // CATALOG's verified flag, and built-in connectors
+        .verified(
+            !injector.isExternal() || catalogConnector != null && catalogConnector.isVerified())
+        .external(injector.isExternal())
+        .lastExecution(
+            (!injector.isExternal()
+                    && connectorInstance != null
+                    && ConnectorInstance.CURRENT_STATUS_TYPE.started.equals(
+                        connectorInstance.getCurrentStatus()))
+                ? Instant.now()
+                : injector.getUpdatedAt())
+        // Can read injectors, because they have an injectorContract attached
+        .canRead(true)
+        // Injectors with an in-memory connectorInstance are built-in and always started.
+        // Injectors without a connectorInstance are installed manually (e.g. via Docker).
+        // Only injectors from the catalog with a persisted connectorInstance can be started,
+        // stopped, or configured.
+        .canManage(catalogConnector != null && connectorInstance != null)
         .connectorInstance(
             connectorInstance != null
                 ? connectorInstanceMapper.toConnectorInstanceOutput(connectorInstance)
