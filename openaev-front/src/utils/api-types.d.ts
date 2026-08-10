@@ -976,6 +976,10 @@ export interface AttackPathAttackPatternDTO {
   name?: string;
 }
 
+export interface AttackPathCausalSeedResultDTO {
+  simulationId?: string;
+}
+
 export interface AttackPathCounters {
   /** @format int64 */
   credentials?: number;
@@ -1130,6 +1134,15 @@ export interface AttackPathNodeDTO {
   typeFindings?: string;
   value?: string;
   verdicts?: AttackPathFindingVerdictsDTO;
+}
+
+export interface AttackPathReplayStepDTO {
+  done?: boolean;
+  label?: string;
+  /** @format int32 */
+  stage?: number;
+  /** @format int32 */
+  totalStages?: number;
 }
 
 export interface AttackPathSecurityPlatformDTO {
