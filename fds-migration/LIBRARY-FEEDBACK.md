@@ -1193,3 +1193,63 @@ The five differences, each with a named cause — none is a defect:
 | `font-family` | `…, "IBM Plex Sans Fallback"` | `…, sans-serif` | `next/font` local fallback, an artifact of the documentation site only. Same first family on both sides. |
 
 **Verdict.** No host CSS bleed, no missing reset, no pin lag, no design delta.
+
+---
+
+## 25. `SearchField` has no clear control — the visible cross is the browser's
+
+**Severity.** Medium — visual inconsistency with the rest of the library, on
+the most exposed field of the product.
+
+**Reported by.** Design review of the Header pilot, 2026-08-10: *"the clear
+cross that appears when typing does not look like the library's crosses (Chip,
+Dialog)."*
+
+**What it actually is.** It is not a component at all. `SearchField` renders its
+input as `type="search"` and does not neutralise the user-agent's
+`::-webkit-search-cancel-button`, so Chromium paints its own cancel control
+inside the field. Measured in the product, before and after typing:
+
+| Probe | Before typing | After typing `adversar` |
+|---|---|---|
+| `button` elements inside `[role="search"]` | 0 | **0** |
+| `svg` elements inside `[role="search"]` | 1 (the magnifier) | 1 (the magnifier) |
+| Children of the wrapper | `svg`, `input` | `svg`, `input` |
+| Total nodes in the wrapper | 4 | **4** |
+| `input[type]` | `search` | `search` |
+| `getComputedStyle(input, '::-webkit-search-cancel-button').display` | — | `block` (UA control active) |
+
+The cross is plainly visible in the rendered field, yet **not one DOM node is
+added when it appears** — conclusive that it is a UA pseudo-element and not
+markup. It therefore cannot inherit any library styling, which is exactly why it
+does not match the crosses of `Chip` and `Dialog`: those are library-drawn, this
+one is drawn by the browser.
+
+**Not a product addition.** The product passes no `searchOption`, adds no clear
+control, and ships no `::-webkit-search-cancel-button` rule (grepped:
+`searchOption|search-cancel` has no hit in the top bar path). It passes only
+`aria-label`, `placeholder`, `fullWidth`, `value`, `onChange`, `onSubmit`,
+`onClear`. The behaviour is entirely the library's.
+
+**Second-order consequence.** The library's `onClear` is wired only to the
+Escape key. The UA cross clears the input natively and fires `input`/`change`,
+so a controlled consumer stays in sync by luck — but `onClear` never runs, so
+any consumer doing more than resetting the value (closing a result panel,
+re-running a query) silently misses it when the user clicks the cross rather
+than pressing Escape.
+
+**Consistency note.** The component's base already carries an explicit
+"UA-default defense" for fonts, borders, padding and the box model. The cancel
+button is the same class of problem, missed in the same place.
+
+**Suggested.** Neutralise the UA control
+(`[&::-webkit-search-cancel-button]:appearance-none`) and, when the field is
+non-empty, render a real clear control composed from the library's own
+`IconButton`, invoking `onClear`.
+
+**Removal condition.** `SearchField` composes `IconButton` for its clear
+control. Until then, no local patch: a product-side cross would be one more
+hand-rolled control, which is precisely what the scope rule forbids.
+
+**Status.** Open — waiting on a library fix and a pin bump. Nothing changed
+product-side.
