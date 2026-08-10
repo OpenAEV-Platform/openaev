@@ -982,6 +982,7 @@
   "Deleted": "Gelöscht",
   "Deleted asset": "Deleted asset",
   "Deleted asset group": "Deleted asset group",
+  "Deleting a running simulation will stop its execution.": "Das Löschen einer laufenden Simulation stoppt deren Ausführung.",
   "Deleting actions": "Aktionen werden gelöscht",
   "Deleting asset groups": "Anlagengruppen werden gelöscht",
   "Deleting assets": "Assets werden gelöscht",
