@@ -26,7 +26,6 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.PhishingEmailTemplate;
 import io.openaev.database.model.PhishingLandingPage;
-import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
@@ -53,7 +52,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -421,25 +419,35 @@ public class PhishingLandingPageService {
   }
 
   /**
-   * Available expectations for a phishing action. Like most technical injector contracts, phishing
-   * carries PREVENTION and DETECTION on top of the always-available MANUAL expectation: a phishing
-   * simulation is only meaningful if the platform can score whether the lure was blocked
-   * (prevention) or detected (detection). Both are predefined so every phishing inject measures
-   * them by default, and both are focused on {@link
-   * SecurityPlatform.SECURITY_PLATFORM_TYPE#EMAIL_SECURITY} platforms - the security control that
-   * actually inspects inbound mail - instead of asking every connected collector for a verdict.
+   * Available expectations for a phishing action: the three human-response steps of a phishing test
+   * - the recipient opening the lure email, following the link (landing page loaded) and submitting
+   * data. Each is a predefined MANUAL expectation, so every phishing inject measures all three by
+   * default. Their polarity is inverted (see {@link PhishingTrackingService}): a step is GREEN
+   * ("resisted") while the recipient has not performed it and flips RED ("fell for it") the moment
+   * they do, so a recipient who never interacts keeps the green verdict through expiration.
    */
   private List<Expectation> buildPhishingExpectations() {
-    Expectation prevention = this.expectationBuilderService.buildPreventionExpectation();
-    prevention.setPredefined(true);
-    prevention.setExpectedSecurityPlatformTypes(
-        new ArrayList<>(List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EMAIL_SECURITY)));
+    return List.of(
+        buildPhishingStep(
+            PhishingTrackingService.STEP_OPENED,
+            "Red once the recipient opens the lure email (tracking pixel loaded); green while the"
+                + " email is never opened."),
+        buildPhishingStep(
+            PhishingTrackingService.STEP_CLICKED,
+            "Red once the recipient opens the phishing landing page; green while the link is never"
+                + " followed."),
+        buildPhishingStep(
+            PhishingTrackingService.STEP_SUBMITTED,
+            "Red once the recipient submits data on the phishing page; green while nothing is ever"
+                + " submitted."));
+  }
 
-    Expectation detection = this.expectationBuilderService.buildDetectionExpectation();
-    detection.setPredefined(true);
-    detection.setExpectedSecurityPlatformTypes(
-        new ArrayList<>(List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EMAIL_SECURITY)));
-
-    return List.of(detection, prevention, this.expectationBuilderService.buildManualExpectation());
+  private Expectation buildPhishingStep(final String name, final String description) {
+    Expectation expectation = this.expectationBuilderService.buildManualExpectation();
+    expectation.setName(name);
+    expectation.setDescription(description);
+    expectation.setPredefined(true);
+    expectation.setMultiSelectable(false);
+    return expectation;
   }
 }

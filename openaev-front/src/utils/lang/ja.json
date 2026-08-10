@@ -2342,6 +2342,7 @@
   "No custom agents are available yet. The built-in payload creator is always available; create more agents in XTM One to consult them here.": "No custom agents are available yet. The built-in payload creator is always available; create more agents in XTM One to consult them here.",
   "No custom dashboard selected.": "カスタムダッシュボードが選択されていない",
   "No CWEs listed.": "CWE が表示されていない",
+  "No execution reached this target": "この対象に到達した実行はありません",
   "No data available": "データがない",
   "No data capture": "データ取得なし",
   "No data collected on this domain at this time. Run a scenario to start analyzing your position on this domain.": "現在、このドメインに関するデータは収集されていない。シナリオを実行し、このドメインのポジション分析を開始する。",
