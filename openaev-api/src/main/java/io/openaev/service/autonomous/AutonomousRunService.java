@@ -66,6 +66,7 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.EndpointService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.ScenarioToExerciseService;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.xtmone.XtmOneClient;
@@ -2611,8 +2612,11 @@ public class AutonomousRunService {
           "Provide at least one player id to wrap in the team - a team with no members cannot"
               + " receive a human-targeted inject");
     }
-    List<User> players = new ArrayList<>();
-    userRepository.findAllById(requestedPlayerIds).forEach(players::add);
+    // Reserved service/connector accounts are system users, never players: drop them so an
+    // autonomous agent can never wrap a system account into a targetable team (they are hidden
+    // from every player list, so their membership would be invisible yet counted).
+    List<User> players =
+        ReservedKeyValidator.excludeReservedUsers(userRepository.findAllById(requestedPlayerIds));
     if (players.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.NOT_FOUND, "None of the provided player ids resolved to a person");

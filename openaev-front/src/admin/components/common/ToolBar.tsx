@@ -25,7 +25,7 @@ import {
   Typography,
 } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
-import { Component, type ComponentType, type JSX } from 'react';
+import { Component, type ComponentType, type JSX, type ReactNode } from 'react';
 import { connect } from 'react-redux';
 
 import { fetchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
@@ -69,6 +69,10 @@ type ToolBarOwnProps = {
    */
   deleteConfirmationSingular?: string;
   deleteConfirmationPlural?: string;
+  /** Extra content rendered inside the delete confirmation dialog (below the
+   *  confirmation question). Use this to display contextual warnings, e.g. when
+   *  some of the selected items are currently running. */
+  deleteExtraContent?: ReactNode;
 };
 
 type ReduxProps = {
@@ -767,6 +771,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
           handleClose={this.handleCloseBulkDelete.bind(this)}
           handleSubmit={this.handleSubmitBulkDelete.bind(this)}
           text={confirmationText()}
+          extraContent={this.props.deleteExtraContent}
         />
         <DialogTest
           open={canTest && this.state.displayBulkTest}

@@ -9,6 +9,7 @@ import LessonsTemplates from '../components/lessons/LessonsTemplates';
 import Tenants from '../platform/tenants/Tenants';
 import AttackPatterns from './attack_patterns/AttackPatterns';
 import AutonomousAttackSettings from './autonomous_attack/AutonomousAttackSettings';
+import CustomDomains from './custom_domains/CustomDomains';
 import XlsMappers from './data_ingestion/XlsMappers';
 import Experience from './experience/Experience';
 import Groups from './groups/Groups';
@@ -85,6 +86,7 @@ const Index = () => {
           behind a shared right submenu (CustomizationMenu). */}
       <Route path="customization" element={<Navigate to="asset_rules" replace={true} />} />
       <Route path="customization/asset_rules" element={errorWrapper(TagRules)()} />
+      <Route path="customization/custom_domains" element={errorWrapper(CustomDomains)()} />
       <Route path="customization/notifiers" element={errorWrapper(Notifiers)()} />
       <Route
         path="customization/lessons"

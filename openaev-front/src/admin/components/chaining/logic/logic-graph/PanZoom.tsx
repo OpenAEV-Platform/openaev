@@ -46,9 +46,9 @@ interface Point {
 
 /**
  * Self-contained pan/zoom viewport modeled on XTM One's `AgentFlowGraph`: a fixed logical coordinate
- * space rendered through a single CSS transform, fit-to-content on load, `Ctrl/Cmd + wheel` zoom (so
- * plain scroll is never hijacked), drag-to-pan, and explicit zoom in / out / fit controls. No extra
- * dependency.
+ * space rendered through a single CSS transform, fit-to-content on load, mouse-wheel / trackpad zoom
+ * around the cursor (plain scroll, Ctrl/Cmd also works), drag-to-pan, and explicit zoom in / out /
+ * fit controls. No extra dependency.
  */
 const PanZoom = ({
   contentWidth,
@@ -147,15 +147,22 @@ const PanZoom = ({
     });
   }, [clampZoom]);
 
-  // Ctrl/Cmd + wheel zoom (native listener so we can preventDefault the browser page zoom/scroll).
+  // Mouse-wheel / trackpad zoom around the cursor (native, non-passive listener so we can
+  // preventDefault the browser page scroll/zoom). Plain scroll zooms - no modifier required - and
+  // Ctrl/Cmd still works. The delta is normalized across wheel modes (pixel / line / page) and
+  // mapped through exp() so a notched mouse and a fine-grained trackpad both zoom by a sensible,
+  // consistent amount.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return undefined;
     const handleWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const rect = el.getBoundingClientRect();
-      zoomAt(e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP, e.clientX - rect.left, e.clientY - rect.top);
+      let unit = 1;
+      if (e.deltaMode === 1) unit = 16;
+      else if (e.deltaMode === 2) unit = el.clientHeight;
+      const factor = Math.exp(-e.deltaY * unit * 0.0015);
+      zoomAt(factor, e.clientX - rect.left, e.clientY - rect.top);
     };
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);

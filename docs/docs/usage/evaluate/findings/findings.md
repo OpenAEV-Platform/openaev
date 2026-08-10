@@ -54,11 +54,14 @@ Use the search bar and filters to narrow results by type, date range, Assets, or
 
 ## Finding detail
 
-Click on a Finding to open its detail view showing:
+Click on a Finding to open its detail view. The **Overview** presents the Finding at a glance:
 
 - **Finding type and value** with occurrence count and impacted Asset count
 - **Information**: type, value, field, first seen, last seen, tags
-- **Related Injects tab**: all Inject executions that produced this Finding, with links to the parent Simulation and Scenario
+- **Occurrences**: every Inject execution that produced this Finding, shown both as a list and as a timeline, with links to the parent Simulation and Scenario
+- **Vulnerability panel**: for CVE-type Findings, a summary of the vulnerability enrichment surfaced directly in the Overview
+
+The Overview loads a lightweight Finding summary so counts and enrichment appear without fetching every occurrence up front.
 
 ![Finding detail](assets/findings-detail.png)
 

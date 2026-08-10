@@ -13,6 +13,7 @@ interface DialogConfirmationProps {
   text: string;
   submitLabel: string;
   richContent?: React.ReactNode;
+  extraContent?: React.ReactNode;
 }
 
 const isPromiseLike = (value: unknown): value is Promise<void> => {
@@ -26,6 +27,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   text,
   submitLabel,
   richContent,
+  extraContent,
 }) => {
   const { t } = useFormatter();
   const [loading, setLoading] = useState(false);
@@ -74,6 +76,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
             {text}
           </DialogContentText>
         )}
+        {extraContent}
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" color="primary" onClick={handleClose} disabled={loading}>

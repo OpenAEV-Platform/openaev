@@ -1,6 +1,8 @@
 package io.openaev.api.attackpath;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
@@ -24,6 +26,13 @@ class AttackPathApiDisabledTest extends IntegrationTest {
   @DisplayName("The graph endpoint returns 404 when the attack-path preview feature is off")
   void graph_endpoint_is_404_when_feature_off() throws Exception {
     mvc.perform(get(AttackPathApi.ATTACK_PATH_URI + "/simulations/any/graph"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("The causal seed endpoint returns 404 when the attack-path preview feature is off")
+  void causal_seed_endpoint_is_404_when_feature_off() throws Exception {
+    mvc.perform(post(AttackPathApi.ATTACK_PATH_URI + "/seed/causal").with(csrf()))
         .andExpect(status().isNotFound());
   }
 

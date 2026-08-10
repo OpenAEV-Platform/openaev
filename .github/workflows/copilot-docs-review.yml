@@ -18,7 +18,8 @@ jobs:
         with:
           script: |
             const MARKER = '<!-- openaev-docs-gap-check -->';
-            const SKIP_LABEL = 'docs-not-needed';
+            const SKIP_LABELS = ['No need documentation', 'docs-not-needed'];
+            const SKIP_LABEL = SKIP_LABELS[0];
 
             // -- helpers --------------------------------------------------
 
@@ -40,13 +41,24 @@ jobs:
 
             // -- 1. skip label --------------------------------------------
 
-            const prLabels = context.payload.pull_request.labels.map(l => l.name);
-            if (prLabels.includes(SKIP_LABEL)) {
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            const normalize = name => name.trim().toLowerCase();
+            const skipSet = new Set(SKIP_LABELS.map(normalize));
+            const matchedLabel = pr.labels
+              .map(l => l.name)
+              .find(name => skipSet.has(normalize(name)));
+
+            if (matchedLabel) {
               await upsertComment([
                 MARKER,
                 '📖 **Documentation check** — ✅ Skipped',
                 '',
-                `\`${SKIP_LABEL}\` label is present on this PR.`,
+                `\`${matchedLabel}\` label is present on this PR.`,
               ].join('\n'));
               return;
             }
@@ -233,7 +245,7 @@ jobs:
 
             if (blocking.length > 0) {
               lines.push('### Blocking gaps', '');
-              lines.push('Update the docs or add the `docs-not-needed` label to bypass.', '');
+              lines.push(`Update the docs or add the \`${SKIP_LABEL}\` label to bypass.`, '');
               for (const g of blocking) {
                 lines.push(`#### ${g.emoji} ${g.title}`);
                 lines.push(`- **File**: \`${g.file}\``);

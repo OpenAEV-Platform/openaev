@@ -3,7 +3,8 @@ package io.openaev.injectors.phishing;
 import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewInfoTrace;
 
-import io.openaev.context.TenantContext;
+import io.openaev.database.model.CustomDomain;
+import io.openaev.database.model.CustomDomain.CustomDomainStatus;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.Exercise;
@@ -12,6 +13,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.PhishingEmailTemplate;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
+import io.openaev.database.model.Team;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.execution.ExecutableInject;
@@ -22,12 +24,15 @@ import io.openaev.executors.InjectorContext;
 import io.openaev.expectation.Expectation;
 import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.injectors.phishing.api.HostedPublicApi;
 import io.openaev.injectors.phishing.model.PhishingContent;
 import io.openaev.injectors.phishing.service.PhishingTrackingService;
 import io.openaev.model.ExecutionProcess;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 
@@ -100,8 +105,8 @@ public class PhishingExecutor extends Injector {
 
     Exercise exercise = injection.getInjection().getExercise();
     String baseUrl = this.context.getOpenAEVConfig().getBaseUrl();
-    String tenantId =
-        inject.getTenant() != null ? inject.getTenant().getId() : TenantContext.getCurrentTenant();
+    // Benign, tenant-less origin: the linked verified custom domain if any, else the platform URL.
+    String origin = resolveOrigin(landingPage, baseUrl);
 
     String subject = StringUtils.firstNonBlank(content.getSubject(), emailTemplate.getSubject());
     String from = resolveFrom(content, emailTemplate, exercise);
@@ -126,20 +131,30 @@ public class PhishingExecutor extends Injector {
             .toList();
     injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
 
+    // The execution context carries each recipient's team NAME (see InjectHelper), but
+    // phishing_result_team is an FK to teams.team_id. Map the name back to the real id from the
+    // inject's target teams; otherwise createResult inserts the name ("CEO") as the team id and
+    // fails the phishing_results_team_fk constraint. Duplicate names keep the first (any is right).
+    Map<String, String> teamIdByName =
+        injection.getTeams().stream()
+            .collect(Collectors.toMap(Team::getName, Team::getId, (first, ignored) -> first));
+
     for (ExecutionContext userContext : users) {
       try {
         ProtectUser targetUser = userContext.getUser();
-        String teamId =
+        String teamName =
             userContext.getTeams() != null && !userContext.getTeams().isEmpty()
                 ? userContext.getTeams().getFirst()
                 : null;
+        String teamId = teamName != null ? teamIdByName.get(teamName) : null;
         PhishingResult result =
             phishingTrackingService.createResult(inject, landingPage, targetUser.getId(), teamId);
-        String clickUrl =
-            baseUrl + "/api/phishing/tracking/" + tenantId + "/c/" + result.getToken();
-        String pixelUrl =
-            baseUrl + "/api/phishing/tracking/" + tenantId + "/o/" + result.getToken();
-        String message = renderBody(emailTemplate, clickUrl, pixelUrl);
+        // Victim-facing landing URL: e.g. https://security.acme.com/auth/<token> - benign path, no
+        // tenant id, resolved back to its tenant from the globally-unique token server-side.
+        String landingUrl =
+            origin + "/" + HostedPublicApi.LANDING_PATH_PREFIX + "/" + result.getToken();
+        String pixelUrl = origin + HostedPublicApi.HOSTED_URI + "/o/" + result.getToken();
+        String message = renderBody(emailTemplate, landingUrl, pixelUrl);
         // Lure content is operator-authored and must not be FreeMarker-evaluated (SSTI): the
         // per-recipient link is already substituted via the literal {{phishing_url}} placeholder.
         emailService.sendPreRenderedEmail(
@@ -183,7 +198,21 @@ public class PhishingExecutor extends Injector {
   }
 
   /**
-   * Builds the per-recipient HTML body: substitutes the click URL placeholder (appending a link
+   * Resolves the origin (scheme + host) the victim-facing links are built on: a verified custom
+   * domain linked to the landing page (served over HTTPS), otherwise the platform base URL.
+   */
+  private String resolveOrigin(PhishingLandingPage landingPage, String baseUrl) {
+    CustomDomain domain = landingPage.getCustomDomain();
+    if (domain != null
+        && domain.getStatus() == CustomDomainStatus.VERIFIED
+        && StringUtils.isNotBlank(domain.getHostname())) {
+      return "https://" + domain.getHostname();
+    }
+    return baseUrl;
+  }
+
+  /**
+   * Builds the per-recipient HTML body: substitutes the landing URL placeholder (appending a link
    * when the template carries none) and appends the tracking pixel when enabled.
    */
   private String renderBody(PhishingEmailTemplate emailTemplate, String clickUrl, String pixelUrl) {
