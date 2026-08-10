@@ -28,7 +28,8 @@ public interface PayloadRepository
    * backing collector. Lets the attack-path graph resolve each agent-executed action's real catalog
    * icon (the collector logo, e.g. netexec / atomic-red-team) instead of the generic agent icon.
    */
-  @Query("SELECT p.id, p.type, ct.name FROM Payload p LEFT JOIN p.collectorType ct WHERE p.id IN :ids")
+  @Query(
+      "SELECT p.id, p.type, ct.name FROM Payload p LEFT JOIN p.collectorType ct WHERE p.id IN :ids")
   List<Object[]> findIconMetadataByIds(@Param("ids") Set<String> ids);
 
   @Query(
