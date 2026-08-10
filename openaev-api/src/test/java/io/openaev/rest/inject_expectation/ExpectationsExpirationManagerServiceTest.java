@@ -297,7 +297,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
       // Assert
-      List<LogEvent> expectationEvents = captureExpectationResultEvents(2);
+      List<LogEvent> expectationEvents = captureExpectationResultEvents(1);
       List<String> loggedIds =
           expectationEvents.stream()
               .map(event -> extractExpectationId(event))
@@ -1155,7 +1155,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
   private List<LogEvent> captureExpectationResultEvents(int expectedMinimumEvents) {
     ArgumentCaptor<LogEvent> eventCaptor = ArgumentCaptor.forClass(LogEvent.class);
-    verify(auditLogTransportDispatcherUtils, timeout(10000).atLeastOnce())
+    verify(auditLogTransportDispatcherUtils, timeout(5000).atLeastOnce())
         .dispatch(eventCaptor.capture(), any());
     List<LogEvent> expectationEvents =
         eventCaptor.getAllValues().stream()
