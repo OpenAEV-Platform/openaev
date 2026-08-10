@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.Tag;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -14,6 +16,7 @@ import io.openaev.utils.WorkflowScopeRuleUtils;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -105,6 +108,46 @@ public class WorkflowExportInitializer {
       return;
     }
     stepsArray.forEach(stepNode -> enrichStepData(stepNode, objectMapper));
+  }
+
+  public Set<Tag> collectWorkflowTags(Workflow workflow) {
+    Set<Tag> tags = new HashSet<>();
+    if (workflow == null || workflow.getSteps() == null) {
+      return tags;
+    }
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    for (Step step : workflow.getSteps()) {
+      if (!StringUtils.hasText(step.getData())) {
+        continue;
+      }
+      try {
+        JsonNode parsedStepData = objectMapper.readTree(step.getData());
+        if (!(parsedStepData instanceof ObjectNode stepDataObject)) {
+          continue;
+        }
+        String injectorContractId =
+            extractInjectorContractId(stepDataObject.get(INJECT_INJECTOR_CONTRACT));
+        if (!StringUtils.hasText(injectorContractId)) {
+          continue;
+        }
+        injectorContractRepository
+            .findById(injectorContractId)
+            .ifPresent(
+                injectorContract -> {
+                  tags.addAll(injectorContract.getTags());
+                  if (injectorContract.getPayload() != null) {
+                    injectorContract.getPayload().getOutputParsers().stream()
+                        .flatMap(parser -> parser.getContractOutputElements().stream())
+                        .flatMap(element -> element.getTags().stream())
+                        .forEach(tags::add);
+                  }
+                });
+      } catch (Exception e) {
+        log.warn("Unable to collect workflow tags from step_data", e);
+      }
+    }
+    return tags;
   }
 
   private static void filterAssetScopeRules(ObjectNode workflowObject, ObjectMapper objectMapper) {

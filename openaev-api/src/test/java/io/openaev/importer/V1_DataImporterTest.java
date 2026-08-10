@@ -1143,6 +1143,49 @@ class V1_DataImporterTest extends IntegrationTest {
     assertDoesNotThrow(() -> deserializeStepDataAsRun(storedData.toString()));
   }
 
+  @Test
+  @Transactional
+  void
+      given_contractOutputElementTagObjects_when_importingWithContractOutputElementPrefix_should_resolveExistingTagByName()
+          throws Exception {
+    // -- Arrange --
+    // importTags expects a PREFIX (ending with '_'). For contract_output_element tags, the correct
+    // prefix is "contract_output_element_", which resolves "contract_output_element_tags".
+    String tagName = "contract-output-element-import-tag-" + UUID.randomUUID();
+    Tag existingTag = new Tag();
+    existingTag.setName(tagName);
+    existingTag.setColor("#00AAFF");
+    existingTag = tagRepository.save(existingTag);
+
+    String sourceTagId = UUID.randomUUID().toString();
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode outputElementNode = om.createObjectNode();
+    ArrayNode outputElementTags = om.createArrayNode();
+    ObjectNode tagObject = om.createObjectNode();
+    tagObject.put("tag_id", sourceTagId);
+    tagObject.put("tag_name", tagName);
+    tagObject.put("tag_color", "#00AAFF");
+    outputElementTags.add(tagObject);
+    outputElementNode.set("contract_output_element_tags", outputElementTags);
+
+    Map<String, Base> baseIds = new HashMap<>();
+
+    // -- Act --
+    ReflectionTestUtils.invokeMethod(
+        importer, "importTags", outputElementNode, "contract_output_element_", baseIds);
+
+    // -- Assert --
+    assertTrue(baseIds.containsKey(sourceTagId), "source tag id must be resolved in baseIds");
+    assertEquals(
+        existingTag.getId(),
+        baseIds.get(sourceTagId).getId(),
+        "existing target tag must be reused by name (no duplicate)");
+    assertEquals(
+        1,
+        tagRepository.findByNameIgnoreCase(tagName).size(),
+        "the importer must not create a duplicate tag for the same name");
+  }
+
   // ---------------------------------------------------------------------------
   // step_data nested domain id rewriting (injector_contract_domains)
   //
