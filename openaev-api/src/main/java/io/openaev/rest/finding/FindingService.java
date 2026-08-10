@@ -16,6 +16,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class FindingService {
 
   private static final String HOST = "host";
+  // No-op default for the generic value/asset/user/team extraction path: most processors have no
+  // extra fields to set beyond those, only OCSFOutputProcessor (and future cloud-scanner
+  // processors) pass a real enricher.
+  private static final BiConsumer<JsonNode, Finding> NO_OP_ENRICHER = (node, finding) -> {};
   private final InjectService injectService;
 
   private final FindingRepository findingRepository;
@@ -98,6 +103,39 @@ public class FindingService {
       Function<JsonNode, List<String>> assetExtractor,
       Function<JsonNode, List<String>> userExtractor,
       Function<JsonNode, List<String>> teamExtractor) {
+    generateFindings(
+        executionContext,
+        contractOutputContext,
+        structuredOutputNode,
+        validator,
+        valueExtractor,
+        assetExtractor,
+        userExtractor,
+        teamExtractor,
+        NO_OP_ENRICHER);
+  }
+
+  /**
+   * Same as {@link #generateFindings(ExecutionProcessingContext, ContractOutputContext, JsonNode,
+   * Predicate, Function, Function, Function, Function)}, with an additional {@code enricher} hook
+   * run on each built {@link Finding} right before it is validated/persisted - used by processors
+   * that need to set fields beyond value/assets/users/teams (e.g. {@code OCSFOutputProcessor}
+   * setting severity/resource/cloud/remediation from a cloud scanner's structured payload).
+   *
+   * @param enricher A callback given the raw JSON node and the in-progress {@link Finding}, free to
+   *     mutate the finding's extra fields. No-op for processors that only need the standard
+   *     value/asset/user/team extraction.
+   */
+  public void generateFindings(
+      ExecutionProcessingContext executionContext,
+      ContractOutputContext contractOutputContext,
+      JsonNode structuredOutputNode,
+      Predicate<JsonNode> validator,
+      Function<JsonNode, String> valueExtractor,
+      Function<JsonNode, List<String>> assetExtractor,
+      Function<JsonNode, List<String>> userExtractor,
+      Function<JsonNode, List<String>> teamExtractor,
+      BiConsumer<JsonNode, Finding> enricher) {
 
     if (executionContext.isAgentExecution()) {
       processAgentFindings(
@@ -117,7 +155,8 @@ public class FindingService {
           valueExtractor,
           assetExtractor,
           userExtractor,
-          teamExtractor);
+          teamExtractor,
+          enricher);
     }
   }
 
@@ -188,6 +227,28 @@ public class FindingService {
       Function<JsonNode, List<String>> assetExtractor,
       Function<JsonNode, List<String>> userExtractor,
       Function<JsonNode, List<String>> teamExtractor) {
+    processInjectorFindings(
+        structuredOutputNode,
+        inject,
+        contractOutputContext,
+        validator,
+        valueExtractor,
+        assetExtractor,
+        userExtractor,
+        teamExtractor,
+        NO_OP_ENRICHER);
+  }
+
+  public void processInjectorFindings(
+      JsonNode structuredOutputNode,
+      Inject inject,
+      ContractOutputContext contractOutputContext,
+      Predicate<JsonNode> validator,
+      Function<JsonNode, String> valueExtractor,
+      Function<JsonNode, List<String>> assetExtractor,
+      Function<JsonNode, List<String>> userExtractor,
+      Function<JsonNode, List<String>> teamExtractor,
+      BiConsumer<JsonNode, Finding> enricher) {
 
     if (structuredOutputNode == null) {
       log.debug("Skipping injector findings: structuredOutputNode is null");
@@ -202,7 +263,8 @@ public class FindingService {
             valueExtractor,
             assetExtractor,
             userExtractor,
-            teamExtractor);
+            teamExtractor,
+            enricher);
 
     createFindings(findings, inject.getId());
   }
@@ -292,6 +354,26 @@ public class FindingService {
       Function<JsonNode, List<String>> assetExtractor,
       Function<JsonNode, List<String>> userExtractor,
       Function<JsonNode, List<String>> teamExtractor) {
+    return buildFindings(
+        structuredOutputNode,
+        contractOutputContext,
+        validator,
+        valueExtractor,
+        assetExtractor,
+        userExtractor,
+        teamExtractor,
+        NO_OP_ENRICHER);
+  }
+
+  public List<Finding> buildFindings(
+      JsonNode structuredOutputNode,
+      ContractOutputContext contractOutputContext,
+      Predicate<JsonNode> validator,
+      Function<JsonNode, String> valueExtractor,
+      Function<JsonNode, List<String>> assetExtractor,
+      Function<JsonNode, List<String>> userExtractor,
+      Function<JsonNode, List<String>> teamExtractor,
+      BiConsumer<JsonNode, Finding> enricher) {
 
     if (contractOutputContext.isMultiple() && structuredOutputNode.isArray()) {
       List<Finding> findings = new ArrayList<>();
@@ -311,7 +393,8 @@ public class FindingService {
                 valueExtractor,
                 assetExtractor,
                 userExtractor,
-                teamExtractor));
+                teamExtractor,
+                enricher));
       }
       return findings;
     }
@@ -324,7 +407,8 @@ public class FindingService {
             valueExtractor,
             assetExtractor,
             userExtractor,
-            teamExtractor));
+            teamExtractor,
+            enricher));
   }
 
   private Finding buildSingleFinding(
@@ -334,7 +418,8 @@ public class FindingService {
       Function<JsonNode, String> valueExtractor,
       Function<JsonNode, List<String>> assetExtractor,
       Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
+      Function<JsonNode, List<String>> teamExtractor,
+      BiConsumer<JsonNode, Finding> enricher) {
 
     if (!validator.test(structuredOutputNode)) {
       throw new IllegalArgumentException(
@@ -343,6 +428,7 @@ public class FindingService {
 
     Finding finding = FindingUtils.createFinding(contractOutputContext);
     finding.setValue(valueExtractor.apply(structuredOutputNode));
+    enricher.accept(structuredOutputNode, finding);
     return linkFinding(structuredOutputNode, finding, assetExtractor, userExtractor, teamExtractor);
   }
 

@@ -185,6 +185,12 @@ export interface AggregatedFindingOutput {
    * @uniqueItems true
    */
   finding_assets: EndpointSimple[];
+  /** Cloud account identifier the resource belongs to (OCSF findings only) */
+  finding_cloud_account?: string;
+  /** Cloud region of the resource (OCSF findings only) */
+  finding_cloud_region?: string;
+  /** Comma-joined violated compliance requirements (OCSF findings only) */
+  finding_compliance?: string;
   /**
    * First time the finding was seen
    * @format date-time
@@ -195,6 +201,12 @@ export interface AggregatedFindingOutput {
    * @minLength 1
    */
   finding_id: string;
+  /** Remediation guidance for the cloud misconfiguration (OCSF findings only) */
+  finding_remediation?: string;
+  /** Scanned cloud resource identifier, e.g. an S3 bucket ARN (OCSF findings only) */
+  finding_resource?: string;
+  /** Severity of the cloud misconfiguration (OCSF findings only) */
+  finding_severity?: string;
   /** Injector that produced this finding (null if the finding was created manually, e.g. via the API, without a real inject/injector behind it) */
   finding_source?: InjectorSimple;
   /** Current triage status of the finding (UNTRIAGED if no triage decision has been made yet) */
@@ -231,7 +243,8 @@ export interface AggregatedFindingOutput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /**
    * Last time the finding was seen
    * @format date-time
@@ -2898,7 +2911,8 @@ export interface ContractOutputElement {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -2955,7 +2969,8 @@ export interface ContractOutputElementInput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -3008,7 +3023,8 @@ export interface ContractOutputElementSimple {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -5346,6 +5362,9 @@ export interface Finding {
   /** @uniqueItems true */
   finding_asset_groups?: AssetGroup[];
   finding_assets?: string[];
+  finding_cloud_account?: string;
+  finding_cloud_region?: string;
+  finding_compliance?: string;
   /** @format date-time */
   finding_created_at: string;
   /** @minLength 1 */
@@ -5356,7 +5375,10 @@ export interface Finding {
   /** @deprecated */
   finding_labels?: string[];
   finding_name?: string;
+  finding_remediation?: string;
+  finding_resource?: string;
   finding_scenario?: Scenario;
+  finding_severity?: string;
   finding_simulation?: Exercise;
   finding_source?: Injector;
   finding_tags?: string[];
@@ -5385,7 +5407,8 @@ export interface Finding {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -5444,7 +5467,8 @@ export interface FindingInput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /** @minLength 1 */
   finding_value: string;
 }
@@ -6524,6 +6548,7 @@ export interface InjectorContract {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "expectation_signature"
+    | "ocsf"
   )[];
   injector_contract_tags?: string[];
   /** @format date-time */
@@ -9590,6 +9615,12 @@ export interface RelatedFindingOutput {
    * @uniqueItems true
    */
   finding_assets: EndpointSimple[];
+  /** Cloud account identifier the resource belongs to (OCSF findings only) */
+  finding_cloud_account?: string;
+  /** Cloud region of the resource (OCSF findings only) */
+  finding_cloud_region?: string;
+  /** Comma-joined violated compliance requirements (OCSF findings only) */
+  finding_compliance?: string;
   /**
    * First time the finding was seen
    * @format date-time
@@ -9602,8 +9633,14 @@ export interface RelatedFindingOutput {
   finding_id: string;
   /** Inject linked to finding */
   finding_inject: InjectSimple;
+  /** Remediation guidance for the cloud misconfiguration (OCSF findings only) */
+  finding_remediation?: string;
+  /** Scanned cloud resource identifier, e.g. an S3 bucket ARN (OCSF findings only) */
+  finding_resource?: string;
   /** Scenario linked to inject */
   finding_scenario?: ScenarioSimple;
+  /** Severity of the cloud misconfiguration (OCSF findings only) */
+  finding_severity?: string;
   /** Simulation linked to inject */
   finding_simulation?: ExerciseSimple;
   /** Injector that produced this finding (null if the finding was created manually, e.g. via the API, without a real inject/injector behind it) */
@@ -9642,7 +9679,8 @@ export interface RelatedFindingOutput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /**
    * Last time the finding was seen
    * @format date-time

@@ -71,6 +71,48 @@ public class Finding implements TenantBase {
   @JsonProperty("finding_name")
   protected String name;
 
+  // -- CLOUD MISCONFIGURATION (OCSF) --
+  // All nullable: populated only by OutputProcessors that parse a structured cloud-scanner
+  // payload (currently OCSFOutputProcessor, fed by Prowler's native OCSF Detection Finding JSON -
+  // see ContractOutputType#OCSF). Findings produced by every other processor (CVE, Vulnerability,
+  // credentials, ...) simply leave these null; FindingOverview only renders the "Cloud details"
+  // panel when severity is non-null.
+
+  @Queryable(filterable = true, sortable = true, label = "severity")
+  @Column(name = "finding_severity")
+  @JsonProperty("finding_severity")
+  private String severity;
+
+  // The scanned cloud resource identifier (e.g. an S3 bucket ARN), as reported by
+  // resources[].uid/arn in the OCSF payload - distinct from finding_value, which stays the
+  // human-readable check title used for the type+value dedup key.
+  @Queryable(filterable = true, sortable = true, label = "resource")
+  @Column(name = "finding_resource")
+  @JsonProperty("finding_resource")
+  private String resource;
+
+  @Queryable(filterable = true, sortable = true, label = "cloud account")
+  @Column(name = "finding_cloud_account")
+  @JsonProperty("finding_cloud_account")
+  private String cloudAccount;
+
+  @Queryable(filterable = true, sortable = true, label = "cloud region")
+  @Column(name = "finding_cloud_region")
+  @JsonProperty("finding_cloud_region")
+  private String cloudRegion;
+
+  // Free text, not filterable/sortable: a remediation description is a paragraph, not a facet.
+  @Column(name = "finding_remediation", columnDefinition = "text")
+  @JsonProperty("finding_remediation")
+  private String remediation;
+
+  // Comma-joined list of violated compliance requirements (e.g. "CIS 2.1.1, NIST 800-53") - kept
+  // as a single text column rather than text[] since it is display-only, mirroring the deprecated
+  // finding_labels precedent's simplicity without reusing its (deprecated) column.
+  @Column(name = "finding_compliance", columnDefinition = "text")
+  @JsonProperty("finding_compliance")
+  private String compliance;
+
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(

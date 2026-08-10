@@ -159,6 +159,7 @@ const FindingOverview = () => {
   }
 
   const isCVE = finding.finding_type === 'cve';
+  const isOCSF = finding.finding_type === 'ocsf';
 
   return (
     <Box sx={{
@@ -241,6 +242,20 @@ const FindingOverview = () => {
           <ItemTags variant="list" tags={finding.finding_tags ?? []} />
         </Field>
       </InformationGrid>
+
+      {/* OCSF/Prowler-specific misconfiguration data - only meaningful for cloud findings,
+          so the section is hidden entirely for every other finding type rather than showing
+          empty fields. */}
+      {isOCSF && (
+        <InformationGrid title={t('Cloud details')}>
+          <Field label={t('Severity')}>{emptyFilled(finding.finding_severity)}</Field>
+          <Field label={t('Resource')}>{emptyFilled(finding.finding_resource)}</Field>
+          <Field label={t('Cloud account')}>{emptyFilled(finding.finding_cloud_account)}</Field>
+          <Field label={t('Region')}>{emptyFilled(finding.finding_cloud_region)}</Field>
+          <Field label={t('Compliance')}>{emptyFilled(finding.finding_compliance)}</Field>
+          <Field label={t('Remediation')}>{emptyFilled(finding.finding_remediation)}</Field>
+        </InformationGrid>
+      )}
 
       {/* Flat list (no surrounding Paper): the section label sits directly above
           the related-reports list, matching OpenCTI's plain list sections. The

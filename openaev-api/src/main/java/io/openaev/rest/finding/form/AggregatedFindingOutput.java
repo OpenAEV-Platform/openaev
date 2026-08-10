@@ -72,4 +72,32 @@ public class AggregatedFindingOutput {
               + " via the API, without a real inject/injector behind it)")
   @JsonProperty("finding_source")
   private InjectorSimple source;
+
+  // -- CLOUD MISCONFIGURATION (OCSF) -- all null unless populated by OCSFOutputProcessor; see
+  // Finding's cloud misconfiguration fields for the source OCSF mapping.
+
+  @Schema(description = "Severity of the cloud misconfiguration (OCSF findings only)")
+  @JsonProperty("finding_severity")
+  private String severity;
+
+  @Schema(
+      description = "Scanned cloud resource identifier, e.g. an S3 bucket ARN (OCSF findings only)")
+  @JsonProperty("finding_resource")
+  private String resource;
+
+  @Schema(description = "Cloud account identifier the resource belongs to (OCSF findings only)")
+  @JsonProperty("finding_cloud_account")
+  private String cloudAccount;
+
+  @Schema(description = "Cloud region of the resource (OCSF findings only)")
+  @JsonProperty("finding_cloud_region")
+  private String cloudRegion;
+
+  @Schema(description = "Remediation guidance for the cloud misconfiguration (OCSF findings only)")
+  @JsonProperty("finding_remediation")
+  private String remediation;
+
+  @Schema(description = "Comma-joined violated compliance requirements (OCSF findings only)")
+  @JsonProperty("finding_compliance")
+  private String compliance;
 }

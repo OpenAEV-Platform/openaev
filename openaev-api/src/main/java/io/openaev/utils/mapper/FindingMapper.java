@@ -59,8 +59,13 @@ public class FindingMapper {
                 .map(injectorMapper::toInjectorSimple)
                 .orElse(null))
         .findingTriageStatus(
-            triageStatusByFindingId.getOrDefault(
-                finding.getId(), FindingTriageStatus.UNTRIAGED))
+            triageStatusByFindingId.getOrDefault(finding.getId(), FindingTriageStatus.UNTRIAGED))
+        .severity(finding.getSeverity())
+        .resource(finding.getResource())
+        .cloudAccount(finding.getCloudAccount())
+        .cloudRegion(finding.getCloudRegion())
+        .remediation(finding.getRemediation())
+        .compliance(finding.getCompliance())
         .build();
   }
 
@@ -104,8 +109,7 @@ public class FindingMapper {
                 .orElse(null))
         .creationDate(finding.getCreationDate())
         .findingTriageStatus(
-            triageStatusByFindingId.getOrDefault(
-                finding.getId(), FindingTriageStatus.UNTRIAGED))
+            triageStatusByFindingId.getOrDefault(finding.getId(), FindingTriageStatus.UNTRIAGED))
         .build();
   }
 }

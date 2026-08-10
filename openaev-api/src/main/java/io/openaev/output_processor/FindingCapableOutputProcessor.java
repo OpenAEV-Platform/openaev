@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.database.model.Finding;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
@@ -44,7 +45,8 @@ public abstract class FindingCapableOutputProcessor extends AbstractOutputProces
         this::toFindingValue,
         this::toFindingAssets,
         this::toFindingTeams,
-        this::toFindingUsers);
+        this::toFindingUsers,
+        this::enrichFinding);
     afterFindings(executionContext, structuredOutputNode);
   }
 
@@ -76,5 +78,15 @@ public abstract class FindingCapableOutputProcessor extends AbstractOutputProces
   public List<String> toFindingTeams(JsonNode jsonNode) {
     log.debug("Processor {} does not implement toFindingTeams, returning empty list", type);
     return Collections.emptyList();
+  }
+
+  /**
+   * Called right before a built {@link io.openaev.database.model.Finding} is validated/persisted,
+   * given the raw JSON node it was built from. No-op by default; override to set extra fields
+   * beyond value/assets/users/teams (e.g. severity, resource, cloud account/region, remediation -
+   * see {@code OCSFOutputProcessor}).
+   */
+  public void enrichFinding(JsonNode jsonNode, Finding finding) {
+    // no-op by default
   }
 }
