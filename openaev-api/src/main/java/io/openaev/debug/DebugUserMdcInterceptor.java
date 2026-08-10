@@ -6,40 +6,41 @@ import org.slf4j.MDC;
 import org.springframework.web.servlet.AsyncHandlerInterceptor;
 
 /**
- * Tags a request's log lines with {@code tenant=...} (from {@link DebugTenantSource}). Lowest
- * precedence, so it runs after the platform tenant interceptor and the handler mapping.
+ * Tags a request's log lines with {@code user=...} (the id of the caller, from {@link
+ * DebugUserSource}), so it is clear who triggered a given request. Lowest precedence, so it runs
+ * after authentication has populated the security context.
  *
  * <p>{@link AsyncHandlerInterceptor} (not just {@code HandlerInterceptor}): on an async dispatch
  * (e.g. a {@code StreamingResponseBody} endpoint) the initial servlet thread exits through {@link
  * #afterConcurrentHandlingStarted} instead of {@code afterCompletion}, and the MDC key must be
- * cleared there too so the pooled thread does not keep the previous request's {@code tenant=}.
+ * cleared there too so the pooled thread does not keep the previous caller's {@code user=}.
  */
-public class DebugTenantMdcInterceptor implements AsyncHandlerInterceptor {
+public class DebugUserMdcInterceptor implements AsyncHandlerInterceptor {
 
-  static final String TENANT_MDC_KEY = "tenant";
+  static final String USER_MDC_KEY = "user";
 
-  private final DebugTenantSource tenantSource;
+  private final DebugUserSource userSource;
 
-  public DebugTenantMdcInterceptor(DebugTenantSource tenantSource) {
-    this.tenantSource = tenantSource;
+  public DebugUserMdcInterceptor(DebugUserSource userSource) {
+    this.userSource = userSource;
   }
 
   @Override
   public boolean preHandle(
       HttpServletRequest request, HttpServletResponse response, Object handler) {
-    MDC.put(TENANT_MDC_KEY, tenantSource.currentTenant(request));
+    MDC.put(USER_MDC_KEY, userSource.currentUser());
     return true;
   }
 
   @Override
   public void afterCompletion(
       HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
-    MDC.remove(TENANT_MDC_KEY);
+    MDC.remove(USER_MDC_KEY);
   }
 
   @Override
   public void afterConcurrentHandlingStarted(
       HttpServletRequest request, HttpServletResponse response, Object handler) {
-    MDC.remove(TENANT_MDC_KEY);
+    MDC.remove(USER_MDC_KEY);
   }
 }

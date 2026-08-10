@@ -8,61 +8,63 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.servlet.HandlerMapping;
 
+@DisplayName("TenantInterceptor")
 class TenantInterceptorTest {
 
-  private final TenantMembershipCacheManager tenantMembershipCacheManager =
-      mock(TenantMembershipCacheManager.class);
-  private final TenantInterceptor interceptor = new TenantInterceptor(tenantMembershipCacheManager);
-
-  private final MockHttpServletRequest request = new MockHttpServletRequest();
-  private final MockHttpServletResponse response = new MockHttpServletResponse();
+  private final TenantInterceptor interceptor =
+      new TenantInterceptor(mock(TenantMembershipCacheManager.class));
 
   @AfterEach
-  void tearDown() {
+  void cleanup() {
     TenantContext.clearCurrentTenant();
   }
 
-  @Test
-  void given_tenant_id_in_path_prehandle_should_set_context_and_after_completion_should_clear() {
-    // -- ARRANGE --
-    String tenantId = "abc-123";
+  private MockHttpServletRequest tenantScopedRequest(String tenantId) {
+    MockHttpServletRequest request =
+        new MockHttpServletRequest("GET", "/api/tenants/" + tenantId + "/x");
     request.setAttribute(
         HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, Map.of("tenantId", tenantId));
-
-    // -- ACT --
-    boolean result = interceptor.preHandle(request, response, new Object());
-
-    // -- ASSERT --
-    assertThat(result).isTrue();
-    assertThat(TenantContext.getCurrentTenant()).isEqualTo(tenantId);
-
-    // -- ACT --
-    interceptor.afterCompletion(request, response, new Object(), null);
-
-    // -- ASSERT --
-    assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+    return request;
   }
 
   @Test
-  void given_no_tenant_id_in_path_prehandle_should_fallback_to_default_tenant() {
-    // -- ACT -- no path variables at all
-    boolean resultNoVars = interceptor.preHandle(request, response, new Object());
+  @DisplayName("sets the tenant from the path variable and clears it on afterCompletion")
+  void setsAndClearsTenant() {
+    MockHttpServletRequest request = tenantScopedRequest("tenant-123");
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-    // -- ASSERT --
-    assertThat(resultNoVars).isTrue();
-    assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+    interceptor.preHandle(request, response, new Object());
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo("tenant-123");
 
-    // -- ACT -- path variables present but no tenantId key
-    request.setAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, Map.of("otherId", "xyz"));
-    boolean resultNoTenantKey = interceptor.preHandle(request, response, new Object());
+    interceptor.afterCompletion(request, response, new Object(), null);
+    assertThat(TenantContext.hasCurrentTenant()).isFalse();
+  }
 
-    // -- ASSERT --
-    assertThat(resultNoTenantKey).isTrue();
+  @Test
+  @DisplayName("clears the tenant when the request goes async, so the next request is not stale")
+  void clearsTenantOnAsyncDispatch() {
+    // Async requests (e.g. StreamingResponseBody) do not call afterCompletion on the initial
+    // dispatch: without afterConcurrentHandlingStarted the pooled servlet thread would keep the
+    // previous request's tenant in the TenantContext thread-local.
+    MockHttpServletRequest request = tenantScopedRequest("tenant-123");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    interceptor.preHandle(request, response, new Object());
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo("tenant-123");
+
+    interceptor.afterConcurrentHandlingStarted(request, response, new Object());
+    assertThat(TenantContext.hasCurrentTenant()).isFalse();
+
+    // The next non-tenant-scoped request on this (pooled) thread resolves the default tenant,
+    // not the stale one.
+    MockHttpServletRequest nextRequest = new MockHttpServletRequest("GET", "/api/tags");
+    interceptor.preHandle(nextRequest, new MockHttpServletResponse(), new Object());
     assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
   }
 }

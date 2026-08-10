@@ -16,7 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
-import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.AsyncHandlerInterceptor;
 import org.springframework.web.servlet.HandlerMapping;
 
 /**
@@ -29,10 +29,16 @@ import org.springframework.web.servlet.HandlerMapping;
  * update/delete/reactivate). For those, the {@code tenantId} is the managed target rather than a
  * scope the caller must belong to; authorization is enforced by the RBAC capability check ({@code
  * MANAGE_TENANTS}/{@code DELETE_TENANTS}) in the {@code AccessControlAspect}.
+ *
+ * <p>{@link AsyncHandlerInterceptor} (not just {@code HandlerInterceptor}): on an async dispatch
+ * (e.g. a {@code StreamingResponseBody} endpoint) the initial servlet thread exits through {@link
+ * #afterConcurrentHandlingStarted} instead of {@code afterCompletion}, and the {@link
+ * TenantContext} thread-local must be cleared there too so the pooled thread does not carry the
+ * previous request's tenant into an unrelated request.
  */
 @Component
 @RequiredArgsConstructor
-public class TenantInterceptor implements HandlerInterceptor {
+public class TenantInterceptor implements AsyncHandlerInterceptor {
 
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
@@ -79,6 +85,12 @@ public class TenantInterceptor implements HandlerInterceptor {
   @Override
   public void afterCompletion(
       HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+    TenantContext.clearCurrentTenant();
+  }
+
+  @Override
+  public void afterConcurrentHandlingStarted(
+      HttpServletRequest request, HttpServletResponse response, Object handler) {
     TenantContext.clearCurrentTenant();
   }
 }
