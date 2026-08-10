@@ -1046,6 +1046,123 @@ in `AppNavbar.tsx`, and delete `navbarConstants.ts`; the rail must still measure
 
 ---
 
+## 21. `IconButton` renders a hard `<button>` and accepts no `asChild`
+
+**Severity.** Medium — forces the product to choose between the library's
+component and correct link behaviour.
+
+**What happened.** Four controls in the top bar are genuine links: three router
+routes and one external XTM One URL. `IconButton` hard-renders `<button>` and
+its props are `Omit<ComponentPropsWithoutRef<"button">, …>` with no `asChild`,
+so it cannot carry a navigation target. Turning them into buttons with an
+`onClick` would drop middle-click, ⌘/Ctrl-click "open in new tab", "copy link
+address" and the browser's status-bar preview — a real behavioural loss, and
+the pilot's rule is iso-functionality.
+
+The product therefore applies `iconButtonVariants` to its own `<a>`/`<Link>`
+(`TopBarIconLink.tsx`). That keeps the library's states, but it re-implements
+the component's DOM contract by hand — including the `aria-hidden` glyph
+wrapper and the one class the component adds for `active`, neither of which is
+part of any published API.
+
+**Notable.** `Button` already has `asChild`, and `MenuTrigger`'s own
+documentation says it is "always meant to be used with `asChild` around a real
+library component … IconButton (~80% of sites)". The gap is `IconButton`'s
+alone, and it is the component most likely to be a link.
+
+**Suggested.** Give `IconButton` the same `asChild` `Button` already has.
+
+**Condition for removal (product side).** Delete `TopBarIconLink.tsx` and wrap
+`<Link>`/`<a>` in `<IconButton asChild>`; the icon-link tests must stay green.
+
+---
+
+## 22. Three controls in one bar have no library equivalent
+
+**Severity.** Low — each is small; together they decide how much of a product
+surface the library can actually own.
+
+**What happened.** Applying "where the library ships a component, use it" to
+the top bar left exactly three MUI survivors, all for the same reason — the
+library ships no counterpart:
+
+| Control | Used for | Nearest library export |
+|---|---|---|
+| `Divider` | the rule between the AI actions and the platform actions | `NavbarSeparator`, `MenuSeparator`, `SelectSeparator` — all bound to their own component |
+| `Badge` | the unread-notifications dot, the running-bulk-operations count | none |
+| `Popover` | the bulk-operations panel (progress bars, not a menu) | `Menu` (command rows), `Dialog` (modal) |
+
+The divider was replaced with a plain rule painted from the library's own
+border token; `Badge` and `Popover` stay MUI.
+
+**Suggested.** A general-purpose `Separator` is nearly free and would remove
+the last hand-painted rule. `Badge` and `Popover` are real components and
+should be sized as such — but they should be *named*, so products stop
+discovering the gap one pilot at a time.
+
+---
+
+## 23. `Button` has no `active` prop, `IconButton` does
+
+**Severity.** Low — small asymmetry, guessable fix, silent when guessed wrong.
+
+**What happened.** "Ask Ariane" is a toggle: while the chat panel is open the
+button stays tinted. `IconButton` expresses this with `active`, which also
+sets `aria-pressed`. `Button` has no equivalent, so the product applies
+`bg-filigran-ia-secondary-transparency` — the class `IconButton` uses
+internally for that state — through `className`. It renders correctly and is
+undocumented; if the library retints its active state, this button silently
+stops matching.
+
+**Suggested.** Give `Button` the same `active` prop, with the same
+`aria-pressed` behaviour. Two sibling components in one bar should not express
+the same state two different ways.
+
+**Condition for removal (product side).** Replace the `className` in
+`AskArianeButton.tsx` with `active={isOpen}`.
+
+---
+
+## 24. Layered utilities lose to the host's unlayered CSS — silently
+
+**Severity.** High — silent visual defect, class present, no error, wrong pixels.
+
+**What happened.** Two controls in the bar carried the *identical* class list
+from `iconButtonVariants({ priority: 'tertiary' })`. Measured:
+
+| Element | Class list | Computed colour |
+|---|---|---|
+| `<button>` (account menu) | identical | `rgb(66, 202, 255)` — brand blue, correct |
+| `<a>` (triggers) | identical | `rgb(242, 242, 243)` — white, wrong |
+
+The cause is not specificity. The library ships its utilities inside a CSS
+cascade layer, and **any** unlayered rule beats a layered one regardless of
+specificity. MUI's `CssBaseline` injects an unlayered `body a { color: … }`, so
+on an anchor the library's `text-filigran-brand-primary` never applies. On a
+`<button>`, nothing unlayered competes, so it does.
+
+This is the worst failure shape there is: the class is present in the DOM, the
+stylesheet contains it, no tool reports anything, and the pixels are wrong. It
+was found by measuring two elements that should have matched — not by review.
+
+**Why every product will meet this.** Any host with a CSS reset or a component
+library that writes unlayered global rules — which is to say every product
+adopting this library into an existing app — overrides library styling for
+whichever elements those globals happen to target. Which elements, and in which
+product, is unknowable from the library side.
+
+**Suggested.** Say it in the adoption documentation, in the loudest terms:
+library classes are layered and lose to unlayered host CSS; audit the host's
+global element selectors (`a`, `button`, `input`) before adopting. Better,
+publish the layer name so products can order it explicitly with
+`@layer host, filigran;`. Best, ship the recipe.
+
+**Condition for removal (product side).** When the layer order is declared and
+`body a` no longer wins, delete the inline `color` in `TopBarIconLink.tsx` and
+`CtemCommandCenterButton.tsx`; the measured colours must stay equal.
+
+---
+
 ## Step 5b — computed-style diff against the documentation site
 
 Run at pin `c0d6f07`, docs site at the same SHA, product on the same machine,

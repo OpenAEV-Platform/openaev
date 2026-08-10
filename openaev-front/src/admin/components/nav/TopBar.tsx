@@ -1,8 +1,20 @@
-import { Header, HeaderGroup } from '@filigran/design-system';
+import {
+  Header,
+  HeaderGroup,
+  IconButton,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuTrigger,
+  SearchField,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@filigran/design-system';
 import { AccountCircleOutlined, AlarmOnOutlined, ImportantDevicesOutlined } from '@mui/icons-material';
-import { Divider, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
+import { useTheme } from '@mui/material/styles';
+import { type CSSProperties, type FunctionComponent, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 
 import { logout } from '../../../actions/Application';
@@ -10,7 +22,6 @@ import { NAV_COLLAPSED_WIDTH, NAV_OPEN_WIDTH } from '../../../components/common/
 import { readNavOpen } from '../../../components/common/menu/navbar/useNavbarState';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
-import SearchInput from '../../../components/SearchFilter';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -21,6 +32,7 @@ import CtemCommandCenterButton from '../ariane/CtemCommandCenterButton';
 import { useChatbot } from '../ariane/useChatbotHooks';
 import isXtmOneAvailable from '../ariane/xtmOneAvailability';
 import BulkOperationsIndicator from './BulkOperationsIndicator';
+import TopBarIconLink from './TopBarIconLink';
 import TopBarNotifications from './TopBarNotifications';
 
 // Navigation widths. Re-exported from the navbar module so the rail, the
@@ -65,28 +77,10 @@ const TopBar: FunctionComponent = () => {
     };
   }, []);
 
-  const [menuOpen, setMenuOpen] = useState<{
-    open: boolean;
-    anchorEl: HTMLButtonElement | null;
-  }>({
-    open: false,
-    anchorEl: null,
-  });
-  const handleOpenMenu = (
-    event: ReactMouseEvent<HTMLButtonElement, MouseEvent>,
-  ) => {
-    event.preventDefault();
-    setMenuOpen({
-      open: true,
-      anchorEl: event.currentTarget,
-    });
-  };
-  const handleCloseMenu = () => {
-    setMenuOpen({
-      open: false,
-      anchorEl: null,
-    });
-  };
+  // The library's Menu is Radix-based: it anchors itself to its trigger, so
+  // the anchor element MUI needed is gone and only the open state remains.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const handleCloseMenu = () => setMenuOpen(false);
 
   const {
     isOpen: isArianeChatOpen,
@@ -110,22 +104,20 @@ const TopBar: FunctionComponent = () => {
   };
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
-
-  // Same 36px squared icon button anatomy as OpenCTI's top bar icons.
-  const topBarIconButtonSx = (selected: boolean) => ({
-    'width': 36,
-    'height': 36,
-    'borderRadius': 1,
-    'color': theme.palette.primary.main,
-    'backgroundColor': selected ? alpha(theme.palette.primary.main, 0.15) : 'transparent',
-    '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.15) },
-  });
+  // Controlled, so an external change to the URL parameter (landing on the
+  // full-text page, or clearing it) is reflected in the field. The legacy
+  // SearchInput did this through a `keyword` prop; the library's field is a
+  // plain controlled input, so the sync is explicit here.
+  const [searchValue, setSearchValue] = useState(search ?? '');
+  useEffect(() => setSearchValue(search ?? ''), [search]);
 
   const gradientStart = theme.palette.background.gradient?.start ?? theme.palette.background.default;
   const gradientEnd = theme.palette.background.gradient?.end ?? theme.palette.background.default;
 
   return (
-    <>
+    // Radix tooltips require a provider in scope. It wraps the bar rather than
+    // the whole app so the adoption stays contained to this pilot.
+    <TooltipProvider delayDuration={200}>
       <Header
         // The library owns no page positioning on purpose (the offset differs
         // per product), but the doctrine is that the bar is ALWAYS fixed to
@@ -176,12 +168,14 @@ const TopBar: FunctionComponent = () => {
             maxWidth: 680,
           }}
         >
-          <SearchInput
-            variant="topBar"
+          <SearchField
+            aria-label={t('Search the platform')}
             placeholder={`${t('Search the platform')}...`}
             fullWidth={true}
+            value={searchValue}
+            onChange={event => setSearchValue(event.target.value)}
             onSubmit={onFullTextSearch}
-            keyword={search}
+            onClear={() => setSearchValue('')}
           />
         </HeaderGroup>
         <HeaderGroup>
@@ -194,8 +188,16 @@ const TopBar: FunctionComponent = () => {
               <AskArianeButton />
               <CtemCommandCenterButton />
               {/* Discrete full-height separator between the AI (XTM One)
-                  actions and the standard platform actions. */}
-              <Divider orientation="vertical" flexItem sx={{ mx: 1.5 }} />
+                  actions and the standard platform actions. The library ships
+                  no general-purpose divider (only NavbarSeparator and the
+                  menu/select separators, all bound to their own component), so
+                  this is a plain rule painted with the library's own border
+                  token rather than a MUI Divider. See LIBRARY-FEEDBACK.md #22. */}
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                className="self-stretch w-px my-2 mx-1.5 bg-border-medium"
+              />
             </>
           )}
           {settings.platform_license?.license_type === 'nfr' && (
@@ -204,51 +206,50 @@ const TopBar: FunctionComponent = () => {
           <BulkOperationsIndicator />
           {/* OpenCTI-aligned pair: the triggers alarm icon right before the
               notifications bell, each leading to its own profile page. */}
-          <Tooltip title={t('Triggers')}>
-            <IconButton
-              aria-label="triggers"
-              component={Link}
-              to="/admin/profile/triggers"
-              sx={topBarIconButtonSx(location.pathname === '/admin/profile/triggers')}
-            >
-              <AlarmOnOutlined fontSize="medium" />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TopBarIconLink
+                aria-label="triggers"
+                to="/admin/profile/triggers"
+                active={location.pathname === '/admin/profile/triggers'}
+                icon={<AlarmOnOutlined fontSize="medium" />}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{t('Triggers')}</TooltipContent>
           </Tooltip>
-          <TopBarNotifications iconButtonSx={topBarIconButtonSx} />
-          <Tooltip title={t('Install simulation agents')}>
-            <IconButton
-              aria-haspopup="true"
-              component={Link}
-              to="/admin/agents"
-              sx={topBarIconButtonSx(location.pathname === '/admin/agents')}
-            >
-              <ImportantDevicesOutlined fontSize="medium" />
-            </IconButton>
+          <TopBarNotifications />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TopBarIconLink
+                aria-label={t('Install simulation agents')}
+                to="/admin/agents"
+                active={location.pathname === '/admin/agents'}
+                icon={<ImportantDevicesOutlined fontSize="medium" />}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{t('Install simulation agents')}</TooltipContent>
           </Tooltip>
-          <IconButton
-            aria-owns={menuOpen.open ? 'menu-appbar' : undefined}
-            aria-haspopup="true"
-            aria-label="account-menu"
-            id="profile-menu-button"
-            onClick={handleOpenMenu}
-            sx={topBarIconButtonSx(location.pathname === '/admin/profile')}
-          >
-            <AccountCircleOutlined fontSize="medium" />
-          </IconButton>
-          <Menu
-            id="menu-appbar"
-            anchorEl={menuOpen.anchorEl}
-            open={menuOpen.open}
-            onClose={handleCloseMenu}
-          >
-            <MenuItem
-              onClick={handleCloseMenu}
-              component={Link}
-              to="/admin/profile"
-            >
-              {t('Profile')}
-            </MenuItem>
-            <MenuItem aria-label="logout-item" onClick={handleLogout}>{t('Logout')}</MenuItem>
+          {/* The library documents MenuTrigger+asChild around an IconButton as
+              the canonical pairing, and Radix anchors the panel to the trigger
+              itself - so the anchorEl MUI required is gone. */}
+          <Menu open={menuOpen} onOpenChange={setMenuOpen}>
+            <MenuTrigger asChild>
+              <IconButton
+                priority="tertiary"
+                aria-label="account-menu"
+                id="profile-menu-button"
+                active={location.pathname === '/admin/profile'}
+                icon={<AccountCircleOutlined fontSize="medium" />}
+              />
+            </MenuTrigger>
+            <MenuContent align="end">
+              <MenuItem asChild onSelect={handleCloseMenu}>
+                <Link to="/admin/profile">{t('Profile')}</Link>
+              </MenuItem>
+              <MenuItem aria-label="logout-item" onSelect={handleLogout}>
+                {t('Logout')}
+              </MenuItem>
+            </MenuContent>
           </Menu>
         </HeaderGroup>
       </Header>
@@ -262,7 +263,7 @@ const TopBar: FunctionComponent = () => {
           onResizeEnd={() => setIsResizing(false)}
         />
       )}
-    </>
+    </TooltipProvider>
   );
 };
 

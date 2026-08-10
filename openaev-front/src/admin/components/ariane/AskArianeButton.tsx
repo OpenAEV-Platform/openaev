@@ -1,5 +1,6 @@
-import { Button, SvgIcon, Tooltip } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
+import { SvgIcon } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { useContext, useState } from 'react';
 
@@ -54,15 +55,21 @@ const AskArianeButton = () => {
     }
   };
 
-  // AI gradient (aligned with OpenCTI's "Ask Ariane" tertiary gradient button):
-  // borderless, transparent background, gradient-painted label + icon, subtle
-  // AI-tinted hover. No outlined box.
-  const aiGradient = `linear-gradient(90deg, ${theme.palette.ai.light} 0%, ${theme.palette.ai.main} 100%)`;
-
+  // The library's `ia` variant IS this button's design: at tertiary priority it
+  // paints the label with the AI gradient and tints the hover with
+  // `filigran-ia-secondary-transparency`. The hand-rolled backgroundClip
+  // gradient, the 36px box and the hover alpha it used to declare are all the
+  // library's now - and so are its focus and active states, which is the point
+  // of the swap.
   const buttonContent = (
     <Button
-      variant="text"
+      variant="ia"
+      priority="tertiary"
       onClick={handleClick}
+      // Open state. The library's Button has no `active` prop (its IconButton
+      // does), so the one class its own active state uses is applied here
+      // rather than reinvented. See LIBRARY-FEEDBACK.md #23.
+      className={isOpen ? 'bg-filigran-ia-secondary-transparency' : undefined}
       startIcon={(
         <SvgIcon
           component={LogoXtmOneIcon}
@@ -74,34 +81,24 @@ const AskArianeButton = () => {
         />
       )}
       endIcon={!isEnterpriseEdition ? <span><EEChip /></span> : undefined}
-      sx={{
-        'height': 36,
-        'paddingInline': 1.5,
-        'borderRadius': 1,
-        'fontWeight': 600,
-        'whiteSpace': 'nowrap',
-        'backgroundColor': isOpen ? alpha(theme.palette.ai.main, 0.15) : 'transparent',
-        '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.15) },
-        // Gradient-painted label, matching OpenCTI.
-        '& .ariane-label': {
-          background: aiGradient,
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-        },
-        '& .MuiButton-startIcon': { marginRight: '6px' },
-      }}
     >
-      <span className="ariane-label">{t('Ask Ariane')}</span>
+      {t('Ask Ariane')}
     </Button>
   );
 
   // If CGU pending and user cannot manage, wrap with tooltip explaining
   if (isEnterpriseEdition && isCguPending && !canManage) {
     return (
-      <Tooltip title={t('Ask Ariane isn\'t activated yet. Please reach out to your administrator to enable this feature.')}>
-        <span>{buttonContent}</span>
-      </Tooltip>
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>{buttonContent}</span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t('Ask Ariane isn\'t activated yet. Please reach out to your administrator to enable this feature.')}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 

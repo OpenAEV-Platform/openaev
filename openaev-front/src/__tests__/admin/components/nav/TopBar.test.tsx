@@ -5,12 +5,12 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NAV_OPEN_STORAGE_KEY } from '../../../../components/common/menu/navbar/useNavbarState';
+import { expectLibraryIconButton, expectLibrarySearchField, expectNoMuiControls } from '../../../utils/designSystemAssertions';
 
 // The bar's own dependencies are not what this file is about: it covers the
 // contract between the product and the design system `Header`. Everything that
 // would drag in Relay, the redux store or the chatbot context is stubbed down
 // to a marker, so a failure here can only mean the Header wiring broke.
-vi.mock('../../../../components/SearchFilter', () => ({ default: () => <input aria-label="platform-search" /> }));
 vi.mock('../../../../admin/components/nav/TopBarNotifications', () => ({ default: () => null }));
 vi.mock('../../../../admin/components/nav/BulkOperationsIndicator', () => ({ default: () => null }));
 vi.mock('../../../../admin/components/ariane/AskArianeButton', () => ({ default: () => null }));
@@ -116,8 +116,9 @@ describe('Admin TopBar built on the design system Header', () => {
     // The library's growing group is capped at 400px, which is BELOW this
     // bar's 550px minimum - hence grow="unbounded" plus an explicit window.
     renderTopBar();
-    const search = screen.getByLabelText('platform-search');
-    const group = search.parentElement as HTMLElement;
+    // The library's SearchField renders a role="search" wrapper; the group is
+    // its parent.
+    const group = screen.getByRole('search').parentElement as HTMLElement;
     expect(group.style.minWidth).toBe('550px');
     expect(group.style.maxWidth).toBe('680px');
   });
@@ -139,5 +140,31 @@ describe('Admin TopBar built on the design system Header', () => {
   it('keeps the account menu reachable', () => {
     renderTopBar();
     expect(screen.getByLabelText('account-menu')).toBeTruthy();
+  });
+
+  // Scope rule (designer, round 2): where the library ships a component, the
+  // pilot uses it. The bar was Header + HeaderGroup from the library with a
+  // MUI interior; these assert the interior converted too, because a MUI
+  // control keeps MUI's focus/hover/selected states no matter how it is
+  // painted - which was the designer's actual complaint.
+  describe('Design system adoption', () => {
+    it('searches through the library SearchField', () => {
+      renderTopBar();
+      // `searchFieldVariants` styles the wrapper the library exposes as
+      // role="search", not the inner input.
+      expectLibrarySearchField(screen.getByRole('search'), 'platform search');
+    });
+
+    it('uses the library icon button for the account menu', () => {
+      renderTopBar();
+      expectLibraryIconButton(screen.getByLabelText('account-menu'), 'account menu');
+    });
+
+    it('leaves no MUI control anywhere in the bar', () => {
+      // The single maintained exception is icon GLYPHS (same arbitration as
+      // the Navbar pilot), which this helper ignores.
+      renderTopBar();
+      expectNoMuiControls(getBar(), 'top bar');
+    });
   });
 });

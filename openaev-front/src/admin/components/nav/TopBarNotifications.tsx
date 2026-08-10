@@ -1,21 +1,21 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { NotificationsOutlined } from '@mui/icons-material';
-import { Badge, IconButton, Tooltip } from '@mui/material';
+import { Badge } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 
 import { getUnreadNotificationsCount } from '../../../actions/notifications/notification-actions';
 import { type NotificationHelper } from '../../../actions/notifications/notification-helper';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
-
-interface Props { iconButtonSx: (selected: boolean) => object }
+import TopBarIconLink from './TopBarIconLink';
 
 /**
  * Top bar bell: unread notifications badge, refreshed live through the SSE
  * stream (new notifications land in the redux `notifications` map via the
  * shared data loader, which retriggers the count fetch).
  */
-const TopBarNotifications = ({ iconButtonSx }: Props) => {
+const TopBarNotifications = () => {
   const { t } = useFormatter();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -27,17 +27,23 @@ const TopBarNotifications = ({ iconButtonSx }: Props) => {
   }, [notifications]);
 
   return (
-    <Tooltip title={t('Notifications')}>
-      <IconButton
-        aria-label="notifications"
-        component={Link}
-        to="/admin/profile/notifications"
-        sx={iconButtonSx(location.pathname.startsWith('/admin/profile/notifications'))}
-      >
-        <Badge color="secondary" variant="dot" invisible={unreadCount === 0}>
-          <NotificationsOutlined fontSize="medium" />
-        </Badge>
-      </IconButton>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <TopBarIconLink
+          aria-label="notifications"
+          to="/admin/profile/notifications"
+          active={location.pathname.startsWith('/admin/profile/notifications')}
+          // The library ships no Badge, so the unread dot stays MUI - the
+          // scope rule is "use the library where the library ships it", and
+          // here it does not. See LIBRARY-FEEDBACK.md #22.
+          icon={(
+            <Badge color="secondary" variant="dot" invisible={unreadCount === 0}>
+              <NotificationsOutlined fontSize="medium" />
+            </Badge>
+          )}
+        />
+      </TooltipTrigger>
+      <TooltipContent>{t('Notifications')}</TooltipContent>
     </Tooltip>
   );
 };

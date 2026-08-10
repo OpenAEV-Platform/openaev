@@ -1,5 +1,6 @@
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AutoAwesomeMotionOutlined, CheckCircleOutlined, ErrorOutlined } from '@mui/icons-material';
-import { Badge, Box, CircularProgress, IconButton, LinearProgress, Popover, Tooltip, Typography } from '@mui/material';
+import { Badge, Box, CircularProgress, LinearProgress, Popover, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
 
@@ -72,46 +73,58 @@ const BulkOperationsIndicator: FunctionComponent = () => {
 
   return (
     <>
-      <Tooltip title={t('Massive operations')}>
-        <IconButton
-          aria-haspopup="true"
-          aria-label="bulk-operations-menu"
-          onClick={handleOpen}
-          sx={{
-            'width': 36,
-            'height': 36,
-            'borderRadius': 1,
-            // Blue like every other top bar icon (running state adds badge + spinner).
-            'color': theme.palette.primary.main,
-            'backgroundColor': anchorEl ? alpha(theme.palette.primary.main, 0.15) : 'transparent',
-            '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.15) },
-          }}
-        >
-          <Badge
-            badgeContent={runningCount}
-            color="primary"
-            overlap="circular"
-            sx={{
-              '& .MuiBadge-badge': {
-                fontSize: 10,
-                height: 16,
-                minWidth: 16,
-              },
-            }}
-          >
-            <AutoAwesomeMotionOutlined fontSize="medium" />
-          </Badge>
-          {runningCount > 0 && (
-            <CircularProgress
-              size={32}
-              thickness={2}
-              sx={{
-                position: 'absolute',
-                color: alpha(theme.palette.primary.main, 0.5),
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton
+            priority="tertiary"
+            aria-haspopup="true"
+            aria-label="bulk-operations-menu"
+            onClick={handleOpen}
+            active={Boolean(anchorEl)}
+            // The library owns the button; only the badge and the running
+            // spinner are product content, and the library ships neither.
+            // They are wrapped in a relatively-positioned span because the
+            // spinner overlays the glyph - the library's own icon slot is not
+            // a positioning context. See LIBRARY-FEEDBACK.md #22.
+            icon={(
+              <span style={{
+                position: 'relative',
+                display: 'inline-flex',
               }}
-            />
-          )}
-        </IconButton>
+              >
+                <Badge
+                  badgeContent={runningCount}
+                  color="primary"
+                  overlap="circular"
+                  sx={{
+                    '& .MuiBadge-badge': {
+                      fontSize: 10,
+                      height: 16,
+                      minWidth: 16,
+                    },
+                  }}
+                >
+                  <AutoAwesomeMotionOutlined fontSize="medium" />
+                </Badge>
+                {runningCount > 0 && (
+                  <CircularProgress
+                    size={32}
+                    thickness={2}
+                    sx={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      marginTop: '-16px',
+                      marginLeft: '-16px',
+                      color: alpha(theme.palette.primary.main, 0.5),
+                    }}
+                  />
+                )}
+              </span>
+            )}
+          />
+        </TooltipTrigger>
+        <TooltipContent>{t('Massive operations')}</TooltipContent>
       </Tooltip>
       <Popover
         open={Boolean(anchorEl)}
