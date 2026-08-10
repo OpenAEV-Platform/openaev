@@ -198,10 +198,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
             variant="standard"
           />
 
-          <Box sx={{
-            mt: 2,
-          }}
-          >
+          <Box sx={{ mt: 2 }}>
             <Typography
               variant="h6"
               sx={{
@@ -223,6 +220,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
               <Button
                 size="small"
                 color="primary"
+                disabled={readOnly}
                 startIcon={<AddOutlined fontSize="small" />}
                 onClick={handleAddConditionGroup}
               >
@@ -247,6 +245,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
                         <LogicalOperatorSelect
                           value={groupOperators[index - 1] ?? 'AND'}
                           onChange={op => handleUpdateGroupOperator(index - 1, op)}
+                          readOnly={readOnly}
                         />
                       </Box>
                     )}
@@ -254,6 +253,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
                       group={group}
                       onUpdate={updated => handleUpdateGroup(index, updated)}
                       onDelete={conditionGroups.length > 1 ? () => handleDeleteGroup(index) : undefined}
+                      readOnly={readOnly}
                     />
                   </Box>
                 ))}

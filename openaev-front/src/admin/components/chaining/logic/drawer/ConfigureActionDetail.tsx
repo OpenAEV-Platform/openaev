@@ -206,6 +206,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   }, [initialData, contractFields]);
 
   const handleResetDefaults = () => {
+    if (readOnly) return;
     const current = getValues('inject_content');
     setValue('inject_content', {
       ...buildContractDefaults(contractFields),
@@ -356,7 +357,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
             mutually exclusive — the backend keeps the defined value as one more candidate alongside
             the linked type's resolved pool (ConditionService#resolveMapperPairs). Only auto-linked
             fields (e.g. targeted-asset) are system-managed and hide it. */}
-        {!isAutoLinked && <InjectContentFieldComponent field={ef} />}
+        {!isAutoLinked && <InjectContentFieldComponent field={ef} readOnly={readOnly} />}
         {showLink && (
           <FieldOutputLink
             panelOpen={open}
@@ -428,7 +429,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               title={t('Inject data')}
               helper={t('The content and targets specific to this inject.')}
               action={(
-                <Button size="small" startIcon={<RestartAlt />} onClick={handleResetDefaults}>
+                <Button size="small" disabled={readOnly} startIcon={<RestartAlt />} onClick={handleResetDefaults}>
                   {t('Reset default value')}
                 </Button>
               )}
@@ -452,6 +453,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
             <InjectFormSection title={t('Inject expectations')}>
               <InjectExpectations
                 expectationDatas={expectations}
+                readOnly={readOnly}
                 handleExpectations={updatedExpectations => setValue('inject_content', {
                   ...getValues('inject_content'),
                   [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
