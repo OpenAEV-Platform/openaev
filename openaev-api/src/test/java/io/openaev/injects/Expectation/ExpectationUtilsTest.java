@@ -35,6 +35,9 @@ class ExpectationUtilsTest extends IntegrationTest {
     // -- PREPARE --
     Endpoint endpoint = EndpointFixture.createEndpoint();
     InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
+    // An OAEV implant runs through the agent, so its contract needs an executor: this is what makes
+    // getPreventionExpectationsByAsset / getDetectionExpectationsByAsset build the per-agent rows.
+    injectorContract.setNeedsExecutor(true);
     Inject inject = InjectFixture.createTechnicalInject(injectorContract, "Inject", endpoint);
     inject.setId("injectId");
 
@@ -169,6 +172,10 @@ class ExpectationUtilsTest extends IntegrationTest {
     endpoint.setSeenIp(fakeSeenIPV6);
 
     InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
+    // An OAEV implant runs through the agent, so its contract needs an executor: this is what makes
+    // getPreventionExpectationsByAsset build the per-agent row carrying the signatures asserted
+    // here.
+    injectorContract.setNeedsExecutor(true);
     Inject inject = InjectFixture.createTechnicalInject(injectorContract, "Inject", endpoint);
     inject.setId("injectId");
 

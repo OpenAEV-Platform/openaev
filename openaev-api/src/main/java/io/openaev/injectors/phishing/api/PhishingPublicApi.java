@@ -109,13 +109,22 @@ public class PhishingPublicApi extends RestBehavior {
 
   /**
    * Flattens the submitted payload into a single field map: the free-form {@code data} map plus the
-   * explicit {@code username} / {@code password} fields (when present). The tracking service resolves
-   * the credential out of this map and keeps every field as the completeness record.
+   * explicit {@code username} / {@code password} fields (when present). The tracking service
+   * resolves the credential out of this map and keeps every field as the completeness record. Blank
+   * {@code data} values are dropped so an empty {@code data.username} / {@code data.password} never
+   * blocks the non-blank dedicated fields from being captured.
    */
   private Map<String, String> submittedFields(PhishingSubmitInput input) {
     Map<String, String> fields = new LinkedHashMap<>();
     if (input.getData() != null) {
-      fields.putAll(input.getData());
+      input
+          .getData()
+          .forEach(
+              (key, value) -> {
+                if (value != null && !value.isBlank()) {
+                  fields.put(key, value);
+                }
+              });
     }
     if (input.getUsername() != null && !input.getUsername().isBlank()) {
       fields.putIfAbsent("username", input.getUsername());

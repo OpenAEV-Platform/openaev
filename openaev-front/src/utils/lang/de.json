@@ -2342,6 +2342,7 @@
   "No custom agents are available yet. The built-in payload creator is always available; create more agents in XTM One to consult them here.": "No custom agents are available yet. The built-in payload creator is always available; create more agents in XTM One to consult them here.",
   "No custom dashboard selected.": "Kein benutzerdefiniertes Dashboard ausgewählt.",
   "No CWEs listed.": "Keine CWEs aufgelistet.",
+  "No execution reached this target": "Keine Ausfuhrung hat dieses Ziel erreicht",
   "No data available": "Keine Daten verfügbar",
   "No data capture": "Keine Datenerfassung",
   "No data collected on this domain at this time. Run a scenario to start analyzing your position on this domain.": "Zu diesem Zeitpunkt wurden für diesen Bereich keine Daten gesammelt. Führen Sie ein Szenario aus, um Ihre Position in diesem Bereich zu analysieren.",

@@ -2342,6 +2342,7 @@
   "No custom agents are available yet. The built-in payload creator is always available; create more agents in XTM One to consult them here.": "No custom agents are available yet. The built-in payload creator is always available; create more agents in XTM One to consult them here.",
   "No custom dashboard selected.": "사용자 지정 대시보드가 선택되지 않았습니다.",
   "No CWEs listed.": "나열된 CWE가 없습니다.",
+  "No execution reached this target": "이 대상에 도달한 실행이 없습니다",
   "No data available": "사용 가능한 데이터가 없습니다",
   "No data capture": "데이터 수집 없음",
   "No data collected on this domain at this time. Run a scenario to start analyzing your position on this domain.": "현재 이 도메인에서 수집된 데이터가 없습니다. 시나리오를 실행하여 이 도메인에 대한 위치 분석을 시작하세요.",

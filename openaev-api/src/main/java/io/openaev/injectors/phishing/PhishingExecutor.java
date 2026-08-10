@@ -131,9 +131,9 @@ public class PhishingExecutor extends Injector {
             .toList();
     injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
 
-    // Phishing expectations are inverted: pre-score every step to GREEN ("resisted") now, before any
-    // lure is sent. The matching open/click/submit transition flips a step to RED ("fell for it")
-    // later. A recipient who never interacts keeps the green verdict, because the expiration
+    // Phishing expectations are inverted: pre-score every step to GREEN ("resisted") now, before
+    // any lure is sent. The matching open/click/submit transition flips a step to RED ("fell for
+    // it") later. A recipient who never interacts keeps the green verdict, because the expiration
     // collector only touches rows whose score is still null.
     phishingTrackingService.initializeExpectationsAsResisted(inject.getId());
 

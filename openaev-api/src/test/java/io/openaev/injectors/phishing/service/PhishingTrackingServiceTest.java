@@ -66,9 +66,14 @@ class PhishingTrackingServiceTest {
     return result;
   }
 
-  /** A player-scoped MANUAL step expectation, pre-scored GREEN (resisted) like the executor does. */
+  /**
+   * A player-scoped MANUAL step expectation, pre-scored GREEN (resisted) like the executor does.
+   */
   private ManualInjectExpectation resistedStep(final String name) {
     ManualInjectExpectation expectation = new ManualInjectExpectation();
+    // A distinct id keeps equals()/hashCode() well-defined when several rows are matched in the
+    // same verify() (an id-less expectation dereferences a null id during Mockito's comparison).
+    expectation.setId(name);
     expectation.setName(name);
     expectation.setExpectedScore(100.0);
     expectation.setScore(100.0);
@@ -113,9 +118,10 @@ class PhishingTrackingServiceTest {
     when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
     when(phishingResultRepository.save(any(PhishingResult.class)))
         .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation opened = resistedStep(PhishingTrackingService.STEP_OPENED);
     ManualInjectExpectation clicked = resistedStep(PhishingTrackingService.STEP_CLICKED);
     when(injectExpectationRepository.findAllByInjectAndPlayer("inject-1", "user-1"))
-        .thenReturn(List.of(clicked));
+        .thenReturn(List.of(opened, clicked));
 
     // -- ACT --
     Optional<PhishingResult> updated =
@@ -125,8 +131,11 @@ class PhishingTrackingServiceTest {
     assertTrue(updated.isPresent());
     assertNotNull(updated.get().getClickedAt());
     assertNotNull(updated.get().getOpenedAt());
-    assertEquals(0.0, clicked.getScore(), "a followed link must flip the step to RED");
+    assertEquals(0.0, clicked.getScore(), "a followed link must flip the clicked step to RED");
+    assertEquals(
+        0.0, opened.getScore(), "a followed link implies an open, so the opened step flips too");
     verify(injectExpectationRepository).save(clicked);
+    verify(injectExpectationRepository).save(opened);
   }
 
   @Test
@@ -163,10 +172,7 @@ class PhishingTrackingServiceTest {
 
     // -- ACT --
     phishingTrackingService.markSubmitted(
-        "token-1",
-        Map.of("username", "victim@corp.test", "password", "hunter2"),
-        "1.2.3.4",
-        "ua");
+        "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
 
     // -- ASSERT --
     ArgumentCaptor<List<Finding>> captor = ArgumentCaptor.forClass(List.class);

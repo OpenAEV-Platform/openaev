@@ -48,14 +48,16 @@ import org.springframework.transaction.annotation.Transactional;
  * the recipient RESISTED a step (opening the lure, following the link, submitting data). Resisting
  * is the desired outcome, so each of the three step expectations is pre-scored to its full expected
  * score at send time - GREEN / "resisted" - by {@link #initializeExpectationsAsResisted(String)}.
- * The matching transition then flips the step to a zero score - RED / "fell for it" - the moment the
- * recipient performs it. Because a pre-scored row is no longer {@code score IS NULL}, the generic
- * expiration collector never touches these rows: a recipient who never interacts simply keeps the
- * green "resisted" verdict for good, which is exactly the intended "expired means success" semantics
- * without a bespoke expiration branch.
+ * The matching transition then flips the step to a zero score - RED / "fell for it" - the moment
+ * the recipient performs it. Because a pre-scored row is no longer {@code score IS NULL}, the
+ * generic expiration collector never touches these rows: a recipient who never interacts simply
+ * keeps the green "resisted" verdict for good, which is exactly the intended "expired means
+ * success" semantics without a bespoke expiration branch.
  *
  * <p>All methods are tenant-scoped: the executor runs inside the inject execution job (tenant
- * filter set), and the public endpoints set the tenant from the token before calling in.
+ * filter set), and the public endpoints set the tenant before calling in - {@code HostedPublicApi}
+ * resolves it from the token, while the legacy {@code PhishingPublicApi} routes take it from the
+ * {@code tenantId} path segment.
  */
 @Slf4j
 @Service
@@ -68,8 +70,8 @@ public class PhishingTrackingService {
 
   /**
    * Names of the three phishing-awareness expectation steps. Shared with {@code
-   * PhishingLandingPageService} (which advertises them in the injector contract) so the contract and
-   * the runtime scoring can never drift on which row represents which step.
+   * PhishingLandingPageService} (which advertises them in the injector contract) so the contract
+   * and the runtime scoring can never drift on which row represents which step.
    */
   public static final String STEP_OPENED = "Email opened";
 
@@ -89,8 +91,18 @@ public class PhishingTrackingService {
   // cloned real-world login form (e.g. Microsoft's "loginfmt", not "username") is still captured.
   private static final List<String> USERNAME_KEYS =
       List.of(
-          "username", "email", "user", "login", "loginfmt", "user_name", "userid", "user_id",
-          "identifier", "emailaddress", "e-mail", "account");
+          "username",
+          "email",
+          "user",
+          "login",
+          "loginfmt",
+          "user_name",
+          "userid",
+          "user_id",
+          "identifier",
+          "emailaddress",
+          "e-mail",
+          "account");
   private static final List<String> PASSWORD_KEYS =
       List.of("password", "passwd", "pass", "pwd", "passwordinput", "userpassword");
 
@@ -189,7 +201,9 @@ public class PhishingTrackingService {
     return phishingResultRepository.findTenantIdByToken(token);
   }
 
-  /** Marks the email as opened (first open wins) and flips the "email opened" step to compromised. */
+  /**
+   * Marks the email as opened (first open wins) and flips the "email opened" step to compromised.
+   */
   public Optional<PhishingResult> markOpened(
       @NotBlank final String token, final String ip, final String userAgent) {
     return phishingResultRepository
@@ -232,7 +246,8 @@ public class PhishingTrackingService {
 
   /**
    * Records submitted data, captures it as a {@code Credentials} finding (when the landing page is
-   * configured to capture) and flips all three steps to compromised (a submit implies open + click).
+   * configured to capture) and flips all three steps to compromised (a submit implies open +
+   * click).
    *
    * @param fields the raw submitted form fields (field name to value), used both to build the
    *     credential value and as the completeness record
@@ -317,8 +332,8 @@ public class PhishingTrackingService {
 
   /**
    * Builds the credential value stored on the {@code Credentials} finding. Prefers a recognized
-   * username (plus password when capture is enabled). When no field name is recognized - a custom or
-   * cloned login form with atypical field names - it falls back to capturing every non-empty
+   * username (plus password when capture is enabled). When no field name is recognized - a custom
+   * or cloned login form with atypical field names - it falls back to capturing every non-empty
    * submitted field so a genuine submission is never silently dropped. Returns {@code null} when
    * there is nothing to capture.
    */
