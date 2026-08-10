@@ -142,6 +142,12 @@ public class FindingMapper {
                 .map(Inject::getInjector)
                 .map(injectorMapper::toInjectorSimple)
                 .orElse(null))
+        .severity(finding.getSeverity())
+        .resource(finding.getResource())
+        .cloudAccount(finding.getCloudAccount())
+        .cloudRegion(finding.getCloudRegion())
+        .remediation(finding.getRemediation())
+        .compliance(finding.getCompliance())
         .build();
   }
 
@@ -203,8 +209,7 @@ public class FindingMapper {
                 .orElse(null))
         .creationDate(finding.getCreationDate())
         .findingTriageStatus(
-            triageStatusByFindingId.getOrDefault(
-                finding.getId(), FindingTriageStatus.UNTRIAGED))
+            triageStatusByFindingId.getOrDefault(finding.getId(), FindingTriageStatus.UNTRIAGED))
         .build();
   }
 }

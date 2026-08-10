@@ -78,7 +78,15 @@ public enum ContractOutputType {
   Asset("asset"),
 
   @JsonProperty("expectation_signature")
-  ExpectationSignature("expectation_signature");
+  ExpectationSignature("expectation_signature"),
+
+  // Native OCSF ("Open Cybersecurity Schema Framework") Detection Finding JSON, as produced by
+  // Prowler (`prowler <provider> -M json-ocsf`) and any other future OCSF-emitting scanner. The
+  // injector returns this JSON untouched; OCSFOutputProcessor is the only place that interprets
+  // it (severity, resource/ARN, cloud account/region, remediation) - see Finding's cloud
+  // misconfiguration fields.
+  @JsonProperty("ocsf")
+  OCSF("ocsf");
 
   private final String label;
 

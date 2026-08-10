@@ -47,6 +47,7 @@ const FindingOverview = () => {
   }
 
   const isCVE = finding.finding_type === 'cve';
+  const isOCSF = finding.finding_type === 'ocsf';
 
   return (
     <Box sx={{
@@ -130,6 +131,17 @@ const FindingOverview = () => {
           <ItemTags variant="list" tags={finding.finding_tags ?? []} />
         </Field>
       </InformationGrid>
+
+      {isOCSF && (
+        <InformationGrid title={t('Cloud details')}>
+          <Field label={t('Severity')}>{emptyFilled(finding.finding_severity)}</Field>
+          <Field label={t('Resource')}>{emptyFilled(finding.finding_resource)}</Field>
+          <Field label={t('Cloud account')}>{emptyFilled(finding.finding_cloud_account)}</Field>
+          <Field label={t('Region')}>{emptyFilled(finding.finding_cloud_region)}</Field>
+          <Field label={t('Compliance')}>{emptyFilled(finding.finding_compliance)}</Field>
+          <Field label={t('Remediation')}>{emptyFilled(finding.finding_remediation)}</Field>
+        </InformationGrid>
+      )}
 
       {/* CVE context: everything known about the vulnerability (identity,
           description, remediation, weaknesses, references) in ONE paper. */}
