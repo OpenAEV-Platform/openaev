@@ -127,8 +127,9 @@ public class WebhookTargetValidator {
    * Returns the IPv4 address carried by an IPv6 address, or null when it carries none.
    *
    * <p>Recognises the IPv4-compatible and 6to4 forms, the Teredo client address, ISATAP, and NAT64
-   * inside {@code 64:ff9b::/32} when the IPv4 sits in the last four bytes, which is the layout RFC
-   * 6052 defines for a /96 prefix and the one DNS64 resolvers produce in practice.
+   * addresses of the form {@code 64:ff9b:X::a.b.c.d}, that is a prefix inside {@code 64:ff9b::/32}
+   * followed by zeroes and the IPv4 in the last four bytes. That is the layout RFC 6052 defines for
+   * a /96 prefix and the one DNS64 resolvers produce.
    */
   private static Inet4Address embeddedIpv4(Inet6Address address) {
     if (InetAddresses.hasEmbeddedIPv4ClientAddress(address)) {
