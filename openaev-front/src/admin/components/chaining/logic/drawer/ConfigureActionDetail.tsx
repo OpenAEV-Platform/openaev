@@ -5,6 +5,7 @@ import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 
+import { directFetchWorkflowInjectorContract } from '../../../../../actions/chaining/workflow-actions';
 import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
 import { findTeams } from '../../../../../actions/teams/team-actions';
 import SwitchFieldController from '../../../../../components/fields/SwitchFieldController';
@@ -39,6 +40,7 @@ import FieldOutputLink, { type FieldLink } from './FieldOutputLink';
 interface ConfigureActionDetailProps {
   /** Whether the hosting drawer step is active (feeds the inject-data panel + contract fetch). */
   open?: boolean;
+  workflowId?: string;
   action: ThreatArsenalAction | null;
   validAssets: ScopeAssetOutput[];
   validTeams?: ScopeTeamOutput[];
@@ -108,6 +110,7 @@ const buildEnhancedField = (
 
 const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   open = true,
+  workflowId,
   action,
   validAssets,
   validTeams = [],
@@ -170,9 +173,17 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     setFieldLinks(normalizeFieldLinks(initialData?.inject_field_links));
     setContractFields(initialData?.contract_fields ?? []);
 
-    const contractId = initialData?.inject_injector_contract ?? action.injector_contract_id;
+    const existingContractId = initialData?.inject_injector_contract;
+    const contractId = existingContractId ?? action.injector_contract_id;
     setLoadingContract(true);
-    directFetchInjectorContract(contractId)
+    // A contract already referenced by a workflow step is read through the workflow-scoped
+    // endpoint, so read-granted users never need the global threat-arsenal capabilities. A newly
+    // selected action's contract is not part of the workflow yet (the scoped lookup would 404):
+    // it goes through the global lookup, which is fine because adding actions requires the
+    // manage permission and the arsenal capabilities anyway.
+    (workflowId && existingContractId
+      ? directFetchWorkflowInjectorContract(workflowId, existingContractId)
+      : directFetchInjectorContract(contractId))
       .then((res: { data: { injector_contract_content?: string } }) => {
         if (!res.data?.injector_contract_content) return;
         try {
@@ -192,7 +203,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       })
       .catch(() => setContractFields([]))
       .finally(() => setLoadingContract(false));
-  }, [action, initialData]);
+  }, [action, initialData, workflowId]);
 
   // Auto-link action input fields with their default primitive type when available.
   // Example: field argumentType "ipv4" -> outputTypes ["ipv4"].

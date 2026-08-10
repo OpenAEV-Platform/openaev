@@ -80,19 +80,19 @@ const LeftBar = () => {
           path: `/admin/scenarios`,
           icon: () => (<RouteOutlined />),
           label: 'Scenarios',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
+          userRight: true,
         },
         {
           path: `/admin/simulations`,
           icon: () => (<PlayCircleOutlineOutlined />),
           label: 'Simulations',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
+          userRight: true,
         },
         {
           path: `/admin/atomic_testings`,
           icon: () => (<Target />),
           label: 'Atomic testings',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
+          userRight: true,
         },
         {
           path: `/admin/threat-arsenal`,
