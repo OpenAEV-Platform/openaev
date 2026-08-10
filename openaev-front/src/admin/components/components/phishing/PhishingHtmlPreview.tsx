@@ -75,6 +75,12 @@ const PhishingHtmlPreview = ({ title, iframeTitle, srcDoc, chrome, height = 560 
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        // Fill the parent pane: the editor mounts this inside a flex-row column,
+        // so without an explicit width the preview shrinks to its header text
+        // and the width:100% iframe collapses to a narrow strip.
+        width: '100%',
+        minWidth: 0,
+        flex: '1 1 auto',
       }}
       >
         <Box sx={{

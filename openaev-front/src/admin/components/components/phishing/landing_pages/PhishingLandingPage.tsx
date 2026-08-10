@@ -1,30 +1,15 @@
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Chip, Tooltip, Typography } from '@mui/material';
+import { Box, Tooltip, Typography } from '@mui/material';
 import { useParams } from 'react-router';
 
 import { type PhishingLandingPagesHelper } from '../../../../../actions/phishing/phishing-helper';
 import { Field, SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../../components/i18n';
+import ItemBoolean from '../../../../../components/ItemBoolean';
 import { useHelper } from '../../../../../store';
 import { type PhishingLandingPage as PhishingLandingPageType } from '../../../../../utils/api-types';
 import { emptyFilled } from '../../../../../utils/String';
 import PhishingHtmlPreview from '../PhishingHtmlPreview';
-
-const BooleanChip = ({ enabled, label }: {
-  enabled: boolean;
-  label: string;
-}) => (
-  <Chip
-    label={label}
-    size="small"
-    color={enabled ? 'success' : 'default'}
-    variant={enabled ? 'filled' : 'outlined'}
-    sx={{
-      width: 'fit-content',
-      textTransform: 'none',
-    }}
-  />
-);
 
 const PhishingLandingPage = () => {
   const { landingPageId } = useParams() as { landingPageId: PhishingLandingPageType['phishing_landing_page_id'] };
@@ -74,9 +59,10 @@ const PhishingLandingPage = () => {
             </Typography>
           </Field>
           <Field label={t('Capture submitted data')}>
-            <BooleanChip
-              enabled={landingPage.phishing_landing_page_capture_submitted_data === true}
+            <ItemBoolean
+              status={landingPage.phishing_landing_page_capture_submitted_data === true}
               label={landingPage.phishing_landing_page_capture_submitted_data ? t('Yes') : t('No')}
+              variant="inList"
             />
           </Field>
           <Field label={t('Capture passwords')}>
@@ -86,9 +72,10 @@ const PhishingLandingPage = () => {
               gap: 0.75,
             }}
             >
-              <BooleanChip
-                enabled={landingPage.phishing_landing_page_capture_passwords === true}
+              <ItemBoolean
+                status={landingPage.phishing_landing_page_capture_passwords === true}
                 label={landingPage.phishing_landing_page_capture_passwords ? t('Yes') : t('No')}
+                variant="inList"
               />
               <Tooltip title={t('When enabled, credentials submitted by recipients (username and password) are captured and tracked per target. When disabled, only the submission event is recorded - passwords are never stored.')}>
                 <InfoOutlined sx={{
