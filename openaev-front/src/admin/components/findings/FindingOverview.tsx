@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchFinding, searchFindings } from '../../../actions/findings/finding-actions';
-import { fetchFindingTriage } from '../../../actions/findings/finding-triage-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { DetailHero, Field, HeroStat, InformationGrid, SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import { buildFilter } from '../../../components/common/queryable/filter/FilterUtils';
@@ -15,12 +14,11 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
 import { INJECT, SCENARIO, SIMULATION } from '../../../constants/Entities';
-import type { AggregatedFindingOutput, Finding, FindingTriageOutput, RelatedFindingOutput } from '../../../utils/api-types';
+import type { AggregatedFindingOutput, Finding, RelatedFindingOutput } from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
 import ContractOutputElementType from './ContractOutputElementType';
 import FindingContextLink from './FindingContextLink';
 import FindingDetail from './FindingDetail';
-import FindingTriageControl from './FindingTriageControl';
 
 // Full-page finding overview: replaces the former drawer so every finding
 // exposes all of its metadata and full pivots (assets, injects,
@@ -31,18 +29,6 @@ const FindingOverview = () => {
   const { findingId } = useParams() as { findingId: string };
 
   const [finding, setFinding] = useState<Finding | null>(null);
-  // `null` is an explicit "not yet loaded" state (distinct from a real UNTRIAGED result). The
-  // `aggregated` memo below stays null while this is null, so the page shows the existing
-  // Loader gate instead of ever exposing a placeholder UNTRIAGED to the future triage
-  // dropdown/chip. `GET /api/findings/{id}` returns the raw Finding entity, which has no
-  // triage status of its own (triage is a separate join entity, only exposed via `GET
-  // .../triage`).
-  const [triageStatus, setTriageStatus] = useState<FindingTriageOutput['finding_triage_status'] | null>(null);
-  const isTriageLoading = triageStatus === null;
-  // Bumped on every confirmed triage change, passed down to FindingDetail's Triage History
-  // tab so it refetches immediately if it happens to already be mounted (see
-  // FindingTriageHistory's `refreshKey` prop) - not just on the next tab switch.
-  const [triageRefreshKey, setTriageRefreshKey] = useState(0);
   const [cvssScore, setCvssScore] = useState<number | null>(null);
   const [occurrences, setOccurrences] = useState<number | null>(null);
   const [assetCount, setAssetCount] = useState<number | null>(null);
@@ -51,23 +37,17 @@ const FindingOverview = () => {
     fetchFinding(findingId).then(response => setFinding(response.data as Finding));
   }, [findingId]);
 
-  useEffect(() => {
-    setTriageStatus(null);
-    fetchFindingTriage(findingId).then((response: { data: FindingTriageOutput }) => {
-      setTriageStatus(response.data.finding_triage_status ?? 'UNTRIAGED');
-    });
-  }, [findingId]);
-
   const typeLabel = useMemo(
     () => (finding ? t(ContractOutputElementType[finding.finding_type] ?? finding.finding_type) : ''),
     [finding, t],
   );
 
   // Aggregate view expected by FindingDetail / RelatedInjectsTab (keyed on
-  // type + value, not on a single occurrence id). Deliberately stays null until the triage
-  // fetch resolves (see `isTriageLoading`), so no consumer of `aggregated` ever sees a fake
-  // UNTRIAGED for the fraction of a second before the real status is known.
-  const aggregated: AggregatedFindingOutput | null = useMemo(() => (finding && !isTriageLoading
+  // type + value, not on a single occurrence id). Triage status is not shown/edited on this
+  // page (see the Information grid below): it only belongs to the findings list, since this
+  // page is a list of occurrences of the same check and only the most recent one is exposed
+  // here - so a fixed placeholder is enough to satisfy the (list-oriented) type contract.
+  const aggregated: AggregatedFindingOutput | null = useMemo(() => (finding
     ? {
         finding_id: finding.finding_id,
         finding_type: finding.finding_type,
@@ -75,9 +55,10 @@ const FindingOverview = () => {
         finding_assets: [],
         finding_created_at: finding.finding_created_at,
         finding_updated_at: finding.finding_updated_at,
-        finding_triage_status: triageStatus ?? 'UNTRIAGED',
+        finding_remediation: finding.finding_remediation,
+        finding_triage_status: 'UNTRIAGED',
       }
-    : null), [finding, triageStatus, isTriageLoading]);
+    : null), [finding]);
 
   // Count occurrences and impacted assets across the whole platform. The
   // asset count needs every occurrence's assets, so page through the
@@ -204,16 +185,6 @@ const FindingOverview = () => {
 
       <InformationGrid title={t('Information')}>
         <Field label={t('Type')}>{typeLabel}</Field>
-        <Field label={t('Triage status')}>
-          <FindingTriageControl
-            findingId={findingId}
-            status={aggregated.finding_triage_status}
-            onStatusChange={(newStatus) => {
-              setTriageStatus(newStatus);
-              setTriageRefreshKey(key => key + 1);
-            }}
-          />
-        </Field>
         <Field label={t('Value')}>
           <Box
             component="pre"
@@ -253,7 +224,6 @@ const FindingOverview = () => {
           <Field label={t('Cloud account')}>{emptyFilled(finding.finding_cloud_account)}</Field>
           <Field label={t('Region')}>{emptyFilled(finding.finding_cloud_region)}</Field>
           <Field label={t('Compliance')}>{emptyFilled(finding.finding_compliance)}</Field>
-          <Field label={t('Remediation')}>{emptyFilled(finding.finding_remediation)}</Field>
         </InformationGrid>
       )}
 
@@ -270,7 +240,6 @@ const FindingOverview = () => {
           additionalFilterNames={additionalFilterNames}
           contextId={findingId}
           onCvssScore={setCvssScore}
-          triageRefreshKey={triageRefreshKey}
         />
       </div>
     </Box>

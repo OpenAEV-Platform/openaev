@@ -3315,6 +3315,7 @@
   "There is no evaluation for this objective yet": "该目标还没有评估",
   "There is no information about this vulnerability yet.": "目前尚无关于此漏洞的信息。",
   "There is no information yet on a vulnerability remediation for this vulnerability.": "目前尚无关于此漏洞的漏洞修复信息。",
+  "There is no remediation information for this finding.": "此发现没有修复信息。",
   "There is nothing to see here...": "这里没有要看的了...",
   "Thin_client": "Thin Client",
   "Thinking through the next move": "正在思考下一步",

@@ -3315,6 +3315,7 @@
   "There is no evaluation for this objective yet": "Es gibt noch keine Bewertung für dieses Ziel",
   "There is no information about this vulnerability yet.": "Es gibt noch keine Informationen über diese Schwachstelle.",
   "There is no information yet on a vulnerability remediation for this vulnerability.": "Für diese Schwachstelle gibt es noch keine Informationen zur Behebung der Schwachstelle.",
+  "There is no remediation information for this finding.": "Für diesen Fund liegen keine Informationen zur Behebung vor.",
   "There is nothing to see here...": "Hier gibt es nichts zu sehen...",
   "Thin_client": "Thin Client",
   "Thinking through the next move": "Ueberlegt den naechsten Schritt",

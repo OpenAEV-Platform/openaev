@@ -17,6 +17,7 @@ import { type VulnerabilityStatus } from '../settings/vulnerabilities/Vulnerabil
 import VulnerabilityTabPanel from '../settings/vulnerabilities/VulnerabilityTabPanel';
 import FindingComments from './FindingComments';
 import FindingTriageHistory from './FindingTriageHistory';
+import OCSFRemediationTab from './OCSFRemediationTab';
 
 interface Props {
   searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
@@ -49,6 +50,7 @@ const FindingDetail = ({
   } = useEnterpriseEdition();
 
   const isCVE = selectedFinding.finding_type === 'cve';
+  const isOCSF = selectedFinding.finding_type === 'ocsf';
 
   const [vulnerability, setVulnerability] = useState<VulnerabilityOutput | null>(null);
   const [vulnerabilityStatus, setVulnerabilityStatus] = useState<VulnerabilityStatus>('loading');
@@ -70,33 +72,50 @@ const FindingDetail = ({
       .catch(() => setVulnerabilityStatus('notAvailable'));
   }, [selectedFinding, isCVE]);
 
-  const tabEntries: TabsEntry[] = isCVE
-    ? [{
-        key: 'General',
-        label: t('General'),
-      }, {
-        key: 'Related Injects',
-        label: t('Related Injects'),
-      }, {
-        key: 'Remediation',
-        label: <TabLabelWithEE label={t('Remediation')} />,
-      }, {
-        key: 'Comments',
-        label: t('Comments'),
-      }, {
-        key: 'Triage History',
-        label: t('Triage History'),
-      }]
-    : [{
-        key: 'Related Injects',
-        label: t('Related Injects'),
-      }, {
-        key: 'Comments',
-        label: t('Comments'),
-      }, {
-        key: 'Triage History',
-        label: t('Triage History'),
-      }];
+  let tabEntries: TabsEntry[];
+  if (isCVE) {
+    tabEntries = [{
+      key: 'General',
+      label: t('General'),
+    }, {
+      key: 'Related Injects',
+      label: t('Related Injects'),
+    }, {
+      key: 'Remediation',
+      label: <TabLabelWithEE label={t('Remediation')} />,
+    }, {
+      key: 'Comments',
+      label: t('Comments'),
+    }, {
+      key: 'Triage History',
+      label: t('Triage History'),
+    }];
+  } else if (isOCSF) {
+    tabEntries = [{
+      key: 'Related Injects',
+      label: t('Related Injects'),
+    }, {
+      key: 'Remediation',
+      label: t('Remediation'),
+    }, {
+      key: 'Comments',
+      label: t('Comments'),
+    }, {
+      key: 'Triage History',
+      label: t('Triage History'),
+    }];
+  } else {
+    tabEntries = [{
+      key: 'Related Injects',
+      label: t('Related Injects'),
+    }, {
+      key: 'Comments',
+      label: t('Comments'),
+    }, {
+      key: 'Triage History',
+      label: t('Triage History'),
+    }];
+  }
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
   const renderTabPanels = () => {
@@ -118,6 +137,9 @@ const FindingDetail = ({
           />
         );
       case 'Remediation':
+        if (isOCSF) {
+          return <OCSFRemediationTab remediation={selectedFinding.finding_remediation} />;
+        }
         return isEE
           ? (
               <VulnerabilityTabPanel status={vulnerabilityStatus} vulnerability={vulnerability}>
@@ -135,12 +157,12 @@ const FindingDetail = ({
   };
 
   useEffect(() => {
-    if (currentTab === 'Remediation' && !isEE) {
+    if (isCVE && currentTab === 'Remediation' && !isEE) {
       handleChangeTab('General');
       setEEFeatureDetectedInfo(t('Remediation'));
       openEEDialog();
     }
-  }, [currentTab, isEE]);
+  }, [currentTab, isEE, isCVE]);
 
   // A lone tab (non-CVE findings only have "Related Injects") carries no navigation value: render
   // the tab bar only when there is a choice. The panel is separated from the tab bar only when the

@@ -3315,6 +3315,7 @@
   "There is no evaluation for this objective yet": "Для этой цели пока нет оценки",
   "There is no information about this vulnerability yet.": "Пока нет информации об этой уязвимости.",
   "There is no information yet on a vulnerability remediation for this vulnerability.": "Пока нет информации об устранении этой уязвимости.",
+  "There is no remediation information for this finding.": "Информация об устранении для этого обнаружения отсутствует.",
   "There is nothing to see here...": "Здесь не на что смотреть...",
   "Thin_client": "Thin Client",
   "Thinking through the next move": "Обдумываю следующий шаг",

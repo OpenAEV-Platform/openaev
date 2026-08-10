@@ -3315,6 +3315,7 @@
   "There is no evaluation for this objective yet": "아직 이 목표에 대한 평가가 없습니다",
   "There is no information about this vulnerability yet.": "아직 이 취약점에 대한 정보가 없습니다.",
   "There is no information yet on a vulnerability remediation for this vulnerability.": "이 취약점에 대한 취약점 수정에 대한 정보가 아직 없습니다.",
+  "There is no remediation information for this finding.": "이 발견 사항에 대한 해결 정보가 없습니다.",
   "There is nothing to see here...": "여기에 볼 것이 없습니다...",
   "Thin_client": "Thin Client",
   "Thinking through the next move": "다음 행동을 검토하는 중",
