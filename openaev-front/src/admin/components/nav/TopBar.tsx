@@ -35,29 +35,11 @@ import BulkOperationsIndicator from './BulkOperationsIndicator';
 import TopBarIconLink from './TopBarIconLink';
 import TopBarNotifications from './TopBarNotifications';
 
-// Navigation widths. Re-exported from the navbar module so the rail, the
-// spacer that holds its place in the shell and this bar's left offset can
-// never drift apart.
+// Re-exported from the navbar module so the rail, its in-flow spacer and this bar's offset cannot drift apart.
 export const OPEN_BAR_WIDTH = NAV_OPEN_WIDTH;
 export const SMALL_BAR_WIDTH = NAV_COLLAPSED_WIDTH;
 
-/**
- * Top bar built on the design system `Header`: a fixed bar offset by the left
- * navigation, carrying the global search on the left and the action cluster
- * (AI actions, divider, platform actions, profile menu) on the right. The logo
- * and the Filigran product switcher live in the left drawer header
- * (LeftBarHeader), not here.
- *
- * Height, background gradient, 94% glass opacity, backdrop blur and the bottom
- * hairline all come from the library now; this file supplies only what the
- * library deliberately leaves to the consumer — the page positioning — and the
- * product content inside.
- *
- * Everything product-specific is passed as an inline STYLE, not a class. The
- * library ships a compiled stylesheet, not Tailwind: it contains the utilities
- * the library itself renders and nothing more, and this application has no
- * Tailwind build. A class this file invented would silently do nothing.
- */
+/** Admin top bar on the design system `Header` — see fds-migration/IMPLEMENTATION-LOG.md (Header adoption). */
 const TopBar: FunctionComponent = () => {
   const theme = useTheme();
   const location = useLocation();
@@ -77,8 +59,7 @@ const TopBar: FunctionComponent = () => {
     };
   }, []);
 
-  // The library's Menu is Radix-based: it anchors itself to its trigger, so
-  // the anchor element MUI needed is gone and only the open state remains.
+  // Radix anchors the Menu to its trigger, so only the open state is needed.
   const [menuOpen, setMenuOpen] = useState(false);
   const handleCloseMenu = () => setMenuOpen(false);
 
@@ -104,10 +85,7 @@ const TopBar: FunctionComponent = () => {
   };
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
-  // Controlled, so an external change to the URL parameter (landing on the
-  // full-text page, or clearing it) is reflected in the field. The legacy
-  // SearchInput did this through a `keyword` prop; the library's field is a
-  // plain controlled input, so the sync is explicit here.
+  // Controlled, so an external change to the `search` URL parameter is reflected in the field.
   const [searchValue, setSearchValue] = useState(search ?? '');
   useEffect(() => setSearchValue(search ?? ''), [search]);
 
@@ -115,16 +93,10 @@ const TopBar: FunctionComponent = () => {
   const gradientEnd = theme.palette.background.gradient?.end ?? theme.palette.background.default;
 
   return (
-    // Radix tooltips require a provider in scope. It wraps the bar rather than
-    // the whole app so the adoption stays contained to this pilot.
+    // Radix tooltips need a provider in scope; scoped to this bar, not the whole app.
     <TooltipProvider delayDuration={200}>
       <Header
-        // The library owns no page positioning on purpose (the offset differs
-        // per product), but the doctrine is that the bar is ALWAYS fixed to
-        // the top and never sticky. `fullWidth={false}` is required with an
-        // offset: `w-full` is 100% of the containing block and does not
-        // conflict with `left`, so the default would overflow to the right by
-        // exactly the navigation width.
+        // FDS-WORKAROUND #20: bar positioned product-side, `fullWidth={false}` with it — remove when the library positions the bar — see fds-migration/LIBRARY-FEEDBACK.md
         fullWidth={false}
         style={{
           'position': 'fixed',
@@ -132,55 +104,14 @@ const TopBar: FunctionComponent = () => {
           'left': navOpen ? OPEN_BAR_WIDTH : SMALL_BAR_WIDTH,
           'right': 0,
           'zIndex': theme.zIndex.appBar,
-          // STEP 6b — preserve a customer-configurable colour.
-          //
-          // The bar's gradient follows the platform's `background_color`
-          // setting (per-tenant, admin-editable): it reaches here through
-          // palette.background.gradient. The library paints the bar with its
-          // own `--gradient-default`, so adopting the component as-is would
-          // silently repaint every customised instance with Filigran's
-          // default — a functional loss, not a visual delta.
-          //
-          // Re-declaring the gradient ON THIS ELEMENT is what works. A
-          // var() inside a custom-property declaration is substituted at
-          // computed-value time on the element that declares it, so
-          // overriding the two stop tokens from a wrapper would not repaint
-          // a gradient already assembled at :root — but re-declaring the
-          // assembled property itself does. Scoped here rather than to
-          // :root so the customer's colour reaches the bar exactly as it
-          // does today, and nothing else in the library moves.
-          //
-          // The stops are passed OPAQUE: the legacy bar faded them itself at
-          // 90%, whereas the library paints its gradient layer at Figma's
-          // 94%. Passing pre-faded stops would apply the transparency twice.
+          // FDS-WORKAROUND #17: re-declare the assembled gradient, stops opaque — remove when the library exposes a background hook — see fds-migration/LIBRARY-FEEDBACK.md
           '--gradient-default': `linear-gradient(90deg, ${gradientStart} 0%, ${gradientEnd} 100%)`,
         } as CSSProperties}
       >
         <HeaderGroup
-          // The library's growing cluster is capped at Figma's 400px, which is
-          // BELOW the 500px ceiling this bar was given, so the cap is not
-          // merely tight - it is below the target. "unbounded" is the supported
-          // way to say "I supply my own window" instead of fighting the cap.
+          // `grow` caps at 400px, below this bar's 500px ceiling — see fds-migration/LIBRARY-FEEDBACK.md #18
           grow="unbounded"
-          // Design decision (Sandy, round 4): the search field is bounded to a
-          // 200px floor and a 500px ceiling. The window is declared HERE, on
-          // the group the product owns, and the field fills it through its own
-          // `fullWidth` - so the rendered field is exactly 200-500 wide.
-          //
-          // It cannot be declared on the SearchField instance: the component
-          // forwards `className` to its wrapper but spreads the rest of its
-          // props - `style` included - onto the inner <input>, so an inline
-          // width there would constrain the text box inside the field instead
-          // of the field itself. The `className` route needs Tailwind classes
-          // that this app never compiles (it consumes the library's prebuilt
-          // CSS, no tailwind config of its own), and reaching for the
-          // component's internal selectors is exactly what the scope rule
-          // forbids. The group is the product layer, and it is enough.
-          //
-          // The floor is also what keeps the flex algorithm honest: this group
-          // is a flex item that `grow="unbounded"` gives `min-w-0`, which lets
-          // it shrink past its own content. Without an explicit floor it would
-          // keep shrinking at narrow viewports and squeeze the field below 200.
+          // Search window 200-500px (Sandy, round 4), declared on the group the product owns — see fds-migration/LIBRARY-FEEDBACK.md #18
           style={{
             minWidth: 200,
             maxWidth: 500,
@@ -189,11 +120,7 @@ const TopBar: FunctionComponent = () => {
           <SearchField
             aria-label={t('Search the platform')}
             placeholder={`${t('Search the platform')}...`}
-            // Design decision (Sandy, round 4): 200px floor, 500px ceiling.
-            // Declared on the HeaderGroup above (see the rationale there), not
-            // here: this component spreads unknown props onto its inner
-            // <input>, so a `style` passed here would size the text box, not
-            // the field. `fullWidth` makes the field fill that window.
+            // Fills the 200-500px window declared on the group above; a `style` here would size the inner input instead.
             fullWidth={true}
             value={searchValue}
             onChange={event => setSearchValue(event.target.value)}
@@ -202,20 +129,12 @@ const TopBar: FunctionComponent = () => {
           />
         </HeaderGroup>
         <HeaderGroup>
-          {/* XTM One (agentic AI) block: only when XTM One is available
-              (configured, valid URL, AI not disabled) - the exact same
-              predicate the buttons apply themselves, shared so the
-              divider never renders as an orphan. */}
+          {/* Same availability predicate the XTM One buttons apply, so the divider never renders as an orphan. */}
           {isXtmOneAvailable(settings) && (
             <>
               <AskArianeButton />
               <CtemCommandCenterButton />
-              {/* Discrete full-height separator between the AI (XTM One)
-                  actions and the standard platform actions. The library ships
-                  no general-purpose divider (only NavbarSeparator and the
-                  menu/select separators, all bound to their own component), so
-                  this is a plain rule painted with the library's own border
-                  token rather than a MUI Divider. See LIBRARY-FEEDBACK.md #22. */}
+              {/* FDS-WORKAROUND #22: separator from the library's border token — remove when it ships a divider — see fds-migration/LIBRARY-FEEDBACK.md */}
               <div
                 role="separator"
                 aria-orientation="vertical"
@@ -227,8 +146,7 @@ const TopBar: FunctionComponent = () => {
             <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} />
           )}
           <BulkOperationsIndicator />
-          {/* OpenCTI-aligned pair: the triggers alarm icon right before the
-              notifications bell, each leading to its own profile page. */}
+          {/* OpenCTI-aligned pair: triggers alarm, then the notifications bell. */}
           <Tooltip>
             <TooltipTrigger asChild>
               <TopBarIconLink
@@ -252,9 +170,7 @@ const TopBar: FunctionComponent = () => {
             </TooltipTrigger>
             <TooltipContent>{t('Install simulation agents')}</TooltipContent>
           </Tooltip>
-          {/* The library documents MenuTrigger+asChild around an IconButton as
-              the canonical pairing, and Radix anchors the panel to the trigger
-              itself - so the anchorEl MUI required is gone. */}
+          {/* MenuTrigger + asChild around an IconButton is the library's canonical pairing. */}
           <Menu open={menuOpen} onOpenChange={setMenuOpen}>
             <MenuTrigger asChild>
               <IconButton

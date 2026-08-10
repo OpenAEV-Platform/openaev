@@ -33,9 +33,7 @@ const TopBarNotifications = () => {
           aria-label="notifications"
           to="/admin/profile/notifications"
           active={location.pathname.startsWith('/admin/profile/notifications')}
-          // The library ships no Badge, so the unread dot stays MUI - the
-          // scope rule is "use the library where the library ships it", and
-          // here it does not. See LIBRARY-FEEDBACK.md #22.
+          // FDS-WORKAROUND #22: unread dot stays MUI — remove when the library ships a Badge — see fds-migration/LIBRARY-FEEDBACK.md
           icon={(
             <Badge color="secondary" variant="dot" invisible={unreadCount === 0}>
               <NotificationsOutlined fontSize="medium" />

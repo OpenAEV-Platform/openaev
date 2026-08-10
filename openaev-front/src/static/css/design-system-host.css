@@ -14,21 +14,7 @@
   font-size: 16px;
 }
 
-/*
- * The library's floating surfaces (menus, submenu flyouts, tooltips, dialogs,
- * select panels) read their stacking level from `--fds-z-overlay`, falling back
- * to 50. The default is deliberately absent from the library's token sheet, so
- * a host that needs a different level sets the variable itself.
- *
- * This application's top bar is a `MuiAppBar` at `z-index: 1100`, and MUI's
- * scale starts far above the library's default of 50. 1300 is MUI's own
- * `zIndex.modal`, the level its popovers and menus use, so the library's panels
- * sit exactly where the components they replace sat.
- *
- * This replaces the former `body > [data-radix-popper-content-wrapper]
- * { z-index: 1300 !important }` compensation, which is no longer needed now the
- * library exposes the variable (library PR #96).
- */
+/* The library's floating surfaces read their stacking level here; 1300 is MUI's `zIndex.modal`, above this app's top bar at `zIndex.appBar` (1100) — see fds-migration/LIBRARY-FEEDBACK.md #12 */
 :root {
   --fds-z-overlay: 1300;
 }

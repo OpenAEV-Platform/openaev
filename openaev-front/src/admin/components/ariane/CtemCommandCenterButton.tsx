@@ -34,9 +34,7 @@ const CtemCommandCenterButton = () => {
           <TopBarIconLink
             aria-label={t('CTEM Command Center')}
             href={xtmOneUrl}
-            // AI purple, like the Ask Ariane button next to it: this shortcut
-            // belongs to XTM One. The rest of the anatomy - size, radius,
-            // focus and hover - comes from the library's icon button contract.
+            // AI purple, like the Ask Ariane button beside it: this shortcut belongs to XTM One.
             color="var(--color-filigran-ia-primary)"
             icon={<RadarOutlined fontSize="medium" />}
           />

@@ -54,10 +54,7 @@ const ThemeLight = (
   logo: logo || fileUri(LogoText),
   logo_collapsed: logo_collapsed || fileUri(LogoCollapsed),
   borderRadius: 4,
-  // Top header height: taken from the design system's own custom property so
-  // the spacer under the fixed header can never drift from the bar itself.
-  // The fallback repeats the library default and applies only if its
-  // stylesheet failed to load. MUI passes this string through to CSS.
+  // Header height read from the library's own custom property, so the spacer cannot drift from the bar.
   mixins: { toolbar: { minHeight: 'var(--fds-header-height, 68px)' } },
   palette: {
     mode: 'light',

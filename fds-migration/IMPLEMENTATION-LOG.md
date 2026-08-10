@@ -85,3 +85,77 @@ in filigran-design-system).
   floor (`openaev-front/src/admin/Index.tsx`), and global responsive behaviour
   belongs to the Layout chantier, not to this pilot.
 - Friction / process feedback: none.
+
+### 2026-08-11 — compress the narrative comments to one-line markers
+- Branch: sandyghs-miniature-enigma
+- Changed: the 14 product files this pilot touches (top bar, navbar, themes,
+  host stylesheet, eslint config), plus LIBRARY-FEEDBACK.md entries 17 and 18.
+- Why: the OpenCTI Navbar pilot was told by the product team that verbose
+  comments spread through the code obstruct a component review. The norm since
+  then is **at most one marker line per workaround site**, with the prose living
+  in `fds-migration/`. This pilot had drifted well past that: 223 added comment
+  lines across 44 blocks in product code, only 6 of them a single line, the
+  largest 22 lines. Audited, then compressed to 47 lines — 41 one-liners plus
+  the one deliberate exception below.
+- The convention, identical to OpenCTI's `62669ad`:
+
+  ```
+  // FDS-WORKAROUND #N: <summary> — remove when <condition> — see fds-migration/LIBRARY-FEEDBACK.md #N
+  ```
+
+  A site that is **not** a library gap never gets that marker: declaring
+  something removable that will never be removed misrepresents it. The 41
+  one-line comments break down as:
+
+  | Shape | Count | Used for |
+  |---|---|---|
+  | `FDS-WORKAROUND #N: … — remove when … — see …` | 10 | a live library gap with a removal condition |
+  | `… — see fds-migration/…#N` (pointer only) | 6 | a library-owned value or constraint the product only reads |
+  | a single factual sentence, no pointer | 25 | product behaviour that is nobody's debt |
+
+- The 10 markers, by entry: **#17** the customer-configurable gradient (TopBar),
+  **#20** positioning — bar offset, rail spacer, fixed-not-sticky (TopBar,
+  AppNavbar ×2), **#21** the icon link (TopBarIconLink), **#22** the three MUI
+  survivors (TopBar divider, BulkOperationsIndicator, TopBarNotifications),
+  **#23** the Button active state (AskArianeButton), **#24** the cascade-layer
+  colour (TopBarIconLink).
+- The 6 pointers: **#18** the 400px cap and the search window (TopBar ×2),
+  **#20** the rail widths and the transition curve (navbarConstants ×2), **#12**
+  the overlay stacking level (host stylesheet), and the log itself for the
+  Header adoption (TopBar's module line).
+- What moved into the docs rather than being deleted:
+  - **#18** was carrying the *superseded* window (`550px / 50% / 680px`) as its
+    "Needed". Corrected to the round-4 `200–500px`, and gained the part that was
+    only ever in the source: where a consumer can and cannot declare that window
+    (the group works; the `SearchField` instance does not, because it spreads
+    `style` onto its inner `<input>`; `className` needs a Tailwind build this app
+    does not have; internal selectors are out of scope), plus the `min-w-0`
+    consequence that makes an explicit floor load-bearing.
+  - **#17** gained the opaque-stops rule: the legacy bar faded its stops at 90%
+    and the library paints its layer at 94%, so pre-faded stops double the
+    transparency. That belongs in the hook that eventually replaces the
+    workaround, not in one product's source.
+- Corrected a false statement while compressing: the host stylesheet claimed
+  "this application's top bar is a `MuiAppBar` at z-index 1100". Since this
+  pilot the admin bar is the library `Header`; it sits at `theme.zIndex.appBar`
+  (1100) by way of an inline style. The value was right, the component named was
+  not. `MuiAppBar` does still exist elsewhere in the app (`NoTenantAlert`,
+  `Comcheck`, and the second top bar at `src/private/components/nav/TopBar.tsx`
+  left out of this pilot's scope), which is why the claim read as plausible.
+- Deliberate exception, left untouched: `deploy-feature-branch-build.yml`
+  lines 89-94, six lines. It is a security rationale for a credential that must
+  stay unarmed, anchored to the test that enforces it
+  (`openaev-front/src/__tests__/ci-design-system-secret.test.ts`, see
+  feedback #19). A pointer to another file does not protect at the point where
+  someone would "helpfully" wire the token in.
+- Behaviour: none. Verified mechanically rather than by reading — every touched
+  file was parsed with TypeScript and re-printed with `removeComments`, before
+  and after; the 14 outputs are identical (CSS and YAML compared with a textual
+  comment strip). 3134 lines -> 2952.
+- Friction / process feedback: the norm is real and it is nowhere a pilot will
+  meet it. It came out of a review of another product's pull request and lives in
+  that conversation; neither `PRODUCT-IMPLEMENTATION-PLAYBOOK.md` nor this
+  repository's `fds-migration/AGENTS.md` states it, so this pilot wrote 223 lines
+  in good faith and had to be told the same thing the previous pilot was told.
+  It belongs in the playbook next to Step 8 ("build the product adapter"), as a
+  budget: one marker line per site, prose in the product's `fds-migration/`.

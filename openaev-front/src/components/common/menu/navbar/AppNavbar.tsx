@@ -110,10 +110,7 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
 
   return (
     <>
-      {/* The rail is taken out of flow (see below), so a spacer holds its
-          place in the shell's flex row: without it every page slides left
-          and renders underneath the rail. It replays the library's own
-          width transition so content and rail animate as one. */}
+      {/* FDS-WORKAROUND #20: in-flow spacer holding the fixed rail's place — remove when `Navbar` ships the spacer — see fds-migration/LIBRARY-FEEDBACK.md */}
       <div
         data-testid="navbar-spacer"
         aria-hidden="true"
@@ -129,16 +126,9 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
         collapsed={collapsed}
         onCollapsedChange={toggleNav}
         header={header?.(navOpen)}
-        // The library always renders its collapse toggle last, below this slot.
-        // Only the Filigran wordmark is pinned to the bottom; every menu row,
-        // "Getting Started" included, scrolls with the list above.
+        // Only the wordmark is pinned to the bottom; the library renders its collapse toggle below this slot.
         footer={!isWhitemarkEnabled ? <MadeByFiligran collapsed={collapsed} /> : undefined}
-        // Fixed, never sticky - the same doctrine the Header follows. `sticky`
-        // resolves against the app shell, whose height is the document's
-        // fractional height (measured: 1677.59px for a 1678px document), so at
-        // the end of a long scroll the rail was pushed off its own top by that
-        // 0.41px remainder and visibly drifted. Fixed positioning is resolved
-        // against the viewport, so no page length can move it.
+        // FDS-WORKAROUND #20: fixed, never sticky — `sticky` drifted 0.41px — remove when the library positions the rail — see fds-migration/LIBRARY-FEEDBACK.md
         style={{
           position: 'fixed',
           top: bannerHeightNumber,

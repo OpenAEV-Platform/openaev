@@ -180,9 +180,7 @@ export default [
     plugins: { vitest },
     rules: {
       ...vitest.configs.recommended.rules,
-      // The design system adoption assertions live in shared helpers (they
-      // assert the same contract in several suites); the rule only looks for
-      // a literal `expect` in the test body, so it must be told about them.
+      // The design system assertions live in shared helpers, which the rule cannot see by itself.
       'vitest/expect-expect': [
         'error',
         { assertFunctionNames: ['expect', 'expectLibrary*', 'expectNoMuiControls'] },

@@ -927,7 +927,13 @@ internal:
   that declares it, so stops re-declared on a wrapper cannot reach a gradient
   already assembled at `:root`. Only `:root` works for the stops, and that
   would repaint every other library surface — a far larger blast radius than
-  the one change the product actually wants.
+  the one change the product actually wants;
+- the stops must be passed **opaque**. The legacy bar faded them itself at 90%;
+  the library paints its own gradient layer at Figma's 94%. Pre-faded stops
+  would therefore apply the transparency twice, which is visible as a washed-out
+  bar and is the kind of mistake a consumer makes exactly once — so it belongs
+  in whatever hook replaces this workaround, as an explicit statement that the
+  consumer supplies colour and the library owns opacity.
 
 **Suggested.** Publish a first-class hook, in the same spirit as
 `--fds-header-height`: either a `--fds-header-background` custom property read
@@ -945,21 +951,47 @@ token?" has no answer yet. Worth settling once, at token level.
 
 ## 18. `grow` and `grow="unbounded"` — the cap is right, its discoverability is not
 
-**Needed.** A search cluster whose window is `min-width: 550px`,
-`width: 50%`, `max-width: 680px`.
+**Needed.** A search cluster whose window is `min-width: 200px`,
+`max-width: 500px` (design decision, Sandy, round 4 — it replaced the
+`550px / 50% / 680px` window the pilot first shipped).
 
 **Today.** `HeaderGroup grow` caps at Figma's 400px — **below this product's
-minimum**, not merely tighter than its preference. `grow="unbounded"` exists
-precisely for this and was, per the RFC, added after measuring this bar. The
-capability is correct and the pilot used it as intended.
+ceiling**, so the cap is not merely tighter than the product's preference, it
+cannot express it. `grow="unbounded"` exists precisely for this and was, per the
+RFC, added after measuring this bar. The capability is correct and the pilot used
+it as intended.
 
 **The gap is that nothing steers you to it.** `grow={true}` is the obvious
 choice from the prop name, it type-checks, and it renders a plausible-looking
 bar — just a silently narrower search field. Nothing fails.
 
-**Suggested.** Nothing in the component API. In the docs/meta: state the 400px
-cap and the `"unbounded"` escape on the `grow` prop description itself, where an
-implementer reads it, rather than only in the RFC's rationale.
+**Where a consumer can and cannot declare that window.** Worth stating, because
+the obvious place is the wrong one:
+
+- **On the `HeaderGroup`** — works, and is what this product does. The group is
+  the product's own layer; the field then fills it through `SearchField
+  fullWidth`, so the rendered field is exactly 200–500 wide.
+- **On the `SearchField` instance** — does *not* work. The component forwards
+  `className` to its wrapper but spreads its remaining props, **`style`
+  included**, onto the inner `<input>`. An inline width passed to the component
+  therefore sizes the text box inside the field rather than the field itself.
+- **Via `className` on the field** — not available to this product: it consumes
+  the library's prebuilt CSS and has no Tailwind build of its own, so a utility
+  class it invented would resolve to nothing (see
+  [#13](#13-the-stylesheet-only-carries-the-utilities-the-library-itself-uses)).
+- **Reaching into the component's internal selectors** — forbidden by the scope
+  rule, and the reason this entry exists rather than a product-side override.
+
+**One consequence worth keeping.** `grow="unbounded"` gives the group `min-w-0`,
+which lets it shrink past its own content, so an explicit floor is not cosmetic:
+without `min-width` the field is squeezed below its intended minimum at narrow
+viewports.
+
+**Suggested.** Two things. In the docs/meta: state the 400px cap and the
+`"unbounded"` escape on the `grow` prop description itself, where an implementer
+reads it, rather than only in the RFC's rationale. On `SearchField`: document
+which props reach the wrapper and which reach the inner input — the split is
+invisible from the type signature and a width silently lands on the wrong box.
 
 ---
 

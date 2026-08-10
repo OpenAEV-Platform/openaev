@@ -55,20 +55,13 @@ const AskArianeButton = () => {
     }
   };
 
-  // The library's `ia` variant IS this button's design: at tertiary priority it
-  // paints the label with the AI gradient and tints the hover with
-  // `filigran-ia-secondary-transparency`. The hand-rolled backgroundClip
-  // gradient, the 36px box and the hover alpha it used to declare are all the
-  // library's now - and so are its focus and active states, which is the point
-  // of the swap.
+  // The library's `ia` variant at tertiary priority IS this button's design.
   const buttonContent = (
     <Button
       variant="ia"
       priority="tertiary"
       onClick={handleClick}
-      // Open state. The library's Button has no `active` prop (its IconButton
-      // does), so the one class its own active state uses is applied here
-      // rather than reinvented. See LIBRARY-FEEDBACK.md #23.
+      // FDS-WORKAROUND #23: open state via the class the library's active state uses — remove when `Button` gets `active` — see fds-migration/LIBRARY-FEEDBACK.md
       className={isOpen ? 'bg-filigran-ia-secondary-transparency' : undefined}
       startIcon={(
         <SvgIcon

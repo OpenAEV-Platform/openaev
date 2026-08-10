@@ -81,11 +81,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
             aria-label="bulk-operations-menu"
             onClick={handleOpen}
             active={Boolean(anchorEl)}
-            // The library owns the button; only the badge and the running
-            // spinner are product content, and the library ships neither.
-            // They are wrapped in a relatively-positioned span because the
-            // spinner overlays the glyph - the library's own icon slot is not
-            // a positioning context. See LIBRARY-FEEDBACK.md #22.
+            // FDS-WORKAROUND #22: badge and spinner stay MUI in a positioned span — remove when the library ships a Badge — see fds-migration/LIBRARY-FEEDBACK.md
             icon={(
               <span style={{
                 position: 'relative',

@@ -8,10 +8,7 @@ import useAuth from '../../../utils/hooks/useAuth';
 import { isNotEmptyField } from '../../../utils/utils';
 import { useFormatter } from '../../i18n';
 
-// Height of the fixed top header, published by the design system as a custom
-// property so consumers offset their content without hard-coding it a second
-// time. The fallback repeats the library's own default and only applies if the
-// stylesheet failed to load.
+// The library publishes the header height; the fallback applies only if its stylesheet failed to load.
 const HEADER_HEIGHT = 'var(--fds-header-height, 68px)';
 
 export interface RightMenuEntry {
@@ -38,10 +35,7 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
 
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  // The header occupies the top banner (if any) plus the fixed header bar,
-  // whose height the design system publishes as --fds-header-height. Kept as a
-  // CSS expression rather than a number so there is a single source of truth:
-  // the library's own height, not a copy of it that can silently drift.
+  // Banner plus header bar, kept as a CSS expression so the library's height stays the single source.
   const topOffset = `calc(${bannerHeightNumber}px + ${HEADER_HEIGHT})`;
 
   return (
