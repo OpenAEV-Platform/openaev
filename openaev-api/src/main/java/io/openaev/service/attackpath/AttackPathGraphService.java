@@ -648,7 +648,8 @@ public class AttackPathGraphService {
     applyContractNames(page, feedByExecutionId);
     applyExecutionStatuses(page, feedByExecutionId);
     applyPayloadIconMetadata(page, feedByExecutionId);
-    applyFeedAttackPatterns(page, feedByExecutionId);
+    applyFeedAttackPatterns(
+        page, feedByExecutionId, loadPatternsByContract(feedContractIds(page)));
     return new AttackPathEndpointRelationsDTO(
         new ArrayList<>(feedByExecutionId.values()),
         new ArrayList<>(edges.values()),
@@ -702,7 +703,12 @@ public class AttackPathGraphService {
     Map<String, String> contractNames = applyContractNames(executions, feedByExecutionId);
     applyExecutionStatuses(executions, feedByExecutionId);
     applyPayloadIconMetadata(executions, feedByExecutionId);
-    applyFeedAttackPatterns(executions, feedByExecutionId);
+    // ONE batched technique read serves both the feed nodes (here) and the injector nodes
+    // (resolveInjectorAttackPatterns below): the feed's contract set is a superset of the
+    // injector-node one, so the full pass keeps its constant query count.
+    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract =
+        loadPatternsByContract(feedContractIds(executions));
+    applyFeedAttackPatterns(executions, feedByExecutionId, patternsByContract);
     applyInjectorNodeLabels(nodes, contractsByInjectorNode, contractNames);
 
     // Endpoint (ASSET) nodes, with attributes and colour from the executions targeting them.
@@ -805,7 +811,7 @@ public class AttackPathGraphService {
           }
         });
 
-    resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
+    resolveInjectorAttackPatterns(nodes, contractsByInjectorNode, patternsByContract);
     applyEndpointCriticality(nodes);
 
     AttackPathCounters counters =
@@ -852,21 +858,20 @@ public class AttackPathGraphService {
       }
     }
     applyInjectorNodeLabels(nodes, contractsByInjectorNode, resolveContractNames(externalIds));
-    resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
+    resolveInjectorAttackPatterns(
+        nodes, contractsByInjectorNode, loadPatternsByContract(externalIds));
   }
 
   /**
-   * Sets each injector node's ATT&CK techniques from its contracts, in ONE batched query for the
-   * whole graph. A node's techniques are the union across every contract that injector ran, deduped
-   * by technique id, since one injector can run several contracts in a simulation. No injector
-   * contract in scope means no query at all, so a graph without injectors stays at its two reads.
+   * Sets each injector node's ATT&CK techniques from its contracts, out of the caller-supplied
+   * {@code patternsByContract} batch. A node's techniques are the union across every contract that
+   * injector ran, deduped by technique id, since one injector can run several contracts in a
+   * simulation. An empty batch means no injector contract resolved a technique, so nothing to set.
    */
   private void resolveInjectorAttackPatterns(
-      Map<String, AttackPathNodeDTO> nodes, Map<String, Set<String>> contractsByInjectorNode) {
-    Set<String> externalIds = new HashSet<>();
-    contractsByInjectorNode.values().forEach(externalIds::addAll);
-    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract =
-        loadPatternsByContract(externalIds);
+      Map<String, AttackPathNodeDTO> nodes,
+      Map<String, Set<String>> contractsByInjectorNode,
+      Map<String, List<AttackPathAttackPatternDTO>> patternsByContract) {
     if (patternsByContract.isEmpty()) {
       return;
     }
@@ -1482,21 +1487,25 @@ public class AttackPathGraphService {
     }
   }
 
+  /** The distinct contract external ids of a set of execution rows (the feed's technique keys). */
+  private static Set<String> feedContractIds(List<AttackPathExecutionRow> executions) {
+    return executions.stream()
+        .map(AttackPathExecutionRow::contractExternalId)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
+
   /**
-   * Sets each feed node's ATT&CK techniques from its own frozen contract, in ONE batched read. An
-   * endpoint-local action promoted to its own map node has no injector node to read techniques from
-   * (its source is the endpoint itself), so the feed entry must carry them for the ACTION card to
-   * render the same technique chips as a real injector node.
+   * Sets each feed node's ATT&CK techniques from its own frozen contract, out of the
+   * caller-supplied {@code patternsByContract} batch. An endpoint-local action promoted to its own
+   * map node has no injector node to read techniques from (its source is the endpoint itself), so
+   * the feed entry must carry them for the ACTION card to render the same technique chips as a real
+   * injector node.
    */
   private void applyFeedAttackPatterns(
-      List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
-    Set<String> externalIds =
-        executions.stream()
-            .map(AttackPathExecutionRow::contractExternalId)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
-    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract =
-        loadPatternsByContract(externalIds);
+      List<AttackPathExecutionRow> executions,
+      Map<String, AttackPathNodeDTO> feedByExecutionId,
+      Map<String, List<AttackPathAttackPatternDTO>> patternsByContract) {
     if (patternsByContract.isEmpty()) {
       return;
     }
