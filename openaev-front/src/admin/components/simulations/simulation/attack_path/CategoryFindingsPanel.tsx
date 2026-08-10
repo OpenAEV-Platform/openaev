@@ -135,6 +135,7 @@ const CategoryFindingsPanel = ({
           <Box sx={{
             flex: 1,
             minHeight: 0,
+            overflowY: 'auto',
           }}
           >
             {items.map((item, index) => {
