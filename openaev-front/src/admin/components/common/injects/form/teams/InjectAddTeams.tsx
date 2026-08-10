@@ -88,7 +88,14 @@ const InjectAddTeams: FunctionComponent<Props> = ({
         label: 'Name',
         isSortable: true,
         value: (team: TeamOutput) => team.team_name,
-        width: 70,
+        width: 50,
+      },
+      {
+        field: 'team_users_number',
+        label: 'Players',
+        isSortable: false,
+        value: (team: TeamOutput) => String(team.team_users_number ?? 0),
+        width: 20,
       },
       {
         field: 'team_tags',

@@ -1,4 +1,4 @@
-import { Box, ToggleButtonGroup } from '@mui/material';
+import { Alert, Box, ToggleButtonGroup } from '@mui/material';
 import { useContext, useState } from 'react';
 
 import { bulkDeleteExercises, searchExercises } from '../../../actions/Exercise';
@@ -106,6 +106,18 @@ const Simulations = () => {
     numberOfSelectedElements,
   } = entityToggle;
 
+  // In select-all mode only the current page is loaded client-side, so the status of
+  // simulations on other pages is unknown: warn conservatively in that case.
+  const mayDeleteActiveSimulation = (() => {
+    const isActive = (e: ExerciseSimple) => e.exercise_status === 'RUNNING' || e.exercise_status === 'PAUSED';
+    if (selectAll) {
+      return true;
+    }
+    return exercises.some(e => e.exercise_id in selectedElements && isActive(e));
+  })();
+
+  const deleteWarningMessage = t('Deleting a running simulation will stop its execution.');
+
   const bulkDelete = () => {
     bulkDeleteExercises({
       search_pagination_input: selectAll ? searchPaginationInput : undefined,
@@ -168,6 +180,15 @@ const Simulations = () => {
             canManage={canManage}
             deleteConfirmationSingular={t('Do you want to delete this simulation?')}
             deleteConfirmationPlural={t('Do you want to delete these {count} simulations?', { count: String(numberOfSelectedElements) })}
+            deleteExtraContent={
+              mayDeleteActiveSimulation
+                ? (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      {deleteWarningMessage}
+                    </Alert>
+                  )
+                : undefined
+            }
           />
         )}
       />

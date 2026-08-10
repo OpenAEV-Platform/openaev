@@ -32,6 +32,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.InjectSearchService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InputFilterOptions;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -310,7 +311,9 @@ public class TeamApi extends RestBehavior {
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getUserIds());
-    team.setUsers(fromIterable(teamUsers));
+    // Reserved service/connector accounts are system users, never players: silently drop them so
+    // team membership stays consistent with the player lists that hide them.
+    team.setUsers(ReservedKeyValidator.excludeReservedUsers(teamUsers));
     return teamRepository.save(team);
   }
 

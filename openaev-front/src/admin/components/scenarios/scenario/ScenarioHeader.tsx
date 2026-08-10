@@ -115,7 +115,7 @@ const ScenarioHeader = ({
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const [openScenarioAssistantQueryParam, openAiBuilderQueryParam, openAiLaunchQueryParam] = useQueryParameter(['openScenarioAssistant', 'openAiBuilder', 'openAiLaunch']);
-  const { canLaunch, canManage } = useScenarioPermissions(scenarioId);
+  const { canLaunch, canManage, canDelete } = useScenarioPermissions(scenarioId);
 
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openScheduling, setOpenScheduling] = useState(false);
@@ -246,6 +246,9 @@ const ScenarioHeader = ({
   const scenarioPopoverActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = isScenarioChaining
     ? ['Update', 'Delete', 'Export']
     : ['Duplicate', 'Update', 'Delete', 'Export'];
+  // Grant-only users without any of the manage / launch / delete permissions get no overflow menu
+  // at all instead of a popover full of disabled entries.
+  const canDisplayScenarioActions = canManage || canLaunch || canDelete;
   const isScopeMissing = isScenarioChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
@@ -761,12 +764,15 @@ const ScenarioHeader = ({
               {/* Launch actions (suppressed while a run is active - the lifecycle controls own the
                   hero then). Resolved into `launchActions` above to avoid nested ternaries here. */}
               {!isRunActive && canLaunch && launchActions}
-              {/* Everything else - analyze, setup, and CRUD - in one overflow menu. */}
-              <ScenarioPopover
-                scenario={scenario}
-                actions={scenarioPopoverActions}
-                onDelete={() => navigate('/admin/scenarios')}
-              />
+              {/* Everything else - analyze, setup, and CRUD - in one overflow menu. Hidden entirely
+                  for grant-only users without any manage / launch / delete permission. */}
+              {canDisplayScenarioActions && (
+                <ScenarioPopover
+                  scenario={scenario}
+                  actions={scenarioPopoverActions}
+                  onDelete={() => navigate('/admin/scenarios')}
+                />
+              )}
             </>
           )}
           stats={(

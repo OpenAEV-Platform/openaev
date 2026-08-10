@@ -3,10 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchExecutionDetail } from '../../../../../actions/attack-path/attack-path-actions';
 import useFetchInjectExecutionResult from '../../../../../actions/inject_status/useFetchInjectExecutionResult';
 import { getInjectStatusWithGlobalExecutionTraces } from '../../../../../actions/injects/inject-action';
-import type { InjectStatus as InjectStatusType, InjectStatusOutput } from '../../../../../utils/api-types';
-import InjectStatus from '../../../common/injects/status/InjectStatus';
+import { useFormatter } from '../../../../../components/i18n';
+import type { InjectStatusOutput } from '../../../../../utils/api-types';
+import { getInjectStatusLabel, getInjectStatusTooltip } from '../../../../../utils/statusLabels';
 import TraceStatusChip from '../../../common/injects/status/traces/TraceStatusChip';
 import useAgentStatus from '../../../common/injects/status/traces/useAgentStatus';
+import ExecutionRanChip from './ExecutionRanChip';
 import useResolvedAssetTarget from './useResolvedAssetTarget';
 
 // Per-target execution status for a payload-backed execution (issue 244): the prevention/detection
@@ -37,6 +39,7 @@ export const PayloadExecutionStatusBadge = ({ injectId, endpointName }: {
 // list with no status chip of its own. Fetched independently and rendered wherever this execution's
 // status needs to be visible at a glance.
 export const InjectorExecutionStatusBadge = ({ injectId }: { injectId: string }) => {
+  const { t } = useFormatter();
   const [statusName, setStatusName] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
@@ -50,7 +53,13 @@ export const InjectorExecutionStatusBadge = ({ injectId }: { injectId: string })
   if (!statusName) {
     return null;
   }
-  return <InjectStatus status={statusName as InjectStatusType['status_name']} />;
+  return (
+    <ExecutionRanChip
+      status={statusName}
+      label={t(getInjectStatusLabel(statusName))}
+      tooltip={t(getInjectStatusTooltip(statusName))}
+    />
+  );
 };
 
 // An inject-level status the backend cannot still change under us: anything else (a run in flight, or
@@ -76,6 +85,7 @@ export const ExecutionRowStatusBadge = ({ simulationId, executionRef, endpointNa
   payloadId?: string;
   executionStatus?: string;
 }) => {
+  const { t } = useFormatter();
   const settledFromGraph = !!injectId
     && !payloadId
     && !!executionStatus
@@ -102,7 +112,13 @@ export const ExecutionRowStatusBadge = ({ simulationId, executionRef, endpointNa
     };
   }, [simulationId, executionRef, injectId]);
   if (settledFromGraph) {
-    return <InjectStatus status={executionStatus as InjectStatusType['status_name']} />;
+    return (
+      <ExecutionRanChip
+        status={executionStatus}
+        label={t(getInjectStatusLabel(executionStatus))}
+        tooltip={t(getInjectStatusTooltip(executionStatus))}
+      />
+    );
   }
   const detail = injectId
     ? {

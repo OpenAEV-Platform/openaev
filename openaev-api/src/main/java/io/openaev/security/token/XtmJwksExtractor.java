@@ -11,6 +11,7 @@ import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.UserService;
 import io.openaev.utils.StringUtils;
 import io.openaev.xtmone.XtmOneConfig;
+import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Duration;
@@ -62,7 +63,8 @@ public class XtmJwksExtractor implements ExtractorBase {
   private record CachedJwks(Instant fetchedAt, String jwksJson) {}
 
   @Override
-  public Optional<User> authUser(String value) throws JwtException, AuthenticationError {
+  public Optional<User> authUser(String value, HttpServletRequest _request)
+      throws JwtException, AuthenticationError {
     if (value == null) {
       throw new AuthenticationError("No bearer token found");
     }

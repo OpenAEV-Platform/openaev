@@ -19,6 +19,21 @@ interface FindingGroup {
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
 const DEFAULT_PAGE_SIZE = 10;
 
+// Executions render as an aligned three-column table (Action | Execution | Result). A network inject
+// carries no agent metadata, so without a fixed grid the rows were ragged and the two status chips
+// landed at a different x on every row; the fixed template plus right-aligned status cells turn them
+// into a proper column with a header that says what each chip means.
+const EXECUTION_GRID_COLUMNS = 'minmax(0, 1fr) 132px 116px';
+
+const executionHeaderCellSx = {
+  fontFamily: '"Geologica", sans-serif',
+  fontWeight: 600,
+  fontSize: 10,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  color: 'text.secondary',
+} as const;
+
 // A compact "N / page" selector rendered in the Findings section header: values are all loaded, so
 // this only windows the display of a group that would otherwise render an unbounded list of values.
 const PageSizeSelect = ({ value, onChange }: {
@@ -244,132 +259,162 @@ const EndpointDetailPanel = ({
         )}
 
         <InjectFormSection title={`${t('Executions')} (${executions.length})`}>
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-          >
-            {executions.map((e) => {
-              const status = execStatusLabel(e.status);
-              const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
-              return (
-                <Box
-                  key={e.id}
-                  ref={(el: HTMLDivElement | null) => {
-                    if (e.id) {
-                      registerRow(e.id, el);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => e.ref && onSelectExecution(e.ref)}
-                  onKeyDown={(ev) => {
-                    if (e.ref && (ev.key === 'Enter' || ev.key === ' ')) {
-                      ev.preventDefault();
-                      onSelectExecution(e.ref);
-                    }
-                  }}
-                  sx={{
-                    'display': 'flex',
-                    'alignItems': 'center',
-                    'gap': 1,
-                    'py': 0.75,
-                    'px': 0.5,
-                    'borderRadius': 1,
-                    'borderBottom': `1px solid ${theme.palette.divider}`,
-                    'backgroundColor': highlighted ? 'action.selected' : undefined,
-                    // A left accent so the finding's producing execution stands out in the feed.
-                    'borderLeft': highlighted ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
-                    'cursor': 'pointer',
-                    'transition': theme.transitions.create(['background-color', 'border-color']),
-                    '&:hover': { backgroundColor: 'action.hover' },
-                    '&:focus-visible': {
-                      outline: `2px solid ${theme.palette.primary.main}`,
-                      outlineOffset: -2,
-                    },
-                  }}
+          {executions.length === 0
+            ? <Alert severity="info">{t('No execution reached this target')}</Alert>
+            : (
+                <Box sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
                 >
+                  {/* Column headers, aligned with the row grid below so the two status columns read as a
+                      table and the reader knows what each chip means. */}
                   <Box sx={{
-                    minWidth: 0,
-                    flex: 1,
+                    display: 'grid',
+                    gridTemplateColumns: EXECUTION_GRID_COLUMNS,
+                    alignItems: 'center',
+                    gap: 1,
+                    px: 0.5,
+                    pb: 0.75,
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                   }}
                   >
-                    <Typography variant="body2" noWrap>{e.payloadName || e.label}</Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                      {[e.agentName, e.privilege].filter(Boolean).join(' · ')}
+                    <Typography sx={executionHeaderCellSx}>{t('Action')}</Typography>
+                    <Typography sx={{
+                      ...executionHeaderCellSx,
+                      textAlign: 'right',
+                    }}
+                    >
+                      {t('Execution')}
+                    </Typography>
+                    <Typography sx={{
+                      ...executionHeaderCellSx,
+                      textAlign: 'right',
+                    }}
+                    >
+                      {t('Result')}
                     </Typography>
                   </Box>
-                  {/* Whether this execution actually ran at all (issue 244), at a glance in the list —
-                      the verdict pill beside it only answers whether it was caught. Both sit in
-                      fixed-width slots: their labels vary in length ("Executed"/"Timeout",
-                      "DETECTED"/"UNDETECTED"), so intrinsic widths made every row's pair land on a
-                      different x and the column read as ragged. */}
-                  <Box sx={{
-                    flexShrink: 0,
-                    width: 92,
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                  }}
-                  >
-                    <ExecutionRowStatusBadge
-                      simulationId={simulationId}
-                      executionRef={e.ref}
-                      endpointName={e.hostname}
-                      injectId={e.injectId}
-                      payloadId={e.payloadId}
-                      executionStatus={e.executionStatus}
-                    />
-                  </Box>
-                  <Box sx={{
-                    flexShrink: 0,
-                    width: 104,
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                  }}
-                  >
-                    <AttackPathVerdictPill label={status} status={e.status} />
-                  </Box>
+                  {executions.map((e) => {
+                    const status = execStatusLabel(e.status);
+                    const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
+                    const subtitle = [e.agentName, e.privilege].filter(Boolean).join(' · ');
+                    return (
+                      <Box
+                        key={e.id}
+                        ref={(el: HTMLDivElement | null) => {
+                          if (e.id) {
+                            registerRow(e.id, el);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => e.ref && onSelectExecution(e.ref)}
+                        onKeyDown={(ev) => {
+                          if (e.ref && (ev.key === 'Enter' || ev.key === ' ')) {
+                            ev.preventDefault();
+                            onSelectExecution(e.ref);
+                          }
+                        }}
+                        sx={{
+                          'display': 'grid',
+                          'gridTemplateColumns': EXECUTION_GRID_COLUMNS,
+                          'alignItems': 'center',
+                          'gap': 1,
+                          'minHeight': 44,
+                          'py': 0.5,
+                          'px': 0.5,
+                          'borderBottom': `1px solid ${theme.palette.divider}`,
+                          'backgroundColor': highlighted ? 'action.selected' : undefined,
+                          // A left accent so the finding's producing execution stands out in the feed.
+                          'borderLeft': highlighted ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
+                          'cursor': 'pointer',
+                          'transition': theme.transitions.create(['background-color', 'border-color']),
+                          '&:hover': { backgroundColor: 'action.hover' },
+                          '&:focus-visible': {
+                            outline: `2px solid ${theme.palette.primary.main}`,
+                            outlineOffset: -2,
+                          },
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" noWrap title={e.payloadName || e.label}>
+                            {e.payloadName || e.label}
+                          </Typography>
+                          {subtitle && (
+                            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                              {subtitle}
+                            </Typography>
+                          )}
+                        </Box>
+                        {/* Whether this execution actually ran at all (issue 244) - the verdict pill in the
+                            last column only answers whether it was caught. Both status cells are right-aligned
+                            in their fixed grid column so agent-based and network-based rows line up. */}
+                        <Box sx={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          minWidth: 0,
+                        }}
+                        >
+                          <ExecutionRowStatusBadge
+                            simulationId={simulationId}
+                            executionRef={e.ref}
+                            endpointName={e.hostname}
+                            injectId={e.injectId}
+                            payloadId={e.payloadId}
+                            executionStatus={e.executionStatus}
+                          />
+                        </Box>
+                        <Box sx={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          minWidth: 0,
+                        }}
+                        >
+                          <AttackPathVerdictPill label={status} status={e.status} />
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                  {/* The list holds one page, so reaching the rest must be an action rather than a dead
+                      caption: same slot, a text button that fetches the next page (See More precedent).
+                      Where the caller cannot fetch more (the injector panel reads a bounded set in one go),
+                      say what is not shown rather than truncate silently. */}
+                  {(totalExecutions ?? 0) > executions.length && (
+                    onShowMore
+                      ? (
+                          <Button
+                            size="small"
+                            variant="text"
+                            disabled={loadingMore}
+                            onClick={() => onShowMore()}
+                            sx={{
+                              mt: 1,
+                              alignSelf: 'flex-start',
+                              textTransform: 'none',
+                            }}
+                          >
+                            {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}
+                          </Button>
+                        )
+                      : (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              display: 'block',
+                              pt: 1,
+                            }}
+                          >
+                            {t('Showing the first {count} of {total}', {
+                              count: executions.length,
+                              total: totalExecutions,
+                            })}
+                          </Typography>
+                        )
+                  )}
                 </Box>
-              );
-            })}
-            {/* The list holds one page, so reaching the rest must be an action rather than a dead caption:
-                same slot, a text button that fetches the next page (See More precedent). Where the caller
-                cannot fetch more (the injector panel reads a bounded set in one go), say what is not shown
-                rather than truncate silently. */}
-            {(totalExecutions ?? 0) > executions.length && (
-              onShowMore
-                ? (
-                    <Button
-                      size="small"
-                      variant="text"
-                      disabled={loadingMore}
-                      onClick={() => onShowMore()}
-                      sx={{
-                        mt: 1,
-                        alignSelf: 'flex-start',
-                        textTransform: 'none',
-                      }}
-                    >
-                      {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}
-                    </Button>
-                  )
-                : (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        display: 'block',
-                        pt: 1,
-                      }}
-                    >
-                      {t('Showing the first {count} of {total}', {
-                        count: executions.length,
-                        total: totalExecutions,
-                      })}
-                    </Typography>
-                  )
-            )}
-          </Box>
+              )}
         </InjectFormSection>
       </Box>
     </Paper>

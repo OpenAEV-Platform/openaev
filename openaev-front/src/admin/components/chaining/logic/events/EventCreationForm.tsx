@@ -32,6 +32,7 @@ interface EventCreationFormProps {
   initialData?: EventFormData;
   submitLabel?: string;
   defaultName?: string;
+  readOnly?: boolean;
 }
 
 const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
@@ -40,6 +41,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
   initialData,
   submitLabel,
   defaultName,
+  readOnly = false,
 }) => {
   const { t } = useFormatter();
   const methods = useForm<EventBaseInput>({
@@ -63,25 +65,29 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
   });
 
   const handleUpdateGroup = useCallback((index: number, updatedGroup: ConditionGroup) => {
+    if (readOnly) return;
     setConditionGroups(prev => prev.map((group, i) => (i === index ? updatedGroup : group)));
-  }, []);
+  }, [readOnly]);
 
   const handleDeleteGroup = useCallback((index: number) => {
+    if (readOnly) return;
     setConditionGroups(prev => prev.filter((_, i) => i !== index));
     setGroupOperators(prev => prev.filter((_, i) => i !== Math.max(0, index - 1)));
-  }, []);
+  }, [readOnly]);
 
   const handleAddConditionGroup = useCallback(() => {
+    if (readOnly) return;
     setConditionGroups(prev => [...prev, createEmptyGroup('AND')]);
     // Preserve the current operator so the new gap stays in sync with the others
     setGroupOperators(prev => [...prev, prev[0] ?? 'AND']);
-  }, []);
+  }, [readOnly]);
 
   const handleUpdateGroupOperator = useCallback((gapIndex: number, op: LogicalOperator) => {
+    if (readOnly) return;
     // The backend stores a single root operator for all groups.
     // All gap operators must stay in sync — update every gap to the new value.
     setGroupOperators(prev => prev.map(() => op));
-  }, []);
+  }, [readOnly]);
 
   const cloneGroup = (conditionGroup: ConditionGroup): ConditionGroup => ({
     ...conditionGroup,
@@ -101,6 +107,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
 
   // Move a condition between groups (or reorder within the same group)
   const handleDragEnd = useCallback((result: DropResult) => {
+    if (readOnly) return;
     if (!result.destination) return;
     const { droppableId: sourceId, index: sourceIdx } = result.source;
     const { droppableId: destinationId, index: destinationIdx } = result.destination;
@@ -132,7 +139,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
 
     setConditionGroups(groups);
     setGroupOperators(ops);
-  }, [conditionGroups, groupOperators]);
+  }, [conditionGroups, groupOperators, readOnly]);
 
   const conditionsValid = isEventFormValid({
     name: 'placeholder',
@@ -143,6 +150,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
   const canSubmit = isFormValid && conditionsValid;
 
   const onValid = (base: EventBaseInput) => {
+    if (readOnly) return;
     onSubmit({
       name: base.event_name.trim(),
       description: (base.event_description ?? '').trim(),
@@ -162,82 +170,106 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
           gap: 3,
         }}
       >
-        <TextFieldController
-          name="event_name"
-          label={t('Name')}
-          required
-          variant="standard"
-        />
-
-        <TextFieldController
-          name="event_description"
-          label={t('Description')}
-          multiline
-          rows={3}
-          variant="standard"
-        />
-
-        <Box sx={{ mt: 2 }}>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-              mb: 1,
-            }}
-          >
-            {t('Trigger Conditions')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {t('Event conditions are based on data produced by Actions. To access more options in the "Field to inspect", consider adding additional.')}
-          </Typography>
-          <Box sx={{
+        <Box
+          component="fieldset"
+          disabled={readOnly}
+          sx={{
+            border: 0,
+            margin: 0,
+            padding: 0,
+            minWidth: 0,
             display: 'flex',
-            justifyContent: 'flex-end',
-            mb: 2,
+            flexDirection: 'column',
+            gap: 3,
           }}
-          >
-            <Button
-              size="small"
-              color="primary"
-              startIcon={<AddOutlined fontSize="small" />}
-              onClick={handleAddConditionGroup}
-            >
-              {t('Add Condition Group')}
-            </Button>
-          </Box>
+        >
+          <TextFieldController
+            name="event_name"
+            label={t('Name')}
+            required
+            disabled={readOnly}
+            variant="standard"
+          />
 
-          <DragDropContext onDragEnd={handleDragEnd}>
+          <TextFieldController
+            name="event_description"
+            label={t('Description')}
+            multiline
+            rows={3}
+            disabled={readOnly}
+            variant="standard"
+          />
+
+          <Box sx={{ mt: 2 }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                mb: 1,
+              }}
+            >
+              {t('Trigger Conditions')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {t('Event conditions are based on data produced by Actions. To access more options in the "Field to inspect", consider adding additional.')}
+            </Typography>
             <Box sx={{
               display: 'flex',
-              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              mb: 2,
             }}
             >
-              {conditionGroups.map((group, index) => (
-                <Box key={group.id}>
-                  {index > 0 && (
-                    <Box sx={{
-                      py: 1.5,
-                      pl: 1,
-                    }}
-                    >
-                      <LogicalOperatorSelect
-                        value={groupOperators[index - 1] ?? 'AND'}
-                        onChange={op => handleUpdateGroupOperator(index - 1, op)}
-                      />
-                    </Box>
-                  )}
-                  <ConditionGroupBuilder
-                    group={group}
-                    onUpdate={updated => handleUpdateGroup(index, updated)}
-                    onDelete={conditionGroups.length > 1 ? () => handleDeleteGroup(index) : undefined}
-                  />
-                </Box>
-              ))}
+              <Button
+                size="small"
+                color="primary"
+                disabled={readOnly}
+                startIcon={<AddOutlined fontSize="small" />}
+                onClick={handleAddConditionGroup}
+              >
+                {t('Add Condition Group')}
+              </Button>
             </Box>
-          </DragDropContext>
+
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              >
+                {conditionGroups.map((group, index) => (
+                  <Box key={group.id}>
+                    {index > 0 && (
+                      <Box sx={{
+                        py: 1.5,
+                        pl: 1,
+                      }}
+                      >
+                        <LogicalOperatorSelect
+                          value={groupOperators[index - 1] ?? 'AND'}
+                          onChange={op => handleUpdateGroupOperator(index - 1, op)}
+                          readOnly={readOnly}
+                        />
+                      </Box>
+                    )}
+                    <ConditionGroupBuilder
+                      group={group}
+                      onUpdate={updated => handleUpdateGroup(index, updated)}
+                      onDelete={conditionGroups.length > 1 ? () => handleDeleteGroup(index) : undefined}
+                      readOnly={readOnly}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            </DragDropContext>
+          </Box>
         </Box>
 
-        <ActionFormButtons disabled={!canSubmit} onCancel={onCancel} submitLabel={submitLabel} />
+        <ActionFormButtons
+          disabled={!canSubmit}
+          onCancel={onCancel}
+          submitLabel={submitLabel}
+          readOnly={readOnly}
+        />
       </Box>
     </FormProvider>
   );

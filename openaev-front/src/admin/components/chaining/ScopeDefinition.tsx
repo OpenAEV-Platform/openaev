@@ -1,11 +1,13 @@
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 
 import { fetchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { fetchEndpoints } from '../../../actions/assets/endpoint-actions';
 import {
   fetchWorkflowConfiguration,
+  fetchWorkflowScopeAssetGroups,
+  fetchWorkflowScopeEndpoints,
   updateWorkflowConfiguration,
 } from '../../../actions/chaining/workflow-actions';
 import type { WorkflowConfigurationHelper } from '../../../actions/chaining/workflow-helper';
@@ -16,6 +18,8 @@ import type { ScopeVariableInput, WorkflowConfigurationInput, WorkflowScopeRuleI
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import useLivePolling from '../../../utils/hooks/useLivePolling';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ScopeExecutionLimits from './ScopeExecutionLimits';
 import ScopeRules from './ScopeRules';
 import ScopeVariables from './ScopeVariables';
@@ -36,16 +40,26 @@ const ScopeDefinition = ({ workflowId, readOnly = false, autonomous = false, aut
   // Standard hooks
   const theme = useTheme();
   const dispatch = useAppDispatch();
+  const ability = useContext(AbilityContext);
+  // A user only granted on the parent simulation/scenario has no global asset capability:
+  // fall back to the workflow-scoped inventory so the scope screen still resolves asset labels.
+  const canAccessAssets = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS);
 
   // Fetching data
   const { workflowConfiguration } = useHelper((helper: WorkflowConfigurationHelper) => ({ workflowConfiguration: helper.getWorkflowConfiguration(workflowId) }));
 
   useDataLoader(() => {
     dispatch(fetchWorkflowConfiguration(workflowId));
-    dispatch(fetchEndpoints());
-    dispatch(fetchAssetGroups());
+    dispatch(fetchWorkflowScopeEndpoints(workflowId));
+    dispatch(fetchWorkflowScopeAssetGroups(workflowId));
     dispatch(fetchTeams());
     dispatch(fetchPlayers());
+    // The global inventories require the asset capabilities: a user merely granted on the parent
+    // simulation/scenario reads the scoped lists above instead, which resolve every chip label.
+    if (canAccessAssets) {
+      dispatch(fetchEndpoints());
+      dispatch(fetchAssetGroups());
+    }
   });
 
   // Keep the Scope tab live: the AI edits the allow/deny lists, variables and limits during a run, so
@@ -131,7 +145,12 @@ const ScopeDefinition = ({ workflowId, readOnly = false, autonomous = false, aut
       aria-disabled={readOnly || undefined}
     >
       {/* Row 1: allow list | deny list (ScopeRules renders both cards as a fragment). */}
-      <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
+      <ScopeRules
+        workflowId={workflowId}
+        workflowConfiguration={workflowConfiguration}
+        onUpdate={handleUpdate}
+        readOnly={readOnly}
+      />
       {/* Row 2: variables | combined execution limits. */}
       <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
       <ScopeExecutionLimits

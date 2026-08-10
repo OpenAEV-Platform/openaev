@@ -16,7 +16,10 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.custom_domain.CustomDomainService;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.CustomDomain;
+import io.openaev.database.model.CustomDomain.CustomDomainStatus;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
@@ -37,10 +40,13 @@ import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.injectors.phishing.PhishingContract;
 import io.openaev.injectors.phishing.form.PhishingLandingPageBulkProcessingInput;
+import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
@@ -73,6 +79,11 @@ import org.springframework.util.CollectionUtils;
 @Transactional
 public class PhishingLandingPageService {
 
+  // Built-in phishing actions are shipped by the platform, so their contracts are authored by
+  // Filigran - the same author every other built-in injector contract carries (see
+  // InjectorService.BUILTIN_INJECTOR_AUTHOR).
+  private static final String BUILTIN_INJECTOR_AUTHOR = "Filigran";
+
   private final PhishingLandingPageRepository landingPageRepository;
   private final PhishingEmailTemplateRepository emailTemplateRepository;
   private final InjectorRepository injectorRepository;
@@ -80,7 +91,26 @@ public class PhishingLandingPageService {
   private final ExpectationBuilderService expectationBuilderService;
   private final PhishingContract phishingContract;
   private final DocumentService documentService;
+  private final DomainService domainService;
+  private final OrganizationService organizationService;
+  private final CustomDomainService customDomainService;
   private final ObjectMapper mapper;
+
+  /**
+   * Resolves a landing page's linked custom domain from an id, enforcing that it exists in the
+   * tenant and is verified. A blank id clears the link (serve on the platform domain). A domain
+   * that is not yet verified is rejected so a page can never point at an unusable hostname.
+   */
+  public CustomDomain resolveVerifiedCustomDomain(final String customDomainId) {
+    if (customDomainId == null || customDomainId.isBlank()) {
+      return null;
+    }
+    CustomDomain domain = customDomainService.customDomain(customDomainId);
+    if (domain.getStatus() != CustomDomainStatus.VERIFIED) {
+      throw new BadRequestException("The selected custom domain is not verified yet");
+    }
+    return domain;
+  }
 
   // -- CRUD --
 
@@ -291,6 +321,8 @@ public class PhishingLandingPageService {
                   return created;
                 });
 
+    Contract contract = buildContract(landingPage, injector, tenantId);
+
     // Prefix so Threat Arsenal search / category browsing makes the phishing origin obvious.
     Map<String, String> labels =
         Map.of(
@@ -299,13 +331,25 @@ public class PhishingLandingPageService {
             "fr",
             "Hameconnage : " + landingPage.getName());
     injectorContract.setLabels(labels);
-    injectorContract.setNeedsExecutor(true);
-    injectorContract.setManual(false);
-    injectorContract.setAtomicTesting(false);
     injectorContract.addInjector(injector);
 
+    // The Threat Arsenal and the atomic-testing picker read these entity columns, NOT the
+    // serialized
+    // content JSON. Populate them from the synthesized contract exactly like a static built-in
+    // contract does (InjectorContractService.applyBuiltinContractData), otherwise the action shows
+    // no
+    // platform / domain / author and is filtered out of the atomic-testing picker
+    // (injector_contract_atomic_testing = true).
+    injectorContract.setManual(contract.isManual());
+    injectorContract.setAtomicTesting(contract.isAtomicTesting());
+    injectorContract.setNeedsExecutor(contract.isNeedsExecutor());
+    injectorContract.setPlatforms(contract.getPlatforms().toArray(new Endpoint.PLATFORM_TYPE[0]));
+    injectorContract.setDomains(
+        this.domainService.upsertDomainEntities(contract.getDomains(), tenantId));
+    injectorContract.setAuthorOrganization(
+        this.organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR));
+
     try {
-      Contract contract = buildContract(landingPage, injector, tenantId);
       String content = mapper.writeValueAsString(contract);
       injectorContract.setContent(content);
       injectorContract.setConvertedContent(mapper.readValue(content, ObjectNode.class));
@@ -357,18 +401,53 @@ public class PhishingLandingPageService {
             .optional(textField("subject", "Subject override", ""))
             .optional(textField("fromName", "Sender name override", ""))
             .optional(textField("fromEmail", "Sender email override", ""))
-            .optional(
-                expectationsField(List.of(this.expectationBuilderService.buildManualExpectation())))
+            .optional(expectationsField(buildPhishingExpectations()))
             .build();
 
+    // Server-side email delivery, exactly like the email injector: platform Service and no executor
+    // agent. A recipient is a team player (teamField below), never an endpoint, so needsExecutor
+    // stays false - otherwise target search would demand agents and the health check would fail.
     return executableContract(
         contractConfig,
         landingPage.getId(),
         Map.of(
             en, "Phishing: " + landingPage.getName(), fr, "Hameconnage : " + landingPage.getName()),
         fields,
-        List.of(Endpoint.PLATFORM_TYPE.Internal),
+        List.of(Endpoint.PLATFORM_TYPE.Service),
         false,
         Set.of(PresetDomain.getEmailInfiltration()));
+  }
+
+  /**
+   * Available expectations for a phishing action: the three human-response steps of a phishing test
+   * - the recipient opening the lure email, following the link (landing page loaded) and submitting
+   * data. Each is a predefined MANUAL expectation, so every phishing inject measures all three by
+   * default. Their polarity is inverted (see {@link PhishingTrackingService}): a step is GREEN
+   * ("resisted") while the recipient has not performed it and flips RED ("fell for it") the moment
+   * they do, so a recipient who never interacts keeps the green verdict through expiration.
+   */
+  private List<Expectation> buildPhishingExpectations() {
+    return List.of(
+        buildPhishingStep(
+            PhishingTrackingService.STEP_OPENED,
+            "Red once the recipient opens the lure email (tracking pixel loaded); green while the"
+                + " email is never opened."),
+        buildPhishingStep(
+            PhishingTrackingService.STEP_CLICKED,
+            "Red once the recipient opens the phishing landing page; green while the link is never"
+                + " followed."),
+        buildPhishingStep(
+            PhishingTrackingService.STEP_SUBMITTED,
+            "Red once the recipient submits data on the phishing page; green while nothing is ever"
+                + " submitted."));
+  }
+
+  private Expectation buildPhishingStep(final String name, final String description) {
+    Expectation expectation = this.expectationBuilderService.buildManualExpectation();
+    expectation.setName(name);
+    expectation.setDescription(description);
+    expectation.setPredefined(true);
+    expectation.setMultiSelectable(false);
+    return expectation;
   }
 }

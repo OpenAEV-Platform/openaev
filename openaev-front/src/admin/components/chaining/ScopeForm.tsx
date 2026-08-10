@@ -14,6 +14,7 @@ import {
 
 import { findAssetGroups, searchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { findEndpoints, searchEndpoints } from '../../../actions/assets/endpoint-actions';
+import { findWorkflowScopeAssetGroups, findWorkflowScopeEndpoints } from '../../../actions/chaining/workflow-actions';
 import { fetchExecutors } from '../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../actions/executors/executor-helper';
 import { searchPlayers } from '../../../actions/players/player-actions';
@@ -56,6 +57,7 @@ interface ScopeIdOption {
 }
 
 interface ScopeFormProps {
+  workflowId?: string;
   mode: 'ALLOWLIST' | 'DENYLIST';
   selectedEndpointIds: string[];
   selectedAssetGroupIds: string[];
@@ -83,6 +85,7 @@ interface ScopeFormProps {
 }
 
 const ScopeForm: FunctionComponent<ScopeFormProps> = ({
+  workflowId,
   mode,
   selectedEndpointIds,
   selectedAssetGroupIds,
@@ -108,8 +111,14 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  // Tab state
-  const [currentTab, setCurrentTab] = useState<string>('assets');
+  // Each Add tab is gated on its own capability: the asset tabs need the global asset search,
+  // the teams / persons tabs only need the teams & players capability. A user granted on the
+  // parent simulation/scenario may hold either one independently.
+  const canAccessAssets = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS);
+  const canAccessTeamsAndPlayers = ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS);
+
+  // Tab state - default to the first tab the user can actually see.
+  const [currentTab, setCurrentTab] = useState<string>(canAccessAssets ? 'assets' : 'teams');
 
   const listLabel = mode === 'ALLOWLIST' ? t('Allowlisted') : t('Denylisted');
   const addLabel = mode === 'ALLOWLIST' ? t('Add assets, asset groups, teams and persons to your allowlist') : t('Add assets, asset groups, teams and persons to your denylist');
@@ -123,26 +132,34 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
 
   useDataLoader(() => {
-    if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
+    if (canAccessAssets) {
       dispatch(fetchExecutors());
     }
   });
 
+  // A user granted on the parent simulation/scenario but without the global asset capabilities
+  // resolves the selected chips through the workflow-scoped endpoints instead.
   useEffect(() => {
     if (selectedEndpointIds.length > 0) {
-      findEndpoints(selectedEndpointIds).then(result => setSelectedEndpoints(result.data));
+      const resolve = canAccessAssets || !workflowId
+        ? findEndpoints(selectedEndpointIds)
+        : findWorkflowScopeEndpoints(workflowId, selectedEndpointIds);
+      resolve.then(result => setSelectedEndpoints(result.data));
     } else {
       setSelectedEndpoints([]);
     }
-  }, [selectedEndpointIds]);
+  }, [selectedEndpointIds, canAccessAssets, workflowId]);
 
   useEffect(() => {
     if (selectedAssetGroupIds.length > 0) {
-      findAssetGroups(selectedAssetGroupIds).then(result => setSelectedAssetGroups(result.data));
+      const resolve = canAccessAssets || !workflowId
+        ? findAssetGroups(selectedAssetGroupIds)
+        : findWorkflowScopeAssetGroups(workflowId, selectedAssetGroupIds);
+      resolve.then(result => setSelectedAssetGroups(result.data));
     } else {
       setSelectedAssetGroups([]);
     }
-  }, [selectedAssetGroupIds]);
+  }, [selectedAssetGroupIds, canAccessAssets, workflowId]);
 
   useEffect(() => {
     if (selectedTeamIds.length > 0) {
@@ -561,73 +578,76 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
         onClearAll={handleClearAll}
       />
 
-      {/* Add section */}
-      <Box>
-        <SectionLabel>{addLabel}</SectionLabel>
-
+      {/* Add section - each tab requires its own capability: asset tabs need the global asset
+          search, teams / persons tabs need the teams & players capability. */}
+      {(canAccessAssets || canAccessTeamsAndPlayers) && (
         <Box>
-          <Tabs value={currentTab} onChange={handleTabChange}>
-            <Tab value="assets" label={t('Assets')} />
-            <Tab value="asset_groups" label={t('Asset groups')} />
-            <Tab value="teams" label={t('Teams')} />
-            <Tab value="persons" label={t('Persons')} />
-          </Tabs>
+          <SectionLabel>{addLabel}</SectionLabel>
+
+          <Box>
+            <Tabs value={currentTab} onChange={handleTabChange}>
+              {canAccessAssets && <Tab value="assets" label={t('Assets')} />}
+              {canAccessAssets && <Tab value="asset_groups" label={t('Asset groups')} />}
+              {canAccessTeamsAndPlayers && <Tab value="teams" label={t('Teams')} />}
+              {canAccessTeamsAndPlayers && <Tab value="persons" label={t('Persons')} />}
+            </Tabs>
+          </Box>
+
+          <Box sx={{ marginTop: theme.spacing(2) }}>
+            {currentTab === 'assets' && (
+              <ClickableList<EndpointOutput>
+                values={endpoints}
+                selectedIds={selectedEndpointIds}
+                elements={endpointElements}
+                onSelect={addEndpoint}
+                onDeselect={removeEndpoint}
+                paginationComponent={endpointPagination}
+                getId={el => el.asset_id}
+                isLoading={isLoadingEndpoints}
+              />
+            )}
+
+            {currentTab === 'asset_groups' && (
+              <ClickableList<AssetGroupOutput>
+                values={assetGroups}
+                selectedIds={selectedAssetGroupIds}
+                elements={assetGroupElements}
+                onSelect={addAssetGroup}
+                onDeselect={removeAssetGroup}
+                paginationComponent={assetGroupPagination}
+                getId={el => el.asset_group_id}
+                isLoading={isLoadingAssetGroups}
+              />
+            )}
+
+            {currentTab === 'teams' && (
+              <ClickableList<TeamOutput>
+                values={teams}
+                selectedIds={selectedTeamIds}
+                elements={teamElements}
+                onSelect={addTeamSelection}
+                onDeselect={removeTeamSelection}
+                paginationComponent={teamPagination}
+                getId={el => el.team_id}
+                isLoading={isLoadingTeams}
+              />
+            )}
+
+            {currentTab === 'persons' && (
+              <ClickableList<PlayerOutput>
+                values={players}
+                selectedIds={selectedPlayerIds}
+                elements={playerElements}
+                onSelect={addPlayerSelection}
+                onDeselect={removePlayerSelection}
+                paginationComponent={playerPagination}
+                getId={el => el.user_id}
+                isLoading={isLoadingPlayers}
+              />
+            )}
+          </Box>
         </Box>
-
-        <Box sx={{ marginTop: theme.spacing(2) }}>
-          {currentTab === 'assets' && (
-            <ClickableList<EndpointOutput>
-              values={endpoints}
-              selectedIds={selectedEndpointIds}
-              elements={endpointElements}
-              onSelect={addEndpoint}
-              onDeselect={removeEndpoint}
-              paginationComponent={endpointPagination}
-              getId={el => el.asset_id}
-              isLoading={isLoadingEndpoints}
-            />
-          )}
-
-          {currentTab === 'asset_groups' && (
-            <ClickableList<AssetGroupOutput>
-              values={assetGroups}
-              selectedIds={selectedAssetGroupIds}
-              elements={assetGroupElements}
-              onSelect={addAssetGroup}
-              onDeselect={removeAssetGroup}
-              paginationComponent={assetGroupPagination}
-              getId={el => el.asset_group_id}
-              isLoading={isLoadingAssetGroups}
-            />
-          )}
-
-          {currentTab === 'teams' && (
-            <ClickableList<TeamOutput>
-              values={teams}
-              selectedIds={selectedTeamIds}
-              elements={teamElements}
-              onSelect={addTeamSelection}
-              onDeselect={removeTeamSelection}
-              paginationComponent={teamPagination}
-              getId={el => el.team_id}
-              isLoading={isLoadingTeams}
-            />
-          )}
-
-          {currentTab === 'persons' && (
-            <ClickableList<PlayerOutput>
-              values={players}
-              selectedIds={selectedPlayerIds}
-              elements={playerElements}
-              onSelect={addPlayerSelection}
-              onDeselect={removePlayerSelection}
-              paginationComponent={playerPagination}
-              getId={el => el.user_id}
-              isLoading={isLoadingPlayers}
-            />
-          )}
-        </Box>
-      </Box>
+      )}
 
       {/* Footer buttons */}
       {!hideFooter && (
