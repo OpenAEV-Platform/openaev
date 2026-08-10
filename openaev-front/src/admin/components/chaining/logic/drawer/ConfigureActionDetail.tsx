@@ -43,6 +43,7 @@ interface ConfigureActionDetailProps {
   validAssets: ScopeAssetOutput[];
   validTeams?: ScopeTeamOutput[];
   initialData?: ActionDetailData;
+  readOnly?: boolean;
   onClose: () => void;
   onSave: (data: ActionDetailData) => void;
 }
@@ -112,6 +113,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   validAssets,
   validTeams = [],
   initialData,
+  readOnly = false,
   onClose,
   onSave,
 }) => {
@@ -245,7 +247,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   const targetsTeams = hasTeamField;
 
   const onSubmit = (formData: FormValues) => {
-    if (!action) return;
+    if (readOnly || !action) return;
     // Final safety: remove frontend-only keys before sending to backend.
     const contentWithExpectations = applyPredefinedExpectations(
       stripFrontendMetadataKeys(formData.inject_content),
@@ -361,7 +363,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
             fieldKey={rawKey}
             fieldLabel={t(ef.label) || rawKey}
             link={link}
-            readOnly={isAutoLinked}
+            readOnly={readOnly || isAutoLinked}
             onLink={handleLinkField}
             onUnlink={handleUnlinkField}
             onToggleLocalScope={handleToggleLocalScope}
@@ -382,76 +384,90 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
           gap: 3,
         }}
       >
-        <TextFieldController name="inject_title" label={t('Title')} required />
+        <Box
+          component="fieldset"
+          disabled={readOnly}
+          sx={{
+            border: 0,
+            margin: 0,
+            padding: 0,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+          }}
+        >
+          <TextFieldController name="inject_title" label={t('Title')} required />
 
-        <ActionScopeChips
-          isPayload={isPayload}
-          assets={targetsAssets ? validAssets : []}
-          teams={targetsTeams ? selectedTeamOptions : []}
-          allTeams={targetsTeams && allTeamsSelected}
-        />
+          <ActionScopeChips
+            isPayload={isPayload}
+            assets={targetsAssets ? validAssets : []}
+            teams={targetsTeams ? selectedTeamOptions : []}
+            allTeams={targetsTeams && allTeamsSelected}
+          />
 
-        {hasTeamField && (
-          <InjectFormSection
-            title={t('Targeted teams')}
-            helper={t('Who receives this inject.')}
-            action={(
-              <SwitchFieldController
-                name="inject_all_teams"
-                label={<strong>{t('All teams')}</strong>}
-                disabled={teamFieldEnhanced?.readOnly}
-                size="small"
+          {hasTeamField && (
+            <InjectFormSection
+              title={t('Targeted teams')}
+              helper={t('Who receives this inject.')}
+              action={(
+                <SwitchFieldController
+                  name="inject_all_teams"
+                  label={<strong>{t('All teams')}</strong>}
+                  disabled={readOnly || teamFieldEnhanced?.readOnly}
+                  size="small"
+                />
+              )}
+            >
+              <InjectTeamsList />
+            </InjectFormSection>
+          )}
+
+          {(contentEnhancedFields.length > 0 || loadingContract) && (
+            <InjectFormSection
+              title={t('Inject data')}
+              helper={t('The content and targets specific to this inject.')}
+              action={(
+                <Button size="small" startIcon={<RestartAlt />} onClick={handleResetDefaults}>
+                  {t('Reset default value')}
+                </Button>
+              )}
+            >
+              {loadingContract && (
+                <Typography variant="body2" color="text.secondary">
+                  {t('Loading contract fields...')}
+                </Typography>
+              )}
+              {contentEnhancedFields.map(renderContentField)}
+            </InjectFormSection>
+          )}
+
+          {hasAttachmentField && (
+            <InjectFormSection title={t('Inject documents')}>
+              <InjectDocumentsList hasAttachments />
+            </InjectFormSection>
+          )}
+
+          {expectationField && (
+            <InjectFormSection title={t('Inject expectations')}>
+              <InjectExpectations
+                expectationDatas={expectations}
+                handleExpectations={updatedExpectations => setValue('inject_content', {
+                  ...getValues('inject_content'),
+                  [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
+                })}
+                availableExpectations={expectationField.availableExpectations ?? []}
               />
-            )}
-          >
-            <InjectTeamsList />
-          </InjectFormSection>
-        )}
+              {expectations.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {t('No expectations for this action.')}
+                </Typography>
+              )}
+            </InjectFormSection>
+          )}
+        </Box>
 
-        {(contentEnhancedFields.length > 0 || loadingContract) && (
-          <InjectFormSection
-            title={t('Inject data')}
-            helper={t('The content and targets specific to this inject.')}
-            action={(
-              <Button size="small" startIcon={<RestartAlt />} onClick={handleResetDefaults}>
-                {t('Reset default value')}
-              </Button>
-            )}
-          >
-            {loadingContract && (
-              <Typography variant="body2" color="text.secondary">
-                {t('Loading contract fields...')}
-              </Typography>
-            )}
-            {contentEnhancedFields.map(renderContentField)}
-          </InjectFormSection>
-        )}
-
-        {hasAttachmentField && (
-          <InjectFormSection title={t('Inject documents')}>
-            <InjectDocumentsList hasAttachments />
-          </InjectFormSection>
-        )}
-
-        {expectationField && (
-          <InjectFormSection title={t('Inject expectations')}>
-            <InjectExpectations
-              expectationDatas={expectations}
-              handleExpectations={updatedExpectations => setValue('inject_content', {
-                ...getValues('inject_content'),
-                [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
-              })}
-              availableExpectations={expectationField.availableExpectations ?? []}
-            />
-            {expectations.length === 0 && (
-              <Typography variant="body2" color="text.secondary">
-                {t('No expectations for this action.')}
-              </Typography>
-            )}
-          </InjectFormSection>
-        )}
-
-        <ActionFormButtons disabled={!isValid} onCancel={onClose} />
+        <ActionFormButtons disabled={!isValid} onCancel={onClose} readOnly={readOnly} />
       </Box>
     </FormProvider>
   );
