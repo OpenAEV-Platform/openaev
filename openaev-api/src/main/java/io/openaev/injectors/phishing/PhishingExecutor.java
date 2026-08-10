@@ -133,8 +133,8 @@ public class PhishingExecutor extends Injector {
 
     // The execution context carries each recipient's team NAME (see InjectHelper), but
     // phishing_result_team is an FK to teams.team_id. Map the name back to the real id from the
-    // inject's target teams; otherwise createResult would insert the name ("CEO") as the team id and
-    // fail the phishing_results_team_fk constraint. Duplicate names keep the first (any is correct).
+    // inject's target teams; otherwise createResult inserts the name ("CEO") as the team id and
+    // fails the phishing_results_team_fk constraint. Duplicate names keep the first (any is right).
     Map<String, String> teamIdByName =
         injection.getTeams().stream()
             .collect(Collectors.toMap(Team::getName, Team::getId, (first, ignored) -> first));

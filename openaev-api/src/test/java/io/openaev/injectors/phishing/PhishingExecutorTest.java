@@ -36,7 +36,8 @@ import org.mockito.ArgumentCaptor;
 class PhishingExecutorTest {
 
   @Test
-  @DisplayName("createResult receives the resolved team id, not the team name (phishing_results_team_fk)")
+  @DisplayName(
+      "createResult receives the resolved team id, not the team name (phishing_results_team_fk)")
   void process_should_resolveTeamNameToTeamId() throws Exception {
     // Collaborators
     InjectorContext context = mock(InjectorContext.class);
