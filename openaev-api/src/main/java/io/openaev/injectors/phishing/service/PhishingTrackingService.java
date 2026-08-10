@@ -91,6 +91,12 @@ public class PhishingTrackingService {
   /** Result message stamped on a team step whose recomputed verdict is RED ("fell for it"). */
   private static final String TEAM_COMPROMISED_MESSAGE = "A team member fell for the phishing";
 
+  /**
+   * Result message for a team step that stays GREEN under the "at least one" rule even though some
+   * member fell: "no interaction" would be factually wrong there.
+   */
+  private static final String TEAM_RESISTED_MESSAGE = "At least one team member resisted";
+
   // Form-field names accepted as the username / password of a submitted credential. Kept broad so a
   // cloned real-world login form (e.g. Microsoft's "loginfmt", not "username") is still captured.
   private static final List<String> USERNAME_KEYS =
@@ -482,10 +488,13 @@ public class PhishingTrackingService {
       return;
     }
     boolean resisted = score >= team.getExpectedScore();
-    team.setResults(
-        List.of(
-            buildForTeamManualValidation(
-                resisted ? NO_INTERACTION_MESSAGE : TEAM_COMPROMISED_MESSAGE, score)));
+    boolean anyCompromised =
+        players.stream().anyMatch(p -> p.getScore() != null && p.getScore() <= COMPROMISED_SCORE);
+    String message =
+        resisted
+            ? (anyCompromised ? TEAM_RESISTED_MESSAGE : NO_INTERACTION_MESSAGE)
+            : TEAM_COMPROMISED_MESSAGE;
+    team.setResults(List.of(buildForTeamManualValidation(message, score)));
     team.setScore(score);
     team.setUpdatedAt(now());
     injectExpectationRepository.save(team);
