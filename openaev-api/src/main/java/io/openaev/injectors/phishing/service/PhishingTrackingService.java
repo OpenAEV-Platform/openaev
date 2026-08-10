@@ -411,13 +411,31 @@ public class PhishingTrackingService {
     // the team recomputation then reads, so it sees the fresh player scores without re-querying.
     List<BaseInjectExpectation> injectExpectations =
         injectExpectationRepository.findAllByInjectId(inject.getId());
-    injectExpectations.stream()
-        .filter(expectation -> isPlayerRowForUser(expectation, user.getId()))
-        .filter(expectation -> matchesSteps(expectation, stepNames))
-        .forEach(expectation -> markCompromised(expectation, message));
+    List<BaseInjectExpectation> playerSteps =
+        injectExpectations.stream()
+            .filter(expectation -> isPlayerRowForUser(expectation, user.getId()))
+            .filter(expectation -> matchesSteps(expectation, stepNames))
+            .toList();
+    playerSteps.forEach(expectation -> markCompromised(expectation, message));
+    // Only the recipient's own team(s) can have changed: recomputing every team of the inject
+    // would rewrite unrelated team rows (result text / updatedAt churn) on each click.
+    Set<String> affectedTeamIds =
+        playerSteps.stream()
+            .map(expectation -> ((TableTopInjectExpectation) expectation).getTeam())
+            .filter(Objects::nonNull)
+            .map(team -> team.getId())
+            .collect(Collectors.toSet());
+    if (affectedTeamIds.isEmpty()) {
+      return;
+    }
     injectExpectations.stream()
         .filter(PhishingTrackingService::isTeamRow)
         .filter(expectation -> matchesSteps(expectation, stepNames))
+        .filter(
+            expectation ->
+                expectation instanceof TableTopInjectExpectation teamRow
+                    && teamRow.getTeam() != null
+                    && affectedTeamIds.contains(teamRow.getTeam().getId()))
         .forEach(teamRow -> recomputeTeamStepFromPlayers(teamRow, injectExpectations));
   }
 

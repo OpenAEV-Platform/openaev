@@ -1696,10 +1696,12 @@ public class InjectExpectationService {
    * exceeding the connection-leak threshold and exhausting the pool) and overwrite its persisted
    * score.
    *
-   * <p>Results from collector sources are not copied to the merged clone. The merged score is the
-   * worst (minimum) score among the answered same-type expectations: a target validates a type only
-   * if every expectation of that type validated it, so e.g. one compromised phishing step keeps the
-   * merged human-response verdict red even when the other steps were resisted.
+   * <p>Collector-source results of the SIBLING expectations are not copied onto the merged clone;
+   * the elected expectation's own results (collector ones included) are kept as-is. The merged
+   * score is the worst (minimum) score among the answered same-type expectations: a target
+   * validates a type only if every expectation of that type validated it, so e.g. one compromised
+   * phishing step keeps the merged human-response verdict red even when the other steps were
+   * resisted.
    *
    * @param expectations the list of expectations to merge
    * @return a list with one expectation per type containing merged results

@@ -249,6 +249,36 @@ class PhishingTrackingServiceTest {
   }
 
   @Test
+  @DisplayName("markClicked should not rewrite the team rows of teams the recipient is not in")
+  void markClicked_should_leaveUnrelatedTeamRowsUntouched() {
+    // -- ARRANGE -- the recipient (user-1) is in team-1; team-2 has its own member and team row.
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation recipient =
+        playerStep(PhishingTrackingService.STEP_CLICKED, "user-1", "team-1", 100.0, false);
+    ManualInjectExpectation teamClicked =
+        teamStep(PhishingTrackingService.STEP_CLICKED, "team-1", 100.0, false);
+    ManualInjectExpectation otherMember =
+        playerStep(PhishingTrackingService.STEP_CLICKED, "user-2", "team-2", 100.0, false);
+    ManualInjectExpectation otherTeamClicked =
+        teamStep(PhishingTrackingService.STEP_CLICKED, "team-2", 100.0, false);
+    when(injectExpectationRepository.findAllByInjectId("inject-1"))
+        .thenReturn(List.of(recipient, teamClicked, otherMember, otherTeamClicked));
+
+    // -- ACT --
+    phishingTrackingService.markClicked("token-1", "1.2.3.4", "curl/8");
+
+    // -- ASSERT -- only the recipient's team is recomputed; team-2's rows see no write at all.
+    assertEquals(0.0, teamClicked.getScore(), "the recipient's team must be recomputed");
+    assertEquals(100.0, otherMember.getScore(), "another team's member is untouched");
+    assertEquals(100.0, otherTeamClicked.getScore(), "another team's row keeps its score");
+    verify(injectExpectationRepository, never()).save(otherMember);
+    verify(injectExpectationRepository, never()).save(otherTeamClicked);
+  }
+
+  @Test
   @DisplayName(
       "markSubmitted should capture credentials as a Credentials finding when capture is on")
   void markSubmitted_should_createCredentialsFinding() {
