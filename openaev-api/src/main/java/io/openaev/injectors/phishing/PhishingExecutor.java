@@ -13,6 +13,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.PhishingEmailTemplate;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
+import io.openaev.database.model.Team;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.execution.ExecutableInject;
@@ -30,6 +31,8 @@ import io.openaev.model.ExecutionProcess;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 
@@ -128,13 +131,22 @@ public class PhishingExecutor extends Injector {
             .toList();
     injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
 
+    // The execution context carries each recipient's team NAME (see InjectHelper), but
+    // phishing_result_team is an FK to teams.team_id. Map the name back to the real id from the
+    // inject's target teams; otherwise createResult would insert the name ("CEO") as the team id and
+    // fail the phishing_results_team_fk constraint. Duplicate names keep the first (any is correct).
+    Map<String, String> teamIdByName =
+        injection.getTeams().stream()
+            .collect(Collectors.toMap(Team::getName, Team::getId, (first, ignored) -> first));
+
     for (ExecutionContext userContext : users) {
       try {
         ProtectUser targetUser = userContext.getUser();
-        String teamId =
+        String teamName =
             userContext.getTeams() != null && !userContext.getTeams().isEmpty()
                 ? userContext.getTeams().getFirst()
                 : null;
+        String teamId = teamName != null ? teamIdByName.get(teamName) : null;
         PhishingResult result =
             phishingTrackingService.createResult(inject, landingPage, targetUser.getId(), teamId);
         // Victim-facing landing URL: e.g. https://security.acme.com/auth/<token> - benign path, no
