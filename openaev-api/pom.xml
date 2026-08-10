@@ -13,7 +13,7 @@
     <description>OpenAEV api</description>
 
     <properties>
-        <commons-collections4.version>4.5.0</commons-collections4.version>
+        <commons-collections4.version>4.6.0</commons-collections4.version>
         <commons-email.version>1.5</commons-email.version>
         <springdoc.version>2.8.16</springdoc.version>
         <springdoc-plugin.version>1.5</springdoc-plugin.version>
