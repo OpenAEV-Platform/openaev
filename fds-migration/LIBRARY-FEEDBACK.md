@@ -995,6 +995,57 @@ adopting this artifact will meet it.
 
 ---
 
+## 20. `Navbar` and `Header` ship no positioning, so every product re-invents it — and gets it wrong
+
+**Severity.** Medium — silent visual defect, escapes every unit test.
+
+**What happened.** Both shell components render in flow and leave positioning to
+the product. Pilot 1 gave the rail `position: sticky; top: bannerHeight;
+align-self: flex-start`, which reads as correct and passed review. It is not.
+A sticky element resolves against its containing block, and the app shell's
+height is the *fractional* document height. Measured on `/admin`:
+
+| | value |
+|---|---|
+| shell (containing block) height | `1677.59px` |
+| document height | `1678px` |
+| remainder | `0.41px` |
+| rail drift at maximum scroll | `-0.41px` |
+
+The rail slid up by exactly the remainder at the end of a long scroll. It was
+caught by a designer's eye, not by any test — the drift is sub-pixel and only
+appears at maximum scroll on a page whose height has a fractional part, which
+is to say on most pages, unpredictably.
+
+The Header dodged this only because the pilot happened to give it
+`position: fixed`. Same doctrine ("fixed = immobile to the pixel"), two
+components, and nothing in the library makes the correct choice the easy one.
+
+**Why this is the library's problem, not the product's.** The fix is not one
+line. `fixed` takes the rail out of flow, so the product must also hand-roll an
+in-flow spacer, match its width to the rail's two states, *and* replay the
+library's own width transition (`width 0.15s cubic-bezier(0.4, 0, 0.2, 1)`) or
+the content visibly lags the rail while it animates. That transition is an
+internal library value the product has to read out of the browser and hard-code
+— the day the library retimes it, every product desynchronises silently.
+
+**Suggested.** Own the positioning contract, since the doctrine is already the
+library's:
+
+1. Ship `position: fixed` as the default on both components, with an offset
+   prop for the banner (`offsetTop`).
+2. Ship the spacer as part of `Navbar` — it is the only component that knows
+   its own two widths and its own transition curve.
+3. Failing both, export `NAVBAR_WIDTH_OPEN`, `NAVBAR_WIDTH_COLLAPSED` and
+   `NAVBAR_WIDTH_TRANSITION` so the product stops hard-coding measured values.
+
+**Condition for removal (product side).** When the library positions the rail
+itself, delete the `position/top/left` override and the `navbar-spacer` element
+in `AppNavbar.tsx`, and delete `navbarConstants.ts`; the rail must still measure
+`0.00px` drift under `openaev-front/rail-drift` measurement.
+
+---
+
 ## Step 5b — computed-style diff against the documentation site
 
 Run at pin `c0d6f07`, docs site at the same SHA, product on the same machine,

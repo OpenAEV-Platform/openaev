@@ -7,6 +7,7 @@ import useAuth from '../../../../utils/hooks/useAuth';
 import { useFormatter } from '../../../i18n';
 import MadeByFiligran from './MadeByFiligran';
 import { hasHref, type NavMenuEntries, type NavMenuItem, type NavMenuItemWithHref, type NavMenuSubItem } from './nav-menu-model';
+import { NAV_COLLAPSED_WIDTH, NAV_OPEN_WIDTH, NAV_WIDTH_TRANSITION } from './navbarConstants';
 import { NavbarItemContent, NavbarSubmenuItemContent } from './NavbarRowContent';
 import useNavbarState from './useNavbarState';
 
@@ -105,44 +106,63 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
 
   const headerNode = headerElement?.(navOpen);
 
+  const railWidth = collapsed ? NAV_COLLAPSED_WIDTH : NAV_OPEN_WIDTH;
+
   return (
-    <Navbar
-      aria-label={t('Main navigation')}
-      className="app-navbar"
-      collapsed={collapsed}
-      onCollapsedChange={toggleNav}
-      header={header?.(navOpen)}
-      // The library always renders its collapse toggle last, below this slot.
-      // Only the Filigran wordmark is pinned to the bottom; every menu row,
-      // "Getting Started" included, scrolls with the list above.
-      footer={!isWhitemarkEnabled ? <MadeByFiligran collapsed={collapsed} /> : undefined}
-      // The library's <nav> is laid out in flow inside the app shell (the
-      // legacy MUI Drawer was fixed-positioned): stick it to the viewport so
-      // long pages scroll under it exactly as before.
-      style={{
-        position: 'sticky',
-        top: bannerHeightNumber,
-        alignSelf: 'flex-start',
-        height: `calc(100dvh - ${2 * bannerHeightNumber}px)`,
-        flexShrink: 0,
-      }}
-    >
-      {headerNode && (
-        <>
-          {headerNode}
-          <NavbarSeparator />
-        </>
-      )}
-      {visibleEntries.map((items, index) => (
+    <>
+      {/* The rail is taken out of flow (see below), so a spacer holds its
+          place in the shell's flex row: without it every page slides left
+          and renders underneath the rail. It replays the library's own
+          width transition so content and rail animate as one. */}
+      <div
+        data-testid="navbar-spacer"
+        aria-hidden="true"
+        style={{
+          width: `${railWidth}px`,
+          flexShrink: 0,
+          transition: NAV_WIDTH_TRANSITION,
+        }}
+      />
+      <Navbar
+        aria-label={t('Main navigation')}
+        className="app-navbar"
+        collapsed={collapsed}
+        onCollapsedChange={toggleNav}
+        header={header?.(navOpen)}
+        // The library always renders its collapse toggle last, below this slot.
+        // Only the Filigran wordmark is pinned to the bottom; every menu row,
+        // "Getting Started" included, scrolls with the list above.
+        footer={!isWhitemarkEnabled ? <MadeByFiligran collapsed={collapsed} /> : undefined}
+        // Fixed, never sticky - the same doctrine the Header follows. `sticky`
+        // resolves against the app shell, whose height is the document's
+        // fractional height (measured: 1677.59px for a 1678px document), so at
+        // the end of a long scroll the rail was pushed off its own top by that
+        // 0.41px remainder and visibly drifted. Fixed positioning is resolved
+        // against the viewport, so no page length can move it.
+        style={{
+          position: 'fixed',
+          top: bannerHeightNumber,
+          left: 0,
+          height: `calc(100dvh - ${2 * bannerHeightNumber}px)`,
+        }}
+      >
+        {headerNode && (
+          <>
+            {headerNode}
+            <NavbarSeparator />
+          </>
+        )}
+        {visibleEntries.map((items, index) => (
         // Groups are positional, they carry no identity of their own; the rows
         // inside them are keyed by label.
         // eslint-disable-next-line react/no-array-index-key
-        <Fragment key={index}>
-          {index !== 0 && <NavbarSeparator />}
-          {items.map(renderItem)}
-        </Fragment>
-      ))}
-    </Navbar>
+          <Fragment key={index}>
+            {index !== 0 && <NavbarSeparator />}
+            {items.map(renderItem)}
+          </Fragment>
+        ))}
+      </Navbar>
+    </>
   );
 };
 

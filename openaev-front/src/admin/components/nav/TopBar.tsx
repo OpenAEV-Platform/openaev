@@ -6,6 +6,7 @@ import { type CSSProperties, type FunctionComponent, type MouseEvent as ReactMou
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 
 import { logout } from '../../../actions/Application';
+import { NAV_COLLAPSED_WIDTH, NAV_OPEN_WIDTH } from '../../../components/common/menu/navbar/navbarConstants';
 import { readNavOpen } from '../../../components/common/menu/navbar/useNavbarState';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
@@ -22,9 +23,11 @@ import isXtmOneAvailable from '../ariane/xtmOneAvailability';
 import BulkOperationsIndicator from './BulkOperationsIndicator';
 import TopBarNotifications from './TopBarNotifications';
 
-// Navigation widths, mirroring the design system Navbar's own w-45 / w-12.
-export const OPEN_BAR_WIDTH = 180;
-export const SMALL_BAR_WIDTH = 48;
+// Navigation widths. Re-exported from the navbar module so the rail, the
+// spacer that holds its place in the shell and this bar's left offset can
+// never drift apart.
+export const OPEN_BAR_WIDTH = NAV_OPEN_WIDTH;
+export const SMALL_BAR_WIDTH = NAV_COLLAPSED_WIDTH;
 
 /**
  * Top bar built on the design system `Header`: a fixed bar offset by the left
