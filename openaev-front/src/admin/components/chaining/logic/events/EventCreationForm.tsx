@@ -187,6 +187,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
             name="event_name"
             label={t('Name')}
             required
+            disabled={readOnly}
             variant="standard"
           />
 
@@ -195,6 +196,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
             label={t('Description')}
             multiline
             rows={3}
+            disabled={readOnly}
             variant="standard"
           />
 

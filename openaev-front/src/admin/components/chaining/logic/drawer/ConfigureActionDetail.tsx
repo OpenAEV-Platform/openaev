@@ -398,7 +398,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
             gap: 3,
           }}
         >
-          <TextFieldController name="inject_title" label={t('Title')} required />
+          <TextFieldController name="inject_title" label={t('Title')} required disabled={readOnly} />
 
           <ActionScopeChips
             isPayload={isPayload}
