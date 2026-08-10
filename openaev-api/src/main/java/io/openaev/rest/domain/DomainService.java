@@ -50,8 +50,9 @@ public class DomainService implements DependenciesManager {
     return fromIterable(domainRepository.findAll());
   }
 
-  public Optional<Domain> findOptionalById(final String domainId) {
-    return domainRepository.findById(domainId);
+  public Optional<Domain> findOptionalByIdAndTenantId(
+      final String domainId, final String tenantId) {
+    return domainRepository.findByIdAndTenantId(domainId, tenantId);
   }
 
   public Optional<Domain> findOptionalByName(final String name) {

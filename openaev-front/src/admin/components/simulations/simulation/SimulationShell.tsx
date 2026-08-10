@@ -65,7 +65,7 @@ const SimulationShell: FunctionComponent<{
         ['', t('Overview')],
         ['/scope', t('Scope')],
         ['/logic', t('Logic')],
-        ...(isAttackPathEnabled ? [['/attack-path', t('Attack path')] as [string, string]] : []),
+        ...(isAttackPathEnabled ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
         ['/execution', t('Execution')],
         ['/findings', t('Findings')],
         ['/statistics', t('Statistics')],
@@ -77,7 +77,7 @@ const SimulationShell: FunctionComponent<{
         ['/scope', t('Scope')],
         ['/logic', t('Logic')],
         ['/execution', t('Execution')],
-        ...(isAttackPathEnabled ? [['/attack-path', t('Attack path')] as [string, string]] : []),
+        ...(isAttackPathEnabled ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
         ['/findings', t('Findings')],
         ['/statistics', t('Statistics')],
       ];

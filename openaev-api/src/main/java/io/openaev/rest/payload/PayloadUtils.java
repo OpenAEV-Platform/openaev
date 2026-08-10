@@ -56,6 +56,41 @@ public class PayloadUtils {
           BaseInjectExpectation.EXPECTATION_TYPE.valueOf(expectationsNode.get(i).textValue());
     }
     payloadCreateInput.setExpectations(expectationTypes);
+
+    // Runtime fields present in exports that must survive a recreation: elevation controls
+    // privileged execution and the expected security platform map drives which collectors are
+    // pre-seeded for prevention/detection expectations.
+    if (payloadNode.has("payload_elevation_required")) {
+      payloadCreateInput.setElevationRequired(
+          payloadNode.get("payload_elevation_required").asBoolean(false));
+    }
+    JsonNode expectedPlatformsNode = payloadNode.get("payload_expected_security_platforms");
+    if (expectedPlatformsNode != null && expectedPlatformsNode.isObject()) {
+      Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+          expectedSecurityPlatforms = new HashMap<>();
+      expectedPlatformsNode
+          .fields()
+          .forEachRemaining(
+              entry -> {
+                if (entry.getValue() == null || !entry.getValue().isArray()) {
+                  return;
+                }
+                List<SecurityPlatform.SECURITY_PLATFORM_TYPE> platformTypes = new ArrayList<>();
+                entry
+                    .getValue()
+                    .forEach(
+                        value -> {
+                          if (value != null && value.isTextual()) {
+                            platformTypes.add(
+                                SecurityPlatform.SECURITY_PLATFORM_TYPE.valueOf(value.asText()));
+                          }
+                        });
+                expectedSecurityPlatforms.put(
+                    BaseInjectExpectation.EXPECTATION_TYPE.valueOf(entry.getKey()), platformTypes);
+              });
+      payloadCreateInput.setExpectedSecurityPlatforms(expectedSecurityPlatforms);
+    }
+
     if (payloadNode.has("payload_description")) {
       payloadCreateInput.setDescription(payloadNode.get("payload_description").textValue());
     }
@@ -87,6 +122,10 @@ public class PayloadUtils {
       argument.setKey(argumentNode.get("key").textValue());
       argument.setDefaultValue(argumentNode.get("default_value").textValue());
       argument.setDescription(argumentNode.get("description").textValue());
+      JsonNode separatorNode = argumentNode.get("separator");
+      if (separatorNode != null && !separatorNode.isNull()) {
+        argument.setSeparator(separatorNode.textValue());
+      }
       arguments.add(argument);
     }
     payloadCreateInput.setArguments(arguments);

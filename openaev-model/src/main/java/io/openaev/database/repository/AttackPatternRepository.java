@@ -20,6 +20,15 @@ public interface AttackPatternRepository
   @NotNull
   Optional<AttackPattern> findById(@NotNull String id);
 
+  /**
+   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does not apply to {@code
+   * findById} (filters never apply to primary-key loads), so callers resolving an id received from
+   * user input (e.g. import files) must use this method to avoid reading another tenant's attack
+   * pattern.
+   */
+  @NotNull
+  Optional<AttackPattern> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   List<AttackPattern> findAllByIdIn(List<String> ids);
 
   /**
