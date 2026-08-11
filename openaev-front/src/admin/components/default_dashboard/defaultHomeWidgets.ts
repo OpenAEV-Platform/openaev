@@ -206,8 +206,13 @@ export const buildHumanResponseProbeConfig = (timeRange: DefaultTimeRange): Widg
 /**
  * @param includeHumanResponse whether the "Human Response" gauge is mounted. It is
  *   only shown when human-driven expectations exist in range (see
- *   {@link buildHumanResponseProbeConfig}); when hidden, the three core gauges widen
- *   to fill the 12-column row (w=4) instead of leaving a gap.
+ *   {@link buildHumanResponseProbeConfig}). The gauge row is fully responsive: the
+ *   gauges always divide the 12-column row evenly, so three gauges are w=4 (no gap)
+ *   and four gauges are w=3 (Human Response on the SAME line). The caller MUST
+ *   remount the grid when this flag flips (see DefaultHomeDashboard) - react-grid-
+ *   layout keeps the internal layout of already-mounted children and ignores a
+ *   width change, so an in-place flip would leave the core gauges at their old
+ *   width and strand Human Response on a second row.
  */
 export const buildDefaultHomeWidgets = (
   timeRange: DefaultTimeRange,
@@ -215,10 +220,10 @@ export const buildDefaultHomeWidgets = (
   includeHumanResponse = false,
 ): Widget[] => {
   // -- EXPECTATION RESULTS --
-  // Resilience donuts across the 12-column row. The three core security-control
-  // gauges are always shown; "Human Response" (MANUAL/ARTICLE/CHALLENGE, e.g.
-  // phishing) is appended only when it has data, so an empty range doesn't surface
-  // a sample-only card. With it: four gauges at w=3; without it: three at w=4.
+  // Resilience donuts dividing the 12-column row evenly. The three core
+  // security-control gauges are always shown; "Human Response" (MANUAL/ARTICLE/
+  // CHALLENGE, e.g. phishing) is appended only when it has data. Three gauges fill
+  // the row at w=4; four fill it at w=3. No empty slot in either state.
   const gaugeDefs: {
     id: string;
     title: string;
@@ -247,7 +252,8 @@ export const buildDefaultHomeWidgets = (
       types: HUMAN_RESPONSE_EXPECTATION_TYPES,
     });
   }
-  const gaugeWidth = includeHumanResponse ? 3 : 4;
+  // Evenly divide the 12-column row: 3 gauges -> w=4, 4 gauges -> w=3.
+  const gaugeWidth = 12 / gaugeDefs.length;
   const gaugeWidgets = gaugeDefs.map((gauge, index) => widget(
     gauge.id,
     'resilience-gauge',

@@ -55,13 +55,11 @@ const DefaultHomeDashboard = () => {
   // "Human Response" is situational (manual/article/challenge expectations, e.g.
   // phishing), so - like the command center's human node - the gauge is mounted
   // only when there is data in range, never as a sample-only card. Probe the same
-  // config the gauge queries. Tri-state: null = probe in flight. The grid is NOT
-  // mounted until the probe resolves, because react-grid-layout only reads a
-  // child's data-grid when that child first mounts (existing keys keep their
-  // internal layout): flipping the gauge widths (w=4 -> w=3) under a live grid is
-  // silently ignored, and the late-mounted Human Response gauge then collides
-  // with the stale w=4 row and gets compacted onto a new line.
-  const [humanResponsePresent, setHumanResponsePresent] = useState<boolean | null>(null);
+  // config the gauge queries; default hidden so an empty range never flashes it.
+  // The gauge occupies a RESERVED 4th slot (see defaultHomeWidgets GAUGE_WIDTH):
+  // the three core gauges never move whether or not it is present, so it can arrive
+  // late (after this probe resolves) without reflowing them onto a second row.
+  const [humanResponsePresent, setHumanResponsePresent] = useState(false);
   useEffect(() => {
     let cancelled = false;
     limitWidgetQueries(() => adHocSeries(buildHumanResponseProbeConfig(timeRange)))
@@ -100,7 +98,7 @@ const DefaultHomeDashboard = () => {
   // context value and refetches all ~20 widgets (same rule as DefaultHomeResults).
   // `locale` is the stable signal that t's output actually changed, so a runtime
   // language switch still recomputes the titles (one refetch, but only then).
-  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t, humanResponsePresent === true), [timeRange, locale, humanResponsePresent]);
+  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t, humanResponsePresent), [timeRange, locale, humanResponsePresent]);
 
   const widgetById = useMemo(() => {
     const map = new Map<string, Widget>();
@@ -237,15 +235,13 @@ const DefaultHomeDashboard = () => {
         </Tooltip>
       </div>
       {/*
-        Mounted only once the Human Response probe has resolved, so the gauge row
-        mounts with its final geometry (3 gauges at w=4, or 4 gauges at w=3 on the
-        SAME line). The key remounts the grid if the flag later changes (time range
-        switch): react-grid-layout ignores data-grid updates on existing children,
-        so an in-place flip would strand the new gauge on a second row.
+        Remount the grid when the gauge count changes. react-grid-layout keeps the
+        internal layout of already-mounted children and ignores width changes, so
+        flipping 3 gauges (w=4) <-> 4 gauges (w=3) in place would leave the core
+        gauges at their old width and strand Human Response on a second row. A fresh
+        mount re-reads every gauge's width, so each state fills the row evenly.
       */}
-      {humanResponsePresent !== null && (
-        <CustomDashboardReactLayout key={`default-grid-hr-${humanResponsePresent}`} readOnly />
-      )}
+      <CustomDashboardReactLayout key={`default-grid-hr-${humanResponsePresent}`} readOnly />
     </CustomDashboardContext.Provider>
   );
 };
