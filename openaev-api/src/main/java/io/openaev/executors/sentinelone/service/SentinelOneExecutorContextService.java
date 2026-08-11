@@ -1,7 +1,5 @@
 package io.openaev.executors.sentinelone.service;
 
-import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
-import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
@@ -169,11 +167,8 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
               Matcher.quoteReplacement(implantLocation));
-      // Self-clean stale implant/payload dirs (>24h) at the start of every inject. This piggybacks
-      // on the inject's own SentinelOne script execution, so cleanup happens only on agents that
-      // actually run injects — replacing the periodic all-agents garbage collector that flooded the
-      // SentinelOne RSO API (18k+ pending tasks) and starved inject dispatch.
-      command = WINDOWS_CLEAN_PAYLOADS_COMMAND + ";" + command;
+      // Cleanup is done by SentinelOneGarbageCollectorService: inlining it here delays the implant
+      // start and pushes injects past their execution timeout.
       actionWindows.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
       actionWindows.setAgentExternalReference(agent.getExternalReference());
@@ -240,8 +235,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
-    // Self-clean stale implant/payload dirs (>24h) at the start of every inject (see Windows note).
-    command = UNIX_CLEAN_PAYLOADS_COMMAND + ";" + command;
+    // No inlined cleanup, see getWindowsActions.
     return Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8));
   }
 }
