@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -16,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
@@ -29,7 +31,9 @@ import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.helper.SupportedLanguage;
+import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
+import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.injectors.phishing.PhishingContract;
 import io.openaev.injectors.phishing.form.PhishingLandingPageBulkProcessingInput;
 import io.openaev.model.inject.form.Expectation;
@@ -45,6 +49,7 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -145,6 +150,93 @@ class PhishingLandingPageServiceTest {
     verify(attackPatternRepository)
         .findAllByExternalIdInIgnoreCaseAndTenantId(eq(List.of("T1566.002", "T1598.003")), any());
     assertEquals(List.of(spearphishingLink, phishingForInfo), result.getAttackPatterns());
+  }
+
+  @Test
+  @DisplayName(
+      "synchroniseInjectorContract declares a Credentials output when the page captures data")
+  void synchronise_should_declareCredentialsOutputWhenCapturing() throws Exception {
+    // -- ARRANGE --
+    // A capture-enabled page turns submitted data into a Credentials finding, so the synthesized
+    // contract must declare that output - otherwise getProviding() (and the Threat Arsenal drawer)
+    // report the action as producing nothing.
+    PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setId("lp-1");
+    landingPage.setName("Login page");
+    landingPage.setCaptureSubmittedData(true);
+    arrangeSynchroniseStubs();
+
+    ArgumentCaptor<Object> contractCaptor = ArgumentCaptor.forClass(Object.class);
+
+    // -- ACT --
+    phishingLandingPageService.synchroniseInjectorContract(landingPage);
+
+    // -- ASSERT --
+    verify(mapper).writeValueAsString(contractCaptor.capture());
+    Contract serialized = (Contract) contractCaptor.getValue();
+    List<ContractOutputType> declared =
+        serialized.getOutputs().stream()
+            .map(InjectorContractContentOutputElement::getType)
+            .toList();
+    assertEquals(List.of(ContractOutputType.Credentials), declared);
+    assertTrue(serialized.getOutputs().getFirst().isFindingCompatible());
+  }
+
+  @Test
+  @DisplayName("synchroniseInjectorContract declares no output when the page does not capture data")
+  void synchronise_should_declareNoOutputWhenNotCapturing() throws Exception {
+    // -- ARRANGE --
+    PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setId("lp-1");
+    landingPage.setName("Awareness only");
+    landingPage.setCaptureSubmittedData(false);
+    arrangeSynchroniseStubs();
+
+    ArgumentCaptor<Object> contractCaptor = ArgumentCaptor.forClass(Object.class);
+
+    // -- ACT --
+    phishingLandingPageService.synchroniseInjectorContract(landingPage);
+
+    // -- ASSERT --
+    verify(mapper).writeValueAsString(contractCaptor.capture());
+    Contract serialized = (Contract) contractCaptor.getValue();
+    assertTrue(serialized.getOutputs().isEmpty());
+  }
+
+  /**
+   * Common stubs for a successful {@link
+   * PhishingLandingPageService#synchroniseInjectorContract(PhishingLandingPage)} run: the phishing
+   * injector is registered, no contract exists yet, and the config / lookups / (mocked) mapper all
+   * resolve so the synthesized contract is built and captured.
+   */
+  private void arrangeSynchroniseStubs() throws Exception {
+    Injector injector = new Injector();
+    injector.setId("phishing-injector");
+    when(injectorRepository.findByTypeAndTenantId(eq(PhishingContract.TYPE), any()))
+        .thenReturn(Optional.of(injector));
+    when(injectorContractRepository.findById(any(InjectorContractId.class)))
+        .thenReturn(Optional.empty());
+    when(phishingContract.getConfig())
+        .thenReturn(
+            new ContractConfig(
+                PhishingContract.TYPE,
+                Map.of(SupportedLanguage.en, "Phishing"),
+                "#000000",
+                "#ffffff",
+                null));
+    when(emailTemplateRepository.findAll()).thenReturn(List.of());
+    when(expectationBuilderService.buildPreventionExpectation()).thenReturn(new Expectation());
+    when(expectationBuilderService.buildDetectionExpectation()).thenReturn(new Expectation());
+    when(expectationBuilderService.buildManualExpectation()).thenReturn(new Expectation());
+    when(domainService.upsertDomainEntities(any(), any())).thenReturn(Set.of());
+    when(organizationService.findOrCreateByName(any())).thenReturn(new Organization());
+    when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(any(), any()))
+        .thenReturn(List.of());
+    when(mapper.writeValueAsString(any())).thenReturn("{}");
+    when(mapper.readValue(anyString(), eq(ObjectNode.class)))
+        .thenReturn(JsonNodeFactory.instance.objectNode());
+    when(injectorContractRepository.save(any(InjectorContract.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
   }
 
   @Test

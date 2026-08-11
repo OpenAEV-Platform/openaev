@@ -15,23 +15,46 @@ import useResolvedAssetTarget from './useResolvedAssetTarget';
 // verdicts shown elsewhere answer "was it caught?", never "did it run at all?" — a technical failure
 // (timeout, access denied…) and a clean run that simply went undetected previously looked identical.
 // Resolves the same target + traces the live terminal view does (a second, independent fetch — this
-// badge and that view render independently of one another), and renders nothing once resolved without
-// any real traces (a seeded/demo snapshot has no live target to match).
-export const PayloadExecutionStatusBadge = ({ injectId, endpointName }: {
+// badge and that view render independently of one another).
+//
+// When that per-agent resolution comes back with no EXECUTION-action trace for the endpoint the panel
+// picked, it falls back to the graph-shipped inject-level status rather than rendering nothing: an
+// action whose traces do not link back to the resolved asset (or that recorded no EXECUTION-action
+// trace) otherwise showed a blank Execution cell even though it clearly ran. Absent that fallback
+// status too (a seeded/demo snapshot with no live inject), it keeps the historical empty render.
+export const PayloadExecutionStatusBadge = ({ injectId, endpointName, fallbackStatus }: {
   injectId: string;
   endpointName?: string;
+  fallbackStatus?: string;
 }) => {
-  const { target } = useResolvedAssetTarget(injectId, endpointName);
-  const { injectExecutionResult } = useFetchInjectExecutionResult(injectId, target);
+  const { t } = useFormatter();
+  const { target, loading: targetLoading } = useResolvedAssetTarget(injectId, endpointName);
+  const { injectExecutionResult, loading: resultLoading } = useFetchInjectExecutionResult(injectId, target);
   const allTraces = useMemo(
     () => Object.values(injectExecutionResult?.execution_traces ?? {}).flat(),
     [injectExecutionResult],
   );
   const agentStatus = useAgentStatus(allTraces);
-  if (allTraces.length === 0) {
+  if (allTraces.length > 0) {
+    return <TraceStatusChip status={agentStatus.statusName} />;
+  }
+  // Still settling: a resolved target whose result has not come back yet would flash the fallback for
+  // a frame before the real per-agent chip. Wait until the target and its result have both settled:
+  // `undefined` is "fetch not applied yet" (the hook settles an empty or failed fetch to `null`), and
+  // the fetch only ever fires for a target carrying an id and a type - the same precondition guards
+  // the wait, so a target the hook will never fetch cannot suppress the fallback forever.
+  const awaitingResult = !!target?.target_id && !!target.target_type && injectExecutionResult === undefined;
+  const resolving = targetLoading || resultLoading || awaitingResult;
+  if (resolving || !fallbackStatus) {
     return null;
   }
-  return <TraceStatusChip status={agentStatus.statusName} />;
+  return (
+    <ExecutionRanChip
+      status={fallbackStatus}
+      label={t(getInjectStatusLabel(fallbackStatus))}
+      tooltip={t(getInjectStatusTooltip(fallbackStatus))}
+    />
+  );
 };
 
 // Inject-level execution status for a network injector (NetExec, Nmap…) (issue 244): its own traces have
@@ -130,6 +153,12 @@ export const ExecutionRowStatusBadge = ({ simulationId, executionRef, endpointNa
     return null;
   }
   return detail.payloadId
-    ? <PayloadExecutionStatusBadge injectId={detail.injectId} endpointName={endpointName} />
+    ? (
+        <PayloadExecutionStatusBadge
+          injectId={detail.injectId}
+          endpointName={endpointName}
+          fallbackStatus={executionStatus}
+        />
+      )
     : <InjectorExecutionStatusBadge injectId={detail.injectId} />;
 };
