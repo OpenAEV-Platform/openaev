@@ -63,15 +63,29 @@ public class SecurityCoverageJob implements Job {
         // Set tenant context for downstream Hibernate filters and audit
         TenantContext.setCurrentTenant(tenantId);
         // send bundle
+        log.info(
+            "Bundle creating for Security coverage job id {} for tenant {}",
+            securityCoverageSendJob.getId(),
+            tenantId);
         Bundle resultBundle =
             securityCoverageService.createBundleFromSendJobs(List.of(securityCoverageSendJob));
+        log.info(
+            "Bundle {} created for Security coverage job id {} for tenant {}",
+            resultBundle.getId(),
+            securityCoverageSendJob.getId(),
+            tenantId);
         openCTIConnectorService.pushSecurityCoverageStixBundle(resultBundle, tenantId);
         successfulJobs.add(securityCoverageSendJob);
       } catch (Exception e) {
         // don't crash the job; getSimulation() can be null (that very case throws above)
         log.error(
-            "Could not create the STIX bundle for coverage of simulation {}",
+            "Could not create the STIX bundle for coverage {} of simulation {} and tenant {}",
+            securityCoverageSendJob.getId(),
             ofNullable(securityCoverageSendJob.getSimulation()).map(Exercise::getId).orElse("?"),
+            ofNullable(securityCoverageSendJob.getSimulation())
+                .map(Exercise::getTenant)
+                .map(Tenant::getId)
+                .orElse("?"),
             e);
       } finally {
         TenantContext.clearCurrentTenant();
