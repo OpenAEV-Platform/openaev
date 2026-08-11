@@ -252,7 +252,8 @@ public class TagApiCapabilityTest extends IntegrationTest {
       Tag tag = tagComposer.forTag(TagFixture.getTagWithText("DeleteMe")).persist().get();
 
       // -------- Act & Assert --------
-      mvc.perform(delete(TAG_URI + "/" + tag.getId()).accept(MediaType.APPLICATION_JSON).with(csrf()))
+      mvc.perform(
+              delete(TAG_URI + "/" + tag.getId()).accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().is2xxSuccessful());
     }
 
@@ -264,10 +265,9 @@ public class TagApiCapabilityTest extends IntegrationTest {
       Tag tag = tagComposer.forTag(TagFixture.getTagWithText("NoDelete")).persist().get();
 
       // -------- Act & Assert --------
-      mvc.perform(delete(TAG_URI + "/" + tag.getId()).accept(MediaType.APPLICATION_JSON).with(csrf()))
+      mvc.perform(
+              delete(TAG_URI + "/" + tag.getId()).accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isForbidden());
     }
   }
 }
-
-

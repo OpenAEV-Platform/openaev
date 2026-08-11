@@ -238,8 +238,7 @@ class AuditLoggerRoleTest extends IntegrationTest {
       assertThat(updateLog).contains("ACCESS_TAGS");
       assertThat(updateLog).contains("MANAGE_TAGS");
       assertThat(updateLog).contains("DELETE_TAGS");
-      assertThat(updateLog)
-          .doesNotContainPattern("\\\"role_capabilities\\\"\\s*:\\s*\\[\\s*\\d");
+      assertThat(updateLog).doesNotContainPattern("\\\"role_capabilities\\\"\\s*:\\s*\\[\\s*\\d");
     }
   }
 
