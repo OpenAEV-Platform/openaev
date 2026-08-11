@@ -23,6 +23,7 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.FindingTriage;
 import io.openaev.database.model.FindingTriageStatus;
+import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.FindingTriageHistoryRepository;
 import io.openaev.database.repository.FindingTriageRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -32,6 +33,8 @@ import io.openaev.utils.fixtures.composers.FindingComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -59,10 +62,12 @@ class FindingTriageApiTest extends IntegrationTest {
 
   @Resource protected ObjectMapper mapper;
   @Autowired private MockMvc mvc;
+  @Autowired private EntityManager entityManager;
   @Autowired private FindingComposer findingComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private FindingTriageRepository findingTriageRepository;
   @Autowired private FindingTriageHistoryRepository findingTriageHistoryRepository;
+  @Autowired private FindingRepository findingRepository;
 
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoSpyBean private AuditLogProperties auditLogProperties;
@@ -206,6 +211,44 @@ class FindingTriageApiTest extends IntegrationTest {
                               "FALSE_POSITIVE", "Re-review shows this is a false positive"))))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.finding_triage_status").value("FALSE_POSITIVE"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Last seen / Updated at split")
+  class ScannerVsHumanUpdate {
+
+    @Test
+    @DisplayName(
+        "Triaging a finding bumps finding_human_updated_at (\"Updated at\") but leaves"
+            + " finding_updated_at (\"Last seen\") untouched")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_FINDING_TRIAGE})
+    void given_finding_when_triaging_should_bumpHumanUpdateDateOnlyNotUpdateDate()
+        throws Exception {
+      Finding finding = createFinding(createInject());
+      // Force the pending INSERT to flush now: @UpdateTimestamp's real generated value is only
+      // written back to the entity at flush time, which the composer's persist() may defer -
+      // reading it too early would capture the field's construction-time placeholder instead.
+      entityManager.flush();
+      Instant updateDateBeforeTriage = finding.getUpdateDate();
+      assertThat(finding.getHumanUpdateDate()).isNull();
+
+      mvc.perform(
+              patch("/api/findings/{id}/triage", finding.getId())
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      mapper.writeValueAsString(
+                          triageBody(
+                              "CONFIRMED", "Confirmed after manual review of the evidence"))))
+          .andExpect(status().isOk());
+
+      // touchHumanUpdate is a native bulk update, invisible to the 1st-level cache - clear it so
+      // this re-fetch actually hits the DB instead of returning the stale in-memory `finding`.
+      entityManager.clear();
+      Finding persisted = findingRepository.findById(finding.getId()).orElseThrow();
+      assertThat(persisted.getHumanUpdateDate()).isNotNull();
+      assertThat(persisted.getUpdateDate()).isEqualTo(updateDateBeforeTriage);
     }
   }
 

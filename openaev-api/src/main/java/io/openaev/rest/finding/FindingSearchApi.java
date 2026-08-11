@@ -79,7 +79,8 @@ public class FindingSearchApi extends RestBehavior {
             searchPaginationInput,
             Finding.class);
     Map<String, FindingTriageStatus> triageStatusByFindingId = triageStatusByFindingId(page);
-    return page.map(finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
+    return page.map(
+        finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
   }
 
   @LogExecutionTime
@@ -118,7 +119,8 @@ public class FindingSearchApi extends RestBehavior {
             searchPaginationInput,
             Finding.class);
     Map<String, FindingTriageStatus> triageStatusByFindingId = triageStatusByFindingId(page);
-    return page.map(finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
+    return page.map(
+        finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
   }
 
   @LogExecutionTime
@@ -157,7 +159,8 @@ public class FindingSearchApi extends RestBehavior {
             searchPaginationInput,
             Finding.class);
     Map<String, FindingTriageStatus> triageStatusByFindingId = triageStatusByFindingId(page);
-    return page.map(finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
+    return page.map(
+        finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
   }
 
   @LogExecutionTime
@@ -196,7 +199,8 @@ public class FindingSearchApi extends RestBehavior {
             searchPaginationInput,
             Finding.class);
     Map<String, FindingTriageStatus> triageStatusByFindingId = triageStatusByFindingId(page);
-    return page.map(finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
+    return page.map(
+        finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
   }
 
   @LogExecutionTime
@@ -235,6 +239,7 @@ public class FindingSearchApi extends RestBehavior {
             searchPaginationInput,
             Finding.class);
     Map<String, FindingTriageStatus> triageStatusByFindingId = triageStatusByFindingId(page);
-    return page.map(finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
+    return page.map(
+        finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
   }
 }
