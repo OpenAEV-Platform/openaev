@@ -2,12 +2,7 @@ package io.openaev.database.model;
 
 import static java.util.Map.entry;
 
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -653,5 +648,9 @@ public enum Capability {
           "Dropping out-of-scope capabilities {} not allowed for scope {}", dropped, requiredScope);
     }
     return valid;
+  }
+
+  public boolean isCredentialCapability() {
+    return this == ACCESS_CREDENTIALS || this == MANAGE_CREDENTIALS || this == DELETE_CREDENTIALS;
   }
 }

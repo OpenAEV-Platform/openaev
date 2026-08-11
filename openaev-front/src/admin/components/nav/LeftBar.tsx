@@ -31,6 +31,7 @@ import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/l
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 import settingsEntries from './config/settings.config';
 import LeftBarHeader from './LeftBarHeader';
@@ -43,6 +44,8 @@ const LeftBar = () => {
   // tenant). Passing no headerElement in the single-tenant case keeps the menu
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+
   const entries: LeftMenuEntries[] = [
     {
       userRight: true,
@@ -117,12 +120,14 @@ const LeftBar = () => {
           label: 'Asset groups',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
-        {
-          path: `/admin/credentials`,
-          icon: () => (<KeyOutlined />),
-          label: 'Credentials',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CREDENTIALS),
-        },
+        ...isCredentialAssetEnabled
+          ? [{
+              path: `/admin/credentials`,
+              icon: () => (<KeyOutlined />),
+              label: 'Credentials',
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CREDENTIALS),
+            }]
+          : [],
       ],
     },
     {
