@@ -1887,6 +1887,7 @@
   "Invalid IP addresses": "잘못된 IP 주소",
   "Invalid MAC address": "잘못된 MAC 주소",
   "Invalid MAC addresses": "잘못된 MAC 주소",
+  "Invalid regular expression": "잘못된 정규 표현식",
   "Invalid URL": "잘못된 URL",
   "Invalid user or password": "잘못된 사용자 또는 비밀번호",
   "INVALID_USAGE": "잘못된 사용법",
