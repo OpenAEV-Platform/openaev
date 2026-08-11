@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.custom_domain.CustomDomainService;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.CustomDomain;
 import io.openaev.database.model.CustomDomain.CustomDomainStatus;
 import io.openaev.database.model.Endpoint;
@@ -41,6 +42,7 @@ import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.ContractDef;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractSelect;
+import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.injectors.phishing.PhishingContract;
 import io.openaev.injectors.phishing.form.PhishingLandingPageBulkProcessingInput;
 import io.openaev.model.inject.form.Expectation;
@@ -470,7 +472,32 @@ public class PhishingLandingPageService {
     // static built-in contract; the entity-level attackPatterns are resolved from these ids in
     // synchroniseInjectorContract (and the kill chain phases are derived from them).
     PHISHING_ATTACK_PATTERN_EXTERNAL_IDS.forEach(contract::addAttackPattern);
+
+    // A capture-enabled landing page turns submitted data into a Credentials finding
+    // (PhishingTrackingService.captureCredentials). Phishing is a native, payload-less injector, so
+    // this contract "outputs" declaration is the only place that finding type is machine-readable:
+    // it feeds InjectorContract.getProviding() (Threat Arsenal "Outputs" section, findings-based
+    // chaining, the injector_contract_providing filter). A page that does not capture declares no
+    // output, matching what is actually produced.
+    if (landingPage.isCaptureSubmittedData()) {
+      contract.addOutput(buildCredentialsOutput());
+    }
     return contract;
+  }
+
+  /**
+   * The single {@code Credentials} finding a credential-capture phishing page produces, shaped like
+   * a payload output element ({@code isFindingCompatible}) so the Threat Arsenal drawer renders it
+   * exactly like a scanner's parsed output.
+   */
+  private InjectorContractContentOutputElement buildCredentialsOutput() {
+    InjectorContractContentOutputElement credentials = new InjectorContractContentOutputElement();
+    credentials.setType(ContractOutputType.Credentials);
+    credentials.setField(PhishingTrackingService.CREDENTIALS_FIELD);
+    credentials.setLabels(new String[] {"Credentials"});
+    credentials.setMultiple(false);
+    credentials.setFindingCompatible(true);
+    return credentials;
   }
 
   /**
