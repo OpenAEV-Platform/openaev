@@ -340,6 +340,50 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName(
+        "Given a tenant role polluted with a platform-only capability, update should drop it"
+            + " instead of rejecting the payload")
+    void given_pollutedTenantRole_should_dropOutOfScopeCapabilityOnUpdate() throws Exception {
+      // -------- Arrange --------
+      Role role =
+          tenantRoleComposer
+              .forRole(
+                  TenantRoleFixture.getRole(
+                      "Polluted",
+                      Set.of(Capability.ACCESS_ASSETS, Capability.ACCESS_PLATFORM_SETTINGS)))
+              .persist()
+              .get();
+
+      RoleInput input =
+          RoleInput.builder()
+              .name("Healed")
+              .capabilities(
+                  Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_PLATFORM_SETTINGS))
+              .build();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  put(tenantUri("/api/tenants/{tenantId}/roles/") + role.getId())
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> caps = JsonPath.read(response, "$.role_capabilities");
+      assertFalse(
+          caps.contains(Capability.ACCESS_PLATFORM_SETTINGS.name()),
+          "the platform-only capability should have been dropped");
+      assertTrue(caps.contains(Capability.MANAGE_TENANT_SETTINGS.name()));
+    }
+
+    @Test
     @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
     @DisplayName("Given ACCESS_TENANT_SETTINGS only, should be forbidden to update")
     void given_accessTenantSettings_should_forbidUpdate() throws Exception {

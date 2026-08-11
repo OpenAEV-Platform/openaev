@@ -10,7 +10,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public enum Capability {
 
   // Superuser
@@ -537,28 +539,52 @@ public enum Capability {
     return result;
   }
 
-  public static void validateForPlatformRole(Set<Capability> capabilities) {
-    validateScope(capabilities, CapabilityScope.PLATFORM);
-  }
+  // -- GET --
 
-  public static void validateForTenantRole(Set<Capability> capabilities) {
-    validateScope(capabilities, CapabilityScope.TENANT);
-  }
-
-  /** Returns all capabilities that include the PLATFORM scope (excluding BYPASS itself). */
+  /**
+   * Returns every capability whose scopes include PLATFORM, {@code BYPASS} excluded - being valid in
+   * both scopes, it belongs to no single one. Hidden and deprecated capabilities are included, so
+   * the result describes the scope, not what a UI should offer.
+   */
   public static Set<Capability> allPlatformScoped() {
     return Arrays.stream(values())
         .filter(c -> c != BYPASS && c.scopes.contains(CapabilityScope.PLATFORM))
         .collect(Collectors.toUnmodifiableSet());
   }
 
-  /** Returns all capabilities that include the TENANT scope (excluding BYPASS itself). */
+  /**
+   * Returns every capability whose scopes include TENANT, {@code BYPASS} excluded - being valid in
+   * both scopes, it belongs to no single one. Hidden and deprecated capabilities are included, so
+   * the result describes the scope, not what a UI should offer.
+   */
   public static Set<Capability> allTenantScoped() {
     return Arrays.stream(values())
         .filter(c -> c != BYPASS && c.scopes.contains(CapabilityScope.TENANT))
         .collect(Collectors.toUnmodifiableSet());
   }
 
+  // -- VALIDATE --
+
+  /**
+   * Throws {@link IllegalArgumentException} naming every capability that is not valid in the PLATFORM
+   * scope, and returns silently when they all are. Nothing is modified or logged.
+   */
+  public static void validateForPlatformRole(Set<Capability> capabilities) {
+    validateScope(capabilities, CapabilityScope.PLATFORM);
+  }
+
+  /**
+   * Throws {@link IllegalArgumentException} naming every capability that is not valid in the TENANT
+   * scope, and returns silently when they all are. Nothing is modified or logged.
+   */
+  public static void validateForTenantRole(Set<Capability> capabilities) {
+    validateScope(capabilities, CapabilityScope.TENANT);
+  }
+
+  /**
+   * Fail-closed scope check: collects every capability missing {@code requiredScope} and throws them
+   * all in a single message, so a caller sees the complete set of offenders rather than the first one.
+   */
   private static void validateScope(Set<Capability> capabilities, CapabilityScope requiredScope) {
     Set<Capability> invalid =
         capabilities.stream()
@@ -568,5 +594,48 @@ public enum Capability {
       throw new IllegalArgumentException(
           "Capabilities " + invalid + " are not allowed for scope " + requiredScope);
     }
+  }
+
+  // -- FILTER --
+
+  /**
+   * Returns a new set holding only the capabilities that include the PLATFORM scope; the others are
+   * dropped and reported in a single warning. The given set is left untouched and nothing is
+   * thrown, however many capabilities are dropped - an all-out-of-scope input yields an empty set.
+   */
+  public static Set<Capability> filterForPlatformRole(Set<Capability> capabilities) {
+    return filterScope(capabilities, CapabilityScope.PLATFORM);
+  }
+
+  /**
+   * Returns a new set holding only the capabilities that include the TENANT scope; the others are
+   * dropped and reported in a single warning. The given set is left untouched and nothing is
+   * thrown, however many capabilities are dropped - an all-out-of-scope input yields an empty set.
+   */
+  public static Set<Capability> filterForTenantRole(Set<Capability> capabilities) {
+    return filterScope(capabilities, CapabilityScope.TENANT);
+  }
+
+  /**
+   * Fail-open counterpart of {@link #validateScope}: splits the capabilities on {@code requiredScope},
+   * returns the valid ones in a new mutable set and warns once about those dropped. Never throws, so
+   * the caller must treat the returned set - possibly empty - as the authoritative one.
+   */
+  private static Set<Capability> filterScope(
+      Set<Capability> capabilities, CapabilityScope requiredScope) {
+    Set<Capability> valid = new HashSet<>();
+    Set<Capability> dropped = new HashSet<>();
+    for (Capability capability : capabilities) {
+      if (capability.scopes.contains(requiredScope)) {
+        valid.add(capability);
+      } else {
+        dropped.add(capability);
+      }
+    }
+    if (!dropped.isEmpty()) {
+      log.warn(
+          "Dropping out-of-scope capabilities {} not allowed for scope {}", dropped, requiredScope);
+    }
+    return valid;
   }
 }
