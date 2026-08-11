@@ -9,8 +9,8 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 const TaxonomiesMenuComponent: FunctionComponent = () => {
   const ability = useContext(AbilityContext);
   const canAccessTenantSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
-  const canAccessTags =
-    ability.can(ACTIONS.ACCESS, SUBJECTS.TAGS);
+  const canAccessTags
+    = ability.can(ACTIONS.ACCESS, SUBJECTS.TAGS);
 
   const entries: RightMenuEntry[] = [
     ...(canAccessTags

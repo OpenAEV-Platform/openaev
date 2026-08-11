@@ -231,7 +231,10 @@ public class PresetTenantData {
               Capability.DELETE_LESSONS_LEARNED,
               Capability.ACCESS_SECURITY_PLATFORMS,
               Capability.DELETE_SECURITY_PLATFORMS,
-              Capability.MANAGE_SECURITY_PLATFORMS),
+              Capability.MANAGE_SECURITY_PLATFORMS,
+              Capability.ACCESS_TAGS,
+              Capability.MANAGE_TAGS,
+              Capability.DELETE_TAGS),
           ADMIN,
           Set.of(Capability.BYPASS));
 }

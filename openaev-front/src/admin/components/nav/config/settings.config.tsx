@@ -39,7 +39,7 @@ export const SETTINGS_ACCESS_CHECKS: {
   {
     action: ACTIONS.ACCESS,
     subject: SUBJECTS.TAGS,
-  }
+  },
 ];
 
 const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
@@ -48,9 +48,9 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
   const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
   const canAccessLessonsLearned = ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED);
-  const canAccessTags =
-    ability.can(ACTIONS.ACCESS, SUBJECTS.TAGS)
-    || ability.can(ACTIONS.MANAGE, SUBJECTS.TAGS);
+  const canAccessTags
+    = ability.can(ACTIONS.ACCESS, SUBJECTS.TAGS)
+      || ability.can(ACTIONS.MANAGE, SUBJECTS.TAGS);
 
   const subItems = [
     {

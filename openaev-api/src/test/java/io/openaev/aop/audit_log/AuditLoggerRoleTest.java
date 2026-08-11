@@ -185,6 +185,62 @@ class AuditLoggerRoleTest extends IntegrationTest {
       assertThat(secondUpdateLog).doesNotContainPattern("\\\"old_value\\\"\\s*:\\s*\\[\\s*\\d");
       assertThat(secondUpdateLog).doesNotContainPattern("\\\"new_value\\\"\\s*:\\s*\\[\\s*\\d");
     }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName("Given role capability assignment, should audit tags capabilities update")
+    void given_roleCapabilityAssignment_should_logTagsCapabilitiesInAuditLog() throws Exception {
+      // -- ARRANGE --
+      String roleName = "audit-tags-role-" + UUID.randomUUID();
+      RoleInput createInput =
+          RoleInput.builder()
+              .name(roleName)
+              .description("role for tags capability audit test")
+              .capabilities(Set.of(Capability.ACCESS_ASSESSMENT))
+              .build();
+
+      String createResponse =
+          mvc.perform(
+                  post(ROLE_URI)
+                      .content(asJsonString(createInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String roleId = JsonPath.read(createResponse, "$.role_id");
+      RoleInput assignTagsCapabilitiesInput =
+          RoleInput.builder()
+              .name(roleName)
+              .description("role for tags capability audit test")
+              .capabilities(
+                  Set.of(Capability.ACCESS_TAGS, Capability.MANAGE_TAGS, Capability.DELETE_TAGS))
+              .build();
+
+      // -- ACT --
+      long updateSizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
+      mvc.perform(
+              put(ROLE_URI + "/" + roleId)
+                  .content(asJsonString(assignTagsCapabilitiesInput))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      String updateLog = readNewAuditLogContent(updateSizeBefore);
+      assertThat(updateLog).contains("\"event_scope\" : \"update\"");
+      assertThat(updateLog).contains("\"event_access\" : \"administration\"");
+      assertThat(updateLog).contains("\"role_capabilities\"");
+      assertThat(updateLog).contains("ACCESS_TAGS");
+      assertThat(updateLog).contains("MANAGE_TAGS");
+      assertThat(updateLog).contains("DELETE_TAGS");
+      assertThat(updateLog)
+          .doesNotContainPattern("\\\"role_capabilities\\\"\\s*:\\s*\\[\\s*\\d");
+    }
   }
 
   private String extractInputCapabilitiesBlock(String logEntry) {
