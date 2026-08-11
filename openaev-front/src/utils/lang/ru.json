@@ -1887,6 +1887,7 @@
   "Invalid IP addresses": "Недействительные IP-адреса",
   "Invalid MAC address": "Неверный MAC-адрес",
   "Invalid MAC addresses": "Неверные MAC-адреса",
+  "Invalid regular expression": "Неверное регулярное выражение",
   "Invalid URL": "Неверный URL",
   "Invalid user or password": "Неверный пользователь или пароль",
   "INVALID_USAGE": "Неверное использование",

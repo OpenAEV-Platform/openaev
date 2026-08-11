@@ -16,10 +16,12 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.rest.challenge.form.ChallengeTryInput;
+import io.openaev.rest.challenge.form.FlagInput;
 import io.openaev.rest.challenge.response.ChallengeInformation;
 import io.openaev.rest.challenge.response.ChallengeResult;
 import io.openaev.rest.challenge.response.SimulationChallengesReader;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.service.challenge.ChallengeAttemptService;
 import jakarta.annotation.Resource;
@@ -27,11 +29,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChallengeService {
@@ -83,6 +88,25 @@ public class ChallengeService {
 
   public Iterable<Challenge> getInjectsChallenges(@NotNull final List<Inject> injects) {
     return resolveChallenges(injects).toList();
+  }
+
+  /**
+   * Validate that every REGEXP flag holds a compilable regular expression.
+   *
+   * @param flags the flag inputs submitted at challenge creation or update
+   * @throws InputValidationException when a REGEXP flag value is not a valid pattern
+   */
+  public void validateFlags(List<FlagInput> flags) throws InputValidationException {
+    for (FlagInput flag : flags) {
+      if (ChallengeFlag.FLAG_TYPE.REGEXP.name().equals(flag.getType())) {
+        try {
+          Pattern.compile(flag.getValue());
+        } catch (PatternSyntaxException e) {
+          throw new InputValidationException(
+              "challenge_flags", "Invalid regular expression: " + flag.getValue());
+        }
+      }
+    }
   }
 
   public ChallengeResult tryChallenge(String challengeId, ChallengeTryInput input) {
@@ -265,7 +289,13 @@ public class ChallengeService {
         return value.equals(flag.getValue());
       }
       case REGEXP -> {
-        return Pattern.compile(flag.getValue()).matcher(value).matches();
+        try {
+          return Pattern.compile(flag.getValue()).matcher(value).matches();
+        } catch (PatternSyntaxException e) {
+          // Defensive: a bad pattern stored before validation existed must not break answering
+          log.warn("Ignoring invalid REGEXP challenge flag pattern: {}", flag.getValue());
+          return false;
+        }
       }
       default -> {
         return false;

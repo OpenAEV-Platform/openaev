@@ -1887,6 +1887,7 @@
   "Invalid IP addresses": "无效IP地址",
   "Invalid MAC address": "Mac地址不正确",
   "Invalid MAC addresses": "无效MAC地址",
+  "Invalid regular expression": "无效的正则表达式",
   "Invalid URL": "无效 URL",
   "Invalid user or password": "用户名或密码错误",
   "INVALID_USAGE": "无效使用",
