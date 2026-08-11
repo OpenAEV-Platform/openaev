@@ -181,12 +181,26 @@ public class Finding implements TenantBase {
   @NotNull
   private Instant creationDate = now();
 
+  // "Last seen": bumped only by the scanner/ingestion path (re-detection upsert, agent
+  // reporting) - see FindingRepository#upsertFinding. Deliberately NOT touched by human actions
+  // (triage, comments) anymore: those instead update humanUpdateDate below, via a native bulk
+  // update that bypasses this column's @UpdateTimestamp, so the two signals stay independent.
   @Queryable(filterable = true, sortable = true, label = "updated at")
   @UpdateTimestamp
   @Column(name = "finding_updated_at", nullable = false)
   @JsonProperty("finding_updated_at")
   @NotNull
   private Instant updateDate = now();
+
+  // Last time a user acted on this finding (triage status change, comment added/edited/deleted -
+  // see FindingTriageService/FindingCommentService). Kept separate from updateDate/"Last seen"
+  // (scanner detection) so the "Updated at" filter can surface human activity only. Set via
+  // FindingRepository#touchHumanUpdate (native update, not a managed-entity save), so it never
+  // triggers updateDate's @UpdateTimestamp. Nullable: many findings never receive a human action.
+  @Queryable(filterable = true, sortable = true, label = "human updated at")
+  @Column(name = "finding_human_updated_at")
+  @JsonProperty("finding_human_updated_at")
+  private Instant humanUpdateDate;
 
   // Relation
   @Schema(implementation = String[].class)

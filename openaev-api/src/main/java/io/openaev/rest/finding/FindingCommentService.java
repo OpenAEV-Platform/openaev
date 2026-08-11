@@ -75,13 +75,11 @@ public class FindingCommentService {
             () -> new ElementNotFoundException("Finding comment not found with id: " + id));
   }
 
-  // Comments live in their own table (finding_comment), so Hibernate's @UpdateTimestamp on
-  // Finding#updateDate never fires from a comment save/delete - explicitly touch the parent
-  // Finding so "finding_updated_at" (sortable/filterable in the findings list) reflects comment
-  // activity too.
+  // A comment (add/edit/delete) is a human action: bump humanUpdateDate ("Updated at" filter) via
+  // a native bulk update, not updateDate ("Last seen", reserved for scanner detection - see
+  // Finding#updateDate).
   private void touchFinding(Finding finding) {
-    finding.setUpdateDate(Instant.now());
-    findingRepository.save(finding);
+    findingRepository.touchHumanUpdate(finding.getId(), TenantContext.getCurrentTenant());
   }
 
   private void requireOwnComment(FindingComment comment) {

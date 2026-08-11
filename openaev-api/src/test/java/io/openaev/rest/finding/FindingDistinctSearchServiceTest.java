@@ -109,7 +109,8 @@ class FindingDistinctSearchServiceTest {
       // Assert - the map passed to the mapper reflects finding-1 as CONFIRMED, finding-2 defaults
       // (mapper itself is responsible for the UNTRIAGED default on missing keys, tested in
       // FindingMapperTest; here we only assert the map content built by the service).
-      verify(findingTriageRepository, times(1)).findByFinding_IdIn(List.of("finding-1", "finding-2"));
+      verify(findingTriageRepository, times(1))
+          .findByFinding_IdIn(List.of("finding-1", "finding-2"));
     }
   }
 }

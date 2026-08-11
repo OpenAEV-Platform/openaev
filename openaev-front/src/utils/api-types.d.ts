@@ -199,6 +199,11 @@ export interface AggregatedFindingOutput {
    */
   finding_created_at: string;
   /**
+   * Last time a user acted on this finding (triage status change, comment), null if no human action has ever been recorded
+   * @format date-time
+   */
+  finding_human_updated_at?: string;
+  /**
    * Finding Id
    * @minLength 1
    */
@@ -5372,6 +5377,8 @@ export interface Finding {
   finding_created_at: string;
   /** @minLength 1 */
   finding_field: string;
+  /** @format date-time */
+  finding_human_updated_at?: string;
   /** @minLength 1 */
   finding_id: string;
   finding_inject_id?: string;
@@ -9631,6 +9638,11 @@ export interface RelatedFindingOutput {
    * @format date-time
    */
   finding_created_at: string;
+  /**
+   * Last time a user acted on this finding (triage status change, comment), null if no human action has ever been recorded
+   * @format date-time
+   */
+  finding_human_updated_at?: string;
   /**
    * Finding Id
    * @minLength 1

@@ -9,10 +9,10 @@ import org.junit.jupiter.api.Test;
  * Regression test for the {@link Finding} <-> {@link FindingTriage} bidirectional 1:1 relation:
  * both entities use Lombok {@code @Data}, which by default generates {@code toString()}/{@code
  * equals()}/{@code hashCode()} over every field, including the back-reference on each side. Left
- * unexcluded, calling any of these three methods on a {@code Finding} that has an associated
- * {@code FindingTriage} (or vice versa) recurses infinitely and throws a {@link
- * StackOverflowError}. {@code Finding#triage} now carries {@code @EqualsAndHashCode.Exclude} /
- * {@code @ToString.Exclude} to break the cycle - see the field-level comment in {@link Finding}.
+ * unexcluded, calling any of these three methods on a {@code Finding} that has an associated {@code
+ * FindingTriage} (or vice versa) recurses infinitely and throws a {@link StackOverflowError}.
+ * {@code Finding#triage} now carries {@code @EqualsAndHashCode.Exclude} / {@code @ToString.Exclude}
+ * to break the cycle - see the field-level comment in {@link Finding}.
  */
 class FindingTriageRecursionTest {
 

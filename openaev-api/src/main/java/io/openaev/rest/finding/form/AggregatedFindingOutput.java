@@ -49,6 +49,13 @@ public class AggregatedFindingOutput {
   @NotNull
   private Instant updateDate;
 
+  @Schema(
+      description =
+          "Last time a user acted on this finding (triage status change, comment), null if no"
+              + " human action has ever been recorded")
+  @JsonProperty("finding_human_updated_at")
+  private Instant humanUpdateDate;
+
   @Schema(description = "Assets linked to the finding (any asset type, not only endpoints)")
   @JsonProperty("finding_assets")
   @NotNull

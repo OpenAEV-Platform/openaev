@@ -21,14 +21,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * Unit tests for {@link FindingMapper}, focused on the {@code finding_triage_status} field
- * introduced on {@link AggregatedFindingOutput}/{@link RelatedFindingOutput}. The mapper itself
- * has no dependency on {@code FindingTriageRepository} (bulk fetch is the caller's
- * responsibility), so these tests only assert the merge logic against a pre-built map.
+ * introduced on {@link AggregatedFindingOutput}/{@link RelatedFindingOutput}. The mapper itself has
+ * no dependency on {@code FindingTriageRepository} (bulk fetch is the caller's responsibility), so
+ * these tests only assert the merge logic against a pre-built map.
  *
  * <p>Kept in a separate file from {@link FindingMapperTest} (which covers {@code finding_source}
  * with real integration-test persistence via composers): the two suites use incompatible test
- * styles (pure Mockito unit test here vs. a Spring {@code IntegrationTest} there) and can't share
- * a single test class.
+ * styles (pure Mockito unit test here vs. a Spring {@code IntegrationTest} there) and can't share a
+ * single test class.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("FindingMapper — finding_triage_status")

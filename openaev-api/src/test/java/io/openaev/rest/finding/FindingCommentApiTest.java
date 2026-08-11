@@ -30,6 +30,7 @@ import io.openaev.database.model.FindingComment;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.FindingCommentRepository;
+import io.openaev.database.repository.FindingRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.LogService;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -40,6 +41,7 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -71,6 +73,7 @@ class FindingCommentApiTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private FindingCommentRepository findingCommentRepository;
+  @Autowired private FindingRepository findingRepository;
   @Autowired private EntityManager entityManager;
 
   @MockitoSpyBean private AuditLogger auditLogger;
@@ -143,6 +146,37 @@ class FindingCommentApiTest extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(body)))
         .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName(
+      "Adding a comment bumps finding_human_updated_at (\"Updated at\") but leaves"
+          + " finding_updated_at (\"Last seen\") untouched")
+  @WithMockUser(withCapabilities = {Capability.MANAGE_FINDINGS})
+  void given_finding_when_addingComment_should_bumpHumanUpdateDateOnlyNotUpdateDate()
+      throws Exception {
+    Finding finding = createFinding();
+    // Force the pending INSERT to flush now: @UpdateTimestamp's real generated value is only
+    // written back to the entity at flush time, which the composer's persist() may defer -
+    // reading it too early would capture the field's construction-time placeholder instead.
+    entityManager.flush();
+    Instant updateDateBeforeComment = finding.getUpdateDate();
+    assertThat(finding.getHumanUpdateDate()).isNull();
+    JsonNode body = instance.objectNode().put("finding_comment_content", "hello finding");
+
+    mvc.perform(
+            post("/api/findings/{id}/comments", finding.getId())
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(body)))
+        .andExpect(status().isOk());
+
+    // touchHumanUpdate is a native bulk update, invisible to the 1st-level cache - clear it so
+    // this re-fetch actually hits the DB instead of returning the stale in-memory `finding`.
+    entityManager.clear();
+    Finding persisted = findingRepository.findById(finding.getId()).orElseThrow();
+    assertThat(persisted.getHumanUpdateDate()).isNotNull();
+    assertThat(persisted.getUpdateDate()).isEqualTo(updateDateBeforeComment);
   }
 
   @Test

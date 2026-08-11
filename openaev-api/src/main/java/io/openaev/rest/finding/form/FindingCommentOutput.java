@@ -8,8 +8,8 @@ import lombok.Getter;
 
 /**
  * Read-facing view of a {@link FindingComment}: same field set as the entity, but resolves {@code
- * author} to a display name instead of leaking the JPA entity (and its lazy associations)
- * straight through the controller. Mirrors the {@code user_*} naming convention used by {@code
+ * author} to a display name instead of leaking the JPA entity (and its lazy associations) straight
+ * through the controller. Mirrors the {@code user_*} naming convention used by {@code
  * PlayerOutput}.
  */
 @Builder

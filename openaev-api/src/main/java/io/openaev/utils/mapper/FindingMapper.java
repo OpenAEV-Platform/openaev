@@ -47,6 +47,7 @@ public class FindingMapper {
         .type(finding.getType())
         .creationDate(finding.getCreationDate())
         .updateDate(finding.getUpdateDate())
+        .humanUpdateDate(finding.getHumanUpdateDate())
         // Findings can attach to ANY asset type (agentless websites, AI targets, cloud/network
         // assets), so no instanceof Endpoint filtering here.
         .assets(
@@ -85,6 +86,7 @@ public class FindingMapper {
         .value(finding.getValue())
         .type(finding.getType())
         .updateDate(finding.getUpdateDate())
+        .humanUpdateDate(finding.getHumanUpdateDate())
         .assets(
             finding.getAssets().stream()
                 .map(asset -> endpointMapper.toEndpointSimple(asset))

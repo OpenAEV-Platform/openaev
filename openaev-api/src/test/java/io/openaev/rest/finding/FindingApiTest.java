@@ -1067,9 +1067,9 @@ class FindingApiTest extends IntegrationTest {
 
     /**
      * Bypasses {@link Finding#updateDate}'s {@code @UpdateTimestamp} generator (which would
-     * otherwise stamp "now" on every insert/update regardless of any value set on the entity) via
-     * a bulk JPQL update, then clears the persistence context so subsequent repository reads
-     * reflect the forced value rather than a stale in-memory one.
+     * otherwise stamp "now" on every insert/update regardless of any value set on the entity) via a
+     * bulk JPQL update, then clears the persistence context so subsequent repository reads reflect
+     * the forced value rather than a stale in-memory one.
      */
     private void forceUpdatedAt(String findingId, Instant instant) {
       entityManager
@@ -1145,7 +1145,8 @@ class FindingApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("distinctTypeValueWithFilter returns the single finding of a single-occurrence group")
+    @DisplayName(
+        "distinctTypeValueWithFilter returns the single finding of a single-occurrence group")
     void distinctTypeValueWithFilter_singleOccurrenceGroup() {
       Finding onlyFinding =
           findingComposer

@@ -121,4 +121,18 @@ public interface FindingRepository
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
   void insertFindingTags(@Param("findingId") String findingId, @Param("tagIds") String[] tagIds);
+
+  // Bumps humanUpdateDate ("Updated at" filter) for a triage/comment change without touching the
+  // managed Finding entity - a native bulk update bypasses Hibernate's @UpdateTimestamp on
+  // updateDate, so "Last seen" (scanner detection, see upsertFinding) stays untouched by human
+  // activity. Callers already resolve the finding via findByIdAndTenantId before invoking this
+  // method, but the tenant_id predicate is kept here too (native @Query bypasses @Filter
+  // tenantFilter, so this is required defense-in-depth, not just belt-and-suspenders).
+  @Modifying
+  @Query(
+      value =
+          "UPDATE findings SET finding_human_updated_at = now()"
+              + " WHERE finding_id = :findingId AND tenant_id = :tenantId",
+      nativeQuery = true)
+  void touchHumanUpdate(@Param("findingId") String findingId, @Param("tenantId") String tenantId);
 }
