@@ -6,6 +6,7 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.credentials.CredentialMapper;
 import io.openaev.api.credentials.form.*;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
@@ -37,6 +38,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
@@ -64,6 +66,12 @@ public class CredentialService {
   private final CredentialSecretReferenceRepository credentialSecretReferenceRepository;
   private final ManagerFactory managerFactory;
   private final UserService userService;
+  private final TenantScopedTransaction tenantTx;
+
+  @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
+  public long globalCount() {
+    return tenantTx.execute(TxCtx.allTenants(), credentialSecretReferenceRepository::globalCount);
+  }
 
   /**
    * Returns supported credential form contracts.

@@ -54,8 +54,8 @@ public class OpenTelemetryConfig {
   private final SettingRepository settingRepository;
   private final ThreadPoolTaskScheduler taskScheduler;
 
-  @Getter private final Duration collectInterval = Duration.ofMinutes(60);
-  @Getter private final Duration exportInterval = Duration.ofMinutes(6 * 60);
+  @Getter private final Duration collectInterval = Duration.ofMinutes(1);
+  @Getter private final Duration exportInterval = Duration.ofMinutes(2);
 
   private static final DateTimeFormatter CREATION_DATE_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.n]");
@@ -105,12 +105,13 @@ public class OpenTelemetryConfig {
 
   // -- PRIVATE --
   private String getOTELEndpoint() {
-    String endpoint = "https://telemetry.oaev.filigran.io/v1/metrics";
-    if (Arrays.asList(environment.getActiveProfiles()).contains("dev")
-        || Arrays.asList(environment.getActiveProfiles()).contains("ci")) {
-      endpoint = "https://telemetry.oaev.staging.filigran.io/v1/metrics";
-    }
-    return endpoint;
+    return "http://localhost:1024/v1/metrics";
+    //    String endpoint = "https://telemetry.oaev.filigran.io/v1/metrics";
+    //    if (Arrays.asList(environment.getActiveProfiles()).contains("dev")
+    //        || Arrays.asList(environment.getActiveProfiles()).contains("ci")) {
+    //      endpoint = "https://telemetry.oaev.staging.filigran.io/v1/metrics";
+    //    }
+    //    return endpoint;
   }
 
   private boolean isEndpointReachable(String url) {
