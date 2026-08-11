@@ -71,6 +71,13 @@ public class AttackPathNodeDTO {
   // front address this execution's live inject without first fetching its detail row.
   private String injectId;
   private String payloadId;
+  // EXECUTION: the payload's discriminator type (Command, Executable, ...) and, when the payload
+  // was shipped by a collector, that collector type's name (e.g. openaev_netexec,
+  // openaev_atomic_red_team). They drive the action's real catalog icon on the map: without them an
+  // agent-executed action can only fall back to the generic agent icon, since its injectorType is
+  // always the implant. Null for a network execution (no payload) or an unresolvable payload.
+  private String payloadType;
+  private String payloadCollectorType;
   // EXECUTION: whether the inject actually RAN (EXECUTED / ERROR / PENDING…), as opposed to whether
   // it was caught, which is what `status` above carries. Shipped with the graph so a list of
   // executions renders it on first paint; the front previously needed two sequential fetches per

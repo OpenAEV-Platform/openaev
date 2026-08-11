@@ -46,6 +46,7 @@ export type DrawerView = 'closed' | 'choose' | 'action' | 'actionDetail' | 'even
 interface ComponentStepperDrawerProps {
   workflowId: string | undefined;
   context: LogicContext;
+  readOnly?: boolean;
   scenarioId?: string;
   exerciseId?: string;
   validAssets: ScopeAssetOutput[];
@@ -140,6 +141,7 @@ const ChoiceCard = ({ icon: Icon, iconColor, circle, title, description, onClick
 const ComponentStepperDrawer = ({
   workflowId,
   context,
+  readOnly = false,
   scenarioId,
   exerciseId,
   validAssets,
@@ -164,6 +166,7 @@ const ComponentStepperDrawer = ({
   const isActionPath = drawerView === 'action' || drawerView === 'actionDetail';
   const isEventPath = drawerView === 'event';
   const isEditing = !!editingStep || !!editingEvent;
+  const isReadOnlyInspection = readOnly && isEditing;
 
   // Derive the pre-populated data when editing a step.
   const { editingStepId, editingInitialData, editingAction } = useMemo(() => {
@@ -362,11 +365,13 @@ const ComponentStepperDrawer = ({
   };
 
   const title = useMemo(() => {
+    if (isReadOnlyInspection && drawerView === 'event') return t('Event details');
+    if (isReadOnlyInspection && drawerView === 'actionDetail') return t('Action details');
     if (drawerView === 'event') return editingEvent ? t('Update trigger') : t('Add trigger');
     if (drawerView === 'actionDetail') return editingStep ? t('Configure action') : t('Configure action');
     if (drawerView === 'action') return t('Select an action');
     return t('Add component');
-  }, [drawerView, editingEvent, editingStep, t]);
+  }, [drawerView, editingEvent, editingStep, isReadOnlyInspection, t]);
 
   return (
     <Drawer
@@ -426,10 +431,12 @@ const ComponentStepperDrawer = ({
         {drawerView === 'actionDetail' && (
           <InjectTargetsProvider context={context} scenarioId={scenarioId} exerciseId={exerciseId} validTeams={validTeams}>
             <ConfigureActionDetail
+              workflowId={workflowId}
               action={activeAction}
               validAssets={validAssets}
               validTeams={validTeams}
               initialData={editingInitialData}
+              readOnly={isReadOnlyInspection}
               onClose={handleClose}
               onSave={handleSaveActionDetail}
             />
@@ -441,6 +448,7 @@ const ComponentStepperDrawer = ({
             onSubmit={handleSaveEvent}
             onCancel={handleClose}
             initialData={editingEvent?.meta.formData}
+            readOnly={isReadOnlyInspection}
             submitLabel={editingEvent ? t('Update trigger') : t('Add trigger')}
             defaultName={!editingEvent ? `Event ${eventCount + 1}` : undefined}
           />

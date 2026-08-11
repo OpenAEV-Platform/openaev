@@ -9,6 +9,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.rest.inject.service.ExecutableInjectService.formatMultilineCommand;
 import static io.openaev.rest.inject.service.ExecutableInjectService.replaceCmdVariables;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
@@ -229,11 +230,10 @@ class InjectApiTest extends IntegrationTest {
     // -- PREPARE --
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of(createdInject.getId()));
-    input.setSimulationOrScenarioId(SCENARIO.getId());
 
     // -- EXECUTE --
     mvc.perform(
-            delete(INJECT_URI)
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
@@ -257,6 +257,116 @@ class InjectApiTest extends IntegrationTest {
             .findAllByInjectAndTeam(createdInject.getId(), TEAM.getId())
             .isEmpty(),
         "There should be no expectations related to the inject in the database");
+  }
+
+  @DisplayName("Non-admin user with assessment capabilities can bulk-delete injects for scenario")
+  @Test
+  @WithMockUser(
+      withCapabilities = {
+        Capability.ACCESS_ASSESSMENT,
+        Capability.MANAGE_ASSESSMENT,
+        Capability.DELETE_ASSESSMENT
+      })
+  void deleteInjectsForScenarioAsNonAdminWithCapabilityTest() throws Exception {
+    // -- PREPARE --
+    Inject injectForScenario =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    injectForScenario.setScenario(SCENARIO);
+    Inject createdInject = injectRepository.save(injectForScenario);
+
+    assertTrue(
+        injectRepository.existsByIdWithoutLoading(createdInject.getId()),
+        "The inject should exist in the database");
+
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(createdInject.getId()));
+
+    // -- EXECUTE --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // -- ASSERT --
+    assertFalse(
+        injectRepository.existsById(createdInject.getId()),
+        "The inject should be deleted from the database");
+    assertTrue(
+        scenarioRepository.existsById(SCENARIO.getId()),
+        "The scenario should still exist in the database");
+  }
+
+  @DisplayName("Non-admin user without capabilities cannot bulk-delete injects for scenario")
+  @Test
+  @WithMockUser
+  void deleteInjectsForScenarioWithoutCapabilityIsForbiddenTest() throws Exception {
+    // -- PREPARE --
+    Inject injectForScenario =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    injectForScenario.setScenario(SCENARIO);
+    Inject createdInject = injectRepository.save(injectForScenario);
+
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(createdInject.getId()));
+
+    // -- EXECUTE --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isForbidden());
+
+    // -- ASSERT --
+    assertTrue(
+        injectRepository.existsByIdWithoutLoading(createdInject.getId()),
+        "The inject should still exist in the database");
+  }
+
+  @DisplayName("Bulk-delete with a nonexistent inject id returns not found")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void deleteInjectsForScenarioWithUnknownIdReturnsNotFoundTest() throws Exception {
+    // -- PREPARE --
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(UUID.randomUUID().toString()));
+
+    // -- EXECUTE + ASSERT --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isNotFound());
+  }
+
+  @DisplayName("Bulk-delete with mixed valid and invalid inject ids deletes nothing")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void deleteInjectsForScenarioWithMixedIdsIsAtomicTest() throws Exception {
+    // -- PREPARE --
+    Inject injectForScenario =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    injectForScenario.setScenario(SCENARIO);
+    Inject createdInject = injectRepository.save(injectForScenario);
+
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(createdInject.getId(), UUID.randomUUID().toString()));
+
+    // -- EXECUTE --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isNotFound());
+
+    // -- ASSERT --
+    assertTrue(
+        injectRepository.existsByIdWithoutLoading(createdInject.getId()),
+        "The valid inject should not be deleted when the request contains an invalid id");
   }
 
   // -- EXERCISES --
@@ -599,11 +709,10 @@ class InjectApiTest extends IntegrationTest {
     // -- PREPARE --
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of(createdInject1.getId(), createdInject2.getId()));
-    input.setSimulationOrScenarioId(EXERCISE.getId());
 
     // -- EXECUTE --
     mvc.perform(
-            delete(INJECT_URI)
+            delete(EXERCISE_URI + "/" + EXERCISE.getId() + "/injects")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))

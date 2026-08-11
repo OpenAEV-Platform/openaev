@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, expandPathSet, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, buildLocalActionExecIndex, displayIp, expandPathSet, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, LOCAL_ACTION_ID_PREFIX, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -295,13 +295,13 @@ describe('maskFindingValue', () => {
     expect(maskFindingValue('credentials', 'nosecrethere')).toBe('••••••••');
     expect(maskFindingValue('credentials', ':secretonly')).toBe('••••••••');
     expect(maskFindingValue('sid', 'S-1-5-21')).toBe('••••••••');
-    expect(maskFindingValue('password_policy', 'complex')).toBe('••••••••');
   });
 
   it('shows non-secret finding values as-is', () => {
     expect(maskFindingValue('cve', 'CVE-2023-1')).toBe('CVE-2023-1');
     expect(maskFindingValue('port', '443')).toBe('443');
     expect(maskFindingValue('username', 'bob')).toBe('bob');
+    expect(maskFindingValue('password_policy', 'complex')).toBe('complex');
   });
 
   it('displays a file as its basename, keeping the full path out of the label', () => {
@@ -914,6 +914,123 @@ describe('buildCausalChainFlow', () => {
     expect(causal[0].data?.causalKind).toBe('finding');
   });
 
+  it('centres the action column against the endpoints it fans out to (not piled at the top)', () => {
+    // 3 actions each executed against the SAME 4 endpoints (no dependsOn: a single depth). The action
+    // nodes must form an evenly spaced stack vertically centred on the endpoint column, instead of all
+    // being crammed into the first endpoint's block at the top (the original layout bug).
+    const injIds = ['inj-a', 'inj-b', 'inj-c'];
+    const epIds = ['ep-1', 'ep-2', 'ep-3', 'ep-4'];
+    const fanOut: AttackPathDTO = {
+      mode: 'full',
+      attackPathNodes: [
+        ...injIds.map(id => ({
+          id,
+          type: 'INJECTOR',
+          label: id,
+        })),
+        ...epIds.map(id => ({
+          id,
+          type: 'ASSET',
+          label: id,
+        })),
+      ],
+      attackPathExecutions: injIds.flatMap(inj => epIds.map(ep => ({
+        id: `x-${inj}-${ep}`,
+        type: 'EXECUTION',
+        ref: `exec-${inj}-${ep}`,
+        dependsOn: [],
+      }))),
+      attackPathEdges: injIds.flatMap(inj => epIds.map(ep => ({
+        type: 'EDGE_EXECUTIONS',
+        edgeSourceId: inj,
+        edgeTargetId: ep,
+        executionIds: [`exec-${inj}-${ep}`],
+      }))),
+    };
+    const { nodes } = buildCausalChainFlow(fanOut, tt);
+    const injYs = nodes.filter(n => injIds.includes(n.id)).map(n => n.position.y).sort((a, b) => a - b);
+    const epYs = nodes.filter(n => n.id.startsWith('chain-ep|0|')).map(n => n.position.y).sort((a, b) => a - b);
+    expect(injYs).toHaveLength(3);
+    expect(epYs).toHaveLength(4);
+    // Evenly spaced stack, no overlap.
+    expect(injYs[1] - injYs[0]).toBe(injYs[2] - injYs[1]);
+    expect(injYs[1] - injYs[0]).toBeGreaterThan(0);
+    // The stack's centroid sits in the middle of the endpoint span (strictly between the 2nd and 3rd
+    // endpoints), not at the top of the column.
+    const injMean = injYs.reduce((sum, y) => sum + y, 0) / injYs.length;
+    expect(injMean).toBeGreaterThan(epYs[1]);
+    expect(injMean).toBeLessThan(epYs[2]);
+  });
+
+  it('keeps an action aligned to its endpoint when it reaches only that one', () => {
+    // Two actions at the same depth with DISJOINT targets: inj-top hits only ep-1 (first block), inj-bot
+    // hits only ep-2 (second block). Each action must stay aligned to the block centre of ITS endpoint
+    // rather than being pulled into a common stack.
+    const disjoint: AttackPathDTO = {
+      mode: 'full',
+      attackPathNodes: [
+        {
+          id: 'inj-top',
+          type: 'INJECTOR',
+          label: 'Top',
+        },
+        {
+          id: 'inj-bot',
+          type: 'INJECTOR',
+          label: 'Bottom',
+        },
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'EP1',
+        },
+        {
+          id: 'ep-2',
+          type: 'ASSET',
+          label: 'EP2',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'x1',
+          type: 'EXECUTION',
+          ref: 'exec-top',
+          dependsOn: [],
+        },
+        {
+          id: 'x2',
+          type: 'EXECUTION',
+          ref: 'exec-bot',
+          dependsOn: [],
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-top',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-top'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-bot',
+          edgeTargetId: 'ep-2',
+          executionIds: ['exec-bot'],
+        },
+      ],
+    };
+    const { nodes } = buildCausalChainFlow(disjoint, tt);
+    const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+    // Node position.y is top-left; centres differ from ys by each node type's half height, a constant.
+    // Aligned-to-its-block means the DELTA between injector y and its endpoint y is the same for both
+    // pairs (each injector sits at its own endpoint's block centre).
+    const deltaTop = byId['inj-top'].position.y - byId['chain-ep|0|ep-1'].position.y;
+    const deltaBot = byId['inj-bot'].position.y - byId['chain-ep|0|ep-2'].position.y;
+    expect(deltaTop).toBe(deltaBot);
+    // And the two actions are in the same vertical order as their endpoints.
+    expect(byId['inj-top'].position.y).toBeLessThan(byId['inj-bot'].position.y);
+  });
+
   it('falls back to a dashed dependsOn edge when the consumed finding value is not produced', () => {
     // NetExec depends on nmap's step but consumes a key no produced finding matches.
     const noMatch: AttackPathDTO = {
@@ -1473,10 +1590,11 @@ describe('buildCausalChainFlow', () => {
     expect(edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE)).toHaveLength(0);
   });
 
-  it('promotes endpoint-local actions to their own action nodes when localActionsAsNodes is set (autonomous action timeline)', () => {
+  it('gives each agent-executed action on the same host its own action node (never groups distinct actions)', () => {
     // Arrange: two endpoint-local actions on the SAME host, chained (LSASS dump depends on the sweep).
-    // In a finding-centric BAS chain both collapse into the endpoint and the follow-up adds nothing new;
-    // an autonomous run must instead show BOTH as their own action nodes so the timeline never freezes.
+    // They used to collapse into ONE self-execution node keyed by the endpoint - the bug where a single
+    // card ("Credential Sweep") silently grouped an unrelated follow-up under its name and icon. Every
+    // agent-executed action must now be its OWN action node so the map never misleads.
     const localChain: AttackPathDTO = {
       mode: 'full',
       attackPathNodes: [
@@ -1526,20 +1644,10 @@ describe('buildCausalChainFlow', () => {
         },
       ],
     };
-    // Act: without the flag both local actions aggregate into ONE self-execution node keyed by the
-    // endpoint; with the flag each authored step becomes its own action node.
-    const aggregated = buildCausalChainFlow(localChain, tt);
-    const promoted = buildCausalChainFlow(localChain, tt, new Set(), new Map(), new Set(), true);
-    // Assert: the default displays the self-execution as a single action card anchored on the endpoint
-    // (labelled from the first execution's contract), pointing at the endpoint node.
-    const aggregatedActions = aggregated.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector);
-    expect(aggregatedActions.map(n => n.id)).toEqual(['ep-1']);
-    expect(aggregatedActions[0].data.label).toBe('Credential Sweep');
-    expect(aggregated.edges.find(e => e.source === 'ep-1' && e.target === 'chain-ep|0|ep-1')).toBeDefined();
-    const aggregatedIds = new Set(aggregated.nodes.map(n => n.id));
-    expect(aggregated.edges.every(e => aggregatedIds.has(e.source) && aggregatedIds.has(e.target))).toBe(true);
-    // With the flag: one action node per authored local step, labelled from its contract, and no self
-    // arrow (the action sits to the left of the endpoint and points at it).
+    // Act
+    const promoted = buildCausalChainFlow(localChain, tt);
+    // Assert: one action node per authored local step, labelled from its own contract, and no self
+    // arrow (each action sits to the left of the endpoint and points at it) - the two are never merged.
     const actionNodes = promoted.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector);
     expect(actionNodes.map(n => n.id).sort()).toEqual(['chain-local|step-lsass', 'chain-local|step-sweep']);
     expect(actionNodes.map(n => n.data.label).sort()).toEqual(['Credential Sweep', 'LSASS Dump']);
@@ -1547,6 +1655,157 @@ describe('buildCausalChainFlow', () => {
     // Every emitted edge still resolves to a placed node.
     const nodeIds = new Set(promoted.nodes.map(n => n.id));
     expect(promoted.edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
+
+    // ...and buildLocalActionExecIndex resolves each promoted action node back to the executions it ran
+    // (the fix for the empty injector panel): the synthetic `chain-local|...` id the panel clicks with
+    // maps to endpoint ref -> owned execution refs, so the action's executions are no longer lost.
+    const index = buildLocalActionExecIndex(localChain);
+    expect([...index.keys()].sort()).toEqual(['chain-local|step-lsass', 'chain-local|step-sweep']);
+    // Endpoint keyed by its ref (falls back to node id when no ref), each owning exactly its own exec.
+    expect([...(index.get('chain-local|step-sweep')?.entries() ?? [])]).toEqual([['ep-1', ['exec-sweep']]]);
+    expect([...(index.get('chain-local|step-lsass')?.entries() ?? [])]).toEqual([['ep-1', ['exec-lsass']]]);
+    // The synthetic ids the panel resolves are the very ids the layout assigned to the action nodes.
+    expect([...index.keys()].every(id => id.startsWith(LOCAL_ACTION_ID_PREFIX))).toBe(true);
+    expect(new Set(actionNodes.map(n => n.id))).toEqual(new Set(index.keys()));
+  });
+
+  it('buildLocalActionExecIndex omits real injector actions and human-in-the-loop sources', () => {
+    // A network inject (real injector node) reaches a host, alongside an agent-executed local action on
+    // the same host and a phishing send (team -> person). Only the agent action is promoted to a
+    // synthetic node the injector panel must resolve from the index; the injector resolves from the
+    // graph edges directly, and the phishing send must never become a phantom action.
+    const mixed: AttackPathDTO = {
+      mode: 'full',
+      attackPathNodes: [
+        {
+          id: 'NODE_INJECTOR|nmap',
+          type: 'INJECTOR',
+          label: 'nmap',
+        },
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'WIN-1',
+          ref: 'host-1',
+        },
+        {
+          id: 'team-1',
+          type: 'ASSET',
+          label: 'Marketing',
+          entityKind: 'TEAM',
+        },
+        {
+          id: 'person-1',
+          type: 'ASSET',
+          label: 'Alice',
+          entityKind: 'PERSON',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'x-nmap',
+          type: 'EXECUTION',
+          ref: 'exec-nmap',
+          stepTemplateId: 'step-nmap',
+        },
+        {
+          id: 'x-gpp',
+          type: 'EXECUTION',
+          ref: 'exec-gpp',
+          stepTemplateId: 'step-gpp',
+        },
+        {
+          id: 'x-phish',
+          type: 'EXECUTION',
+          ref: 'exec-phish',
+          stepTemplateId: 'step-phish',
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'NODE_INJECTOR|nmap',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-nmap'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'ep-1',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-gpp'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'team-1',
+          edgeTargetId: 'person-1',
+          executionIds: ['exec-phish'],
+        },
+      ],
+    };
+    const index = buildLocalActionExecIndex(mixed);
+    // Only the agent-executed local action is indexed, keyed by the endpoint's ref (not its node id).
+    expect([...index.keys()]).toEqual(['chain-local|step-gpp']);
+    expect([...(index.get('chain-local|step-gpp')?.entries() ?? [])]).toEqual([['host-1', ['exec-gpp']]]);
+  });
+
+  it('carries each promoted action node its payload collector logo metadata (real icon, not the generic agent bolt)', () => {
+    // Arrange: two DISTINCT agent payloads on one host - the exact GPP/Mimikatz shape from the report.
+    const iconChain: AttackPathDTO = {
+      mode: 'full',
+      attackPathNodes: [
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'WIN-1',
+          ip: '10.0.0.1',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'x-gpp',
+          type: 'EXECUTION',
+          ref: 'exec-gpp',
+          stepTemplateId: 'step-gpp',
+          payloadName: 'GPP Passwords (Get-GPPPassword)',
+          injectorType: 'openaev_agent',
+          payloadType: 'Command',
+          payloadCollectorType: 'openaev_atomic_red_team',
+          dependsOn: [],
+        },
+        {
+          id: 'x-mimikatz',
+          type: 'EXECUTION',
+          ref: 'exec-mimikatz',
+          stepTemplateId: 'step-mimikatz',
+          payloadName: 'In-Memory Mimikatz - LSASS Credential Dump',
+          injectorType: 'openaev_agent',
+          payloadType: 'Executable',
+          payloadCollectorType: 'openaev_openaev',
+          dependsOn: [],
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'ep-1',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-gpp', 'exec-mimikatz'],
+        },
+      ],
+    };
+    // Act
+    const { nodes } = buildCausalChainFlow(iconChain, tt);
+    const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+    // Assert: two separate action nodes, each labelled from its own payload and carrying the payload
+    // collector type the ActionCard resolves the real logo from (never merged, never generic).
+    const gpp = byId['chain-local|step-gpp'];
+    const mimikatz = byId['chain-local|step-mimikatz'];
+    expect(gpp?.data.label).toBe('GPP Passwords (Get-GPPPassword)');
+    expect(gpp?.data.isPayload).toBe(true);
+    expect(gpp?.data.payloadCollectorType).toBe('openaev_atomic_red_team');
+    expect(mimikatz?.data.label).toBe('In-Memory Mimikatz - LSASS Credential Dump');
+    expect(mimikatz?.data.isPayload).toBe(true);
+    expect(mimikatz?.data.payloadCollectorType).toBe('openaev_openaev');
   });
 
   it('renders an endpoint-local action as a self-execution node pointing at its endpoint', () => {
@@ -1594,11 +1853,11 @@ describe('buildCausalChainFlow', () => {
     // Assert: the endpoint and its finding render…
     expect(byId['chain-ep|0|ep-1'].type).toBe(AP_FLOW_NODE_TYPE.asset);
     expect(byId['NODE_FINDING|username|bob'].type).toBe(AP_FLOW_NODE_TYPE.finding);
-    // …and the self-execution is displayed: one action node (the endpoint acting on itself), labelled
-    // from the contract name, with a labelled edge onto the endpoint node.
-    expect(byId['ep-1'].type).toBe(AP_FLOW_NODE_TYPE.injector);
-    expect(byId['ep-1'].data.label).toBe('Whoami');
-    const selfEdge = edges.find(e => e.source === 'ep-1' && e.target === 'chain-ep|0|ep-1');
+    // …and the local action is its OWN action node (keyed by its authored step, not the endpoint),
+    // labelled from the contract name, with a labelled edge onto the endpoint node.
+    expect(byId['chain-local|step-L'].type).toBe(AP_FLOW_NODE_TYPE.injector);
+    expect(byId['chain-local|step-L'].data.label).toBe('Whoami');
+    const selfEdge = edges.find(e => e.source === 'chain-local|step-L' && e.target === 'chain-ep|0|ep-1');
     expect(selfEdge?.data?.label).toBe('Whoami');
     // Every emitted edge resolves to placed nodes.
     const nodeIds = new Set(nodes.map(n => n.id));
@@ -1670,13 +1929,13 @@ describe('buildCausalChainFlow', () => {
     };
     // Act
     const { nodes, edges } = buildCausalChainFlow(localConsumer, tt);
-    // Assert: the local step sits one depth after its producer (its own endpoint copy at depth 1) and
-    // the produced finding's causal edge now targets the self-execution node instead of being dropped.
+    // Assert: the local action is its own node (keyed by its authored step) sitting one depth after its
+    // producer, and the produced finding's causal edge targets that action node instead of being dropped.
     const causal = edges.filter(e => e.type === AP_FLOW_CAUSAL_EDGE_TYPE);
     expect(causal).toHaveLength(1);
     expect(causal[0].source).toBe('NODE_FINDING|port|445');
-    expect(causal[0].target).toBe('ep-1');
-    // Every edge still resolves to placed nodes (the self-execution node IS placed).
+    expect(causal[0].target).toBe('chain-local|step-L');
+    // Every edge still resolves to placed nodes (the action node IS placed).
     const nodeIds = new Set(nodes.map(n => n.id));
     expect(edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
   });

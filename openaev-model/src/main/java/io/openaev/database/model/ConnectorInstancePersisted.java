@@ -29,7 +29,7 @@ import org.hibernate.type.SqlTypes;
  */
 @Getter
 @Setter
-@Entity
+@Entity(name = "ConnectorInstance")
 @Table(name = "connector_instances")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 public class ConnectorInstancePersisted extends ConnectorInstance implements TenantBase {

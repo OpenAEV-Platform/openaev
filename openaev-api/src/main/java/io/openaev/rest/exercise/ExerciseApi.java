@@ -29,6 +29,7 @@ import io.openaev.database.specification.ExerciseLogSpecification;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.importer.ImportResult;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -47,6 +48,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -438,9 +440,13 @@ public class ExerciseApi extends RestBehavior {
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
-    team.getUsers().addAll(fromIterable(teamUsers));
+    // Reserved service/connector accounts are system users, never players: silently drop them so
+    // team membership stays consistent with the player lists that hide them.
+    List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);
+    team.getUsers().addAll(playersToAdd);
     teamRepository.save(team);
-    return exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds());
+    return exerciseService.enablePlayers(
+        exerciseId, team, playersToAdd.stream().map(User::getId).toList());
   }
 
   @PutMapping({
@@ -1007,8 +1013,8 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public void exerciseImport(@RequestPart("file") MultipartFile file) throws Exception {
-    importService.handleFileImport(file, null, null);
+  public ImportResult exerciseImport(@RequestPart("file") MultipartFile file) throws Exception {
+    return importService.handleFileImport(file, null, null);
   }
 
   @PostMapping({

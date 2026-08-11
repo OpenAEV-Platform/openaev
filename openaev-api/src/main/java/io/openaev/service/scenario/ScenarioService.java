@@ -63,6 +63,7 @@ import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -734,6 +735,10 @@ public class ScenarioService {
                   injectorContract -> {
                     if (injectorContract.getPayload() != null) {
                       scenarioTags.addAll(injectorContract.getTags());
+                      injectorContract.getPayload().getOutputParsers().stream()
+                          .flatMap(parser -> parser.getContractOutputElements().stream())
+                          .flatMap(element -> element.getTags().stream())
+                          .forEach(scenarioTags::add);
                     }
                   });
         });
@@ -765,18 +770,22 @@ public class ScenarioService {
             .map(Document::getId)
             .toList());
 
-    // Tags
-    scenarioFileExport.setTags(scenarioTags.stream().distinct().toList());
-    objectMapper.addMixIn(Tag.class, Mixins.Tag.class);
-
     // Add Workflow (chaining) if present — scope definition is optional
     Optional<Workflow> workflowOpt =
         workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
     workflowOpt.ifPresent(
         workflow -> {
           workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
+          if (isChaining) {
+            scenarioTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));
+          }
           scenarioFileExport.setWorkflow(workflow);
         });
+
+    // Tags
+    scenarioFileExport.setTags(scenarioTags.stream().distinct().toList());
+    objectMapper.addMixIn(Tag.class, Mixins.Tag.class);
+
     objectMapper.addMixIn(
         Workflow.class,
         isWithScopeDefinition
@@ -936,9 +945,13 @@ public class ScenarioService {
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
-    team.getUsers().addAll(fromIterable(teamUsers));
+    // Reserved service/connector accounts are system users, never players: silently drop them so
+    // team membership stays consistent with the player lists that hide them.
+    List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);
+    team.getUsers().addAll(playersToAdd);
     Team savedTeam = teamRepository.save(team);
-    return this.enablePlayers(scenarioId, savedTeam, playerIds);
+    return this.enablePlayers(
+        scenarioId, savedTeam, playersToAdd.stream().map(User::getId).toList());
   }
 
   public Scenario enableAddScenarioTeamPlayer(

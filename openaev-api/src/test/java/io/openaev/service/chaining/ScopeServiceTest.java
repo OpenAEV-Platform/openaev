@@ -1,12 +1,18 @@
 package io.openaev.service.chaining;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.asset.endpoint.form.EndpointOutput;
+import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
+import io.openaev.service.EndpointService;
+import io.openaev.utils.mapper.AssetGroupMapper;
+import io.openaev.utils.mapper.EndpointMapper;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,7 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("ScopeService - getValidAssets")
+@DisplayName("ScopeService")
 class ScopeServiceTest {
 
   private static final String WORKFLOW_ID = "workflow-1";
@@ -25,6 +31,9 @@ class ScopeServiceTest {
   @Mock private AssetService assetService;
   @Mock private AssetGroupService assetGroupService;
   @Mock private WorkflowStateService workflowStateService;
+  @Mock private EndpointService endpointService;
+  @Mock private EndpointMapper endpointMapper;
+  @Mock private AssetGroupMapper assetGroupMapper;
 
   @InjectMocks private ScopeService scopeService;
 
@@ -267,5 +276,112 @@ class ScopeServiceTest {
     List<String> result = scopeService.getValidManualTargetsFromScopeAndGlobalState(WORKFLOW_ID);
 
     assertThat(result).containsExactly("192.168.10.1", "192.168.10.2", "192.168.10.3");
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scope inventory (workflow-scoped endpoint / asset group listing)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "Scope endpoints - ASSET_ID rules from both modes are returned, other rule types ignored")
+  void givenMixedRules_whenGettingScopeEndpoints_thenReturnsAssetIdRulesFromBothModes() {
+    Endpoint allowed = endpointWithSeenIp("asset-1", "host-1", "10.0.0.1");
+    Endpoint denied = endpointWithSeenIp("asset-2", "host-2", "10.0.0.2");
+    EndpointOutput allowedOutput = EndpointOutput.builder().id("asset-1").build();
+    EndpointOutput deniedOutput = EndpointOutput.builder().id("asset-2").build();
+
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(
+            List.of(
+                allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-1"),
+                denylistRule(ScopeRuleValueType.ASSET_ID, "asset-2"),
+                allowlistRule(ScopeRuleValueType.ASSET_GROUP_ID, "group-1"),
+                allowlistRule(ScopeRuleValueType.IP, "10.0.0.9")));
+    when(endpointService.endpoints(List.of("asset-1", "asset-2")))
+        .thenReturn(List.of(allowed, denied));
+    when(endpointMapper.toEndpointOutput(allowed)).thenReturn(allowedOutput);
+    when(endpointMapper.toEndpointOutput(denied)).thenReturn(deniedOutput);
+
+    List<EndpointOutput> result = scopeService.getScopeEndpoints(WORKFLOW_ID);
+
+    assertThat(result).containsExactly(allowedOutput, deniedOutput);
+  }
+
+  @Test
+  @DisplayName("Scope endpoints - no ASSET_ID rules means no endpoint lookup at all")
+  void givenNoAssetIdRules_whenGettingScopeEndpoints_thenReturnsEmptyWithoutLookup() {
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(List.of(allowlistRule(ScopeRuleValueType.IP, "10.0.0.9")));
+
+    List<EndpointOutput> result = scopeService.getScopeEndpoints(WORKFLOW_ID);
+
+    assertThat(result).isEmpty();
+    verifyNoInteractions(endpointService);
+  }
+
+  @Test
+  @DisplayName("Scope endpoints by IDs - IDs outside the workflow scope rules are ignored")
+  void givenIdsOutsideScopeRules_whenFindingScopeEndpoints_thenOnlyScopedIdsAreResolved() {
+    Endpoint denied = endpointWithSeenIp("asset-2", "host-2", "10.0.0.2");
+    EndpointOutput deniedOutput = EndpointOutput.builder().id("asset-2").build();
+
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(
+            List.of(
+                allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-1"),
+                denylistRule(ScopeRuleValueType.ASSET_ID, "asset-2")));
+    when(endpointService.endpoints(List.of("asset-2"))).thenReturn(List.of(denied));
+    when(endpointMapper.toEndpointOutput(denied)).thenReturn(deniedOutput);
+
+    List<EndpointOutput> result =
+        scopeService.getScopeEndpointsByIds(WORKFLOW_ID, List.of("asset-2", "asset-3"));
+
+    assertThat(result).containsExactly(deniedOutput);
+  }
+
+  @Test
+  @DisplayName(
+      "Scope asset groups - ASSET_GROUP_ID rules from both modes are returned, other rule types ignored")
+  void givenMixedRules_whenGettingScopeAssetGroups_thenReturnsAssetGroupIdRulesFromBothModes() {
+    AssetGroup allowed = new AssetGroup();
+    allowed.setId("group-1");
+    AssetGroup denied = new AssetGroup();
+    denied.setId("group-2");
+    AssetGroupOutput allowedOutput = AssetGroupOutput.builder().id("group-1").build();
+    AssetGroupOutput deniedOutput = AssetGroupOutput.builder().id("group-2").build();
+
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(
+            List.of(
+                allowlistRule(ScopeRuleValueType.ASSET_GROUP_ID, "group-1"),
+                denylistRule(ScopeRuleValueType.ASSET_GROUP_ID, "group-2"),
+                allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-1")));
+    when(assetGroupService.assetGroups(List.of("group-1", "group-2")))
+        .thenReturn(List.of(allowed, denied));
+    when(assetGroupMapper.toAssetGroupOutput(allowed)).thenReturn(allowedOutput);
+    when(assetGroupMapper.toAssetGroupOutput(denied)).thenReturn(deniedOutput);
+
+    List<AssetGroupOutput> result = scopeService.getScopeAssetGroups(WORKFLOW_ID);
+
+    assertThat(result).containsExactly(allowedOutput, deniedOutput);
+  }
+
+  @Test
+  @DisplayName("Scope asset groups by IDs - IDs outside the workflow scope rules are ignored")
+  void givenIdsOutsideScopeRules_whenFindingScopeAssetGroups_thenOnlyScopedIdsAreResolved() {
+    AssetGroup allowed = new AssetGroup();
+    allowed.setId("group-1");
+    AssetGroupOutput allowedOutput = AssetGroupOutput.builder().id("group-1").build();
+
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(List.of(allowlistRule(ScopeRuleValueType.ASSET_GROUP_ID, "group-1")));
+    when(assetGroupService.assetGroups(List.of("group-1"))).thenReturn(List.of(allowed));
+    when(assetGroupMapper.toAssetGroupOutput(allowed)).thenReturn(allowedOutput);
+
+    List<AssetGroupOutput> result =
+        scopeService.getScopeAssetGroupsByIds(WORKFLOW_ID, List.of("group-1", "group-9"));
+
+    assertThat(result).containsExactly(allowedOutput);
   }
 }

@@ -202,9 +202,23 @@ const GraphActionCard = ({
             'lineHeight': 0,
             'color': 'transparent',
             'backgroundColor': theme.palette.action.hover,
-            '& img': {
-              maxWidth: '100%',
-              maxHeight: '100%',
+            // The glyph arrives wrapped in CustomTooltip's inline <span> (which carries its own
+            // inline line-height) and with a fixed 20px inline size; both leave it floating
+            // off-center in the square. Flatten the wrapper into a centering flex layer and force
+            // the glyph to fill the padded square so every logo is centered horizontally and
+            // vertically, whatever its intrinsic shape.
+            'padding': '3px',
+            '& > span': {
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
+            },
+            '& img, & svg': {
+              display: 'block',
+              width: '100% !important',
+              height: '100% !important',
               objectFit: 'contain',
             },
           }}

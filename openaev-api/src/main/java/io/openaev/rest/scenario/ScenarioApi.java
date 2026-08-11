@@ -27,6 +27,7 @@ import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.importer.ImportResult;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -403,8 +404,9 @@ public class ScenarioApi extends RestBehavior {
   @PostMapping({SCENARIO_URI + "/import", TENANT_SCENARIO_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public void importScenario(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
-    this.importService.handleFileImport(file, null, null);
+  public ImportResult importScenario(@RequestPart("file") @NotNull MultipartFile file)
+      throws Exception {
+    return this.importService.handleFileImport(file, null, null);
   }
 
   // -- TEAMS --

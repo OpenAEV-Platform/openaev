@@ -57,6 +57,8 @@ public class Execution {
     ExecutionTraceStatus status = context.getStatus();
     if (ExecutionTraceStatus.EXECUTED.equals(status) || ExecutionTraceStatus.INFO.equals(status)) {
       log.info(context.getMessage());
+    } else if (ExecutionTraceStatus.WARNING.equals(status)) {
+      log.warn(context.getMessage());
     } else {
       log.error(context.getMessage());
     }

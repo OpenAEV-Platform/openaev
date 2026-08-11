@@ -80,6 +80,7 @@ import io.openaev.service.InjectorService;
 import io.openaev.service.MailingService;
 import io.openaev.service.MapperService;
 import io.openaev.service.ScenarioToExerciseService;
+import io.openaev.service.attackpath.AttackPathCausalSeedService;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
@@ -433,6 +434,10 @@ class TenantActiveTableAccessArchTest {
               HealthCheckUtils.class,
               ScenarioToExerciseService.class,
               AttackPathExecutionIngestionService.class,
+              // Surfaced by merging main: a pre-existing getInjector() caller (attack-path causal
+              // seed) that became reviewable once this PR activated injectors. Unverified scoping,
+              // same tracked follow-up as its attack-path siblings above.
+              AttackPathCausalSeedService.class,
               ExpectationUtils.class,
               InjectUtils.class)
           .should()
@@ -496,7 +501,13 @@ class TenantActiveTableAccessArchTest {
               // Scoped reader: reads the step's execution rows inside its own executeNew (the
               // inject's tenant) with an explicit tenantId predicate, to attribute copied findings.
               // Pinned by AttackPathFindingIngestionServiceTest:
-              AttackPathFindingIngestionService.class)
+              AttackPathFindingIngestionService.class,
+              // Seed generator, scoped: the admin flag-gated endpoint carries the TxCtx tenant
+              // scope
+              // (pinned by TenantScopedEntrypointsTxCtxArchTest) and the service only writes
+              // executions with an explicit tenant on every row; its reads go through
+              // AttackPathGraphService. Pinned by AttackPathCausalSeedApiTest:
+              AttackPathCausalSeedService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(AttackPathExecutionRepository.class)

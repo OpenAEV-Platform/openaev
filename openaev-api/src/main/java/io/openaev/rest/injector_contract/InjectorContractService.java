@@ -23,6 +23,7 @@ import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.injector_contract.Contract;
@@ -106,6 +107,7 @@ public class InjectorContractService implements DependenciesManager {
   private final InjectorService injectorService;
   private final OrganizationService organizationService;
   private final InjectIndexCleanupService injectIndexCleanupService;
+  private final StepRepository stepRepository;
 
   private final List<String> listDefaultInjectorContract =
       List.of(
@@ -140,6 +142,30 @@ public class InjectorContractService implements DependenciesManager {
         .findByIdOrExternalId(id, id)
         // User-facing wording: the entity is exposed as "threat arsenal item" everywhere.
         .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+  }
+
+  /**
+   * Retrieves an injector contract by ID, only if it is referenced by one of the given workflow's
+   * steps.
+   *
+   * <p>Chaining steps do not persist their inject before execution (the inject is serialized into
+   * {@code step_data}), so contracts used by a chaining simulation/scenario cannot be resolved
+   * through the injects of the parent simulation or scenario. This workflow-scoped lookup covers
+   * both chaining contexts, and the caller's permission is checked on the workflow's parent
+   * simulation or scenario.
+   *
+   * @param injectorContractId the injector contract ID
+   * @param workflowId the ID of the workflow the contract must be referenced by
+   * @return the injector contract
+   * @throws ElementNotFoundException if not found or not referenced by the workflow
+   */
+  public InjectorContract injectorContractForWorkflow(
+      @NotBlank final String injectorContractId, @NotBlank final String workflowId) {
+    if (!stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+        workflowId, injectorContractId)) {
+      throw new ElementNotFoundException("Threat arsenal item not found");
+    }
+    return injectorContract(injectorContractId);
   }
 
   // -- OTHERS --

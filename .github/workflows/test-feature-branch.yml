@@ -4,7 +4,7 @@ on:
     inputs:
       openaev_config:
         type: string
-        default: '{ "SPRING_PROFILES_ACTIVE": "ci", "OPENAEV_ENABLED-DEV-FEATURES": "*" }'
+        default: '{ "SPRING_PROFILES_ACTIVE": "ci,test-feature-branch", "OPENAEV_ENABLED-DEV-FEATURES": "*" }'
         required: false
 
 permissions:

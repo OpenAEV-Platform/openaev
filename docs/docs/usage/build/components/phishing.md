@@ -71,6 +71,38 @@ The HTML body can also be produced with **Generate with AI** when XTM One is con
 
 Submitted credentials are stored as a Credentials Finding.
 
+## Landing page URLs
+
+Each recipient receives a unique, opaque link. The link uses a benign, tenant-less shape so the address bar and the email body read like a generic authentication URL rather than exposing internal details:
+
+```
+https://<host>/auth/<token>
+```
+
+The `<token>` is a globally unique, per-recipient identifier. The platform recovers the owning tenant from the token alone, so the URL never contains a tenant identifier. The public open (tracking pixel), click (landing page), and submit (credentials) endpoints are served under `/api/hosted/**` and are authenticated solely by this token.
+
+!!! note
+
+    Links in emails that were already sent keep working: the legacy tracking endpoints remain available for backward compatibility.
+
+## Custom domains
+
+By default, landing pages are served from the platform host. You can instead serve them from a hostname you own (for example `secure.example.com`) so lure links match your organization's branding. Open **Settings > Customization > Custom domains** to manage them.
+
+To register a custom domain:
+
+1. Click **Register a custom domain** and enter the hostname.
+2. The platform returns the DNS records to publish. Add them at your DNS provider to prove ownership and route traffic to the platform.
+3. Once the records are live, click **Verify**. The platform resolves the records and, on success, marks the domain **Verified**.
+
+Only a **Verified** custom domain is served: an on-demand-TLS edge checks ownership against the platform before obtaining a certificate for an inbound hostname, so an unverified or unknown host is refused.
+
+Managing custom domains reuses the tenant settings permission, so any administrator who can edit the other tenant customizations can manage them.
+
+!!! warning
+
+    Point a custom domain only at hostnames you control and are authorized to use for awareness exercises.
+
 ## Default content
 
 On first startup, each tenant is seeded with a default platform-themed Landing Page and Email Template so you can run an exercise immediately. You can edit or delete them like any other Component.

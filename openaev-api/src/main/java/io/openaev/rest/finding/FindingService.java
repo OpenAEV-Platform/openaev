@@ -9,6 +9,7 @@ import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
@@ -48,6 +49,35 @@ public class FindingService {
     return this.findingRepository
         .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new EntityNotFoundException("Finding not found with id: " + id));
+  }
+
+  /**
+   * Group-wide summary of a finding, deduplicated by (type, value) across every occurrence in the
+   * tenant. The finding overview hero relies on this instead of the picked representative row, so
+   * the first/last seen and impact counts reflect the whole group rather than one arbitrary
+   * occurrence.
+   */
+  public FindingSummaryOutput findingSummary(@NotNull final String id) {
+    Finding finding = finding(id);
+    String tenantId = TenantContext.getCurrentTenant();
+    ContractOutputType type = finding.getType();
+    String value = finding.getValue();
+
+    FindingRepository.FindingSeenAggregate seen =
+        this.findingRepository.findSeenAggregate(type, value, tenantId);
+
+    return FindingSummaryOutput.builder()
+        .id(finding.getId())
+        .type(type)
+        .value(value)
+        .firstSeen(seen != null ? seen.getFirstSeen() : finding.getCreationDate())
+        .lastSeen(seen != null ? seen.getLastSeen() : finding.getUpdateDate())
+        .occurrences(seen != null ? seen.getOccurrences() : 1)
+        .assetsCount(this.findingRepository.countDistinctAssets(type, value, tenantId))
+        .teamsCount(this.findingRepository.countDistinctTeams(type, value, tenantId))
+        .usersCount(this.findingRepository.countDistinctUsers(type, value, tenantId))
+        .assetGroupsCount(this.findingRepository.countDistinctAssetGroups(type, value, tenantId))
+        .build();
   }
 
   public Finding createFinding(@NotNull final Finding finding, @NotBlank final String injectId) {

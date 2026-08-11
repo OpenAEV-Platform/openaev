@@ -1,0 +1,58 @@
+{
+  "scenario_information": {
+    "scenario_id": "dddddddd-0001-0001-0001-000000000001",
+    "scenario_name": "test workflow import inject user",
+    "scenario_description": "",
+    "scenario_subtitle": "",
+    "scenario_category": "attack-scenario",
+    "scenario_main_focus": "incident-response",
+    "scenario_severity": "high",
+    "scenario_message_header": "",
+    "scenario_message_footer": "",
+    "scenario_mail_from": "test@openaev.io",
+    "scenario_tags": [],
+    "scenario_documents": []
+  },
+  "scenario_teams": [],
+  "scenario_users": [],
+  "scenario_organizations": [],
+  "scenario_tags": [],
+  "scenario_injects": [],
+  "scenario_workflow": {
+    "workflow_version": 2,
+    "workflow_rate_limit_enabled": false,
+    "workflow_timeout_enabled": false,
+    "workflow_safe_mode_enabled": false,
+    "workflow_scope_rules": [],
+    "workflow_scope_variables": [],
+    "workflow_steps": [
+      {
+        "step_id": "step-user-0001",
+        "step_action_class": "INJECT_EXECUTION",
+        "step_limit_execution": 1,
+        "step_data": {
+          "inject_id": "dddddddd-0001-0001-0001-000000000099",
+          "inject_title": "chaining step inject with source user",
+          "inject_user": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+          "inject_exercise": "dddddddd-0001-0001-0001-000000000042",
+          "inject_scenario": "dddddddd-0001-0001-0001-000000000001",
+          "inject_assets": ["dddddddd-0001-0001-0001-000000000050"],
+          "inject_asset_groups": ["dddddddd-0001-0001-0001-000000000051"],
+          "inject_injector_contract": {
+            "injector_contract_id": "dddddddd-0001-0001-0001-000000000098",
+            "injector_contract_labels": { "en": "chaining step inject" },
+            "injector_contract_manual": false,
+            "injector_contract_content": "{\"fields\":[]}",
+            "injector_contract_custom": false,
+            "injector_contract_needs_executor": false,
+            "injector_contract_platforms": ["Linux"],
+            "injector_contract_atomic_testing": false,
+            "injector_contract_injector_type": "openaev_implant"
+          }
+        },
+        "step_conditions": []
+      }
+    ]
+  }
+}
+

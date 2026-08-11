@@ -1,4 +1,4 @@
-import { Box, ToggleButtonGroup } from '@mui/material';
+import { Alert, Box, ToggleButtonGroup } from '@mui/material';
 import { useContext, useState } from 'react';
 
 import { bulkDeleteExercises, searchExercises } from '../../../actions/Exercise';
@@ -27,6 +27,7 @@ const Simulations = () => {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [exercises, setExercises] = useState<ExerciseSimple[]>([]);
+  const [reloadCount, setReloadCount] = useState<number>(0);
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   // Index of the tenant's autonomous runs so each row's popover can mirror the simulation cockpit:
   // an AI-driven simulation is observe-only, so its overflow exposes only a read-only Export
@@ -105,6 +106,18 @@ const Simulations = () => {
     numberOfSelectedElements,
   } = entityToggle;
 
+  // In select-all mode only the current page is loaded client-side, so the status of
+  // simulations on other pages is unknown: warn conservatively in that case.
+  const mayDeleteActiveSimulation = (() => {
+    const isActive = (e: ExerciseSimple) => e.exercise_status === 'RUNNING' || e.exercise_status === 'PAUSED';
+    if (selectAll) {
+      return true;
+    }
+    return exercises.some(e => e.exercise_id in selectedElements && isActive(e));
+  })();
+
+  const deleteWarningMessage = t('Deleting a running simulation will stop its execution.');
+
   const bulkDelete = () => {
     bulkDeleteExercises({
       search_pagination_input: selectAll ? searchPaginationInput : undefined,
@@ -130,6 +143,7 @@ const Simulations = () => {
       />
       <PaginationComponentV2
         fetch={search}
+        reloadContentCount={reloadCount}
         searchPaginationInput={searchPaginationInput}
         setContent={setExercises}
         entityPrefix="exercise"
@@ -143,7 +157,7 @@ const Simulations = () => {
                 exportProps={exportProps}
               />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-                <ImportUploaderExercise />
+                <ImportUploaderExercise refresh={() => setReloadCount(count => count + 1)} />
               </Can>
             </ToggleButtonGroup>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
@@ -166,6 +180,15 @@ const Simulations = () => {
             canManage={canManage}
             deleteConfirmationSingular={t('Do you want to delete this simulation?')}
             deleteConfirmationPlural={t('Do you want to delete these {count} simulations?', { count: String(numberOfSelectedElements) })}
+            deleteExtraContent={
+              mayDeleteActiveSimulation
+                ? (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      {deleteWarningMessage}
+                    </Alert>
+                  )
+                : undefined
+            }
           />
         )}
       />

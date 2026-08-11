@@ -272,4 +272,45 @@ class StepRepositoryTest extends IntegrationTest {
     Assertions.assertTrue(resolved.contains(withInject1.getId() + "=inject-batch-1"));
     Assertions.assertTrue(resolved.contains(withInject2.getId() + "=inject-batch-2"));
   }
+
+  @Test
+  void whenExistsInjectorContractByWorkflowIdAndInjectorContractId_thenChecksBothJsonShapes() {
+    // GIVEN
+    String objectContractId = "contract-object";
+    String stringContractId = "contract-string";
+    Workflow workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .withStep(
+                stepComposer.forStep(
+                    Step.builder()
+                        .stepAction(StepActionClass.INJECT_EXECUTION)
+                        .status(StepStatus.TEMPLATE)
+                        .data(
+                            "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                                + objectContractId
+                                + "\"}}")
+                        .build()))
+            .withStep(
+                stepComposer.forStep(
+                    Step.builder()
+                        .stepAction(StepActionClass.INJECT_EXECUTION)
+                        .status(StepStatus.TEMPLATE)
+                        .data("{\"inject_injector_contract\": \"" + stringContractId + "\"}")
+                        .build()))
+            .persist()
+            .get();
+
+    // WHEN / THEN
+    Assertions.assertTrue(
+        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+            workflow.getId(), objectContractId));
+    Assertions.assertTrue(
+        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+            workflow.getId(), stringContractId));
+    Assertions.assertFalse(
+        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+            workflow.getId(), "contract-missing"));
+  }
 }

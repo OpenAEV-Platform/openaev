@@ -22,6 +22,18 @@ public interface PhishingResultRepository
   @Query("SELECT r FROM PhishingResult r WHERE r.token = :token")
   Optional<PhishingResult> findByToken(@NotNull @Param("token") String token);
 
+  /**
+   * Resolves the owning tenant of a tracking token without any tenant context. The public,
+   * unauthenticated landing/tracking endpoints no longer carry the tenant in the URL (the token is
+   * globally unique, 192 bits), so the tenant is recovered from the token here and then set on the
+   * {@code TenantContext} before any tenant-filtered work runs. Native so the Hibernate {@code
+   * tenantFilter} is not applied (there is no tenant to filter by yet).
+   */
+  @Query(
+      value = "SELECT tenant_id FROM phishing_results WHERE phishing_result_token = :token",
+      nativeQuery = true)
+  Optional<String> findTenantIdByToken(@NotNull @Param("token") String token);
+
   @Query("SELECT r FROM PhishingResult r WHERE r.inject.id = :injectId")
   List<PhishingResult> findByInjectId(@NotNull @Param("injectId") String injectId);
 }
