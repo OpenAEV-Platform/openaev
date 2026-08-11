@@ -1,0 +1,50 @@
+name: "[Core] Notify Teams on PR Opened"
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  notify-teams:
+    name: "📣 Notify Teams"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect matching PR
+        id: detect
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const haystack = `${pr.title ?? ''} ${pr.head?.ref ?? ''}`.toLowerCase();
+            const patterns = ['chaining-attack-path', 'chaining attack-path', 'autonomous-attack-path'];
+            const pattern = patterns.find((value) => haystack.includes(value));
+            core.setOutput('should_notify', pattern ? 'true' : 'false');
+            core.setOutput('matched_pattern', pattern ?? '');
+
+      - name: Send Teams notification
+        if: steps.detect.outputs.should_notify == 'true' && secrets.TEAMS_PR_WEBHOOK_URL != ''
+        uses: actions/github-script@v9
+        env:
+          TEAMS_PR_WEBHOOK_URL: ${{ secrets.TEAMS_PR_WEBHOOK_URL }}
+          MATCHED_PATTERN: ${{ steps.detect.outputs.matched_pattern }}
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const payload = {
+              text: `🔔 PR opened for "${process.env.MATCHED_PATTERN}"\n#${pr.number} ${pr.title}\nAuthor: ${pr.user.login}\n${pr.html_url}`
+            };
+
+            const response = await fetch(process.env.TEAMS_PR_WEBHOOK_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+              const body = await response.text();
+              core.setFailed(`Teams webhook failed (${response.status}): ${body}`);
+            }
