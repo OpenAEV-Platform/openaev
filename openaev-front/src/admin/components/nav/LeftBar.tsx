@@ -121,7 +121,7 @@ const LeftBar = () => {
           path: `/admin/credentials`,
           icon: () => (<KeyOutlined />),
           label: 'Credentials',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CREDENTIALS),
         },
       ],
     },

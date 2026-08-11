@@ -154,6 +154,20 @@ public enum Capability {
       pair(ResourceType.THREAT_ARSENAL, Action.DUPLICATE)),
   DELETE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.DELETE)),
 
+  // Credentials -
+  ACCESS_CREDENTIALS(
+      null,
+      CapabilityGroup.CREDENTIALS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.CREDENTIAL, Action.READ),
+      pair(ResourceType.CREDENTIAL, Action.SEARCH)),
+  MANAGE_CREDENTIALS(
+      ACCESS_CREDENTIALS,
+      pair(ResourceType.CREDENTIAL, Action.WRITE),
+      pair(ResourceType.CREDENTIAL, Action.CREATE),
+      pair(ResourceType.CREDENTIAL, Action.DUPLICATE)),
+  DELETE_CREDENTIALS(MANAGE_CREDENTIALS, pair(ResourceType.CREDENTIAL, Action.DELETE)),
+
   // Dashboards
   ACCESS_DASHBOARDS(
       null,

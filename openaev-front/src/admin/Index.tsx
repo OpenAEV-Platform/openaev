@@ -382,7 +382,7 @@ const Index = () => {
                 <ProtectedRoute
                   checks={[{
                     action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.SECURITY_PLATFORMS,
+                    subject: SUBJECTS.CREDENTIALS,
                   }]}
                   Component={errorWrapper(Credentials)()}
                 />
@@ -394,7 +394,7 @@ const Index = () => {
                 <ProtectedRoute
                   checks={[{
                     action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.SECURITY_PLATFORMS,
+                    subject: SUBJECTS.CREDENTIALS,
                   }]}
                   Component={errorWrapper(CredentialDetail)()}
                 />
