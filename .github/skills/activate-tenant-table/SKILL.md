@@ -61,9 +61,11 @@ incident. Do not trade them away to make a test pass.
    inserts are not blocked by the inspector), never READS the table, and
    attributes `tenant_id` correctly (listener + `TenantContext`, or explicit) may
    ship unconverted IF a test pins that write shape under activation AND the
-   conversion is a tracked follow-up. Example: the tenant-provisioning datapack
-   writing `cwes` (pinned by the provisioning-style test in
-   `CweHttpIsolationTest`, conversion tracked with the migration-engine work).
+   conversion is a tracked follow-up. The tenant-provisioning datapack writing
+   `cwes` was the original example; it has since been converted (it now writes
+   under the primitive scope MigrationProcessor sets), so no active waiver relies
+   on this today. Use it only for a genuinely INSERT-only, never-reads writer you
+   cannot convert in the same PR.
    A background READER, or any read-then-write path, gets no waiver. Background code must never use `@Transactional`
    for the write (self-invocation trap) and must never open raw transactions;
    both are guarded by the ArchUnit rules in

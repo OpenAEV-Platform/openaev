@@ -201,8 +201,10 @@ class TenantActiveTableAccessArchTest {
           .doNotBelongToAnyOf(
               // Resolves the write tenant explicitly (TxCtx threaded from the wired handlers):
               VulnerabilityService.class,
-              // Waived INSERT-only provisioning writer (VALUES insert + TenantContext attribution,
-              // pinned by CweHttpIsolationTest; conversion to the primitive is tracked):
+              // Provisioning datapack: writes cwes through cweRepository.save (still insert-only,
+              // never reads), now under the primitive scope MigrationProcessor sets
+              // (setScopeOnCurrentTransaction on onboarding, execute on startup), so it needs no
+              // waiver. Allowlisted because it legitimately depends on CweRepository to seed cwes:
               V20260330_Default_tenant_data.class)
           .should()
           .dependOnClassesThat()
