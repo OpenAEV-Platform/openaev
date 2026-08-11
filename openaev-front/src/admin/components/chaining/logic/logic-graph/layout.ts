@@ -284,10 +284,6 @@ export const buildLogicGraphLayout = ({
     .filter(e => kindById[e.source] && kindById[e.target]);
   const inferredEdges = buildInferredEdges(eventMetas, outputProviders)
     .filter(e => kindById[e.source] && kindById[e.target]);
-  // Keep inferred hints even when reciprocal to a real edge (`action -> trigger` plus
-  // `trigger -> action`) so users still see the producer path. Real links are forced back into the
-  // rendered graph below (`nonInferred = realEdges`), so cycle pruning here cannot hide persisted
-  // dependencies anymore.
   const rawEdges = [...inferredEdges, ...realEdges];
 
   // Drop feedback loops entirely (both from layering and rendering): a downstream action that emits
