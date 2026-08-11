@@ -105,8 +105,11 @@ public class EmailContract extends Contractor {
             Set.of(PresetDomain.getEmailInfiltration(), PresetDomain.getTabletop()));
     globalEmail.addVariable(documentUriVariable);
     // A single mail is sent to all recipients at once, so per-user variables cannot be resolved
-    // and must not be advertised in the available variables cheat sheet.
-    globalEmail.removeVariable(VariableHelper.USER);
+    // and must not be advertised in the available variables cheat sheet. The filtering is done
+    // here (openaev-framework is deprecated and must not grow new API like removeVariable).
+    globalEmail
+        .getVariables()
+        .removeIf(contractVariable -> VariableHelper.USER.equals(contractVariable.getKey()));
     return List.of(standardEmail, globalEmail);
   }
 
