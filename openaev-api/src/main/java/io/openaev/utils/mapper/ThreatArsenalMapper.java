@@ -124,7 +124,8 @@ public class ThreatArsenalMapper {
         null,
         null,
         injectorContract.getCreatedAt(),
-        injectorContract.getUpdatedAt());
+        injectorContract.getUpdatedAt(),
+        injectorContract.getProviding());
   }
 
   /**
@@ -164,6 +165,15 @@ public class ThreatArsenalMapper {
       executableFile = executable.getExecutableFile().getId();
     }
 
+    // Mirrors InjectorContract#getProviding for the payload branch: the output types a payload
+    // produces are the distinct contract output element types across its output parsers.
+    List<ContractOutputType> providing =
+        payload.getOutputParsers().stream()
+            .flatMap(op -> op.getContractOutputElements().stream())
+            .map(ContractOutputElement::getType)
+            .distinct()
+            .toList();
+
     return new ThreatArsenalActionFullOutput(
         injectorContractId,
         payload.getType(),
@@ -192,6 +202,7 @@ public class ThreatArsenalMapper {
         fileDropFile,
         executableFile,
         payload.getCreatedAt(),
-        payload.getUpdatedAt());
+        payload.getUpdatedAt(),
+        providing);
   }
 }

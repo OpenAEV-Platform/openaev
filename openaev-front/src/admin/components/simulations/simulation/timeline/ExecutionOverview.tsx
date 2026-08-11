@@ -8,7 +8,7 @@ import type { ArticlesHelper } from '../../../../../actions/channels/article-hel
 import { fetchExerciseDocuments } from '../../../../../actions/documents/documents-actions';
 import { fetchExerciseInjectExpectations, fetchExerciseTeams } from '../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { fetchExerciseInjects, updateInjectForExercise } from '../../../../../actions/Inject';
+import { reconcileExerciseInjects, updateInjectForExercise } from '../../../../../actions/Inject';
 import { type InjectStore } from '../../../../../actions/injects/Inject';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { fetchVariablesForExercise } from '../../../../../actions/variables/variable-actions';
@@ -85,7 +85,10 @@ const ExecutionOverview = ({ exerciseId: exerciseIdProp, showMenu = true }: Exec
 
   // Fetching Data
   useDataLoader(() => {
-    dispatch(fetchExerciseInjects(exerciseId));
+    // Reconcile (not just fetch): injects can be deleted server-side out of band - deleting a
+    // phishing landing page cascade-deletes the injects built on its contract - and the merge-only
+    // store would otherwise keep the ghosts on this screen as "completed" until a full reload.
+    dispatch(reconcileExerciseInjects(exerciseId));
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchVariablesForExercise(exerciseId));
     dispatch(fetchExerciseDocuments(exerciseId));

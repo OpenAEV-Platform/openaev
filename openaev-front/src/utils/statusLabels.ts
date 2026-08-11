@@ -62,7 +62,7 @@ const agentStatusTooltipMap: Record<string, string> = {
   // -- ExecutionTraceStatus (Agent level) --
   EXECUTED: 'The inject ran successfully.',
   EXECUTED_WITH_CLEANUP_FAILURE: 'The main command executed successfully, but the cleanup step failed. Check cleanup prerequisites and logs on the target.',
-  WARNING: 'The command completed but produced stderr output. Review stderr for potential issues.',
+  WARNING: 'The inject completed successfully, but a step reported a warning. Review the trace message for details.',
   ACCESS_DENIED: 'The command was denied due to insufficient privileges. This confirms the security control is working — the agent attempted execution but was blocked.',
   ERROR: 'The command failed with an unexpected error. Check the agent logs and stderr output for details',
   COMMAND_NOT_FOUND: 'The command was not found on the target. Ensure the tool is installed and available in the system PATH.',

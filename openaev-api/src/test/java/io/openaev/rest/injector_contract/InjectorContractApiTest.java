@@ -1235,6 +1235,51 @@ public class InjectorContractApiTest extends IntegrationTest {
                   injectorContractComposer.generatedItems.stream()
                       .map(InjectorContractBaseOutput::fromInjectorContract)));
     }
+
+    @Test
+    @DisplayName("Free-text search must not match the raw contract content JSON")
+    void withTextSearch_should_notMatchRawContractContentJson() throws Exception {
+      // Every real contract content embeds the built-in variable definitions ("user.email",
+      // "Email of the user", ...). If the content JSON leaks into free-text search, a term like
+      // "mail" matches EVERY contract instead of the email-related ones.
+      InjectorContract emailContract =
+          InjectorContractFixture.createInjectorContract(
+              Map.of("en", "Send an email with attachments"), "{\"fields\": []}");
+      InjectorContract noiseContract =
+          InjectorContractFixture.createInjectorContract(
+              Map.of("en", "Nmap TCP scan"),
+              "{\"fields\": [], \"variables\": [{\"key\": \"user.email\","
+                  + " \"label\": \"Email of the user\"}]}");
+      injectorContractComposer
+          .forInjectorContract(emailContract)
+          .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+          .persist();
+      injectorContractComposer
+          .forInjectorContract(noiseContract)
+          .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+          .persist();
+      em.flush();
+      em.clear();
+
+      String response =
+          mvc.perform(
+                  post(INJECTOR_CONTRACT_URL + "/search")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(PaginationFixture.simpleTextSearch("mail")))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      List<String> returnedIds = new ArrayList<>();
+      mapper
+          .readTree(response)
+          .get("content")
+          .forEach(node -> returnedIds.add(node.get("injector_contract_id").asText()));
+      assertThat(returnedIds).contains(emailContract.getId());
+      assertThat(returnedIds).doesNotContain(noiseContract.getId());
+    }
   }
 
   @Nested

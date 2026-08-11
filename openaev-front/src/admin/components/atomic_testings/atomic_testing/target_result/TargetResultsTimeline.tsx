@@ -2,7 +2,7 @@ import {
   FlagOutlined,
   ModeStandbyOutlined,
 } from '@mui/icons-material';
-import { Box, Typography } from '@mui/material';
+import { Box, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Fragment, type FunctionComponent, useMemo } from 'react';
 
@@ -89,6 +89,11 @@ const TargetResultsTimeline: FunctionComponent<Props> = ({
         const color = getColor(step.status);
         const completed = isCompleted(step);
         const previous = steps[index - 1];
+        // Prefer the expectation's own name (e.g. "Credentials submitted") over the generic
+        // status label (e.g. "Validation Failed"): the outcome is already conveyed by the node
+        // color and detailed in the cards below. Fall back to the status label for the
+        // attack start/end steps and for expectations without a name.
+        const displayLabel = step.name ?? step.label;
 
         return (
           <Fragment key={step.key}>
@@ -134,17 +139,23 @@ const TargetResultsTimeline: FunctionComponent<Props> = ({
                 }}
                 />
               </Box>
-              <Typography
-                sx={{
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  lineHeight: 1.3,
-                  textAlign: 'center',
-                  color: completed ? color : 'text.secondary',
-                }}
-              >
-                {step.label}
-              </Typography>
+              <Tooltip title={displayLabel}>
+                <Typography
+                  sx={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    lineHeight: 1.3,
+                    textAlign: 'center',
+                    color: completed ? color : 'text.secondary',
+                    maxWidth: '100%',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {displayLabel}
+                </Typography>
+              </Tooltip>
               {step.timestamp && (
                 <Typography
                   variant="caption"

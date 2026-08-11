@@ -158,6 +158,15 @@ public class PresetTenantData {
             Cwe.builder().externalId("CWE-78").source("Nist").build()));
   }
 
+  /**
+   * Capability sets of the auto-generated roles for every new tenant. Observer holds every
+   * user-facing "access" capability, Manager every "access"/"manage"/"delete" one (tenant settings
+   * excluded on both — those stay Admin-only).
+   *
+   * <p>When introducing a new capability group, add it here too (and ship a {@code
+   * io.openaev.processor.core.RuntimeMigration} to heal already-created tenants), otherwise
+   * existing Manager/Observer roles silently miss it — see issue #7320 (Phishing / Reporting).
+   */
   public static final Map<String, Set<Capability>> DEFAULT_ROLES =
       Map.of(
           OBSERVER,
@@ -166,9 +175,11 @@ public class PresetTenantData {
               Capability.ACCESS_ASSETS,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.ACCESS_DASHBOARDS,
+              Capability.ACCESS_REPORTINGS,
               Capability.ACCESS_FINDINGS,
               Capability.ACCESS_DOCUMENTS,
               Capability.ACCESS_CHANNELS,
+              Capability.ACCESS_PHISHING,
               Capability.ACCESS_CHALLENGES,
               Capability.ACCESS_LESSONS_LEARNED,
               Capability.ACCESS_SECURITY_PLATFORMS),
@@ -189,6 +200,9 @@ public class PresetTenantData {
               Capability.ACCESS_DASHBOARDS,
               Capability.MANAGE_DASHBOARDS,
               Capability.DELETE_DASHBOARDS,
+              Capability.ACCESS_REPORTINGS,
+              Capability.MANAGE_REPORTINGS,
+              Capability.DELETE_REPORTINGS,
               Capability.ACCESS_FINDINGS,
               Capability.MANAGE_FINDINGS,
               Capability.DELETE_FINDINGS,
@@ -198,6 +212,9 @@ public class PresetTenantData {
               Capability.ACCESS_CHANNELS,
               Capability.MANAGE_CHANNELS,
               Capability.DELETE_CHANNELS,
+              Capability.ACCESS_PHISHING,
+              Capability.MANAGE_PHISHING,
+              Capability.DELETE_PHISHING,
               Capability.ACCESS_CHALLENGES,
               Capability.MANAGE_CHALLENGES,
               Capability.DELETE_CHALLENGES,
