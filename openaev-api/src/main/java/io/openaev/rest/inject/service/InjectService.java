@@ -928,6 +928,16 @@ public class InjectService {
       return;
     }
 
+    // Assets and asset groups are only relevant for injects whose contract needs an executor:
+    // skip these operations for other injects (e.g. email, SMS, manual) so that irrelevant data
+    // is never persisted (#2165). Teams stay unrestricted as human response expectations can be
+    // added to technical injects.
+    boolean needsExecutor =
+        injectToUpdate
+            .getInjectorContract()
+            .map(InjectorContract::getNeedsExecutorEffective)
+            .orElse(false);
+
     for (var operation : operations) {
       switch (operation.getField()) {
         case TEAMS ->
@@ -936,18 +946,32 @@ public class InjectService {
                 operation.getValues(),
                 teamsFromDB,
                 operation.getOperation());
-        case ASSETS ->
+        case ASSETS -> {
+          if (needsExecutor) {
             updateInjectEntities(
                 injectToUpdate.getAssets(),
                 operation.getValues(),
                 assetsFromDB,
                 operation.getOperation());
-        case ASSET_GROUPS ->
+          } else {
+            log.debug(
+                "Skipping ASSETS bulk update operation for inject {}: its contract does not need an executor",
+                injectToUpdate.getId());
+          }
+        }
+        case ASSET_GROUPS -> {
+          if (needsExecutor) {
             updateInjectEntities(
                 injectToUpdate.getAssetGroups(),
                 operation.getValues(),
                 assetGroupsFromDB,
                 operation.getOperation());
+          } else {
+            log.debug(
+                "Skipping ASSET_GROUPS bulk update operation for inject {}: its contract does not need an executor",
+                injectToUpdate.getId());
+          }
+        }
         default ->
             throw new BadRequestException("Invalid field to update: " + operation.getField());
       }
