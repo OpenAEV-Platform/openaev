@@ -31,6 +31,7 @@ import InjectImportJsonDialog from '../common/injects/InjectImportJsonDialog';
 import InjectorContract from '../common/injects/InjectorContract';
 import InjectStatus from '../common/injects/status/InjectStatus';
 import ToolBar from '../common/ToolBar';
+import PayloadDeprecatedChip from '../payloads/PayloadDeprecatedChip';
 import AtomicTestingPopover from './atomic_testing/AtomicTestingPopover';
 import AtomicTestingResult from './atomic_testing/AtomicTestingResult';
 
@@ -139,7 +140,24 @@ const InjectResultList: FunctionComponent<Props> = ({
       label: 'Name',
       isSortable: true,
       value: (injectResultOutput: InjectResultOutput) => {
-        return <>{injectResultOutput.inject_title}</>;
+        return (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            maxWidth: '100%',
+          }}
+          >
+            <span style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            >
+              {injectResultOutput.inject_title}
+            </span>
+            <PayloadDeprecatedChip status={injectResultOutput.inject_injector_contract?.injector_contract_payload?.payload_status} />
+          </span>
+        );
       },
     },
     {

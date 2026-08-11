@@ -36,6 +36,7 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import { splitDuration } from '../../../../utils/Time';
 import { download, isNotEmptyField } from '../../../../utils/utils';
+import PayloadDeprecatedChip from '../../payloads/PayloadDeprecatedChip';
 import { InjectContext, InjectTestContext, PermissionsContext, ViewModeContext } from '../Context';
 import ToolBar from '../ToolBar';
 import InjectIcon from './InjectIcon';
@@ -135,7 +136,24 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_title',
       label: 'Title',
       isSortable: true,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => <>{inject.inject_title}</>,
+      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => (
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          maxWidth: '100%',
+        }}
+        >
+          <span style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+          >
+            {inject.inject_title}
+          </span>
+          <PayloadDeprecatedChip status={inject.inject_injector_contract?.injector_contract_payload?.payload_status} />
+        </span>
+      ),
     },
     {
       field: 'inject_contract_domains',
