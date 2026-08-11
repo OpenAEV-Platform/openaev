@@ -345,7 +345,12 @@ class TenantActiveTableAccessArchTest {
               // Phishing landing-page service synchronises its injector contract via the
               // tenant-explicit findByTypeAndTenantId(PhishingContract.TYPE, tenantId), mirroring
               // PayloadService's contract sync; the tenant is resolved from the landing page:
-              PhishingLandingPageService.class)
+              PhishingLandingPageService.class,
+              // Comcheck email generation resolves the built-in email injector via the
+              // tenant-scoped findFirstByContractsCompositeIdIdAndTenantId under a per-comcheck
+              // setScopeOnCurrentTransaction(forTenant(exercise tenant)) stamp; each comcheck gets
+              // its own tenant's injector, never a fail-closed null:
+              ComchecksExecutionJob.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(InjectorRepository.class)
@@ -398,7 +403,9 @@ class TenantActiveTableAccessArchTest {
               InjectTestStatusService.class,
               AgentTargetSearchAdaptor.class,
               // --- PRE_EXISTING_UNVERIFIED_CALLERS (tracked follow-up, see comment above) ---
-              ComchecksExecutionJob.class,
+              // (ComchecksExecutionJob no longer belongs here: it resolves the email injector via
+              // the tenant-scoped repository method instead of getFirstInjector; see the
+              // injectors_repository rule allowlist.)
               MailingService.class,
               InjectUtils.class)
           .should()
@@ -428,11 +435,14 @@ class TenantActiveTableAccessArchTest {
               SentinelOneExecutorContextService.class,
               TaniumExecutorContextService.class,
               InjectTestStatusService.class,
+              // Scenario->exercise copy stamps the scenario's tenant
+              // (setScopeOnCurrentTransaction(forTenant(...))) before reading getInjector(), so the
+              // lazy load resolves under a real scope instead of fail-closing to null:
+              ScenarioToExerciseService.class,
               // --- PRE_EXISTING_UNVERIFIED_CALLERS (tracked follow-up, see comment above) ---
               InjectExecutionStep.class,
               AttackPathExecution.class,
               HealthCheckUtils.class,
-              ScenarioToExerciseService.class,
               AttackPathExecutionIngestionService.class,
               // Surfaced by merging main: a pre-existing getInjector() caller (attack-path causal
               // seed) that became reviewable once this PR activated injectors. Unverified scoping,
