@@ -73,7 +73,17 @@ public class ChallengeServiceFlagValidationTest {
     InputValidationException exception =
         assertThrows(InputValidationException.class, () -> challengeService.validateFlags(flags));
     assertEquals("challenge_flags", exception.getField());
-    assertTrue(exception.getMessage().contains("Invalid regular expression"));
+    // Exact stable message: the frontend translates it via the i18n key
+    assertEquals("Invalid regular expression", exception.getMessage());
+  }
+
+  @Test
+  @DisplayName("Should skip a REGEXP flag with a null value instead of throwing")
+  void shouldSkipNullRegexpFlagValue() {
+    // Bean Validation does not cascade into the flag list elements, so null values can reach us
+    List<FlagInput> flags = List.of(buildFlagInput(REGEXP.name(), null));
+
+    assertDoesNotThrow(() -> challengeService.validateFlags(flags));
   }
 
   @Test
@@ -92,6 +102,25 @@ public class ChallengeServiceFlagValidationTest {
     ChallengeFlag flag = ChallengeFixture.createDefaultChallengeFlag();
     flag.setType(REGEXP);
     flag.setValue("[unclosed");
+    challenge.setFlags(new ArrayList<>(List.of(flag)));
+
+    ChallengeTryInput input = new ChallengeTryInput();
+    input.setValue("any answer");
+
+    when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
+
+    ChallengeResult result = assertDoesNotThrow(() -> challengeService.tryChallenge("test", input));
+    assertNotNull(result);
+    assertFalse(result.isResult());
+  }
+
+  @Test
+  @DisplayName("Should treat a null stored REGEXP pattern as non-matching")
+  void shouldReturnFalseForNullStoredPattern() {
+    Challenge challenge = ChallengeFixture.createDefaultChallenge();
+    ChallengeFlag flag = ChallengeFixture.createDefaultChallengeFlag();
+    flag.setType(REGEXP);
+    flag.setValue(null);
     challenge.setFlags(new ArrayList<>(List.of(flag)));
 
     ChallengeTryInput input = new ChallengeTryInput();

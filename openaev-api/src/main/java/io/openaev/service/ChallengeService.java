@@ -41,6 +41,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ChallengeService {
 
+  public static final String INVALID_REGEXP_MESSAGE = "Invalid regular expression";
+
   private final ExerciseRepository exerciseRepository;
   private final ChallengeRepository challengeRepository;
   private final InjectRepository injectRepository;
@@ -99,11 +101,16 @@ public class ChallengeService {
   public void validateFlags(List<FlagInput> flags) throws InputValidationException {
     for (FlagInput flag : flags) {
       if (ChallengeFlag.FLAG_TYPE.REGEXP.name().equals(flag.getType())) {
+        // Bean Validation does not cascade into the flag list elements, so the value may be null
+        String pattern = flag.getValue();
+        if (pattern == null) {
+          continue;
+        }
         try {
-          Pattern.compile(flag.getValue());
+          Pattern.compile(pattern);
         } catch (PatternSyntaxException e) {
-          throw new InputValidationException(
-              "challenge_flags", "Invalid regular expression: " + flag.getValue());
+          // Stable message (no raw pattern): the frontend translates it and the 400 stays small
+          throw new InputValidationException("challenge_flags", INVALID_REGEXP_MESSAGE);
         }
       }
     }
@@ -289,11 +296,18 @@ public class ChallengeService {
         return value.equals(flag.getValue());
       }
       case REGEXP -> {
+        // Defensive: bad stored data (pre-validation or imported) must not break answering
+        if (flag.getValue() == null) {
+          log.warn("Ignoring REGEXP challenge flag with null pattern (flag {})", flag.getId());
+          return false;
+        }
         try {
           return Pattern.compile(flag.getValue()).matcher(value).matches();
         } catch (PatternSyntaxException e) {
-          // Defensive: a bad pattern stored before validation existed must not break answering
-          log.warn("Ignoring invalid REGEXP challenge flag pattern: {}", flag.getValue());
+          log.warn(
+              "Ignoring invalid REGEXP challenge flag pattern (flag {}): {}",
+              flag.getId(),
+              flag.getValue());
           return false;
         }
       }
