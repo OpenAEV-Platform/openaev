@@ -201,6 +201,28 @@ public class MinioService implements DependenciesManager {
     client.statObject(StatObjectArgs.builder().bucket(bucket()).object(getTenantPath("")).build());
   }
 
+  /**
+   * Total size of the objects stored in the bucket, in bytes, all tenants included.
+   *
+   * <p>Object storage exposes no aggregated size, so the whole bucket listing has to be walked:
+   * this is a costly operation (one listing round-trip per 1 000 objects) and must never be called
+   * on a hot path without caching. Objects that cannot be read are skipped rather than failing the
+   * whole computation, so the result is a best effort figure.
+   *
+   * @return the sum of the object sizes in bytes
+   */
+  public long computeUsedSize() {
+    long usedSize = 0L;
+    for (Result<Item> result : listObjects("", false)) {
+      try {
+        usedSize += result.get().size();
+      } catch (Exception e) {
+        log.warn("Error while computing the size of a stored object: {}", e.getMessage());
+      }
+    }
+    return usedSize;
+  }
+
   // -- PRIVATE --
 
   @VisibleForTesting

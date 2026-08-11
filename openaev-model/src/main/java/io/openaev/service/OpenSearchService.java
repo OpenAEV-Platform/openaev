@@ -6,6 +6,7 @@ import static io.openaev.utils.OpenSearchUtils.*;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasText;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
 import io.openaev.context.TenantContext;
@@ -1296,6 +1297,33 @@ public class OpenSearchService implements EngineService {
   @Override
   public ObjectMapper getObjectMapper() {
     return driver.getObjectMapper();
+  }
+
+  @Override
+  public Long getIndexesUsedSize() {
+    // Restricted to the "store" metric: the full stats payload of a wildcard pattern is heavy and
+    // everything else is useless here. Primaries only, so replicas are not counted twice.
+    String endpoint = "/" + engineConfig.getIndexPattern() + "/_stats/store";
+    try (Response response =
+        openSearchClient
+            .generic()
+            .execute(Requests.builder().endpoint(endpoint).method("GET").build())) {
+      if (response.getStatus() == 200 && response.getBody().isPresent()) {
+        JsonNode size =
+            mapper
+                .readTree(response.getBody().get().bodyAsBytes())
+                .path("_all")
+                .path("primaries")
+                .path("store")
+                .path("size_in_bytes");
+        if (size.isNumber()) {
+          return size.asLong();
+        }
+      }
+    } catch (IOException e) {
+      log.warn("Unable to retrieve engine used size", e);
+    }
+    return null;
   }
 
   // endregion
