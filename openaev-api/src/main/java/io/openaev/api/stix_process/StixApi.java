@@ -70,7 +70,8 @@ public class StixApi extends RestBehavior {
       openCTIService.acknowledgeReceivedOfCoverage(
           ctiEvent.getInternal().getWorkId(), "OpenAEV ready to process the operation", tenantId);
 
-      Scenario scenario = stixService.processBundle(ctiEvent.getEvent().getStixObjects(), tenantId);
+      Scenario scenario =
+          stixService.processBundle(ctiEvent.getEvent().getStixObjects(), tenantId, ctx);
 
       openCTIService.acknowledgeProcessedOfCoverage(
           ctiEvent.getInternal().getWorkId(),

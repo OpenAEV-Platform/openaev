@@ -23,6 +23,7 @@ import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
+import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
@@ -99,6 +100,7 @@ import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
+import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
 import io.openaev.utils.ExpectationUtils;
@@ -151,7 +153,8 @@ class TenantActiveTableAccessArchTest {
           "connector_instances",
           "autonomous_runs",
           "autonomous_events",
-          "autonomous_directives");
+          "autonomous_directives",
+          "security_coverages");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -560,6 +563,21 @@ class TenantActiveTableAccessArchTest {
           .areAssignableTo(AttackPathFindingRepository.class)
           .because(
               "attackpath_finding is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule security_coverages_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Coverage upsert/read logic; caller transaction scope is pinned at API entrypoint by
+              // TenantScopedEntrypointsTxCtxArchTest.
+              SecurityCoverageService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(SecurityCoverageRepository.class)
+          .because(
+              "security_coverages is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest

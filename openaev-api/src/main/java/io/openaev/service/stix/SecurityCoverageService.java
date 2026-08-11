@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
@@ -103,8 +104,13 @@ public class SecurityCoverageService {
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#securityCoverageStixId")
   @Transactional(rollbackFor = Exception.class)
   public Scenario handleSecurityCoverageProcessing(
-      String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle, String tenantId)
+      String securityCoverageStixId,
+      ObjectBase securityCoverageObj,
+      Bundle bundle,
+      String tenantId,
+      TxCtx ctx)
       throws ParsingException, BundleValidationError, ConnectorError, IOException {
+    Objects.requireNonNull(ctx, "security coverage processing requires transaction scope");
     // Telemetry: one CTI security coverage bundle processed (attempts semantics).
     resultsMetricCollector.recordSecurityCoverageProcessed();
     String bundleHash = md5Hex(bundle.toStix(objectMapper).toString());
@@ -141,7 +147,8 @@ public class SecurityCoverageService {
       String tenantId)
       throws ParsingException, BundleValidationError, ConnectorError {
 
-    SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
+    SecurityCoverage securityCoverage =
+        getByExternalIdOrCreateSecurityCoverage(externalId, tenantId);
 
     // Validations related to the pertinence of the received bundle
     checkExistingBundle(externalId, stixJsonHash, securityCoverage);
@@ -301,23 +308,29 @@ public class SecurityCoverageService {
    * new instance is returned.
    *
    * @param externalId the external identifier from the STIX content
+   * @param tenantId tenant identifier used to scope the lookup
    * @return an existing or new {@link SecurityCoverage}
    */
-  public SecurityCoverage getByExternalIdOrCreateSecurityCoverage(String externalId) {
-    List<SecurityCoverage> coverages = securityCoverageRepository.findAllByExternalId(externalId);
+  public SecurityCoverage getByExternalIdOrCreateSecurityCoverage(
+      String externalId, String tenantId) {
+    List<SecurityCoverage> coverages =
+        securityCoverageRepository.findAllByExternalIdAndTenantId(externalId, tenantId);
     if (coverages.isEmpty()) {
-      return new SecurityCoverage();
+      SecurityCoverage coverage = new SecurityCoverage();
+      coverage.setTenant(new Tenant(tenantId));
+      return coverage;
     }
     if (coverages.size() > 1) {
-      // Duplicates are prevented by the unique constraint on security_coverage_external_id
-      // (V6_20260729130000000__Dedupe_security_coverages_external_id), but a legacy-duplicated
-      // database must never fail the whole bundle with a NonUniqueResultException: pick the best
-      // row deterministically (linked to a scenario first, then most recently updated).
+      // Duplicates are prevented by the unique constraint on
+      // (security_coverage_external_id, tenant_id), but a legacy-duplicated database must never
+      // fail the whole bundle with a NonUniqueResultException: pick the best row deterministically
+      // (linked to a scenario first, then most recently updated).
       log.error(
-          "Found {} security coverages sharing external id {}; using the most relevant one."
-              + " Duplicates should have been removed by the dedupe migration.",
+          "Found {} security coverages sharing external id {} for tenant {};"
+              + " using the most relevant one. Duplicates should have been removed by migration.",
           coverages.size(),
-          externalId);
+          externalId,
+          tenantId);
     }
     return coverages.stream()
         .min(

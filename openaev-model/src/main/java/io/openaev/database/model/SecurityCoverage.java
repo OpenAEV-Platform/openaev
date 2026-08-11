@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -19,13 +20,13 @@ import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "security_coverages")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class SecurityCoverage implements Base {
+public class SecurityCoverage implements TenantBase {
 
   private Set<String> getDefaultPlatformsAffinity() {
     return new HashSet<>(
@@ -139,6 +140,11 @@ public class SecurityCoverage implements Base {
   @JoinColumn(name = "security_coverage_scenario")
   @JsonIgnore
   private Scenario scenario;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   @CreationTimestamp
   @Column(name = "security_coverage_created_at", updatable = false)
