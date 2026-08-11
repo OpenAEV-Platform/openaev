@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.custom_domain.CustomDomainService;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CustomDomain;
 import io.openaev.database.model.CustomDomain.CustomDomainStatus;
 import io.openaev.database.model.Endpoint;
@@ -27,6 +28,7 @@ import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.PhishingEmailTemplate;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
@@ -47,6 +49,7 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -86,10 +89,26 @@ public class PhishingLandingPageService {
   // InjectorService.BUILTIN_INJECTOR_AUTHOR).
   private static final String BUILTIN_INJECTOR_AUTHOR = "Filigran";
 
+  // MITRE ATT&CK techniques a credential-harvesting phishing landing page exercises. Both are the
+  // "Spearphishing Link" technique read from its two legitimate angles: T1566.002 (Phishing -
+  // Initial Access) is the lure email carrying the link to the landing page, and T1598.003
+  // (Phishing
+  // for Information - Reconnaissance) is the credential capture the page performs. The kill chain
+  // phases (Initial Access, Reconnaissance) are DERIVED from these patterns by
+  // InjectorContract.getKillChainPhases(), so associating the attack patterns is all that is
+  // needed.
+  // Resolution is by external id against the tenant's imported MITRE data; a tenant without that
+  // data
+  // simply gets no association (never a failure).
+  private static final List<String> PHISHING_ATTACK_PATTERN_EXTERNAL_IDS =
+      List.of("T1566.002", "T1598.003");
+
   private final PhishingLandingPageRepository landingPageRepository;
   private final PhishingEmailTemplateRepository emailTemplateRepository;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
+  private final InjectIndexCleanupService injectIndexCleanupService;
+  private final AttackPatternRepository attackPatternRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final PhishingContract phishingContract;
   private final DocumentService documentService;
@@ -198,7 +217,8 @@ public class PhishingLandingPageService {
     boolean hasSearch = input.getSearchPaginationInput() != null;
     if (hasIds == hasSearch) {
       throw new BadRequestException(
-          "Either landing_page_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+          "Either landing_page_ids_to_process or search_pagination_input must be provided, and not"
+              + " both at the same time");
     }
 
     Specification<PhishingLandingPage> specification;
@@ -260,16 +280,16 @@ public class PhishingLandingPageService {
       landingPage.setDescription("A simple, platform-themed credential capture page.");
       landingPage.setHtml(
           """
-          <div class="phishing-card">
-            <h1>Sign in</h1>
-            <p>Please sign in to continue.</p>
-            <form data-phishing-form>
-              <label>Email<input type="email" name="username" autocomplete="username" required /></label>
-              <label>Password<input type="password" name="password" autocomplete="current-password" required /></label>
-              <button type="submit">Sign in</button>
-            </form>
-          </div>
-          """);
+<div class="phishing-card">
+  <h1>Sign in</h1>
+  <p>Please sign in to continue.</p>
+  <form data-phishing-form>
+    <label>Email<input type="email" name="username" autocomplete="username" required /></label>
+    <label>Password<input type="password" name="password" autocomplete="current-password" required /></label>
+    <button type="submit">Sign in</button>
+  </form>
+</div>
+""");
       landingPage.setCss(
           """
           .phishing-card { max-width: 360px; margin: 10vh auto; padding: 2rem;
@@ -351,6 +371,19 @@ public class PhishingLandingPageService {
     injectorContract.setAuthorOrganization(
         this.organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR));
 
+    // MITRE ATT&CK association, resolved by external id against the tenant's imported patterns
+    // exactly
+    // like a static built-in contract (InjectorContractService.applyBuiltinContractData). Kill
+    // chain
+    // phases follow automatically (InjectorContract.getKillChainPhases() derives them from the
+    // attack
+    // patterns). Missing MITRE data yields an empty list, so the action is simply left
+    // unassociated.
+    List<AttackPattern> attackPatterns =
+        attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+            contract.getAttackPatternsExternalIds(), tenantId);
+    injectorContract.setAttackPatterns(attackPatterns);
+
     try {
       String content = mapper.writeValueAsString(contract);
       injectorContract.setContent(content);
@@ -366,7 +399,17 @@ public class PhishingLandingPageService {
     String tenantId = resolveTenantId(landingPage);
     InjectorContractId contractId = new InjectorContractId(landingPage.getId(), tenantId);
     if (injectorContractRepository.existsById(contractId)) {
+      // The injects FK on injectors_contracts is ON DELETE CASCADE: deleting the landing page's
+      // contract silently hard-deletes every inject built on it (and, one hop further, their
+      // expectations and findings) at the database level, without a single JPA lifecycle event.
+      // Same compensation as InjectorContractService.deleteInjectorContract: collect the doomed
+      // inject ids BEFORE the delete and de-index them explicitly, otherwise their documents stay
+      // in the search engine forever and keep feeding every ES-backed statistic (home dashboard
+      // tiles, coverage, KPIs).
+      List<String> cascadeDeletedInjectIds =
+          injectIndexCleanupService.injectIdsByContractIds(List.of(landingPage.getId()), tenantId);
       injectorContractRepository.deleteById(contractId);
+      injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
     }
   }
 
@@ -409,15 +452,25 @@ public class PhishingLandingPageService {
     // Server-side email delivery, exactly like the email injector: platform Service and no executor
     // agent. A recipient is a team player (teamField below), never an endpoint, so needsExecutor
     // stays false - otherwise target search would demand agents and the health check would fail.
-    return executableContract(
-        contractConfig,
-        landingPage.getId(),
-        Map.of(
-            en, "Phishing: " + landingPage.getName(), fr, "Hameconnage : " + landingPage.getName()),
-        fields,
-        List.of(Endpoint.PLATFORM_TYPE.Service),
-        false,
-        Set.of(PresetDomain.getEmailInfiltration()));
+    Contract contract =
+        executableContract(
+            contractConfig,
+            landingPage.getId(),
+            Map.of(
+                en,
+                "Phishing: " + landingPage.getName(),
+                fr,
+                "Hameconnage : " + landingPage.getName()),
+            fields,
+            List.of(Endpoint.PLATFORM_TYPE.Service),
+            false,
+            Set.of(PresetDomain.getEmailInfiltration()));
+
+    // Declare the MITRE techniques on the contract so the serialized content carries them like any
+    // static built-in contract; the entity-level attackPatterns are resolved from these ids in
+    // synchroniseInjectorContract (and the kill chain phases are derived from them).
+    PHISHING_ATTACK_PATTERN_EXTERNAL_IDS.forEach(contract::addAttackPattern);
+    return contract;
   }
 
   /**

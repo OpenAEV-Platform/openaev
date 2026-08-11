@@ -29,18 +29,26 @@ export const fetchExerciseInjects = (exerciseId: string) => (dispatch: AppDispat
   return getReferential(schema.arrayOfInjects, uri)(dispatch);
 };
 
-// Reconciles the entity store with the backend after a simulation lifecycle
-// transition that deletes injects server-side (Stop on a chained simulation
-// drops its injects, Reset always does). The normalized store only ever MERGES
-// fetch payloads - a refetch cannot evict an entity deleted server-side, and
-// the per-entity SSE delete events are not guaranteed to reach this tab - so
-// without an explicit eviction the Execution screens keep showing the deleted
-// injects as "completed" until a full page reload. Best-effort: on fetch
-// failure nothing is evicted (better stale than wrongly empty).
-export const reconcileExerciseInjects = (exerciseId: string) => async (dispatch: AppDispatch) => {
+// Reconciles the entity store with the backend after injects were deleted
+// server-side: simulation lifecycle transitions (Stop on a chained simulation
+// drops its injects, Reset always does) but also out-of-band deletions such as
+// removing a phishing landing page, whose injector contract cascade-deletes the
+// injects built on it. The normalized store only ever MERGES fetch payloads - a
+// refetch cannot evict an entity deleted server-side, and the per-entity SSE
+// delete events are not guaranteed to reach this tab (a DB-level cascade emits
+// none at all) - so without an explicit eviction the hero counters and the
+// Execution screens keep showing the deleted injects as "completed" until a
+// full page reload. Best-effort: on fetch failure nothing is evicted (better
+// stale than wrongly empty). The fetcher is injectable so callers that only
+// need the lightweight InjectOutput list (e.g. the simulation hero) can
+// reconcile without pulling the full inject payloads.
+export const reconcileExerciseInjects = (
+  exerciseId: string,
+  fetcher: (exerciseId: string) => (dispatch: AppDispatch) => Promise<{ result?: string[] }> = fetchExerciseInjects,
+) => async (dispatch: AppDispatch) => {
   let payload;
   try {
-    payload = await fetchExerciseInjects(exerciseId)(dispatch);
+    payload = await fetcher(exerciseId)(dispatch);
   } catch {
     return;
   }

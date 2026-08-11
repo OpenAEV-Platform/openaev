@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, displayIp, expandPathSet, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, buildLocalActionExecIndex, displayIp, expandPathSet, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, LOCAL_ACTION_ID_PREFIX, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -914,6 +914,123 @@ describe('buildCausalChainFlow', () => {
     expect(causal[0].data?.causalKind).toBe('finding');
   });
 
+  it('centres the action column against the endpoints it fans out to (not piled at the top)', () => {
+    // 3 actions each executed against the SAME 4 endpoints (no dependsOn: a single depth). The action
+    // nodes must form an evenly spaced stack vertically centred on the endpoint column, instead of all
+    // being crammed into the first endpoint's block at the top (the original layout bug).
+    const injIds = ['inj-a', 'inj-b', 'inj-c'];
+    const epIds = ['ep-1', 'ep-2', 'ep-3', 'ep-4'];
+    const fanOut: AttackPathDTO = {
+      mode: 'full',
+      attackPathNodes: [
+        ...injIds.map(id => ({
+          id,
+          type: 'INJECTOR',
+          label: id,
+        })),
+        ...epIds.map(id => ({
+          id,
+          type: 'ASSET',
+          label: id,
+        })),
+      ],
+      attackPathExecutions: injIds.flatMap(inj => epIds.map(ep => ({
+        id: `x-${inj}-${ep}`,
+        type: 'EXECUTION',
+        ref: `exec-${inj}-${ep}`,
+        dependsOn: [],
+      }))),
+      attackPathEdges: injIds.flatMap(inj => epIds.map(ep => ({
+        type: 'EDGE_EXECUTIONS',
+        edgeSourceId: inj,
+        edgeTargetId: ep,
+        executionIds: [`exec-${inj}-${ep}`],
+      }))),
+    };
+    const { nodes } = buildCausalChainFlow(fanOut, tt);
+    const injYs = nodes.filter(n => injIds.includes(n.id)).map(n => n.position.y).sort((a, b) => a - b);
+    const epYs = nodes.filter(n => n.id.startsWith('chain-ep|0|')).map(n => n.position.y).sort((a, b) => a - b);
+    expect(injYs).toHaveLength(3);
+    expect(epYs).toHaveLength(4);
+    // Evenly spaced stack, no overlap.
+    expect(injYs[1] - injYs[0]).toBe(injYs[2] - injYs[1]);
+    expect(injYs[1] - injYs[0]).toBeGreaterThan(0);
+    // The stack's centroid sits in the middle of the endpoint span (strictly between the 2nd and 3rd
+    // endpoints), not at the top of the column.
+    const injMean = injYs.reduce((sum, y) => sum + y, 0) / injYs.length;
+    expect(injMean).toBeGreaterThan(epYs[1]);
+    expect(injMean).toBeLessThan(epYs[2]);
+  });
+
+  it('keeps an action aligned to its endpoint when it reaches only that one', () => {
+    // Two actions at the same depth with DISJOINT targets: inj-top hits only ep-1 (first block), inj-bot
+    // hits only ep-2 (second block). Each action must stay aligned to the block centre of ITS endpoint
+    // rather than being pulled into a common stack.
+    const disjoint: AttackPathDTO = {
+      mode: 'full',
+      attackPathNodes: [
+        {
+          id: 'inj-top',
+          type: 'INJECTOR',
+          label: 'Top',
+        },
+        {
+          id: 'inj-bot',
+          type: 'INJECTOR',
+          label: 'Bottom',
+        },
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'EP1',
+        },
+        {
+          id: 'ep-2',
+          type: 'ASSET',
+          label: 'EP2',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'x1',
+          type: 'EXECUTION',
+          ref: 'exec-top',
+          dependsOn: [],
+        },
+        {
+          id: 'x2',
+          type: 'EXECUTION',
+          ref: 'exec-bot',
+          dependsOn: [],
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-top',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-top'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'inj-bot',
+          edgeTargetId: 'ep-2',
+          executionIds: ['exec-bot'],
+        },
+      ],
+    };
+    const { nodes } = buildCausalChainFlow(disjoint, tt);
+    const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+    // Node position.y is top-left; centres differ from ys by each node type's half height, a constant.
+    // Aligned-to-its-block means the DELTA between injector y and its endpoint y is the same for both
+    // pairs (each injector sits at its own endpoint's block centre).
+    const deltaTop = byId['inj-top'].position.y - byId['chain-ep|0|ep-1'].position.y;
+    const deltaBot = byId['inj-bot'].position.y - byId['chain-ep|0|ep-2'].position.y;
+    expect(deltaTop).toBe(deltaBot);
+    // And the two actions are in the same vertical order as their endpoints.
+    expect(byId['inj-top'].position.y).toBeLessThan(byId['inj-bot'].position.y);
+  });
+
   it('falls back to a dashed dependsOn edge when the consumed finding value is not produced', () => {
     // NetExec depends on nmap's step but consumes a key no produced finding matches.
     const noMatch: AttackPathDTO = {
@@ -1538,6 +1655,97 @@ describe('buildCausalChainFlow', () => {
     // Every emitted edge still resolves to a placed node.
     const nodeIds = new Set(promoted.nodes.map(n => n.id));
     expect(promoted.edges.every(e => nodeIds.has(e.source) && nodeIds.has(e.target))).toBe(true);
+
+    // ...and buildLocalActionExecIndex resolves each promoted action node back to the executions it ran
+    // (the fix for the empty injector panel): the synthetic `chain-local|...` id the panel clicks with
+    // maps to endpoint ref -> owned execution refs, so the action's executions are no longer lost.
+    const index = buildLocalActionExecIndex(localChain);
+    expect([...index.keys()].sort()).toEqual(['chain-local|step-lsass', 'chain-local|step-sweep']);
+    // Endpoint keyed by its ref (falls back to node id when no ref), each owning exactly its own exec.
+    expect([...(index.get('chain-local|step-sweep')?.entries() ?? [])]).toEqual([['ep-1', ['exec-sweep']]]);
+    expect([...(index.get('chain-local|step-lsass')?.entries() ?? [])]).toEqual([['ep-1', ['exec-lsass']]]);
+    // The synthetic ids the panel resolves are the very ids the layout assigned to the action nodes.
+    expect([...index.keys()].every(id => id.startsWith(LOCAL_ACTION_ID_PREFIX))).toBe(true);
+    expect(new Set(actionNodes.map(n => n.id))).toEqual(new Set(index.keys()));
+  });
+
+  it('buildLocalActionExecIndex omits real injector actions and human-in-the-loop sources', () => {
+    // A network inject (real injector node) reaches a host, alongside an agent-executed local action on
+    // the same host and a phishing send (team -> person). Only the agent action is promoted to a
+    // synthetic node the injector panel must resolve from the index; the injector resolves from the
+    // graph edges directly, and the phishing send must never become a phantom action.
+    const mixed: AttackPathDTO = {
+      mode: 'full',
+      attackPathNodes: [
+        {
+          id: 'NODE_INJECTOR|nmap',
+          type: 'INJECTOR',
+          label: 'nmap',
+        },
+        {
+          id: 'ep-1',
+          type: 'ASSET',
+          label: 'WIN-1',
+          ref: 'host-1',
+        },
+        {
+          id: 'team-1',
+          type: 'ASSET',
+          label: 'Marketing',
+          entityKind: 'TEAM',
+        },
+        {
+          id: 'person-1',
+          type: 'ASSET',
+          label: 'Alice',
+          entityKind: 'PERSON',
+        },
+      ],
+      attackPathExecutions: [
+        {
+          id: 'x-nmap',
+          type: 'EXECUTION',
+          ref: 'exec-nmap',
+          stepTemplateId: 'step-nmap',
+        },
+        {
+          id: 'x-gpp',
+          type: 'EXECUTION',
+          ref: 'exec-gpp',
+          stepTemplateId: 'step-gpp',
+        },
+        {
+          id: 'x-phish',
+          type: 'EXECUTION',
+          ref: 'exec-phish',
+          stepTemplateId: 'step-phish',
+        },
+      ],
+      attackPathEdges: [
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'NODE_INJECTOR|nmap',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-nmap'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'ep-1',
+          edgeTargetId: 'ep-1',
+          executionIds: ['exec-gpp'],
+        },
+        {
+          type: 'EDGE_EXECUTIONS',
+          edgeSourceId: 'team-1',
+          edgeTargetId: 'person-1',
+          executionIds: ['exec-phish'],
+        },
+      ],
+    };
+    const index = buildLocalActionExecIndex(mixed);
+    // Only the agent-executed local action is indexed, keyed by the endpoint's ref (not its node id).
+    expect([...index.keys()]).toEqual(['chain-local|step-gpp']);
+    expect([...(index.get('chain-local|step-gpp')?.entries() ?? [])]).toEqual([['host-1', ['exec-gpp']]]);
   });
 
   it('carries each promoted action node its payload collector logo metadata (real icon, not the generic agent bolt)', () => {

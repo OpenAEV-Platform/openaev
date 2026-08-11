@@ -17,7 +17,7 @@ import type { AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingIt
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import useRemainingViewportHeight from '../../../../../utils/hooks/useRemainingViewportHeight';
 import attackPathStatusColor from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, ENDPOINT_BATCH_SIZE, expandPathSet, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, maskFindingValue, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from './attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, buildLocalActionExecIndex, ENDPOINT_BATCH_SIZE, expandPathSet, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, LOCAL_ACTION_ID_PREFIX, maskFindingValue, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from './attack-path-flow-helpers';
 import { AP_GLOBAL_STYLES, AP_PANEL_DEFAULT_WIDTH, AP_PANEL_MAX_WIDTH, AP_PANEL_MIN_WIDTH, AP_VIEW_HEIGHT, AP_VISUALLY_HIDDEN } from './attack-path-styles';
 import AttackPathHeader, { type FindingCard, type SearchOption } from './AttackPathHeader';
 import AttackPathLegend from './AttackPathLegend';
@@ -784,6 +784,17 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     }
     return map;
   }, [dto]);
+
+  // Action node id -> endpoint ref -> owned execution refs, for agent/endpoint-executed actions promoted
+  // to synthetic `chain-local|...` nodes in the causal-chain layout. Those nodes are NOT keys in
+  // injectorEndpointRefs (their graph edges carry the raw injector/endpoint source id, not the synthetic
+  // one), so the injector panel would otherwise resolve zero executions for them and wrongly read as
+  // "no executions" for an Atomic Red Team / dataset action that plainly ran. Built from `fullDto` (the
+  // same projection the chain layout is built from) so the ids line up with the clicked node.
+  const localActionExecIndex = useMemo(
+    () => (fullDto ? buildLocalActionExecIndex(fullDto) : new Map<string, Map<string, string[]>>()),
+    [fullDto],
+  );
 
   // Endpoint ref (the raw key an execution carries) -> its friendly name, so the execution panel shows
   // "kingslanding" instead of the raw UUID/IP the execution DTO carries.
@@ -1685,7 +1696,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     setInjectorPanelLabel(label || friendlyNodeId(injectorId));
     setInjectorExecutions([]);
     setInjectorFindingGroups([]);
-    const refs = injectorEndpointRefs.get(injectorId) ?? [];
+    // An agent/endpoint-executed action promoted to a synthetic `chain-local|...` node resolves its
+    // reached endpoints and owned executions from localActionExecIndex — the graph edges key it by the
+    // raw injector/endpoint source id, never the synthetic one, so injectorEndpointRefs and the edge
+    // source filter below both miss it. A real injector keeps its DTO node id and resolves from the edges.
+    const localByEndpoint = injectorId.startsWith(LOCAL_ACTION_ID_PREFIX)
+      ? localActionExecIndex.get(injectorId)
+      : undefined;
+    const isLocal = !!localByEndpoint;
+    const refs = isLocal ? [...localByEndpoint.keys()] : (injectorEndpointRefs.get(injectorId) ?? []);
     if (refs.length === 0) {
       return;
     }
@@ -1696,11 +1715,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       // enough here — it is not the per-endpoint feed that needs paging.
       refs.map(ref => fetchEndpointRelations(simulationId, ref, 0, INJECTOR_RELATIONS_PAGE_SIZE)
         .then((r) => {
-          const owned = new Set(
-            (r.data.edges ?? [])
-              .filter(e => e.edgeSourceId === injectorId)
-              .flatMap(e => e.executionIds ?? []),
-          );
+          const owned = isLocal
+            ? new Set(localByEndpoint.get(ref) ?? [])
+            : new Set(
+                (r.data.edges ?? [])
+                  .filter(e => e.edgeSourceId === injectorId)
+                  .flatMap(e => e.executionIds ?? []),
+              );
           // The edges are whole, so `owned` is this injector's true count on that endpoint even when
           // the executions came back as one page — that is what the panel states it is showing.
           return {
@@ -1729,7 +1750,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         // Attribute findings to this injector via its own execution refs.
         loadInjectorFindings(new Set(execs.map(e => e.ref).filter((r): r is string => !!r)));
       });
-  }, [injectorEndpointRefs, simulationId, loadInjectorFindings]);
+  }, [injectorEndpointRefs, localActionExecIndex, simulationId, loadInjectorFindings]);
 
   // Click an injector (action) node. In the focused view it reverse-highlights on the focused
   // endpoint; in the clustered view it toggles a downstream highlight of the action's reach AND opens
@@ -2889,6 +2910,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                   simulationId={simulationId}
                   endpointLabel={selectedLabel || t('Endpoint')}
                   emptyFindingsLabel={selectedTargetEmptyFindingsLabel}
+                  emptyExecutionsLabel={t('No execution reached this target')}
                   findingsLoading={endpointFindingsLoading}
                   findingGroups={endpointFindingGroups}
                   executions={executions}
@@ -2920,6 +2942,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                   simulationId={simulationId}
                   endpointLabel={injectorPanelLabel || t('Injector')}
                   emptyFindingsLabel={t('No findings from this action')}
+                  emptyExecutionsLabel={t('No executions recorded for this action')}
                   findingsLoading={injectorFindingsLoading}
                   findingGroups={injectorFindingGroups}
                   executions={injectorExecutions}

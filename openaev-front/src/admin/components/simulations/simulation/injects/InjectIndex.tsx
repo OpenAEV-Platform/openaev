@@ -5,6 +5,7 @@ import { fetchInjectResultOverviewOutput } from '../../../../../actions/atomic_t
 import { fetchExercise } from '../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import Loader from '../../../../../components/Loader';
+import NotFound from '../../../../../components/NotFound';
 import { useHelper } from '../../../../../store';
 import { type Exercise as ExerciseType, type InjectResultOverviewOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -61,14 +62,31 @@ const InjectIndex = () => {
     dispatch(fetchExercise(exerciseId));
   });
   const [injectResultOutput, setInjectResultOverviewOutput] = useState<InjectResultOverviewOutput>();
+  const [loadingInject, setLoadingInject] = useState(true);
 
   useEffect(() => {
-    fetchInjectResultOverviewOutput(injectId).then((result: { data: InjectResultOverviewOutput }) => {
-      setInjectResultOverviewOutput(result.data);
-    });
+    setLoadingInject(true);
+    fetchInjectResultOverviewOutput(injectId)
+      .then((result: { data: InjectResultOverviewOutput }) => {
+        setInjectResultOverviewOutput(result.data);
+      })
+      // 404 (deleted inject - e.g. its injector contract or phishing landing page was removed)
+      // or 403 masked as 404: swallow the rejection, the render below decides what to show.
+      .catch(() => setInjectResultOverviewOutput(undefined))
+      .finally(() => setLoadingInject(false));
   }, [injectId]);
 
-  if (exercise && injectResultOutput) {
+  if (loadingInject) {
+    return <Loader />;
+  }
+
+  // The fetch completed without a result: the inject does not exist (anymore) or is not
+  // accessible. Render a proper not-found instead of the previous infinite loader (#4844).
+  if (!injectResultOutput) {
+    return <NotFound />;
+  }
+
+  if (exercise) {
     return <InjectIndexComponent exercise={exercise} injectResult={injectResultOutput} />;
   }
   return <Loader />;

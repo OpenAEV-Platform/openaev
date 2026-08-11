@@ -90,6 +90,12 @@ interface Props {
    * team", "No findings from this action", ...). Falls back to a neutral target wording.
    */
   emptyFindingsLabel?: string;
+  /**
+   * Empty-state text for the Executions section. An action panel has no "target" to reach (it RUNS
+   * executions), so it reads "No executions recorded for this action" rather than the endpoint panel's
+   * "reached this endpoint". Falls back to a neutral target wording.
+   */
+  emptyExecutionsLabel?: string;
 }
 
 // Right-side panel for one endpoint selected in the attack-path graph: its findings grouped by type
@@ -113,6 +119,7 @@ const EndpointDetailPanel = ({
   onClose,
   hideFindings = false,
   emptyFindingsLabel,
+  emptyExecutionsLabel,
 }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -260,7 +267,7 @@ const EndpointDetailPanel = ({
 
         <InjectFormSection title={`${t('Executions')} (${executions.length})`}>
           {executions.length === 0
-            ? <Alert severity="info">{t('No execution reached this target')}</Alert>
+            ? <Alert severity="info">{emptyExecutionsLabel ?? t('No execution reached this target')}</Alert>
             : (
                 <Box sx={{
                   display: 'flex',
