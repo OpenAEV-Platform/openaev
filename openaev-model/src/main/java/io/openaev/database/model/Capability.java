@@ -542,9 +542,9 @@ public enum Capability {
   // -- GET --
 
   /**
-   * Returns every capability whose scopes include PLATFORM, {@code BYPASS} excluded - being valid in
-   * both scopes, it belongs to no single one. Hidden and deprecated capabilities are included, so
-   * the result describes the scope, not what a UI should offer.
+   * Returns every capability whose scopes include PLATFORM, {@code BYPASS} excluded - being valid
+   * in both scopes, it belongs to no single one. Hidden and deprecated capabilities are included,
+   * so the result describes the scope, not what a UI should offer.
    */
   public static Set<Capability> allPlatformScoped() {
     return Arrays.stream(values())
@@ -566,8 +566,8 @@ public enum Capability {
   // -- VALIDATE --
 
   /**
-   * Throws {@link IllegalArgumentException} naming every capability that is not valid in the PLATFORM
-   * scope, and returns silently when they all are. Nothing is modified or logged.
+   * Throws {@link IllegalArgumentException} naming every capability that is not valid in the
+   * PLATFORM scope, and returns silently when they all are. Nothing is modified or logged.
    */
   public static void validateForPlatformRole(Set<Capability> capabilities) {
     validateScope(capabilities, CapabilityScope.PLATFORM);
@@ -582,8 +582,9 @@ public enum Capability {
   }
 
   /**
-   * Fail-closed scope check: collects every capability missing {@code requiredScope} and throws them
-   * all in a single message, so a caller sees the complete set of offenders rather than the first one.
+   * Fail-closed scope check: collects every capability missing {@code requiredScope} and throws
+   * them all in a single message, so a caller sees the complete set of offenders rather than the
+   * first one.
    */
   private static void validateScope(Set<Capability> capabilities, CapabilityScope requiredScope) {
     Set<Capability> invalid =
@@ -617,9 +618,10 @@ public enum Capability {
   }
 
   /**
-   * Fail-open counterpart of {@link #validateScope}: splits the capabilities on {@code requiredScope},
-   * returns the valid ones in a new mutable set and warns once about those dropped. Never throws, so
-   * the caller must treat the returned set - possibly empty - as the authoritative one.
+   * Fail-open counterpart of {@link #validateScope}: splits the capabilities on {@code
+   * requiredScope}, returns the valid ones in a new mutable set and warns once about those dropped.
+   * Never throws, so the caller must treat the returned set - possibly empty - as the authoritative
+   * one.
    */
   private static Set<Capability> filterScope(
       Set<Capability> capabilities, CapabilityScope requiredScope) {
