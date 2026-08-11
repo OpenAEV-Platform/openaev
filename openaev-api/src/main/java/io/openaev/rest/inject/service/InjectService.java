@@ -955,7 +955,7 @@ public class InjectService {
                 operation.getOperation());
           } else {
             log.debug(
-                "Skipping ASSETS bulk update operation for inject {}: its contract does not need an executor",
+                "Skipping ASSETS bulk update operation for inject {}: it has no injector contract requiring an executor",
                 injectToUpdate.getId());
           }
         }
@@ -968,7 +968,7 @@ public class InjectService {
                 operation.getOperation());
           } else {
             log.debug(
-                "Skipping ASSET_GROUPS bulk update operation for inject {}: its contract does not need an executor",
+                "Skipping ASSET_GROUPS bulk update operation for inject {}: it has no injector contract requiring an executor",
                 injectToUpdate.getId());
           }
         }
