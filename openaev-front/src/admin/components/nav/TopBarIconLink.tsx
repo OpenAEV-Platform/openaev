@@ -4,8 +4,8 @@ import { Link } from 'react-router';
 
 // FDS-WORKAROUND #21: icon button that is really a link, library variants reused — remove when `IconButton` accepts `asChild` — see fds-migration/LIBRARY-FEEDBACK.md
 
-/** The class `IconButton` adds for `active` under its default variant. */
-const ACTIVE_CLASS = 'bg-filigran-brand-primary-transparency';
+/** The background `IconButton` paints for `active`, as the library's own token. */
+const SELECTED_BACKGROUND = 'var(--color-filigran-brand-primary-transparency)';
 
 interface TopBarIconLinkProps {
   /** Required accessible label — icon-only controls have no visible text. */
@@ -32,14 +32,14 @@ const TopBarIconLink: FunctionComponent<TopBarIconLinkProps> = ({
   color = 'var(--color-filigran-brand-primary)',
   id,
 }) => {
-  const classes = [
-    // `tertiary` is the bar's anatomy; the default `primary` is a FILLED brand button.
-    iconButtonVariants({ priority: 'tertiary' }),
-    active ? ACTIVE_CLASS : '',
-  ].filter(Boolean).join(' ');
+  // `tertiary` is the bar's anatomy; the default `primary` is a FILLED brand button.
+  const classes = iconButtonVariants({ priority: 'tertiary' });
 
-  // FDS-WORKAROUND #24: colour inline, MUI's unlayered `body a` beats the layered utility — remove when layering wins — see fds-migration/LIBRARY-FEEDBACK.md
-  const style = { color };
+  // FDS-WORKAROUND #24: colour and selected background inline, layered utilities lose here — see fds-migration/LIBRARY-FEEDBACK.md
+  const style = {
+    color,
+    ...(active && { backgroundColor: SELECTED_BACKGROUND }),
+  };
 
   // `aria-hidden` on the glyph, label on the control, as IconButton does.
   const content = <span className="inline-flex shrink-0" aria-hidden="true">{icon}</span>;
