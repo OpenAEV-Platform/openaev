@@ -20,6 +20,7 @@ import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
+import io.openaev.injector_contract.variables.VariableHelper;
 import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
@@ -103,6 +104,9 @@ public class EmailContract extends Contractor {
             false,
             Set.of(PresetDomain.getEmailInfiltration(), PresetDomain.getTabletop()));
     globalEmail.addVariable(documentUriVariable);
+    // A single mail is sent to all recipients at once, so per-user variables cannot be resolved
+    // and must not be advertised in the available variables cheat sheet.
+    globalEmail.removeVariable(VariableHelper.USER);
     return List.of(standardEmail, globalEmail);
   }
 

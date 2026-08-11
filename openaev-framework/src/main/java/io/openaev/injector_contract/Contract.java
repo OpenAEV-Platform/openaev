@@ -236,6 +236,22 @@ public class Contract {
   }
 
   /**
+   * Removes a variable (and its children) from this contract by its key.
+   *
+   * <p>Default variables are added to every contract by the constructor; this method allows a
+   * specific contract to opt out of a variable that does not apply to it (e.g. the {@code user}
+   * variable on the multi-recipients email contract, where a single mail is sent to many recipients
+   * so per-user placeholders cannot be resolved).
+   *
+   * @param key the key of the variable to remove (e.g., "user")
+   */
+  public void removeVariable(String key) {
+    if (key != null && !key.isBlank()) {
+      variables.removeIf(variable -> key.equals(variable.getKey()));
+    }
+  }
+
+  /**
    * Associates a MITRE ATT&CK pattern with this contract by its external ID.
    *
    * @param externalId the external ID of the attack pattern (e.g., "T1566.001")
