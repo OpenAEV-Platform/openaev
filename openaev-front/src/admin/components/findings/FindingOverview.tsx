@@ -13,8 +13,8 @@ import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
 import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
-import ContractOutputElementType from './ContractOutputElementType';
 import FindingOccurrences from './FindingOccurrences';
+import getFindingTypeLabel from './FindingTypeLabel';
 import FindingVulnerabilityPanel from './FindingVulnerabilityPanel';
 
 // Full-page finding overview: one deduplicated finding (type + value) with its
@@ -38,7 +38,7 @@ const FindingOverview = () => {
   }, [findingId]);
 
   const typeLabel = useMemo(
-    () => (finding ? t(ContractOutputElementType[finding.finding_type] ?? finding.finding_type) : ''),
+    () => (finding ? getFindingTypeLabel(t, finding.finding_type, finding.finding_cloud_provider) : ''),
     [finding, t],
   );
 

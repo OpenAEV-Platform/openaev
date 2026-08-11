@@ -16,8 +16,8 @@ import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
-import ContractOutputElementType from './ContractOutputElementType';
 import FindingTriageControl from './FindingTriageControl';
+import getFindingTypeLabel from './FindingTypeLabel';
 
 interface Props {
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
@@ -98,7 +98,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
           letterSpacing: '0.05em',
         }}
         >
-          {t(ContractOutputElementType[finding.finding_type] ?? finding.finding_type)}
+          {getFindingTypeLabel(t, finding.finding_type, finding.finding_cloud_provider)}
         </span>
       ),
     },

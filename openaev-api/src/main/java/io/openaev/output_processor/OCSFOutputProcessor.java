@@ -46,6 +46,7 @@ public class OCSFOutputProcessor extends FindingCapableOutputProcessor {
   public static final String CLOUD = "cloud";
   public static final String ACCOUNT = "account";
   public static final String REGION = "region";
+  public static final String PROVIDER = "provider";
   public static final String REMEDIATION = "remediation";
   public static final String DESC = "desc";
   public static final String REFERENCES = "references";
@@ -133,6 +134,9 @@ public class OCSFOutputProcessor extends FindingCapableOutputProcessor {
       }
       if (cloud.hasNonNull(REGION)) {
         finding.setCloudRegion(cloud.get(REGION).asText());
+      }
+      if (cloud.hasNonNull(PROVIDER)) {
+        finding.setCloudProvider(cloud.get(PROVIDER).asText());
       }
     }
 
