@@ -437,6 +437,76 @@ class EndpointApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Search endpoints counting")
+  @WithMockUser(isAdmin = true)
+  class SearchEndpointCounting {
+
+    @Test
+    @DisplayName("An endpoint with several primary agents should count once in totals (#3208)")
+    void given_endpointWithSeveralPrimaryAgents_should_countOnceInSearchTotals() throws Exception {
+      // -- PREPARE --
+      // Endpoint with TWO primary agents (no parent, no inject): the previous join + groupBy
+      // specification made Spring Data's count query sum the per-group counts (counting agent
+      // rows instead of endpoints), so this endpoint used to count twice in totalElements.
+      Endpoint multiAgent = EndpointFixture.createEndpoint("count-3208-multi-agent");
+      multiAgent.setAgents(
+          new ArrayList<>(
+              List.of(
+                  createAgent(multiAgent, "count-3208-agent-1"),
+                  createAgent(multiAgent, "count-3208-agent-2"))));
+      multiAgent = endpointRepository.save(multiAgent);
+
+      Endpoint singleAgent = EndpointFixture.createEndpoint("count-3208-single-agent");
+      singleAgent.setAgents(
+          new ArrayList<>(List.of(createAgent(singleAgent, "count-3208-agent-3"))));
+      singleAgent = endpointRepository.save(singleAgent);
+
+      Endpoint agentless =
+          endpointRepository.save(EndpointFixture.createEndpoint("count-3208-agentless"));
+
+      // A full first page (size 2 < 3 matching endpoints) forces Spring Data to execute the
+      // count query instead of short-circuiting with the content size.
+      SearchPaginationInput searchInput =
+          PaginationFixture.getDefault().textSearch("count-3208").size(2).build();
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  post(ENDPOINT_URI + "/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      // totalElements must count distinct endpoints (3), not joined agent rows (4)
+      assertEquals(Integer.valueOf(3), JsonPath.read(response, "$.totalElements"));
+      assertEquals(Integer.valueOf(2), JsonPath.read(response, "$.totalPages"));
+
+      // The last page must contain the one remaining endpoint, keeping pagination consistent
+      SearchPaginationInput lastPageInput =
+          PaginationFixture.getDefault().textSearch("count-3208").size(2).page(1).build();
+      String lastPageResponse =
+          mvc.perform(
+                  post(ENDPOINT_URI + "/search")
+                      .content(asJsonString(lastPageInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertEquals(Integer.valueOf(1), JsonPath.read(lastPageResponse, "$.numberOfElements"));
+      assertEquals(Integer.valueOf(3), JsonPath.read(lastPageResponse, "$.totalElements"));
+    }
+  }
+
+  @Nested
   @DisplayName("Retrieve targets")
   @WithMockUser(isAdmin = true)
   class TargetEndpoint {
