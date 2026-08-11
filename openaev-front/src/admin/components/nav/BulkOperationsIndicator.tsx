@@ -14,6 +14,15 @@ import { type BulkOperation, seedBulkOperations, useBulkOperations } from '../..
  * user-scoped aggregated `bulk-operation` SSE events (per-entity events are suppressed during
  * massive operations), and seeded from GET /api/bulk-operations on mount.
  */
+/** Unread-count bubble anatomy, carried over unchanged from the legacy MUI bar. */
+const BADGE_FONT_SIZE = 10;
+const BADGE_MIN_SIZE = 16;
+
+/** Spinner ring around the glyph. The offset is half the size, which is what centres it. */
+const SPINNER_SIZE = 32;
+const SPINNER_THICKNESS = 2;
+const SPINNER_CENTRING_OFFSET = `-${SPINNER_SIZE / 2}px`;
+
 const BulkOperationsIndicator: FunctionComponent = () => {
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
@@ -94,9 +103,9 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                   overlap="circular"
                   sx={{
                     '& .MuiBadge-badge': {
-                      fontSize: 10,
-                      height: 16,
-                      minWidth: 16,
+                      fontSize: BADGE_FONT_SIZE,
+                      height: BADGE_MIN_SIZE,
+                      minWidth: BADGE_MIN_SIZE,
                     },
                   }}
                 >
@@ -104,14 +113,14 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                 </Badge>
                 {runningCount > 0 && (
                   <CircularProgress
-                    size={32}
-                    thickness={2}
+                    size={SPINNER_SIZE}
+                    thickness={SPINNER_THICKNESS}
                     sx={{
                       position: 'absolute',
                       top: '50%',
                       left: '50%',
-                      marginTop: '-16px',
-                      marginLeft: '-16px',
+                      marginTop: SPINNER_CENTRING_OFFSET,
+                      marginLeft: SPINNER_CENTRING_OFFSET,
                       color: alpha(theme.palette.primary.main, 0.5),
                     }}
                   />

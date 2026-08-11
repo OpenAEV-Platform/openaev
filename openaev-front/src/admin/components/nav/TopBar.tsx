@@ -18,7 +18,7 @@ import { type CSSProperties, type FunctionComponent, useEffect, useState } from 
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 
 import { logout } from '../../../actions/Application';
-import { NAV_COLLAPSED_WIDTH, NAV_OPEN_WIDTH } from '../../../components/common/menu/navbar/navbarConstants';
+import { NAV_COLLAPSED_WIDTH, NAV_OPEN_WIDTH, TOP_BAR_SEARCH_MAX_WIDTH, TOP_BAR_SEARCH_MIN_WIDTH } from '../../../components/common/menu/navbar/navbarConstants';
 import { readNavOpen } from '../../../components/common/menu/navbar/useNavbarState';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
@@ -111,10 +111,10 @@ const TopBar: FunctionComponent = () => {
         <HeaderGroup
           // `grow` caps at 400px, below this bar's 500px ceiling — see fds-migration/LIBRARY-FEEDBACK.md #18
           grow="unbounded"
-          // Search window 200-500px (Sandy, round 4), declared on the group the product owns — see fds-migration/LIBRARY-FEEDBACK.md #18
+          // Search window declared on the group the product owns — see fds-migration/LIBRARY-FEEDBACK.md #18
           style={{
-            minWidth: 200,
-            maxWidth: 500,
+            minWidth: TOP_BAR_SEARCH_MIN_WIDTH,
+            maxWidth: TOP_BAR_SEARCH_MAX_WIDTH,
           }}
         >
           <SearchField
