@@ -102,6 +102,17 @@ describe('buildLogicGraphLayout tactic-column layout', () => {
 });
 
 describe('buildLogicGraphLayout tactic columns', () => {
+  it('keeps a real trigger->action edge when a reciprocal inferred edge exists', () => {
+    const { edges } = buildLogicGraphLayout({
+      actionMetas: { a1: action(['e1']) },
+      eventMetas: { e1: eventOn('text') },
+      outputProviders: { text: [{ stepId: 'a1' } as unknown as OutputProviderEntry] },
+      tacticForStep: { a1: 'Discovery' },
+      tacticOrder: { Discovery: 1 },
+    });
+    expect(edges.some(e => e.kind === 'real' && e.source === 'e1' && e.target === 'a1')).toBe(true);
+  });
+
   it('emits exactly one band per tactic, in kill-chain phase order', () => {
     const { columns } = build();
     expect(columns.map(c => c.tactic)).toEqual(['Discovery', 'Lateral Movement']);

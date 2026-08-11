@@ -428,11 +428,22 @@ const LogicGraph = ({
           }
         : prev));
     };
+    const resolveDropTarget = (clientX: number, clientY: number): HTMLElement | null => {
+      // `elementFromPoint` can return transient overlays (tooltips/popovers) above the graph.
+      // Scan the whole stack to find the underlying graph node wrapper reliably.
+      const candidates = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+      for (const candidate of candidates) {
+        const wrapper = candidate.closest('[data-node-id]') as HTMLElement | null;
+        if (wrapper) {
+          return wrapper;
+        }
+      }
+      return null;
+    };
     const up = (ev: PointerEvent) => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
-      const targetWrapper = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)
-        ?.closest('[data-node-id]') as HTMLElement | null;
+      const targetWrapper = resolveDropTarget(ev.clientX, ev.clientY);
       const targetId = targetWrapper?.getAttribute('data-node-id') ?? null;
       const targetKind = targetWrapper?.getAttribute('data-node-kind') as 'action' | 'trigger' | null;
       if (targetId && targetKind && targetId !== id) {
