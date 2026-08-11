@@ -284,14 +284,11 @@ export const buildLogicGraphLayout = ({
     .filter(e => kindById[e.source] && kindById[e.target]);
   const inferredEdges = buildInferredEdges(eventMetas, outputProviders)
     .filter(e => kindById[e.source] && kindById[e.target]);
-  // If an action both emits an event's listened-on output and is gated by that same event, the
-  // inferred edge is the reverse of a real edge. Keep the real dependency authoritative and drop
-  // that reciprocal inferred hint to avoid visual ambiguity and cycle artifacts.
-  const realPairs = new Set(realEdges.map(e => `${e.source}->${e.target}`));
-  const filteredInferredEdges = inferredEdges.filter(
-    e => !realPairs.has(`${e.target}->${e.source}`),
-  );
-  const rawEdges = [...filteredInferredEdges, ...realEdges];
+  // Keep inferred hints even when reciprocal to a real edge (`action -> trigger` plus
+  // `trigger -> action`) so users still see the producer path. Real links are forced back into the
+  // rendered graph below (`nonInferred = realEdges`), so cycle pruning here cannot hide persisted
+  // dependencies anymore.
+  const rawEdges = [...inferredEdges, ...realEdges];
 
   // Drop feedback loops entirely (both from layering and rendering): a downstream action that emits
   // a finding its own gating trigger listens on would otherwise draw a backward dashed stub hooking
