@@ -84,7 +84,11 @@ Below is a full list of capabilities in OpenAEV:
 | `Access threat arsenal actions` | Read-only access to the threat arsenal action library (attack scripts, tools, and techniques used in Simulations).                        |
 | &nbsp;&nbsp;`Manage threat arsenal actions` | Create and update threat arsenal actions in the library. Requires *Access threat arsenal actions*.                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete threat arsenal actions` | Permanently delete threat arsenal actions from the library. Requires *Manage threat arsenal actions*.                                     |
-| **Dashboards** |                                                                                                                                           |
+|  **Reporting** |                                                                                                                                           |
+| `Access reporting` | Read-only access to tenant reporting and generated reports.                                                                               |
+| &nbsp;&nbsp;`Manage reporting` | Create, update, and configure reporting content. Requires *Access reporting*.                                                             |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete reporting` | Permanently delete reporting content. Requires *Manage reporting*.                                                                        |
+**Dashboards** |                                                                                                                                           |
 | `Access Dashboards` | Read-only access to platform Dashboards and their visualizations.                                                                         |
 | &nbsp;&nbsp;`Manage Dashboards` | Create, update, and configure Dashboards. Requires *Access Dashboards*.                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete Dashboards` | Permanently delete Dashboards. Requires *Manage Dashboards*.                                                                              |
@@ -103,6 +107,14 @@ Below is a full list of capabilities in OpenAEV:
 | `Access lessons learned` | Read-only access to lessons learned records captured after assessments or exercises.                                                      |
 | &nbsp;&nbsp;`Manage lessons learned` | Create and update lessons learned entries. Requires *Access lessons learned*.                                                             |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete lessons learned` | Permanently delete lessons learned entries. Requires *Manage lessons learned*.                                                            |
+ **Tenant Settings** |                                                                                                                                           |
+| `Access tenant settings` | Read-only access to tenant-level configuration and administration settings.                                                               |
+| &nbsp;&nbsp;`Manage tenant settings` | Create, update, and configure tenant-level settings. Requires *Access tenant settings*.                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant settings` | Permanently delete tenant-level settings. Requires *Manage tenant settings*.                                                              |
+| **Tags** |                                                                                                                                           |
+| `Access tags` | Read-only access to tags used to organize and classify tenant resources.                                                                  |
+| &nbsp;&nbsp;`Manage tags` | Create, update, and configure tags. Requires *Access tags*.                                                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tags` | Permanently delete tags. Requires *Manage tags*.                                                                                          |
 | **Platform settings** |                                                                                                                                           |
 | `Access platform settings` | Read-only access to platform-wide configuration and administration settings.                                                              |
 | &nbsp;&nbsp;`Manage platform settings` | Modify platform-wide settings including security configuration, integrations, and system parameters. Requires *Access platform settings*. |
