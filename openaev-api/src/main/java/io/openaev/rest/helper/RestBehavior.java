@@ -206,6 +206,20 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
+  // A translatable code in "message" and the offending keys in
+  // errors.children.message.errors, which the client already knows how to read.
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(PrivilegeGrantException.class)
+  public ValidationErrorBag handlePrivilegeGrantException(PrivilegeGrantException ex) {
+    ValidationErrorBag bag = new ValidationErrorBag(HttpStatus.BAD_REQUEST.value(), ex.getCode());
+    ValidationContent content = new ValidationContent();
+    content.setErrors(ex.getDetails());
+    ValidationError errors = new ValidationError();
+    errors.setChildren(Map.of("message", content));
+    bag.setErrors(errors);
+    return bag;
+  }
+
   // Without this handler the class-level @ResponseStatus lets Spring produce the default /error
   // body, whose "message" field is empty unless server.error.include-message=always - the frontend
   // then shows a generic "Bad request" instead of the actual reason.

@@ -19,11 +19,10 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
 import io.openaev.database.repository.RoleRepository;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.role.form.RoleInput;
 import io.openaev.service.AbstractPrivilegeService;
-import io.openaev.service.RoleService;
+import io.openaev.service.TenantRoleService;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -48,7 +47,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private RoleRepository roleRepository;
   @Autowired private TenantRoleComposer tenantRoleComposer;
-  @Autowired private RoleService roleService;
+  @Autowired private TenantRoleService tenantRoleService;
 
   /** Computes the tenant-scoped reserved id used by the service-account role in this tenant. */
   private String reservedServiceRoleId() {
@@ -70,9 +69,9 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
   }
 
   // --------------------------------------------------------------------------
-  // CREATE — the public endpoint generates a random UUID, so the reserved-id
-  // guard can only be exercised through the service-level overload accepting
-  // an explicit id.
+  // CREATE — nothing to guard: the public endpoint generates the id itself, and
+  // createRoleInternal deliberately accepts reserved ids since that is how the
+  // well-known roles are seeded. Reserved ids are enforced on update and delete.
   // --------------------------------------------------------------------------
 
   @Nested
@@ -80,45 +79,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
   class Create {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("Given reserved SERVICE_ROLE_ID, should throw BadRequestException")
-    void given_reservedServiceRoleId_should_throwBadRequest_onCreate() {
-      // -------- Arrange --------
-      String reservedId = reservedServiceRoleId();
-
-      // -------- Act & Assert --------
-      assertThatThrownBy(
-              () ->
-                  roleService.createRole(
-                      reservedId,
-                      "AnyName",
-                      "desc",
-                      Set.of(Capability.ACCESS_ASSETS),
-                      TenantContext.getCurrentTenant()))
-          .isInstanceOf(BadRequestException.class);
-    }
-
-    @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("Given reserved PROCESS_STIX_ROLE_ID, should throw BadRequestException")
-    void given_reservedStixRoleId_should_throwBadRequest_onCreate() {
-      // -------- Arrange --------
-      String reservedId = reservedStixRoleId();
-
-      // -------- Act & Assert --------
-      assertThatThrownBy(
-              () ->
-                  roleService.createRole(
-                      reservedId,
-                      "AnyName",
-                      "desc",
-                      Set.of(Capability.ACCESS_ASSETS),
-                      TenantContext.getCurrentTenant()))
-          .isInstanceOf(BadRequestException.class);
-    }
-
-    @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_ASSETS})
     @DisplayName("Given a non-reserved id, public POST should succeed")
     void given_nonReservedId_should_succeed_onCreate() throws Exception {
       // -------- Arrange --------
@@ -267,7 +228,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
 
       // -------- Act --------
       Role updated =
-          roleService.updateRoleInternal(
+          tenantRoleService.updateRoleInternal(
               reserved.getId(),
               "re-converged name",
               "re-converged description",
@@ -291,7 +252,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
       // -------- Act & Assert --------
       assertThatThrownBy(
               () ->
-                  roleService.updateRoleInternal(
+                  tenantRoleService.updateRoleInternal(
                       unknownId,
                       "any-name",
                       "any-desc",

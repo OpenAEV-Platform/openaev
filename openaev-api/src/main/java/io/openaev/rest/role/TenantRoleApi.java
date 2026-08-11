@@ -11,7 +11,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.role.form.RoleInput;
 import io.openaev.rest.role.form.RoleMapper;
 import io.openaev.rest.role.form.RoleOutput;
-import io.openaev.service.RoleService;
+import io.openaev.service.TenantRoleService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -34,7 +34,7 @@ public class TenantRoleApi extends RestBehavior {
   public static final String ROLE_URI = "/api/roles";
   private static final String TENANT_ROLE_URI = TENANT_PREFIX + "/roles";
 
-  private final RoleService roleService;
+  private final TenantRoleService tenantRoleService;
   private final RoleMapper roleMapper;
 
   // -- CREATE --
@@ -51,7 +51,8 @@ public class TenantRoleApi extends RestBehavior {
       })
   public RoleOutput createRole(@Valid @RequestBody final RoleInput input) {
     return roleMapper.toRoleOutput(
-        roleService.createRole(input.getName(), input.getDescription(), input.getCapabilities()));
+        tenantRoleService.createRole(
+            input.getName(), input.getDescription(), input.getCapabilities()));
   }
 
   // -- READ --
@@ -71,7 +72,7 @@ public class TenantRoleApi extends RestBehavior {
       })
   public RoleOutput findRole(
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
-    return roleMapper.toRoleOutput(roleService.findByIdInTenant(roleId));
+    return roleMapper.toRoleOutput(tenantRoleService.findByIdInTenant(roleId));
   }
 
   @LogExecutionTime
@@ -81,7 +82,7 @@ public class TenantRoleApi extends RestBehavior {
   @Transactional
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of all Roles")})
   public List<RoleOutput> roles() {
-    return roleService.findAll(TenantContext.getCurrentTenant()).stream()
+    return tenantRoleService.findAll(TenantContext.getCurrentTenant()).stream()
         .map(roleMapper::toRoleOutput)
         .toList();
   }
@@ -101,8 +102,8 @@ public class TenantRoleApi extends RestBehavior {
       })
   public Page<RoleOutput> searchRoles(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-    return roleService
-        .searchRole(searchPaginationInput, TenantContext.getCurrentTenant())
+    return tenantRoleService
+        .search(searchPaginationInput, TenantContext.getCurrentTenant())
         .map(roleMapper::toRoleOutput);
   }
 
@@ -125,7 +126,7 @@ public class TenantRoleApi extends RestBehavior {
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId,
       @Valid @RequestBody final RoleInput input) {
     return roleMapper.toRoleOutput(
-        roleService.updateRole(
+        tenantRoleService.updateRole(
             roleId, input.getName(), input.getDescription(), input.getCapabilities()));
   }
 
@@ -146,6 +147,6 @@ public class TenantRoleApi extends RestBehavior {
       })
   public void deleteRole(
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
-    roleService.deleteRole(roleId);
+    tenantRoleService.delete(roleId);
   }
 }
