@@ -52,6 +52,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterators;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +64,7 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
@@ -103,6 +106,10 @@ public class InjectsExecutionJob implements Job {
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final EntityManager entityManager;
   private final TenantScopedTransaction tenantTx;
+
+  // Dedicated, configurable pool for the inject fan-out (see ThreadPoolTaskSchedulerConfig,
+  // issue #236). Resolved by bean name, like the other named executors of the platform.
+  private final @Qualifier("injectExecutionExecutor") Executor injectExecutionExecutor;
 
   private final PreviewFeatureService previewFeatureService;
 
@@ -440,9 +447,10 @@ public class InjectsExecutionJob implements Job {
    * tenant. Every other background executor (ScenarioExecutionJob, AtomicTestingExecutionJob,
    * ExpectationsExpirationManagerJob, StepEventService...) already carries the same bridge.
    *
-   * <p>Unlike those, this job runs on the shared {@code ForkJoinPool.commonPool} (nested {@code
-   * parallelStream}), which also borrows the calling thread: restore the previous value instead of
-   * clearing, so the scope of whatever else runs on that thread survives.
+   * <p>Injects run on the dedicated {@code injectExecutionExecutor} pool, but the save/restore
+   * (rather than a blanket clear) is still required: the pool's {@code CallerRunsPolicy} runs a
+   * task on the scheduler thread itself when the pool is saturated, so a scope that thread carried
+   * before the sweep must survive it.
    */
   private void executeInTenant(@NotNull final String tenantId, @NotNull final Runnable work) {
     String previousTenant =
@@ -457,6 +465,30 @@ public class InjectsExecutionJob implements Job {
         TenantContext.setCurrentTenant(previousTenant);
       }
     }
+  }
+
+  /**
+   * Executes one inject under its tenant scope with per-inject error isolation: any execution
+   * failure is recorded on the inject status and never propagates, so one failing inject cannot
+   * take down the rest of the batch (same contract as the previous parallelStream fan-out).
+   */
+  private void executeInjectInTenant(ExecutableInject executableInject) {
+    Inject inject = executableInject.getInjection().getInject();
+    String tenantId = inject.getTenant().getId();
+    executeInTenant(
+        tenantId,
+        () -> {
+          try {
+            this.executeInject(executableInject);
+          } catch (RuntimeException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            log.warn(cause.getMessage(), cause);
+            injectStatusService.failInjectStatus(inject.getId(), cause.getMessage());
+          } catch (Exception e) {
+            log.warn(e.getMessage(), e);
+            injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
+          }
+        });
   }
 
   @Override
@@ -504,38 +536,30 @@ public class InjectsExecutionJob implements Job {
                               ? "atomic"
                               : ex.getInjection().getExercise().getId()));
 
-      // Execute injects in parallel for each exercise.
-      byExercises.entrySet().parallelStream()
-          .forEach(
-              entry -> {
-                // Execute each inject for the exercise in order.
-                entry.getValue().parallelStream()
-                    .forEach(
-                        executableInject -> {
-                          Inject inject = executableInject.getInjection().getInject();
-                          String tenantId = inject.getTenant().getId();
-                          executeInTenant(
-                              tenantId,
-                              () -> {
-                                try {
-                                  this.executeInject(executableInject);
-                                } catch (RuntimeException e) {
-                                  Throwable cause = e.getCause() != null ? e.getCause() : e;
-                                  log.warn(cause.getMessage(), cause);
-                                  injectStatusService.failInjectStatus(
-                                      inject.getId(), cause.getMessage());
-                                } catch (Exception e) {
-                                  log.warn(e.getMessage(), e);
-                                  injectStatusService.failInjectStatus(
-                                      inject.getId(), e.getMessage());
-                                }
-                              });
-                        });
-                // Update the exercise
-                if (!entry.getKey().equals("atomic")) {
-                  updateExercise(entry.getKey());
-                }
-              });
+      // Fan out one task per inject on the dedicated inject execution pool (issue #236),
+      // instead of nested parallelStream() calls on the shared ForkJoinPool.commonPool.
+      List<CompletableFuture<Void>> exerciseCompletions = new ArrayList<>();
+      for (Map.Entry<String, List<ExecutableInject>> entry : byExercises.entrySet()) {
+        CompletableFuture<?>[] injectCompletions =
+            entry.getValue().stream()
+                .map(
+                    executableInject ->
+                        CompletableFuture.runAsync(
+                            () -> executeInjectInTenant(executableInject), injectExecutionExecutor))
+                .toArray(CompletableFuture[]::new);
+        exerciseCompletions.add(
+            CompletableFuture.allOf(injectCompletions)
+                .thenRun(
+                    () -> {
+                      // Update the exercise once all its injects are done, as before.
+                      if (!entry.getKey().equals("atomic")) {
+                        updateExercise(entry.getKey());
+                      }
+                    }));
+      }
+      // Wait for the whole batch: the job stays synchronous, exactly like the previous
+      // parallelStream() terminal operation.
+      CompletableFuture.allOf(exerciseCompletions.toArray(CompletableFuture[]::new)).join();
       // Change status of finished simulations.
       handleInjectExpectationCollectStatus();
       handleAutoClosingSimulations();

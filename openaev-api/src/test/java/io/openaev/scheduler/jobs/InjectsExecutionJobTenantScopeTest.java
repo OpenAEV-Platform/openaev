@@ -33,6 +33,7 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
@@ -82,6 +83,10 @@ class InjectsExecutionJobTenantScopeTest {
   @Mock private WorkflowService workflowService;
   @Mock private HealthCheckUtils healthCheckUtils;
 
+  // Stubbed in setUp() to run each inject on the calling thread, exactly what the production
+  // pool's CallerRunsPolicy does under saturation - the path the restore-semantics test guards.
+  @Mock private Executor injectExecutionExecutor;
+
   @InjectMocks private InjectsExecutionJob job;
 
   /** The tenant the executor saw while the inject was running. */
@@ -112,6 +117,15 @@ class InjectsExecutionJobTenantScopeTest {
     // thenReturn(...) argument evaluation trips Mockito's unfinished-stubbing detection.
     ExecutableInject injectToRun = atomicInjectOfTenant(INJECT_TENANT);
     when(injectHelper.getInjectsToRun()).thenReturn(List.of(injectToRun));
+
+    // The dedicated inject pool runs the task on this thread (CallerRunsPolicy path).
+    doAnswer(
+            invocation -> {
+              invocation.getArgument(0, Runnable.class).run();
+              return null;
+            })
+        .when(injectExecutionExecutor)
+        .execute(any(Runnable.class));
 
     // Stand in for the real primitive: record the scope, run the work on this thread.
     doAnswer(
@@ -186,7 +200,8 @@ class InjectsExecutionJobTenantScopeTest {
   @Test
   @DisplayName("the thread-local scope is restored once the inject is done")
   void scopeDoesNotLeakOntoThePooledThread() throws Exception {
-    // The job borrows shared ForkJoinPool threads (including this caller): a scope the thread
+    // The dedicated pool's CallerRunsPolicy can run an inject on the scheduler thread itself
+    // when the pool is saturated (modeled here by the direct executor): a scope that thread
     // carried before the sweep must survive it (restore semantics, not a blanket clear). Note
     // DefaultTenantExtension pre-sets the default tenant on every test thread, so "starts empty"
     // is not a premise this suite can rely on.

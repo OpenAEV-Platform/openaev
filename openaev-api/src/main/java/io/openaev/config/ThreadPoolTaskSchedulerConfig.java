@@ -27,6 +27,16 @@ public class ThreadPoolTaskSchedulerConfig {
   @Value("${manager.integrations.concurrency:#{null}}")
   private Integer concurrencyOverride;
 
+  // Optional per-environment override for the injectExecutionExecutor thread-pool size.
+  // When unset (the default), concurrency matches the number of available CPU cores, which is
+  // the effective parallelism the previous ForkJoinPool.commonPool-based fan-out provided.
+  // Set inject.execution.concurrency (or env var INJECT_EXECUTION_CONCURRENCY) to a positive
+  // integer to pin the pool size explicitly.
+  // The boxed Integer (rather than primitive int) is intentional: it allows the SpEL default
+  // #{null} to work, avoiding a startup failure when the property is absent.
+  @Value("${inject.execution.concurrency:#{null}}")
+  private Integer injectExecutionConcurrencyOverride;
+
   @Bean
   public ThreadPoolTaskScheduler threadPoolTaskScheduler() {
     ThreadPoolTaskScheduler threadPoolTaskScheduler = new ThreadPoolTaskScheduler();
@@ -86,6 +96,34 @@ public class ThreadPoolTaskSchedulerConfig {
     executor.setKeepAliveSeconds(30);
     executor.setAllowCoreThreadTimeOut(true);
     executor.setThreadNamePrefix("ManagerIntegrations-");
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+    executor.initialize();
+    return executor;
+  }
+
+  /**
+   * Dedicated executor for the scheduled inject execution fan-out (issue #236). Replaces the nested
+   * {@code parallelStream()} in {@code InjectsExecutionJob}, which ran inject dispatch on the
+   * shared {@code ForkJoinPool.commonPool} and therefore competed with every other commonPool user
+   * and could not be sized per deployment.
+   */
+  @Bean(name = "injectExecutionExecutor")
+  public Executor injectExecutionExecutor() {
+    // Default to the CPU core count: the parallelism the commonPool-based fan-out effectively
+    // had (commonPool workers plus the calling scheduler thread).
+    int concurrency =
+        injectExecutionConcurrencyOverride != null
+            ? Math.max(1, injectExecutionConcurrencyOverride)
+            : Math.max(1, Runtime.getRuntime().availableProcessors());
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(concurrency);
+    executor.setMaxPoolSize(concurrency);
+    executor.setQueueCapacity(0);
+    executor.setKeepAliveSeconds(30);
+    executor.setAllowCoreThreadTimeOut(true);
+    executor.setThreadNamePrefix("InjectExecution-");
+    // When the pool is saturated the scheduler thread runs the inject itself: injects are never
+    // dropped, and the dispatch loop is naturally throttled instead of queueing without bound.
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
     executor.initialize();
     return executor;
