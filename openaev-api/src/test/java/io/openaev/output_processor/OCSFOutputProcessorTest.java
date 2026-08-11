@@ -154,6 +154,16 @@ class OCSFOutputProcessorTest {
       assertEquals("123456789012", finding.getCloudAccount());
       assertEquals("eu-west-1", finding.getCloudRegion());
     }
+
+    @Test
+    @DisplayName(
+        "Should read the cloud provider (used by the frontend to label e.g. \"Cloud (AWS)\")")
+    void shouldReadCloudProvider() throws Exception {
+      JsonNode node = objectMapper.readTree(AWS_FAIL_SAMPLE);
+      Finding finding = new Finding();
+      processor.enrichFinding(node, finding);
+      assertEquals("aws", finding.getCloudProvider());
+    }
   }
 
   @Nested

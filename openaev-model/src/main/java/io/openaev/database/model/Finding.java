@@ -96,6 +96,14 @@ public class Finding implements TenantBase {
   @JsonProperty("finding_cloud_account")
   private String cloudAccount;
 
+  // The cloud provider the resource belongs to (e.g. "aws", "azure", "gcp", "kubernetes"), as
+  // reported by OCSF cloud.provider. Used by the frontend to label cloud findings as "Cloud
+  // (AWS)" etc. instead of the generic/internal contract type name ("OCSF").
+  @Queryable(filterable = true, sortable = true, label = "cloud provider")
+  @Column(name = "finding_cloud_provider")
+  @JsonProperty("finding_cloud_provider")
+  private String cloudProvider;
+
   @Queryable(filterable = true, sortable = true, label = "cloud region")
   @Column(name = "finding_cloud_region")
   @JsonProperty("finding_cloud_region")

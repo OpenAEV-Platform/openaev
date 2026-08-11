@@ -187,6 +187,8 @@ export interface AggregatedFindingOutput {
   finding_assets: EndpointSimple[];
   /** Cloud account identifier the resource belongs to (OCSF findings only) */
   finding_cloud_account?: string;
+  /** Cloud provider the resource belongs to, e.g. "aws", "azure", "gcp", "kubernetes" (OCSF findings only) */
+  finding_cloud_provider?: string;
   /** Cloud region of the resource (OCSF findings only) */
   finding_cloud_region?: string;
   /** Comma-joined violated compliance requirements (OCSF findings only) */
@@ -5363,6 +5365,7 @@ export interface Finding {
   finding_asset_groups?: AssetGroup[];
   finding_assets?: string[];
   finding_cloud_account?: string;
+  finding_cloud_provider?: string;
   finding_cloud_region?: string;
   finding_compliance?: string;
   /** @format date-time */
@@ -9617,6 +9620,8 @@ export interface RelatedFindingOutput {
   finding_assets: EndpointSimple[];
   /** Cloud account identifier the resource belongs to (OCSF findings only) */
   finding_cloud_account?: string;
+  /** Cloud provider the resource belongs to, e.g. "aws", "azure", "gcp", "kubernetes" (OCSF findings only) */
+  finding_cloud_provider?: string;
   /** Cloud region of the resource (OCSF findings only) */
   finding_cloud_region?: string;
   /** Comma-joined violated compliance requirements (OCSF findings only) */

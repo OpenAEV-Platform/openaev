@@ -89,6 +89,13 @@ public class AggregatedFindingOutput {
   @JsonProperty("finding_cloud_account")
   private String cloudAccount;
 
+  @Schema(
+      description =
+          "Cloud provider the resource belongs to, e.g. \"aws\", \"azure\", \"gcp\","
+              + " \"kubernetes\" (OCSF findings only)")
+  @JsonProperty("finding_cloud_provider")
+  private String cloudProvider;
+
   @Schema(description = "Cloud region of the resource (OCSF findings only)")
   @JsonProperty("finding_cloud_region")
   private String cloudRegion;

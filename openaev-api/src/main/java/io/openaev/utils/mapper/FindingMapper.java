@@ -63,6 +63,7 @@ public class FindingMapper {
         .severity(finding.getSeverity())
         .resource(finding.getResource())
         .cloudAccount(finding.getCloudAccount())
+        .cloudProvider(finding.getCloudProvider())
         .cloudRegion(finding.getCloudRegion())
         .remediation(finding.getRemediation())
         .compliance(finding.getCompliance())

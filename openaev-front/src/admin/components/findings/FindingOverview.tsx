@@ -19,6 +19,7 @@ import { emptyFilled } from '../../../utils/String';
 import ContractOutputElementType from './ContractOutputElementType';
 import FindingContextLink from './FindingContextLink';
 import FindingDetail from './FindingDetail';
+import getFindingTypeLabel from './FindingTypeLabel';
 
 // Full-page finding overview: replaces the former drawer so every finding
 // exposes all of its metadata and full pivots (assets, injects,
@@ -38,7 +39,7 @@ const FindingOverview = () => {
   }, [findingId]);
 
   const typeLabel = useMemo(
-    () => (finding ? t(ContractOutputElementType[finding.finding_type] ?? finding.finding_type) : ''),
+    () => (finding ? getFindingTypeLabel(t, finding.finding_type, finding.finding_cloud_provider) : ''),
     [finding, t],
   );
 
