@@ -91,11 +91,14 @@ public class PhishingLandingPageService {
 
   // MITRE ATT&CK techniques a credential-harvesting phishing landing page exercises. Both are the
   // "Spearphishing Link" technique read from its two legitimate angles: T1566.002 (Phishing -
-  // Initial Access) is the lure email carrying the link to the landing page, and T1598.003 (Phishing
+  // Initial Access) is the lure email carrying the link to the landing page, and T1598.003
+  // (Phishing
   // for Information - Reconnaissance) is the credential capture the page performs. The kill chain
   // phases (Initial Access, Reconnaissance) are DERIVED from these patterns by
-  // InjectorContract.getKillChainPhases(), so associating the attack patterns is all that is needed.
-  // Resolution is by external id against the tenant's imported MITRE data; a tenant without that data
+  // InjectorContract.getKillChainPhases(), so associating the attack patterns is all that is
+  // needed.
+  // Resolution is by external id against the tenant's imported MITRE data; a tenant without that
+  // data
   // simply gets no association (never a failure).
   private static final List<String> PHISHING_ATTACK_PATTERN_EXTERNAL_IDS =
       List.of("T1566.002", "T1598.003");
@@ -214,7 +217,8 @@ public class PhishingLandingPageService {
     boolean hasSearch = input.getSearchPaginationInput() != null;
     if (hasIds == hasSearch) {
       throw new BadRequestException(
-          "Either landing_page_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+          "Either landing_page_ids_to_process or search_pagination_input must be provided, and not"
+              + " both at the same time");
     }
 
     Specification<PhishingLandingPage> specification;
@@ -276,16 +280,16 @@ public class PhishingLandingPageService {
       landingPage.setDescription("A simple, platform-themed credential capture page.");
       landingPage.setHtml(
           """
-          <div class="phishing-card">
-            <h1>Sign in</h1>
-            <p>Please sign in to continue.</p>
-            <form data-phishing-form>
-              <label>Email<input type="email" name="username" autocomplete="username" required /></label>
-              <label>Password<input type="password" name="password" autocomplete="current-password" required /></label>
-              <button type="submit">Sign in</button>
-            </form>
-          </div>
-          """);
+<div class="phishing-card">
+  <h1>Sign in</h1>
+  <p>Please sign in to continue.</p>
+  <form data-phishing-form>
+    <label>Email<input type="email" name="username" autocomplete="username" required /></label>
+    <label>Password<input type="password" name="password" autocomplete="current-password" required /></label>
+    <button type="submit">Sign in</button>
+  </form>
+</div>
+""");
       landingPage.setCss(
           """
           .phishing-card { max-width: 360px; margin: 10vh auto; padding: 2rem;
@@ -367,10 +371,14 @@ public class PhishingLandingPageService {
     injectorContract.setAuthorOrganization(
         this.organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR));
 
-    // MITRE ATT&CK association, resolved by external id against the tenant's imported patterns exactly
-    // like a static built-in contract (InjectorContractService.applyBuiltinContractData). Kill chain
-    // phases follow automatically (InjectorContract.getKillChainPhases() derives them from the attack
-    // patterns). Missing MITRE data yields an empty list, so the action is simply left unassociated.
+    // MITRE ATT&CK association, resolved by external id against the tenant's imported patterns
+    // exactly
+    // like a static built-in contract (InjectorContractService.applyBuiltinContractData). Kill
+    // chain
+    // phases follow automatically (InjectorContract.getKillChainPhases() derives them from the
+    // attack
+    // patterns). Missing MITRE data yields an empty list, so the action is simply left
+    // unassociated.
     List<AttackPattern> attackPatterns =
         attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
             contract.getAttackPatternsExternalIds(), tenantId);

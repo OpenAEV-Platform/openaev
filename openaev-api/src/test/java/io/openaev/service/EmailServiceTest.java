@@ -68,7 +68,8 @@ class EmailServiceTest extends IntegrationTest {
   @Test
   void shouldMarkImapStoreFailureAsWarningNotError() throws Exception {
     // The mail is sent, but storing a copy in the IMAP sent folder keeps failing (e.g. IMAP not
-    // connected). The inject must still be considered a success, with the IMAP failure surfaced as a
+    // connected). The inject must still be considered a success, with the IMAP failure surfaced as
+    // a
     // WARNING trace rather than an ERROR that would flip the whole inject to "Error".
     ReflectionTestUtils.setField(emailService, "imapEnabled", true);
     when(smtpService.createMimeMessage()).thenReturn(new MimeMessage((Session) null));

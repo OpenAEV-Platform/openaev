@@ -140,7 +140,8 @@ class PhishingLandingPageServiceTest {
 
     // -- ASSERT --
     // The two "Spearphishing Link" techniques are resolved by external id and set on the contract.
-    // Kill chain phases are derived from these patterns, so associating them is all that is required.
+    // Kill chain phases are derived from these patterns, so associating them is all that is
+    // required.
     verify(attackPatternRepository)
         .findAllByExternalIdInIgnoreCaseAndTenantId(eq(List.of("T1566.002", "T1598.003")), any());
     assertEquals(List.of(spearphishingLink, phishingForInfo), result.getAttackPatterns());

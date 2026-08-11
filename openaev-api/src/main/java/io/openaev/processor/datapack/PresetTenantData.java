@@ -53,7 +53,8 @@ public class PresetTenantData {
                 .cisaExploitAdd(Instant.parse("2023-10-16T00:00:00Z"))
                 .cisaActionDue(Instant.parse("2023-10-16T00:00:00Z"))
                 .description(
-                    "Cisco IOS XE Web UI remote code execution via unauthenticated command injection.")
+                    "Cisco IOS XE Web UI remote code execution via unauthenticated command"
+                        + " injection.")
                 .cvssV31(new BigDecimal("10.0"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction("Verify compliance with BOD 23-02 and apply mitigations.")
@@ -76,7 +77,8 @@ public class PresetTenantData {
                 .cvssV31(new BigDecimal("8.2"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction(
-                    "Apply mitigations per vendor instructions or discontinue product if unavailable.")
+                    "Apply mitigations per vendor instructions or discontinue product if"
+                        + " unavailable.")
                 .cisaVulnerabilityName(
                     "Ivanti Connect Secure and Policy Secure Authentication Bypass Vulnerability")
                 .referenceUrls(
@@ -93,11 +95,13 @@ public class PresetTenantData {
                 .cisaExploitAdd(Instant.parse("2023-12-01T00:00:00Z"))
                 .cisaActionDue(Instant.parse("2023-12-01T00:00:00Z"))
                 .description(
-                    "Improper neutralization of SQL elements in Fortinet FortiClientEMS allows RCE/commands.")
+                    "Improper neutralization of SQL elements in Fortinet FortiClientEMS allows"
+                        + " RCE/commands.")
                 .cvssV31(new BigDecimal("9.8"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction(
-                    "Apply mitigations per vendor instructions or discontinue product if unavailable.")
+                    "Apply mitigations per vendor instructions or discontinue product if"
+                        + " unavailable.")
                 .cisaVulnerabilityName("Fortinet FortiClient EMS SQL Injection Vulnerability")
                 .referenceUrls(List.of("https://nvd.nist.gov/vuln/detail/CVE-2023-48788"))
                 .build(),
@@ -114,7 +118,8 @@ public class PresetTenantData {
                 .cvssV31(new BigDecimal("8.6"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction(
-                    "Apply mitigations per vendor instructions or discontinue product if unavailable.")
+                    "Apply mitigations per vendor instructions or discontinue product if"
+                        + " unavailable.")
                 .cisaVulnerabilityName("Cisco ASA and FTD Denial of Service Vulnerability")
                 .referenceUrls(
                     List.of(
@@ -132,9 +137,11 @@ public class PresetTenantData {
                 .cvssV31(new BigDecimal("9.8"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction(
-                    "Apply mitigations per vendor instructions or discontinue product if unavailable.")
+                    "Apply mitigations per vendor instructions or discontinue product if"
+                        + " unavailable.")
                 .cisaVulnerabilityName(
-                    "Cisco IOS and IOS XE Software Smart Install Remote Code Execution Vulnerability")
+                    "Cisco IOS and IOS XE Software Smart Install Remote Code Execution"
+                        + " Vulnerability")
                 .referenceUrls(List.of("https://nvd.nist.gov/vuln/detail/CVE-2018-0171"))
                 .build(),
             Cwe.builder().externalId("CWE-787").source("Out-of-bounds Write").build()),
@@ -146,7 +153,8 @@ public class PresetTenantData {
                 .cisaExploitAdd(Instant.parse("2023-10-16T00:00:00Z"))
                 .cisaActionDue(Instant.parse("2023-10-16T00:00:00Z"))
                 .description(
-                    "Cisco IOS XE Web UI insufficient input validation leading to root command injection.")
+                    "Cisco IOS XE Web UI insufficient input validation leading to root command"
+                        + " injection.")
                 .cvssV31(new BigDecimal("7.2"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction("Verify compliance with BOD 23-02 and apply mitigations.")

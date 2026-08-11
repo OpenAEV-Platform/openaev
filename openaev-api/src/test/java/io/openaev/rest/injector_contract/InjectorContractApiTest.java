@@ -382,23 +382,23 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                        {
-                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                          "injector_contract_external_id":null,
-                          "injector_contract_labels":null,"injector_contract_manual":false,
-                          "injector_contract_content":"{\\"fields\\":[]}",
-                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                          "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
-                          "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
-                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
-                          "injector_contract_atomic_testing":true,
-                          "injector_contract_import_available":false,"injector_contract_arch":null,
-                          "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_domains":[],
-                          "injector_contract_tags":[]
-                        }
-                        """,
+{
+  "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+  "injector_contract_external_id":null,
+  "injector_contract_labels":null,"injector_contract_manual":false,
+  "injector_contract_content":"{\\"fields\\":[]}",
+  "injector_contract_custom":true,"injector_contract_needs_executor":false,
+  "injector_contract_platforms":[],"injector_contract_payload":null,
+  "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+  "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
+  "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
+  "injector_contract_atomic_testing":true,
+  "injector_contract_import_available":false,"injector_contract_arch":null,
+  "injector_contract_injector_type":"openaev_implant",
+  "injector_contract_domains":[],
+  "injector_contract_tags":[]
+}
+""",
                     injectorContractInternalId));
       }
 
@@ -490,23 +490,23 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                        {
-                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                          "injector_contract_external_id":null,
-                          "injector_contract_labels":null,"injector_contract_manual":false,
-                          "injector_contract_content":"{\\"fields\\":[]}",
-                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                          "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
-                          "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
-                          "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
-                          "injector_contract_atomic_testing":true,
-                          "injector_contract_import_available":false,"injector_contract_arch":null,
-                          "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_domains":[],
-                          "injector_contract_tags":[]
-                        }
-                        """,
+{
+  "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+  "injector_contract_external_id":null,
+  "injector_contract_labels":null,"injector_contract_manual":false,
+  "injector_contract_content":"{\\"fields\\":[]}",
+  "injector_contract_custom":true,"injector_contract_needs_executor":false,
+  "injector_contract_platforms":[],"injector_contract_payload":null,
+  "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+  "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
+  "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
+  "injector_contract_atomic_testing":true,
+  "injector_contract_import_available":false,"injector_contract_arch":null,
+  "injector_contract_injector_type":"openaev_implant",
+  "injector_contract_domains":[],
+  "injector_contract_tags":[]
+}
+""",
                     injectorContractInternalId,
                     String.join(
                         ",",
@@ -559,23 +559,23 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                        {
-                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                          "injector_contract_external_id":null,
-                          "injector_contract_labels":null,"injector_contract_manual":false,
-                          "injector_contract_content":"{\\"fields\\":[]}",
-                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                          "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
-                          "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
-                          "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
-                          "injector_contract_atomic_testing":true,
-                          "injector_contract_import_available":false,"injector_contract_arch":null,
-                          "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_domains":[],
-                          "injector_contract_tags":[]
-                        }
-                        """,
+{
+  "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+  "injector_contract_external_id":null,
+  "injector_contract_labels":null,"injector_contract_manual":false,
+  "injector_contract_content":"{\\"fields\\":[]}",
+  "injector_contract_custom":true,"injector_contract_needs_executor":false,
+  "injector_contract_platforms":[],"injector_contract_payload":null,
+  "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+  "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
+  "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
+  "injector_contract_atomic_testing":true,
+  "injector_contract_import_available":false,"injector_contract_arch":null,
+  "injector_contract_injector_type":"openaev_implant",
+  "injector_contract_domains":[],
+  "injector_contract_tags":[]
+}
+""",
                     injectorContractInternalId,
                     String.join(
                         ",",
@@ -628,23 +628,23 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                        {
-                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                          "injector_contract_external_id":null,
-                          "injector_contract_labels":null,"injector_contract_manual":false,
-                          "injector_contract_content":"{\\"fields\\":[]}",
-                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                          "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
-                          "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
-                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
-                          "injector_contract_atomic_testing":true,
-                          "injector_contract_import_available":false,"injector_contract_arch":null,
-                          "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_domains":[],
-                          "injector_contract_tags":[]
-                        }
-                        """,
+{
+  "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+  "injector_contract_external_id":null,
+  "injector_contract_labels":null,"injector_contract_manual":false,
+  "injector_contract_content":"{\\"fields\\":[]}",
+  "injector_contract_custom":true,"injector_contract_needs_executor":false,
+  "injector_contract_platforms":[],"injector_contract_payload":null,
+  "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+  "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
+  "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
+  "injector_contract_atomic_testing":true,
+  "injector_contract_import_available":false,"injector_contract_arch":null,
+  "injector_contract_injector_type":"openaev_implant",
+  "injector_contract_domains":[],
+  "injector_contract_tags":[]
+}
+""",
                     injectorContractInternalId,
                     String.join(
                         ",",
@@ -700,23 +700,23 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                        {
-                          "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                          "injector_contract_external_id":null,
-                          "injector_contract_labels":null,"injector_contract_manual":false,
-                          "injector_contract_content":"{\\"fields\\":[]}",
-                          "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                          "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
-                          "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
-                          "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
-                          "injector_contract_atomic_testing":true,
-                          "injector_contract_import_available":false,"injector_contract_arch":null,
-                          "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_domains":[],
-                          "injector_contract_tags":[]
-                        }
-                        """,
+{
+  "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+  "injector_contract_external_id":null,
+  "injector_contract_labels":null,"injector_contract_manual":false,
+  "injector_contract_content":"{\\"fields\\":[]}",
+  "injector_contract_custom":true,"injector_contract_needs_executor":false,
+  "injector_contract_platforms":[],"injector_contract_payload":null,
+  "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+  "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
+  "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
+  "injector_contract_atomic_testing":true,
+  "injector_contract_import_available":false,"injector_contract_arch":null,
+  "injector_contract_injector_type":"openaev_implant",
+  "injector_contract_domains":[],
+  "injector_contract_tags":[]
+}
+""",
                     injectorContractInternalId,
                     String.join(
                         ",",
@@ -1016,22 +1016,22 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                                  {
-                                    "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                                    "injector_contract_external_id":"contract external id",
-                                    "injector_contract_labels":null,"injector_contract_manual":false,
-                                    "injector_contract_content":"{\\"fields\\":[]}",
-                                    "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                                    "injector_contract_platforms":[],"injector_contract_payload":null,
-                                    "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
-                                    "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
-                                    "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
-                                    "injector_contract_atomic_testing":true,
-                                    "injector_contract_import_available":false,"injector_contract_arch":null,
-                                    "injector_contract_injector_type":"openaev_implant",
-                                    "injector_contract_domains":[],
-                                    "injector_contract_tags":[]
-                                  }""",
+{
+  "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+  "injector_contract_external_id":"contract external id",
+  "injector_contract_labels":null,"injector_contract_manual":false,
+  "injector_contract_content":"{\\"fields\\":[]}",
+  "injector_contract_custom":true,"injector_contract_needs_executor":false,
+  "injector_contract_platforms":[],"injector_contract_payload":null,
+  "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+  "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
+  "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
+  "injector_contract_atomic_testing":true,
+  "injector_contract_import_available":false,"injector_contract_arch":null,
+  "injector_contract_injector_type":"openaev_implant",
+  "injector_contract_domains":[],
+  "injector_contract_tags":[]
+}""",
                     newId));
       }
 
@@ -1068,22 +1068,22 @@ public class InjectorContractApiTest extends IntegrationTest {
             .isEqualTo(
                 String.format(
                     """
-                                    {
-                                      "convertedContent":null,"listened":true,"injector_contract_id":"%s",
-                                      "injector_contract_external_id":"contract external id",
-                                      "injector_contract_labels":null,"injector_contract_manual":false,
-                                      "injector_contract_content":"{\\"fields\\":[]}",
-                                      "injector_contract_custom":true,"injector_contract_needs_executor":false,
-                                      "injector_contract_platforms":[],"injector_contract_payload":null,
-                                      "injector_contract_injectors":["41b4dd55-5bd1-4614-98cd-9e3770753306"],
-                                      "injector_contract_injector_names":{"41b4dd55-5bd1-4614-98cd-9e3770753306":"Email"},
-                                      "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
-                                      "injector_contract_atomic_testing":true,
-                                      "injector_contract_import_available":false,"injector_contract_arch":null,
-                                      "injector_contract_injector_type":"openaev_email",
-                                      "injector_contract_domains":["%s"],
-                                      "injector_contract_tags": []
-                                    }""",
+{
+  "convertedContent":null,"listened":true,"injector_contract_id":"%s",
+  "injector_contract_external_id":"contract external id",
+  "injector_contract_labels":null,"injector_contract_manual":false,
+  "injector_contract_content":"{\\"fields\\":[]}",
+  "injector_contract_custom":true,"injector_contract_needs_executor":false,
+  "injector_contract_platforms":[],"injector_contract_payload":null,
+  "injector_contract_injectors":["41b4dd55-5bd1-4614-98cd-9e3770753306"],
+  "injector_contract_injector_names":{"41b4dd55-5bd1-4614-98cd-9e3770753306":"Email"},
+  "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
+  "injector_contract_atomic_testing":true,
+  "injector_contract_import_available":false,"injector_contract_arch":null,
+  "injector_contract_injector_type":"openaev_email",
+  "injector_contract_domains":["%s"],
+  "injector_contract_tags": []
+}""",
                     newId, domain.getId()));
       }
 
@@ -1205,7 +1205,8 @@ public class InjectorContractApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "With SearchPaginationWithSerialisationOptionsInput and ignore content option is set, search returns expected items with no content")
+        "With SearchPaginationWithSerialisationOptionsInput and ignore content option is set,"
+            + " search returns expected items with no content")
     void WithSearchPaginationWithSerialisationOptionsInput() throws Exception {
       InjectorContractSearchPaginationInput input =
           PaginationFixture.optionedSearchWithAndOperator(
@@ -1265,7 +1266,8 @@ public class InjectorContractApiTest extends IntegrationTest {
           mvc.perform(
                   post(INJECTOR_CONTRACT_URL + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(PaginationFixture.simpleTextSearch("mail")))
+                      .content(
+                          mapper.writeValueAsString(PaginationFixture.simpleTextSearch("mail")))
                       .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
@@ -1399,7 +1401,8 @@ public class InjectorContractApiTest extends IntegrationTest {
     @ParameterizedTest(name = "{index} - {0}")
     @MethodSource("userTestCases")
     @DisplayName(
-        "POST /injector-contracts/search without full details - Test search access control for different user types")
+        "POST /injector-contracts/search without full details - Test search access control for"
+            + " different user types")
     void testSearchInjectorContracts(
         String testCase, UserType userType, int grantedActionNumber, boolean shouldSeeAllContracts)
         throws Exception {
@@ -1445,7 +1448,8 @@ public class InjectorContractApiTest extends IntegrationTest {
     @ParameterizedTest(name = "{index} - {0}")
     @MethodSource("userTestCases")
     @DisplayName(
-        "POST /injector-contracts/search with full details - Test search access control for different user types")
+        "POST /injector-contracts/search with full details - Test search access control for"
+            + " different user types")
     void testSearchInjectorContractsWithFullDetails(
         String testCase, UserType userType, int grantedActionNumber, boolean shouldSeeAllContracts)
         throws Exception {
@@ -1593,17 +1597,17 @@ public class InjectorContractApiTest extends IntegrationTest {
           .isEqualTo(
               String.format(
                   """
-            [
-              {
-                "domain": "%s",
-                "count": 2
-              },
-              {
-                "domain": "%s",
-                "count": 1
-              }
-            ]
-            """,
+                  [
+                    {
+                      "domain": "%s",
+                      "count": 2
+                    },
+                    {
+                      "domain": "%s",
+                      "count": 1
+                    }
+                  ]
+                  """,
                   endpointDomain.iterator().next().getId(), cloudDomain.iterator().next().getId()));
     }
   }
@@ -1637,7 +1641,8 @@ public class InjectorContractApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given source contract with attack pattern external IDs — should resolve and set attack patterns from DB")
+        "given source contract with attack pattern external IDs — should resolve and set attack"
+            + " patterns from DB")
     void givenSourceWithAttackPatterns_shouldResolveAndSetAttackPatterns() {
       // -- ARRANGE --
       Injector injector = injectorFixture.getWellKnownOaevImplantInjector();
@@ -1671,7 +1676,8 @@ public class InjectorContractApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given ObjectMapper that fails to serialize — should throw IllegalStateException wrapping cause")
+        "given ObjectMapper that fails to serialize — should throw IllegalStateException wrapping"
+            + " cause")
     void givenSerializationFailure_shouldThrowIllegalStateException() throws Exception {
       // -- ARRANGE --
       Injector injector = injectorFixture.getWellKnownOaevImplantInjector();

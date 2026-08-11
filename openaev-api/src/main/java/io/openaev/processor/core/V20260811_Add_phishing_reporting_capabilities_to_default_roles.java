@@ -17,8 +17,8 @@ import org.springframework.stereotype.Component;
  *
  * <p>{@code PresetTenantData.DEFAULT_ROLES} was never updated when the {@code *_REPORTINGS} and
  * {@code *_PHISHING} capability groups were introduced, so every tenant created since then got
- * Manager/Observer roles silently missing them. The preset is fixed for new tenants; this
- * migration heals the tenants that were already created.
+ * Manager/Observer roles silently missing them. The preset is fixed for new tenants; this migration
+ * heals the tenants that were already created.
  *
  * <p>Both roles are user-editable after creation, so the heal is deliberately conservative: a role
  * is only updated when its capability set still EXACTLY matches what the buggy preset generated
