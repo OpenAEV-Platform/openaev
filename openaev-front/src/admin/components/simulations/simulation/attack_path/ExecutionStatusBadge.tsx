@@ -39,8 +39,12 @@ export const PayloadExecutionStatusBadge = ({ injectId, endpointName, fallbackSt
     return <TraceStatusChip status={agentStatus.statusName} />;
   }
   // Still settling: a resolved target whose result has not come back yet would flash the fallback for
-  // a frame before the real per-agent chip. Wait until the target and its result have both settled.
-  const resolving = targetLoading || resultLoading || (!!target && injectExecutionResult === undefined);
+  // a frame before the real per-agent chip. Wait until the target and its result have both settled:
+  // `undefined` is "fetch not applied yet" (the hook settles an empty or failed fetch to `null`), and
+  // the fetch only ever fires for a target carrying an id and a type - the same precondition guards
+  // the wait, so a target the hook will never fetch cannot suppress the fallback forever.
+  const awaitingResult = !!target?.target_id && !!target.target_type && injectExecutionResult === undefined;
+  const resolving = targetLoading || resultLoading || awaitingResult;
   if (resolving || !fallbackStatus) {
     return null;
   }

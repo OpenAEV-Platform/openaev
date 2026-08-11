@@ -150,6 +150,93 @@ describe('ExecutionRowStatusBadge', () => {
     expect(mocks.fetchExecutionDetail).not.toHaveBeenCalled();
   });
 
+  // A payload action whose per-agent resolution yields nothing used to render a blank Execution
+  // cell even though the action clearly ran (issue 7337): the graph-shipped inject-level status now
+  // fills that hole, and only that hole - the per-agent chip still wins when traces resolve (covered
+  // by the per-target test above).
+  it('falls back to the inject-level chip when the per-agent result resolves empty', async () => {
+    mocks.searchTargets.mockResolvedValue({
+      data: {
+        content: [{
+          target_id: 'target-7',
+          target_type: 'ASSETS',
+          target_name: 'CORP-HOST',
+        }],
+      },
+    });
+    mocks.fetchInjectExecutionResult.mockResolvedValue({ data: null });
+
+    renderWithTheme(
+      <ExecutionRowStatusBadge
+        simulationId="sim-1"
+        executionRef="exec-ref-7"
+        endpointName="CORP-HOST"
+        injectId="inject-7"
+        payloadId="payload-7"
+        executionStatus="EXECUTED"
+      />,
+    );
+
+    expect(await screen.findByText('EXECUTED')).toBeDefined();
+    expect(mocks.fetchInjectExecutionResult).toHaveBeenCalledWith('inject-7', 'target-7', 'ASSETS');
+  });
+
+  it('falls back to the inject-level chip when the per-agent result fetch fails', async () => {
+    mocks.searchTargets.mockResolvedValue({
+      data: {
+        content: [{
+          target_id: 'target-8',
+          target_type: 'ASSETS',
+          target_name: 'CORP-HOST',
+        }],
+      },
+    });
+    mocks.fetchInjectExecutionResult.mockRejectedValue(new Error('boom'));
+
+    renderWithTheme(
+      <ExecutionRowStatusBadge
+        simulationId="sim-1"
+        executionRef="exec-ref-8"
+        endpointName="CORP-HOST"
+        injectId="inject-8"
+        payloadId="payload-8"
+        executionStatus="EXECUTED"
+      />,
+    );
+
+    expect(await screen.findByText('EXECUTED')).toBeDefined();
+  });
+
+  // A seeded/demo snapshot ships no live inject status: the historical empty render is kept rather
+  // than inventing a status.
+  it('keeps the empty render when the per-agent result is empty and there is no fallback status', async () => {
+    mocks.searchTargets.mockResolvedValue({
+      data: {
+        content: [{
+          target_id: 'target-9',
+          target_type: 'ASSETS',
+          target_name: 'CORP-HOST',
+        }],
+      },
+    });
+    mocks.fetchInjectExecutionResult.mockResolvedValue({ data: null });
+
+    const { container } = renderWithTheme(
+      <ExecutionRowStatusBadge
+        simulationId="sim-1"
+        executionRef="exec-ref-9"
+        endpointName="CORP-HOST"
+        injectId="inject-9"
+        payloadId="payload-9"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mocks.fetchInjectExecutionResult).toHaveBeenCalled();
+    });
+    expect(container.textContent).toBe('');
+  });
+
   it('refines a non-terminal graph status instead of trusting it, straight from its injectId', async () => {
     mocks.getInjectStatusWithGlobalExecutionTraces.mockResolvedValue({
       data: {
