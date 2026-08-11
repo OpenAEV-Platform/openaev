@@ -295,8 +295,8 @@ class InjectServiceTest {
     t0.setId("team0");
     Asset a0 = new Asset();
     a0.setId("asset0");
-    InjectorContract technicalContract = new InjectorContract();
-    technicalContract.setNeedsExecutor(true);
+    InjectorContract technicalContract =
+        buildContractWithContentFields("teams", "assets", "asset_groups");
     Inject i1 = new Inject();
     i1.setId("inject1");
     i1.setInjectorContract(technicalContract);
@@ -365,9 +365,9 @@ class InjectServiceTest {
   }
 
   @DisplayName(
-      "Test bulk update injects with mixed types only applies assets to executor-backed injects")
+      "Test bulk update injects with mixed contract types only applies asset operations to contracts declaring asset fields")
   @Test
-  void bulkUpdateInjectsWithMixedTypesSkipsAssetsForNonExecutorInjects() {
+  void given_injects_with_mixed_contract_types_should_apply_asset_operations_per_contract_fields() {
     // Arrange
     Team t1 = new Team();
     t1.setId("team1");
@@ -380,34 +380,31 @@ class InjectServiceTest {
     AssetGroup ag1 = new AssetGroup();
     ag1.setId("assetGroup1");
 
-    // Executor-backed inject (e.g. implant-based payload)
-    InjectorContract technicalContract = new InjectorContract();
-    technicalContract.setNeedsExecutor(true);
-    Inject technicalInject = new Inject();
-    technicalInject.setId("technicalInject");
-    technicalInject.setInjectorContract(technicalContract);
-    technicalInject.setTeams(new ArrayList<>());
-    technicalInject.setAssets(new ArrayList<>(List.of(a0)));
-    technicalInject.setAssetGroups(new ArrayList<>(List.of(ag0)));
+    // (a) Executor-backed payload contract declaring assets and asset_groups fields
+    InjectorContract payloadContract =
+        buildContractWithContentFields("assets", "asset_groups", "expectations");
+    payloadContract.setNeedsExecutor(true);
+    Inject payloadInject = buildInjectForBulkUpdate("payloadInject", payloadContract, a0, ag0);
 
-    // Email-type inject: its contract does not need an executor
-    InjectorContract emailContract = new InjectorContract();
+    // (b) Agentless technical contract (Nmap/Nuclei-like): needs_executor is false but the
+    // contract content declares assets and asset_groups fields, so asset operations MUST apply
+    InjectorContract agentlessContract =
+        buildContractWithContentFields("assets", "asset_groups", "expectations");
+    agentlessContract.setNeedsExecutor(false);
+    Inject agentlessInject =
+        buildInjectForBulkUpdate("agentlessInject", agentlessContract, a0, ag0);
+
+    // (c) Email-like contract without any asset field: asset operations must be skipped
+    InjectorContract emailContract =
+        buildContractWithContentFields("teams", "subject", "body", "expectations");
     emailContract.setNeedsExecutor(false);
-    Inject emailInject = new Inject();
-    emailInject.setId("emailInject");
-    emailInject.setInjectorContract(emailContract);
-    emailInject.setTeams(new ArrayList<>());
-    emailInject.setAssets(new ArrayList<>(List.of(a0)));
-    emailInject.setAssetGroups(new ArrayList<>(List.of(ag0)));
+    Inject emailInject = buildInjectForBulkUpdate("emailInject", emailContract, a0, ag0);
 
-    // Inject without any contract must be treated like a non-executor inject
-    Inject contractlessInject = new Inject();
-    contractlessInject.setId("contractlessInject");
-    contractlessInject.setTeams(new ArrayList<>());
-    contractlessInject.setAssets(new ArrayList<>(List.of(a0)));
-    contractlessInject.setAssetGroups(new ArrayList<>(List.of(ag0)));
+    // (d) Inject without any contract: asset operations must be skipped
+    Inject contractlessInject = buildInjectForBulkUpdate("contractlessInject", null, a0, ag0);
 
-    List<Inject> injectsToUpdate = List.of(technicalInject, emailInject, contractlessInject);
+    List<Inject> injectsToUpdate =
+        List.of(payloadInject, agentlessInject, emailInject, contractlessInject);
 
     InjectBulkUpdateOperation teamsOp = new InjectBulkUpdateOperation();
     teamsOp.setField(InjectBulkUpdateSupportedFields.TEAMS);
@@ -434,26 +431,55 @@ class InjectServiceTest {
 
     // Assert
     assertNotNull(updatedInjects);
-    assertEquals(3, updatedInjects.size());
+    assertEquals(4, updatedInjects.size());
 
-    Inject updatedTechnical = updatedInjects.getFirst();
-    Inject updatedEmail = updatedInjects.get(1);
-    Inject updatedContractless = updatedInjects.get(2);
+    Inject updatedPayload = updatedInjects.getFirst();
+    Inject updatedAgentless = updatedInjects.get(1);
+    Inject updatedEmail = updatedInjects.get(2);
+    Inject updatedContractless = updatedInjects.get(3);
 
     // Teams are applied to every inject, whatever the contract type
-    assertEquals(List.of(t1), updatedTechnical.getTeams());
+    assertEquals(List.of(t1), updatedPayload.getTeams());
+    assertEquals(List.of(t1), updatedAgentless.getTeams());
     assertEquals(List.of(t1), updatedEmail.getTeams());
     assertEquals(List.of(t1), updatedContractless.getTeams());
 
-    // Assets and asset groups are applied to the executor-backed inject only
-    assertEquals(List.of(a1), updatedTechnical.getAssets());
-    assertEquals(List.of(ag1), updatedTechnical.getAssetGroups());
+    // Assets and asset groups are applied to the executor-backed payload inject...
+    assertEquals(List.of(a1), updatedPayload.getAssets());
+    assertEquals(List.of(ag1), updatedPayload.getAssetGroups());
 
-    // ... and skipped for the email inject and the inject without a contract
+    // ... AND to the agentless technical inject, since its contract declares asset fields
+    assertEquals(List.of(a1), updatedAgentless.getAssets());
+    assertEquals(List.of(ag1), updatedAgentless.getAssetGroups());
+
+    // ... but skipped for the email inject (no asset fields) and the contract-less inject
     assertEquals(List.of(a0), updatedEmail.getAssets());
     assertEquals(List.of(ag0), updatedEmail.getAssetGroups());
     assertEquals(List.of(a0), updatedContractless.getAssets());
     assertEquals(List.of(ag0), updatedContractless.getAssetGroups());
+  }
+
+  /** Builds an injector contract whose content declares the given field keys. */
+  private InjectorContract buildContractWithContentFields(String... fieldKeys) {
+    InjectorContract contract = new InjectorContract();
+    String fields =
+        Arrays.stream(fieldKeys)
+            .map(key -> "{\"key\":\"" + key + "\",\"type\":\"text\"}")
+            .collect(java.util.stream.Collectors.joining(","));
+    contract.setContent("{\"fields\":[" + fields + "]}");
+    return contract;
+  }
+
+  /** Builds an inject pre-populated with one asset and one asset group for bulk update tests. */
+  private Inject buildInjectForBulkUpdate(
+      String id, InjectorContract contract, Asset initialAsset, AssetGroup initialAssetGroup) {
+    Inject inject = new Inject();
+    inject.setId(id);
+    inject.setInjectorContract(contract);
+    inject.setTeams(new ArrayList<>());
+    inject.setAssets(new ArrayList<>(List.of(initialAsset)));
+    inject.setAssetGroups(new ArrayList<>(List.of(initialAssetGroup)));
+    return inject;
   }
 
   @DisplayName("Test bulk update injects with empty operations")
