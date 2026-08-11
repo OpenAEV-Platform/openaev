@@ -1,4 +1,5 @@
 import {
+  Chip,
   Header,
   HeaderGroup,
   IconButton,
@@ -21,7 +22,6 @@ import { logout } from '../../../actions/Application';
 import { NAV_COLLAPSED_WIDTH, NAV_OPEN_WIDTH, TOP_BAR_SEARCH_MAX_WIDTH, TOP_BAR_SEARCH_MIN_WIDTH } from '../../../components/common/menu/navbar/navbarConstants';
 import { readNavOpen } from '../../../components/common/menu/navbar/useNavbarState';
 import { useFormatter } from '../../../components/i18n';
-import ItemBoolean from '../../../components/ItemBoolean';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -143,7 +143,8 @@ const TopBar: FunctionComponent = () => {
             </>
           )}
           {settings.platform_license?.license_type === 'nfr' && (
-            <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} />
+            // Same technique as the Navbar pilot's EE chip (LeftBarTenantSwitcher): the library's Chip, coloured by a token.
+            <Chip label="EE DEV LICENSE" severity="critical" />
           )}
           <BulkOperationsIndicator />
           {/* OpenCTI-aligned pair: triggers alarm, then the notifications bell. */}

@@ -18,7 +18,10 @@ vi.mock('../../../../admin/components/ariane/CtemCommandCenterButton', () => ({ 
 vi.mock('../../../../admin/components/ariane/AskArianePanel', () => ({ default: () => null }));
 vi.mock('../../../../admin/components/ariane/useChatbotHooks', () => ({ useChatbot: () => ({ open: false }) }));
 vi.mock('../../../../utils/hooks', () => ({ useAppDispatch: () => vi.fn() }));
-vi.mock('../../../../utils/hooks/useAuth', () => ({ default: () => ({ settings: { platform_license: {} } }) }));
+// Mutable so a test can put the platform on a non-production licence, which is
+// the only state that renders the "EE DEV LICENSE" tag.
+const platformLicense: { license_type?: string } = {};
+vi.mock('../../../../utils/hooks/useAuth', () => ({ default: () => ({ settings: { platform_license: platformLicense } }) }));
 
 const { default: TopBar, OPEN_BAR_WIDTH, SMALL_BAR_WIDTH } = await import('../../../../admin/components/nav/TopBar');
 
@@ -58,6 +61,33 @@ describe('Admin TopBar built on the design system Header', () => {
   afterEach(() => {
     cleanup();
     localStorage.clear();
+    delete platformLicense.license_type;
+  });
+
+  it('tags a non-production licence with the design system Chip, not a MUI one', () => {
+    // Review #7305 (Sandy): the "EE DEV LICENSE" tag was the last MUI control
+    // left in the bar - a MUI `Chip` inside the product's generic `ItemBoolean`,
+    // painted from hardcoded literals (#f44336 on rgba(244, 67, 54, 0.08)).
+    // Same treatment as the EE chip the Navbar pilot already converted
+    // (LeftBarTenantSwitcher): the library's Chip, coloured by a token.
+    // `severity="critical"` is the faithful mapping - it resolves to
+    // `bg-feedback-error-secondary-transparency` + `text-feedback-error-primary`,
+    // which is the same anatomy the literals produced.
+    platformLicense.license_type = 'nfr';
+    renderTopBar();
+    const tag = screen.getByText('EE DEV LICENSE');
+    // Negative: no MUI control anywhere in the bar, the tag included.
+    expectNoMuiControls(getBar(), 'the bar with a dev licence');
+    // Positive: the colour comes from a feedback TOKEN, not from a literal.
+    const painted = [tag, tag.parentElement, tag.parentElement?.parentElement]
+      .filter(Boolean)
+      .some(el => String((el as Element).getAttribute('class') ?? '').includes('feedback-error'));
+    expect(painted, 'the tag is not painted from the error feedback token').toBe(true);
+  });
+
+  it('shows no licence tag on a production licence', () => {
+    renderTopBar();
+    expect(screen.queryByText('EE DEV LICENSE')).toBeNull();
   });
 
   it('pins the bar to the top of the viewport, never sticky', () => {
