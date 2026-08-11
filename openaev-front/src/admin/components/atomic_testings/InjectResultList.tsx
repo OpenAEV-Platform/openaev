@@ -142,15 +142,19 @@ const InjectResultList: FunctionComponent<Props> = ({
       value: (injectResultOutput: InjectResultOutput) => {
         return (
           <span style={{
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
             gap: 8,
             maxWidth: '100%',
           }}
           >
+            {/* minWidth: 0 lets the flex item shrink below its content width so the
+                ellipsis can kick in instead of pushing the chip out of the cell */}
             <span style={{
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
             }}
             >
               {injectResultOutput.inject_title}

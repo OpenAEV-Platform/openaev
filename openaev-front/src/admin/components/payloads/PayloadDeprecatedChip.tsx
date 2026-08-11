@@ -30,6 +30,8 @@ const PayloadDeprecatedChip = ({ status }: Props) => {
           fontSize: 11,
           color: theme.palette.text.disabled,
           borderColor: alpha(theme.palette.text.disabled, 0.4),
+          // Never let the chip shrink when rendered next to a truncating title
+          flexShrink: 0,
         }}
       />
     </Tooltip>
