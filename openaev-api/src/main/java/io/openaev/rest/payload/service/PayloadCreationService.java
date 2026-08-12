@@ -3,9 +3,7 @@ package io.openaev.rest.payload.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
-
-import java.util.Collections;
-import java.util.List;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
 import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.SessionHelper;
@@ -88,16 +86,12 @@ public class PayloadCreationService {
         payloadService.synchroniseInjectorContractBasedOnPayload(
             payloadSaved,
             fromIterable(
-                attackPatternRepository.findAllById(nullToEmpty(input.getAttackPatternsIds()))),
-            iterableToSet(domainService.findAllById(nullToEmpty(input.getDomainIds()))),
-            iterableToSet(tagRepository.findAllById(nullToEmpty(input.getTagIds()))));
+                attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds()))),
+            iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))),
+            iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
     // Telemetry: one payload created, by type - recorded only once the payload and
     // its injector contract are persisted (a rollback would otherwise inflate the counter).
     resultsMetricCollector.recordPayloadCreated(payloadType.key);
     return new PayloadInjectorContractCreationResult(payloadSaved, injectorContract);
-  }
-
-  private static <T> List<T> nullToEmpty(List<T> ids) {
-    return ids == null ? Collections.emptyList() : ids;
   }
 }

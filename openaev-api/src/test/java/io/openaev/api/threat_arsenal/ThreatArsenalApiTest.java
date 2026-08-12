@@ -179,6 +179,64 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Creating an action with omitted tag and attack pattern id lists should succeed")
+    void given_nullTagAndAttackPatternIds_should_createPayloadWithInjectorContract()
+        throws Exception {
+      // Regression test: the action -> payload input conversion goes through
+      // BeanUtils.copyProperties, which copies the action DTO's null id collections over the
+      // payload input's empty-list defaults. The nulls used to reach Spring Data's findAllById,
+      // which throws IllegalArgumentException ("Ids must not be null"), surfacing as an HTTP 400
+      // on every creation where action_tags / action_attack_patterns were omitted (the AI
+      // orchestrator hit this on threat arsenal action creation).
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          new ThreatArsenalActionCreateInput(
+              Command.COMMAND_TYPE,
+              "Command line payload without associations",
+              Payload.PAYLOAD_SOURCE.MANUAL,
+              Payload.PAYLOAD_STATUS.VERIFIED,
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              "bash",
+              "echo hello",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null, // action_tags omitted from the JSON payload
+              null, // action_attack_patterns omitted from the JSON payload
+              null,
+              null,
+              List.of(domain.getId()));
+
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String payloadId = JsonPath.read(response, "$.action_payload.payload_id");
+      Payload payload = payloadRepository.findById(payloadId).orElse(null);
+      assertNotNull(payload);
+      InjectorContract contract =
+          injectorContractRepository.findInjectorContractByPayload(payload).orElse(null);
+      assertNotNull(contract);
+      assertTrue(contract.getAttackPatterns().isEmpty());
+      assertTrue(contract.getTags().isEmpty());
+    }
+
+    @Test
     @DisplayName("Creating an action with null arch should fail")
     void given_nullArch_should_returnBadRequest() throws Exception {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -1229,6 +1287,61 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       assertNotNull(contract);
       assertEquals(1, contract.getDomains().size());
       assertEquals(newDomain.getId(), contract.getDomains().iterator().next().getId());
+    }
+
+    @Test
+    @DisplayName("Updating an action with omitted tag and attack pattern id lists should succeed")
+    void given_nullTagAndAttackPatternIds_should_updatePayloadWithInjectorContract()
+        throws Exception {
+      // Regression test: same null id collection issue as creation - the action -> payload
+      // update conversion copies the action DTO's nullable id lists onto the payload update
+      // input, and the nulls used to reach findAllById ("Ids must not be null", HTTP 400).
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput createInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+
+      String createResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(createInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String actionId = JsonPath.read(createResponse, "$.injector_contract_id");
+
+      ThreatArsenalActionUpdateInput updateInput =
+          new ThreatArsenalActionUpdateInput(
+              "Updated without associations",
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              null,
+              "bash",
+              "echo updated",
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null, // action_tags omitted from the JSON payload
+              null, // action_attack_patterns omitted from the JSON payload
+              null,
+              null,
+              List.of(domain.getId()));
+
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInput)))
+          .andExpect(status().is2xxSuccessful());
     }
 
     @Test
