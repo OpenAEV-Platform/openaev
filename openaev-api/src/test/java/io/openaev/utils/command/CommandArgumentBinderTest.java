@@ -102,8 +102,9 @@ class CommandArgumentBinderTest {
    * statement separator, because a value may itself contain that separator.
    *
    * @param quoteEscape how the engine escapes a single quote inside a single-quoted string
+   * @return true when the value was accepted and rendered, false when the binder refused it
    */
-  private static void assertSingleQuotedContainment(
+  private static boolean assertSingleQuotedContainment(
       String executor,
       String template,
       String expectedTail,
@@ -112,7 +113,7 @@ class CommandArgumentBinderTest {
       String value) {
     CommandArgumentBinder binder = CommandArgumentBinder.forExecutor(executor);
     if (isRefused(binder, value)) {
-      return;
+      return false;
     }
     String rendered = binder.render(template);
     String context = "value " + readable(value);
@@ -134,10 +135,11 @@ class CommandArgumentBinderTest {
         .as("%s must not close its declaration early", context)
         .doesNotContain("'");
     assertNoLineSeparator(interior, context, "its declaration");
+    return true;
   }
 
-  private static void assertShContainment(String value) {
-    assertSingleQuotedContainment(
+  private static boolean assertShContainment(String value) {
+    return assertSingleQuotedContainment(
         "bash", "echo #{target}", "echo \"$OAEV_ARG_TARGET\"", "OAEV_ARG_TARGET=", "'\\''", value);
   }
 
@@ -167,10 +169,10 @@ class CommandArgumentBinderTest {
    * value must contribute no quote of its own. Percent and delayed expansion must be neutralised
    * for the same reason: both would let the value name something outside itself.
    */
-  private static void assertCmdContainment(String value) {
+  private static boolean assertCmdContainment(String value) {
     CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
     if (isRefused(binder, value)) {
-      return;
+      return false;
     }
     String rendered = binder.render("echo #{target}");
     String expectedTail = "echo \"!OAEV_ARG_TARGET!\"";
@@ -200,10 +202,11 @@ class CommandArgumentBinderTest {
         .as("%s must not leave percent expansion reachable", context)
         .doesNotContain("%");
     assertNoLineSeparator(interior, context, "its declaration");
+    return true;
   }
 
-  private static void assertPowerShellContainment(String value) {
-    assertSingleQuotedContainment(
+  private static boolean assertPowerShellContainment(String value) {
+    return assertSingleQuotedContainment(
         "psh",
         "Write-Output #{target}",
         "Write-Output ${OAEV_ARG_TARGET}",
@@ -350,9 +353,7 @@ class CommandArgumentBinderTest {
       int accepted = 0;
 
       for (int i = 0; i < GENERATED_SAMPLES; i++) {
-        String value = hostileValue(random);
-        assertCmdContainment(value);
-        if (!value.contains("\"")) {
+        if (assertCmdContainment(hostileValue(random))) {
           accepted++;
         }
       }
