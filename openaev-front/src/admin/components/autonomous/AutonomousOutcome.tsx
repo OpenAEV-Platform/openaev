@@ -274,10 +274,9 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
     .catch(() => {}), [runId]);
 
   useEffect(() => {
-    if (usesSharedTimeline) {
-      return undefined;
+    if (!usesSharedTimeline) {
+      reload();
     }
-    reload();
   }, [reload, usesSharedTimeline]);
 
   const isActive = ACTIVE_STATUSES.includes(status);
