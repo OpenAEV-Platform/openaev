@@ -235,8 +235,7 @@ public class ScopeSnapshotService {
     try {
       Asset asset =
           tenantTx.executeNew(
-          TxCtx.forTenant(TenantContext.getCurrentTenant()),
-          () -> assetService.asset(assetId));
+              TxCtx.forTenant(TenantContext.getCurrentTenant()), () -> assetService.asset(assetId));
       if (asset == null) {
         return null;
       }
