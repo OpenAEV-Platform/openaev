@@ -42,9 +42,11 @@ satisfied, it triggers the Action(s) it is linked to. Nothing runs until its ups
    type it produces).
 3. Configure the Action:
       - Set its **title**.
-      - Fill in its arguments. Any argument can be **linked** to a previous Action's output or to a scope Variable
-        instead of a static value; linked values can read from the **global** state (shared across the whole run) or
-        the **local** state (scoped to the current branch).
+      - Fill in its arguments. Arguments are pre-filled with injector contract defaults, which remain active unless you
+        change them. You can also **link** arguments to scope Variables or to outputs from previous Actions, reading
+        from either **global** state (shared across the run) or **local** state (the current branch). When available,
+        Variables take priority over outputs. Defined values are always preserved and executed in every possible
+        combination alongside the selected Variables or outputs.
       - Configure its Expectations if the action supports them.
 4. Save. The Action appears as a node on the canvas.
 
@@ -83,6 +85,8 @@ satisfied, it triggers the Action(s) it is linked to. Nothing runs until its ups
 Beyond the [scope Variables](scope-definition.md#variables) you define upfront, any Action argument can be linked to
 data produced by other Actions' outputs during the run, instead of a static value. Local and global scope Variables
 are populated from both sources — the scope Variables you defined and the outputs Actions produce as they execute.
+When an argument has both a defined form value and linked sources, the defined value is always included with the
+linked values in the generated execution combinations.
 When linking an argument, toggle **Limit to Local Scope** to choose where that data is read from:
 
 - **Global scope** (toggle off, the default): the value is read from the run's shared pool of outputs, accumulated
