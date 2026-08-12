@@ -42,6 +42,7 @@ Additional ORM-specific levels:
 | 🟠 **HIGH** | Controller returns a JPA `@Entity` instead of a DTO / record (align with Backend/Performance) |
 | 🟡 **MEDIUM** | `nativeQuery = true` with no one-line comment justifying both rubric halves (why the ORM cannot express it, why no side effect is lost) |
 | 🟡 **MEDIUM** | A test asserts wall-clock time as a performance gate instead of a query / entity count |
+| 🟡 **MEDIUM** | `instanceof` on a lazy polymorphic association (sees the proxy, not the subclass), or `Hibernate.unproxy()` scattered to resolve a `@Inheritance` subclass instead of an explicit fetch |
 | 🟢 **LOW** | An entity graph is loaded and then dropped to a slice (projection opportunity); align with Performance |
 
 ## Review Procedure
@@ -60,6 +61,9 @@ This agent has no separate skill; run these steps directly.
 4. **Boundary at the API.** Flag controller methods returning a JPA `@Entity`; recommend a DTO / record.
 5. **Test methodology.** Flag ORM/perf tests asserting elapsed / wall-clock time as a gate; recommend
    a Hibernate `Statistics` query / entity count instead.
+6. **Inheritance / proxies.** `grep -rn "Hibernate.unproxy\|instanceof" openaev-api openaev-model`.
+   Flag `instanceof` on a lazy `@Inheritance` association and unproxy proliferation; recommend an
+   explicit `JOIN FETCH` / `@EntityGraph` of the concrete type.
 
 ## What NOT to Flag
 

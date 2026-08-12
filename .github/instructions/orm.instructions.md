@@ -1,6 +1,6 @@
 ---
 applyTo: "openaev-model/src/main/java/**/*.java,openaev-api/src/main/java/**/*.java,openaev-api/src/test/java/**/*Test.java"
-description: "ORM doctrine not covered elsewhere: write correctness (listener chain), native-query justification, and query-count test methodology"
+description: "ORM doctrine not covered elsewhere: write correctness (listener chain), native-query justification, composite keys, inheritance proxies, and query-count test methodology"
 ---
 
 # ORM Doctrine
@@ -39,6 +39,26 @@ Every `nativeQuery = true` must carry a one-line comment stating both halves of 
 
 If the first half fails, the query is unjustified: express it through the ORM (JPQL, Criteria, or a
 projection). If the second half fails, it is a write-correctness bug (see above), not a style issue.
+
+## Composite keys
+
+When an entity's real primary key is composite (for example `(id, tenant_id)`), its `@Id` /
+`@IdClass` / `@EmbeddedId` must cover every key column. A single-column `@Id` on a composite-key
+table is a correctness bug: an update or lookup keyed on the partial id can match another tenant's
+rows (it surfaces as `TooManyRowsAffectedException` on writes), so the mapping's identity is not
+tenant-safe.
+
+## Inheritance and proxies
+
+A lazy association to a `@Inheritance(SINGLE_TABLE)` base type (for example `Asset`, `Payload`)
+loads as a base-type proxy, so `instanceof Subclass` is false and subclass state is hidden until the
+proxy is initialized. `Hibernate.unproxy(...)` unwraps it, but frequent unproxy calls signal a
+polymorphic association being worked around, not a fix.
+
+- Do not branch on `instanceof` against a lazy polymorphic association; it sees the proxy, not the
+  concrete class.
+- Where a path needs the concrete subclass, fetch it explicitly (`JOIN FETCH` / `@EntityGraph`)
+  instead of scattering `Hibernate.unproxy(...)`.
 
 ## Test methodology
 
