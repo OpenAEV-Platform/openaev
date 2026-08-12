@@ -526,7 +526,9 @@ export const AutonomousRunConfigPanel = ({
           <Typography variant="h2" gutterBottom>
             {t('How should the AI build?')}
           </Typography>
-          <Stack
+          {/* A plain Box grid: Stack is a flex column by design, overriding it to display:grid
+              fights the component's contract - Box carries the grid layout natively. */}
+          <Box
             sx={{
               display: 'grid',
               gap: theme.spacing(1),
@@ -598,7 +600,7 @@ export const AutonomousRunConfigPanel = ({
                 </Card>
               );
             })}
-          </Stack>
+          </Box>
         </Box>
       )}
 

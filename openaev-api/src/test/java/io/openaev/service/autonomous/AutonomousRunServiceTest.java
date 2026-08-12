@@ -17,15 +17,19 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.ConvertToManualMode;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.ScopeRuleSelectedMode;
+import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
+import io.openaev.database.model.autonomous.AutonomousScopeTarget;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -44,6 +48,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -674,7 +679,7 @@ class AutonomousRunServiceTest {
   @DisplayName(
       "planScenario refine keeps the authored logic (no wipe) and REUSES the prior AI-built plan"
           + " run so its decision timeline (history) is preserved and reopened")
-  void planScenarioRefineReusesPriorPlanRunAndKeepsLogic() throws Exception {
+  void given_settledAiPlanRun_should_reusePriorRunAndKeepLogicOnRefine() throws Exception {
     when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();
@@ -749,7 +754,7 @@ class AutonomousRunServiceTest {
   @DisplayName(
       "planScenario refine with no prior run keeps the (manually authored) logic and starts a fresh"
           + " plan run without wiping the steps")
-  void planScenarioRefineWithoutPriorRunKeepsManualLogic() {
+  void given_manualScenarioWithoutPriorRun_should_keepLogicOnRefine() {
     when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();
@@ -791,7 +796,7 @@ class AutonomousRunServiceTest {
 
   @Test
   @DisplayName("planScenario refine refuses while the scenario's previous run is still active")
-  void planScenarioRefineRefusesWhileActiveRun() {
+  void given_activePriorRun_should_refuseRefine() {
     when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();
@@ -814,6 +819,101 @@ class AutonomousRunServiceTest {
     verify(workflowService, never()).deleteAllScenarioSteps(anyString());
     verify(runRepository, never()).save(any());
     verifyNoInteractions(xtmOneClient);
+  }
+
+  @Test
+  @DisplayName(
+      "planScenario refine with NO scope supplied never writes scope rules, so the scenario's"
+          + " existing scope is preserved (a rebuild would seed it verbatim)")
+  void given_refineWithoutSuppliedScope_should_preserveExistingScenarioScope() {
+    // Arrange
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
+
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun r = invocation.getArgument(0);
+              if (r.getId() == null) {
+                r.setId("plan-run-refine");
+              }
+              savedHolder[0] = r;
+              return r;
+            });
+    when(runRepository.findById("plan-run-refine"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+
+    // The drawer left scope untouched: no mixed scope list, no scope rules.
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setRefine(true);
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+
+    // Act
+    service.planScenario("scenario-1", input);
+
+    // Assert - refine must never silently wipe/reset the scenario's existing scope: with nothing
+    // supplied, the workflow scope is not touched at all.
+    verify(workflowService, never()).writeScopeRules(anyString(), any(), anyList());
+  }
+
+  @Test
+  @DisplayName(
+      "planScenario refine WITH an explicit scope overwrites the scenario scope with the supplied"
+          + " perimeter (operator intent wins over preservation)")
+  void given_refineWithExplicitScope_should_overwriteScenarioScope() {
+    // Arrange
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
+
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun r = invocation.getArgument(0);
+              if (r.getId() == null) {
+                r.setId("plan-run-refine");
+              }
+              savedHolder[0] = r;
+              return r;
+            });
+    when(runRepository.findById("plan-run-refine"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+
+    // The operator explicitly picked a perimeter in the drawer.
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setRefine(true);
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+    input.setScope(List.of(new AutonomousScopeTarget("ASSETS_GROUPS", "asset-group-1")));
+
+    // Act
+    service.planScenario("scenario-1", input);
+
+    // Assert - an explicitly supplied scope IS written onto the scenario workflow (null simulation:
+    // plan mode has none), as an ALLOWLIST rule carrying the picked asset group.
+    ArgumentCaptor<List<WorkflowScopeRuleInput>> rulesCaptor =
+        ArgumentCaptor.forClass(List.class);
+    verify(workflowService).writeScopeRules(eq("scenario-1"), isNull(), rulesCaptor.capture());
+    assertThat(rulesCaptor.getValue())
+        .singleElement()
+        .satisfies(
+            rule -> {
+              assertThat(rule.getSelectedMode()).isEqualTo(ScopeRuleSelectedMode.ALLOWLIST);
+              assertThat(rule.getRuleSource()).isEqualTo(ScopeRuleSource.ASSET_GROUP);
+              assertThat(rule.getRuleValue()).isEqualTo("asset-group-1");
+            });
   }
 
   @Test

@@ -378,6 +378,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
             open={clearOutcomeOpen}
             handleClose={() => setClearOutcomeOpen(false)}
             handleSubmit={handleClearOutcome}
+            submitColor="error"
             text={autonomousRun.autonomous_run_plan_mode
               ? t('Clearing removes the decision timeline and capability gaps and returns this scenario to the normal overview. The authored attack path (the logic map) is kept and stays editable. This cannot be undone.')
               : t('Clearing removes the decision timeline, capability gaps and proof of exploitation and returns this scenario to the normal overview. The authored attack path (the logic map) and the run simulation are kept. This cannot be undone.')}
