@@ -186,6 +186,8 @@ nav:
         - Lessons: usage/build/components/lessons.md
       - Threat Arsenal:
         - Actions: usage/build/threat-arsenals/threat-arsenals.md
+        - Action properties: usage/build/threat-arsenals/action-properties.md
+        - Output parsers: usage/build/threat-arsenals/output-parsers.md
         - Domains: usage/build/threat-arsenals/domains.md
     - Notifications: usage/notifications.md
     - Interact with your environment:
