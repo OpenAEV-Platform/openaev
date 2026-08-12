@@ -124,8 +124,8 @@
                 <artifactId>parsson</artifactId>
                 <version>1.1.9</version>
             </dependency>
-            <!-- opensaml-saml-impl pulls 2.3, which shades commons-io 2.8.0 and so surfaces as
-                 CVE-2024-47554 (not exploitable: XmlStreamReader absent). 2.4.x drops commons-io. -->
+            <!-- opensaml-saml-impl pulls velocity-engine-core 2.3.x, which shades commons-io 2.8.0 and triggers
+                 CVE-2024-47554 in dependency scanning (not exploitable here: XmlStreamReader absent). Velocity 2.4.x removes the shaded commons-io. -->
             <dependency>
                 <groupId>org.apache.velocity</groupId>
                 <artifactId>velocity-engine-core</artifactId>
