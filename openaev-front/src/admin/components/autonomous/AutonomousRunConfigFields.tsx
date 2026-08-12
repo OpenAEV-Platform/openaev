@@ -9,9 +9,11 @@ import {
   Hub,
   Key,
   Lock,
+  Loop,
   MailOutline,
   MeetingRoom,
   Public,
+  RestartAlt,
   Shield,
   Storage,
   type SvgIconComponent,
@@ -65,6 +67,14 @@ const OBJECTIVE_ICONS: Record<string, SvgIconComponent> = {
   'globe': Public,
   'user-check': HowToReg,
 };
+
+/**
+ * How a build acts on a scenario that ALREADY has authored logic (AI-built or manual): 'refine'
+ * keeps the existing steps (and, for an AI-built scenario, the prior run's decision timeline /
+ * history) and continues from them with a new instruction; 'scratch' wipes the logic map and
+ * re-authors from the beginning.
+ */
+export type RebuildMode = 'refine' | 'scratch';
 
 // AI-accent styling for the top info banner, shared by every host of the config panel.
 const aiAlertSx = (theme: Theme) => ({
@@ -432,6 +442,14 @@ export interface AutonomousRunConfigPanelProps {
    *  {@link AutonomousRunConfigFieldsProps.timeBudgetNote}). */
   timeBudgetNote?: string;
   /**
+   * When set, renders a Refine / Rebuild-from-scratch choice at the very top of the panel - the AI
+   * builder "Rebuild" case, where the scenario already carries authored logic (AI-built or manual).
+   * 'refine' keeps the existing steps (and a prior AI-built run's decision timeline / history) and
+   * continues from them; 'scratch' wipes and re-authors. Omit to hide the choice (first build).
+   */
+  rebuildMode?: RebuildMode;
+  onRebuildModeChange?: (mode: RebuildMode) => void;
+  /**
    * Show the "Save for later" action: a neutral secondary button that persists the configuration
    * WITHOUT starting anything (the scenario AI builder). Built with plan_mode so the saved input is
    * mode-agnostic; the host decides Build vs Launch at action time.
@@ -460,6 +478,8 @@ export const AutonomousRunConfigPanel = ({
   demoteTemplates,
   hideTimeBudget,
   timeBudgetNote,
+  rebuildMode,
+  onRebuildModeChange,
   showSave = false,
   showLaunch = true,
   saveLabel,
@@ -499,6 +519,84 @@ export const AutonomousRunConfigPanel = ({
         >
           {infoText}
         </Alert>
+      )}
+
+      {rebuildMode && onRebuildModeChange && (
+        <Box>
+          <Typography variant="h2" gutterBottom>
+            {t('How should the AI build?')}
+          </Typography>
+          <Stack
+            sx={{
+              display: 'grid',
+              gap: theme.spacing(1),
+              gridTemplateColumns: 'repeat(2, 1fr)',
+            }}
+          >
+            {([
+              {
+                mode: 'refine' as const,
+                icon: Loop,
+                label: t('Refine the existing logic'),
+                description: t('Keep the current attack path and continue from it - the orchestrator refines and extends what is already there. An AI-built scenario reopens its full reasoning history.'),
+              },
+              {
+                mode: 'scratch' as const,
+                icon: RestartAlt,
+                label: t('Rebuild from scratch'),
+                description: t('Discard the current attack path and re-author it from the beginning. Everything in the current logic is wiped.'),
+              },
+            ]).map((option) => {
+              const isSelected = rebuildMode === option.mode;
+              const OptionIcon = option.icon;
+              return (
+                <Card
+                  key={option.mode}
+                  variant="outlined"
+                  sx={{
+                    borderColor: isSelected ? theme.palette.ai.main : undefined,
+                    borderWidth: isSelected ? 2 : 1,
+                    backgroundColor: isSelected ? alpha(theme.palette.ai.main, 0.08) : undefined,
+                  }}
+                >
+                  <CardActionArea
+                    onClick={() => onRebuildModeChange(option.mode)}
+                    disabled={submitting}
+                    sx={{
+                      padding: theme.spacing(1.5),
+                      height: '100%',
+                    }}
+                  >
+                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                      <OptionIcon
+                        fontSize="small"
+                        sx={{
+                          flexShrink: 0,
+                          marginTop: '2px',
+                          color: isSelected ? theme.palette.ai.main : theme.palette.text.secondary,
+                        }}
+                      />
+                      <Box>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            fontWeight: 'bold',
+                            fontSize: '0.8125rem',
+                          }}
+                        >
+                          {option.label}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.description}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </CardActionArea>
+                </Card>
+              );
+            })}
+          </Stack>
+        </Box>
       )}
 
       <Stepper activeStep={activeStep}>

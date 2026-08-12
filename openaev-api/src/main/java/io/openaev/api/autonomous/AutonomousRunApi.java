@@ -180,7 +180,10 @@ public class AutonomousRunApi extends RestBehavior {
           "Engages the orchestrator to DESIGN a reusable attack path by authoring steps directly"
               + " onto the scenario's workflow template. No simulation is provisioned and nothing"
               + " is executed; the operator later launches the authored scenario in normal or"
-              + " autonomous mode. Creates AND starts the build (logic-authoring) session in one call.")
+              + " autonomous mode. Creates AND starts the build (logic-authoring) session in one"
+              + " call. With input.refine=true the orchestrator refines the EXISTING logic (steps"
+              + " and history kept, a prior AI-built run reused and reopened); with refine=false"
+              + " (default) it rebuilds from scratch (logic wiped, prior run superseded).")
   @PostMapping("/plan-scenario/{scenarioId}")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)

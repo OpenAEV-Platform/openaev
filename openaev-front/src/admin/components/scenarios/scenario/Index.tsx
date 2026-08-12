@@ -227,6 +227,7 @@ const IndexScenarioComponent: FunctionComponent<{
     : errorWrapper(ScenarioComponent)({
         autonomousRun: settledRun,
         setOpenInstantiateSimulationAndStart,
+        onAutonomousRunCleared,
       });
 
   return (
