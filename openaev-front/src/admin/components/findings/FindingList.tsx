@@ -1,4 +1,4 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
 import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
@@ -191,7 +191,25 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       label: 'Last seen',
       isSortable: true,
       tooltip: 'finding_last_seen_tooltip',
-      value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_updated_at)}</>,
+      // A finding whose first and last occurrence coincide has never been re-detected by a
+      // subsequent scan/run: surface it as "New" so a first-time-only detection is visually
+      // distinguishable from one that is still recurring (part of the finding lifecycle - see
+      // finding_created_at "First seen" above). The two timestamps are set from the same instant
+      // by Hibernate on insert (@CreationTimestamp/@UpdateTimestamp), so a strict equality check
+      // is reliable here - no tolerance window needed.
+      value: (finding: AggregatedFindingOutput) => (
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
+        >
+          {nsdt(finding.finding_updated_at)}
+          {finding.finding_created_at === finding.finding_updated_at && (
+            <Chip size="small" color="info" variant="outlined" label={t('New')} sx={{ borderRadius: 1 }} />
+          )}
+        </Box>
+      ),
     },
     {
       field: 'finding_triage_status',
