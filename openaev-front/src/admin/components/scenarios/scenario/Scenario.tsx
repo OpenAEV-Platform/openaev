@@ -7,7 +7,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AgentHelper } from '../../../../actions/agents/agent-helper';
 import { convertAutonomousRunToManual } from '../../../../actions/autonomous/autonomous-actions';
-import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
+import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
@@ -63,18 +63,21 @@ import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../worksp
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
 
-const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, onAutonomousRunCleared }: {
+const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, onAutonomousRunCleared, timelineEvents }: {
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
   // The autonomous run owning this scenario, if any - ACTIVE (the orchestrator is planning / driving)
   // or SETTLED (planned / done). The AI outcome (mission, decision timeline, capability gaps, proofs)
   // renders as a layer ON TOP of the full normal overview, never replacing it: building with AI is
-  // the same scenario with a planning layer. While active it polls live and the right-hand reasoning
-  // panel owns the streaming detail; while settled it is a durable read. Null for a never-run or
-  // purely-manual chained scenario.
+  // the same scenario with a planning layer. While active the overview reuses the cockpit's
+  // incremental timeline (no second poll); while settled it is a durable one-shot read. Null for a
+  // never-run or purely-manual chained scenario.
   autonomousRun?: AutonomousRun | null;
   // Forget the run locally so the AI outcome panel disappears immediately after the operator clears
   // it server-side (the by-scenario lookup now 404s), without waiting for a page reload.
   onAutonomousRunCleared?: () => void;
+  // Live timeline already polled by the right-hand cockpit. When provided, the outcome layer
+  // consumes it instead of fetching / polling fetchAutonomousTimeline itself.
+  timelineEvents?: AutonomousEvent[];
 }) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -381,7 +384,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               )}
             </Box>
           </Box>
-          <AutonomousOutcome run={autonomousRun} live={isRunActive} />
+          <AutonomousOutcome run={autonomousRun} live={isRunActive} sharedEvents={timelineEvents} />
           <DialogConfirmation
             open={clearOutcomeOpen}
             handleClose={() => setClearOutcomeOpen(false)}

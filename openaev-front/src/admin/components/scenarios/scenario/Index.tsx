@@ -1,8 +1,8 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useMemo, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
-import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
+import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import { searchInjectTests } from '../../../../actions/inject_test/scenario-inject-test-actions';
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -68,6 +68,10 @@ const IndexScenarioComponent: FunctionComponent<{
   // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
   // normal scenario page with the AI outcome layered on top (see overviewElement).
   const hasCockpit = isAutonomousRunActive(autonomousRun);
+  const [cockpitTimeline, setCockpitTimeline] = useState<AutonomousEvent[]>([]);
+  useEffect(() => {
+    setCockpitTimeline([]);
+  }, [autonomousRun?.autonomous_run_id, autonomousRun?.autonomous_run_simulation_id]);
   // Resizable reasoning-panel width, shared with the content padding so the scenario content never
   // renders underneath the panel (mirrors the simulation cockpit).
   const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
@@ -222,6 +226,7 @@ const IndexScenarioComponent: FunctionComponent<{
     autonomousRun,
     setOpenInstantiateSimulationAndStart,
     onAutonomousRunCleared,
+    timelineEvents: hasCockpit ? cockpitTimeline : undefined,
   });
 
   return (
@@ -308,6 +313,7 @@ const IndexScenarioComponent: FunctionComponent<{
             <AutonomousReasoningPanel
               run={autonomousRun}
               onRunUpdate={onAutonomousRunUpdate}
+              onTimelineEvents={setCockpitTimeline}
               width={panelWidth}
               onWidthChange={setPanelWidth}
             />
