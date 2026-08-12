@@ -58,6 +58,22 @@ class HealthCheckServiceTest {
         });
   }
 
+  @DisplayName("Given repeated probes, should build the storage client only once")
+  @Test
+  void given_repeated_probes_should_build_the_storage_client_only_once() throws Exception {
+    // -- PREPARE --
+    when(minioDriver.getMinioClient()).thenReturn(minioClient);
+
+    // -- EXECUTE --
+    healthCheckService.runFileStorageCheck();
+    healthCheckService.runFileStorageCheck();
+
+    // -- ASSERT --
+    // Rebuilding the client per probe reopens a TCP/TLS connection (and re-fetches AWS credentials)
+    verify(minioDriver, times(1)).getMinioClient();
+    verify(minioService, times(2)).checkTenantPathAccessible(minioClient);
+  }
+
   @DisplayName("Test runRabbitMQCheck")
   @Test
   void test_runRabbitMQCheck() throws HealthCheckFailureException, IOException, TimeoutException {

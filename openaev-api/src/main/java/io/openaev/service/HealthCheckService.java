@@ -42,6 +42,10 @@ public class HealthCheckService {
   private final AtomicReference<CachedStorageUsage> cachedStorageUsage = new AtomicReference<>();
   private final ReentrantLock storageUsageRefreshLock = new ReentrantLock();
 
+  private static final Duration PROBE_TIMEOUT = Duration.ofSeconds(2);
+
+  private volatile MinioClient healthCheckMinioClient;
+
   /**
    * Run health checks by testing connection to the service dependencies (database/rabbitMq/file
    * storage)
@@ -111,15 +115,35 @@ public class HealthCheckService {
 
   @VisibleForTesting
   protected void runFileStorageCheck() throws HealthCheckFailureException {
-
-    // we get a new client instance to avoid to update the client injected by Spring
-    MinioClient minioClient = minioDriver.getMinioClient();
-    minioClient.setTimeout(2000L, 2000L, 2000L);
     try {
-      minioService.checkTenantPathAccessible(minioClient);
+      minioService.checkTenantPathAccessible(healthCheckMinioClient());
     } catch (Exception e) {
       throw new HealthCheckFailureException("FileStorage check failure", e);
     }
+  }
+
+  /**
+   * Dedicated MinIO client for probes, built once and reused.
+   *
+   * <p>It is a private instance so the short probe timeouts never mutate the client injected by
+   * Spring. It is cached because rebuilding it per probe means a fresh OkHttp connection pool — so
+   * a new TCP (and TLS) handshake on every call, and with AWS role authentication a fresh
+   * credentials lookup on IMDS/STS, which dominates the endpoint response time.
+   */
+  private MinioClient healthCheckMinioClient() {
+    MinioClient client = this.healthCheckMinioClient;
+    if (client == null) {
+      synchronized (this) {
+        client = this.healthCheckMinioClient;
+        if (client == null) {
+          client = minioDriver.getMinioClient();
+          client.setTimeout(
+              PROBE_TIMEOUT.toMillis(), PROBE_TIMEOUT.toMillis(), PROBE_TIMEOUT.toMillis());
+          this.healthCheckMinioClient = client;
+        }
+      }
+    }
+    return client;
   }
 
   @VisibleForTesting
