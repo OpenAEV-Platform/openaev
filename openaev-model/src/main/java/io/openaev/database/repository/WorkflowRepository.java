@@ -79,12 +79,15 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
   @Query(
       value =
           """
-        SELECT * FROM workflows
+        SELECT workflow_id FROM workflows
         WHERE workflow_status = 'RUN'
           AND workflow_timeout_enabled = true
           AND workflow_timeout_seconds IS NOT NULL
           AND workflow_created_at + (workflow_timeout_seconds || ' seconds')::interval <= now()
         """,
       nativeQuery = true)
-  List<Workflow> findAllExpiredRunWorkflows();
+  List<String> findAllExpiredRunWorkflowIds();
+
+  @Query("SELECT w FROM Workflow w LEFT JOIN FETCH w.workflowScopeRules WHERE w.id IN :ids")
+  List<Workflow> findAllByIdWithScopeRules(@Param("ids") List<String> ids);
 }

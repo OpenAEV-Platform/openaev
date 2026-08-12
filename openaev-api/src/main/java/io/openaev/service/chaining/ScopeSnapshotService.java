@@ -62,7 +62,7 @@ public class ScopeSnapshotService {
    *
    * @param workflowRun the RUN workflow whose execution just ended
    */
-  @Transactional
+  @Transactional(readOnly = true)
   public void freezeEnd(Workflow workflowRun) {
     for (WorkflowScopeRule rule : workflowRun.getWorkflowScopeRules()) {
       rule.setSnapshotEnd(buildEndSnapshot(rule));

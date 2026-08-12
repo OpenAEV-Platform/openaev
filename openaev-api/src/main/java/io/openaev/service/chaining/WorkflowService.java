@@ -1383,7 +1383,9 @@ public class WorkflowService {
    * @return list of expired workflows
    */
   public List<Workflow> findAllExpiredRunWorkflows() {
-    return workflowRepository.findAllExpiredRunWorkflows();
+    List<String> workflowIds = workflowRepository.findAllExpiredRunWorkflowIds();
+    if (workflowIds.isEmpty()) return Collections.emptyList();
+    return workflowRepository.findAllByIdWithScopeRules(workflowIds);
   }
 
   /**
