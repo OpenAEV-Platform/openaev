@@ -54,6 +54,7 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
 import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousOutcome from '../../autonomous/AutonomousOutcome';
+import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
@@ -64,10 +65,12 @@ import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
 
 const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, onAutonomousRunCleared }: {
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
-  // The settled autonomous run owning this scenario, if any. When present, the overview keeps a
-  // durable, read-only AI outcome (mission, decision timeline, gaps, proofs) even though the live
-  // cockpit and steer panel are gone. Null for a never-run or purely-manual chained scenario, or
-  // while a run is still active (the live cockpit owns the overview then).
+  // The autonomous run owning this scenario, if any - ACTIVE (the orchestrator is planning / driving)
+  // or SETTLED (planned / done). The AI outcome (mission, decision timeline, capability gaps, proofs)
+  // renders as a layer ON TOP of the full normal overview, never replacing it: building with AI is
+  // the same scenario with a planning layer. While active it polls live and the right-hand reasoning
+  // panel owns the streaming detail; while settled it is a durable read. Null for a never-run or
+  // purely-manual chained scenario.
   autonomousRun?: AutonomousRun | null;
   // Forget the run locally so the AI outcome panel disappears immediately after the operator clears
   // it server-side (the by-scenario lookup now 404s), without waiting for a page reload.
@@ -245,6 +248,11 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario.scenario_id);
   const canManageScenario = ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, scenario.scenario_id)
     || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  // While a run is still active (planning or driving) the AI outcome polls live and the right-hand
+  // reasoning panel owns the streaming detail; the in-overview run controls (clear outcome, launch
+  // CTAs) are hidden because an active run is steered from the header / panel and the scenario
+  // cannot be relaunched while one owns it. A settled run is a durable, editable-again read.
+  const isRunActive = isAutonomousRunActive(autonomousRun);
   // "Clear AI outcome": drop the settled run (its decision timeline + capability gaps) server-side
   // and revert the overview to the normal manual view. The authored attack path (logic map) and the
   // run simulation are kept - it is the convert-to-manual IN_PLACE flip, which unlocks the scenario
@@ -356,8 +364,9 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               )}
               {/* Clear the AI outcome and return to the normal overview: drops the run + decision
                   timeline + capability gaps, keeps the authored logic (and run simulation). Only for
-                  operators who can manage the scenario. */}
-              {canManageScenario && (
+                  operators who can manage the scenario, and only once the run has settled - an active
+                  run is stopped from the header / reasoning panel, not cleared from here. */}
+              {canManageScenario && !isRunActive && (
                 <Tooltip title={autonomousRun.autonomous_run_plan_mode
                   ? t('Clear the AI plan outcome and return to the normal overview')
                   : t('Clear the autonomous run outcome and return to the normal overview')}
@@ -373,7 +382,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               )}
             </Box>
           </Box>
-          <AutonomousOutcome run={autonomousRun} live={false} />
+          <AutonomousOutcome run={autonomousRun} live={isRunActive} />
           <DialogConfirmation
             open={clearOutcomeOpen}
             handleClose={() => setClearOutcomeOpen(false)}
@@ -422,7 +431,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               (Normal) or an orchestrator-driven live run (Autonomous). The Autonomous button
               opens the hero's launch config drawer (objective / agents / scope) via the query
               param. A time-based scenario only ever launches a normal simulation. */}
-          {canLaunch && isScenarioChaining && (
+          {canLaunch && !isRunActive && isScenarioChaining && (
             <Box sx={{
               display: 'flex',
               gap: 1,
@@ -481,7 +490,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               )}
             </Box>
           )}
-          {canLaunch && !isScenarioChaining && (
+          {canLaunch && !isRunActive && !isScenarioChaining && (
             <Button
               startIcon={<PlayArrowOutlined />}
               variant="contained"

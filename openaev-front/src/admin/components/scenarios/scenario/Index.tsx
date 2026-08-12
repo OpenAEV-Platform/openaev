@@ -21,9 +21,8 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
-import AutonomousOverview from '../../autonomous/AutonomousOverview';
 import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
-import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/autonomousStatus';
+import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
 import { useAutonomousRunForScenario } from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
@@ -213,22 +212,18 @@ const IndexScenarioComponent: FunctionComponent<{
     );
   };
 
-  // Overview swaps to the AI cockpit overview while a run is live; otherwise the manual scenario
-  // overview. Scope and Logic go read-only while the orchestrator owns them (planning or driving) so
-  // an operator edit can never race the AI, and unlock again once the run settles.
-  //
-  // Once the run has SETTLED the cockpit is torn down (scope/logic editable again, no steer panel),
-  // but the manual overview keeps a durable, read-only AI outcome (mission, decision timeline, gaps
-  // and - for a live run - proofs): the settled run is threaded into the manual overview so the
-  // "we lost the timeline / gaps once the scenario is done" gap is closed.
-  const settledRun = isAutonomousRunSettled(autonomousRun) ? autonomousRun : null;
-  const overviewElement = hasCockpit && autonomousRun
-    ? <AutonomousOverview run={autonomousRun} />
-    : errorWrapper(ScenarioComponent)({
-        autonomousRun: settledRun,
-        setOpenInstantiateSimulationAndStart,
-        onAutonomousRunCleared,
-      });
+  // The AI planning / run layer is ADDITIVE, never a replacement: the scenario keeps its FULL normal
+  // overview (posture, information, posture trend, kill chain) and the AI outcome (mission, decision
+  // timeline, capability gaps and - for a live run - proofs) renders as a layer ON TOP of it, for an
+  // active OR a settled run. Passing the current run here (not just a settled one) is what stops
+  // "building with AI" from wiping the normal overview - it is the same scenario with a planning
+  // layer, not a different page. The live reasoning stream still lives in the right-hand cockpit
+  // panel, and Scope / Logic still go read-only while the orchestrator owns them (see hasCockpit).
+  const overviewElement = errorWrapper(ScenarioComponent)({
+    autonomousRun,
+    setOpenInstantiateSimulationAndStart,
+    onAutonomousRunCleared,
+  });
 
   return (
     <PermissionsContext.Provider value={permissionsContext}>
