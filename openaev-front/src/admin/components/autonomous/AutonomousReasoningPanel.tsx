@@ -63,6 +63,11 @@ const isHeartbeatEvent = (event: AutonomousEvent | undefined): boolean => {
   if (!event || event.autonomous_event_type !== 'STATUS' || !event.autonomous_event_data) {
     return false;
   }
+  // Cheap substring pre-check before the JSON.parse: this runs for every event on every render of
+  // the feed, and most STATUS payloads never mention "heartbeat" at all.
+  if (!event.autonomous_event_data.includes('"heartbeat"')) {
+    return false;
+  }
   try {
     return (JSON.parse(event.autonomous_event_data) as { heartbeat?: boolean }).heartbeat === true;
   } catch {

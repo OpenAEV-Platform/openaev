@@ -319,13 +319,28 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
   }
 
   const renderRow = (row: RowData) => {
-    const cells: { field: string; node: ReactNode }[] = [
-      { field: 'agent_name', node: nameNode(row.name) },
-      { field: 'agent_description', node: descriptionNode(row.description) },
-      { field: 'agent_built_in', node: row.chip },
+    const cells: {
+      field: string;
+      node: ReactNode;
+    }[] = [
+      {
+        field: 'agent_name',
+        node: nameNode(row.name),
+      },
+      {
+        field: 'agent_description',
+        node: descriptionNode(row.description),
+      },
+      {
+        field: 'agent_built_in',
+        node: row.chip,
+      },
     ];
     if (showModes) {
-      cells.push({ field: 'agent_mode', node: row.modeNode });
+      cells.push({
+        field: 'agent_mode',
+        node: row.modeNode,
+      });
     }
     const content = isSmall
       ? (
@@ -363,7 +378,9 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
         <ListItemIcon sx={isSmall ? { marginTop: 0.5 } : undefined}>
           <SmartToyOutlined fontSize="small" sx={{ color: row.iconColor }} />
         </ListItemIcon>
-        <ListItemText primary={content} />
+        {/* disableTypography: the content is a Stack/div tree with its own Typography elements, so
+            the default span wrapper would produce invalid HTML (block elements inside a span). */}
+        <ListItemText disableTypography primary={content} />
       </ListItem>
     );
   };
@@ -433,6 +450,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                     <Skeleton variant="circular" width={20} height={20} />
                   </ListItemIcon>
                   <ListItemText
+                    disableTypography
                     primary={isSmall
                       ? <Skeleton variant="text" width="70%" />
                       : (
@@ -485,6 +503,16 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
 
               {sorted.map((agent) => {
                 const enabled = enabledIds.includes(agent.id);
+                let modeNode: ReactNode = null;
+                if (showModes) {
+                  modeNode = enabled
+                    ? renderModeSelect(agent.id)
+                    : (
+                        <Typography variant="caption" color="text.disabled">
+                          -
+                        </Typography>
+                      );
+                }
                 return renderRow({
                   key: agent.id,
                   name: agentName(agent),
@@ -501,15 +529,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                         />
                       )
                     : null,
-                  modeNode: !showModes
-                    ? null
-                    : enabled
-                        ? renderModeSelect(agent.id)
-                        : (
-                            <Typography variant="caption" color="text.disabled">
-                              -
-                            </Typography>
-                          ),
+                  modeNode,
                   trailing: (
                     <Switch
                       edge="end"
