@@ -257,13 +257,15 @@ const ScenarioHeader = ({
   // Deep link from the overview "no run yet" banner (Autonomous button): open the launch config
   // drawer so the operator configures the objective / agents / scope, then launches the live run.
   // The header owns the drawer (single control surface), so the banner just routes here. Strip the
-  // param after so a refresh / back does not reopen it.
+  // param after so a refresh / back does not reopen it. Gated on canLaunch (not canManage) to match
+  // the two surfaces that produce this link - the overview Autonomous CTA and the hero Autonomous
+  // button - both launch-permission surfaces; the builder deep link above stays manage-gated.
   useEffect(() => {
-    if (openAiLaunchQueryParam === 'true' && canManage && isAutonomousModeEnabled && !isRunActive && isXtmOneReady && isEnterpriseEdition) {
+    if (openAiLaunchQueryParam === 'true' && canLaunch && isAutonomousModeEnabled && !isRunActive && isXtmOneReady && isEnterpriseEdition) {
       void openAiDrawer('launch');
       navigate(location.pathname, { replace: true });
     }
-  }, [openAiLaunchQueryParam, canManage, isAutonomousModeEnabled, isRunActive, isXtmOneReady, isEnterpriseEdition, scenarioId]);
+  }, [openAiLaunchQueryParam, canLaunch, isAutonomousModeEnabled, isRunActive, isXtmOneReady, isEnterpriseEdition, scenarioId]);
 
   const { workflowConfiguration } = useHelper((helper: WorkflowConfigurationHelper) => ({
     workflowConfiguration: scenarioWorkflowId
