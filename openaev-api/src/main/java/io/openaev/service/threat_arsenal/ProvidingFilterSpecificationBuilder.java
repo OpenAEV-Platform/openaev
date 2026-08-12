@@ -102,7 +102,14 @@ public class ProvidingFilterSpecificationBuilder {
   private Specification<InjectorContract> buildHasProvidingSpecification(
       Set<ContractOutputType> expectedOutputTypes) {
     return (root, query, cb) -> {
-      query.distinct(true);
+      // No DISTINCT here: this predicate only adds a correlated EXISTS subquery
+      // and content-LIKE predicates, neither of which fans out the outer query,
+      // and the threat arsenal projection already GROUP BYs the full composite
+      // id. Forcing DISTINCT produced "SELECT DISTINCT ... ORDER BY" SQL whose
+      // ORDER BY expands the composite id to (injector_contract_id, tenant_id)
+      // while the SELECT lists only injector_contract_id, which PostgreSQL
+      // rejects with "for SELECT DISTINCT, ORDER BY expressions must appear in
+      // select list" (HTTP 500 on every findings-scoped arsenal search).
 
       Subquery<Integer> payloadSubquery = query.subquery(Integer.class);
       var payloadRoot = payloadSubquery.correlate(root);

@@ -787,6 +787,51 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           "Contracts without a payload should not contribute to status facet counts");
     }
 
+    @Test
+    @DisplayName(
+        "given a providing (findings) filter the search must not fail with a SELECT DISTINCT / ORDER BY SQL error")
+    void given_providingFilter_should_returnOkAndNotFailWithDistinctOrderBy() throws Exception {
+      // A providing filter (injector_contract_providing) forces query.distinct(true).
+      // Combined with the default composite-id sort, whose ORDER BY expands to
+      // (injector_contract_id, tenant_id), and a projection that lists only
+      // injector_contract_id, PostgreSQL rejected the query with "for SELECT
+      // DISTINCT, ORDER BY expressions must appear in select list" (HTTP 500).
+      // This is the error the AI orchestrator hit on every findings-scoped arsenal
+      // review during scenario generation.
+      SearchPaginationInput input = buildProvidingFilterSearchInput();
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI + "/search")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+
+      // The non-tabletop variant shares the same criteria-builder code path.
+      mvc.perform(
+              post(THREAT_ARSENAL_URI + "/search/non-tabletop")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+    }
+
+    private SearchPaginationInput buildProvidingFilterSearchInput() {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("injector_contract_providing");
+      filter.setOperator(Filters.FilterOperator.not_empty);
+      filter.setMode(Filters.FilterMode.and);
+      filter.setValues(new ArrayList<>());
+
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+
+      SearchPaginationInput input = PaginationFixture.getDefault().build();
+      input.setFilterGroup(filterGroup);
+      return input;
+    }
+
     private String searchWith(SearchPaginationInput input) throws Exception {
       return mvc.perform(
               post(THREAT_ARSENAL_URI + "/search")
