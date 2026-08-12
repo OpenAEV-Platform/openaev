@@ -25,10 +25,13 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>cmd — {@code set "OAEV_ARG_TARGET=a; whoami" & echo "!OAEV_ARG_TARGET!"}
  * </ul>
  *
- * <p><b>Template authoring rule</b>: do not wrap a placeholder in quotes yourself ({@code
- * "#{arg}"}). The binder owns the quoting; directly adjacent quotes around a placeholder are
- * detected and removed, but a placeholder embedded in a wider single-quoted literal cannot be
- * resolved (it stays literal — safe, but not substituted).
+ * <p><b>Template authoring rule</b>: do not quote a placeholder yourself ({@code "#{arg}"}), and do
+ * not put one inside a wider quoted string. The binder owns the quoting. Quotes directly wrapping a
+ * placeholder are detected and removed, but a placeholder sitting inside a wider quoted string is
+ * still substituted, and the reference then lands inside quotes the binder does not control. The
+ * command stays structurally safe, yet it does not do what the template says: under {@code sh} the
+ * reference is single-quoted and never expands, so the command handles the variable name instead of
+ * the value.
  *
  * <p>Not thread-safe: create one instance per rendered command.
  */

@@ -492,6 +492,63 @@ class CommandArgumentBinderTest {
   }
 
   @Nested
+  @DisplayName("Behaviour pinned as it stands")
+  class PinnedBehaviour {
+
+    @Test
+    @DisplayName("a null template renders as null")
+    void a_null_template_renders_as_null() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+      binder.bind("a", "value");
+
+      assertThat(binder.render(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("a null value binds as empty rather than failing")
+    void a_null_value_binds_as_empty() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      binder.bind("a", null);
+
+      assertThat(binder.render("echo #{a}")).isEqualTo("OAEV_ARG_A=''\necho \"$OAEV_ARG_A\"");
+    }
+
+    @Test
+    @DisplayName("a placeholder inside a wider quoted string is substituted, not left alone")
+    void a_placeholder_inside_a_wider_quoted_string_is_substituted() {
+      // The authoring rule tells template authors not to do this. Pinned because the outcome is
+      // easy to misread: the command is structurally safe, but under sh the reference sits inside
+      // the template's own single quotes and never expands, so the command sees the variable name.
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      binder.bind("x", "value");
+
+      assertThat(binder.render("echo 'prefix #{x} suffix'"))
+          .endsWith("echo 'prefix \"$OAEV_ARG_X\" suffix'");
+    }
+
+    @Test
+    @DisplayName("a template with no placeholder is returned untouched")
+    void a_template_with_no_placeholder_is_returned_untouched() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      assertThat(binder.render("echo hello")).isEqualTo("echo hello");
+    }
+
+    @Test
+    @DisplayName("binding the same key twice keeps the first value")
+    void binding_the_same_key_twice_keeps_the_first_value() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      binder.bind("a", "first");
+      binder.bind("a", "second");
+
+      assertThat(binder.render("echo #{a}")).startsWith("OAEV_ARG_A='first'");
+    }
+  }
+
+  @Nested
   @DisplayName("Substitution passes")
   class SubstitutionPasses {
 
