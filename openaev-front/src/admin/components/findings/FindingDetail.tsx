@@ -96,7 +96,12 @@ const FindingDetail = ({
       label: t('Related Injects'),
     }, {
       key: 'Remediation',
-      label: t('Remediation'),
+      // OCSF findings are produced by the Prowler injector, which is planned to become an
+      // Enterprise Edition-gated integration: once that gate lands, only EE-licensed tenants
+      // will ever generate OCSF findings in the first place. This badge (and the redirect below)
+      // still matter for the edge case of a tenant whose EE license lapses after such findings
+      // were already ingested - the data remains in the DB, but the feature should read as EE.
+      label: <TabLabelWithEE label={t('Remediation')} />,
     }, {
       key: 'Comments',
       label: t('Comments'),
@@ -138,7 +143,9 @@ const FindingDetail = ({
         );
       case 'Remediation':
         if (isOCSF) {
-          return <OCSFRemediationTab remediation={selectedFinding.finding_remediation} />;
+          // See the isOCSF tabEntries comment above: gated the same way as CVE remediation below,
+          // since OCSF findings will only be reachable via the (future) EE-gated Prowler injector.
+          return isEE ? <OCSFRemediationTab remediation={selectedFinding.finding_remediation} /> : null;
         }
         return isEE
           ? (
@@ -157,12 +164,15 @@ const FindingDetail = ({
   };
 
   useEffect(() => {
-    if (isCVE && currentTab === 'Remediation' && !isEE) {
-      handleChangeTab('General');
+    if ((isCVE || isOCSF) && currentTab === 'Remediation' && !isEE) {
+      // CVE findings fall back to the "General" tab (their first entry); OCSF findings have no
+      // "General" tab, so they fall back to "Related Injects" instead - see the tabEntries lists
+      // above for each type's first entry.
+      handleChangeTab(isCVE ? 'General' : 'Related Injects');
       setEEFeatureDetectedInfo(t('Remediation'));
       openEEDialog();
     }
-  }, [currentTab, isEE, isCVE]);
+  }, [currentTab, isEE, isCVE, isOCSF]);
 
   // A lone tab (non-CVE findings only have "Related Injects") carries no navigation value: render
   // the tab bar only when there is a choice. The panel is separated from the tab bar only when the
