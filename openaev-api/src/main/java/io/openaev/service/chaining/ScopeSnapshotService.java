@@ -1,5 +1,8 @@
 package io.openaev.service.chaining;
 
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -36,6 +39,7 @@ public class ScopeSnapshotService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final CollectorRepository collectorRepository;
+  private final TenantScopedTransaction tenantTx;
 
   /**
    * Freezes the launch snapshot on a RUN workflow's rules and appends the connected security
@@ -229,7 +233,10 @@ public class ScopeSnapshotService {
 
   private ScopeRuleSnapshot resolveAssetSnapshot(String assetId) {
     try {
-      Asset asset = assetService.asset(assetId);
+      Asset asset =
+          tenantTx.executeNew(
+          TxCtx.forTenant(TenantContext.getCurrentTenant()),
+          () -> assetService.asset(assetId));
       if (asset == null) {
         return null;
       }
