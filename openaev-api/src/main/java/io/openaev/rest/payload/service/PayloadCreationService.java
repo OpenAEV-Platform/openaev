@@ -4,6 +4,9 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 
+import java.util.Collections;
+import java.util.List;
+
 import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -76,15 +79,25 @@ public class PayloadCreationService {
     }
 
     Payload payloadSaved = payloadRepository.save(payload);
+    // The id collections default to empty lists on the input, but callers that build the
+    // input via BeanUtils.copyProperties (e.g. threat arsenal action creation) can overwrite
+    // those defaults with null. Spring Data's findAllById throws IllegalArgumentException
+    // ("Ids must not be null") on a null argument, surfacing as a confusing 400. Treat an
+    // absent collection as "no associations" instead.
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             payloadSaved,
-            fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds())),
-            iterableToSet(domainService.findAllById(input.getDomainIds())),
-            iterableToSet(tagRepository.findAllById(input.getTagIds())));
+            fromIterable(
+                attackPatternRepository.findAllById(nullToEmpty(input.getAttackPatternsIds()))),
+            iterableToSet(domainService.findAllById(nullToEmpty(input.getDomainIds()))),
+            iterableToSet(tagRepository.findAllById(nullToEmpty(input.getTagIds()))));
     // Telemetry: one payload created, by type - recorded only once the payload and
     // its injector contract are persisted (a rollback would otherwise inflate the counter).
     resultsMetricCollector.recordPayloadCreated(payloadType.key);
     return new PayloadInjectorContractCreationResult(payloadSaved, injectorContract);
+  }
+
+  private static <T> List<T> nullToEmpty(List<T> ids) {
+    return ids == null ? Collections.emptyList() : ids;
   }
 }
