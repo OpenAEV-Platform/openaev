@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @TestPropertySource(
     properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
+      "openaev.enabled-dev-features=ATTACK_PATH",
       "openaev.attackpath.collapse-threshold=2"
     })
 @DisplayName("attack path collapsed mode and automatic switching")

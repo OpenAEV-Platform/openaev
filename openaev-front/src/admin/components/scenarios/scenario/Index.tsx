@@ -57,13 +57,11 @@ const IndexScenarioComponent: FunctionComponent<{
 }> = ({ scenario, autonomousRun, onAutonomousRunUpdate, onAutonomousRunCleared }) => {
   const { t } = useFormatter();
   const location = useLocation();
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   // Attack path only exists for chained scenarios (workflow-backed), never
   // for time-based ones: same gating as the simulation side.
   const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
-    && isChainingFeatureEnabled
     && !!scenario.scenario_workflow_id;
-  const isChained = isChainingFeatureEnabled && !!scenario.scenario_workflow_id;
+  const isChained = !!scenario.scenario_workflow_id;
   // The AI cockpit (right-hand reasoning panel + read-only Scope/Logic) is live only while a run
   // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
   // normal scenario page with the AI outcome layered on top (see overviewElement).
@@ -362,7 +360,7 @@ const Index = () => {
   // live autonomous launch, while a TIME-BASED scenario never can - so we probe only chained
   // scenarios (undefined = probe) and skip the lookup entirely otherwise (false = known manual, no
   // 404). While the scenario is still loading we leave it undefined to probe as before.
-  const isChained = isFeatureEnabled('INJECT_CHAINING') && !!scenario?.scenario_workflow_id;
+  const isChained = !!scenario?.scenario_workflow_id;
   // undefined = still probing (scenario loading, or a chained scenario that may carry a run);
   // false = known manual (a loaded time-based scenario), which skips the lookup and its 404.
   let knownAutonomous: boolean | undefined;

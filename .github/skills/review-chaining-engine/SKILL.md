@@ -23,8 +23,8 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 
 ## Review Checklist
 
-### 1. Feature Flag Gate
-- [ ] New endpoints check `PreviewFeature.INJECT_CHAINING` is enabled
+### 1. Feature Gate
+- [ ] New endpoints do not add preview-feature gates for chaining
 - [ ] New beans use `@Conditional(InjectChainingCondition.class)` if needed
 
 ### 2. Step Lifecycle Integrity
@@ -104,7 +104,7 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 1. Add the method in the relevant `*Api.java` file.
 2. Add `@AccessControl` with appropriate `Action` and `ResourceType`.
 3. Add `@Transactional(rollbackFor = Exception.class)` for writes.
-4. Check feature flag: call `workflowService.isPreviewFeatureChainingEnable()` or `previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)`.
+4. Ensure no preview-feature gate is added for chaining endpoints.
 5. Create input/output DTOs in `io.openaev.api.chaining.dto`.
 6. Add static mapper methods (not MapStruct annotations).
 7. Implement service logic in `io.openaev.service.chaining`.

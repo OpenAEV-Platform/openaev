@@ -32,10 +32,8 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.NotificationEventService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -104,8 +102,6 @@ public class InjectsExecutionJob implements Job {
   private final EntityManager entityManager;
   private final TenantScopedTransaction tenantTx;
 
-  private final PreviewFeatureService previewFeatureService;
-
   private final List<ExecutionStatus> executionStatusesNotReady =
       List.of(
           ExecutionStatus.QUEUING,
@@ -141,13 +137,11 @@ public class InjectsExecutionJob implements Job {
   public void handleAutoClosingSimulations() {
     // Change status of finished simulations.
     List<Exercise> mustBeFinishedSimulations = exerciseRepository.thatMustBeFinished();
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-      // Filter out the simulations using the new chaining engine
-      mustBeFinishedSimulations =
-          mustBeFinishedSimulations.stream()
-              .filter(simulation -> !workflowService.isSimulationChaining(simulation.getId()))
-              .toList();
-    }
+    // Filter out the simulations using the new chaining engine.
+    mustBeFinishedSimulations =
+        mustBeFinishedSimulations.stream()
+            .filter(simulation -> !workflowService.isSimulationChaining(simulation.getId()))
+            .toList();
     List<Exercise> exercisesToFinish = new ArrayList<>(mustBeFinishedSimulations);
     exercisesToFinish.forEach(
         exercise -> {

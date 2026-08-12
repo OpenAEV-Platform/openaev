@@ -51,7 +51,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
+import { isEmptyField } from '../../../../utils/utils';
 import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousOutcome from '../../autonomous/AutonomousOutcome';
 import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
@@ -106,9 +106,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
   // Spy on modifications to reload healthchecks
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
 
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
-  const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+  const isScenarioChaining = !!scenarioWorkflowId;
   // The Autonomous CTA is an XTM One-driven EE feature (same gate as the header hero and the creation
   // drawer): hidden unless XTM One is connected, and an EE call-to-action when not Enterprise.
   const isXtmOneReady = isXtmOneAvailable(settings);

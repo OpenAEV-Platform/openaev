@@ -21,8 +21,6 @@ import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
@@ -49,7 +47,6 @@ public class WorkflowService {
 
   private final StepService stepService;
   private final ConditionService conditionService;
-  private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
   private final SimulationRateLimitService simulationRateLimitService;
@@ -1256,15 +1253,8 @@ public class WorkflowService {
     return workflowRepository.save(newWorkflowTemplateScenario);
   }
 
-  /**
-   * Throws if the chaining preview feature is not enabled.
-   *
-   * @throws ChainingException when the feature flag is disabled
-   */
   public void isPreviewFeatureChainingEnable() throws ChainingException {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-      throw new ChainingException("Feature chaining is not enabled");
-    }
+    // Chaining is always available.
   }
 
   /**

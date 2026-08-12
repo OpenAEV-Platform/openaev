@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @TestPropertySource(
     properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
+      "openaev.enabled-dev-features=ATTACK_PATH",
       "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
     })
 @DisplayName("attack path seed generator produces the expected shape")

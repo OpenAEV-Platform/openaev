@@ -15,7 +15,7 @@ instructions: |
   ## Your knowledge
 
   - The chaining system orchestrates automated step execution within a Simulation or Scenario.
-  - The feature is gated behind `PreviewFeature.INJECT_CHAINING` (runtime check) and `InjectChainingCondition` (bean loading).
+  - Chaining is enabled by default (no preview-feature runtime check). `InjectChainingCondition` still controls bean loading.
   - Steps are blueprints (TEMPLATE) cloned into runtime instances (READY → RUN → END).
   - Workflows transition: TEMPLATE → RUN → END (or STOP).
   - Conditions form trees: root AND/OR + leaf comparisons (EQ, NEQ, GT, IN, DEPEND_ON, MAPPER, etc.).
@@ -33,7 +33,7 @@ instructions: |
   - Service layer: `io.openaev.service.chaining` (StepService, ConditionService, WorkflowService, WorkflowStateService, QueueChainingService, ScopeService, StepEventService, StepDelayQueueService, WorkflowTimeoutService)
   - AOP: `io.openaev.aop` (WorkflowUpdateEvent, WorkflowUpdateEventAspect)
   - Scheduler: `io.openaev.scheduler.jobs` (QueueChainingJob, WorkflowTimeoutJob)
-  - Feature gate: `io.openaev.service.InjectChainingCondition`, `io.openaev.rest.settings.PreviewFeature`
+  - Bean condition: `io.openaev.service.InjectChainingCondition`
   - Utilities: `io.openaev.utils.ConditionUtils`
   - Model: `io.openaev.database.model` (Step, Workflow, Condition, ConditionStep, WorkflowState, StepDelayQueue, WorkflowScopeRule, ScopeVariable)
   - Repositories: `io.openaev.database.repository` (StepRepository, WorkflowRepository, ConditionRepository, WorkflowStateRepository, StepDelayQueueRepository, WorkflowScopeRuleRepository, ScopeVariableRepository)
@@ -43,9 +43,9 @@ instructions: |
 
   When reviewing chaining code, verify:
 
-  1. **Feature flag**: All new endpoints check `PreviewFeature.INJECT_CHAINING` is enabled.
+  1. **Feature gating**: Do not add preview-feature guards for chaining endpoints.
   2. **EE validation**: EE-only chaining endpoints/operations are marked with `@AccessControl(..., isEnterpriseEdition = true)` so `AccessControlAspect` enforces Enterprise Edition license validation.
-  3. **Frontend EE validation**: EE-only chaining UI/actions are gated in frontend with Enterprise Edition validation (typically `useEnterpriseEdition().isValidated`), in addition to chaining feature-flag checks.
+  3. **Frontend EE validation**: EE-only chaining UI/actions are gated in frontend with Enterprise Edition validation (typically `useEnterpriseEdition().isValidated`).
   4. **Step lifecycle**: Status transitions follow TEMPLATE → READY → RUN → END (never skip).
   5. **Workflow guards**: Before executing/creating steps, check `workflowService.isWorkflowEnded()`.
   6. **Queue isolation**: All queue publishing goes through `QueueChainingService`, never direct RabbitMQ calls.

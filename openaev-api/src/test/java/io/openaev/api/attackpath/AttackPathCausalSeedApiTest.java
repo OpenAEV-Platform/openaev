@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH")
+@TestPropertySource(properties = "openaev.enabled-dev-features=ATTACK_PATH")
 class AttackPathCausalSeedApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;

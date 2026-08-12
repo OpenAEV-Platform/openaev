@@ -51,10 +51,8 @@ import org.springframework.web.bind.annotation.RestController;
  * Autonomous (AI-driven) attack-path run endpoints. Two independent gates apply to every method:
  *
  * <ul>
- *   <li>the {@code INJECT_CHAINING} preview feature - autonomy is a launch mode of a chained
- *       scenario, so it shares the chaining gate (there is no dedicated autonomous flag), resolved
- *       inside {@link AutonomousRunService}, returning 404 when the feature is off - the same
- *       convention the attack-path and chaining APIs use; and
+ *   <li>chaining eligibility (autonomy is a launch mode of a chained scenario, there is no
+ *       dedicated autonomous flag), resolved inside {@link AutonomousRunService}; and
  *   <li>the Enterprise Edition license, enforced declaratively by {@code @AccessControl(...,
  *       isEnterpriseEdition = true)}. This is an AI feature, so it is EE-only exactly like every
  *       other AI capability (remediation generation, XTM One chat); the aspect enforces the EE gate

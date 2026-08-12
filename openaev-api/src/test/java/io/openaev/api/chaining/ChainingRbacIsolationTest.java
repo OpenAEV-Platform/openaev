@@ -80,7 +80,7 @@ class ChainingRbacIsolationTest extends IntegrationTest {
   @BeforeEach
   void setUp() {
     originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
-    openAEVConfig.setEnabledDevFeatures(PreviewFeature.INJECT_CHAINING.getValue());
+    openAEVConfig.setEnabledDevFeatures(PreviewFeature.ATTACK_PATH.getValue());
     when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
     when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     clearFeatureCache();

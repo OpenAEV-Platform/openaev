@@ -186,12 +186,11 @@ const ScenarioHeader = ({
   });
   const hasChallenges = challenges.length > 0;
 
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   // isFeatureEnabled reads the store through a hook, so it must stay at render scope: calling it
   // from an event handler throws and silently aborts the handler mid-way.
   const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
-  const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+  const isScenarioChaining = !!scenarioWorkflowId;
   // Autonomy is a launch-time MODE now (not a scenario type) and no longer has a dedicated flag: any
   // chained scenario can be launched autonomously (orchestrator-driven) or planned by the
   // orchestrator, gated by the same chaining feature. Time-based scenarios only ever launch a normal

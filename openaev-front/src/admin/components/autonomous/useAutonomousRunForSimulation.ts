@@ -4,7 +4,6 @@ import { fetchAutonomousRunByScenario, fetchAutonomousRunBySimulation } from '..
 import { type AutonomousRun } from '../../../actions/autonomous/autonomous-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { isFeatureEnabled } from '../../../utils/utils';
 
 /** How often to re-probe for an autonomous run until we find one (transient error / late creation). */
 const DISCOVERY_POLL_MS = 10000;
@@ -41,14 +40,11 @@ const useAutonomousRunDetection = (
 ): AutonomousRunDetection => {
   const { settings } = useAuth();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
-  // Autonomy is a launch mode of chained scenarios, so it rides the chaining feature flag - there is
-  // no dedicated autonomous flag anymore.
-  const featureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const xtmOneReady = settings.platform_xtm_one_configured === true;
   // A positive "this entity is manual" hint makes the run non-existent by definition, so there is
   // nothing to look up regardless of EE / feature / XTM One state.
   const knownManual = knownAutonomous === false;
-  const eligible = featureEnabled && isEnterpriseEdition && xtmOneReady && !knownManual;
+  const eligible = isEnterpriseEdition && xtmOneReady && !knownManual;
 
   const [run, setRun] = useState<AutonomousRun | null>(null);
   const [resolved, setResolved] = useState(false);

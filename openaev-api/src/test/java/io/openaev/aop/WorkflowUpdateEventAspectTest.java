@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.chaining.StepService;
 import java.io.IOException;
@@ -33,7 +31,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class WorkflowUpdateEventAspectTest {
 
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepService stepService;
 
@@ -46,26 +43,6 @@ class WorkflowUpdateEventAspectTest {
   @Captor private ArgumentCaptor<String> stepIdCaptor;
 
   /* ============================================================
-   * Feature flag disabled
-   * ============================================================ */
-  @Nested
-  class FeatureFlagDisabled {
-
-    @Test
-    void shouldDoNothing_whenInjectChainingFeatureIsDisabled() {
-      // -------- Prepare --------
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
-
-      // -------- Act --------
-      aspect.afterEventProcessed(joinPoint, annotation);
-
-      // -------- Assert --------
-      verifyNoInteractions(queueChainingService, stepService);
-    }
-  }
-
-  /* ============================================================
    * Invalid annotation configuration
    * ============================================================ */
   @Nested
@@ -73,7 +50,6 @@ class WorkflowUpdateEventAspectTest {
 
     @BeforeEach
     void setUp() {
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
     }
 
     @Test
@@ -127,7 +103,6 @@ class WorkflowUpdateEventAspectTest {
 
     @BeforeEach
     void setUp() {
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
       when(annotation.injectId()).thenReturn("#injectId");
       when(annotation.expectationIds()).thenReturn("");
     }
@@ -218,7 +193,6 @@ class WorkflowUpdateEventAspectTest {
 
     @BeforeEach
     void setUp() {
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
       when(annotation.injectId()).thenReturn("");
       when(annotation.injectIds()).thenReturn("#injectIds");
       when(annotation.expectationIds()).thenReturn("");
@@ -314,7 +288,6 @@ class WorkflowUpdateEventAspectTest {
 
     @BeforeEach
     void setUp() {
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
       when(annotation.injectId()).thenReturn("");
       when(annotation.expectationIds()).thenReturn("#expectationIds");
     }
@@ -445,7 +418,6 @@ class WorkflowUpdateEventAspectTest {
 
     @BeforeEach
     void setUp() {
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
     }
 
     private void setupInjectIdJoinPoint(String injectIdValue) {
@@ -611,7 +583,6 @@ class WorkflowUpdateEventAspectTest {
 
     @BeforeEach
     void setUp() {
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
     }
 
     @Test

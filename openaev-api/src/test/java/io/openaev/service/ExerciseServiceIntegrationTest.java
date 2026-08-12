@@ -207,7 +207,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     // -- PREPARE --
     // Stopping used to delete every inject of a manual chained simulation, which emptied the
     // Execution screen while the attack path (cleared only on reset) still showed the same run.
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)).thenReturn(true);
 
     Exercise exercise = ExerciseFixture.getExercise();
     exercise.setFrom("test@test.com");

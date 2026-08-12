@@ -13,7 +13,6 @@ import { type ExerciseSimple, type SearchPaginationInput } from '../../../utils/
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 import useAutonomousRunsIndex from '../autonomous/useAutonomousRunsIndex';
 import ToolBar from '../common/ToolBar';
 import ImportUploaderExercise from './ImportUploaderExercise';
@@ -28,7 +27,6 @@ const Simulations = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [exercises, setExercises] = useState<ExerciseSimple[]>([]);
   const [reloadCount, setReloadCount] = useState<number>(0);
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   // Index of the tenant's autonomous runs so each row's popover can mirror the simulation cockpit:
   // an AI-driven simulation is observe-only, so its overflow exposes only a read-only Export
   // (deletion tears the run down and is a parent-scenario control).
@@ -66,7 +64,7 @@ const Simulations = () => {
   };
 
   const secondaryAction = (exercise: ExerciseSimple) => {
-    const isChaining = isChainingFeatureEnabled && !!(exercise as unknown as Record<string, unknown>).exercise_workflow_id;
+    const isChaining = !!(exercise as unknown as Record<string, unknown>).exercise_workflow_id;
     const isAutonomous = !!autonomousRuns.bySimulation(exercise.exercise_id);
 
     let exerciseActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Export', 'Delete'];

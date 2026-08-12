@@ -9488,7 +9488,6 @@ export interface PlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
-    | "INJECT_CHAINING"
     | "ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
@@ -9786,7 +9785,6 @@ export interface PublicPlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
-    | "INJECT_CHAINING"
     | "ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];

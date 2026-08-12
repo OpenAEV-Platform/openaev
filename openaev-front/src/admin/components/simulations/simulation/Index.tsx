@@ -62,7 +62,6 @@ const IndexComponent: FunctionComponent<{
   // Attack path only exists for chained simulations (workflow-backed), never
   // for time-based ones: gate the route like the tab in SimulationShell.
   const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
-    && isFeatureEnabled('INJECT_CHAINING')
     && !!exercise.exercise_workflow_id;
   // Stable context identities: these providers wrap the whole simulation subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.

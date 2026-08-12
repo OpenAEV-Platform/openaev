@@ -8,7 +8,6 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
 public class InjectChainingCondition implements Condition {
   @Override
   public boolean matches(ConditionContext context, @NotNull AnnotatedTypeMetadata metadata) {
-    String features = context.getEnvironment().getProperty("openaev.enabled-dev-features", "");
-    return features.equals("*") || features.contains("INJECT_CHAINING");
+    return true;
   }
 }

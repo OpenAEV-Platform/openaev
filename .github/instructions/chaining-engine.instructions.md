@@ -48,9 +48,8 @@ applyTo: |
 The **Chaining Engine** enables automated, conditional execution of steps within a simulation workflow.
 It orchestrates inject sequences based on events, conditions, outputs, and time constraints.
 
-The feature is gated behind the `INJECT_CHAINING` preview feature flag (`PreviewFeature.INJECT_CHAINING`).
-At application startup, beans are conditionally loaded via `InjectChainingCondition` (Spring `@Conditional`),
-and at runtime, endpoints check `PreviewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)`.
+Chaining is enabled by default. Bean loading still goes through `InjectChainingCondition` (Spring `@Conditional`),
+but it no longer depends on a preview feature flag.
 
 The execution flow is driven by a **Step Queue + Delay Queue + Job + Pool** architecture using RabbitMQ.
 
@@ -278,7 +277,7 @@ io.openaev.scheduler.jobs/
   └── WorkflowTimeoutJob.java         ← Quartz job: expires timed-out workflow runs
 
 io.openaev.service/
-  └── InjectChainingCondition.java    ← Spring @Conditional: enables chaining beans if INJECT_CHAINING feature flag is set
+  └── InjectChainingCondition.java    ← Spring @Conditional: enables chaining beans
 
 io.openaev.utils/
   └── ConditionUtils.java             ← Condition evaluation logic (shared between services)
@@ -376,8 +375,8 @@ openaev-front/src/components/common/chaining/
 
 ### Architecture
 
-- The feature is behind `PreviewFeature.INJECT_CHAINING`. All API endpoints must gate with `workflowService.isPreviewFeatureChainingEnable()` or `previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)`.
-- `InjectChainingCondition` is a Spring `@Conditional` — it controls whether chaining beans are loaded. It reads `openaev.enabled-dev-features` from environment properties.
+- Chaining is always on. Do not add preview-feature gating checks around chaining endpoints.
+- `InjectChainingCondition` is a Spring `@Conditional` — it controls chaining bean loading.
 - `ActionStep` is the strategy interface. Currently only `InjectExecutionStep` implements it. To add a new action type, implement `ActionStep` and register in `StepService.factoryAction()`.
 
 ### Mappers & DTOs

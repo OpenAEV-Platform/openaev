@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH")
+@TestPropertySource(properties = "openaev.enabled-dev-features=ATTACK_PATH")
 @DisplayName("attack path: the version counter is atomic and per tenant")
 class AttackPathVersionServiceTest extends IntegrationTest {
 

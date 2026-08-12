@@ -27,12 +27,10 @@ const SimulationShell: FunctionComponent<{
   const { t } = useFormatter();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   // Mirror the route gate in Index.tsx exactly: the Attack path screen is workflow-backed, so its
   // tab must only appear when the route is actually registered. A plan-mode / dry-run simulation has
   // no workflow yet, so offering the tab here would route to NotFound (the 404 users were seeing).
   const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
-    && isChainingFeatureEnabled
     && !!exercise.exercise_workflow_id;
   const isAutonomous = !!autonomousRun;
   const base = `/admin/simulations/${exercise.exercise_id}`;
@@ -71,7 +69,7 @@ const SimulationShell: FunctionComponent<{
         ['/statistics', t('Statistics')],
       ];
     }
-    if (isChainingFeatureEnabled && exercise.exercise_workflow_id) {
+    if (exercise.exercise_workflow_id) {
       return [
         ['', t('Overview')],
         ['/scope', t('Scope')],
