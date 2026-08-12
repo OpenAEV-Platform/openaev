@@ -1,5 +1,5 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
@@ -69,7 +69,26 @@ const IndexScenarioComponent: FunctionComponent<{
   // normal scenario page with the AI outcome layered on top (see overviewElement).
   const hasCockpit = isAutonomousRunActive(autonomousRun);
   const [cockpitTimeline, setCockpitTimeline] = useState<AutonomousEvent[]>([]);
+  // Same identity-change rule as AutonomousReasoningPanel: clear only on a real run /
+  // simulation switch. A transient payload that momentarily lost its simulation id must
+  // not blank the overview layer (it would receive sharedEvents=[] and would not poll).
+  const cockpitStreamKeyRef = useRef<string | null>(null);
   useEffect(() => {
+    const runId = autonomousRun?.autonomous_run_id;
+    const simulationId = autonomousRun?.autonomous_run_simulation_id;
+    if (!runId) {
+      cockpitStreamKeyRef.current = null;
+      setCockpitTimeline([]);
+      return;
+    }
+    const nextKey = `${runId}::${simulationId ?? ''}`;
+    if (cockpitStreamKeyRef.current === nextKey) {
+      return;
+    }
+    if (cockpitStreamKeyRef.current !== null && !simulationId) {
+      return;
+    }
+    cockpitStreamKeyRef.current = nextKey;
     setCockpitTimeline([]);
   }, [autonomousRun?.autonomous_run_id, autonomousRun?.autonomous_run_simulation_id]);
   // Resizable reasoning-panel width, shared with the content padding so the scenario content never
