@@ -903,8 +903,7 @@ class AutonomousRunServiceTest {
 
     // Assert - an explicitly supplied scope IS written onto the scenario workflow (null simulation:
     // plan mode has none), as an ALLOWLIST rule carrying the picked asset group.
-    ArgumentCaptor<List<WorkflowScopeRuleInput>> rulesCaptor =
-        ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<List<WorkflowScopeRuleInput>> rulesCaptor = ArgumentCaptor.forClass(List.class);
     verify(workflowService).writeScopeRules(eq("scenario-1"), isNull(), rulesCaptor.capture());
     assertThat(rulesCaptor.getValue())
         .singleElement()
