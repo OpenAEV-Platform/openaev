@@ -51,9 +51,7 @@ the query count belongs in the assertion.
   wall-clock time, is allowed to measure time. This rule targets ORM unit/integration tests that
   use elapsed time as a stand-in for a query-count assertion.
 
-## Source and maintenance
+## Maintenance
 
-Distilled from the cross-team ORM guide maintained by the XTM / backend guild (an external
-reference, not a skill in this repository), guide baseline `4829b8d7d`. Re-distill when the guide's
-doctrine changes; keep this file to the nucleus above and let the other instruction files own
-everything they already cover.
+This file is a hand-maintained digest of the cross-team ORM guide. Re-sync it when the guide's
+doctrine changes. Owner: XTM / backend guild.
