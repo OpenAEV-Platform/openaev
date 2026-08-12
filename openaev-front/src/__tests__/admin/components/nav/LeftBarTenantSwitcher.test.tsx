@@ -86,6 +86,21 @@ describe('LeftBarTenantSwitcher', () => {
     expect(openDialog).toHaveBeenCalledOnce();
   });
 
+  it('badges the upsell row with the library EE severity, opaque', () => {
+    // Guard for the library's breaking change #113: the EE badge moved from a
+    // `tone="tonic"` axis to `severity="ee"`, whose fill is the ONLY opaque one
+    // on that axis. A revert to a transparency variant is a visual regression
+    // that nothing else here would catch.
+    renderSwitcher({ licenceValidated: false });
+    const chip = screen.getByText('EE');
+    const painted = [chip, chip.parentElement, chip.parentElement?.parentElement]
+      .filter(Boolean)
+      .map(el => String((el as Element).getAttribute('class') ?? ''))
+      .join(' ');
+    expect(painted).toContain('bg-filigran-tonic-accent');
+    expect(painted).not.toContain('bg-filigran-tonic-accent-transparency');
+  });
+
   it('renders every tenant as a real link so it can be opened in a new tab', () => {
     renderSwitcher({ licenceValidated: true });
     openMenu(screen.getByTestId('tenant-switcher'));
