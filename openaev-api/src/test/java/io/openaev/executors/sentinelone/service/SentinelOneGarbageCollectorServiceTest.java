@@ -1,8 +1,6 @@
 package io.openaev.executors.sentinelone.service;
 
-import static io.openaev.executors.ExecutorHelper.IMPLANT_BASE_NAME;
-import static io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorService.UNIX_CLEAN_IMPLANTS_COMMAND;
-import static io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorService.WINDOWS_CLEAN_IMPLANTS_COMMAND;
+import static io.openaev.executors.ExecutorHelper.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -10,8 +8,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Executor;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAction;
 import io.openaev.service.AgentService;
@@ -44,6 +44,8 @@ public class SentinelOneGarbageCollectorServiceTest {
   @Mock private AgentService agentService;
   @Mock private SentinelOneExecutorContextService sentinelOneExecutorContextService;
   @Mock SentinelOneExecutorConfig config;
+  @Mock private Executor executor;
+  @Mock private TenantScopedTransaction tenantTx;
 
   private SentinelOneGarbageCollectorService sentinelOneGarbageCollectorService;
 
@@ -51,7 +53,7 @@ public class SentinelOneGarbageCollectorServiceTest {
   void setUp() {
     sentinelOneGarbageCollectorService =
         new SentinelOneGarbageCollectorService(
-            config, sentinelOneExecutorContextService, agentService, EXECUTOR_ID);
+            config, sentinelOneExecutorContextService, agentService, executor, tenantTx);
   }
 
   @Nested
@@ -78,7 +80,7 @@ public class SentinelOneGarbageCollectorServiceTest {
       assertEquals("test script", action.getScriptId());
       assertEquals(agent.getExternalReference(), action.getAgentExternalReference());
       assertEquals(
-          WINDOWS_CLEAN_IMPLANTS_COMMAND,
+          WINDOWS_CLEAN_PAYLOADS_COMMAND,
           new String(
               Base64.getDecoder().decode(action.getCommandEncoded()), StandardCharsets.UTF_16LE));
     }
@@ -104,7 +106,7 @@ public class SentinelOneGarbageCollectorServiceTest {
       SentinelOneAction action = actionsCaptor.getValue().get(0);
       assertEquals("unix script", action.getScriptId());
       assertEquals(
-          UNIX_CLEAN_IMPLANTS_COMMAND,
+          UNIX_CLEAN_PAYLOADS_COMMAND,
           new String(
               Base64.getDecoder().decode(action.getCommandEncoded()), StandardCharsets.UTF_8));
     }
@@ -131,7 +133,7 @@ public class SentinelOneGarbageCollectorServiceTest {
     @DisplayName("Windows command only targets implant directories and stays silent")
     void windowsCommand_should_onlyTargetImplantDirectories() {
       // -- ASSERT --
-      assertThat(WINDOWS_CLEAN_IMPLANTS_COMMAND)
+      assertThat(WINDOWS_CLEAN_PAYLOADS_COMMAND)
           .contains("-Filter \"" + IMPLANT_BASE_NAME + "*\"")
           .contains("-ErrorAction SilentlyContinue")
           .doesNotContain("-Directory -Recurse");
@@ -141,7 +143,7 @@ public class SentinelOneGarbageCollectorServiceTest {
     @DisplayName("Unix command does not descend into removed directories and never fails")
     void unixCommand_should_notDescendIntoRemovedDirectories() {
       // -- ASSERT --
-      assertThat(UNIX_CLEAN_IMPLANTS_COMMAND)
+      assertThat(UNIX_CLEAN_PAYLOADS_COMMAND)
           .contains("-mindepth 1 -maxdepth 1")
           .contains("-name '" + IMPLANT_BASE_NAME + "*'")
           .endsWith("|| true");

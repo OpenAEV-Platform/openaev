@@ -154,7 +154,7 @@ public class SentinelOneExecutorIntegration extends Integration {
 
     sentinelOneGarbageCollectorService =
         new SentinelOneGarbageCollectorService(
-            config, sentinelOneExecutorContextService, agentService, executorId);
+            config, sentinelOneExecutorContextService, agentService, executor, tenantTx);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(
