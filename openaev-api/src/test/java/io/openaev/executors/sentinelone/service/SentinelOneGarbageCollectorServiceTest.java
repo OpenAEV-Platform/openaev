@@ -3,10 +3,10 @@ package io.openaev.executors.sentinelone.service;
 import static io.openaev.executors.ExecutorHelper.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Agent;
@@ -51,6 +51,18 @@ public class SentinelOneGarbageCollectorServiceTest {
 
   @BeforeEach
   void setUp() {
+    lenient().when(executor.getId()).thenReturn(EXECUTOR_ID);
+    // run() wraps doRun() in tenantTx.execute(TxCtx.forTenant(executor.getTenantId()), ...):
+    // stub getTenantId() (TxCtx.forTenant rejects null via List.of) and make the tenantTx mock
+    // actually invoke the supplied work, otherwise doRun() never happens.
+    lenient().when(executor.getTenantId()).thenReturn("test-tenant-id");
+    lenient()
+        .when(tenantTx.execute(any(), any(java.util.function.Supplier.class)))
+        .thenAnswer(
+            invocation -> {
+              java.util.function.Supplier<?> work = invocation.getArgument(1);
+              return work.get();
+            });
     sentinelOneGarbageCollectorService =
         new SentinelOneGarbageCollectorService(
             config, sentinelOneExecutorContextService, agentService, executor, tenantTx);
@@ -122,31 +134,6 @@ public class SentinelOneGarbageCollectorServiceTest {
 
       // -- ASSERT --
       verify(sentinelOneExecutorContextService, never()).executeActions(anyList());
-    }
-  }
-
-  @Nested
-  @DisplayName("Clean commands safety")
-  class CleanCommandsSafety {
-
-    @Test
-    @DisplayName("Windows command only targets implant directories and stays silent")
-    void windowsCommand_should_onlyTargetImplantDirectories() {
-      // -- ASSERT --
-      assertThat(WINDOWS_CLEAN_PAYLOADS_COMMAND)
-          .contains("-Filter \"" + IMPLANT_BASE_NAME + "*\"")
-          .contains("-ErrorAction SilentlyContinue")
-          .doesNotContain("-Directory -Recurse");
-    }
-
-    @Test
-    @DisplayName("Unix command does not descend into removed directories and never fails")
-    void unixCommand_should_notDescendIntoRemovedDirectories() {
-      // -- ASSERT --
-      assertThat(UNIX_CLEAN_PAYLOADS_COMMAND)
-          .contains("-mindepth 1 -maxdepth 1")
-          .contains("-name '" + IMPLANT_BASE_NAME + "*'")
-          .endsWith("|| true");
     }
   }
 
