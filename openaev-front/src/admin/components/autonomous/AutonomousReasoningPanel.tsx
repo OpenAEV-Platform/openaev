@@ -23,7 +23,7 @@ import { useFormatter } from '../../../components/i18n';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useChatbot, useChatbotContentMargin } from '../ariane/useChatbotHooks';
-import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
+import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, isHeartbeatEvent, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
 import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 
 // An "active" run is one the orchestrator is currently driving, so the panel keeps polling the
@@ -57,27 +57,11 @@ const MAX_QUESTION_CHOICES = 3;
 const ACTIVITY_EVENT_TYPES = ['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const;
 const isActivityType = (type: string | undefined): boolean => (ACTIVITY_EVENT_TYPES as readonly string[]).includes(type ?? '');
 
-// A heartbeat is a lightweight STATUS event the XTM One orchestrator emits every ~45s WHILE a
-// decision cycle is actively running (flagged {"heartbeat": true} in its data). It exists only to
-// keep this cockpit's "working" indicator honest and to nudge the graph poll during a long silent
-// burst - it is NOT an operator-facing decision. So it is filtered OUT of the visible timeline, yet
-// still counts for freshness: its timestamp resets the staleness backstop so the caption keeps
-// animating over the last real activity instead of collapsing to "Awaiting the next event".
-const isHeartbeatEvent = (event: AutonomousEvent | undefined): boolean => {
-  if (!event || event.autonomous_event_type !== 'STATUS' || !event.autonomous_event_data) {
-    return false;
-  }
-  // Cheap substring pre-check before the JSON.parse: this runs for every event on every render of
-  // the feed, and most STATUS payloads never mention "heartbeat" at all.
-  if (!event.autonomous_event_data.includes('"heartbeat"')) {
-    return false;
-  }
-  try {
-    return (JSON.parse(event.autonomous_event_data) as { heartbeat?: boolean }).heartbeat === true;
-  } catch {
-    return false;
-  }
-};
+// A heartbeat older than this is treated as stale: the orchestrator only emits heartbeats WHILE a
+// decision cycle is actively running (~45s cadence), so a fresh one is positive proof the run is
+// grinding right now. Sized at ~2.5 cycles so one dropped beat or a slow poll never flips a working
+// run to idle, while a genuinely stopped cycle (park / stall) settles within a few seconds.
+const HEARTBEAT_FRESH_MS = 120000;
 
 interface QuestionChoice {
   id: string;
@@ -622,9 +606,27 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // as it moves (deciding -> acting -> analyzing ...). Crucially, once the operator answers we flip
   // to "Processing your answer" immediately -- the backend status stays WAITING_INPUT until the next
   // 3s poll, so keying off status alone would freeze on "Waiting for your input".
-  const lastActivityType = [...events].reverse().find(
+  const lastActivityEvent = [...events].reverse().find(
     e => isActivityType(e.autonomous_event_type),
-  )?.autonomous_event_type;
+  );
+  const lastActivityType = lastActivityEvent?.autonomous_event_type;
+
+  // A fresh heartbeat is positive proof the orchestrator is grinding a cycle RIGHT NOW (they only
+  // fire while the agent chat is running). It is the signal that turns an in-progress delegation
+  // from a static "Waiting for X" into a live, pulsing "Consulting X" - the reported "the right
+  // panel never shows it is actually working" symptom. Filtered out of the feed everywhere else,
+  // here it is read only for its timestamp.
+  const lastHeartbeatAt = [...events].reverse().find(isHeartbeatEvent)?.autonomous_event_created_at;
+  const heartbeatFresh = lastHeartbeatAt
+    ? Date.now() - new Date(lastHeartbeatAt).getTime() < HEARTBEAT_FRESH_MS
+    : false;
+  const workingByHeartbeat = isActive && !isWaitingInput && heartbeatFresh;
+
+  // The live "working for Nm Ns" clock should measure the current move, not the 45s heartbeat
+  // cadence: anchor it to the newest REAL activity event (e.g. the delegation start) so a long
+  // consult reads "Consulting X - 3m 20s" instead of resetting every heartbeat.
+  const activitySince = lastActivityEvent?.autonomous_event_created_at
+    ?? (events.length > 0 ? events[events.length - 1].autonomous_event_created_at : undefined);
 
   // The latest agent-delegation event drives the "delegating to / waiting for <agent>" caption. A
   // 'start' phase with no following 'result' reads as waiting (static), mirroring the parked model.
@@ -781,6 +783,19 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         const who = delegationInfo?.agentName;
         const delegationColor = theme.palette.ai?.main ?? accent;
         if (delegationInfo?.waiting) {
+          // A specialist consult can run for minutes with no orchestrator-side event. While
+          // heartbeats keep arriving the sub-agent is demonstrably working, so render a live,
+          // pulsing "Consulting X" with the elapsed clock instead of a static "Waiting for X" that
+          // reads as a stalled cockpit. Only once the heartbeats stop (a genuine stall) does it
+          // settle back to the calm static wait.
+          if (workingByHeartbeat) {
+            return {
+              key: 'delegating-working',
+              label: who ? `${t('Consulting')} ${who}` : t('Consulting a specialist agent'),
+              color: delegationColor,
+              active: true,
+            };
+          }
           return {
             key: 'delegating-wait',
             label: who ? `${t('Waiting for')} ${who}` : t('Waiting for a specialist agent'),
@@ -1017,7 +1032,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     phase={thinkingPhase}
                     theme={theme}
                     lines={thinkingLines}
-                    activitySince={newestEvent?.autonomous_event_created_at}
+                    activitySince={activitySince}
                   />
                 )}
               </Stack>

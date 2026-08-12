@@ -9,7 +9,7 @@ import { type AutonomousEvent, type AutonomousRun, type AutonomousRunStatus } fr
 import { HeroStat, HeroStats, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
 import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
-import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
+import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, isHeartbeatEvent, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
 import AutonomousOutcomeDialog, { type OutcomeKind } from './AutonomousOutcomeDialog';
 
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['PLANNING', 'RUNNING', 'WAITING_INPUT'];
@@ -291,6 +291,11 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
 
   const proofEvents = useMemo(() => events.filter(e => e.autonomous_event_type === 'PROOF'), [events]);
   const capabilityGaps = useMemo(() => events.filter(e => e.autonomous_event_type === 'GAP'), [events]);
+  // Heartbeats are ~45s freshness pings the orchestrator emits while a cycle runs, not decisions.
+  // They must never appear as "Working" nodes on the decision timeline nor inflate the decision
+  // count, so every timeline-facing read works off the heartbeat-free stream (the reasoning panel
+  // filters them the same way).
+  const decisionEvents = useMemo(() => events.filter(e => !isHeartbeatEvent(e)), [events]);
 
   const buildProofReport = (): string => {
     const lines: string[] = [];
@@ -423,7 +428,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
   // A small greyed sample storyline so the timeline reads as a timeline before the first real
   // events land, matching the sample fallbacks used everywhere else on this tab. In plan mode the
   // PROOF node is dropped - a plan never executes, so it can never prove exploitation.
-  const timelineIsSample = events.length === 0;
+  const timelineIsSample = decisionEvents.length === 0;
   const sampleTimeline: AutonomousEvent[] = useMemo(() => {
     const base = [
       {
@@ -462,7 +467,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
       autonomous_event_title: e.title,
     }));
   }, [t, runId, isPlanMode]);
-  const timelineEvents = timelineIsSample ? sampleTimeline : events;
+  const timelineEvents = timelineIsSample ? sampleTimeline : decisionEvents;
 
   // When new decision-timeline nodes append on the right, follow them to the
   // tail - but only if the operator has not scrolled back to inspect earlier
@@ -619,7 +624,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
             <HeroStat
               icon={BoltOutlined}
               label={t('Decisions')}
-              value={events.length}
+              value={decisionEvents.length}
               color={accent}
             />
             {/* Proof of exploitation is impossible in plan mode (nothing executes), so the stat is
@@ -652,7 +657,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
           : (
               <Chip
                 size="small"
-                label={events.length}
+                label={decisionEvents.length}
                 variant="outlined"
                 sx={{
                   borderRadius: 1,
