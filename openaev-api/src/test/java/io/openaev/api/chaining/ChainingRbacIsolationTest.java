@@ -21,7 +21,6 @@ import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.fixtures.ConditionFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.StepFixture;
@@ -80,7 +79,6 @@ class ChainingRbacIsolationTest extends IntegrationTest {
   @BeforeEach
   void setUp() {
     originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
-    openAEVConfig.setEnabledDevFeatures(PreviewFeature.ATTACK_PATH.getValue());
     when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
     when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     clearFeatureCache();

@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** The POC graph endpoint returns the {@code AttackPathDTO} when the POC preview feature is on. */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.enabled-dev-features=ATTACK_PATH")
+@TestPropertySource(properties = "openaev.enabled-dev-features=")
 class AttackPathApiTest extends IntegrationTest {
 
   private static final String SIM = "SIM-API";

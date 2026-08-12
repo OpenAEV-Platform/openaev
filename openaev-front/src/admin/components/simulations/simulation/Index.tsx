@@ -16,7 +16,6 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import { AutonomousContext } from '../../autonomous/AutonomousContext';
 import AutonomousOverview from '../../autonomous/AutonomousOverview';
 import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
@@ -61,8 +60,7 @@ const IndexComponent: FunctionComponent<{
   const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
   // Attack path only exists for chained simulations (workflow-backed), never
   // for time-based ones: gate the route like the tab in SimulationShell.
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
-    && !!exercise.exercise_workflow_id;
+  const isAttackPathEnabled = !!exercise.exercise_workflow_id;
   // Stable context identities: these providers wrap the whole simulation subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
   const permissionsContext: PermissionsContextType = useMemo(() => ({

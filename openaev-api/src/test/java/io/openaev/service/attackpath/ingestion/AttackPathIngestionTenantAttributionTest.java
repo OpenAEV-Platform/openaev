@@ -79,7 +79,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @TestPropertySource(
     properties = {
-      "openaev.enabled-dev-features=ATTACK_PATH",
+      "openaev.enabled-dev-features=",
       "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
     })
 @WithMockUser(isAdmin = true)

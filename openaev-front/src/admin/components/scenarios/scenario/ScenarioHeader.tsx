@@ -71,7 +71,6 @@ import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousRunConfigDrawer from '../../autonomous/AutonomousRunConfigDrawer';
 import { type RebuildMode } from '../../autonomous/AutonomousRunConfigFields';
@@ -186,11 +185,9 @@ const ScenarioHeader = ({
   });
   const hasChallenges = challenges.length > 0;
 
-  // isFeatureEnabled reads the store through a hook, so it must stay at render scope: calling it
-  // from an event handler throws and silently aborts the handler mid-way.
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = !!scenarioWorkflowId;
+  const isAttackPathEnabled = isScenarioChaining;
   // Autonomy is a launch-time MODE now (not a scenario type) and no longer has a dedicated flag: any
   // chained scenario can be launched autonomously (orchestrator-driven) or planned by the
   // orchestrator, gated by the same chaining feature. Time-based scenarios only ever launch a normal

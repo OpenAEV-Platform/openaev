@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.enabled-dev-features=ATTACK_PATH")
+@TestPropertySource(properties = "openaev.enabled-dev-features=")
 @DisplayName("attack path: share findings keep the share type")
 class AttackPathShareTypeApiTest extends IntegrationTest {
 

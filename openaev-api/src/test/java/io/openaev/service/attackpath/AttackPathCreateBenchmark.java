@@ -55,7 +55,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @WithMockUser(isAdmin = true)
 @TestPropertySource(
     properties = {
-      "openaev.enabled-dev-features=ATTACK_PATH",
+      "openaev.enabled-dev-features=",
       "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
     })
 @DisplayName("attack path Phase A create: write latency")

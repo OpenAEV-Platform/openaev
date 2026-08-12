@@ -20,7 +20,6 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
 import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
@@ -59,8 +58,7 @@ const IndexScenarioComponent: FunctionComponent<{
   const location = useLocation();
   // Attack path only exists for chained scenarios (workflow-backed), never
   // for time-based ones: same gating as the simulation side.
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
-    && !!scenario.scenario_workflow_id;
+  const isAttackPathEnabled = !!scenario.scenario_workflow_id;
   const isChained = !!scenario.scenario_workflow_id;
   // The AI cockpit (right-hand reasoning panel + read-only Scope/Logic) is live only while a run
   // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
