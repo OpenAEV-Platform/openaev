@@ -55,4 +55,14 @@ public enum ExecutorShell {
   public boolean canRepresent(String value) {
     return this != CMD || !value.contains("\"");
   }
+
+  /**
+   * Why {@link #canRepresent(String)} turned a value away, phrased for the caller who supplied it.
+   * Kept next to the rule so the two cannot drift apart.
+   */
+  public String unrepresentableValueReason() {
+    return this == CMD
+        ? "a double quote is not supported in a cmd command value"
+        : "the value cannot be represented in this shell";
+  }
 }

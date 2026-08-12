@@ -119,8 +119,8 @@ public class CommandArgumentBinder {
           argumentKey,
           executor);
       throw new CommandBindingException(
-          "Argument '%s' cannot be represented for executor '%s': a double quote is not supported in a %s command value."
-              .formatted(argumentKey, executor, shell.name().toLowerCase(Locale.ROOT)));
+          "Argument '%s' cannot be represented for executor '%s': %s."
+              .formatted(argumentKey, executor, shell.unrepresentableValueReason()));
     }
     if (!shell.supportsBinding()) {
       // Literal mode: keep the value, no variable is declared.
@@ -188,23 +188,27 @@ public class CommandArgumentBinder {
     return result.toString();
   }
 
-  /** Matches any bound placeholder, and in binding mode the quotes directly wrapping it. */
+  /**
+   * Matches any bound placeholder, and in binding mode the quotes directly wrapping it. Groups are
+   * named rather than numbered: the two alternatives do not hold the same groups, and a numbering
+   * that only lined up by accident would break silently the day one of them changes.
+   */
   private Pattern placeholderPattern() {
     String keys =
         variablesByKey.keySet().stream().map(Pattern::quote).collect(Collectors.joining("|"));
     return shell.supportsBinding()
-        ? Pattern.compile("(['\"])?#\\{(" + keys + ")}\\1?")
-        : Pattern.compile("()#\\{(" + keys + ")}");
+        ? Pattern.compile("(?<quote>['\"])?#\\{(?<key>" + keys + ")}\\k<quote>?")
+        : Pattern.compile("#\\{(?<key>" + keys + ")}");
   }
 
   private String substitutionFor(Matcher matcher) {
-    String argumentKey = matcher.group(2);
+    String argumentKey = matcher.group("key");
     if (!shell.supportsBinding()) {
       return valuesByVariable.get(argumentKey);
     }
     String replacement = reference(variablesByKey.get(argumentKey));
     // The quote group is optional, so it is absent rather than empty when the placeholder is bare.
-    String openingQuote = matcher.group(1);
+    String openingQuote = matcher.group("quote");
     if (openingQuote == null || openingQuote.isEmpty()) {
       return replacement;
     }
