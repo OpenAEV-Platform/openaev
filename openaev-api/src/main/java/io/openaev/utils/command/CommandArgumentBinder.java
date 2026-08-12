@@ -40,8 +40,15 @@ public class CommandArgumentBinder {
   private static final String VARIABLE_PREFIX = "OAEV_ARG_";
 
   private static final Pattern NON_IDENTIFIER_CHARS = Pattern.compile("[^A-Za-z0-9_]");
+
+  /**
+   * Characters no legitimate argument value needs: NUL and the other C0 controls, DEL, and every
+   * character a consumer may read as the end of a line. Line separators are removed for all engines
+   * so a value is the single token the template describes, whatever reads it afterwards. Tab is
+   * deliberately kept: it separates nothing in any of the supported shells.
+   */
   private static final Pattern NUL_AND_CONTROL_CHARS =
-      Pattern.compile("[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]");
+      Pattern.compile("[\\u0000-\\u0008\\u000A-\\u001F\\u007F\\u0085\\u2028\\u2029]");
 
   private final ExecutorShell shell;
 
@@ -235,19 +242,16 @@ public class CommandArgumentBinder {
 
   /**
    * Escapes a value for {@code set "VAR=value"}. Inside the quoted form {@code & | < > ^ ( )} are
-   * already literal; only percent expansion and delayed expansion need neutralising. Newlines are
-   * not representable on a cmd line and are downgraded to spaces.
+   * already literal; only percent expansion and delayed expansion need neutralising. A value that
+   * cannot be carried by this form at all is refused earlier, see {@link
+   * ExecutorShell#canRepresent(String)}. Line separators are already gone by then, removed for
+   * every engine by {@link #sanitize(String)}.
    */
   private static String escapeCmd(String value) {
-    return value
-        .replace("\r\n", " ")
-        .replace('\r', ' ')
-        .replace('\n', ' ')
-        .replace("%", "%%")
-        .replace("!", "^^!");
+    return value.replace("%", "%%").replace("!", "^^!");
   }
 
-  /** Drops NUL and other control characters, which no legitimate argument value needs. */
+  /** Drops the characters listed on {@link #NUL_AND_CONTROL_CHARS}. */
   private static String sanitize(String value) {
     return NUL_AND_CONTROL_CHARS.matcher(value).replaceAll("");
   }

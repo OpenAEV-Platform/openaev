@@ -42,9 +42,9 @@ class CommandArgumentBinderTest {
         "trailing backslash \\",
         "a ( b ) c",
         "a\tb",
-        // Line terminators beyond CR and LF, built from code points because a literal one in
-        // this source file would break the string it sits in. Java treats NEL, LS and PS as line
-        // terminators, so a value carrying one is not the single line it looks like.
+        // Line separators beyond CR and LF, built from code points because a literal one in this
+        // source file would break the string it sits in. Unicode designates these as line
+        // separators; java.util.Scanner splits on them, String.lines() and BufferedReader do not.
         "a" + NEL + "b",
         "a" + LINE_SEPARATOR + "b",
         "a" + PARAGRAPH_SEPARATOR + "b",
@@ -72,6 +72,23 @@ class CommandArgumentBinderTest {
               + BYTE_ORDER_MARK
               + "abcXY01")
           .toCharArray();
+
+  /**
+   * Characters a consumer may read as the end of a line. A value carrying one is not the single
+   * token the template describes, whatever the shell does with it.
+   */
+  private static final String[] LINE_SEPARATORS = {
+    "\n", "\r", NEL, LINE_SEPARATOR, PARAGRAPH_SEPARATOR
+  };
+
+  /** Asserts a value, once bound, carries no line separator into whatever the engine produced. */
+  private static void assertNoLineSeparator(String subject, String context, String what) {
+    for (String separator : LINE_SEPARATORS) {
+      assertThat(subject)
+          .as("%s must leave no line separator in %s", context, what)
+          .doesNotContain(separator);
+    }
+  }
 
   /** How many generated values each property test samples. */
   private static final int GENERATED_SAMPLES = 20_000;
@@ -116,6 +133,7 @@ class CommandArgumentBinderTest {
     assertThat(interior.replace(quoteEscape, ""))
         .as("%s must not close its declaration early", context)
         .doesNotContain("'");
+    assertNoLineSeparator(interior, context, "its declaration");
   }
 
   private static void assertShContainment(String value) {
@@ -181,6 +199,7 @@ class CommandArgumentBinderTest {
     assertThat(interior.replace("%%", ""))
         .as("%s must not leave percent expansion reachable", context)
         .doesNotContain("%");
+    assertNoLineSeparator(interior, context, "its declaration");
   }
 
   private static void assertPowerShellContainment(String value) {
@@ -409,6 +428,18 @@ class CommandArgumentBinderTest {
     }
 
     @Test
+    @DisplayName("given a multi-line value should resolve a single hostname")
+    void given_multi_line_value_should_resolve_a_single_hostname() {
+      // The implant resolves a hostname line by line, so a value carrying a line separator would
+      // resolve several names instead of the one the template describes.
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("host", "example.com\nattacker.test");
+
+      assertThat(binder.render("#{host}")).isEqualTo("example.comattacker.test").hasLineCount(1);
+    }
+
+    @Test
     @DisplayName("given a value with control characters should strip them")
     void given_control_characters_should_strip_them() {
       CommandArgumentBinder binder = CommandArgumentBinder.literal();
@@ -444,6 +475,9 @@ class CommandArgumentBinderTest {
       String rendered = binder.render("host-#{target}");
 
       assertThat(rendered).startsWith("host-").doesNotContain("OAEV_");
+      // No declaration here, so the whole rendered value must be a single line: the implant
+      // resolves a DNS hostname line by line.
+      assertNoLineSeparator(rendered, "value " + readable(value), "the rendered hostname");
     }
 
     @Test
@@ -454,6 +488,43 @@ class CommandArgumentBinderTest {
       binder.bind("host", "a; whoami");
 
       assertThat(binder.render("echo #{host}")).isEqualTo("echo a; whoami").doesNotContain("OAEV_");
+    }
+  }
+
+  @Nested
+  @DisplayName("Characters deliberately kept")
+  class KeptCharacters {
+
+    @Test
+    @DisplayName("tab survives on every engine, it separates nothing in any supported shell")
+    void tab_survives_on_every_engine() {
+      assertThat(rendered("bash", "a\tb")).contains("a\tb");
+      assertThat(rendered("psh", "a\tb")).contains("a\tb");
+      assertThat(rendered("cmd", "a\tb")).contains("a\tb");
+      assertThat(literalRendered("a\tb")).contains("a\tb");
+    }
+
+    @Test
+    @DisplayName("a byte order mark survives, it is not a line separator")
+    void byte_order_mark_survives() {
+      // Kept on purpose: BOM is a zero-width no-break space, not a line separator. Removing
+      // invisible characters is a different concern from the one this class owns.
+      String value = "a" + BYTE_ORDER_MARK + "b";
+
+      assertThat(rendered("bash", value)).contains(value);
+      assertThat(literalRendered(value)).contains(value);
+    }
+
+    private String rendered(String executor, String value) {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor(executor);
+      binder.bind("t", value);
+      return binder.render("echo #{t}");
+    }
+
+    private String literalRendered(String value) {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+      binder.bind("t", value);
+      return binder.render("host-#{t}");
     }
   }
 
