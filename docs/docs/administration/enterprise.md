@@ -83,7 +83,7 @@ More detail: [CVEs](taxonomies.md) and [Findings view](../usage/evaluate/finding
 
 ## Detection remediation in Threat Arsenal Actions and Injects
 
-More detail: [Detection remediations in Threat Arsenal Actions](../usage/build/threat-arsenals/threat-arsenals.md)
+More detail: [Detection remediations in Threat Arsenal Actions](../usage/build/threat-arsenals/action-properties.md#detection-remediation-properties)
 and [Atomic testing remediations](../usage/evaluate/atomic-testing/atomic-testing.md).
 
 ## More to come
