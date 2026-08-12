@@ -18,9 +18,9 @@ import type { ScopeVariableInput, WorkflowConfigurationInput, WorkflowScopeRuleI
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import useLivePolling from '../../../utils/hooks/useLivePolling';
-import ChainingUpdatedBanner from './ChainingUpdatedBanner';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import ChainingUpdatedBanner from './ChainingUpdatedBanner';
 import ScopeExecutionLimits from './ScopeExecutionLimits';
 import ScopeRules from './ScopeRules';
 import ScopeVariables from './ScopeVariables';
@@ -165,11 +165,11 @@ const ScopeDefinition = ({
       >
         {/* Row 1: allow list | deny list (ScopeRules renders both cards as a fragment). */}
         <ScopeRules
-        workflowId={workflowId}
-        workflowConfiguration={workflowConfiguration}
-        onUpdate={handleUpdate}
-        readOnly={readOnly}
-      />
+          workflowId={workflowId}
+          workflowConfiguration={workflowConfiguration}
+          onUpdate={handleUpdate}
+          readOnly={readOnly}
+        />
         {/* Row 2: variables | combined execution limits. */}
         <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
         <ScopeExecutionLimits
