@@ -53,6 +53,23 @@ const MAX_QUESTION_CHOICES = 3;
 const ACTIVITY_EVENT_TYPES = ['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const;
 const isActivityType = (type: string | undefined): boolean => (ACTIVITY_EVENT_TYPES as readonly string[]).includes(type ?? '');
 
+// A heartbeat is a lightweight STATUS event the XTM One orchestrator emits every ~45s WHILE a
+// decision cycle is actively running (flagged {"heartbeat": true} in its data). It exists only to
+// keep this cockpit's "working" indicator honest and to nudge the graph poll during a long silent
+// burst - it is NOT an operator-facing decision. So it is filtered OUT of the visible timeline, yet
+// still counts for freshness: its timestamp resets the staleness backstop so the caption keeps
+// animating over the last real activity instead of collapsing to "Awaiting the next event".
+const isHeartbeatEvent = (event: AutonomousEvent | undefined): boolean => {
+  if (!event || event.autonomous_event_type !== 'STATUS' || !event.autonomous_event_data) {
+    return false;
+  }
+  try {
+    return (JSON.parse(event.autonomous_event_data) as { heartbeat?: boolean }).heartbeat === true;
+  } catch {
+    return false;
+  }
+};
+
 interface QuestionChoice {
   id: string;
   label: string;
@@ -481,10 +498,16 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     return () => clearInterval(interval);
   }, [isActive, refreshRun, pollTimeline]);
 
-  // Keep the stream pinned to the latest decision as it grows.
+  // Keep the stream pinned to the latest decision as it grows - but only when the operator is
+  // already at (or near) the bottom, so a background heartbeat tick or a new event never yanks them
+  // away from an older decision they scrolled up to read.
   useEffect(() => {
     const node = scrollRef.current;
-    if (node) {
+    if (!node) {
+      return;
+    }
+    const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight;
+    if (distanceFromBottom < 80) {
       node.scrollTop = node.scrollHeight;
     }
   }, [events.length]);
@@ -580,6 +603,11 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     e => isActivityType(e.autonomous_event_type),
   )?.autonomous_event_type;
 
+  // The operator-facing decision feed excludes heartbeats (they are freshness pings, not decisions),
+  // so a long silent burst does not fill the timeline with "Working" rows. Freshness/caption logic
+  // above still keys off the raw `events` (including heartbeats) so the cockpit stays animated.
+  const visibleEvents = events.filter(e => !isHeartbeatEvent(e));
+
   // The latest agent-delegation event drives the "delegating to / waiting for <agent>" caption. A
   // 'start' phase with no following 'result' reads as waiting (static), mirroring the parked model.
   const lastDelegation = [...events].reverse().find(
@@ -629,8 +657,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       return false;
     }
   })();
-  // Parked only when the newest STATUS is a genuine end-of-cycle wait (NOT an engagement marker).
-  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS' && !engagedOnStatus;
+  // A heartbeat STATUS means the orchestrator is actively grinding a long cycle - the opposite of a
+  // park. It must NOT read as the calm "Awaiting the next event"; instead we fall through to the
+  // switch below so the caption keeps animating over the last real activity.
+  const heartbeatOnStatus = isHeartbeatEvent(newestEvent);
+  // Parked only when the newest STATUS is a genuine end-of-cycle wait (NOT an engagement marker and
+  // NOT a still-working heartbeat).
+  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS'
+    && !engagedOnStatus && !heartbeatOnStatus;
   // Has the orchestrator RESUMED since the operator answered? The backend run status stays
   // WAITING_INPUT until a later 3s poll flips it, so it lies about "still waiting" for a while. The
   // truthful signal is a fresh activity event: once the newest event is a DECISION / TOOL_ACTION /
@@ -854,7 +888,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           padding: theme.spacing(1, 2),
         }}
       >
-        {events.length === 0 && !isActive
+        {visibleEvents.length === 0 && !isActive
           ? (
               <Stack sx={{
                 alignItems: 'center',
@@ -880,7 +914,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 paddingBlock: 1,
               }}
               >
-                {events.map((event) => {
+                {visibleEvents.map((event) => {
                   const color = eventAccent(event, theme);
                   const eventTitle = sanitizeEventText(event.autonomous_event_title);
                   const eventContent = sanitizeEventText(event.autonomous_event_content);
