@@ -39,6 +39,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 @RestControllerAdvice
@@ -309,6 +311,12 @@ public class RestBehavior {
       })
   public ResponseEntity<ErrorMessage> handleTenantAccessDeniedException(
       TenantAccessDeniedException ex) {
+    log.warn(
+        "TENANT_ACCESS_DENIED: {} (user={}, {} {})",
+        ex.getMessage(),
+        currentUser().getId(),
+        requestMethod(),
+        requestUri());
     return new ResponseEntity<>(new ErrorMessage("TENANT_ACCESS_DENIED"), HttpStatus.FORBIDDEN);
   }
 
@@ -480,5 +488,23 @@ public class RestBehavior {
     } catch (IllegalArgumentException e) {
       throw new InputValidationException("id", "The ID is not a valid UUID: " + id);
     }
+  }
+
+  // -- UTILS --
+
+  /** Current request method, or {@code ?} when called outside a servlet request. */
+  private static String requestMethod() {
+    return RequestContextHolder.getRequestAttributes()
+            instanceof ServletRequestAttributes attributes
+        ? attributes.getRequest().getMethod()
+        : "?";
+  }
+
+  /** Current request URI, or {@code ?} when called outside a servlet request. */
+  private static String requestUri() {
+    return RequestContextHolder.getRequestAttributes()
+            instanceof ServletRequestAttributes attributes
+        ? attributes.getRequest().getRequestURI()
+        : "?";
   }
 }
