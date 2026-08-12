@@ -49,8 +49,7 @@ class WorkflowUpdateEventAspectTest {
   class InvalidAnnotationConfiguration {
 
     @BeforeEach
-    void setUp() {
-    }
+    void setUp() {}
 
     @Test
     void shouldThrow_whenBothInjectIdAndExpectationIdsAreSet() {
@@ -417,8 +416,7 @@ class WorkflowUpdateEventAspectTest {
   class UnsentEventsCacheAndRetry {
 
     @BeforeEach
-    void setUp() {
-    }
+    void setUp() {}
 
     private void setupInjectIdJoinPoint(String injectIdValue) {
       when(annotation.injectId()).thenReturn("#injectId");
@@ -582,8 +580,7 @@ class WorkflowUpdateEventAspectTest {
   class SpELExpressionEvaluation {
 
     @BeforeEach
-    void setUp() {
-    }
+    void setUp() {}
 
     @Test
     void shouldEvaluateNestedSpELExpression_forInjectId() throws IOException {
