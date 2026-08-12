@@ -340,6 +340,50 @@ public class PlatformRoleApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given a platform role polluted with a tenant-only capability, update should drop it"
+            + " instead of rejecting the payload")
+    void given_pollutedPlatformRole_should_dropOutOfScopeCapabilityOnUpdate() throws Exception {
+      // -------- Arrange --------
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(
+                  PlatformRoleFixture.getPlatformRole(
+                      "Polluted",
+                      Set.of(
+                          Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES,
+                          Capability.ACCESS_ASSETS)))
+              .persist()
+              .get();
+
+      PlatformRoleInput input =
+          new PlatformRoleInput(
+              "Healed",
+              "healed",
+              Set.of(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, Capability.ACCESS_ASSETS));
+
+      // -------- Act --------
+      mvc.perform(
+              put(PLATFORM_ROLES_URI + "/" + role.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // -------- Assert --------
+      entityManager.flush();
+      entityManager.clear();
+      Role reloaded = roleRepository.findById(role.getId()).orElseThrow();
+      assertFalse(
+          reloaded.getCapabilities().contains(Capability.ACCESS_ASSETS),
+          "the tenant-only capability should have been dropped");
+      assertTrue(
+          reloaded.getCapabilities().contains(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES));
+    }
+
+    @Test
     @WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES})
     @DisplayName("Given ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES only, should be forbidden to update")
     void given_accessPlatform_should_forbidUpdate() throws Exception {

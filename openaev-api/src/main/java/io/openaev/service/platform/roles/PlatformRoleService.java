@@ -105,12 +105,13 @@ public class PlatformRoleService {
       @NotBlank final String name,
       final String description,
       @NotNull final Set<Capability> capabilities) {
-    assertCanAssignCapabilities(userService.currentUser(), capabilities, CapabilityScope.PLATFORM);
-    Capability.validateForPlatformRole(capabilities);
+    Set<Capability> scopedCapabilities = Capability.filterForPlatformRole(capabilities);
+    assertCanAssignCapabilities(
+        userService.currentUser(), scopedCapabilities, CapabilityScope.PLATFORM);
     Role role = findById(roleId);
     role.setName(name);
     role.setDescription(description);
-    role.setCapabilities(capabilities);
+    role.setCapabilities(scopedCapabilities);
     return roleRepository.save(role);
   }
 
