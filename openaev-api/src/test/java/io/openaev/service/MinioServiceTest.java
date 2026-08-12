@@ -11,6 +11,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -141,5 +142,21 @@ class MinioServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertThat(minioService.countObjectsForCurrentTenant(dir)).isZero();
+  }
+
+  // -- HEALTH CHECK --
+
+  @Test
+  void should_pass_the_access_check_when_the_tenant_has_no_file() {
+    // -- ARRANGE --
+    String previousTenant = TenantContext.getCurrentTenant();
+    TenantContext.setCurrentTenant(UUID.randomUUID().toString());
+
+    // -- ACT & ASSERT --
+    try {
+      assertDoesNotThrow(() -> minioService.checkTenantPathAccessible());
+    } finally {
+      TenantContext.setCurrentTenant(previousTenant);
+    }
   }
 }

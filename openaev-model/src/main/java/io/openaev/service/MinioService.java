@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -189,16 +190,34 @@ public class MinioService implements DependenciesManager {
 
   // -- HELPERS --
 
-  public void isTenantPathExists() throws Exception {
-    isTenantPathExists(minioClient);
+  public void checkTenantPathAccessible() throws Exception {
+    checkTenantPathAccessible(minioClient);
   }
 
   /**
-   * Same as {@link #isTenantPathExists()} but using the provided client, so callers (e.g. health
-   * checks) can use a client configured with short timeouts.
+   * Verifies the object storage is reachable, the credentials are valid and the bucket is listable.
+   *
+   * <p>A tenant path is only a key prefix, not an object: statting it fails whenever the tenant has
+   * no file yet, and plain S3 has no directory markers at all. A one-key listing proves access
+   * without requiring anything to be stored, and succeeds on an empty tenant.
+   *
+   * <p>Takes the client as a parameter so callers (e.g. health checks) can pass one configured with
+   * short timeouts.
    */
-  public void isTenantPathExists(MinioClient client) throws Exception {
-    client.statObject(StatObjectArgs.builder().bucket(bucket()).object(getTenantPath("")).build());
+  public void checkTenantPathAccessible(MinioClient client) throws Exception {
+    Iterator<Result<Item>> results =
+        client
+            .listObjects(
+                ListObjectsArgs.builder()
+                    .bucket(bucket())
+                    .prefix(getTenantPath(""))
+                    .maxKeys(1)
+                    .build())
+            .iterator();
+    // The listing is lazy and reports failures as an error Result, so it must be consumed.
+    if (results.hasNext()) {
+      results.next().get();
+    }
   }
 
   /**
