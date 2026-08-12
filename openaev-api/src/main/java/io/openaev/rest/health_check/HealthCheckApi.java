@@ -9,6 +9,7 @@ import io.openaev.service.exception.HealthCheckFailureException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
+@Slf4j
 public class HealthCheckApi extends RestBehavior {
 
   public static final String HEALTH_CHECK_URI = "/api/health";
@@ -76,6 +78,9 @@ public class HealthCheckApi extends RestBehavior {
       healthCheckService.runHealthCheck();
     } catch (HealthCheckFailureException e) {
       String message = String.format("Health check failure : %s", e.getMessage());
+      // ResponseStatusException is resolved by Spring at DEBUG, invisible at our ERROR log level:
+      // without this the probe returns 503 with no trace of which dependency actually failed.
+      log.error(message, e);
       throw new ResponseStatusException(
           HttpStatusCode.valueOf(HttpStatus.SERVICE_UNAVAILABLE.value()), message);
     }
