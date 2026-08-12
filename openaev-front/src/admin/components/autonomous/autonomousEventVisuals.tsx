@@ -111,6 +111,29 @@ export const eventTypeLabel = (type?: AutonomousEventType | string | null): stri
   }
 };
 
+// A heartbeat is a lightweight STATUS event the XTM One orchestrator emits every ~45s WHILE a
+// decision cycle is actively running (flagged {"heartbeat": true} in its data). It exists ONLY to
+// keep the cockpit's "working" indicator honest and to nudge the graph poll during a long silent
+// burst - it is NOT an operator-facing decision. Every surface that renders the event stream (the
+// reasoning panel feed AND the overview decision timeline) filters it out so it never shows as a
+// "Working" row/node, yet still reads its timestamp for freshness. Single source of truth so the
+// two surfaces can never drift on what counts as a heartbeat.
+export const isHeartbeatEvent = (event: AutonomousEvent | undefined): boolean => {
+  if (!event || event.autonomous_event_type !== 'STATUS' || !event.autonomous_event_data) {
+    return false;
+  }
+  // Cheap substring pre-check before the JSON.parse: this runs for every event on every render of
+  // the feed, and most STATUS payloads never mention "heartbeat" at all.
+  if (!event.autonomous_event_data.includes('"heartbeat"')) {
+    return false;
+  }
+  try {
+    return (JSON.parse(event.autonomous_event_data) as { heartbeat?: boolean }).heartbeat === true;
+  } catch {
+    return false;
+  }
+};
+
 // Defensive display-time cleanup: the orchestrator (an LLM) occasionally leaks its own tool-call
 // framing into an event's title/content - operator prose followed by literal </content>, <invoke ...>,
 // <parameter ...> markup of the next calls. XTM One now strips this at the source, but runs recorded

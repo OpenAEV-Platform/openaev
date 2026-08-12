@@ -12,6 +12,9 @@ interface DialogConfirmationProps {
   handleSubmit: ((resetLoading?: () => void) => void | Promise<void>) | null | undefined; // Updated: Callback is now optional
   text: string;
   submitLabel: string;
+  /** Color of the confirm button. Use 'error' for destructive/irreversible confirmations so the
+   *  action reads as dangerous at a glance. Defaults to 'primary'. */
+  submitColor?: 'primary' | 'error';
   richContent?: React.ReactNode;
   extraContent?: React.ReactNode;
 }
@@ -26,6 +29,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   handleSubmit = undefined,
   text,
   submitLabel,
+  submitColor = 'primary',
   richContent,
   extraContent,
 }) => {
@@ -83,7 +87,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
           {t('Cancel')}
         </Button>
         {handleSubmit && (
-          <Button variant="contained" color="primary" loading={loading} onClick={handleLoadingAndSubmit}>
+          <Button variant="contained" color={submitColor} loading={loading} onClick={handleLoadingAndSubmit}>
             {submitLabel}
           </Button>
         )}

@@ -74,6 +74,7 @@ import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousRunConfigDrawer from '../../autonomous/AutonomousRunConfigDrawer';
+import { type RebuildMode } from '../../autonomous/AutonomousRunConfigFields';
 import AutonomousRunControls from '../../autonomous/AutonomousRunControls';
 import AutonomousRunStatusChip from '../../autonomous/AutonomousRunStatusChip';
 import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/autonomousStatus';
@@ -142,45 +143,12 @@ const ScenarioHeader = ({
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [aiDrawerIntent, setAiDrawerIntent] = useState<'build' | 'launch'>('build');
   const [aiInitialInput, setAiInitialInput] = useState<AutonomousRunCreateInput | null>(null);
+  // When the AI builder rebuilds a scenario that already has logic, the operator chooses whether to
+  // refine (keep + continue from the existing logic and history) or rebuild from scratch (wipe).
+  // Defaults to refine (the non-destructive follow-up), reset every time the drawer opens.
+  const [rebuildMode, setRebuildMode] = useState<RebuildMode>('refine');
   const [aiSubmitting, setAiSubmitting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  // Fetch the scenario's saved AI config BEFORE opening, so the drawer's hook seeds from it on the
-  // open toggle (its agent effect reads initialInput off the first open). data is null when nothing
-  // was saved yet, which the hook treats as "use tenant defaults".
-  const openAiDrawer = async (intent: 'build' | 'launch') => {
-    setAiError(null);
-    let saved: AutonomousRunCreateInput | null = null;
-    try {
-      saved = (await fetchScenarioAutonomousConfig(scenarioId)).data;
-    } catch {
-      saved = null;
-    }
-    // A live autonomous launch always re-proposes the 24h default budget: drop only the saved
-    // timeout (a legacy builder config may carry the former 1h plan budget) so the objective,
-    // agents and scope stay prefilled while the advertised 24h default is actually applied.
-    setAiInitialInput(intent === 'launch' && saved
-      ? {
-          ...saved,
-          timeout_seconds: undefined,
-        }
-      : saved);
-    setAiDrawerIntent(intent);
-    setAiDrawerOpen(true);
-  };
-
-  // EE-aware entry point for both AI actions (Autonomous launch + AI builder): on a non-Enterprise
-  // platform they degrade to the standard EE call-to-action (the same dialog + feature label the
-  // creation drawer raises) instead of opening the config drawer. XTM One availability is enforced
-  // at render (the buttons are not shown without it), so this only arbitrates the EE gate.
-  const openAiDrawerOrEE = (intent: 'build' | 'launch') => {
-    if (!isEnterpriseEdition) {
-      setEEFeatureDetectedInfo(t('Autonomous attack path'));
-      openEnterpriseEditionDialog();
-      return;
-    }
-    void openAiDrawer(intent);
-  };
-
   // Preserve the deep link that used to open the assistant drawer: it now
   // routes to the dedicated full-page assistant.
   useEffect(() => {
@@ -243,6 +211,71 @@ const ScenarioHeader = ({
   // for a live run, results) behind: the hero CTAs then read as Rebuild (AI) / Relaunch rather than
   // the first-time Build / Launch, and Build wipes the logic map to re-plan from scratch.
   const isRunSettled = isAutonomousRunSettled(autonomousRun);
+  // The scenario already has logic to preserve when a settled AI run left an authored path behind,
+  // OR when it was authored manually (steps exist without any AI run). Either way, the AI builder
+  // "Rebuild" then offers Refine (keep + continue) vs Rebuild-from-scratch (wipe). An empty scenario
+  // (no steps, no run) has nothing to refine, so the first build stays a plain Build.
+  // A null count means the step fetch is still pending or failed - UNKNOWN, not zero. On a chained
+  // scenario that unknown must fail SAFE: assume logic exists so the builder defaults to the
+  // non-destructive refine instead of silently submitting a from-scratch rebuild (refine: false)
+  // that wipes a manually authored logic map. Refining a genuinely empty scenario is harmless (the
+  // backend keeps the empty logic and authors onto it), the reverse is data loss.
+  const hasExistingLogic = isRunSettled
+    || (isScenarioChaining && attackPathStepCount === null)
+    || (attackPathStepCount ?? 0) > 0;
+
+  // Fetch the scenario's saved AI config BEFORE opening, so the drawer's hook seeds from it on the
+  // open toggle (its agent effect reads initialInput off the first open). data is null when nothing
+  // was saved yet, which the hook treats as "use tenant defaults".
+  const openAiDrawer = async (intent: 'build' | 'launch') => {
+    setAiError(null);
+    // The refine-vs-rebuild choice (and the refine flag sent on Build) hinges on whether the
+    // scenario already has authored steps. The mount-time count fetch can still be pending (slow
+    // call) or have failed silently, leaving the count at null; opening the builder on that stale
+    // null would read as "no logic" and submit a destructive from-scratch rebuild without ever
+    // offering refine. Resolve the count here, before the drawer opens, so the choice is based on
+    // actual data; a failure keeps it null and hasExistingLogic fails SAFE (refine default).
+    if (intent === 'build' && scenarioWorkflowId && attackPathStepCount === null) {
+      try {
+        const result = await fetchSteps(scenarioWorkflowId);
+        setAttackPathStepCount(result.data?.length ?? 0);
+      } catch {
+        // Leave null: hasExistingLogic treats the unknown count as existing logic (fail safe).
+      }
+    }
+    let saved: AutonomousRunCreateInput | null = null;
+    try {
+      saved = (await fetchScenarioAutonomousConfig(scenarioId)).data;
+    } catch {
+      saved = null;
+    }
+    // A live autonomous launch always re-proposes the 24h default budget: drop only the saved
+    // timeout (a legacy builder config may carry the former 1h plan budget) so the objective,
+    // agents and scope stay prefilled while the advertised 24h default is actually applied.
+    setAiInitialInput(intent === 'launch' && saved
+      ? {
+          ...saved,
+          timeout_seconds: undefined,
+        }
+      : saved);
+    setAiDrawerIntent(intent);
+    // Every open starts on the non-destructive default: refine the existing logic rather than wipe.
+    setRebuildMode('refine');
+    setAiDrawerOpen(true);
+  };
+
+  // EE-aware entry point for both AI actions (Autonomous launch + AI builder): on a non-Enterprise
+  // platform they degrade to the standard EE call-to-action (the same dialog + feature label the
+  // creation drawer raises) instead of opening the config drawer. XTM One availability is enforced
+  // at render (the buttons are not shown without it), so this only arbitrates the EE gate.
+  const openAiDrawerOrEE = (intent: 'build' | 'launch') => {
+    if (!isEnterpriseEdition) {
+      setEEFeatureDetectedInfo(t('Autonomous attack path'));
+      openEnterpriseEditionDialog();
+      return;
+    }
+    void openAiDrawer(intent);
+  };
 
   // Deep link from scenario creation ("Generate with AI" toggle): auto-open the AI builder drawer
   // once, then strip the query param so a refresh / back does not reopen it. Only for a chained
@@ -415,12 +448,21 @@ const ScenarioHeader = ({
   const handleAiBuild = async (input: AutonomousRunCreateInput) => {
     setAiSubmitting(true);
     setAiError(null);
+    // Refine (follow-up) keeps the existing logic + history and continues from it; a from-scratch
+    // rebuild wipes and re-authors. Only meaningful once the scenario already has logic; the drawer
+    // only surfaces the choice then, and the default is the non-destructive refine.
+    const refine = hasExistingLogic && rebuildMode === 'refine';
     try {
       await saveScenarioAutonomousConfig(scenarioId, input);
-      const { data } = await planAutonomousScenario(scenarioId, input);
+      const { data } = await planAutonomousScenario(scenarioId, {
+        ...input,
+        refine,
+      });
       onAutonomousRunUpdate?.(data);
       setAiDrawerOpen(false);
-      MESSAGING$.notifySuccess(t('The orchestrator is building the logic for this scenario'));
+      MESSAGING$.notifySuccess(refine
+        ? t('The orchestrator is refining the logic for this scenario')
+        : t('The orchestrator is building the logic for this scenario'));
       navigate(`/admin/scenarios/${scenarioId}/logic`);
     } catch {
       setAiError(t('Failed to start the build'));
@@ -467,22 +509,34 @@ const ScenarioHeader = ({
   }
 
   // AI config drawer title + primary action label: "launch" intent is always a live Autonomous
-  // launch; "build" reads as Rebuild once a settled run left an authored attack path behind.
+  // launch; "build" acts on the scenario's LOGIC. Once logic already exists, the build reads as
+  // Refine (keep + continue) or Rebuild (wipe + re-author) per the operator's choice - and the
+  // title names the LOGIC (what it authors), not "the attack path" (which is the runtime view).
   let aiDrawerTitle: string;
   if (aiDrawerIntent !== 'build') {
     aiDrawerTitle = t('Launch in autonomous mode');
-  } else if (isRunSettled) {
-    aiDrawerTitle = t('Rebuild the attack path');
+  } else if (hasExistingLogic) {
+    aiDrawerTitle = rebuildMode === 'refine' ? t('Refine the logic') : t('Rebuild the logic');
   } else {
     aiDrawerTitle = t('AI builder');
   }
   let aiLaunchLabel: string;
   if (aiDrawerIntent !== 'build') {
     aiLaunchLabel = t('Launch now');
-  } else if (isRunSettled) {
-    aiLaunchLabel = t('Rebuild');
+  } else if (hasExistingLogic) {
+    aiLaunchLabel = rebuildMode === 'refine' ? t('Refine') : t('Rebuild');
   } else {
     aiLaunchLabel = t('Build');
+  }
+  // Builder info banner, adapted to what the action will do: refine keeps + continues the existing
+  // logic, rebuild wipes it, and a first build authors from scratch.
+  let aiBuildInfoText: string;
+  if (hasExistingLogic && rebuildMode === 'refine') {
+    aiBuildInfoText = t('Refine this scenario\'s existing logic: the orchestrator keeps the current attack path and continues from it, applying your new instruction below - adding, adjusting or removing only what is needed. An AI-built scenario reopens its full reasoning history so you can follow up. Nothing runs while building.');
+  } else if (hasExistingLogic) {
+    aiBuildInfoText = t('Rebuild this scenario\'s logic from scratch: the current attack path is wiped and the orchestrator re-authors it from the objective, agents and scope below. Nothing runs while building; you launch the scenario afterwards, in normal or autonomous mode.');
+  } else {
+    aiBuildInfoText = t('Let the AI build this scenario\'s logic for you - set the objective, the specialist agents the orchestrator may consult, and the scope. Save it to build or launch later, or Build now to have the orchestrator author the steps onto the scenario. Nothing runs while building; you launch the scenario afterwards, in normal or autonomous mode.');
   }
 
   // Autonomous-launch objective UX depends on how defined the scenario already is:
@@ -772,7 +826,8 @@ const ScenarioHeader = ({
                   run's lifecycle controls (pause / resume / stop) - the same single control
                   surface the simulation defers to. Once the run settles (planned / completed /
                   failed / canceled) the standard actions return: rebuild through the AI builder
-                  (Build wipes the logic map and re-plans) or relaunch Normal / Autonomous. */}
+                  (refine the existing logic or rebuild it from scratch) or relaunch Normal /
+                  Autonomous. */}
               {isRunActive && autonomousRun && (
                 <AutonomousRunControls run={autonomousRun} onRunUpdate={onAutonomousRunUpdate} />
               )}
@@ -785,8 +840,8 @@ const ScenarioHeader = ({
                   unless XTM One is available, and an EE call-to-action (EE chip + EE dialog via
                   openAiDrawerOrEE) when the platform is not Enterprise. */}
               {canManage && isAutonomousModeEnabled && !isRunActive && isXtmOneReady && (
-                <Tooltip title={isRunSettled
-                  ? t('Rebuild with AI - re-author this scenario\'s logic (this wipes the current logic map and starts fresh)')
+                <Tooltip title={hasExistingLogic
+                  ? t('Rebuild with AI - refine this scenario\'s existing logic (keep it and continue) or rebuild it from scratch')
                   : t('AI builder - let the orchestrator author this scenario\'s logic; save it for later or build it now (nothing runs while building)')}
                 >
                   <Box
@@ -800,7 +855,7 @@ const ScenarioHeader = ({
                     <IconButton
                       size="small"
                       onClick={() => openAiDrawerOrEE('build')}
-                      aria-label={isRunSettled ? t('Rebuild with AI') : t('AI builder')}
+                      aria-label={hasExistingLogic ? t('Rebuild with AI') : t('AI builder')}
                       data-testid="scenario-plan-with-ai-button"
                       sx={{
                         'color': theme.palette.ai.main,
@@ -999,8 +1054,13 @@ const ScenarioHeader = ({
         planMode={aiDrawerIntent === 'build'}
         timeBudgetNote={aiTimeBudgetNote}
         title={aiDrawerTitle}
+        // The Refine / Rebuild-from-scratch choice is only shown for the AI builder once the
+        // scenario already has logic to preserve (AI-built or manual); a first build has nothing
+        // to refine, and a live launch never authors logic.
+        rebuildMode={aiDrawerIntent === 'build' && hasExistingLogic ? rebuildMode : undefined}
+        onRebuildModeChange={setRebuildMode}
         infoText={aiDrawerIntent === 'build'
-          ? t('Let the AI build this scenario\'s logic for you - set the objective, the specialist agents the orchestrator may consult, and the scope. Save it to build or launch later, or Build now to have the orchestrator author the steps onto the scenario. Nothing runs while building; you launch the scenario afterwards, in normal or autonomous mode.')
+          ? aiBuildInfoText
           : t('Launch this scenario in autonomous mode: the orchestrator seeds a live run from the objective, agents and scope below, then drives it and adapts in real time - reacting to findings, adding steps and consulting agents to pursue the objective within scope. (Normal mode instead runs only the scenario\'s predefined steps.)')}
         submitting={aiSubmitting}
         error={aiError}
