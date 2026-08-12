@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -151,14 +152,7 @@ public class CommandArgumentBinder {
           "Unsupported executor '%s' for argument binding: refusing to render a command with placeholders."
               .formatted(executor));
     }
-    String rendered = template;
-    for (Map.Entry<String, String> entry : variablesByKey.entrySet()) {
-      String argumentKey = entry.getKey();
-      String variable = entry.getValue();
-      String replacement =
-          shell.supportsBinding() ? reference(variable) : valuesByVariable.get(argumentKey);
-      rendered = replacePlaceholder(rendered, argumentKey, replacement);
-    }
+    String rendered = substitutePlaceholders(template);
     if (!shell.supportsBinding() || valuesByVariable.isEmpty()) {
       return rendered;
     }
@@ -168,28 +162,51 @@ public class CommandArgumentBinder {
   // -- PLACEHOLDER SUBSTITUTION --
 
   /**
-   * Replaces {@code #{key}} — and, in binding mode only, a pair of quotes directly wrapping it,
-   * since the binder owns the quoting — by the given replacement.
+   * Replaces every bound {@code #{key}} in a single pass over the template, so a substituted value
+   * is never re-examined. Reading the template more than once would let the value of one argument
+   * be interpreted as a placeholder naming another, which would make the result depend on the order
+   * the arguments happened to be bound.
    *
-   * <p>In literal mode the template is left structurally untouched: it backs the read-only display
-   * path, where {@code echo "#{host}"} must render as {@code echo "localhost"}.
+   * <p>In binding mode a pair of quotes directly wrapping a placeholder is dropped, since the
+   * binder owns the quoting. In literal mode the template is left structurally untouched: it backs
+   * the read-only display path, where {@code echo "#{host}"} must render as {@code echo
+   * "localhost"}.
    */
-  private String replacePlaceholder(String command, String argumentKey, String replacement) {
-    if (!shell.supportsBinding()) {
-      return command.replace("#{" + argumentKey + "}", replacement);
+  private String substitutePlaceholders(String template) {
+    if (variablesByKey.isEmpty()) {
+      return template;
     }
-    Pattern placeholder = Pattern.compile("(['\"])?#\\{" + Pattern.quote(argumentKey) + "}\\1?");
-    Matcher matcher = placeholder.matcher(command);
+    Matcher matcher = placeholderPattern().matcher(template);
     StringBuilder result = new StringBuilder();
     while (matcher.find()) {
-      String openingQuote = matcher.group(1);
-      // Only drop the quotes when they actually form a pair around the placeholder.
-      boolean quotedPair = openingQuote != null && matcher.group().endsWith(openingQuote);
-      String value = quotedPair || openingQuote == null ? replacement : openingQuote + replacement;
-      matcher.appendReplacement(result, Matcher.quoteReplacement(value));
+      matcher.appendReplacement(result, Matcher.quoteReplacement(substitutionFor(matcher)));
     }
     matcher.appendTail(result);
     return result.toString();
+  }
+
+  /** Matches any bound placeholder, and in binding mode the quotes directly wrapping it. */
+  private Pattern placeholderPattern() {
+    String keys =
+        variablesByKey.keySet().stream().map(Pattern::quote).collect(Collectors.joining("|"));
+    return shell.supportsBinding()
+        ? Pattern.compile("(['\"])?#\\{(" + keys + ")}\\1?")
+        : Pattern.compile("()#\\{(" + keys + ")}");
+  }
+
+  private String substitutionFor(Matcher matcher) {
+    String argumentKey = matcher.group(2);
+    if (!shell.supportsBinding()) {
+      return valuesByVariable.get(argumentKey);
+    }
+    String replacement = reference(variablesByKey.get(argumentKey));
+    // The quote group is optional, so it is absent rather than empty when the placeholder is bare.
+    String openingQuote = matcher.group(1);
+    if (openingQuote == null || openingQuote.isEmpty()) {
+      return replacement;
+    }
+    // Only drop the quotes when they actually form a pair around the placeholder.
+    return matcher.group().endsWith(openingQuote) ? replacement : openingQuote + replacement;
   }
 
   // -- DECLARATIONS --

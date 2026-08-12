@@ -492,6 +492,128 @@ class CommandArgumentBinderTest {
   }
 
   @Nested
+  @DisplayName("Substitution passes")
+  class SubstitutionPasses {
+
+    @Test
+    @DisplayName("a value shaped like another placeholder is not expanded")
+    void a_value_shaped_like_another_placeholder_is_not_expanded() {
+      // Substitution must read the template once. A value inserted by one key must never be
+      // re-examined for placeholders belonging to another.
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a", "#{b}");
+      binder.bind("b", "resolved");
+
+      assertThat(binder.render("host-#{a}-#{b}")).isEqualTo("host-#{b}-resolved");
+    }
+
+    @Test
+    @DisplayName("the outcome does not depend on the order the arguments were bound")
+    void the_outcome_does_not_depend_on_bind_order() {
+      CommandArgumentBinder first = CommandArgumentBinder.literal();
+      first.bind("a", "#{b}");
+      first.bind("b", "resolved");
+
+      CommandArgumentBinder second = CommandArgumentBinder.literal();
+      second.bind("b", "resolved");
+      second.bind("a", "#{b}");
+
+      assertThat(second.render("host-#{a}-#{b}")).isEqualTo(first.render("host-#{a}-#{b}"));
+    }
+
+    @Test
+    @DisplayName("a value shaped like its own placeholder is not expanded either")
+    void a_value_shaped_like_its_own_placeholder_is_not_expanded() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a", "#{a}");
+
+      assertThat(binder.render("host-#{a}")).isEqualTo("host-#{a}");
+    }
+
+    @Test
+    @DisplayName("a key that is a prefix of another still resolves to its own value")
+    void a_key_that_is_a_prefix_of_another_resolves_correctly() {
+      // Matching every key in one pass means they share an alternation, where a shorter key could
+      // shadow a longer one if the engine did not backtrack.
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a", "SHORT");
+      binder.bind("ab", "LONG");
+
+      assertThat(binder.render("#{a}|#{ab}")).isEqualTo("SHORT|LONG");
+    }
+
+    @Test
+    @DisplayName("the longer key resolves the same whichever order it was bound in")
+    void the_longer_key_resolves_the_same_whichever_order() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("ab", "LONG");
+      binder.bind("a", "SHORT");
+
+      assertThat(binder.render("#{a}|#{ab}")).isEqualTo("SHORT|LONG");
+    }
+
+    @Test
+    @DisplayName("a key carrying regex metacharacters is matched literally")
+    void a_key_carrying_regex_metacharacters_is_matched_literally() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a.b", "DOT");
+      binder.bind("axb", "NOT_DOT");
+
+      assertThat(binder.render("#{a.b}|#{axb}")).isEqualTo("DOT|NOT_DOT");
+    }
+
+    @Test
+    @DisplayName("a key metacharacter must not match an unbound placeholder")
+    void a_key_metacharacter_must_not_match_an_unbound_placeholder() {
+      // If keys were pasted into the pattern unquoted, the dot in this key would match any
+      // character and swallow a placeholder that was never bound.
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a.b", "DOT");
+
+      assertThat(binder.render("#{a.b}|#{axb}")).isEqualTo("DOT|#{axb}");
+    }
+
+    @Test
+    @DisplayName("a key carrying an alternation character stays a single key")
+    void a_key_carrying_an_alternation_character_stays_one_key() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a|b", "PIPED");
+
+      assertThat(binder.render("#{a|b}|#{a}")).isEqualTo("PIPED|#{a}");
+    }
+
+    @Test
+    @DisplayName("an unbound placeholder is left untouched")
+    void an_unbound_placeholder_is_left_untouched() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a", "resolved");
+
+      assertThat(binder.render("#{a}|#{never_bound}")).isEqualTo("resolved|#{never_bound}");
+    }
+
+    @Test
+    @DisplayName("binding modes were never exposed, the value goes to the declaration")
+    void binding_modes_keep_the_value_out_of_the_template() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      binder.bind("a", "#{b}");
+      binder.bind("b", "resolved");
+
+      assertThat(binder.render("echo #{a} #{b}"))
+          .endsWith("echo \"$OAEV_ARG_A\" \"$OAEV_ARG_B\"")
+          .contains("OAEV_ARG_A='#{b}'");
+    }
+  }
+
+  @Nested
   @DisplayName("Characters deliberately kept")
   class KeptCharacters {
 
