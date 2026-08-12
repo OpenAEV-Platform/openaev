@@ -520,9 +520,15 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   }, [visibleEvents.length]);
 
   const isWaitingInput = status === 'WAITING_INPUT';
-  const latestQuestion = isWaitingInput
-    ? [...events].reverse().find(e => e.autonomous_event_type === 'QUESTION')
-    : undefined;
+  // Newest-first lookups over the stream. findLast scans backwards without cloning, and the
+  // results are memoised so the scans (and isHeartbeatEvent's JSON.parse) run once per new batch
+  // of events - not on every incidental re-render (typing in the composer, the 3s status poll).
+  const newestQuestion = useMemo(
+    () => events.findLast(e => e.autonomous_event_type === 'QUESTION'),
+    [events],
+  );
+  // Only surface it while the run is actually parked on the operator.
+  const latestQuestion = isWaitingInput ? newestQuestion : undefined;
   // A question is ALREADY answered if the operator's reply (a DIRECTIVE event, "Operator directive
   // queued") was recorded after it in the timeline. Deriving this from the stream - not only from the
   // optimistic local answeredQuestionId - is what keeps an answered question from re-surfacing: local
@@ -606,8 +612,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // as it moves (deciding -> acting -> analyzing ...). Crucially, once the operator answers we flip
   // to "Processing your answer" immediately -- the backend status stays WAITING_INPUT until the next
   // 3s poll, so keying off status alone would freeze on "Waiting for your input".
-  const lastActivityEvent = [...events].reverse().find(
-    e => isActivityType(e.autonomous_event_type),
+  const lastActivityEvent = useMemo(
+    () => events.findLast(e => isActivityType(e.autonomous_event_type)),
+    [events],
   );
   const lastActivityType = lastActivityEvent?.autonomous_event_type;
 
@@ -616,7 +623,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // from a static "Waiting for X" into a live, pulsing "Consulting X" - the reported "the right
   // panel never shows it is actually working" symptom. Filtered out of the feed everywhere else,
   // here it is read only for its timestamp.
-  const lastHeartbeatAt = [...events].reverse().find(isHeartbeatEvent)?.autonomous_event_created_at;
+  const lastHeartbeatAt = useMemo(
+    () => events.findLast(isHeartbeatEvent)?.autonomous_event_created_at,
+    [events],
+  );
   const heartbeatFresh = lastHeartbeatAt
     ? Date.now() - new Date(lastHeartbeatAt).getTime() < HEARTBEAT_FRESH_MS
     : false;
@@ -630,8 +640,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
 
   // The latest agent-delegation event drives the "delegating to / waiting for <agent>" caption. A
   // 'start' phase with no following 'result' reads as waiting (static), mirroring the parked model.
-  const lastDelegation = [...events].reverse().find(
-    e => e.autonomous_event_type === 'AGENT_DELEGATION',
+  const lastDelegation = useMemo(
+    () => events.findLast(e => e.autonomous_event_type === 'AGENT_DELEGATION'),
+    [events],
   );
   const delegationInfo = (() => {
     if (!lastDelegation) {

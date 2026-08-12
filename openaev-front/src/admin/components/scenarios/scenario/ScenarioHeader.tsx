@@ -149,45 +149,6 @@ const ScenarioHeader = ({
   const [rebuildMode, setRebuildMode] = useState<RebuildMode>('refine');
   const [aiSubmitting, setAiSubmitting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  // Fetch the scenario's saved AI config BEFORE opening, so the drawer's hook seeds from it on the
-  // open toggle (its agent effect reads initialInput off the first open). data is null when nothing
-  // was saved yet, which the hook treats as "use tenant defaults".
-  const openAiDrawer = async (intent: 'build' | 'launch') => {
-    setAiError(null);
-    let saved: AutonomousRunCreateInput | null = null;
-    try {
-      saved = (await fetchScenarioAutonomousConfig(scenarioId)).data;
-    } catch {
-      saved = null;
-    }
-    // A live autonomous launch always re-proposes the 24h default budget: drop only the saved
-    // timeout (a legacy builder config may carry the former 1h plan budget) so the objective,
-    // agents and scope stay prefilled while the advertised 24h default is actually applied.
-    setAiInitialInput(intent === 'launch' && saved
-      ? {
-          ...saved,
-          timeout_seconds: undefined,
-        }
-      : saved);
-    setAiDrawerIntent(intent);
-    // Every open starts on the non-destructive default: refine the existing logic rather than wipe.
-    setRebuildMode('refine');
-    setAiDrawerOpen(true);
-  };
-
-  // EE-aware entry point for both AI actions (Autonomous launch + AI builder): on a non-Enterprise
-  // platform they degrade to the standard EE call-to-action (the same dialog + feature label the
-  // creation drawer raises) instead of opening the config drawer. XTM One availability is enforced
-  // at render (the buttons are not shown without it), so this only arbitrates the EE gate.
-  const openAiDrawerOrEE = (intent: 'build' | 'launch') => {
-    if (!isEnterpriseEdition) {
-      setEEFeatureDetectedInfo(t('Autonomous attack path'));
-      openEnterpriseEditionDialog();
-      return;
-    }
-    void openAiDrawer(intent);
-  };
-
   // Preserve the deep link that used to open the assistant drawer: it now
   // routes to the dedicated full-page assistant.
   useEffect(() => {
@@ -254,7 +215,67 @@ const ScenarioHeader = ({
   // OR when it was authored manually (steps exist without any AI run). Either way, the AI builder
   // "Rebuild" then offers Refine (keep + continue) vs Rebuild-from-scratch (wipe). An empty scenario
   // (no steps, no run) has nothing to refine, so the first build stays a plain Build.
-  const hasExistingLogic = isRunSettled || (attackPathStepCount ?? 0) > 0;
+  // A null count means the step fetch is still pending or failed - UNKNOWN, not zero. On a chained
+  // scenario that unknown must fail SAFE: assume logic exists so the builder defaults to the
+  // non-destructive refine instead of silently submitting a from-scratch rebuild (refine: false)
+  // that wipes a manually authored logic map. Refining a genuinely empty scenario is harmless (the
+  // backend keeps the empty logic and authors onto it), the reverse is data loss.
+  const hasExistingLogic = isRunSettled
+    || (isScenarioChaining && attackPathStepCount === null)
+    || (attackPathStepCount ?? 0) > 0;
+
+  // Fetch the scenario's saved AI config BEFORE opening, so the drawer's hook seeds from it on the
+  // open toggle (its agent effect reads initialInput off the first open). data is null when nothing
+  // was saved yet, which the hook treats as "use tenant defaults".
+  const openAiDrawer = async (intent: 'build' | 'launch') => {
+    setAiError(null);
+    // The refine-vs-rebuild choice (and the refine flag sent on Build) hinges on whether the
+    // scenario already has authored steps. The mount-time count fetch can still be pending (slow
+    // call) or have failed silently, leaving the count at null; opening the builder on that stale
+    // null would read as "no logic" and submit a destructive from-scratch rebuild without ever
+    // offering refine. Resolve the count here, before the drawer opens, so the choice is based on
+    // actual data; a failure keeps it null and hasExistingLogic fails SAFE (refine default).
+    if (intent === 'build' && scenarioWorkflowId && attackPathStepCount === null) {
+      try {
+        const result = await fetchSteps(scenarioWorkflowId);
+        setAttackPathStepCount(result.data?.length ?? 0);
+      } catch {
+        // Leave null: hasExistingLogic treats the unknown count as existing logic (fail safe).
+      }
+    }
+    let saved: AutonomousRunCreateInput | null = null;
+    try {
+      saved = (await fetchScenarioAutonomousConfig(scenarioId)).data;
+    } catch {
+      saved = null;
+    }
+    // A live autonomous launch always re-proposes the 24h default budget: drop only the saved
+    // timeout (a legacy builder config may carry the former 1h plan budget) so the objective,
+    // agents and scope stay prefilled while the advertised 24h default is actually applied.
+    setAiInitialInput(intent === 'launch' && saved
+      ? {
+          ...saved,
+          timeout_seconds: undefined,
+        }
+      : saved);
+    setAiDrawerIntent(intent);
+    // Every open starts on the non-destructive default: refine the existing logic rather than wipe.
+    setRebuildMode('refine');
+    setAiDrawerOpen(true);
+  };
+
+  // EE-aware entry point for both AI actions (Autonomous launch + AI builder): on a non-Enterprise
+  // platform they degrade to the standard EE call-to-action (the same dialog + feature label the
+  // creation drawer raises) instead of opening the config drawer. XTM One availability is enforced
+  // at render (the buttons are not shown without it), so this only arbitrates the EE gate.
+  const openAiDrawerOrEE = (intent: 'build' | 'launch') => {
+    if (!isEnterpriseEdition) {
+      setEEFeatureDetectedInfo(t('Autonomous attack path'));
+      openEnterpriseEditionDialog();
+      return;
+    }
+    void openAiDrawer(intent);
+  };
 
   // Deep link from scenario creation ("Generate with AI" toggle): auto-open the AI builder drawer
   // once, then strip the query param so a refresh / back does not reopen it. Only for a chained

@@ -1592,6 +1592,8 @@ export interface AutonomousRunCreateInput {
   objective_template_key?: string;
   /** Build mode: when true the orchestrator only authors the scenario's logic (scope, steps, decisions) and executes nothing. The operator can review the built logic and later launch the scenario (in normal or autonomous mode). Defaults to false (immediate live autonomous run). */
   plan_mode?: boolean;
+  /** Refine mode (plan / build only): when true the orchestrator refines the scenario's EXISTING authored logic instead of rebuilding it from scratch. The authored steps and event/trigger conditions are kept, and a prior AI-built (plan) run is reused so its decision timeline (full history) is preserved and reopened. When false (default) a build is a rebuild: the logic map is wiped and any prior run superseded so the orchestrator designs the path fresh. Ignored outside build/plan mode. */
+  refine?: boolean;
   /** Advanced/optional: seed from an existing chaining scenario instead of auto-provisioning. Leave empty for a fully autonomous run. */
   scenario_id?: string;
   /** Optional mixed scope: a list of targetable entities (assets, asset groups, teams, persons) the run is restricted to. Leave empty to let the AI resolve the scope. */

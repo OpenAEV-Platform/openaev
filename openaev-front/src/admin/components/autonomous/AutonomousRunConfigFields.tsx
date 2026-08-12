@@ -562,6 +562,9 @@ export const AutonomousRunConfigPanel = ({
                   <CardActionArea
                     onClick={() => onRebuildModeChange(option.mode)}
                     disabled={submitting}
+                    // The two cards behave as an exclusive toggle pair; the visual selected state
+                    // (border + tint) is invisible to assistive tech without a pressed state.
+                    aria-pressed={isSelected}
                     sx={{
                       padding: theme.spacing(1.5),
                       height: '100%',
