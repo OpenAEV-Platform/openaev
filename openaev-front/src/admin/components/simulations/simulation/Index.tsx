@@ -60,7 +60,7 @@ const IndexComponent: FunctionComponent<{
   const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
   // Attack path only exists for chained simulations (workflow-backed), never
   // for time-based ones: gate the route like the tab in SimulationShell.
-  const isAttackPathEnabled = !!exercise.exercise_workflow_id;
+  const hasWorkflow = !!exercise.exercise_workflow_id;
   // Stable context identities: these providers wrap the whole simulation subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
   const permissionsContext: PermissionsContextType = useMemo(() => ({
@@ -120,7 +120,7 @@ const IndexComponent: FunctionComponent<{
                     finding-centric manual-BAS view. That switch is derived inside SimulationAttackPath
                     from the selected simulation's durable exercise_autonomous marker, so a finished
                     autonomous run keeps action-centric rendering even after its live run row is gone. */}
-                  {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
+                  {hasWorkflow && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
                   {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
                   <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
                   {/* Statistics replaced the hero dashboard quick action and the old

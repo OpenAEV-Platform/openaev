@@ -187,7 +187,6 @@ const ScenarioHeader = ({
 
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = !!scenarioWorkflowId;
-  const isAttackPathEnabled = isScenarioChaining;
   // Autonomy is a launch-time MODE now (not a scenario type) and no longer has a dedicated flag: any
   // chained scenario can be launched autonomously (orchestrator-driven) or planned by the
   // orchestrator, gated by the same chaining feature. Time-based scenarios only ever launch a normal
@@ -894,9 +893,7 @@ const ScenarioHeader = ({
                       label={t('Attack path steps')}
                       value={attackPathStepCount ?? 0}
                       color={theme.palette.warning.main}
-                      to={isAttackPathEnabled
-                        ? `/admin/scenarios/${scenarioId}/attack-path`
-                        : `/admin/scenarios/${scenarioId}/execution`}
+                      to={`/admin/scenarios/${scenarioId}/attack-path`}
                     />
                   )
                 : (
@@ -1011,7 +1008,7 @@ const ScenarioHeader = ({
               // lands on the simulation's Attack path tab (the live execution view), a time-based
               // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
               // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
-              if (isScenarioChaining && isAttackPathEnabled) {
+              if (isScenarioChaining) {
                 navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
               } else {
                 navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);

@@ -29,7 +29,7 @@ const SimulationShell: FunctionComponent<{
   // Mirror the route gate in Index.tsx exactly: the Attack path screen is workflow-backed, so its
   // tab must only appear when the route is actually registered. A plan-mode / dry-run simulation has
   // no workflow yet, so offering the tab here would route to NotFound (the 404 users were seeing).
-  const isAttackPathEnabled = !!exercise.exercise_workflow_id;
+  const hasWorkflow = !!exercise.exercise_workflow_id;
   const isAutonomous = !!autonomousRun;
   const base = `/admin/simulations/${exercise.exercise_id}`;
   // The Tests tab only exists for email/SMS injects that have actually been
@@ -61,19 +61,19 @@ const SimulationShell: FunctionComponent<{
         ['', t('Overview')],
         ['/scope', t('Scope')],
         ['/logic', t('Logic')],
-        ...(isAttackPathEnabled ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
+        ...(hasWorkflow ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
         ['/execution', t('Execution')],
         ['/findings', t('Findings')],
         ['/statistics', t('Statistics')],
       ];
     }
-    if (exercise.exercise_workflow_id) {
+    if (hasWorkflow) {
       return [
         ['', t('Overview')],
         ['/scope', t('Scope')],
         ['/logic', t('Logic')],
         ['/execution', t('Execution')],
-        ...(isAttackPathEnabled ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
+        ...(hasWorkflow ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
         ['/findings', t('Findings')],
         ['/statistics', t('Statistics')],
       ];

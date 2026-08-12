@@ -56,10 +56,9 @@ const IndexScenarioComponent: FunctionComponent<{
 }> = ({ scenario, autonomousRun, onAutonomousRunUpdate, onAutonomousRunCleared }) => {
   const { t } = useFormatter();
   const location = useLocation();
-  // Attack path only exists for chained scenarios (workflow-backed), never
-  // for time-based ones: same gating as the simulation side.
-  const isAttackPathEnabled = !!scenario.scenario_workflow_id;
-  const isChained = !!scenario.scenario_workflow_id;
+  // Attack path only exists for workflow-backed (chained) scenarios, never
+  // for time-based ones.
+  const hasWorkflow = !!scenario.scenario_workflow_id;
   // The AI cockpit (right-hand reasoning panel + read-only Scope/Logic) is live only while a run
   // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
   // normal scenario page with the AI outcome layered on top (see overviewElement).
@@ -129,7 +128,7 @@ const IndexScenarioComponent: FunctionComponent<{
   // keep the classic Injects / Tests / Lessons tab set. Autonomy is a launch-time mode now, so the
   // AI cockpit lives on the resulting simulation's detail page, never on the reusable scenario.
   const renderTabs = () => {
-    if (isChained) {
+    if (hasWorkflow) {
       return (
         <Tabs value={tabValue} variant="scrollable" scrollButtons="auto">
           <Tab
@@ -150,14 +149,12 @@ const IndexScenarioComponent: FunctionComponent<{
             value={`/admin/scenarios/${scenario.scenario_id}/logic`}
             label={t('Logic')}
           />
-          {isAttackPathEnabled && (
-            <Tab
-              component={Link}
-              to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-              value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-              label={t('Attack Path')}
-            />
-          )}
+          <Tab
+            component={Link}
+            to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
+            value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
+            label={t('Attack Path')}
+          />
           <Tab
             component={Link}
             to={`/admin/scenarios/${scenario.scenario_id}/execution`}
@@ -298,7 +295,7 @@ const IndexScenarioComponent: FunctionComponent<{
                 <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
                 <Route path="lessons" element={errorWrapper(Lessons)()} />
                 <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
-                {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
+                {hasWorkflow && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
                 {/* Live execution of the scenario's latest simulation - available for every scenario
                     type, mirroring the simulation Execution tab. */}
                 <Route path="execution" element={errorWrapper(ScenarioExecution)()} />
