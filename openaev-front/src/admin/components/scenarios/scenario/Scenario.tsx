@@ -1,11 +1,12 @@
-import { AutoAwesome, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Avatar, Box, Button, Paper, Tooltip, Typography } from '@mui/material';
+import { AutoAwesome, LayersClearOutlined, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
+import { Avatar, Box, Button, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AgentHelper } from '../../../../actions/agents/agent-helper';
+import { convertAutonomousRunToManual } from '../../../../actions/autonomous/autonomous-actions';
 import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../../actions/exercises/exercise-action';
@@ -13,12 +14,13 @@ import { type ExercisesHelper } from '../../../../actions/exercises/exercise-hel
 import type { LoggedHelper } from '../../../../actions/helper';
 import { fetchScenarioInjects } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
-import { searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
+import { fetchScenario, searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { Field, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import KillChainTimeline from '../../../../components/common/detail/KillChainTimeline';
 import PostureGauges from '../../../../components/common/detail/PostureGauges';
 import SAMPLE_POSTURE from '../../../../components/common/detail/samplePosture';
+import DialogConfirmation from '../../../../components/common/DialogConfirmation';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -43,6 +45,7 @@ import {
   type SearchPaginationInput,
   type SortField,
 } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
@@ -59,13 +62,16 @@ import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../worksp
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
 
-const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null }: {
+const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, onAutonomousRunCleared }: {
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
   // The settled autonomous run owning this scenario, if any. When present, the overview keeps a
   // durable, read-only AI outcome (mission, decision timeline, gaps, proofs) even though the live
   // cockpit and steer panel are gone. Null for a never-run or purely-manual chained scenario, or
   // while a run is still active (the live cockpit owns the overview then).
   autonomousRun?: AutonomousRun | null;
+  // Forget the run locally so the AI outcome panel disappears immediately after the operator clears
+  // it server-side (the by-scenario lookup now 404s), without waiting for a page reload.
+  onAutonomousRunCleared?: () => void;
 }) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -237,6 +243,23 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null }
   const hasNeverRun = !areAnyExercisesInScenario;
   const isSample = hasNeverRun || (lastResultsResolved && !hasPosture && !hasMitreResults);
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario.scenario_id);
+  const canManageScenario = ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, scenario.scenario_id)
+    || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  // "Clear AI outcome": drop the settled run (its decision timeline + capability gaps) server-side
+  // and revert the overview to the normal manual view. The authored attack path (logic map) and the
+  // run simulation are kept - it is the convert-to-manual IN_PLACE flip, which unlocks the scenario
+  // for editing again. Irreversible for the timeline/gaps, so it is confirmed first.
+  const [clearOutcomeOpen, setClearOutcomeOpen] = useState(false);
+  const handleClearOutcome = async () => {
+    if (!autonomousRun) return;
+    await convertAutonomousRunToManual(autonomousRun.autonomous_run_id, 'IN_PLACE');
+    setClearOutcomeOpen(false);
+    MESSAGING$.notifySuccess(t('AI outcome cleared; back to the normal overview'));
+    // Refresh the scenario (its autonomous flag is now cleared) and forget the run locally so the
+    // panel disappears at once without a reload.
+    dispatch(fetchScenario(scenarioId));
+    onAutonomousRunCleared?.();
+  };
   const postureResults = isSample ? SAMPLE_POSTURE : lastResults;
   const showPosture = isSample || hasPosture;
   const showMitre = isSample || hasMitreResults;
@@ -315,18 +338,51 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null }
               <AutoAwesome fontSize="small" sx={{ color: theme.palette.ai?.main ?? theme.palette.primary.main }} />
               {autonomousRun.autonomous_run_plan_mode ? t('AI plan outcome') : t('Autonomous run outcome')}
             </Typography>
-            {!autonomousRun.autonomous_run_plan_mode && autonomousRun.autonomous_run_simulation_id && (
-              <Button
-                size="small"
-                variant="outlined"
-                component={Link}
-                to={`/admin/simulations/${autonomousRun.autonomous_run_simulation_id}`}
-              >
-                {t('Open run simulation')}
-              </Button>
-            )}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+            >
+              {!autonomousRun.autonomous_run_plan_mode && autonomousRun.autonomous_run_simulation_id && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  component={Link}
+                  to={`/admin/simulations/${autonomousRun.autonomous_run_simulation_id}`}
+                >
+                  {t('Open run simulation')}
+                </Button>
+              )}
+              {/* Clear the AI outcome and return to the normal overview: drops the run + decision
+                  timeline + capability gaps, keeps the authored logic (and run simulation). Only for
+                  operators who can manage the scenario. */}
+              {canManageScenario && (
+                <Tooltip title={autonomousRun.autonomous_run_plan_mode
+                  ? t('Clear the AI plan outcome and return to the normal overview')
+                  : t('Clear the autonomous run outcome and return to the normal overview')}
+                >
+                  <IconButton
+                    size="small"
+                    onClick={() => setClearOutcomeOpen(true)}
+                    aria-label={t('Clear AI outcome')}
+                  >
+                    <LayersClearOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
           </Box>
           <AutonomousOutcome run={autonomousRun} live={false} />
+          <DialogConfirmation
+            open={clearOutcomeOpen}
+            handleClose={() => setClearOutcomeOpen(false)}
+            handleSubmit={handleClearOutcome}
+            text={autonomousRun.autonomous_run_plan_mode
+              ? t('Clearing removes the decision timeline and capability gaps and returns this scenario to the normal overview. The authored attack path (the logic map) is kept and stays editable. This cannot be undone.')
+              : t('Clearing removes the decision timeline, capability gaps and proof of exploitation and returns this scenario to the normal overview. The authored attack path (the logic map) and the run simulation are kept. This cannot be undone.')}
+            submitLabel={t('Clear')}
+          />
         </Box>
       )}
 

@@ -501,12 +501,28 @@ public class AutonomousRunService {
           HttpStatus.BAD_REQUEST,
           "The scenario must be a chained scenario to be planned by the orchestrator");
     }
-    // Rebuild support: supersede the previous settled run (if any) so the fresh plan run can bind,
-    // then wipe the whole logic map (steps + events/triggers) so the orchestrator starts fresh.
-    supersedePriorRun(scenarioId, "plan rebuilt by operator");
-    workflowService.deleteAllScenarioSteps(scenarioId);
     AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
     Scenario scenario = scenarioService.scenario(scenarioId);
+    // Refine (follow-up) vs rebuild (from scratch): refine keeps the existing logic + history and
+    // continues from it; rebuild wipes the logic map and re-authors fresh (the original behaviour).
+    return effective.isRefine()
+        ? refineScenarioPlan(scenarioId, scenario, effective)
+        : rebuildScenarioPlan(scenarioId, scenario, effective);
+  }
+
+  /**
+   * Rebuild-from-scratch build: it always starts from a blank logic map. Any previously settled run
+   * (an earlier plan or a finished live run) is superseded, and the scenario workflow is fully
+   * wiped - steps AND event/trigger conditions - before the orchestrator is engaged, so the AI
+   * designs the path fresh instead of stacking on top of (or partially colliding with) the previous
+   * one. A still-active run is refused with 409.
+   */
+  private AutonomousRun rebuildScenarioPlan(
+      String scenarioId, Scenario scenario, AutonomousRunCreateInput effective) {
+    // Supersede the previous settled run (if any) so the fresh plan run can bind, then wipe the
+    // whole logic map (steps + events/triggers) so the orchestrator starts fresh.
+    supersedePriorRun(scenarioId, "plan rebuilt by operator");
+    workflowService.deleteAllScenarioSteps(scenarioId);
     if (!hasText(effective.getObjective()) && !hasText(effective.getObjectiveTemplateKey())) {
       effective.setObjective(
           "Design the attack path for the chained scenario \""
@@ -520,9 +536,117 @@ public class AutonomousRunService {
     // and no keep-alive is needed. Crucially, it must NOT touch the scenario workflow's own timeout
     // config: the built scenario keeps its default 1h "Simulation time out" (editable in the Scope
     // tab) so it can later be launched in normal mode and run-and-end normally.
-
     AutonomousRun run = new AutonomousRun();
     run.setObjective(objective);
+    List<WorkflowScopeRuleInput> seededScopeRules =
+        applyScenarioPlanConfig(run, scenarioId, effective);
+    // A fresh rebuild seeds the scenario's scope from the drawer verbatim (empty resets it).
+    workflowService.writeScopeRules(scenarioId, null, seededScopeRules);
+    run.setStatus(AutonomousRunStatus.CREATED);
+    AutonomousRun saved = runRepository.save(run);
+    eventService.append(
+        saved.getId(),
+        null,
+        AutonomousEventType.STATUS,
+        "Planning started",
+        "The orchestrator will design a reusable attack path for scenario \""
+            + scenario.getName()
+            + "\" by authoring steps onto the scenario workflow. Nothing is executed.",
+        null);
+    // Flip to PLANNING and engage the orchestrator after commit (same transaction as this method);
+    // the un-annotated internal avoids self-invoking the @Transactional start() past the proxy.
+    return doStart(saved.getId());
+  }
+
+  /**
+   * Refine (follow-up) build: the orchestrator continues from the scenario's EXISTING authored
+   * logic instead of wiping it. The authored steps and event/trigger conditions are left in place,
+   * and the operator's instruction becomes a refinement objective ("read the current attack-path
+   * state, keep it, refine per this instruction"). When the scenario was previously built by the AI
+   * (a settled PLAN-mode run), that run row is REUSED so its decision timeline (the full history)
+   * is preserved and reopened - re-engaging it flips it back to PLANNING, so the scenario page
+   * reopens the reasoning cockpit with its history intact. A prior settled LIVE run (or none) gets
+   * a fresh plan run while the authored steps are still kept. A still-active run is refused with
+   * 409.
+   */
+  private AutonomousRun refineScenarioPlan(
+      String scenarioId, Scenario scenario, AutonomousRunCreateInput effective) {
+    AutonomousRun prior = runRepository.findByScenarioId(scenarioId).orElse(null);
+    boolean reusePrior = false;
+    if (prior != null) {
+      prior = reconcileWithSimulation(prior);
+      AutonomousRunStatus status = prior.getStatus();
+      if (status == AutonomousRunStatus.CREATED
+          || status == AutonomousRunStatus.PLANNING
+          || status == AutonomousRunStatus.RUNNING
+          || status == AutonomousRunStatus.PAUSED
+          || status == AutonomousRunStatus.WAITING_INPUT) {
+        throw new ResponseStatusException(
+            HttpStatus.CONFLICT, "Stop the active autonomous run before refining this scenario");
+      }
+      // A settled PLAN-mode run is the AI-built case: reuse its row so its decision timeline (full
+      // history) is preserved and reopened. A settled LIVE run is a different flow; supersede it
+      // (dropping its throwaway plan substrate, keeping a finished live simulation as history) so
+      // the single by-scenario run can rebind, then start a fresh plan run.
+      reusePrior = prior.isPlanMode();
+      if (!reusePrior) {
+        supersedePriorRun(scenarioId, "scenario logic refined by operator");
+        prior = null;
+      }
+    }
+    // Crucially: NO deleteAllScenarioSteps here - refine keeps the authored logic in place.
+    String instruction =
+        hasText(effective.getObjective()) || hasText(effective.getObjectiveTemplateKey())
+            ? resolveObjective(effective)
+            : null;
+    String objective = buildRefineObjective(scenario, instruction);
+
+    AutonomousRun run = reusePrior ? prior : new AutonomousRun();
+    run.setObjective(objective);
+    List<WorkflowScopeRuleInput> seededScopeRules =
+        applyScenarioPlanConfig(run, scenarioId, effective);
+    // Refine must never silently wipe the scenario's existing scope: only overwrite it when the
+    // operator actually supplied scope in the drawer (a rebuild seeds it verbatim, refine preserves
+    // it when the drawer leaves scope untouched).
+    if (!seededScopeRules.isEmpty()) {
+      workflowService.writeScopeRules(scenarioId, null, seededScopeRules);
+    }
+    // Reset to CREATED so doStart can (re-)engage; clear a stale terminal error. Reusing the row
+    // keeps its id, decision timeline and directives (the full history); a fresh row starts empty.
+    run.setStatus(AutonomousRunStatus.CREATED);
+    run.setLastError(null);
+    AutonomousRun saved = runRepository.save(run);
+    eventService.append(
+        saved.getId(),
+        null,
+        AutonomousEventType.STATUS,
+        "Refinement requested",
+        instruction != null
+            ? "The orchestrator will refine the existing attack path of scenario \""
+                + scenario.getName()
+                + "\" per: "
+                + instruction
+            : "The orchestrator will review and refine the existing attack path of scenario \""
+                + scenario.getName()
+                + "\", keeping the current logic and filling gaps. Nothing is executed.",
+        null);
+    return doStart(saved.getId());
+  }
+
+  /**
+   * Applies the shared author-scenario (plan/build) configuration onto {@code run}: plan mode, no
+   * simulation, untimed, the resolved scope targets, the specialist agents and their discovery
+   * modes, and the objective template key. The objective text and run status are set by the caller
+   * (they differ between a fresh rebuild and a refine), as is whether the returned scope rules are
+   * actually written onto the scenario workflow. Shared by {@link #rebuildScenarioPlan} and {@link
+   * #refineScenarioPlan}.
+   *
+   * @return the scope rules resolved from the input (allow/deny rules + allow-listed entities),
+   *     which the caller writes onto the scenario workflow (rebuild: always; refine: only when
+   *     non-empty, to preserve the existing scope).
+   */
+  private List<WorkflowScopeRuleInput> applyScenarioPlanConfig(
+      AutonomousRun run, String scenarioId, AutonomousRunCreateInput effective) {
     run.setObjectiveTemplateKey(effective.getObjectiveTemplateKey());
     // Author-scenario mode is a dry-run with NO simulation: the orchestrator writes onto the
     // scenario workflow itself. It stays untimed like any plan/dry-run.
@@ -538,20 +662,6 @@ public class AutonomousRunService {
     run.setScope(scope);
     run.setScopeAssetGroupId(firstScopeIdOfType(scope, "ASSETS_GROUPS"));
     run.setScopeTeamId(firstScopeIdOfType(scope, "TEAMS"));
-    // Persist any launch-time scope onto the scenario workflow only (no simulation to seed).
-    List<WorkflowScopeRuleInput> seededScopeRules = new ArrayList<>();
-    if (effective.getScopeRules() != null) {
-      for (WorkflowScopeRuleInput rule : effective.getScopeRules()) {
-        if (rule != null
-            && rule.getSelectedMode() != null
-            && rule.getRuleSource() != null
-            && hasText(rule.getRuleValue())) {
-          seededScopeRules.add(rule);
-        }
-      }
-    }
-    seededScopeRules.addAll(toAllowlistScopeInputs(resolveScope(effective)));
-    workflowService.writeScopeRules(scenarioId, null, seededScopeRules);
 
     run.setXtmAgentSlug(effective.getAgentSlug());
     List<String> selectedAgentIds = effective.getAgentIds();
@@ -565,20 +675,45 @@ public class AutonomousRunService {
         normalizeAgentModes(
             selectedModes != null ? selectedModes : readDefaultAdditionalAgentModes(),
             resolvedAgentIds));
-    run.setStatus(AutonomousRunStatus.CREATED);
-    AutonomousRun saved = runRepository.save(run);
-    eventService.append(
-        saved.getId(),
-        null,
-        AutonomousEventType.STATUS,
-        "Planning started",
-        "The orchestrator will design a reusable attack path for scenario \""
+
+    List<WorkflowScopeRuleInput> seededScopeRules = new ArrayList<>();
+    if (effective.getScopeRules() != null) {
+      for (WorkflowScopeRuleInput rule : effective.getScopeRules()) {
+        if (rule != null
+            && rule.getSelectedMode() != null
+            && rule.getRuleSource() != null
+            && hasText(rule.getRuleValue())) {
+          seededScopeRules.add(rule);
+        }
+      }
+    }
+    seededScopeRules.addAll(toAllowlistScopeInputs(resolveScope(effective)));
+    return seededScopeRules;
+  }
+
+  /**
+   * Composes the refinement objective handed to the orchestrator: it must NOT rebuild from scratch,
+   * but read the current attack-path state, keep the existing steps and decisions, and adjust the
+   * logic to satisfy the operator's instruction (or, when none is given, review and improve it).
+   * This is data (a run objective), not a system-prompt change - the orchestrator already reads the
+   * current state; this only tells it to preserve rather than replace.
+   */
+  private String buildRefineObjective(Scenario scenario, String instruction) {
+    String base =
+        "The chained scenario \""
             + scenario.getName()
-            + "\" by authoring steps onto the scenario workflow. Nothing is executed.",
-        null);
-    // Flip to PLANNING and engage the orchestrator after commit (same transaction as this method);
-    // the un-annotated internal avoids self-invoking the @Transactional start() past the proxy.
-    return doStart(saved.getId());
+            + "\" already has an authored attack path. Do NOT rebuild it from scratch. First read"
+            + " the current attack-path state, keep the existing steps and decisions, then refine"
+            + " the logic";
+    if (hasText(instruction)) {
+      return base
+          + " to satisfy this instruction: "
+          + instruction
+          + ". Only add, adjust or remove the steps needed to fulfil it; preserve everything else.";
+    }
+    return base
+        + ": fill obvious gaps, fix broken chains and tighten the kill-chain ordering, without"
+        + " discarding the current logic.";
   }
 
   /** Starting-plan guidance handed to the orchestrator when a scenario is launched autonomously. */
