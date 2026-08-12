@@ -252,6 +252,7 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
       <ComponentStepperDrawer
         workflowId={workflowId}
         context={context}
+        readOnly={readOnly}
         scenarioId={scenarioId}
         exerciseId={exerciseId}
         validAssets={validAssets}

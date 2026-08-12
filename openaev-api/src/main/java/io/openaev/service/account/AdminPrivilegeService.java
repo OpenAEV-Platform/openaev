@@ -4,10 +4,7 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
-import io.openaev.service.AbstractPrivilegeService;
-import io.openaev.service.RoleService;
-import io.openaev.service.TenantGroupService;
-import io.openaev.service.UserService;
+import io.openaev.service.*;
 import io.openaev.service.platform.groups.PlatformGroupService;
 import io.openaev.service.platform.roles.PlatformRoleService;
 import io.openaev.service.tenants.TenantUserService;
@@ -66,13 +63,13 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
 
   @Autowired
   public AdminPrivilegeService(
-      RoleService roleService,
+      TenantRoleService tenantRoleService,
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
       PlatformRoleService platformRoleService,
       PlatformGroupService platformGroupService) {
-    super(roleService, tenantGroupService, userService, tenantUserService);
+    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
     this.platformRoleService = platformRoleService;
     this.platformGroupService = platformGroupService;
   }

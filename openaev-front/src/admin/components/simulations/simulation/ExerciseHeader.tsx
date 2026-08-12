@@ -330,7 +330,10 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   // stats: which assets and asset groups the simulation actually targets.
   useDataLoader(() => {
     dispatch(fetchExerciseChallenges(exerciseId));
-    dispatch(fetchExerciseInjectsSimple(exerciseId));
+    // Reconcile (not just fetch): injects can be deleted server-side out of band - deleting a
+    // phishing landing page cascade-deletes the injects built on its contract - and the
+    // merge-only store would otherwise keep counting the ghosts in the hero until a full reload.
+    dispatch(reconcileExerciseInjects(exerciseId, fetchExerciseInjectsSimple));
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchExerciseArticles(exerciseId));
     // Resolve the parent scenario name for the hero pivot button (it is not embedded in the
@@ -405,6 +408,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   } else if (isSimulationChaining) {
     actions = ['Update', 'Export', 'Delete'];
   }
+  const canDisplaySimulationActions = permissions.canManage || permissions.canLaunch || permissions.canDelete;
 
   // Headline stats surfaced right in the hero so they are visible on every
   // tab. The hero adapts to how the simulation is actually built: injects are
@@ -632,11 +636,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 entityName={exercise.exercise_name}
               />
               {/* CRUD actions in one overflow menu. */}
-              <ExercisePopover
-                exercise={exercise}
-                actions={actions}
-                onDelete={() => navigate('/admin/simulations')}
-              />
+              {canDisplaySimulationActions && (
+                <ExercisePopover
+                  exercise={exercise}
+                  actions={actions}
+                  onDelete={() => navigate('/admin/simulations')}
+                />
+              )}
             </>
           )}
           stats={(

@@ -184,222 +184,278 @@ const attemptedSeries = (): Series[] => [
   series('PENDING', ...expectation([filter('inject_expectation_status', ['PENDING'])])),
 ];
 
-export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translate = key => key): Widget[] => [
-  // -- HERO: exposure command center --
-  widget(
-    'default-command-center',
-    'command-center',
-    structural(t('Exposure command center'), 'inject_expectation_type', attemptedSeries(), timeRange),
-    layout(0, 0, 12, 6),
-  ),
+/**
+ * Human-driven expectation types (analyst validation, media pressure, challenges).
+ * "Human Response" aggregates these - the same MANUAL/ARTICLE/CHALLENGE gate the
+ * exposure command center surfaces as its human node.
+ */
+export const HUMAN_RESPONSE_EXPECTATION_TYPES = ['MANUAL', 'ARTICLE', 'CHALLENGE'];
 
+/**
+ * The exact widget config the "Human Response" gauge queries, reused as a
+ * presence probe: the dashboard fetches it once and only mounts the gauge when
+ * at least one human-driven expectation exists in range (mirrors the command
+ * center hiding its human node when there is nothing to show). The title is
+ * irrelevant to the probe (the filters drive the query), so it is left untranslated.
+ */
+export const buildHumanResponseProbeConfig = (timeRange: DefaultTimeRange): Widget['widget_config'] =>
+  structural('Human Response', 'inject_expectation_status', [
+    series('', ...expectation([filter('inject_expectation_type', HUMAN_RESPONSE_EXPECTATION_TYPES)])),
+  ], timeRange, 100);
+
+/**
+ * @param includeHumanResponse whether the "Human Response" gauge is mounted. It is
+ *   only shown when human-driven expectations exist in range (see
+ *   {@link buildHumanResponseProbeConfig}). The gauge row is fully responsive: the
+ *   gauges always divide the 12-column row evenly, so three gauges are w=4 (no gap)
+ *   and four gauges are w=3 (Human Response on the SAME line). The caller MUST
+ *   remount the grid when this flag flips (see DefaultHomeDashboard) - react-grid-
+ *   layout keeps the internal layout of already-mounted children and ignores a
+ *   width change, so an in-place flip would leave the core gauges at their old
+ *   width and strand Human Response on a second row.
+ */
+export const buildDefaultHomeWidgets = (
+  timeRange: DefaultTimeRange,
+  t: Translate = key => key,
+  includeHumanResponse = false,
+): Widget[] => {
   // -- EXPECTATION RESULTS --
-  widget(
-    'default-prevention',
+  // Resilience donuts dividing the 12-column row evenly. The three core
+  // security-control gauges are always shown; "Human Response" (MANUAL/ARTICLE/
+  // CHALLENGE, e.g. phishing) is appended only when it has data. Three gauges fill
+  // the row at w=4; four fill it at w=3. No empty slot in either state.
+  const gaugeDefs: {
+    id: string;
+    title: string;
+    types: string[];
+  }[] = [
+    {
+      id: 'default-prevention',
+      title: 'Prevention',
+      types: ['PREVENTION'],
+    },
+    {
+      id: 'default-detection',
+      title: 'Detection',
+      types: ['DETECTION'],
+    },
+    {
+      id: 'default-vulnerability',
+      title: 'Vulnerability',
+      types: ['VULNERABILITY'],
+    },
+  ];
+  if (includeHumanResponse) {
+    gaugeDefs.push({
+      id: 'default-human-response',
+      title: 'Human Response',
+      types: HUMAN_RESPONSE_EXPECTATION_TYPES,
+    });
+  }
+  // Evenly divide the 12-column row: 3 gauges -> w=4, 4 gauges -> w=3.
+  const gaugeWidth = 12 / gaugeDefs.length;
+  const gaugeWidgets = gaugeDefs.map((gauge, index) => widget(
+    gauge.id,
     'resilience-gauge',
-    structural(t('Prevention'), 'inject_expectation_status', [
-      series('', ...expectation([filter('inject_expectation_type', ['PREVENTION'])])),
+    structural(t(gauge.title), 'inject_expectation_status', [
+      series('', ...expectation([filter('inject_expectation_type', gauge.types)])),
     ], timeRange, 100),
-    layout(0, 6, 4, 4),
-  ),
-  widget(
-    'default-detection',
-    'resilience-gauge',
-    structural(t('Detection'), 'inject_expectation_status', [
-      series('', ...expectation([filter('inject_expectation_type', ['DETECTION'])])),
-    ], timeRange, 100),
-    layout(4, 6, 4, 4),
-  ),
-  widget(
-    'default-vulnerability',
-    'resilience-gauge',
-    structural(t('Vulnerability'), 'inject_expectation_status', [
-      series('', ...expectation([filter('inject_expectation_type', ['VULNERABILITY'])])),
-    ], timeRange, 100),
-    layout(8, 6, 4, 4),
-  ),
+    layout(index * gaugeWidth, 6, gaugeWidth, 4),
+  ));
 
-  // -- PERFORMANCE BY SECURITY DOMAIN (full-width band) --
-  widget(
-    'default-security-domains',
-    'average',
-    average(t('Performance by security domain'), timeRange),
-    layout(0, 10, 12, 4),
-  ),
-
-  // -- MITRE TTP POSTURE (detection coverage matrix, full-width band) --
-  widget(
-    'default-detection-coverage',
-    'security-coverage',
-    structural(t('Detection coverage'), 'base_attack_patterns_side', [
-      series('SUCCESS', ...expectation([
-        filter('inject_expectation_status', ['SUCCESS']),
-        filter('inject_expectation_type', ['DETECTION']),
-      ])),
-      series('FAILED', ...expectation([
-        filter('inject_expectation_status', ['FAILED']),
-        filter('inject_expectation_type', ['DETECTION']),
-      ])),
-    ], timeRange, COVERAGE_BUCKET_CAP),
-    layout(0, 14, 12, 10),
-  ),
-
-  // -- POSTURE + KPIs + FINDINGS BREAKDOWN --
-  widget(
-    'default-posture-radar',
-    'posture-radar',
-    structural(t('Posture radar'), 'base_security_platforms_side', successFailedSeries(), timeRange),
-    layout(0, 24, 4, 6),
-  ),
-  widget(
-    'default-kpi-scenarios',
-    'number',
-    flat(t('Scenarios'), [series('Scenario', filter('base_entity', ['scenario']))], timeRange),
-    layout(4, 24, 2, 2),
-  ),
-  widget(
-    'default-kpi-simulations',
-    'number',
-    flat(t('Simulations'), [series('Simulation', filter('base_entity', ['simulation']))], timeRange),
-    layout(6, 24, 2, 2),
-  ),
-  widget(
-    'default-kpi-injects',
-    'number',
-    flat(t('Injects'), [series('Inject', filter('base_entity', ['inject']))], timeRange),
-    layout(4, 26, 2, 2),
-  ),
-  widget(
-    'default-kpi-assets',
-    'number',
-    flat(t('Assets'), [series('Asset', filter('base_entity', ['asset']))], timeRange),
-    layout(6, 26, 2, 2),
-  ),
-  widget(
-    'default-kpi-cves',
-    'number',
-    flat(t('CVEs found'), [series('CVE', filter('base_entity', ['finding']), filter('finding_type', ['CVE']))], timeRange),
-    layout(4, 28, 2, 2),
-  ),
-  widget(
-    'default-kpi-vulnerable-endpoints',
-    'number',
-    flat(t('Vulnerable endpoints'), [series('Vulnerable endpoint', filter('base_entity', ['vulnerable-endpoint']))], timeRange),
-    layout(6, 28, 2, 2),
-  ),
-  widget(
-    'default-latest-findings',
-    'horizontal-barchart',
-    structural(t('Findings by type'), 'finding_type', [
-      series('', filter('base_entity', ['finding'])),
-    ], timeRange, 100),
-    layout(8, 24, 4, 6),
-  ),
-
-  // -- FINDINGS --
-  widget(
-    'default-findings-list',
-    'list',
-    list(
-      t('Latest findings'),
-      series('', filter('base_entity', ['finding'])),
-      ['finding_value', 'base_created_at', 'finding_type'],
-      timeRange,
+  return [
+  // -- HERO: exposure command center --
+    widget(
+      'default-command-center',
+      'command-center',
+      structural(t('Exposure command center'), 'inject_expectation_type', attemptedSeries(), timeRange),
+      layout(0, 0, 12, 6),
     ),
-    layout(0, 30, 8, 10),
-  ),
-  widget(
-    'default-kpi-total-findings',
-    'number',
-    flat(t('Total findings'), [series('Finding', filter('base_entity', ['finding']))], timeRange),
-    layout(8, 30, 2, 2),
-  ),
-  widget(
-    'default-kpi-ports-open',
-    'number',
-    flat(t('Ports open'), [series('Port', filter('base_entity', ['finding']), filter('finding_type', ['PortsScan', 'Port']))], timeRange),
-    layout(10, 30, 2, 2),
-  ),
-  widget(
-    'default-undetected-platforms',
-    'vertical-barchart',
-    structural(t('Missed by security platform'), 'base_security_platforms_side', [
-      series('Not Detected', ...expectation([
-        filter('inject_expectation_type', ['DETECTION']),
-        filter('inject_expectation_status', ['FAILED']),
-      ])),
-      series('Not Prevented', ...expectation([
-        filter('inject_expectation_type', ['PREVENTION']),
-        filter('inject_expectation_status', ['FAILED']),
-      ])),
-    ], timeRange, 100),
-    layout(8, 32, 4, 8),
-  ),
 
-  // -- TRENDS --
-  widget(
-    'default-weekly-failures',
-    'vertical-barchart',
-    // eq FAILED (not "not_eq SUCCESS"): pending/unknown expectations are not misses.
-    temporal(t('Missed injects by week'), [
-      series('Not Detected', ...expectation([
-        filter('inject_expectation_type', ['DETECTION']),
-        filter('inject_expectation_status', ['FAILED']),
-      ])),
-      series('Not Prevented', ...expectation([
-        filter('inject_expectation_type', ['PREVENTION']),
-        filter('inject_expectation_status', ['FAILED']),
-      ])),
-    ], timeRange),
-    layout(0, 40, 4, 6),
-  ),
-  widget(
-    'default-top-detected-ttps',
-    'horizontal-barchart',
-    structural(t('Most detected & prevented TTPs'), 'base_attack_patterns_side', [
-      series('Detected TTPs', ...expectation([
-        filter('inject_expectation_type', ['DETECTION']),
-        filter('inject_expectation_status', ['SUCCESS']),
-      ])),
-      series('Prevented TTPs', ...expectation([
-        filter('inject_expectation_type', ['PREVENTION']),
-        filter('inject_expectation_status', ['SUCCESS']),
-      ])),
-    ], timeRange),
-    layout(4, 40, 4, 6),
-  ),
-  widget(
-    'default-top-undetected-ttps',
-    'horizontal-barchart',
-    structural(t('Most undetected TTPs'), 'base_attack_patterns_side', [
-      series('Undetected TTPs', ...expectation([
-        filter('inject_expectation_type', ['DETECTION']),
-        filter('inject_expectation_status', ['FAILED']),
-      ])),
-      series('Unprevented TTPs', ...expectation([
-        filter('inject_expectation_type', ['PREVENTION']),
-        filter('inject_expectation_status', ['FAILED']),
-      ])),
-    ], timeRange),
-    layout(8, 40, 4, 6),
-  ),
-  widget(
-    'default-simulations-by-week',
-    'line',
-    temporal(t('Simulations by week'), [
-      series('Simulation', filter('base_entity', ['simulation'])),
-    ], timeRange),
-    layout(0, 46, 6, 6),
-  ),
-  widget(
-    'default-latest-simulations',
-    'list',
-    list(
-      t('Latest simulations'),
-      series('', filter('base_entity', ['simulation'])),
-      ['name', 'status', 'base_created_at', 'base_tags_side'],
-      timeRange,
+    ...gaugeWidgets,
+
+    // -- PERFORMANCE BY SECURITY DOMAIN (full-width band) --
+    widget(
+      'default-security-domains',
+      'average',
+      average(t('Performance by security domain'), timeRange),
+      layout(0, 10, 12, 4),
     ),
-    layout(6, 46, 6, 6),
-  ),
-];
+
+    // -- MITRE TTP POSTURE (detection coverage matrix, full-width band) --
+    widget(
+      'default-detection-coverage',
+      'security-coverage',
+      structural(t('Detection coverage'), 'base_attack_patterns_side', [
+        series('SUCCESS', ...expectation([
+          filter('inject_expectation_status', ['SUCCESS']),
+          filter('inject_expectation_type', ['DETECTION']),
+        ])),
+        series('FAILED', ...expectation([
+          filter('inject_expectation_status', ['FAILED']),
+          filter('inject_expectation_type', ['DETECTION']),
+        ])),
+      ], timeRange, COVERAGE_BUCKET_CAP),
+      layout(0, 14, 12, 10),
+    ),
+
+    // -- POSTURE + KPIs + FINDINGS BREAKDOWN --
+    widget(
+      'default-posture-radar',
+      'posture-radar',
+      structural(t('Posture radar'), 'base_security_platforms_side', successFailedSeries(), timeRange),
+      layout(0, 24, 4, 6),
+    ),
+    widget(
+      'default-kpi-scenarios',
+      'number',
+      flat(t('Scenarios'), [series('Scenario', filter('base_entity', ['scenario']))], timeRange),
+      layout(4, 24, 2, 2),
+    ),
+    widget(
+      'default-kpi-simulations',
+      'number',
+      flat(t('Simulations'), [series('Simulation', filter('base_entity', ['simulation']))], timeRange),
+      layout(6, 24, 2, 2),
+    ),
+    widget(
+      'default-kpi-injects',
+      'number',
+      flat(t('Injects'), [series('Inject', filter('base_entity', ['inject']))], timeRange),
+      layout(4, 26, 2, 2),
+    ),
+    widget(
+      'default-kpi-assets',
+      'number',
+      flat(t('Assets'), [series('Asset', filter('base_entity', ['asset']))], timeRange),
+      layout(6, 26, 2, 2),
+    ),
+    widget(
+      'default-kpi-cves',
+      'number',
+      flat(t('CVEs found'), [series('CVE', filter('base_entity', ['finding']), filter('finding_type', ['CVE']))], timeRange),
+      layout(4, 28, 2, 2),
+    ),
+    widget(
+      'default-kpi-vulnerable-endpoints',
+      'number',
+      flat(t('Vulnerable endpoints'), [series('Vulnerable endpoint', filter('base_entity', ['vulnerable-endpoint']))], timeRange),
+      layout(6, 28, 2, 2),
+    ),
+    widget(
+      'default-latest-findings',
+      'horizontal-barchart',
+      structural(t('Findings by type'), 'finding_type', [
+        series('', filter('base_entity', ['finding'])),
+      ], timeRange, 100),
+      layout(8, 24, 4, 6),
+    ),
+
+    // -- FINDINGS --
+    widget(
+      'default-findings-list',
+      'list',
+      list(
+        t('Latest findings'),
+        series('', filter('base_entity', ['finding'])),
+        ['finding_value', 'base_created_at', 'finding_type'],
+        timeRange,
+      ),
+      layout(0, 30, 8, 10),
+    ),
+    widget(
+      'default-kpi-total-findings',
+      'number',
+      flat(t('Total findings'), [series('Finding', filter('base_entity', ['finding']))], timeRange),
+      layout(8, 30, 2, 2),
+    ),
+    widget(
+      'default-kpi-ports-open',
+      'number',
+      flat(t('Ports open'), [series('Port', filter('base_entity', ['finding']), filter('finding_type', ['PortsScan', 'Port']))], timeRange),
+      layout(10, 30, 2, 2),
+    ),
+    widget(
+      'default-undetected-platforms',
+      'vertical-barchart',
+      structural(t('Missed by security platform'), 'base_security_platforms_side', [
+        series('Not Detected', ...expectation([
+          filter('inject_expectation_type', ['DETECTION']),
+          filter('inject_expectation_status', ['FAILED']),
+        ])),
+        series('Not Prevented', ...expectation([
+          filter('inject_expectation_type', ['PREVENTION']),
+          filter('inject_expectation_status', ['FAILED']),
+        ])),
+      ], timeRange, 100),
+      layout(8, 32, 4, 8),
+    ),
+
+    // -- TRENDS --
+    widget(
+      'default-weekly-failures',
+      'vertical-barchart',
+      // eq FAILED (not "not_eq SUCCESS"): pending/unknown expectations are not misses.
+      temporal(t('Missed injects by week'), [
+        series('Not Detected', ...expectation([
+          filter('inject_expectation_type', ['DETECTION']),
+          filter('inject_expectation_status', ['FAILED']),
+        ])),
+        series('Not Prevented', ...expectation([
+          filter('inject_expectation_type', ['PREVENTION']),
+          filter('inject_expectation_status', ['FAILED']),
+        ])),
+      ], timeRange),
+      layout(0, 40, 4, 6),
+    ),
+    widget(
+      'default-top-detected-ttps',
+      'horizontal-barchart',
+      structural(t('Most detected & prevented TTPs'), 'base_attack_patterns_side', [
+        series('Detected TTPs', ...expectation([
+          filter('inject_expectation_type', ['DETECTION']),
+          filter('inject_expectation_status', ['SUCCESS']),
+        ])),
+        series('Prevented TTPs', ...expectation([
+          filter('inject_expectation_type', ['PREVENTION']),
+          filter('inject_expectation_status', ['SUCCESS']),
+        ])),
+      ], timeRange),
+      layout(4, 40, 4, 6),
+    ),
+    widget(
+      'default-top-undetected-ttps',
+      'horizontal-barchart',
+      structural(t('Most undetected TTPs'), 'base_attack_patterns_side', [
+        series('Undetected TTPs', ...expectation([
+          filter('inject_expectation_type', ['DETECTION']),
+          filter('inject_expectation_status', ['FAILED']),
+        ])),
+        series('Unprevented TTPs', ...expectation([
+          filter('inject_expectation_type', ['PREVENTION']),
+          filter('inject_expectation_status', ['FAILED']),
+        ])),
+      ], timeRange),
+      layout(8, 40, 4, 6),
+    ),
+    widget(
+      'default-simulations-by-week',
+      'line',
+      temporal(t('Simulations by week'), [
+        series('Simulation', filter('base_entity', ['simulation'])),
+      ], timeRange),
+      layout(0, 46, 6, 6),
+    ),
+    widget(
+      'default-latest-simulations',
+      'list',
+      list(
+        t('Latest simulations'),
+        series('', filter('base_entity', ['simulation'])),
+        ['name', 'status', 'base_created_at', 'base_tags_side'],
+        timeRange,
+      ),
+      layout(6, 46, 6, 6),
+    ),
+  ];
+};

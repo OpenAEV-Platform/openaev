@@ -60,16 +60,23 @@ public class SentinelOneExecutorClient {
   }
 
   private void setAllAgentsFromFilter(String filter, Set<SentinelOneAgent> agents) {
-    ResponseAgent responseAgent = getSentinelOneAgents(filter);
+    setAllAgentsFromFilter(filter, null, agents, new HashSet<>());
+  }
+
+  private void setAllAgentsFromFilter(
+      String filter, String cursor, Set<SentinelOneAgent> agents, Set<String> visitedCursors) {
+    String pageFilter = cursor == null ? filter : filter + CURSOR_PARAM + cursor;
+    ResponseAgent responseAgent = getSentinelOneAgents(pageFilter);
     if (responseAgent.getErrors() != null && !responseAgent.getErrors().isEmpty()) {
-      logErrors(responseAgent.getErrors(), "uri: " + AGENTS_URI + filter);
+      logErrors(responseAgent.getErrors(), "uri: " + AGENTS_URI + pageFilter);
     } else {
       if (responseAgent.getData() != null) {
         agents.addAll(responseAgent.getData());
       }
-      if (responseAgent.getPagination().getNextCursor() != null) {
-        setAllAgentsFromFilter(
-            filter + CURSOR_PARAM + responseAgent.getPagination().getNextCursor(), agents);
+      SentinelOnePagination pagination = responseAgent.getPagination();
+      String nextCursor = pagination == null ? null : pagination.getNextCursor();
+      if (nextCursor != null && visitedCursors.add(nextCursor)) {
+        setAllAgentsFromFilter(filter, nextCursor, agents, visitedCursors);
       }
     }
   }
@@ -156,7 +163,7 @@ public class SentinelOneExecutorClient {
       return httpClient.execute(httpGet, response -> handleResponse(response, uri));
     } catch (IOException e) {
       throw new ClientProtocolException(
-          "Unexpected response for HTTP GET SentinelOne on: " + uri, e);
+          "Unexpected response for HTTP GET SentinelOne on: " + uri + " - " + e.getMessage(), e);
     }
   }
 

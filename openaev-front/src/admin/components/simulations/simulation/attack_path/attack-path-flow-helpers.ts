@@ -75,6 +75,15 @@ export interface AttackPathFlowNodeData {
   // For an injector node: the real injector type/slug from the backend (AttackPathNodeDTO.injectorType),
   // used to resolve the catalog icon without guessing from the label. Absent on synthetic seed injectors.
   injectorType?: string;
+  // For an ACTION node standing for an agent-executed payload: the payload's discriminator type
+  // (Command, Executable, ...) and, when it was shipped by a collector, that collector type's name
+  // (e.g. openaev_netexec, openaev_atomic_red_team). The ActionCard resolves the real catalog icon
+  // from these (mirroring the logic tab) instead of the generic agent bolt. Absent on injector nodes.
+  payloadType?: string;
+  payloadCollectorType?: string;
+  // True when this action node represents a payload (agent-executed action), so the icon resolver
+  // treats payloadCollectorType/payloadType as a payload icon rather than an injector slug.
+  isPayload?: boolean;
   // For an injector node: the ATT&CK techniques the backend resolved from its contract
   // (AttackPathNodeDTO.attackPatterns), surfaced on the node so the analyst sees them without a click.
   attackPatterns?: AttackPathAttackPatternDTO[];
@@ -1180,14 +1189,14 @@ export const buildFindingPathFlow = (
 // resolved through FILTER_TO_FINDING_TYPES, defaulting to the type itself so new types work with no code.
 export type AttackPathFindingFilter = 'endpoints' | string;
 
-// Finding types whose value is a captured secret; masked by default in the UI (spec §14). Revealing
-// them is an explicit, permission-gated action handled by the Result/Terminal increment.
-export const SENSITIVE_FINDING_TYPES = new Set(['credentials', 'password_policy', 'sid']);
+// Finding types whose value is a captured secret; masked by default in the UI (spec §14). Only
+// credentials and sid are masked here; revealing remains a permission-gated action.
+export const SENSITIVE_FINDING_TYPES = new Set(['credentials', 'sid']);
 
 // Mask a finding value for display (rendered as text by the callers — never as HTML). Credentials
-// keep the username visible but mask the secret ("user:pass" -> "user : ••••••"); other secret types
-// (sid, password_policy) are fully masked; a `file` value is the full location but displays as its
-// basename (the full path stays available in the detail panel); everything else is shown as-is.
+// keep the username visible but mask the secret ("user:pass" -> "user : ••••••"); sid is fully
+// masked; a `file` value is the full location but displays as its basename (the full path stays
+// available in the detail panel); everything else is shown as-is.
 export const maskFindingValue = (typeFindings?: string, value?: string): string => {
   if (!value) {
     return '';
@@ -1620,10 +1629,80 @@ const CHAIN_ENDPOINTS_MAX_PER_DEPTH = 4; // a depth column with more distinct en
 // the overflow into a single "+N" endpoint cluster (click to expand), so a step reaching dozens of hosts
 // stays a few blocks tall instead of one node per host in a long unreadable vertical stack.
 
-// Synthetic step-id prefix for an endpoint-local (self-loop) action promoted to its own ACTION node
-// (localActionsAsNodes). Keyed by the authored step so re-runs coalesce and never collides with a real
-// endpoint node id (NODE_ENDPOINT|<uuid>) or injector node id.
-const LOCAL_ACTION_ID_PREFIX = 'chain-local|';
+// Synthetic step-id prefix for an agent-executed action promoted to its own ACTION node (every
+// agent/endpoint-sourced execution is split out this way). Keyed by the authored step so re-runs
+// coalesce and never collides with a real endpoint node id (NODE_ENDPOINT|<uuid>) or injector node id.
+export const LOCAL_ACTION_ID_PREFIX = 'chain-local|';
+
+// Resolve, for every agent/endpoint-executed action promoted to a synthetic `chain-local|...` node,
+// which executions it ran and on which endpoint. This mirrors the re-keying buildCausalChainFlow does
+// below: the graph's execution edges carry the RAW injector/endpoint source id, never the synthetic
+// node id the chain layout assigns, so the injector (action) panel cannot resolve a promoted action's
+// executions from those edges alone. This index closes that gap.
+//
+// The returned shape is: synthetic action node id -> endpoint ref -> the execution refs that action ran
+// on that endpoint. A real injector action (a platform-launched network inject like Nmap/NetExec) keeps
+// its DTO node id and IS resolvable straight from the graph edges, so it is intentionally omitted here.
+export const buildLocalActionExecIndex = (
+  dto: AttackPathDTO,
+): Map<string, Map<string, string[]>> => {
+  const index = new Map<string, Map<string, string[]>>();
+  const dtoNodes = dto.attackPathNodes ?? [];
+  // Index injectors + assets by BOTH id and ref, exactly as buildCausalChainFlow does, so an execution
+  // edge that keys its endpoint by either form still resolves to the endpoint ref the panel fetches by.
+  const injectorById = new Map<string, typeof dtoNodes[number]>();
+  const assetById = new Map<string, typeof dtoNodes[number]>();
+  dtoNodes.forEach((n) => {
+    let target: Map<string, typeof dtoNodes[number]> | null = null;
+    if (n.type === 'INJECTOR') {
+      target = injectorById;
+    } else if (n.type === 'ASSET') {
+      target = assetById;
+    }
+    if (!target) {
+      return;
+    }
+    if (n.id) {
+      target.set(n.id as string, n);
+    }
+    if (n.ref) {
+      target.set(n.ref as string, n);
+    }
+  });
+  const execByRef = new Map(
+    (dto.attackPathExecutions ?? []).filter(e => e.ref).map(e => [e.ref as string, e]),
+  );
+  // A human-in-the-loop inject (email, SMS) emits a team -> person edge whose source is an asset, not an
+  // injector: it must never be promoted to an action node (same guard buildCausalChainFlow applies).
+  const isHumanInLoopSource = (id?: string): boolean => {
+    const kind = assetById.get(id ?? '')?.entityKind;
+    return kind === 'TEAM' || kind === 'PERSON' || kind === 'ASSET_GROUP';
+  };
+  for (const e of dto.attackPathEdges ?? []) {
+    if (e.type !== EDGE_EXECUTIONS || !e.edgeSourceId || isHumanInLoopSource(e.edgeSourceId)) {
+      continue;
+    }
+    // Only agent/endpoint sources are promoted; a real injector source keeps its DTO node id.
+    if (injectorById.has(e.edgeSourceId)) {
+      continue;
+    }
+    const endpointRef = assetById.get(e.edgeTargetId ?? '')?.ref ?? e.edgeTargetId;
+    if (!endpointRef) {
+      continue;
+    }
+    for (const ref of e.executionIds ?? []) {
+      // Keyed by stepTemplateId so re-runs of the same authored step coalesce into one action node,
+      // falling back to the execution ref for un-templated actions (matches buildCausalChainFlow).
+      const actionId = `${LOCAL_ACTION_ID_PREFIX}${execByRef.get(ref)?.stepTemplateId ?? ref}`;
+      const byEndpoint = index.get(actionId) ?? new Map<string, string[]>();
+      const owned = byEndpoint.get(endpointRef) ?? [];
+      owned.push(ref);
+      byEndpoint.set(endpointRef, owned);
+      index.set(actionId, byEndpoint);
+    }
+  }
+  return index;
+};
 
 interface ChainStep {
   injectorId: string;
@@ -1639,10 +1718,13 @@ interface ChainStep {
   statusByEndpoint: Map<string, Array<string | undefined>>;
   consumed: CausalConsumedKey[];
   deps: Set<string>;
-  // For an endpoint-local action promoted to its own node (localActionsAsNodes): the execution metadata
-  // needed to draw a proper ACTION card (catalog icon + ATT&CK techniques) when the full graph carries
+  // For an agent/endpoint-sourced action promoted to its own node: the execution metadata needed to
+  // draw a proper ACTION card (catalog icon + ATT&CK techniques + label) when the full graph carries
   // no injector node for it. Captured from the representative execution; unused for real injector steps.
   actionInjectorType?: string;
+  actionPayloadType?: string;
+  actionPayloadCollectorType?: string;
+  actionPayloadName?: string;
   actionAttackPatterns?: AttackPathAttackPatternDTO[];
 }
 
@@ -1659,11 +1741,6 @@ export const buildCausalChainFlow = (
   // a finding whose type happens to fall past the cap (ties are broken by name, so "share" can lose to
   // "cve") leaves it with no node to focus at all, and the view silently falls back to another path.
   pinnedTypes: ReadonlySet<string> = new Set(),
-  // Render each endpoint-local (self-loop) execution as its OWN ACTION node instead of aggregating
-  // them into one self-execution step per endpoint. Off by default; ON for an AUTONOMOUS run, whose
-  // story is the ACTION TIMELINE on a mostly single, already-compromised host, so a chain of local
-  // steps stays visible step by step even when it produces no new distinct finding.
-  localActionsAsNodes = false,
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -1727,22 +1804,20 @@ export const buildCausalChainFlow = (
       }
     }
   }
-  // Endpoint-local actions (recon, credential dumps, local privilege ops) run ON the host the agent is
-  // already on, so the backend records them as a self-loop (execution edge source == target == that
-  // endpoint). By default all of an endpoint's local executions aggregate into ONE step keyed by the
-  // endpoint itself, rendered as a single self-execution ACTION card pointing at the endpoint. But an
-  // AUTONOMOUS engagement is an ACTION TIMELINE on a mostly single, already-compromised host: a run of
-  // several local steps would then collapse into that one card even though every step executed.
-  // When localActionsAsNodes is set, re-key each self-loop to its OWN authored step so each local action
-  // becomes its own ACTION node anchored on the endpoint (drawn to the left, exactly like an injector).
-  // Keyed by stepTemplateId so re-runs of the same step coalesce and dependsOn between local steps
-  // still resolves to a real causal depth.
-  if (localActionsAsNodes) {
-    for (const [ref, ex] of execByRef) {
-      const src = injByExec.get(ref);
-      if (src && src === epByExec.get(ref)) {
-        injByExec.set(ref, `${LOCAL_ACTION_ID_PREFIX}${ex.stepTemplateId ?? ref}`);
-      }
+  // Every agent-executed action (a payload the implant ran: recon, credential dump, GPP scan, an
+  // in-memory Mimikatz, a remote SMB brute force, ...) is re-keyed to its OWN authored step so each
+  // distinct action becomes its own ACTION node. Without this, ALL of an agent's executions collapse
+  // into a single node keyed by their source endpoint — the bug where one card reads "GPP Passwords"
+  // yet silently groups Mimikatz and a PowerShell history search under that one misleading name and a
+  // generic icon. A real injector source (a network inject like Nmap/NetExec launched by the platform,
+  // present in injectorById) keeps its per-contract injector node; only agent/endpoint sources (a
+  // self-loop local action OR an agent->remote pivot, never an injector node) are split out. Keyed by
+  // stepTemplateId so re-runs of the same step coalesce and dependsOn between steps still resolves to a
+  // real causal depth; falling back to the execution ref keeps distinct un-templated actions distinct.
+  for (const [ref, ex] of execByRef) {
+    const src = injByExec.get(ref);
+    if (src && !injectorById.has(src)) {
+      injByExec.set(ref, `${LOCAL_ACTION_ID_PREFIX}${ex.stepTemplateId ?? ref}`);
     }
   }
   // Resolve a dependsOn (a prerequisite step template id) to the injector that ran it.
@@ -1792,10 +1867,21 @@ export const buildCausalChainFlow = (
       }
       s.statusByEndpoint.set(ep, (s.statusByEndpoint.get(ep) ?? []).concat(ex.status));
     }
-    // Capture the action's own icon/technique metadata, used only when this step renders as a synthetic
-    // node (endpoint-local action) that has no injector node of its own to read from.
+    // Capture the action's own icon/technique/label metadata, used only when this step renders as a
+    // synthetic node (an agent-executed action) that has no injector node of its own to read from.
+    // The payload collector type is what resolves the real catalog logo (e.g. netexec, atomic-red-team);
+    // the injector type is only the implant fallback and the payload type the last resort.
     if (ex.injectorType && !s.actionInjectorType) {
       s.actionInjectorType = ex.injectorType;
+    }
+    if (ex.payloadCollectorType && !s.actionPayloadCollectorType) {
+      s.actionPayloadCollectorType = ex.payloadCollectorType;
+    }
+    if (ex.payloadType && !s.actionPayloadType) {
+      s.actionPayloadType = ex.payloadType;
+    }
+    if (ex.payloadName && !s.actionPayloadName) {
+      s.actionPayloadName = ex.payloadName;
     }
     if ((ex.attackPatterns?.length ?? 0) > 0 && !s.actionAttackPatterns) {
       s.actionAttackPatterns = ex.attackPatterns;
@@ -1954,13 +2040,26 @@ export const buildCausalChainFlow = (
     // One vertical block per distinct asset, tall enough for BOTH its stacked injectors (left) and its
     // stacked findings (right). An injector that hits several assets is positioned once (first block).
     let cursorY = PADDING;
-    const injectorPlaced = new Set<string>();
+    // Injector (action) nodes are positioned AFTER every endpoint block of this depth is laid out, so the
+    // action column can be vertically centred against the endpoints each action reached (recorded here)
+    // instead of being crammed into the first endpoint block it happened to hit - which bunched every
+    // action at the top whenever they all fanned out to the same endpoints.
+    const injectorOrder: string[] = [];
+    const injectorSeen = new Set<string>();
+    const injectorEpCenters = new Map<string, number[]>();
+    const recordInjector = (injId: string, blockCenterY: number) => {
+      if (!injectorSeen.has(injId)) {
+        injectorSeen.add(injId);
+        injectorOrder.push(injId);
+      }
+      (injectorEpCenters.get(injId) ?? injectorEpCenters.set(injId, []).get(injId)!).push(blockCenterY);
+    };
     for (const epId of visibleAssetIds) {
-      // An endpoint-local action keeps the endpoint itself as its "injector" (injId === epId): it is
-      // laid out like any other producing step — an ACTION card (labelled from its contract name, the
-      // injector-node lookup below misses on the asset id) pointing at the endpoint node — so a
-      // self-execution is displayed instead of silently dropped. localActionsAsNodes additionally
-      // re-keys each authored local step to its own chain-local|<step> node.
+      // Each agent-executed action is its own chain-local|<step> node (re-keyed above), laid out like
+      // any other producing step — an ACTION card (labelled from its contract/payload name, since the
+      // injector-node lookup below misses on the synthetic id) pointing at the endpoint it acted on.
+      // A rare un-templated self-execution still keeps the endpoint id as its injector and renders the
+      // same way, so it is displayed rather than silently dropped.
       const injectors = assetInjectors.get(epId) as string[];
       const findingIds = assetFindings.get(epId) as string[];
       // Group the endpoint's findings by type; a type with more than the cap collapses into ONE "+N"
@@ -2022,10 +2121,12 @@ export const buildCausalChainFlow = (
           typesExpanded,
         });
       }
+      // Block height fits the endpoint and its findings only. Injectors are no longer stacked INSIDE the
+      // block (they are placed as a centred column after the depth is laid out), so sizing the block by
+      // injector count would just spread the endpoints apart for no reason.
       const h = Math.max(
         CHAIN_EP_BLOCK_MIN,
         findRows.length * CHAIN_FIND_ROW,
-        injectors.length * CHAIN_INJECTOR_ROW,
       );
       const blockTop = cursorY;
       const blockCenter = blockTop + h / 2;
@@ -2043,36 +2144,13 @@ export const buildCausalChainFlow = (
         data: epDto ? nodeData(epDto) : { label: friendlyNodeId(epId) },
       });
 
-      // Injectors that hit this asset, stacked within the block, each with its own labelled edge.
-      injectors.forEach((injId, i) => {
+      // Record this asset's block centre and the injectors that reached it; the injector (action) NODES
+      // are placed once, after the whole depth is laid out (see the placement pass at the end of this
+      // depth), so the action column can be centred against the endpoints. Each injector still gets its
+      // own labelled edge here.
+      injectors.forEach((injId) => {
         const s = steps.get(injId) as ChainStep;
-        if (!injectorPlaced.has(injId)) {
-          injectorPlaced.add(injId);
-          const injCenterY = injectors.length === 1
-            ? blockCenter
-            : blockTop + (i + 0.5) * (h / injectors.length);
-          const injDto = injectorById.get(injId);
-          // The full graph may omit injector nodes (e.g. an endpoint-local action promoted to a node);
-          // label the action from its contract name rather than the raw step id, so the node never reads
-          // "NODE_*|<uuid>", and carry its captured icon/technique metadata so it renders a real ACTION
-          // card instead of the generic fallback icon.
-          const injActionLabel = [...s.contractByEndpoint.values()][0];
-          nodes.push({
-            id: injId,
-            type: AP_FLOW_NODE_TYPE.injector,
-            position: {
-              x,
-              y: injCenterY - CLUSTER_INJECTOR_HALF_H,
-            },
-            data: injDto
-              ? nodeData(injDto)
-              : {
-                  label: injActionLabel || friendlyNodeId(injId),
-                  injectorType: s.actionInjectorType,
-                  attackPatterns: s.actionAttackPatterns,
-                },
-          });
-        }
+        recordInjector(injId, blockCenter);
         edges.push({
           id: `${injId}-${epNodeId}`,
           source: injId,
@@ -2220,7 +2298,8 @@ export const buildCausalChainFlow = (
       // producer got collapsed still resolves to a placed node instead of a fid that was never rendered.
       hiddenAssetIds.forEach(epId => (assetFindings.get(epId) ?? []).forEach(fid => causalSourceByFinding.set(fid, epClusterId)));
       const clusterInjectors = [...new Set(hiddenAssetIds.flatMap(epId => assetInjectors.get(epId) ?? []))];
-      const hCluster = Math.max(CHAIN_EP_BLOCK_MIN, clusterInjectors.length * CHAIN_INJECTOR_ROW);
+      // Same as the per-asset blocks: injectors live in the centred action column, not inside the block.
+      const hCluster = CHAIN_EP_BLOCK_MIN;
       const blockTop = cursorY;
       const blockCenter = blockTop + hCluster / 2;
       const clusterStatus = aggregateStatus(hiddenAssetIds.map(epId => assetById.get(epId)?.status));
@@ -2241,31 +2320,9 @@ export const buildCausalChainFlow = (
         },
       });
 
-      clusterInjectors.forEach((injId, i) => {
+      clusterInjectors.forEach((injId) => {
         const s = steps.get(injId) as ChainStep;
-        if (!injectorPlaced.has(injId)) {
-          injectorPlaced.add(injId);
-          const injCenterY = clusterInjectors.length === 1
-            ? blockCenter
-            : blockTop + (i + 0.5) * (hCluster / clusterInjectors.length);
-          const injDto = injectorById.get(injId);
-          const injActionLabel = [...s.contractByEndpoint.values()][0];
-          nodes.push({
-            id: injId,
-            type: AP_FLOW_NODE_TYPE.injector,
-            position: {
-              x,
-              y: injCenterY - CLUSTER_INJECTOR_HALF_H,
-            },
-            data: injDto
-              ? nodeData(injDto)
-              : {
-                  label: injActionLabel || friendlyNodeId(injId),
-                  injectorType: s.actionInjectorType,
-                  attackPatterns: s.actionAttackPatterns,
-                },
-          });
-        }
+        recordInjector(injId, blockCenter);
         const reachedCount = hiddenAssetIds.filter(epId => (assetInjectors.get(epId) ?? []).includes(injId)).length;
         // This injector's own execution(s) against just the endpoints hidden in this cluster, worst-case
         // — not clusterStatus (every hidden endpoint's own aggregate, cross-injector), for the same
@@ -2284,6 +2341,64 @@ export const buildCausalChainFlow = (
       });
 
       cursorY = blockTop + hCluster + CHAIN_STEP_GAP;
+    }
+
+    // -- Place the action (injector) column, vertically centred against its endpoints --
+    // Each injector's desired Y is the centroid of the block centres of the endpoints it ran against at
+    // this depth. Overlaps are resolved with a fixed row height, then the whole stack is shifted so its
+    // centroid matches the desired centroid. Net effect: an action reaching a single endpoint stays
+    // aligned to it, while actions fanning out to every endpoint end up centred on the column instead of
+    // piled at the top.
+    if (injectorOrder.length > 0) {
+      const columnCenter = (PADDING + cursorY) / 2;
+      const targets = injectorOrder.map((injId) => {
+        const centers = injectorEpCenters.get(injId) ?? [];
+        const desired = centers.length
+          ? centers.reduce((sum, c) => sum + c, 0) / centers.length
+          : columnCenter;
+        return {
+          injId,
+          desired,
+        };
+      });
+      targets.sort((a, b) => a.desired - b.desired);
+      const ys: number[] = [];
+      let prevY = Number.NEGATIVE_INFINITY;
+      for (const target of targets) {
+        const y = Math.max(target.desired, prevY + CHAIN_INJECTOR_ROW);
+        ys.push(y);
+        prevY = y;
+      }
+      const desiredMean = targets.reduce((sum, tr) => sum + tr.desired, 0) / targets.length;
+      const placedMean = ys.reduce((sum, y) => sum + y, 0) / ys.length;
+      const shift = desiredMean - placedMean;
+      targets.forEach((target, i) => {
+        const s = steps.get(target.injId) as ChainStep;
+        const injDto = injectorById.get(target.injId);
+        // The full graph may omit injector nodes (e.g. an agent-executed action promoted to a node);
+        // label the action from its contract name (else the payload name) rather than the raw step id,
+        // so the node never reads "NODE_*|<uuid>", and carry its captured icon/technique metadata so it
+        // renders a real ACTION card with the payload's catalog logo instead of the generic fallback.
+        const injActionLabel = [...s.contractByEndpoint.values()][0] || s.actionPayloadName;
+        nodes.push({
+          id: target.injId,
+          type: AP_FLOW_NODE_TYPE.injector,
+          position: {
+            x,
+            y: ys[i] + shift - CLUSTER_INJECTOR_HALF_H,
+          },
+          data: injDto
+            ? nodeData(injDto)
+            : {
+                label: injActionLabel || friendlyNodeId(target.injId),
+                injectorType: s.actionInjectorType,
+                payloadType: s.actionPayloadType,
+                payloadCollectorType: s.actionPayloadCollectorType,
+                isPayload: !!(s.actionPayloadType || s.actionPayloadCollectorType),
+                attackPatterns: s.actionAttackPatterns,
+              },
+        });
+      });
     }
   }
 

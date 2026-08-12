@@ -39,8 +39,10 @@ const OS_PLATFORM_CATEGORIES = new Set<AssetCategory>(['HOST', 'MOBILE_DEVICE'])
 type ScopeMode = 'ALLOWLIST' | 'DENYLIST';
 
 interface ScopeRulesProps {
+  workflowId: string;
   workflowConfiguration: WorkflowConfigurationOutput | undefined;
   onUpdate: (overrides: Partial<WorkflowConfigurationInput>) => void;
+  readOnly?: boolean;
 }
 
 // Visual grouping of scope entries by kind, so a scope with many entries reads as a scannable set of
@@ -94,6 +96,7 @@ interface ScopeColumnProps {
      *  everywhere else in the app rather than a bare label. */
   resolveIcon: (rule: WorkflowScopeRuleOutput) => ReactElement;
   onAdd: () => void;
+  readOnly?: boolean;
   /** Semantic accent - green for the allow-list, red for the deny-list - for instant scanning. */
   accent: string;
   headerIcon: ReactElement;
@@ -109,7 +112,7 @@ const ScopeColumn = ({
   resolveLabel,
   resolveIcon,
   onAdd,
-  accent,
+  readOnly = false, accent,
   headerIcon,
   infoTooltip,
 }: ScopeColumnProps) => {
@@ -179,7 +182,7 @@ const ScopeColumn = ({
           )}
         </Box>
 
-        <Button size="small" startIcon={<EditOutlined />} onClick={onAdd}>
+        <Button size="small" startIcon={<EditOutlined />} onClick={onAdd} disabled={readOnly}>
           {t('Define')}
         </Button>
       </Box>
@@ -261,7 +264,7 @@ const ScopeColumn = ({
           <Typography variant="body2" sx={{ color: 'text.disabled' }}>
             {t('Nothing added yet.')}
           </Typography>
-          <Button size="small" startIcon={<EditOutlined />} onClick={onAdd}>
+          <Button size="small" startIcon={<EditOutlined />} onClick={onAdd} disabled={readOnly}>
             {t('Define')}
           </Button>
         </Box>
@@ -270,7 +273,7 @@ const ScopeColumn = ({
   );
 };
 
-const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
+const ScopeRules = ({ workflowId, workflowConfiguration, onUpdate, readOnly = false }: ScopeRulesProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -291,6 +294,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
   const [initialCustomRules, setInitialCustomRules] = useState<ScopeCustomRule[]>([]);
 
   const handleOpenDrawer = (mode: ScopeMode) => {
+    if (readOnly) return;
     setDrawerMode(mode);
 
     // Pre-populate with existing rules for the given mode
@@ -484,6 +488,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
         resolveLabel={resolveLabel}
         resolveIcon={resolveIcon}
         onAdd={() => handleOpenDrawer('ALLOWLIST')}
+        readOnly={readOnly}
         accent={theme.palette.success.main}
         headerIcon={<TaskAltOutlined fontSize="small" />}
       />
@@ -494,6 +499,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
         resolveLabel={resolveLabel}
         resolveIcon={resolveIcon}
         onAdd={() => handleOpenDrawer('DENYLIST')}
+        readOnly={readOnly}
         accent={theme.palette.error.main}
         headerIcon={<BlockOutlined fontSize="small" />}
         infoTooltip={t('Entries in the deny list always take priority over those in the allow list.')}
@@ -505,6 +511,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
         title={drawerTitle}
       >
         <ScopeForm
+          workflowId={workflowId}
           mode={drawerMode}
           selectedEndpointIds={selectedEndpointIds}
           selectedAssetGroupIds={selectedAssetGroupIds}

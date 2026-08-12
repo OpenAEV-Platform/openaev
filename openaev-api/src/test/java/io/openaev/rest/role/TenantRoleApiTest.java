@@ -1,5 +1,6 @@
 package io.openaev.rest.role;
 
+import static io.openaev.rest.exception.PrivilegeGrantException.UNHELD_CAPABILITIES;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -52,7 +53,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("Analyst")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS, Capability.ACCESS_CHALLENGES))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
               .build();
 
       // -------- Act --------
@@ -72,7 +73,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       assertNotNull(JsonPath.read(response, "$.role_id"));
       assertEquals("Analyst", JsonPath.read(response, "$.role_name"));
       List<String> caps = JsonPath.read(response, "$.role_capabilities");
-      assertTrue(caps.contains(Capability.ACCESS_ASSETS.name()));
+      assertTrue(caps.contains(Capability.MANAGE_TENANT_SETTINGS.name()));
     }
 
     @Test
@@ -94,6 +95,91 @@ public class TenantRoleApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName("Given MANAGE_TENANT_SETTINGS, should be forbidden to assign unowned capabilities")
+    void given_manageTenantSettings_should_forbidCreateWithUnownedCapabilities() throws Exception {
+      // -------- Arrange --------
+      RoleInput input =
+          RoleInput.builder()
+              .name("Forbidden")
+              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .build();
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              post(tenantUri("/api/tenants/{tenantId}/roles"))
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName(
+        "Given MANAGE_TENANT_SETTINGS, the rejection should name the capabilities that cannot be granted")
+    void given_manageTenantSettings_should_nameUnownedCapabilitiesInError() throws Exception {
+      // -------- Arrange --------
+      RoleInput input =
+          RoleInput.builder()
+              .name("Forbidden")
+              .capabilities(
+                  Set.of(
+                      Capability.MANAGE_TENANT_SETTINGS,
+                      Capability.ACCESS_ASSETS,
+                      Capability.ACCESS_CHALLENGES))
+              .build();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  post(tenantUri("/api/tenants/{tenantId}/roles"))
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      // Capabilities come back as keys, not prose, so the client can translate them.
+      assertEquals(UNHELD_CAPABILITIES, JsonPath.read(response, "$.message"));
+      List<String> refused = JsonPath.read(response, "$.errors.children.message.errors");
+      assertTrue(refused.contains(Capability.ACCESS_ASSETS.name()));
+      assertTrue(refused.contains(Capability.ACCESS_CHALLENGES.name()));
+      assertFalse(refused.contains(Capability.MANAGE_TENANT_SETTINGS.name()));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName(
+        "Given MANAGE_TENANT_SETTINGS, no role should be persisted when the grant is refused")
+    void given_manageTenantSettings_should_notPersistRefusedRole() throws Exception {
+      // -------- Arrange --------
+      RoleInput input =
+          RoleInput.builder()
+              .name("NeverPersisted")
+              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .build();
+
+      // -------- Act --------
+      mvc.perform(
+              post(tenantUri("/api/tenants/{tenantId}/roles"))
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      // -------- Assert --------
+      assertTrue(
+          roleRepository.findAll().stream().noneMatch(r -> "NeverPersisted".equals(r.getName())));
     }
   }
 
@@ -233,7 +319,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("NewName")
-              .capabilities(Set.of(Capability.ACCESS_CHALLENGES))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
               .build();
 
       // -------- Act --------
@@ -255,20 +341,46 @@ public class TenantRoleApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("Given MANAGE_TENANT_SETTINGS, should return 404 when updating nonexistent role")
-    void given_manageTenantSettings_should_return404() throws Exception {
+    @DisplayName(
+        "Given a tenant role polluted with a platform-only capability, update should drop it"
+            + " instead of rejecting the payload")
+    void given_pollutedTenantRole_should_dropOutOfScopeCapabilityOnUpdate() throws Exception {
       // -------- Arrange --------
-      RoleInput input =
-          RoleInput.builder().name("test").capabilities(Set.of(Capability.ACCESS_ASSETS)).build();
+      Role role =
+          tenantRoleComposer
+              .forRole(
+                  TenantRoleFixture.getRole(
+                      "Polluted",
+                      Set.of(Capability.ACCESS_ASSETS, Capability.ACCESS_PLATFORM_SETTINGS)))
+              .persist()
+              .get();
 
-      // -------- Act & Assert --------
-      mvc.perform(
-              put(tenantUri("/api/tenants/{tenantId}/roles/") + "nonexistent")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isNotFound());
+      RoleInput input =
+          RoleInput.builder()
+              .name("Healed")
+              .capabilities(
+                  Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_PLATFORM_SETTINGS))
+              .build();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  put(tenantUri("/api/tenants/{tenantId}/roles/") + role.getId())
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> caps = JsonPath.read(response, "$.role_capabilities");
+      assertFalse(
+          caps.contains(Capability.ACCESS_PLATFORM_SETTINGS.name()),
+          "the platform-only capability should have been dropped");
+      assertTrue(caps.contains(Capability.MANAGE_TENANT_SETTINGS.name()));
     }
 
     @Test
@@ -296,6 +408,34 @@ public class TenantRoleApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName(
+        "Given MANAGE_TENANT_SETTINGS, should be forbidden to update with unowned capabilities")
+    void given_manageTenantSettings_should_forbidUpdateWithUnownedCapabilities() throws Exception {
+      // -------- Arrange --------
+      Role role =
+          tenantRoleComposer
+              .forRole(TenantRoleFixture.getRole("NotUpdatable", Set.of(Capability.ACCESS_ASSETS)))
+              .persist()
+              .get();
+
+      RoleInput input =
+          RoleInput.builder()
+              .name("Forbidden")
+              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .build();
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(tenantUri("/api/tenants/{tenantId}/roles/") + role.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
     }
   }
 
@@ -433,7 +573,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("Isolated Role")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
               .build();
 
       String createResponse =
@@ -483,7 +623,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("Update Isolation Role")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
               .build();
 
       String createResponse =
@@ -504,7 +644,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput updateInput =
           RoleInput.builder()
               .name("Hijacked Role")
-              .capabilities(Set.of(Capability.ACCESS_CHALLENGES))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
               .build();
 
       int status =
@@ -541,7 +681,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("Delete Isolation Role")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
               .build();
 
       String createResponse =

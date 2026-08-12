@@ -75,7 +75,12 @@ class AuditLoggerRoleTest extends IntegrationTest {
   class AdminRoleManagement {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_SETTINGS,
+          Capability.MANAGE_ASSESSMENT,
+          Capability.MANAGE_ASSETS
+        })
     void given_roleCapabilityLifecycle_should_logAdministrationEventsWithReadableCapabilityDiff()
         throws Exception {
       // -- ARRANGE --

@@ -2,9 +2,9 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Role;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -18,7 +18,7 @@ public interface RoleRepository
 
   Optional<Role> findByIdAndTenantId(String id, String tenantId);
 
-  List<Role> findAllByTenantId(String tenantId);
+  List<Role> findAllByIdInAndTenantId(Collection<String> ids, String tenantId);
 
-  long countByIdIn(Set<String> ids);
+  List<Role> findAllByTenantId(String tenantId);
 }

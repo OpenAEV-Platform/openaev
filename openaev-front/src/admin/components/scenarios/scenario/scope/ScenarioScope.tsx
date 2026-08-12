@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 
 import type { WorkflowConfigurationHelper } from '../../../../../actions/chaining/workflow-helper';
@@ -7,6 +7,7 @@ import type { ScenariosHelper } from '../../../../../actions/scenarios/scenario-
 import { useHelper } from '../../../../../store';
 import { type HealthCheck, type Scenario } from '../../../../../utils/api-types';
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
+import { PermissionsContext } from '../../../common/Context';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
 
 interface Props {
@@ -28,6 +29,8 @@ const ScenarioScope = ({ readOnly = false, autonomousTimeoutSeconds }: Props) =>
     }),
   );
 
+  const { permissions } = useContext(PermissionsContext);
+
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
 
   useEffect(() => {
@@ -39,6 +42,10 @@ const ScenarioScope = ({ readOnly = false, autonomousTimeoutSeconds }: Props) =>
   // The empty-scope shortfall is already surfaced in the hero; drop the duplicate inline banner.
   const visibleHealthchecks = healthchecks.filter(healthcheck => healthcheck.type !== 'SCOPE_DEFINITION');
 
+  // Read-only for an autonomous run (readOnly prop) or for a user without the manage permission.
+  // Scenario scopes are never frozen, so no read-only banner is shown: we just hide the actions.
+  const isReadOnly = readOnly || !permissions.canManage;
+
   return (
     <div>
       {!!visibleHealthchecks.length && (
@@ -49,7 +56,7 @@ const ScenarioScope = ({ readOnly = false, autonomousTimeoutSeconds }: Props) =>
       )}
       <ScopeDefinition
         workflowId={scenario.scenario_workflow_id}
-        readOnly={readOnly}
+        readOnly={isReadOnly}
         autonomous={readOnly}
         autonomousTimeoutSeconds={autonomousTimeoutSeconds}
       />

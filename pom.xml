@@ -30,7 +30,7 @@
         <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
         <pyroscope.version>2.9.0</pyroscope.version>
         <spring-security-crypto.version>6.5.11</spring-security-crypto.version>
-        <bouncycastle.version>1.85</bouncycastle.version>
+        <bouncycastle.version>1.85.2</bouncycastle.version>
         <jackson-bom.version>2.21.5</jackson-bom.version>
         <netty.version>4.1.136.Final</netty.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
@@ -38,6 +38,7 @@
         <tomcat.version>10.1.56</tomcat.version>
         <!-- Override Spring Boot BOM: httpcore5-h2 HTTP/2 HPACK DoS CVE-2026-54428 -->
         <httpcore5.version>5.4.3</httpcore5.version>
+        <velocity-engine-core.version>2.4.1</velocity-engine-core.version>
     </properties>
 
     <distributionManagement>
@@ -122,6 +123,13 @@
                 <groupId>org.eclipse.parsson</groupId>
                 <artifactId>parsson</artifactId>
                 <version>1.1.9</version>
+            </dependency>
+            <!-- opensaml-saml-impl pulls velocity-engine-core 2.3.x, which shades commons-io 2.8.0 and triggers
+                 CVE-2024-47554 in dependency scanning (not exploitable here: XmlStreamReader absent). Velocity 2.4.x removes the shaded commons-io. -->
+            <dependency>
+                <groupId>org.apache.velocity</groupId>
+                <artifactId>velocity-engine-core</artifactId>
+                <version>${velocity-engine-core.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

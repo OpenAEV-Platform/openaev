@@ -3,6 +3,7 @@ import {
   BugReportOutlined,
   CleaningServicesOutlined,
   CodeOutlined,
+  DataObjectOutlined,
   DomainOutlined,
   GroupsOutlined,
   InfoOutlined,
@@ -56,6 +57,7 @@ import expectationIconByType, { expectationTypeColor } from '../common/Expectati
 import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
+import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 
@@ -81,6 +83,11 @@ interface Props {
   // Security platform types expected to fulfil each technical expectation
   // (empty/absent = any security platform).
   expectedSecurityPlatforms?: Record<string, string[]>;
+  // Output/finding types this action can produce (ContractOutputType labels).
+  // Empty/absent means the action produces no parsed output - it will not feed
+  // findings into a chained scenario. Surfaced so authors and the orchestrator
+  // can tell, at a glance, whether an action is useful in a findings-driven chain.
+  providing?: string[];
   // Optional override for the Redux documents map, for hosts (e.g. the inject
   // update drawer) that fetch the payload documents ad hoc instead of loading
   // the whole store.
@@ -93,6 +100,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   payload,
   expectations,
   expectedSecurityPlatforms,
+  providing,
   documentsMap: documentsMapOverride,
   loading,
 }) => {
@@ -508,6 +516,45 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               </Tooltip>
             ))}
           </Box>
+        </Section>
+      )}
+
+      {providing !== undefined && (
+        <Section title={t('Outputs')} icon={<DataObjectOutlined fontSize="small" />}>
+          {providing.length > 0
+            ? (
+                <Box sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                }}
+                >
+                  {providing.map(type => (
+                    <Box
+                      key={type}
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        paddingBlock: 0.5,
+                        paddingInline: 1,
+                        borderRadius: 1,
+                        border: `1px solid ${alpha(theme.palette.success.main, 0.4)}`,
+                        backgroundColor: alpha(theme.palette.success.main, 0.08),
+                        color: theme.palette.success.main,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {t(ContractOutputElementType[type as keyof typeof ContractOutputElementType] ?? type)}
+                    </Box>
+                  ))}
+                </Box>
+              )
+            : (
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {t('This action does not produce any finding. It cannot feed a findings-based chained scenario.')}
+                </Typography>
+              )}
         </Section>
       )}
 

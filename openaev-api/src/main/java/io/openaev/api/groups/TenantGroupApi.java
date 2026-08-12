@@ -84,7 +84,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceType = ResourceType.USER_GROUP)
   public Group updateGroupUsers(
       @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
-    return tenantGroupService.updateUsers(groupId, input);
+    return tenantGroupService.updateGroupUsers(groupId, input);
   }
 
   @LogExecutionTime

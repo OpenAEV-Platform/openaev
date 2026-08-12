@@ -64,17 +64,21 @@ import {
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
+import useAuth from '../../../../utils/hooks/useAuth';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousRunConfigDrawer from '../../autonomous/AutonomousRunConfigDrawer';
 import AutonomousRunControls from '../../autonomous/AutonomousRunControls';
 import AutonomousRunStatusChip from '../../autonomous/AutonomousRunStatusChip';
 import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/autonomousStatus';
 import { DEFAULT_TIMEOUT_HOURS } from '../../autonomous/useAutonomousRunConfig';
+import EEChip from '../../common/entreprise_edition/EEChip';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -115,7 +119,13 @@ const ScenarioHeader = ({
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const [openScenarioAssistantQueryParam, openAiBuilderQueryParam, openAiLaunchQueryParam] = useQueryParameter(['openScenarioAssistant', 'openAiBuilder', 'openAiLaunch']);
-  const { canLaunch, canManage } = useScenarioPermissions(scenarioId);
+  const { canLaunch, canManage, canDelete } = useScenarioPermissions(scenarioId);
+  const { settings } = useAuth();
+  const {
+    isValidated: isEnterpriseEdition,
+    openDialog: openEnterpriseEditionDialog,
+    setEEFeatureDetectedInfo,
+  } = useEnterpriseEdition();
 
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openScheduling, setOpenScheduling] = useState(false);
@@ -156,6 +166,19 @@ const ScenarioHeader = ({
       : saved);
     setAiDrawerIntent(intent);
     setAiDrawerOpen(true);
+  };
+
+  // EE-aware entry point for both AI actions (Autonomous launch + AI builder): on a non-Enterprise
+  // platform they degrade to the standard EE call-to-action (the same dialog + feature label the
+  // creation drawer raises) instead of opening the config drawer. XTM One availability is enforced
+  // at render (the buttons are not shown without it), so this only arbitrates the EE gate.
+  const openAiDrawerOrEE = (intent: 'build' | 'launch') => {
+    if (!isEnterpriseEdition) {
+      setEEFeatureDetectedInfo(t('Autonomous attack path'));
+      openEnterpriseEditionDialog();
+      return;
+    }
+    void openAiDrawer(intent);
   };
 
   // Preserve the deep link that used to open the assistant drawer: it now
@@ -205,6 +228,12 @@ const ScenarioHeader = ({
   // orchestrator, gated by the same chaining feature. Time-based scenarios only ever launch a normal
   // simulation.
   const isAutonomousModeEnabled = isScenarioChaining;
+  // The Autonomous launch + AI builder are XTM One-driven Enterprise features, so they are gated
+  // exactly like the top-bar AI shortcuts (hidden unless XTM One is connected, via the shared
+  // isXtmOneAvailable predicate) AND like the scenario creation drawer (a standard EE call-to-action
+  // when the platform is not Enterprise). Previously they were gated only on chaining, so they showed
+  // even with no XTM One available and led nowhere.
+  const isXtmOneReady = isXtmOneAvailable(settings);
   // A run is "active" while the orchestrator is planning or driving: the hero then shows lifecycle
   // controls (pause / resume / stop) instead of the launch actions, and the page hosts the cockpit.
   // A settled run (PLANNED / completed) leaves the launch actions available again so the operator can
@@ -219,22 +248,24 @@ const ScenarioHeader = ({
   // once, then strip the query param so a refresh / back does not reopen it. Only for a chained
   // scenario the operator can manage and while no run already owns it.
   useEffect(() => {
-    if (openAiBuilderQueryParam === 'true' && canManage && isAutonomousModeEnabled && !isRunActive) {
+    if (openAiBuilderQueryParam === 'true' && canManage && isAutonomousModeEnabled && !isRunActive && isXtmOneReady && isEnterpriseEdition) {
       void openAiDrawer('build');
       navigate(location.pathname, { replace: true });
     }
-  }, [openAiBuilderQueryParam, canManage, isAutonomousModeEnabled, isRunActive, scenarioId]);
+  }, [openAiBuilderQueryParam, canManage, isAutonomousModeEnabled, isRunActive, isXtmOneReady, isEnterpriseEdition, scenarioId]);
 
   // Deep link from the overview "no run yet" banner (Autonomous button): open the launch config
   // drawer so the operator configures the objective / agents / scope, then launches the live run.
   // The header owns the drawer (single control surface), so the banner just routes here. Strip the
-  // param after so a refresh / back does not reopen it.
+  // param after so a refresh / back does not reopen it. Gated on canLaunch (not canManage) to match
+  // the two surfaces that produce this link - the overview Autonomous CTA and the hero Autonomous
+  // button - both launch-permission surfaces; the builder deep link above stays manage-gated.
   useEffect(() => {
-    if (openAiLaunchQueryParam === 'true' && canManage && isAutonomousModeEnabled && !isRunActive) {
+    if (openAiLaunchQueryParam === 'true' && canLaunch && isAutonomousModeEnabled && !isRunActive && isXtmOneReady && isEnterpriseEdition) {
       void openAiDrawer('launch');
       navigate(location.pathname, { replace: true });
     }
-  }, [openAiLaunchQueryParam, canManage, isAutonomousModeEnabled, isRunActive, scenarioId]);
+  }, [openAiLaunchQueryParam, canLaunch, isAutonomousModeEnabled, isRunActive, isXtmOneReady, isEnterpriseEdition, scenarioId]);
 
   const { workflowConfiguration } = useHelper((helper: WorkflowConfigurationHelper) => ({
     workflowConfiguration: scenarioWorkflowId
@@ -246,6 +277,9 @@ const ScenarioHeader = ({
   const scenarioPopoverActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = isScenarioChaining
     ? ['Update', 'Delete', 'Export']
     : ['Duplicate', 'Update', 'Delete', 'Export'];
+  // Grant-only users without any of the manage / launch / delete permissions get no overflow menu
+  // at all instead of a popover full of disabled entries.
+  const canDisplayScenarioActions = canManage || canLaunch || canDelete;
   const isScopeMissing = isScenarioChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
@@ -534,28 +568,41 @@ const ScenarioHeader = ({
             </Button>
           </Box>
         </Tooltip>
-        <Tooltip title={isRunSettled
-          ? t('Relaunch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')
-          : t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}
-        >
-          <Box component="span" sx={{ display: 'inline-flex' }}>
-            <Button
-              startIcon={<AutoAwesome />}
-              variant="contained"
-              size="small"
-              onClick={() => openAiDrawer('launch')}
-              data-testid="scenario-launch-autonomous-button"
+        {/* Autonomous is an XTM One-driven EE feature: hidden entirely when XTM One is unavailable
+            (only Normal remains), and shown as an EE call-to-action when the platform is not
+            Enterprise (the EE chip + the dialog raised by openAiDrawerOrEE). */}
+        {isXtmOneReady && (
+          <Tooltip title={isRunSettled
+            ? t('Relaunch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')
+            : t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}
+          >
+            <Box
+              component="span"
               sx={{
-                'whiteSpace': 'nowrap',
-                'backgroundColor': theme.palette.ai.main,
-                'color': theme.palette.ai.contrastText,
-                '&:hover': { backgroundColor: theme.palette.ai.dark },
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
               }}
             >
-              {t('Autonomous')}
-            </Button>
-          </Box>
-        </Tooltip>
+              <Button
+                startIcon={<AutoAwesome />}
+                variant="contained"
+                size="small"
+                onClick={() => openAiDrawerOrEE('launch')}
+                data-testid="scenario-launch-autonomous-button"
+                sx={{
+                  'whiteSpace': 'nowrap',
+                  'backgroundColor': theme.palette.ai.main,
+                  'color': theme.palette.ai.contrastText,
+                  '&:hover': { backgroundColor: theme.palette.ai.dark },
+                }}
+              >
+                {t('Autonomous')}
+              </Button>
+              {!isEnterpriseEdition && <EEChip />}
+            </Box>
+          </Tooltip>
+        )}
       </>
     );
   } else {
@@ -734,15 +781,25 @@ const ScenarioHeader = ({
                   Saves it for later or Builds it now (the orchestrator authors the attack path onto
                   this scenario, nothing executed). Hidden while a run is active (its lifecycle
                   controls own the hero then). */}
-              {canManage && isAutonomousModeEnabled && !isRunActive && (
+              {/* AI builder: an XTM One-driven EE feature, gated like the Autonomous button - hidden
+                  unless XTM One is available, and an EE call-to-action (EE chip + EE dialog via
+                  openAiDrawerOrEE) when the platform is not Enterprise. */}
+              {canManage && isAutonomousModeEnabled && !isRunActive && isXtmOneReady && (
                 <Tooltip title={isRunSettled
                   ? t('Rebuild with AI - re-author this scenario\'s logic (this wipes the current logic map and starts fresh)')
                   : t('AI builder - let the orchestrator author this scenario\'s logic; save it for later or build it now (nothing runs while building)')}
                 >
-                  <Box component="span" sx={{ display: 'inline-flex' }}>
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                    }}
+                  >
                     <IconButton
                       size="small"
-                      onClick={() => openAiDrawer('build')}
+                      onClick={() => openAiDrawerOrEE('build')}
                       aria-label={isRunSettled ? t('Rebuild with AI') : t('AI builder')}
                       data-testid="scenario-plan-with-ai-button"
                       sx={{
@@ -755,18 +812,22 @@ const ScenarioHeader = ({
                     >
                       <AutoFixHigh fontSize="small" />
                     </IconButton>
+                    {!isEnterpriseEdition && <EEChip />}
                   </Box>
                 </Tooltip>
               )}
               {/* Launch actions (suppressed while a run is active - the lifecycle controls own the
                   hero then). Resolved into `launchActions` above to avoid nested ternaries here. */}
               {!isRunActive && canLaunch && launchActions}
-              {/* Everything else - analyze, setup, and CRUD - in one overflow menu. */}
-              <ScenarioPopover
-                scenario={scenario}
-                actions={scenarioPopoverActions}
-                onDelete={() => navigate('/admin/scenarios')}
-              />
+              {/* Everything else - analyze, setup, and CRUD - in one overflow menu. Hidden entirely
+                  for grant-only users without any manage / launch / delete permission. */}
+              {canDisplayScenarioActions && (
+                <ScenarioPopover
+                  scenario={scenario}
+                  actions={scenarioPopoverActions}
+                  onDelete={() => navigate('/admin/scenarios')}
+                />
+              )}
             </>
           )}
           stats={(

@@ -29,6 +29,7 @@ import io.openaev.database.specification.ExerciseLogSpecification;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.importer.ImportResult;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -1012,8 +1013,8 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public void exerciseImport(@RequestPart("file") MultipartFile file) throws Exception {
-    importService.handleFileImport(file, null, null);
+  public ImportResult exerciseImport(@RequestPart("file") MultipartFile file) throws Exception {
+    return importService.handleFileImport(file, null, null);
   }
 
   @PostMapping({

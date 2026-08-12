@@ -58,6 +58,7 @@ const Scenarios = () => {
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const [loading, setLoading] = useState<boolean>(true);
+  const [reloadCount, setReloadCount] = useState<number>(0);
 
   // Headers
   const headers = useMemo(() => [
@@ -212,6 +213,7 @@ const Scenarios = () => {
       />
       <PaginationComponentV2
         fetch={search}
+        reloadContentCount={reloadCount}
         searchPaginationInput={searchPaginationInput}
         setContent={setScenarios}
         entityPrefix="scenario"
@@ -232,7 +234,7 @@ const Scenarios = () => {
                 exportProps={exportProps}
               />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-                <ImportUploaderScenario />
+                <ImportUploaderScenario refresh={() => setReloadCount(count => count + 1)} />
               </Can>
             </ToggleButtonGroup>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>

@@ -1,6 +1,7 @@
 package io.openaev.injectors.phishing.service;
 
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForPlayerManualValidation;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForTeamManualValidation;
 import static java.time.Instant.now;
 
 import io.openaev.database.model.BaseInjectExpectation;
@@ -10,19 +11,27 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
+import io.openaev.database.model.TableTopInjectExpectation;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.finding.FindingService;
+import io.openaev.service.InjectExpectationUtils;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,13 +42,23 @@ import org.springframework.transaction.annotation.Transactional;
  * Encapsulates the per-recipient tracking lifecycle of the internal phishing injector: creation of
  * the opaque tracking token when the lure email is sent, and the open/click/submit transitions
  * driven by the public tracking endpoints. Also owns the two side effects those transitions carry -
- * auto-fulfilling the recipient's MANUAL inject expectation (mirroring the article auto-fulfill
- * pattern in {@code ChannelService.validateArticles}) and turning submitted data into a {@code
+ * scoring the recipient's phishing-awareness expectations and turning submitted data into a {@code
  * Credentials} {@link Finding}.
  *
+ * <p><b>Expectation polarity is inverted for phishing.</b> A phishing expectation measures whether
+ * the recipient RESISTED a step (opening the lure, following the link, submitting data). Resisting
+ * is the desired outcome, so each of the three step expectations is pre-scored to its full expected
+ * score at send time - GREEN / "resisted" - by {@link #initializeExpectationsAsResisted(String)}.
+ * The matching transition then flips the step to a zero score - RED / "fell for it" - the moment
+ * the recipient performs it. Because a pre-scored row is no longer {@code score IS NULL}, the
+ * generic expiration collector never touches these rows: a recipient who never interacts simply
+ * keeps the green "resisted" verdict for good, which is exactly the intended "expired means
+ * success" semantics without a bespoke expiration branch.
+ *
  * <p>All methods are tenant-scoped: the executor runs inside the inject execution job (tenant
- * filter set), and the public endpoints set the tenant from the {@code tenantId} path segment
- * before calling in.
+ * filter set), and the public endpoints set the tenant before calling in - {@code HostedPublicApi}
+ * resolves it from the token, while the legacy {@code PhishingPublicApi} routes take it from the
+ * {@code tenantId} path segment.
  */
 @Slf4j
 @Service
@@ -49,6 +68,53 @@ public class PhishingTrackingService {
 
   /** Finding field used for captured credentials (dedup key together with type + value). */
   public static final String CREDENTIALS_FIELD = "phishing_credentials";
+
+  /**
+   * Names of the three phishing-awareness expectation steps. Shared with {@code
+   * PhishingLandingPageService} (which advertises them in the injector contract) so the contract
+   * and the runtime scoring can never drift on which row represents which step.
+   */
+  public static final String STEP_OPENED = "Email opened";
+
+  public static final String STEP_CLICKED = "Phishing link clicked";
+  public static final String STEP_SUBMITTED = "Credentials submitted";
+
+  private static final Set<String> PHISHING_STEP_NAMES =
+      Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED);
+
+  /** Score of a step the recipient fell for (RED). Full expected score is the GREEN "resisted". */
+  private static final double COMPROMISED_SCORE = 0.0;
+
+  /** Result message stamped on a step the recipient never triggered (GREEN). */
+  private static final String NO_INTERACTION_MESSAGE = "No phishing interaction detected";
+
+  /** Result message stamped on a team step whose recomputed verdict is RED ("fell for it"). */
+  private static final String TEAM_COMPROMISED_MESSAGE = "A team member fell for the phishing";
+
+  /**
+   * Result message for a team step that stays GREEN under the "at least one" rule even though some
+   * member fell: "no interaction" would be factually wrong there.
+   */
+  private static final String TEAM_RESISTED_MESSAGE = "At least one team member resisted";
+
+  // Form-field names accepted as the username / password of a submitted credential. Kept broad so a
+  // cloned real-world login form (e.g. Microsoft's "loginfmt", not "username") is still captured.
+  private static final List<String> USERNAME_KEYS =
+      List.of(
+          "username",
+          "email",
+          "user",
+          "login",
+          "loginfmt",
+          "user_name",
+          "userid",
+          "user_id",
+          "identifier",
+          "emailaddress",
+          "e-mail",
+          "account");
+  private static final List<String> PASSWORD_KEYS =
+      List.of("password", "passwd", "pass", "pwd", "passwordinput", "userpassword");
 
   private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -105,6 +171,33 @@ public class PhishingTrackingService {
     return phishingResultRepository.save(result);
   }
 
+  /**
+   * Pre-scores every phishing-awareness expectation of the inject to its full expected score
+   * (GREEN, "resisted"). Called once by the executor right after the expectations are built, before
+   * any lure email is sent, so a recipient starts out having resisted every step. A step is only
+   * flipped to RED later, when the recipient actually performs it. Idempotent: a step that already
+   * carries a result (pre-scored or flipped) is left untouched.
+   */
+  public void initializeExpectationsAsResisted(@NotBlank final String injectId) {
+    injectExpectationRepository.findAllByInjectId(injectId).stream()
+        .filter(PhishingTrackingService::isPhishingStep)
+        .filter(expectation -> hasNoResults(expectation.getResults()))
+        .forEach(
+            expectation -> {
+              boolean team = isTeamRow(expectation);
+              InjectExpectationResult result =
+                  team
+                      ? buildForTeamManualValidation(
+                          NO_INTERACTION_MESSAGE, expectation.getExpectedScore())
+                      : buildForPlayerManualValidation(
+                          NO_INTERACTION_MESSAGE, expectation.getExpectedScore());
+              expectation.setResults(List.of(result));
+              expectation.setScore(expectation.getExpectedScore());
+              expectation.setUpdatedAt(now());
+              injectExpectationRepository.save(expectation);
+            });
+  }
+
   public Optional<PhishingResult> resolveByToken(@NotBlank final String token) {
     return phishingResultRepository.findByToken(token);
   }
@@ -118,7 +211,9 @@ public class PhishingTrackingService {
     return phishingResultRepository.findTenantIdByToken(token);
   }
 
-  /** Marks the email as opened (first open wins) and records request metadata. */
+  /**
+   * Marks the email as opened (first open wins) and flips the "email opened" step to compromised.
+   */
   public Optional<PhishingResult> markOpened(
       @NotBlank final String token, final String ip, final String userAgent) {
     return phishingResultRepository
@@ -129,13 +224,15 @@ public class PhishingTrackingService {
                 result.setOpenedAt(now());
               }
               applyRequestMetadata(result, ip, userAgent);
-              return phishingResultRepository.save(result);
+              PhishingResult saved = phishingResultRepository.save(result);
+              compromiseSteps(saved, Set.of(STEP_OPENED), "Opened the phishing email");
+              return saved;
             });
   }
 
   /**
-   * Marks the tracking link as clicked and auto-fulfills the recipient's MANUAL expectation
-   * (clicking the lure is the "fell for phishing" signal). An open is implied by a click.
+   * Marks the tracking link as clicked and flips the "email opened" and "link clicked" steps to
+   * compromised (loading the landing page implies the email was opened).
    */
   public Optional<PhishingResult> markClicked(
       @NotBlank final String token, final String ip, final String userAgent) {
@@ -151,19 +248,23 @@ public class PhishingTrackingService {
               }
               applyRequestMetadata(result, ip, userAgent);
               PhishingResult saved = phishingResultRepository.save(result);
-              fulfillManualExpectation(saved, "Clicked the phishing link");
+              compromiseSteps(
+                  saved, Set.of(STEP_OPENED, STEP_CLICKED), "Opened the phishing landing page");
               return saved;
             });
   }
 
   /**
    * Records submitted data, captures it as a {@code Credentials} finding (when the landing page is
-   * configured to capture) and fulfills the recipient's MANUAL expectation.
+   * configured to capture) and flips all three steps to compromised (a submit implies open +
+   * click).
+   *
+   * @param fields the raw submitted form fields (field name to value), used both to build the
+   *     credential value and as the completeness record
    */
   public Optional<PhishingResult> markSubmitted(
       @NotBlank final String token,
-      final String username,
-      final String password,
+      final Map<String, String> fields,
       final String ip,
       final String userAgent) {
     return phishingResultRepository
@@ -186,12 +287,13 @@ public class PhishingTrackingService {
               }
               applyRequestMetadata(result, ip, userAgent);
               if (firstSubmit) {
-                captureCredentials(result, username, password);
+                captureCredentials(result, fields);
               }
               PhishingResult saved = phishingResultRepository.save(result);
-              if (firstSubmit) {
-                fulfillManualExpectation(saved, "Submitted data on the phishing page");
-              }
+              compromiseSteps(
+                  saved,
+                  Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED),
+                  "Submitted data on the phishing page");
               return saved;
             });
   }
@@ -206,22 +308,18 @@ public class PhishingTrackingService {
     }
   }
 
-  private void captureCredentials(
-      final PhishingResult result, final String username, final String password) {
+  private void captureCredentials(final PhishingResult result, final Map<String, String> fields) {
     PhishingLandingPage landingPage = result.getLandingPage();
     if (landingPage == null || !landingPage.isCaptureSubmittedData()) {
       return;
     }
-    if (username == null || username.isBlank()) {
-      return;
-    }
     Inject inject = result.getInject();
-    if (inject == null) {
+    if (inject == null || fields == null || fields.isEmpty()) {
       return;
     }
-    String value = username;
-    if (landingPage.isCapturePasswords() && password != null && !password.isBlank()) {
-      value = username + " / " + password;
+    String value = buildCredentialValue(fields, landingPage.isCapturePasswords());
+    if (value == null || value.isBlank()) {
+      return;
     }
     Finding finding = new Finding();
     finding.setType(ContractOutputType.Credentials);
@@ -243,29 +341,185 @@ public class PhishingTrackingService {
   }
 
   /**
-   * Sets the MANUAL expectation of this recipient to its expected score (idempotent: only the first
-   * signal fills it). Mirrors {@code ChannelService.validateArticles} auto-fulfillment.
+   * Builds the credential value stored on the {@code Credentials} finding. Prefers a recognized
+   * username (plus password when capture is enabled). When no field name is recognized - a custom
+   * or cloned login form with atypical field names - it falls back to capturing every non-empty
+   * submitted field so a genuine submission is never silently dropped. Returns {@code null} when
+   * there is nothing to capture.
    */
-  private void fulfillManualExpectation(final PhishingResult result, final String message) {
+  static String buildCredentialValue(
+      final Map<String, String> fields, final boolean capturePasswords) {
+    Map<String, String> lowerKeyed = lowerKeyed(fields);
+    String username = firstNonBlank(lowerKeyed, USERNAME_KEYS);
+    String password = firstNonBlank(lowerKeyed, PASSWORD_KEYS);
+    if (username != null) {
+      return capturePasswords && password != null && !password.isBlank()
+          ? username + " / " + password
+          : username;
+    }
+    String joined =
+        fields.entrySet().stream()
+            .filter(entry -> entry.getValue() != null && !entry.getValue().isBlank())
+            .filter(entry -> capturePasswords || !isPasswordKey(entry.getKey()))
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .collect(Collectors.joining("; "));
+    return joined.isBlank() ? null : joined;
+  }
+
+  private static Map<String, String> lowerKeyed(final Map<String, String> fields) {
+    Map<String, String> lowerKeyed = new LinkedHashMap<>();
+    fields.forEach(
+        (key, value) -> {
+          if (key != null) {
+            lowerKeyed.putIfAbsent(key.toLowerCase(Locale.ROOT), value);
+          }
+        });
+    return lowerKeyed;
+  }
+
+  private static String firstNonBlank(
+      final Map<String, String> lowerKeyed, final List<String> keys) {
+    for (String key : keys) {
+      String value = lowerKeyed.get(key);
+      if (value != null && !value.isBlank()) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  private static boolean isPasswordKey(final String key) {
+    return key != null && PASSWORD_KEYS.contains(key.toLowerCase(Locale.ROOT));
+  }
+
+  /**
+   * Flips the named phishing steps to RED (compromised) for the recipient, then re-derives the
+   * team-level rows of those steps from their player rows.
+   *
+   * <p>The team row is NEVER written directly here: a team's verdict must follow the expectation's
+   * validation rule ({@code expectationGroup}) exactly like every other human expectation. With the
+   * default "all players must validate" rule the team turns RED as soon as one member falls for the
+   * phishing; with "at least one player" it stays GREEN until every member does. Writing the team
+   * row directly (as before) both ignored that rule and left the team stuck GREEN whenever the
+   * recipient's team could not be resolved back on the tracking row - hence a compromised person
+   * next to a green team. Deriving it from the same player rows the rest of the platform uses keeps
+   * person and team consistent by construction. Idempotent per player step - an already-compromised
+   * step keeps its earliest signal.
+   */
+  private void compromiseSteps(
+      final PhishingResult result, final Set<String> stepNames, final String message) {
     User user = result.getUser();
     Inject inject = result.getInject();
     if (user == null || inject == null) {
       return;
     }
-    List<BaseInjectExpectation> expectations =
-        injectExpectationRepository.findAllByInjectAndPlayer(inject.getId(), user.getId());
-    expectations.stream()
+    // findAllByInjectId returns managed entities: the player flips below mutate the very instances
+    // the team recomputation then reads, so it sees the fresh player scores without re-querying.
+    List<BaseInjectExpectation> injectExpectations =
+        injectExpectationRepository.findAllByInjectId(inject.getId());
+    List<BaseInjectExpectation> playerSteps =
+        injectExpectations.stream()
+            .filter(expectation -> isPlayerRowForUser(expectation, user.getId()))
+            .filter(expectation -> matchesSteps(expectation, stepNames))
+            .toList();
+    playerSteps.forEach(expectation -> markCompromised(expectation, message));
+    // Only the recipient's own team(s) can have changed: recomputing every team of the inject
+    // would rewrite unrelated team rows (result text / updatedAt churn) on each click.
+    Set<String> affectedTeamIds =
+        playerSteps.stream()
+            .map(expectation -> ((TableTopInjectExpectation) expectation).getTeam())
+            .filter(Objects::nonNull)
+            .map(team -> team.getId())
+            .collect(Collectors.toSet());
+    if (affectedTeamIds.isEmpty()) {
+      return;
+    }
+    injectExpectations.stream()
+        .filter(PhishingTrackingService::isTeamRow)
+        .filter(expectation -> matchesSteps(expectation, stepNames))
         .filter(
-            expectation -> expectation.getType() == BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)
-        .filter(expectation -> hasNoResults(expectation.getResults()))
-        .forEach(
-            expectation -> {
-              expectation.setResults(
-                  List.of(buildForPlayerManualValidation(message, expectation.getExpectedScore())));
-              expectation.setScore(expectation.getExpectedScore());
-              expectation.setUpdatedAt(now());
-              injectExpectationRepository.save(expectation);
-            });
+            expectation ->
+                expectation instanceof TableTopInjectExpectation teamRow
+                    && teamRow.getTeam() != null
+                    && affectedTeamIds.contains(teamRow.getTeam().getId()))
+        .forEach(teamRow -> recomputeTeamStepFromPlayers(teamRow, injectExpectations));
+  }
+
+  private void markCompromised(final BaseInjectExpectation expectation, final String message) {
+    if (expectation.getScore() != null && expectation.getScore() <= COMPROMISED_SCORE) {
+      return;
+    }
+    expectation.setResults(List.of(buildForPlayerManualValidation(message, COMPROMISED_SCORE)));
+    expectation.setScore(COMPROMISED_SCORE);
+    expectation.setUpdatedAt(now());
+    injectExpectationRepository.save(expectation);
+  }
+
+  /**
+   * Recomputes one team-level phishing step from its player rows, honoring the expectation's
+   * validation rule (all-vs-any) and the inverted phishing polarity, via the same {@link
+   * InjectExpectationUtils#computeChildrenScore} aggregation used for every human expectation. A
+   * team with no player rows, or whose players are all still pending, is left untouched (it keeps
+   * its pre-scored GREEN "resisted" verdict).
+   */
+  private void recomputeTeamStepFromPlayers(
+      final BaseInjectExpectation teamRow, final List<BaseInjectExpectation> injectExpectations) {
+    if (!(teamRow instanceof TableTopInjectExpectation team) || team.getTeam() == null) {
+      return;
+    }
+    String teamId = team.getTeam().getId();
+    List<BaseInjectExpectation> players =
+        injectExpectations.stream()
+            .filter(
+                expectation ->
+                    expectation instanceof TableTopInjectExpectation player
+                        && player.getUser() != null
+                        && player.getTeam() != null
+                        && teamId.equals(player.getTeam().getId())
+                        && Objects.equals(player.getName(), team.getName()))
+            .toList();
+    if (players.isEmpty()) {
+      return;
+    }
+    Double score =
+        InjectExpectationUtils.computeChildrenScore(
+            team.isExpectationGroup(), team.getExpectedScore(), players);
+    if (score == null) {
+      return;
+    }
+    boolean resisted = score >= team.getExpectedScore();
+    boolean anyCompromised =
+        players.stream().anyMatch(p -> p.getScore() != null && p.getScore() <= COMPROMISED_SCORE);
+    String message =
+        resisted
+            ? (anyCompromised ? TEAM_RESISTED_MESSAGE : NO_INTERACTION_MESSAGE)
+            : TEAM_COMPROMISED_MESSAGE;
+    team.setResults(List.of(buildForTeamManualValidation(message, score)));
+    team.setScore(score);
+    team.setUpdatedAt(now());
+    injectExpectationRepository.save(team);
+  }
+
+  private static boolean isPlayerRowForUser(
+      final BaseInjectExpectation expectation, final String userId) {
+    return expectation instanceof TableTopInjectExpectation tableTop
+        && tableTop.getUser() != null
+        && userId.equals(tableTop.getUser().getId());
+  }
+
+  private static boolean matchesSteps(
+      final BaseInjectExpectation expectation, final Set<String> stepNames) {
+    return expectation.getType() == BaseInjectExpectation.EXPECTATION_TYPE.MANUAL
+        && expectation.getName() != null
+        && stepNames.contains(expectation.getName());
+  }
+
+  private static boolean isPhishingStep(final BaseInjectExpectation expectation) {
+    return matchesSteps(expectation, PHISHING_STEP_NAMES);
+  }
+
+  private static boolean isTeamRow(final BaseInjectExpectation expectation) {
+    return expectation instanceof TableTopInjectExpectation tableTop && tableTop.getUser() == null;
   }
 
   private boolean hasNoResults(final List<InjectExpectationResult> results) {

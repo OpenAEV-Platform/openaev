@@ -8,6 +8,7 @@ import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.JpaUtils.*;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
 import co.elastic.clients.util.TriConsumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -23,6 +24,7 @@ import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.injector_contract.Contract;
@@ -106,6 +108,7 @@ public class InjectorContractService implements DependenciesManager {
   private final InjectorService injectorService;
   private final OrganizationService organizationService;
   private final InjectIndexCleanupService injectIndexCleanupService;
+  private final StepRepository stepRepository;
 
   private final List<String> listDefaultInjectorContract =
       List.of(
@@ -140,6 +143,30 @@ public class InjectorContractService implements DependenciesManager {
         .findByIdOrExternalId(id, id)
         // User-facing wording: the entity is exposed as "threat arsenal item" everywhere.
         .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+  }
+
+  /**
+   * Retrieves an injector contract by ID, only if it is referenced by one of the given workflow's
+   * steps.
+   *
+   * <p>Chaining steps do not persist their inject before execution (the inject is serialized into
+   * {@code step_data}), so contracts used by a chaining simulation/scenario cannot be resolved
+   * through the injects of the parent simulation or scenario. This workflow-scoped lookup covers
+   * both chaining contexts, and the caller's permission is checked on the workflow's parent
+   * simulation or scenario.
+   *
+   * @param injectorContractId the injector contract ID
+   * @param workflowId the ID of the workflow the contract must be referenced by
+   * @return the injector contract
+   * @throws ElementNotFoundException if not found or not referenced by the workflow
+   */
+  public InjectorContract injectorContractForWorkflow(
+      @NotBlank final String injectorContractId, @NotBlank final String workflowId) {
+    if (!stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+        workflowId, injectorContractId)) {
+      throw new ElementNotFoundException("Threat arsenal item not found");
+    }
+    return injectorContract(injectorContractId);
   }
 
   // -- OTHERS --
@@ -472,11 +499,16 @@ public class InjectorContractService implements DependenciesManager {
 
   public InjectorContract updateInjectorContractTTPDomainsAndTags(
       InjectorContract injectorContract, InjectorContractUpdateMappingInput input) {
+    // Callers converting threat arsenal action inputs can carry null id collections
+    // (the action DTO fields are nullable); treat an absent collection as "no associations"
+    // instead of failing on new HashSet<>(null) / findAllById(null).
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
-            new HashSet<>(input.getAttackPatternsIds())));
-    injectorContract.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    injectorContract.setDomains(iterableToSet(domainService.findAllById(input.getDomainIds())));
+            new HashSet<>(emptyIfNull(input.getAttackPatternsIds()))));
+    injectorContract.setTags(
+        iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
+    injectorContract.setDomains(
+        iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
@@ -793,14 +825,22 @@ public class InjectorContractService implements DependenciesManager {
     return map;
   }
 
+  /**
+   * Common GROUP BY for the tuple projections: one group (hence one row) per contract. Only the
+   * selected scalar keys are grouped; the injector join is deliberately excluded because it is
+   * either aggregated in the projection (least(type), array_agg(id/name)) or added explicitly by
+   * the selector ({@code selectForInjectorContractThreatArsenalContent} groups by the selected
+   * injector type and name). Grouping by the unselected injector id would split a contract linked
+   * to several injectors into one identical projected row per link, making page content disagree
+   * with the distinct count.
+   */
   private List<Expression<?>> getCommonGroupBy(
       @NotNull final Root<InjectorContract> injectorContractRoot,
       @NotNull InjectorContractQueryContext ctx) {
     return Arrays.asList(
         injectorContractRoot.get("compositeId"),
         ctx.payloadJoin().get("id"),
-        ctx.payloadCollectorTypeJoin().get("id"),
-        ctx.injectorJoin().get("id"));
+        ctx.payloadCollectorTypeJoin().get("id"));
   }
 
   /**

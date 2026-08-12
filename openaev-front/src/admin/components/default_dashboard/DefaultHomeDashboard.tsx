@@ -8,7 +8,7 @@ import { useLocalStorage } from 'usehooks-ts';
 import { fetchSecurityPlatforms } from '../../../actions/assets/securityPlatform-actions';
 import { adHocAverage, adHocCount, adHocEntities, adHocEntitiesRuntime, adHocSeries } from '../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../components/i18n';
-import { type CustomDashboard, type Widget, type WidgetToEntitiesInput } from '../../../utils/api-types';
+import { type CustomDashboard, type EsSeries, type Widget, type WidgetToEntitiesInput } from '../../../utils/api-types';
 import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
@@ -18,6 +18,7 @@ import CustomDashboardReactLayout from '../workspaces/custom_dashboards/CustomDa
 import { getTimeRangeItems } from '../workspaces/custom_dashboards/widgets/configuration/common/TimeRangeUtils';
 import {
   buildDefaultHomeWidgets,
+  buildHumanResponseProbeConfig,
   type DefaultTimeRange,
   PLATFORM_DEFAULT_DASHBOARD_ID,
 } from './defaultHomeWidgets';
@@ -51,6 +52,30 @@ const DefaultHomeDashboard = () => {
   const [timeRange, setTimeRange] = useLocalStorage<DefaultTimeRange>('default-home-dashboard-time-range', 'LAST_QUARTER');
   const [refreshCount, setRefreshCount] = useState(0);
 
+  // "Human Response" is situational (manual/article/challenge expectations, e.g.
+  // phishing), so - like the command center's human node - the gauge is mounted
+  // only when there is data in range, never as a sample-only card. Probe the same
+  // config the gauge queries; default hidden so an empty range never flashes it.
+  // The gauge occupies a RESERVED 4th slot (see defaultHomeWidgets GAUGE_WIDTH):
+  // the three core gauges never move whether or not it is present, so it can arrive
+  // late (after this probe resolves) without reflowing them onto a second row.
+  const [humanResponsePresent, setHumanResponsePresent] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    limitWidgetQueries(() => adHocSeries(buildHumanResponseProbeConfig(timeRange)))
+      .then((response: { data?: EsSeries[] }) => {
+        if (cancelled) return;
+        const hasData = (response?.data ?? []).some(serie => (serie.data ?? []).some(bucket => (bucket.value ?? 0) > 0));
+        setHumanResponsePresent(hasData);
+      })
+      .catch(() => {
+        if (!cancelled) setHumanResponsePresent(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [timeRange, refreshCount]);
+
   // Massive operations no longer stream one event per deleted entity (which used to force a
   // widget refresh per delete): refresh the engine-backed widgets once per finished operation,
   // after a short delay so the search engine has flushed the deletions. Only INCREASES after
@@ -73,7 +98,7 @@ const DefaultHomeDashboard = () => {
   // context value and refetches all ~20 widgets (same rule as DefaultHomeResults).
   // `locale` is the stable signal that t's output actually changed, so a runtime
   // language switch still recomputes the titles (one refetch, but only then).
-  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t), [timeRange, locale]);
+  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t, humanResponsePresent), [timeRange, locale, humanResponsePresent]);
 
   const widgetById = useMemo(() => {
     const map = new Map<string, Widget>();
@@ -209,7 +234,14 @@ const DefaultHomeDashboard = () => {
           </IconButton>
         </Tooltip>
       </div>
-      <CustomDashboardReactLayout readOnly />
+      {/*
+        Remount the grid when the gauge count changes. react-grid-layout keeps the
+        internal layout of already-mounted children and ignores width changes, so
+        flipping 3 gauges (w=4) <-> 4 gauges (w=3) in place would leave the core
+        gauges at their old width and strand Human Response on a second row. A fresh
+        mount re-reads every gauge's width, so each state fills the row evenly.
+      */}
+      <CustomDashboardReactLayout key={`default-grid-hr-${humanResponsePresent}`} readOnly />
     </CustomDashboardContext.Provider>
   );
 };

@@ -110,6 +110,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
           payload={selectedPayload}
           expectations={fullOutput?.action_expectations}
           expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
+          providing={fullOutput?.action_providing}
           loading={loading}
         />
       )}

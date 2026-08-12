@@ -1137,8 +1137,10 @@ export interface AttackPathNodeDTO {
   ip?: string;
   isFinding?: boolean;
   label?: string;
+  payloadCollectorType?: string;
   payloadId?: string;
   payloadName?: string;
+  payloadType?: string;
   platform?: string;
   privilege?: string;
   ref?: string;
@@ -1959,6 +1961,7 @@ interface BasePayloadCreateInput {
   payload_detection_remediations?: DetectionRemediationInput[];
   /** Set list of domains */
   payload_domains: string[];
+  payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
     | "ARTICLE"
@@ -5865,6 +5868,10 @@ export interface ImportPostSummary {
   import_id: string;
 }
 
+export interface ImportResult {
+  missingActions?: MissingImportedAction[];
+}
+
 export interface ImportTestSummary {
   import_message?: ImportMessage[];
   injects?: InjectOutput[];
@@ -7454,6 +7461,11 @@ export interface MapperConditionOutput {
   )[];
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
+}
+
+export interface MissingImportedAction {
+  name?: string;
+  type?: string;
 }
 
 export interface Mitigation {
@@ -11994,6 +12006,33 @@ export interface ThreatArsenalActionFullOutput {
   )[];
   /** Prerequisites required before action execution */
   action_prerequisites?: PayloadPrerequisite[];
+  /** Output/finding types this action can produce (empty = the action produces no parsed output). Derived from the payload output parsers or, for native injectors without a payload, from the contract content outputs. */
+  action_providing?: (
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature"
+  )[];
   /** Action source origin */
   action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   /** Current action lifecycle status */
@@ -12905,6 +12944,17 @@ export interface WorkflowConfigurationOutput {
   workflow_scope_variables?: ScopeVariableOutput[];
   /** Connected security platforms frozen at launch (launched simulation only; empty for draft / scenario, where the frontend resolves the tenant's platforms live). */
   workflow_security_platforms?: SecurityPlatformSnapshotOutput[];
+}
+
+/** Injector contract referenced by a workflow step, exposed for the logic screen. Only the fields needed to render the action form are returned. */
+export interface WorkflowInjectorContractOutput {
+  /** Injector contract content (serialized fields) */
+  injector_contract_content?: string;
+  /**
+   * Injector contract Id
+   * @minLength 1
+   */
+  injector_contract_id: string;
 }
 
 export interface WorkflowScopeRule {

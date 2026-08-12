@@ -5,9 +5,14 @@ import static io.openaev.utils.JsonUtils.gson;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.asset.endpoint.form.EndpointOutput;
+import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
+import io.openaev.service.EndpointService;
 import io.openaev.utils.IpAddressUtils;
+import io.openaev.utils.mapper.AssetGroupMapper;
+import io.openaev.utils.mapper.EndpointMapper;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +27,95 @@ public class ScopeService {
   private final AssetGroupService assetGroupService;
   private final WorkflowStateService workflowStateService;
   private final TeamRepository teamRepository;
+  private final EndpointService endpointService;
+  private final EndpointMapper endpointMapper;
+  private final AssetGroupMapper assetGroupMapper;
+
+  /**
+   * Returns the endpoints explicitly listed in the workflow scope rules ({@code ASSET_ID} rules),
+   * whatever the rule mode.
+   *
+   * <p>Denylisted assets are included on purpose: the scope screen has to label both the allow and
+   * the deny column. This is the workflow-scoped counterpart of {@code GET /api/endpoints}, so a
+   * user granted on the parent simulation/scenario can read them without the global asset
+   * capabilities.
+   *
+   * @param workflowId the workflow whose scope rules are read
+   * @return the endpoints referenced by the scope rules
+   */
+  public List<EndpointOutput> getScopeEndpoints(final String workflowId) {
+    Set<String> assetIds = collectScopeRuleValues(workflowId, ScopeRuleValueType.ASSET_ID);
+    return resolveEndpoints(assetIds);
+  }
+
+  /**
+   * Same as {@link #getScopeEndpoints(String)} but restricted to the requested IDs. IDs that are
+   * not part of the workflow scope rules are silently ignored so the endpoint cannot be used to
+   * read arbitrary assets.
+   *
+   * @param workflowId the workflow whose scope rules are read
+   * @param endpointIds the endpoint IDs to resolve
+   * @return the matching endpoints
+   */
+  public List<EndpointOutput> getScopeEndpointsByIds(
+      final String workflowId, final List<String> endpointIds) {
+    Set<String> allowedIds = collectScopeRuleValues(workflowId, ScopeRuleValueType.ASSET_ID);
+    allowedIds.retainAll(new HashSet<>(endpointIds));
+    return resolveEndpoints(allowedIds);
+  }
+
+  /**
+   * Returns the asset groups explicitly listed in the workflow scope rules ({@code ASSET_GROUP_ID}
+   * rules), whatever the rule mode. See {@link #getScopeEndpoints(String)} for the rationale.
+   *
+   * @param workflowId the workflow whose scope rules are read
+   * @return the asset groups referenced by the scope rules
+   */
+  public List<AssetGroupOutput> getScopeAssetGroups(final String workflowId) {
+    Set<String> assetGroupIds =
+        collectScopeRuleValues(workflowId, ScopeRuleValueType.ASSET_GROUP_ID);
+    return resolveAssetGroups(assetGroupIds);
+  }
+
+  /**
+   * Same as {@link #getScopeAssetGroups(String)} but restricted to the requested IDs. IDs that are
+   * not part of the workflow scope rules are silently ignored.
+   *
+   * @param workflowId the workflow whose scope rules are read
+   * @param assetGroupIds the asset group IDs to resolve
+   * @return the matching asset groups
+   */
+  public List<AssetGroupOutput> getScopeAssetGroupsByIds(
+      final String workflowId, final List<String> assetGroupIds) {
+    Set<String> allowedIds = collectScopeRuleValues(workflowId, ScopeRuleValueType.ASSET_GROUP_ID);
+    allowedIds.retainAll(new HashSet<>(assetGroupIds));
+    return resolveAssetGroups(allowedIds);
+  }
+
+  private List<EndpointOutput> resolveEndpoints(final Set<String> endpointIds) {
+    return endpointIds.isEmpty()
+        ? List.of()
+        : endpointService.endpoints(List.copyOf(endpointIds)).stream()
+            .map(endpointMapper::toEndpointOutput)
+            .toList();
+  }
+
+  private List<AssetGroupOutput> resolveAssetGroups(final Set<String> assetGroupIds) {
+    return assetGroupIds.isEmpty()
+        ? List.of()
+        : assetGroupService.assetGroups(List.copyOf(assetGroupIds)).stream()
+            .map(assetGroupMapper::toAssetGroupOutput)
+            .toList();
+  }
+
+  private Set<String> collectScopeRuleValues(
+      final String workflowId, final ScopeRuleValueType valueType) {
+    return workflowScopeRuleRepository.findAllByWorkflowId(workflowId).stream()
+        .filter(rule -> valueType.equals(rule.getValueType()))
+        .map(WorkflowScopeRule::getRuleValue)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toCollection(LinkedHashSet::new));
+  }
 
   /**
    * Returns the assets that are in scope for the given workflow and that are not denied by a value

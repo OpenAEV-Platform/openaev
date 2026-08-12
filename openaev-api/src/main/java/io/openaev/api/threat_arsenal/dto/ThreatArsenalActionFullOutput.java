@@ -86,4 +86,11 @@ public record ThreatArsenalActionFullOutput(
     @Schema(description = "Action last update timestamp")
         @NotNull
         @JsonProperty("action_updated_at")
-        Instant updatedAt) {}
+        Instant updatedAt,
+    @Schema(
+            description =
+                "Output/finding types this action can produce (empty = the action produces no"
+                    + " parsed output). Derived from the payload output parsers or, for native"
+                    + " injectors without a payload, from the contract content outputs.")
+        @JsonProperty("action_providing")
+        List<ContractOutputType> providing) {}
