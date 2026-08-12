@@ -99,6 +99,18 @@ public class CommandArgumentBinder {
       return;
     }
     String sanitized = sanitize(value == null ? "" : value);
+    if (!shell.canRepresent(sanitized)) {
+      // Fail closed rather than render a declaration the shell would read differently than the
+      // template describes. Logged so a refusal is visible in operation, not only to the caller.
+      log.error(
+          "Refusing to bind argument '{}' for executor '{}': the value cannot be represented in "
+              + "this shell's declaration syntax.",
+          argumentKey,
+          executor);
+      throw new CommandBindingException(
+          "Argument '%s' cannot be represented for executor '%s': a double quote is not supported in a %s command value."
+              .formatted(argumentKey, executor, shell.name().toLowerCase(Locale.ROOT)));
+    }
     if (!shell.supportsBinding()) {
       // Literal mode: keep the value, no variable is declared.
       variablesByKey.put(argumentKey, null);

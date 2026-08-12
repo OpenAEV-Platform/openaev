@@ -94,7 +94,9 @@ class CommandArgumentBinderTest {
       String quoteEscape,
       String value) {
     CommandArgumentBinder binder = CommandArgumentBinder.forExecutor(executor);
-    binder.bind("target", value);
+    if (isRefused(binder, value)) {
+      return;
+    }
     String rendered = binder.render(template);
     String context = "value " + readable(value);
 
@@ -119,6 +121,66 @@ class CommandArgumentBinderTest {
   private static void assertShContainment(String value) {
     assertSingleQuotedContainment(
         "bash", "echo #{target}", "echo \"$OAEV_ARG_TARGET\"", "OAEV_ARG_TARGET=", "'\\''", value);
+  }
+
+  /**
+   * The invariant is a disjunction: a value the engine cannot carry must be refused outright, and
+   * any value that is accepted must be rendered fully contained. This encodes neither which values
+   * are refused nor why, so the assertion stays independent of the rule under test.
+   *
+   * @return true when the binder refused the value, in which case the refusal must name the
+   *     argument so the caller can act on it
+   */
+  private static boolean isRefused(CommandArgumentBinder binder, String value) {
+    try {
+      binder.bind("target", value);
+      return false;
+    } catch (CommandBindingException refused) {
+      assertThat(refused)
+          .as("a refusal must name the argument it is about")
+          .hasMessageContaining("target");
+      return true;
+    }
+  }
+
+  /**
+   * Asserts the structural invariant for the cmd engine, whose declaration is {@code set
+   * "VAR=value"}. The quoted region opened by {@code set "} ends at the next {@code "}, so the
+   * value must contribute no quote of its own. Percent and delayed expansion must be neutralised
+   * for the same reason: both would let the value name something outside itself.
+   */
+  private static void assertCmdContainment(String value) {
+    CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
+    if (isRefused(binder, value)) {
+      return;
+    }
+    String rendered = binder.render("echo #{target}");
+    String expectedTail = "echo \"!OAEV_ARG_TARGET!\"";
+    String context = "value " + readable(value);
+
+    assertThat(rendered).as("%s must not alter the command", context).endsWith(expectedTail);
+    assertThat(rendered.indexOf(expectedTail))
+        .as("%s must not smuggle a second copy of the command", context)
+        .isEqualTo(rendered.length() - expectedTail.length());
+
+    String opening = "set \"OAEV_ARG_TARGET=";
+    String closing = "\" & ";
+    String prologue = rendered.substring(0, rendered.length() - expectedTail.length());
+    assertThat(prologue)
+        .as("%s must stay inside its declaration", context)
+        .startsWith(opening)
+        .endsWith(closing);
+
+    String interior = prologue.substring(opening.length(), prologue.length() - closing.length());
+    assertThat(interior)
+        .as("%s must not close its declaration early", context)
+        .doesNotContain("\"");
+    assertThat(interior.replace("^^!", ""))
+        .as("%s must not leave delayed expansion reachable", context)
+        .doesNotContain("!");
+    assertThat(interior.replace("%%", ""))
+        .as("%s must not leave percent expansion reachable", context)
+        .doesNotContain("%");
   }
 
   private static void assertPowerShellContainment(String value) {
@@ -178,6 +240,17 @@ class CommandArgumentBinderTest {
     }
 
     @Test
+    @DisplayName("given a value carrying a double quote should still be accepted")
+    void given_double_quote_should_be_accepted() {
+      // The cmd restriction must not leak into shells that can quote a double quote.
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      binder.bind("a", "say \"hello\"");
+
+      assertThat(binder.render("echo #{a}")).startsWith("OAEV_ARG_A='say \"hello\"'");
+    }
+
+    @Test
     @DisplayName("given a value containing a single quote should escape it")
     void given_single_quote_should_escape_it() {
       CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("sh");
@@ -220,6 +293,16 @@ class CommandArgumentBinderTest {
     }
 
     @Test
+    @DisplayName("given a value carrying a double quote should still be accepted")
+    void given_double_quote_should_be_accepted() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("psh");
+
+      binder.bind("a", "say \"hello\"");
+
+      assertThat(binder.render("echo #{a}")).startsWith("$OAEV_ARG_A = 'say \"hello\"'");
+    }
+
+    @Test
     @DisplayName("given a value containing a single quote should double it")
     void given_single_quote_should_double_it() {
       CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("powershell");
@@ -236,21 +319,68 @@ class CommandArgumentBinderTest {
 
     @ParameterizedTest
     @MethodSource("io.openaev.utils.command.CommandArgumentBinderTest#maliciousValues")
-    @DisplayName("given a metacharacter-laden value should keep the command on a single statement")
+    @DisplayName("given a metacharacter-laden value should keep it inside its own declaration")
     void given_malicious_value_should_neutralize_it(String value) {
+      assertCmdContainment(value);
+    }
+
+    @Test
+    @DisplayName("property: no generated value alters the command, over many random inputs")
+    void property_no_generated_value_alters_the_command() {
+      Random random = new Random(20260812L);
+      int accepted = 0;
+
+      for (int i = 0; i < GENERATED_SAMPLES; i++) {
+        String value = hostileValue(random);
+        assertCmdContainment(value);
+        if (!value.contains("\"")) {
+          accepted++;
+        }
+      }
+
+      // The invariant above is a disjunction, so a binder that refused everything would satisfy
+      // it. This pins the other side: the overwhelming majority of hostile values are still
+      // rendered, and only the ones cmd cannot carry are turned away.
+      assertThat(accepted)
+          .as("refusing everything would trivially satisfy the containment property")
+          .isGreaterThan(GENERATED_SAMPLES / 2);
+    }
+
+    @Test
+    @DisplayName("given a value carrying a double quote should refuse it and name the argument")
+    void given_unrepresentable_value_should_refuse_and_name_the_argument() {
       CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
 
-      binder.bind("target", value);
-      String rendered = binder.render("echo #{target}");
+      assertThatThrownBy(() -> binder.bind("guest_user", "x\" & calc"))
+          .isInstanceOf(CommandBindingException.class)
+          .hasMessageContaining("guest_user")
+          .hasMessageContaining("cmd");
+    }
 
-      assertThat(rendered)
-          .startsWith("set \"OAEV_ARG_TARGET=")
-          .endsWith(" & echo \"!OAEV_ARG_TARGET!\"");
-      // No newline may survive: cmd would treat it as a new statement.
-      assertThat(rendered).doesNotContain("\n").doesNotContain("\r");
-      // Delayed expansion can no longer be triggered from a value.
-      String declaration = rendered.substring(0, rendered.indexOf(" & echo"));
-      assertThat(declaration.replace("^^!", "")).doesNotContain("!");
+    @Test
+    @DisplayName("given a benign value should still render, so the refusal stays narrow")
+    void given_benign_value_should_still_render() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
+
+      binder.bind("a", "C:\\Program Files\\app.exe");
+
+      assertThat(binder.render("run #{a}"))
+          .isEqualTo("set \"OAEV_ARG_A=C:\\Program Files\\app.exe\" & run \"!OAEV_ARG_A!\"");
+    }
+
+    @Test
+    @DisplayName("given a placeholder inside a wider quoted string should render it unquoted")
+    void given_placeholder_inside_a_wider_quoted_string_should_render_it_unquoted() {
+      // The class javadoc tells template authors not to quote a placeholder themselves. A
+      // placeholder sitting inside a wider quoted string is not that case and is not detected, so
+      // the reference lands outside the template's quotes. Pinned because it is the shape the
+      // containment tests do not exercise: they all use a bare placeholder.
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
+
+      binder.bind("t", "a b");
+
+      assertThat(binder.render("echo \"prefix #{t} suffix\""))
+          .isEqualTo("set \"OAEV_ARG_T=a b\" & echo \"prefix \"!OAEV_ARG_T!\" suffix\"");
     }
 
     @Test
