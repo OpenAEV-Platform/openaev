@@ -77,6 +77,9 @@ detail panel to keep the working area clear.
    by your run gets its own auto-generated card).
 3. Use the search bar and filters (kill chain phase, Finding type, criticality) to narrow down the graph.
 4. **Pick a chokepoint or a Finding to prioritize**, then follow its path through the map:
+
+    ![How chokepoints are scored: a weighted score (findings × criticality weight) ranking the most exposed endpoints, with the criticality-weight legend below](assets/attack-path-map-chokepoint-scoring.png)
+
       - Selecting a chokepoint endpoint (or a row in the **Top chokepoints** card) highlights its path across the
         graph in the primary color, so you can see every Action, Event, and Finding that led to it.
       - Selecting a Finding does the same for the path that produced that specific Finding.
@@ -95,7 +98,7 @@ detail panel to keep the working area clear.
       - Clicking a **Finding** node opens its detail panel, including the Expectation verdicts and the Action that
         produced it.
 
-    ![Endpoint detail panel: Findings grouped by type, and every Execution the endpoint was involved in](assets/attack-path-map-endpoint-detail.png)
+    ![Captured Credentials panel: clicking a Finding-type card opens a list of the individual Findings it aggregates, each one clickable to highlight and focus its producing Action on the graph](assets/attack-path-map-endpoint-detail.png)
 
 6. Toggle between the **graph view** and the **table view** (top-right) if you prefer reviewing endpoints as a
    sortable list.
@@ -141,11 +144,11 @@ Clicking the endpoint opens its detail panel, showing both Actions that reached 
 backward from `NetExec SMB Share Listing (auto creds)` to `NetExec FTP Anonymous Get File` confirms exactly which
 step exposed the credential that made the lateral validation possible in the first place.
 
-![Attack path graph with the legend expanded, listing every shape and color used on the map](assets/attack-path-map-legend-expanded.png)
+![Attack path graph zoomed on the credential-discovery chain: an Nmap scan feeding NetExec SMB Share Listing and NetExec FTP File Listing across four endpoints, all converging on a captured username Finding](assets/attack-path-map-legend-expanded.png)
 
 ## What's next?
 
 - [Logic Creation](logic-creation.md): adjust your Events and Actions based on what you observed.
 - [Scope Definition](scope-definition.md): revisit the Assets, timeout, and rate limit that bounded this run.
 - [Attack Chaining overview](overview.md): back to the feature hub.
-- [Findings](../findings.md): explore Findings platform-wide, beyond a single chained run.
+- [Findings](../evaluate/findings/findings.md): explore Findings platform-wide, beyond a single chained run.

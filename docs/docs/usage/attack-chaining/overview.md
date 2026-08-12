@@ -21,6 +21,8 @@ This is powered by the **Chaining Engine**, which orchestrates the whole run: it
 pool of outputs (the **global state**), enqueues Actions when they become ready, and enforces the boundaries you
 define (allowed targets, timeout, rate limit).
 
+![Logic tab: a full chained Scenario's graph, with a numbered path highlighted from an Nmap SYN scan through port discovery, SMB share listing, and lateral movement](assets/logic-graph-full-chain-example.png)
+
 ## Why use it?
 
 - **Model real multi-stage attacks**: run lateral movement only if initial access succeeded, escalate only after a
@@ -87,6 +89,11 @@ between steps).
 
 See [Attack Path Map](attack-path-map.md) for details on both the live execution view and the resulting graph.
 
+Once you can build a chained Logic graph by hand, you can go one step further with
+[Autonomous Attack Chaining](../autonomous-attack-chaining/overview.md): instead of authoring every Action and Event yourself,
+you give an AI orchestrator an objective in plain language and it plans, executes, and adapts a full attack path on
+its own, live, against your authorized environment.
+
 ## Example Scenario
 
 The fastest way to see Attack Chaining in action is to use the chained Simulation included in the OpenAEV starter
@@ -98,4 +105,6 @@ Simulation.
 - [Scope Definition](scope-definition.md): allow/deny lists, Variables, timeout, and rate limit.
 - [Logic Creation](logic-creation.md): Actions, Events, conditions, and output linking.
 - [Attack Path Map](attack-path-map.md): follow a chained run live, then read the resulting graph across your Assets.
+- [Autonomous Attack Chaining](../autonomous-attack-chaining/overview.md): let an AI orchestrator plan and drive a chained run
+  for you.
 - [Inject chaining and transfer](../inject-chaining.md): the simpler, non-EE parent/child linking mechanism.

@@ -12,14 +12,14 @@ A scope is made of:
 - **Variables**: named values you can reuse across your logic (see [Variables](#variables)).
 - A **timeout**: the maximum total runtime for the whole chained run. Note that the timeout keeps counting down even
   while the Simulation is paused — pausing does not stop the clock.
-- A **rate limit**: how many times an Action can be retried, and how often.
+- A **rate limit**: how frequently an Action is allowed to execute — the interval between consecutive executions.
 
 ## Why use it?
 
 - **Prevent unintended blast radius**: a chained run can create and trigger many Injects dynamically as conditions
   resolve; the scope guarantees it never touches Assets outside your allow list.
-- **Model brute-force or stealthy behavior**: the rate limit lets you simulate an attacker retrying an action slowly
-  over time instead of all at once.
+- **Model brute-force or stealthy behavior**: the rate limit lets you control how frequently an Action executes,
+  simulating a slow, stealthy attacker instead of one that acts all at once.
 - **Cap runaway executions**: the timeout stops the run automatically if it does not converge (for example, a
   condition that never resolves).
 - **Reuse values**: Variables let you define a value once (an account name, a shared path) and reference it from
@@ -76,8 +76,8 @@ seconds)** to every chained run — a run is never allowed to continue indefinit
 ### Rate limit
 
 1. In the **Simulation rate limit** section, toggle it on.
-2. Set the **maximum attempts** and the time window (in minutes) over which that maximum applies. This controls how
-   often an Action is allowed to execute — useful for simulating brute-force or slow, stealthy attacks.
+2. Set the **maximum attempts** and the time window (in minutes) over which that maximum applies. This defines the
+   interval at which an Action is allowed to execute — useful for simulating brute-force or slow, stealthy attacks.
 
 When enabled without further changes, the rate limit defaults to **1 attempt per 30 minutes** — adjust both values to
 match the behavior you want to model.

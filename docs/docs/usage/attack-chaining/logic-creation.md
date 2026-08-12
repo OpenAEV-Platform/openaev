@@ -65,6 +65,9 @@ satisfied, it triggers the Action(s) it is linked to. Nothing runs until its ups
             any data field an Action can produce, such as a discovered port, username, or CVE). Each option shows a
             tooltip listing which Action(s) already on the canvas actually produce that field, to help you pick a
             field that is provisioned.
+
+            ![Editing an Event's trigger conditions: two AND condition groups — "Share name is not null" AND "Group name equals" in one, "Password is not null" AND "Kerberoastable account is not null" in the other](assets/logic-creation-event-conditions-groups.png)
+
           - **Operator**: `Equals`, `Not equals`, `Is null`, `Is not null`, `Greater than`, `Greater than or equals`,
             `Less than`, `Less than or equals`, `Contains`, `Not contains`. Despite the name, `Contains`/`Not
             contains` performs a set-style match against the field's value rather than a literal list-membership
@@ -155,7 +158,7 @@ itself, and the Action(s) it triggers stand out clearly against the rest of the 
 Here is a real Logic graph, built with the steps above, that chains a port scan into a credential discovery attempt,
 then reuses the harvested credentials for lateral validation:
 
-![Credential discovery chaining example](assets/logic-creation-real-scenario-example.png)
+![A read-only Logic graph from a launched Simulation: an Nmap recon scan feeds a port-validation Event, which triggers an FTP credential-discovery Action; the harvested username/password then feed a credential-validation Event that triggers an SMB lateral-validation Action](assets/logic-creation-real-scenario-example.png)
 
 1. **Recon**: `Nmap TCP Connect Scan` probes the target Asset.
 2. **Event "Port Validation"**: triggers once the scan reports a non-null port, confirming a service is reachable.
