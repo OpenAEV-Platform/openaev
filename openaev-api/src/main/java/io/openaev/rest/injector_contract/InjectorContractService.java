@@ -825,14 +825,22 @@ public class InjectorContractService implements DependenciesManager {
     return map;
   }
 
+  /**
+   * Common GROUP BY for the tuple projections: one group (hence one row) per contract. Only the
+   * selected scalar keys are grouped; the injector join is deliberately excluded because it is
+   * either aggregated in the projection (least(type), array_agg(id/name)) or added explicitly by
+   * the selector ({@code selectForInjectorContractThreatArsenalContent} groups by the selected
+   * injector type and name). Grouping by the unselected injector id would split a contract linked
+   * to several injectors into one identical projected row per link, making page content disagree
+   * with the distinct count.
+   */
   private List<Expression<?>> getCommonGroupBy(
       @NotNull final Root<InjectorContract> injectorContractRoot,
       @NotNull InjectorContractQueryContext ctx) {
     return Arrays.asList(
         injectorContractRoot.get("compositeId"),
         ctx.payloadJoin().get("id"),
-        ctx.payloadCollectorTypeJoin().get("id"),
-        ctx.injectorJoin().get("id"));
+        ctx.payloadCollectorTypeJoin().get("id"));
   }
 
   /**

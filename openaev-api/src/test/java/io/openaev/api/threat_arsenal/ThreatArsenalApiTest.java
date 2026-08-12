@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
@@ -872,6 +873,51 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input)))
           .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "given a providing filter a contract linked to two injectors must appear exactly once")
+    void given_providingFilterAndMultiInjectorContract_should_returnOneRowPerContract()
+        throws Exception {
+      // Regression: the threat arsenal projection used to GROUP BY the unselected injector
+      // join id, so a contract linked to several injectors (the model enforces they share
+      // the same type) produced one identical projected row per link. The redundant SELECT
+      // DISTINCT hid that duplication until it was removed to fix the findings-scoped 500,
+      // letting such contracts appear several times while the count query (countDistinct on
+      // the root) still reported them once.
+      Injector injectorA =
+          InjectorFixture.createInjector(
+              UUID.randomUUID().toString(), "multi-link-injector-a", "multi-link-injector-type");
+      Injector injectorB =
+          InjectorFixture.createInjector(
+              UUID.randomUUID().toString(), "multi-link-injector-b", "multi-link-injector-type");
+
+      Payload commandWithParser = PayloadFixture.createDefaultCommand();
+      commandWithParser.setOutputParsers(Set.of(OutputParserFixture.getDefaultOutputParser()));
+
+      InjectorContractComposer.Composer contractComposer =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withPayload(payloadComposer.forPayload(commandWithParser))
+              .withInjector(injectorA);
+      // withInjector replaces existing links: add the second same-type injector directly.
+      contractComposer.get().addInjector(injectorB);
+      contractComposer.persist();
+      String contractId = contractComposer.get().getId();
+
+      String response = searchWith(buildProvidingFilterSearchInput());
+
+      List<String> returnedIds = JsonPath.read(response, "$.content[*].injector_contract_id");
+      assertEquals(
+          1,
+          returnedIds.stream().filter(contractId::equals).count(),
+          "a contract linked to two injectors must appear exactly once in the page content");
+      int totalElements = JsonPath.read(response, "$.totalElements");
+      assertEquals(
+          returnedIds.size(),
+          totalElements,
+          "page content must agree with the distinct contract count");
     }
 
     private SearchPaginationInput buildProvidingFilterSearchInput() {
