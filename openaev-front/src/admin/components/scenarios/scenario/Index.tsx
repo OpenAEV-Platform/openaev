@@ -64,10 +64,9 @@ const IndexScenarioComponent: FunctionComponent<{
     && isChainingFeatureEnabled
     && !!scenario.scenario_workflow_id;
   const isChained = isChainingFeatureEnabled && !!scenario.scenario_workflow_id;
-  // The AI cockpit is live only while a run is ACTIVE (the orchestrator is planning or driving). A
-  // settled run (PLANNED / completed) leaves the scenario a normal editable chained scenario again,
-  // so scope/logic unlock and the overview reverts to the manual one - the operator then reviews the
-  // authored steps and launches (or relaunches) from the hero.
+  // The AI cockpit (right-hand reasoning panel + read-only Scope/Logic) is live only while a run
+  // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
+  // normal scenario page with the AI outcome layered on top (see overviewElement).
   const hasCockpit = isAutonomousRunActive(autonomousRun);
   // Resizable reasoning-panel width, shared with the content padding so the scenario content never
   // renders underneath the panel (mirrors the simulation cockpit).

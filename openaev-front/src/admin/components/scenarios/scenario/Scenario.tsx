@@ -314,11 +314,10 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
       paddingBottom: theme.spacing(5),
     }}
     >
-      {/* Durable AI outcome: once an autonomous run has settled the live cockpit is gone, but the
-          scenario keeps a read-only read of what the orchestrator produced (mission, decision
-          timeline, capability gaps and - for a live run - proof of exploitation), so the timeline
-          and gaps are never lost when the scenario is "done". A live run owns the overview via the
-          cockpit instead, so this only ever renders for a settled run. */}
+      {/* Additive AI outcome: while a run is active OR settled, the scenario keeps its full
+          normal overview and layers the mission / decision timeline / capability gaps (and, for
+          a live run, proofs) on top. The right-hand cockpit still owns the streaming reasoning
+          while the run is active; this block is the in-overview layer, not a replacement page. */}
       {autonomousRun && (
         <Box sx={{
           display: 'flex',
