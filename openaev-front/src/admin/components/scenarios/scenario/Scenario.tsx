@@ -45,10 +45,13 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
+import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousOutcome from '../../autonomous/AutonomousOutcome';
+import EEChip from '../../common/entreprise_edition/EEChip';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
@@ -93,6 +96,14 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null }
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+  // The Autonomous CTA is an XTM One-driven EE feature (same gate as the header hero and the creation
+  // drawer): hidden unless XTM One is connected, and an EE call-to-action when not Enterprise.
+  const isXtmOneReady = isXtmOneAvailable(settings);
+  const {
+    isValidated: isEnterpriseEdition,
+    openDialog: openEnterpriseEditionDialog,
+    setEEFeatureDetectedInfo,
+  } = useEnterpriseEdition();
 
   const isScopeMissing = isScenarioChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
@@ -374,23 +385,43 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null }
                   </Button>
                 </Box>
               </Tooltip>
-              <Tooltip title={t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}>
-                <Box component="span" sx={{ display: 'inline-flex' }}>
-                  <Button
-                    startIcon={<AutoAwesome />}
-                    variant="contained"
-                    onClick={() => navigate(`/admin/scenarios/${scenarioId}?openAiLaunch=true`)}
+              {/* Autonomous is an XTM One-driven EE feature: hidden when XTM One is unavailable (only
+                  the Normal CTA remains), and an EE call-to-action when the platform is not
+                  Enterprise (EE chip + EE dialog instead of routing to the launch drawer). */}
+              {isXtmOneReady && (
+                <Tooltip title={t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}>
+                  <Box
+                    component="span"
                     sx={{
-                      'whiteSpace': 'nowrap',
-                      'backgroundColor': theme.palette.ai.main,
-                      'color': theme.palette.ai.contrastText,
-                      '&:hover': { backgroundColor: theme.palette.ai.dark },
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 0.5,
                     }}
                   >
-                    {t('Autonomous')}
-                  </Button>
-                </Box>
-              </Tooltip>
+                    <Button
+                      startIcon={<AutoAwesome />}
+                      variant="contained"
+                      onClick={() => {
+                        if (!isEnterpriseEdition) {
+                          setEEFeatureDetectedInfo(t('Autonomous attack path'));
+                          openEnterpriseEditionDialog();
+                          return;
+                        }
+                        navigate(`/admin/scenarios/${scenarioId}?openAiLaunch=true`);
+                      }}
+                      sx={{
+                        'whiteSpace': 'nowrap',
+                        'backgroundColor': theme.palette.ai.main,
+                        'color': theme.palette.ai.contrastText,
+                        '&:hover': { backgroundColor: theme.palette.ai.dark },
+                      }}
+                    >
+                      {t('Autonomous')}
+                    </Button>
+                    {!isEnterpriseEdition && <EEChip />}
+                  </Box>
+                </Tooltip>
+              )}
             </Box>
           )}
           {canLaunch && !isScenarioChaining && (
