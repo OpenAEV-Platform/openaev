@@ -22,6 +22,7 @@ import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationF
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.utils.constants.Constants;
+import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
@@ -2204,6 +2205,57 @@ class V1_DataImporterTest extends IntegrationTest {
     assertTrue(
         result.missingActions().isEmpty(),
         "recreating the embedded payload must not report a missing action");
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void
+      given_twoInjectorsWithSameTypeForTenant_when_importingWorkflowStep_shouldRemainResolvableWithoutNonUniqueFailure()
+          throws Exception {
+    // -- Arrange --
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
+    String injectorType =
+        importData
+            .get("scenario_workflow")
+            .get("workflow_steps")
+            .get(0)
+            .get("step_data")
+            .get("inject_injector_contract")
+            .get("injector_contract_injector_type")
+            .asText();
+    assertFalse(injectorType.isBlank(), "fixture must carry an injector type");
+
+    Injector duplicateInjector =
+        InjectorFixture.createInjector(
+            UUID.randomUUID().toString(), "duplicate importer injector", injectorType);
+    injectorRepository.save(duplicateInjector);
+    entityManager.flush();
+    entityManager.clear();
+
+    // -- Act --
+    ImportResult result =
+        assertDoesNotThrow(
+            () ->
+                this.importer.importData(
+                    importData,
+                    Map.of(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    Constants.IMPORTED_OBJECT_NAME_SUFFIX));
+
+    // -- Assert --
+    Workflow workflow = findImportedWorkflow("wf step missing contract payload");
+    assertEquals(
+        1,
+        stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId()).size(),
+        "the chaining step must stay resolvable when multiple injectors share the same type");
+    assertTrue(
+        result.missingActions().isEmpty(),
+        "no missing action must be reported when at least one injector of the type exists");
   }
 
   @Test

@@ -2778,7 +2778,7 @@ public class V1_DataImporter implements Importer {
 
     // (b) Injector of the referenced type must exist on the target instance.
     String injectorType = extractInjectorType(injectContractNode);
-    if (hasText(injectorType) && injectorService.injectorByType(injectorType).isEmpty()) {
+    if (hasText(injectorType) && !injectorService.injectorTypeExists(injectorType)) {
       return Optional.of(
           new SkippedWorkflowStep(SkippedWorkflowStepType.INJECTOR, injectTitle, injectorType));
     }

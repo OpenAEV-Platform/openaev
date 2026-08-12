@@ -18,6 +18,15 @@ public interface InjectorRepository
 
   Optional<Injector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  boolean existsByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
+
+  /**
+   * @deprecated Since V4_77 (Connector Manager), an injector type is no longer guaranteed unique
+   *     per tenant - multiple instances of the same connector type may coexist. This method throws
+   *     NonUniqueResultException if more than one result exists. Prefer {@code
+   *     InjectorService#injectorTypeExists(String)} (backed by existsByTypeAndTenantId) when only
+   *     existence matters.
+   */
   @NotNull
   Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
