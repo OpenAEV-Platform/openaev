@@ -100,7 +100,8 @@ public class V20260805_Observer_and_manager_users extends DataPack {
   }
 
   private Role createRoleIfMissing(String roleName, Set<Capability> capabilities) {
-    return tenantRoleService.createRole(roleName, roleName, capabilities);
+    return tenantRoleService.createRoleInternal(
+        UUID.randomUUID().toString(), roleName, roleName, capabilities, null);
   }
 
   private void createUserInGroup(
