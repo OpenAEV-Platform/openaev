@@ -12,6 +12,23 @@ import java.util.stream.Collectors;
  */
 public final class CapabilityTreeBuilder {
 
+  private static final List<CapabilityGroup> UI_GROUP_ORDER =
+      List.of(
+          CapabilityGroup.SUPERUSER,
+          CapabilityGroup.DASHBOARDS,
+          CapabilityGroup.REPORTINGS,
+          CapabilityGroup.FINDINGS,
+          CapabilityGroup.ASSESSMENT,
+          CapabilityGroup.THREAT_ARSENALS,
+          CapabilityGroup.TARGETS,
+          CapabilityGroup.CONTENT,
+          CapabilityGroup.PLATFORM_SETTINGS,
+          CapabilityGroup.PLATFORM_USERS_GROUPS_AND_ROLES,
+          CapabilityGroup.TENANTS,
+          CapabilityGroup.TENANT_SETTINGS,
+          CapabilityGroup.STIX,
+          CapabilityGroup.SERVICE);
+
   /** Pre-computed trees keyed by scope ({@code null} key = all scopes). */
   private static final Map<CapabilityScope, List<CapabilityOutput>> CACHE;
 
@@ -76,6 +93,12 @@ public final class CapabilityTreeBuilder {
             .filter(c -> !c.isHidden())
             .filter(c -> isCredentialAssetEnabled || !c.isCredentialCapability())
             .filter(c -> scope == null || c.getScopes().contains(scope))
+            .sorted(
+                Comparator.comparingInt(
+                    c -> {
+                      int index = UI_GROUP_ORDER.indexOf(c.getGroup());
+                      return index >= 0 ? index : Integer.MAX_VALUE;
+                    }))
             .toList();
 
     // Group roots by CapabilityGroup, preserving enum declaration order
