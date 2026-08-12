@@ -74,10 +74,9 @@ class SentinelOneExecutorClientTest {
     assertEquals(2, requestedUris.size());
     assertTrue(requestedUris.get(0).endsWith("agents?isActive=true&accountIds=account-1"));
     assertTrue(
-        requestedUris
-            .get(1)
-            .endsWith("agents?isActive=true&accountIds=account-1&cursor=cursor-1"));
-    requestedUris.forEach(uri -> assertEquals(1, countOccurrences(uri, "&cursor=")));
+        requestedUris.get(1).endsWith("agents?isActive=true&accountIds=account-1&cursor=cursor-1"));
+    assertEquals(0, countOccurrences(requestedUris.get(0), "&cursor="));
+    assertEquals(1, countOccurrences(requestedUris.get(1), "&cursor="));
   }
 
   @Test
