@@ -7,7 +7,7 @@ import {
 import { Box, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useCallback, useEffect, useRef, useState } from 'react';
+import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   addAutonomousDirective,
@@ -42,6 +42,10 @@ const POLL_INTERVAL_MS = 3000;
 // event cadence so an ordinary long action does not flip it to idle prematurely.
 const STALE_CAPTION_AFTER_MS = 180000;
 
+// The stream auto-follows the newest event only while the operator is within this distance (px) of
+// the bottom - anything further means they deliberately scrolled up to read an older decision.
+const STICK_TO_BOTTOM_THRESHOLD_PX = 80;
+
 // Cap the proposed one-click choices so the callout stays scannable: at most this many radio options
 // are ever shown, and the always-present free-text composer below is the escape hatch for anything
 // the operator would rather type.
@@ -52,6 +56,28 @@ const MAX_QUESTION_CHOICES = 3;
 // thinking-window caption keys off the latest one of these.
 const ACTIVITY_EVENT_TYPES = ['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const;
 const isActivityType = (type: string | undefined): boolean => (ACTIVITY_EVENT_TYPES as readonly string[]).includes(type ?? '');
+
+// A heartbeat is a lightweight STATUS event the XTM One orchestrator emits every ~45s WHILE a
+// decision cycle is actively running (flagged {"heartbeat": true} in its data). It exists only to
+// keep this cockpit's "working" indicator honest and to nudge the graph poll during a long silent
+// burst - it is NOT an operator-facing decision. So it is filtered OUT of the visible timeline, yet
+// still counts for freshness: its timestamp resets the staleness backstop so the caption keeps
+// animating over the last real activity instead of collapsing to "Awaiting the next event".
+const isHeartbeatEvent = (event: AutonomousEvent | undefined): boolean => {
+  if (!event || event.autonomous_event_type !== 'STATUS' || !event.autonomous_event_data) {
+    return false;
+  }
+  // Cheap substring pre-check before the JSON.parse: this runs for every event on every render of
+  // the feed, and most STATUS payloads never mention "heartbeat" at all.
+  if (!event.autonomous_event_data.includes('"heartbeat"')) {
+    return false;
+  }
+  try {
+    return (JSON.parse(event.autonomous_event_data) as { heartbeat?: boolean }).heartbeat === true;
+  } catch {
+    return false;
+  }
+};
 
 interface QuestionChoice {
   id: string;
@@ -363,6 +389,12 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   const [answeredQuestionId, setAnsweredQuestionId] = useState<string | null>(null);
   const cursorRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Whether the operator is at (or near) the bottom of the stream, sampled in the onScroll handler
+  // - i.e. BEFORE new content grows the list. Measuring inside the pin effect below would run
+  // after render, when a tall new decision has already pushed the bottom away by more than the
+  // threshold, silently breaking the auto-follow exactly when the operator was reading live.
+  // Starts true so a fresh stream pins to the newest event.
+  const stickToBottomRef = useRef(true);
   // Identity of the run/simulation the stream is currently populated for. The reset-and-reload
   // effect below keys off this so it fires ONLY on a genuine run or simulation switch (navigation /
   // restart) - never spuriously on a re-render, which would blank the live stream to empty (and drop
@@ -463,6 +495,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     }
     streamKeyRef.current = nextKey;
     cursorRef.current = 0;
+    // A fresh stream should follow its newest event even if the operator had scrolled up in the
+    // previous run's timeline.
+    stickToBottomRef.current = true;
     setEvents([]);
     pollTimelineRef.current();
   }, [runId, simulationId]);
@@ -481,13 +516,24 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     return () => clearInterval(interval);
   }, [isActive, refreshRun, pollTimeline]);
 
-  // Keep the stream pinned to the latest decision as it grows.
+  // The operator-facing decision feed excludes heartbeats (they are freshness pings, not
+  // decisions), so a long silent burst does not fill the timeline with "Working" rows. The
+  // freshness/caption logic below still keys off the raw `events` (including heartbeats) so the
+  // cockpit stays animated. Memoised: the predicate JSON-parses STATUS payloads, so it should run
+  // once per new batch of events, not on every incidental re-render.
+  const visibleEvents = useMemo(() => events.filter(e => !isHeartbeatEvent(e)), [events]);
+
+  // Keep the stream pinned to the latest decision as it grows - but only while the operator was
+  // already at (or near) the bottom before the new content rendered (see stickToBottomRef), so a
+  // new event never yanks them away from an older decision they scrolled up to read. Keyed on the
+  // VISIBLE feed length: filtered-out heartbeats do not change the rendered stream, so they should
+  // not re-trigger the pin at all.
   useEffect(() => {
     const node = scrollRef.current;
-    if (node) {
+    if (node && stickToBottomRef.current) {
       node.scrollTop = node.scrollHeight;
     }
-  }, [events.length]);
+  }, [visibleEvents.length]);
 
   const isWaitingInput = status === 'WAITING_INPUT';
   const latestQuestion = isWaitingInput
@@ -629,8 +675,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       return false;
     }
   })();
-  // Parked only when the newest STATUS is a genuine end-of-cycle wait (NOT an engagement marker).
-  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS' && !engagedOnStatus;
+  // A heartbeat STATUS means the orchestrator is actively grinding a long cycle - the opposite of a
+  // park. It must NOT read as the calm "Awaiting the next event"; instead we fall through to the
+  // switch below so the caption keeps animating over the last real activity.
+  const heartbeatOnStatus = isHeartbeatEvent(newestEvent);
+  // Parked only when the newest STATUS is a genuine end-of-cycle wait (NOT an engagement marker and
+  // NOT a still-working heartbeat).
+  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS'
+    && !engagedOnStatus && !heartbeatOnStatus;
   // Has the orchestrator RESUMED since the operator answered? The backend run status stays
   // WAITING_INPUT until a later 3s poll flips it, so it lies about "still waiting" for a while. The
   // truthful signal is a fresh activity event: once the newest event is a DECISION / TOOL_ACTION /
@@ -848,13 +900,17 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       {/* Reasoning stream. */}
       <Box
         ref={scrollRef}
+        onScroll={(event) => {
+          const node = event.currentTarget;
+          stickToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < STICK_TO_BOTTOM_THRESHOLD_PX;
+        }}
         sx={{
           flex: 1,
           overflowY: 'auto',
           padding: theme.spacing(1, 2),
         }}
       >
-        {events.length === 0 && !isActive
+        {visibleEvents.length === 0 && !isActive
           ? (
               <Stack sx={{
                 alignItems: 'center',
@@ -880,7 +936,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 paddingBlock: 1,
               }}
               >
-                {events.map((event) => {
+                {visibleEvents.map((event) => {
                   const color = eventAccent(event, theme);
                   const eventTitle = sanitizeEventText(event.autonomous_event_title);
                   const eventContent = sanitizeEventText(event.autonomous_event_content);
