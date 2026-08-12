@@ -85,7 +85,11 @@ const IndexScenarioComponent: FunctionComponent<{
     if (cockpitStreamKeyRef.current === nextKey) {
       return;
     }
-    if (cockpitStreamKeyRef.current !== null && !simulationId) {
+    const previousRunId = cockpitStreamKeyRef.current?.split('::')[0];
+    // Ignore a transient missing simulation id on the SAME run only. A new run
+    // (including plan-mode with no simulation yet) must still reset the timeline
+    // so the previous run's outcome does not flash on the overview.
+    if (cockpitStreamKeyRef.current !== null && previousRunId === runId && !simulationId) {
       return;
     }
     cockpitStreamKeyRef.current = nextKey;
