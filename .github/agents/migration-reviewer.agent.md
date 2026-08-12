@@ -16,7 +16,8 @@ break tenant isolation, or cause downtime. Catch these issues before they ship.
 
 Always load:
 1. **Read `AGENTS.md`** — architecture overview, module structure, Shared Severity Rubric, Shared Exceptions
-2. **Read `.github/copilot-instructions.md`** — migration naming and versioning rules
+2. **Read `.github/copilot-instructions.md`** — build, conventions, multi-tenancy model (naming and
+   versioning rules live in `migration.instructions.md`, not here)
 3. **Read `.github/instructions/migration.instructions.md`** — class structure, critical rules, anti-patterns
 
 Load conditionally based on the diff:

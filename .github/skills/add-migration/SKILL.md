@@ -20,13 +20,15 @@ description: >-
 
 ## Procedure
 
-### Step 1 — Find the next version number
+### Step 1 — Pick the version
 
 ```bash
 ls openaev-api/src/main/java/io/openaev/migration/ | sort | tail -5
 ```
 
-Pattern: `V4_{XX}__Description.java` — increment `XX`.
+Pattern: `V{major}_{yyyyMMddHHmmssSSS}__{description}.java` — 17-digit timestamp (not a sequential
+number), snake_case description, timestamp after the latest existing migration. Migrations below
+`V6_` use the legacy `V{major}_{NN}__PascalCase` scheme — do not extend it.
 
 ### Step 2 — Create the migration class
 
@@ -41,7 +43,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_XX__Description extends BaseJavaMigration {
+public class V6_20260812100000000__Description extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {

@@ -2842,7 +2842,19 @@ export interface ConnectorInstanceOutput {
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  /** True when the connector instance keeps restarting without staying up */
+  connector_instance_is_in_reboot_loop?: boolean;
   connector_instance_requested_status?: "starting" | "stopping";
+  /**
+   * Connector instance restart count
+   * @format int32
+   */
+  connector_instance_restart_count?: number;
+  /**
+   * Last time the connector instance container started
+   * @format date-time
+   */
+  connector_instance_started_at?: string;
 }
 
 export interface ConnectorInstancePersisted {

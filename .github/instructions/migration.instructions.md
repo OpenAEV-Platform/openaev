@@ -12,16 +12,19 @@ OpenAEV uses **Java-based Flyway migrations** (not SQL files).
 ## Naming Convention
 
 ```
-V{Y}_{XX}__{Description}.java
+V{major}_{yyyyMMddHHmmssSSS}__{description}.java
 ```
 
-- `V{Y}_` is the major version prefix
-- `{XX}` is a sequential number — **check the latest migration before creating a new one**:
+- `V{major}_` is the major version prefix (currently `V6_`)
+- `{yyyyMMddHHmmssSSS}` is a 17-digit timestamp, not a sequential number — **check the latest
+  migrations before creating a new one** and pick a timestamp after them:
   ```bash
   ls openaev-api/src/main/java/io/openaev/migration/ | sort | tail -5
   ```
-- `{Description}` uses PascalCase, descriptive of the change
-- Example: `V4_57__AddTenantToAlerts.java`
+- `{description}` uses snake_case (letters, digits, underscores), descriptive of the change
+- Example: `V6_20260812100000000__Reindex_stalled_injects_sweep.java`
+- Migrations below `V6_` use the legacy sequential `V{major}_{NN}__PascalCase` scheme — do not
+  extend it for new work
 
 ## Migration Class Structure
 
@@ -34,7 +37,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_57__AddTenantToAlerts extends BaseJavaMigration {
+public class V6_20260812100000000__Add_tenant_to_alerts extends BaseJavaMigration {
 
     @Override
     public void migrate(Context context) throws Exception {

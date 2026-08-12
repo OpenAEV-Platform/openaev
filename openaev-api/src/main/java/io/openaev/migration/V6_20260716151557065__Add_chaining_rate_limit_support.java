@@ -12,7 +12,7 @@ public class V6_20260716151557065__Add_chaining_rate_limit_support extends BaseJ
   public void migrate(Context context) throws Exception {
     try (Statement stmt = context.getConnection().createStatement()) {
       // Partial index supporting the NOT IN subquery in
-      // InjectSpecification.pendingInjectWithThresholdMinutes():
+      // InjectSpecification.stalledInjectWithThresholdMinutes():
       // the time-based engine excludes injects whose simulation has an active
       // chaining workflow (status = 'RUN'). This index keeps the subquery cheap
       // because only running workflows are indexed (bounded by concurrent runs,

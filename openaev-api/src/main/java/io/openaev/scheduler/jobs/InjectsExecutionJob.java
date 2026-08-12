@@ -179,15 +179,15 @@ public class InjectsExecutionJob implements Job {
                     delayForSimulationCompletedEvent));
   }
 
-  public void handlePendingInject() {
-    List<Inject> pendingInjects =
-        injectHelper.getAllPendingInjectsWithThresholdMinutes(this.injectExecutionThreshold);
+  public void handleStalledInjects() {
+    List<Inject> stalledInjects =
+        injectHelper.getAllStalledInjectsWithThresholdMinutes(this.injectExecutionThreshold);
 
-    if (pendingInjects.isEmpty()) {
+    if (stalledInjects.isEmpty()) {
       return;
     }
 
-    for (Inject inject : pendingInjects) {
+    for (Inject inject : stalledInjects) {
       InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
       // Find agents that already have a COMPLETE trace
       Set<String> completedAgentIds = ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
@@ -218,7 +218,7 @@ public class InjectsExecutionJob implements Job {
       }
       injectStatusService.updateFinalInjectStatus(status);
       // Save + stream one by one: the timeout finalization must reach the execution screens in
-      // real time (an inject stuck PENDING would otherwise stay "in flight" until a reload).
+      // real time (a stalled inject would otherwise stay "in flight" until a reload).
       injectStatusService.saveAndStreamInject(status);
     }
   }
@@ -539,7 +539,7 @@ public class InjectsExecutionJob implements Job {
       // Change status of finished simulations.
       handleInjectExpectationCollectStatus();
       handleAutoClosingSimulations();
-      handlePendingInject();
+      handleStalledInjects();
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       throw new JobExecutionException(e);

@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.MessageProperties;
 import io.openaev.config.QueueConfig;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.driver.RabbitmqDriver;
+import io.openaev.exception.UnroutableMessageException;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.queue.QueueExecution;
 import io.openaev.service.queue.Queueable;
@@ -17,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -62,6 +65,9 @@ public class RabbitmqService {
   /** Connection timeout for health check probes, so a degraded broker fails fast. */
   private static final int HEALTH_CHECK_CONNECTION_TIMEOUT_MS = 5_000;
 
+  /** How long a publish waits for the broker confirm before giving up. */
+  private static final int PUBLISH_CONFIRM_TIMEOUT_MS = 10_000;
+
   private final RabbitmqConfig rabbitmqConfig;
   private final ConnectionFactory connectionFactory;
   private final RabbitmqDriver rabbitmqDriver;
@@ -103,8 +109,9 @@ public class RabbitmqService {
    *
    * @param injectType the type of inject, used to construct the routing key
    * @param publishedJson the JSON payload to publish
-   * @throws IOException if an I/O error occurs during publishing
-   * @throws TimeoutException if the connection or publishing times out
+   * @throws IOException if an I/O error occurs during publishing, or the broker nacks the message
+   * @throws TimeoutException if the connection, publishing or the confirm times out
+   * @throws UnroutableMessageException if no queue is bound to the routing key
    */
   public void publish(String injectType, String publishedJson)
       throws IOException, TimeoutException {
@@ -115,12 +122,21 @@ public class RabbitmqService {
       throw new IllegalArgumentException("publishedJson cannot be null or empty");
     }
 
+    String routingKey = rabbitmqConfig.getPrefix() + ROUTING_KEY + injectType;
+    String exchangeKey = rabbitmqConfig.getPrefix() + EXCHANGE_KEY;
+    AtomicBoolean unroutable = new AtomicBoolean(false);
+
     try (Connection connection = connectionFactory.newConnection();
         Channel channel = connection.createChannel()) {
-      String routingKey = rabbitmqConfig.getPrefix() + ROUTING_KEY + injectType;
-      String exchangeKey = rabbitmqConfig.getPrefix() + EXCHANGE_KEY;
+      channel.addReturnListener(returned -> unroutable.set(true));
+      channel.confirmSelect();
       channel.basicPublish(
-          exchangeKey, routingKey, null, publishedJson.getBytes(StandardCharsets.UTF_8));
+          exchangeKey,
+          routingKey,
+          true,
+          MessageProperties.PERSISTENT_TEXT_PLAIN,
+          publishedJson.getBytes(StandardCharsets.UTF_8));
+      waitForConfirm(channel);
       log.debug(
           "Successfully published message to exchange '{}' with routing key '{}'",
           exchangeKey,
@@ -128,13 +144,39 @@ public class RabbitmqService {
     } catch (IOException ex) {
       log.error(
           "I/O error publishing to RabbitMQ exchange '{}' with routing key '{}'",
-          rabbitmqConfig.getPrefix() + EXCHANGE_KEY,
-          rabbitmqConfig.getPrefix() + ROUTING_KEY + injectType,
+          exchangeKey,
+          routingKey,
           ex);
       throw ex;
     } catch (TimeoutException ex) {
       log.error("Timeout while publishing to RabbitMQ for inject type '{}'", injectType, ex);
       throw ex;
+    }
+
+    if (unroutable.get()) {
+      log.error(
+          "Message returned as unroutable by the broker: no queue bound to routing key '{}' on exchange '{}'",
+          routingKey,
+          exchangeKey);
+      throw new UnroutableMessageException(
+          "No queue is bound to routing key '"
+              + routingKey
+              + "' on exchange '"
+              + exchangeKey
+              + "'. The connector has not declared its queue, so the broker discarded the message.");
+    }
+  }
+
+  /**
+   * Blocks until the broker confirms the last published message, so a failed delivery surfaces at
+   * publish time rather than as an inject that never completes.
+   */
+  private void waitForConfirm(Channel channel) throws IOException, TimeoutException {
+    try {
+      channel.waitForConfirmsOrDie(PUBLISH_CONFIRM_TIMEOUT_MS);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IOException("Interrupted while waiting for the publisher confirm", ex);
     }
   }
 

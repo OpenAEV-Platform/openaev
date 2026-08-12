@@ -105,7 +105,7 @@ class InjectsExecutionJobTenantScopeTest {
     when(previewFeatureService.isFeatureEnabled(any())).thenReturn(false);
     when(injectService.getExecutedAndNotFinished()).thenReturn(List.of());
     when(injectService.resolveAllAssetsToExecute(any(Inject.class))).thenReturn(List.of());
-    when(injectHelper.getAllPendingInjectsWithThresholdMinutes(anyInt())).thenReturn(List.of());
+    when(injectHelper.getAllStalledInjectsWithThresholdMinutes(anyInt())).thenReturn(List.of());
     when(healthCheckUtils.runContentChecks(any(Inject.class))).thenReturn(List.of());
 
     // Built before the when(): the helper stubs its own mocks, and nesting that inside

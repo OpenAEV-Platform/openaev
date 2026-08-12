@@ -117,5 +117,8 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - **Don't comment the obvious**: never add a comment that merely restates what the code already
   makes clear (e.g. `// Safe: newConnector is transient, not managed by Hibernate` when it's
   created with `new Connector()`). Comments should explain *why*, not *what*.
+- **Cap at ~2 lines**: state the non-obvious reason and stop. A correct *why* is still too long if it
+  takes a paragraph — background, incident history and rejected alternatives belong in the PR
+  description or the linked issue, not in the file. Same rule for JavaDoc and test comments.
 - **Don't duplicate computed values**: compute once (e.g. `String logoFilename = getLogoFilename()`)
   and pass as an argument — never repeat the same `.formatted(...)` expression in multiple places.

@@ -28,9 +28,10 @@ description: "Database conventions: schema naming, Flyway migrations, PostgreSQL
 
 ## Flyway Migrations
 
-- Java-based: `V{major}_{NN}__Description.java` in `io.openaev.migration`
-- Versioning rule: use `NN` from `01` to `99`; when exceeding `99`, increment `major` (e.g., `V4_99` -> `V5_01`, `V5_99` -> `V6_01`)
-- Find next number: inspect latest files in `openaev-api/src/main/java/io/openaev/migration/` and continue the sequence using the rule above
+- Java-based: `V{major}_{yyyyMMddHHmmssSSS}__description.java` in `io.openaev.migration` — 17-digit
+  timestamp, snake_case description (e.g. `V6_20260812100000000__Reindex_stalled_injects_sweep.java`)
+- Pick a timestamp after the latest existing migration: inspect `ls openaev-api/src/main/java/io/openaev/migration/ | sort | tail -5`
+- Migrations below `V6_` use the legacy sequential `V{major}_{NN}__PascalCase` scheme — do not extend it
 - Extends `BaseJavaMigration`, annotated `@Component`
 - Use `context.getConnection().createStatement()` for raw SQL
 - Batch: `statement.addBatch(...)` then `statement.executeBatch()`

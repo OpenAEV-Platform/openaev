@@ -19,7 +19,7 @@ public class V5_11__Add_Indexes_For_Inject_Execution_Job extends BaseJavaMigrati
               + "WHERE exercise_status = 'RUNNING'");
 
       // Partial index on injects_statuses for PENDING injects: used by
-      // InjectSpecification.pendingInjectWithThresholdMinutes() to detect stuck injects
+      // InjectSpecification.stalledInjectWithThresholdMinutes() to detect stuck injects.
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_injects_statuses_pending_sent_date "
               + "ON injects_statuses (tracking_sent_date) "

@@ -24,6 +24,7 @@ import ConnectorBuiltinInfo from './ConnectorBuiltinInfo';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
 import { ConnectorContext, isSupportedByFiligran } from './ConnectorContext';
 import ConnectorDetailHero from './ConnectorDetailHero';
+import ConnectorHealthAlert from './ConnectorHealthAlert';
 import type { ConnectorContextLayoutType } from './ConnectorLayout';
 import ConnectorLogs from './ConnectorLogs';
 import ConnectorPopover from './ConnectorPopover';
@@ -155,6 +156,10 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
     }}
     >
       <ConnectorAlerts />
+      <ConnectorHealthAlert
+        instance={instance}
+        onSeeLogs={instance?.connector_instance_id ? () => handleChangeTab('logs') : undefined}
+      />
       <ConnectorDetailHero
         title={connector?.name || catalogConnector?.catalog_connector_title || ''}
         logoSrc={connectorLogoUrl}

@@ -127,7 +127,7 @@ public class InjectSpecification {
                 cb.notEqual(root.get("status").get("name"), ExecutionStatus.PENDING));
   }
 
-  public static Specification<Inject> pendingInjectWithThresholdMinutes(int thresholdMinutes) {
+  public static Specification<Inject> stalledInjectWithThresholdMinutes(int thresholdMinutes) {
     return (root, query, cb) -> {
       Instant thresholdInstant = Instant.now().minus(Duration.ofMinutes(thresholdMinutes));
 
@@ -140,7 +140,7 @@ public class InjectSpecification {
           .where(cb.equal(wf.get("status"), WorkflowStatus.RUN));
 
       return cb.and(
-          cb.equal(root.get("status").get("name"), ExecutionStatus.PENDING),
+          root.get("status").get("name").in(ExecutionStatus.STALLED_STATUSES),
           cb.lessThan(root.get("status").get("trackingSentDate"), thresholdInstant),
           cb.or(
               cb.isNull(root.get("exercise")),

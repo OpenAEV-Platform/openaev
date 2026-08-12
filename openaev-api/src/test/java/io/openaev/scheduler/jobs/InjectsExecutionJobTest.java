@@ -636,8 +636,8 @@ class InjectsExecutionJobTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("handlePendingInject")
-  class HandlePendingInjectTest {
+  @DisplayName("handleStalledInjects")
+  class HandleStalledInjectsTest {
 
     @Test
     @DisplayName("given pending inject without traces should mark status as error with timeout")
@@ -654,7 +654,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
       entityManager.flush();
 
       // Act
-      job.handlePendingInject();
+      job.handleStalledInjects();
       entityManager.flush();
       entityManager.clear();
 
@@ -682,7 +682,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
       entityManager.flush();
 
       // Act
-      job.handlePendingInject();
+      job.handleStalledInjects();
       entityManager.flush();
       entityManager.clear();
 
@@ -731,7 +731,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
       entityManager.flush();
 
       // Act
-      job.handlePendingInject();
+      job.handleStalledInjects();
       entityManager.flush();
       entityManager.clear();
 
@@ -777,7 +777,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
       entityManager.flush();
 
       // Act
-      job.handlePendingInject();
+      job.handleStalledInjects();
       entityManager.flush();
       entityManager.clear();
 

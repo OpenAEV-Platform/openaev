@@ -130,11 +130,11 @@ public class InjectHelper {
    * @param thresholdMinutes the time window in minutes to look ahead
    * @return list of pending injects scheduled within the threshold
    */
-  public List<Inject> getAllPendingInjectsWithThresholdMinutes(int thresholdMinutes) {
+  public List<Inject> getAllStalledInjectsWithThresholdMinutes(int thresholdMinutes) {
     // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     return this.injectRepository.findAll(
-        InjectSpecification.pendingInjectWithThresholdMinutes(thresholdMinutes));
+        InjectSpecification.stalledInjectWithThresholdMinutes(thresholdMinutes));
   }
 
   // -- EXECUTABLE INJECT --

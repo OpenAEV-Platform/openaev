@@ -22,8 +22,14 @@ public class TenantMembershipCacheManager {
    * Returns whether the given user belongs to the given tenant (cached). The cache is explicitly
    * evicted when users are added to or removed from tenants, so membership changes take effect
    * immediately.
+   *
+   * <p>Negatives are not cached: nothing evicts an accidental one, so it would deny that
+   * user/tenant pair for the whole TTL - and connectors sharing the pair all fail at once.
    */
-  @Cacheable(value = "tenantMembership", key = "#userId + ':' + #tenantId")
+  @Cacheable(
+      value = "tenantMembership",
+      key = "#userId + ':' + #tenantId",
+      unless = "#result == false")
   public boolean existsByUserIdAndTenantId(String userId, String tenantId) {
     return tenantRepository.existsByUserIdAndTenantId(userId, tenantId);
   }

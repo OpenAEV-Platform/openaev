@@ -57,6 +57,7 @@ Then:
 | Check | What to look for |
 |---|---|
 | **Dead code** | Unused imports, commented-out blocks, unreachable branches |
+| **Comment length** | Comments and JavaDoc capped at ~2 lines, explaining *why* not *what*. Flag paragraph-length rationale, incident history and rejected alternatives — that belongs in the PR description (`backend.instructions.md` § Code Comments) |
 | **Complexity** | Methods >30 lines, >3 levels of nesting, >4 parameters |
 | **Duplication** | Copy-pasted logic that should be extracted |
 | **Null safety** | Proper use of `Optional`, null checks on external inputs |
