@@ -318,11 +318,13 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
     trailing: ReactNode;
   }
 
+  interface RowCell {
+    field: string;
+    node: ReactNode;
+  }
+
   const renderRow = (row: RowData) => {
-    const cells: {
-      field: string;
-      node: ReactNode;
-    }[] = [
+    const cells: RowCell[] = [
       {
         field: 'agent_name',
         node: nameNode(row.name),
@@ -349,7 +351,9 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
               {nameNode(row.name)}
               {row.chip}
             </Stack>
-            {descriptionNode(row.description)}
+            {/* No placeholder dash on the stacked card - a dangling "-" line is just noise there
+                (the "-" only exists to keep the wide table's description column visually filled). */}
+            {row.description ? descriptionNode(row.description) : null}
             {showModes && row.modeNode ? <div>{row.modeNode}</div> : null}
           </Stack>
         )
