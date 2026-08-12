@@ -167,8 +167,6 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
               Matcher.quoteReplacement(implantLocation));
-      // Cleanup is done by SentinelOneGarbageCollectorService: inlining it here delays the implant
-      // start and pushes injects past their execution timeout.
       actionWindows.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
       actionWindows.setAgentExternalReference(agent.getExternalReference());
@@ -235,7 +233,6 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
-    // No inlined cleanup, see getWindowsActions.
     return Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8));
   }
 }
