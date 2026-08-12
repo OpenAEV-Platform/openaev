@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
@@ -176,6 +177,64 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       assertNotNull(contract);
       assertEquals(1, contract.getDomains().size());
       assertEquals(domain.getId(), contract.getDomains().stream().findFirst().get().getId());
+    }
+
+    @Test
+    @DisplayName("Creating an action with omitted tag and attack pattern id lists should succeed")
+    void given_nullTagAndAttackPatternIds_should_createPayloadWithInjectorContract()
+        throws Exception {
+      // Regression test: the action -> payload input conversion goes through
+      // BeanUtils.copyProperties, which copies the action DTO's null id collections over the
+      // payload input's empty-list defaults. The nulls used to reach Spring Data's findAllById,
+      // which throws IllegalArgumentException ("Ids must not be null"), surfacing as an HTTP 400
+      // on every creation where action_tags / action_attack_patterns were omitted (the AI
+      // orchestrator hit this on threat arsenal action creation).
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          new ThreatArsenalActionCreateInput(
+              Command.COMMAND_TYPE,
+              "Command line payload without associations",
+              Payload.PAYLOAD_SOURCE.MANUAL,
+              Payload.PAYLOAD_STATUS.VERIFIED,
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              "bash",
+              "echo hello",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null, // action_tags omitted from the JSON payload
+              null, // action_attack_patterns omitted from the JSON payload
+              null,
+              null,
+              List.of(domain.getId()));
+
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String payloadId = JsonPath.read(response, "$.action_payload.payload_id");
+      Payload payload = payloadRepository.findById(payloadId).orElse(null);
+      assertNotNull(payload);
+      InjectorContract contract =
+          injectorContractRepository.findInjectorContractByPayload(payload).orElse(null);
+      assertNotNull(contract);
+      assertTrue(contract.getAttackPatterns().isEmpty());
+      assertTrue(contract.getTags().isEmpty());
     }
 
     @Test
@@ -787,6 +846,96 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           "Contracts without a payload should not contribute to status facet counts");
     }
 
+    @Test
+    @DisplayName(
+        "given a providing (findings) filter the search must not fail with a SELECT DISTINCT / ORDER BY SQL error")
+    void given_providingFilter_should_returnOkAndNotFailWithDistinctOrderBy() throws Exception {
+      // A providing filter (injector_contract_providing) forces query.distinct(true).
+      // Combined with the default composite-id sort, whose ORDER BY expands to
+      // (injector_contract_id, tenant_id), and a projection that lists only
+      // injector_contract_id, PostgreSQL rejected the query with "for SELECT
+      // DISTINCT, ORDER BY expressions must appear in select list" (HTTP 500).
+      // This is the error the AI orchestrator hit on every findings-scoped arsenal
+      // review during scenario generation.
+      SearchPaginationInput input = buildProvidingFilterSearchInput();
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI + "/search")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+
+      // The non-tabletop variant shares the same criteria-builder code path.
+      mvc.perform(
+              post(THREAT_ARSENAL_URI + "/search/non-tabletop")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "given a providing filter a contract linked to two injectors must appear exactly once")
+    void given_providingFilterAndMultiInjectorContract_should_returnOneRowPerContract()
+        throws Exception {
+      // Regression: the threat arsenal projection used to GROUP BY the unselected injector
+      // join id, so a contract linked to several injectors (the model enforces they share
+      // the same type) produced one identical projected row per link. The redundant SELECT
+      // DISTINCT hid that duplication until it was removed to fix the findings-scoped 500,
+      // letting such contracts appear several times while the count query (countDistinct on
+      // the root) still reported them once.
+      Injector injectorA =
+          InjectorFixture.createInjector(
+              UUID.randomUUID().toString(), "multi-link-injector-a", "multi-link-injector-type");
+      Injector injectorB =
+          InjectorFixture.createInjector(
+              UUID.randomUUID().toString(), "multi-link-injector-b", "multi-link-injector-type");
+
+      Payload commandWithParser = PayloadFixture.createDefaultCommand();
+      commandWithParser.setOutputParsers(Set.of(OutputParserFixture.getDefaultOutputParser()));
+
+      InjectorContractComposer.Composer contractComposer =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withPayload(payloadComposer.forPayload(commandWithParser))
+              .withInjector(injectorA);
+      // withInjector replaces existing links: add the second same-type injector directly.
+      contractComposer.get().addInjector(injectorB);
+      contractComposer.persist();
+      String contractId = contractComposer.get().getId();
+
+      String response = searchWith(buildProvidingFilterSearchInput());
+
+      List<String> returnedIds = JsonPath.read(response, "$.content[*].injector_contract_id");
+      assertEquals(
+          1,
+          returnedIds.stream().filter(contractId::equals).count(),
+          "a contract linked to two injectors must appear exactly once in the page content");
+      int totalElements = JsonPath.read(response, "$.totalElements");
+      assertEquals(
+          returnedIds.size(),
+          totalElements,
+          "page content must agree with the distinct contract count");
+    }
+
+    private SearchPaginationInput buildProvidingFilterSearchInput() {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("injector_contract_providing");
+      filter.setOperator(Filters.FilterOperator.not_empty);
+      filter.setMode(Filters.FilterMode.and);
+      filter.setValues(new ArrayList<>());
+
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+
+      SearchPaginationInput input = PaginationFixture.getDefault().build();
+      input.setFilterGroup(filterGroup);
+      return input;
+    }
+
     private String searchWith(SearchPaginationInput input) throws Exception {
       return mvc.perform(
               post(THREAT_ARSENAL_URI + "/search")
@@ -1184,6 +1333,61 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       assertNotNull(contract);
       assertEquals(1, contract.getDomains().size());
       assertEquals(newDomain.getId(), contract.getDomains().iterator().next().getId());
+    }
+
+    @Test
+    @DisplayName("Updating an action with omitted tag and attack pattern id lists should succeed")
+    void given_nullTagAndAttackPatternIds_should_updatePayloadWithInjectorContract()
+        throws Exception {
+      // Regression test: same null id collection issue as creation - the action -> payload
+      // update conversion copies the action DTO's nullable id lists onto the payload update
+      // input, and the nulls used to reach findAllById ("Ids must not be null", HTTP 400).
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput createInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+
+      String createResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(createInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String actionId = JsonPath.read(createResponse, "$.injector_contract_id");
+
+      ThreatArsenalActionUpdateInput updateInput =
+          new ThreatArsenalActionUpdateInput(
+              "Updated without associations",
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              null,
+              "bash",
+              "echo updated",
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null, // action_tags omitted from the JSON payload
+              null, // action_attack_patterns omitted from the JSON payload
+              null,
+              null,
+              List.of(domain.getId()));
+
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInput)))
+          .andExpect(status().is2xxSuccessful());
     }
 
     @Test
