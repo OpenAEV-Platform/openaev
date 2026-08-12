@@ -328,9 +328,9 @@ public class PhishingLandingPageService {
   public InjectorContract synchroniseInjectorContract(
       @NotNull final PhishingLandingPage landingPage) {
     String tenantId = resolveTenantId(landingPage);
-    Injector injector =
-        injectorRepository.findByTypeAndTenantId(PhishingContract.TYPE, tenantId).orElse(null);
-    if (injector == null) {
+    List<Injector> injectors =
+        injectorRepository.findByPhishingContractTypeByTenantId(PhishingContract.TYPE, tenantId);
+    if (injectors.isEmpty()) {
       log.warn("Phishing injector not registered for tenant {}, skipping contract sync", tenantId);
       return null;
     }
@@ -345,7 +345,7 @@ public class PhishingLandingPageService {
                   return created;
                 });
 
-    Contract contract = buildContract(landingPage, injector, tenantId);
+    Contract contract = buildContract(landingPage);
 
     // Prefix so Threat Arsenal search / category browsing makes the phishing origin obvious.
     Map<String, String> labels =
@@ -355,7 +355,7 @@ public class PhishingLandingPageService {
             "fr",
             "Hameconnage : " + landingPage.getName());
     injectorContract.setLabels(labels);
-    injectorContract.addInjector(injector);
+    injectors.forEach(injectorContract::addInjector);
 
     // The Threat Arsenal and the atomic-testing picker read these entity columns, NOT the
     // serialized
@@ -421,8 +421,7 @@ public class PhishingLandingPageService {
         : TenantContext.getCurrentTenant();
   }
 
-  private Contract buildContract(
-      final PhishingLandingPage landingPage, final Injector injector, final String tenantId) {
+  private Contract buildContract(final PhishingLandingPage landingPage) {
     ContractConfig contractConfig = phishingContract.getConfig();
 
     // Email template chooser populated from the tenant's reusable templates.

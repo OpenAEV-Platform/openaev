@@ -214,28 +214,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   /**
    * Checks whether at least one injector of the given type exists for the current tenant. Multiple
-   * injector instances of the same type are supported since V4_77 (Connector Manager); use this
-   * instead of injectorByType() when only existence matters and no NonUniqueResultException risk is
-   * acceptable.
+   * injector instances of the same type are supported since V4_77 (Connector Manager).
    */
   public boolean injectorTypeExists(@NotBlank final String injectorType) {
     return injectorRepository.existsByTypeAndTenantId(
         injectorType, TenantContext.getCurrentTenant());
-  }
-
-  /**
-   * Find injector by its type.
-   *
-   * @param injectorType injector type to search for
-   * @return an Optional containing the injector if found, empty otherwise
-   * @deprecated Since V4_77 (Connector Manager), an injector type is no longer guaranteed unique
-   *     per tenant - multiple instances of the same connector type may coexist. This method throws
-   *     NonUniqueResultException if more than one result exists. Prefer {@link
-   *     InjectorService#injectorTypeExists(String)} (backed by existsByTypeAndTenantId) when only
-   *     existence matters.
-   */
-  public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
-    return injectorRepository.findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant());
   }
 
   /**

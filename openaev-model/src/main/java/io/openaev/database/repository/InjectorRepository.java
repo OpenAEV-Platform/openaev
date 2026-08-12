@@ -20,15 +20,21 @@ public interface InjectorRepository
 
   boolean existsByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
-  /**
-   * @deprecated Since V4_77 (Connector Manager), an injector type is no longer guaranteed unique
-   *     per tenant - multiple instances of the same connector type may coexist. This method throws
-   *     NonUniqueResultException if more than one result exists. Prefer {@code
-   *     InjectorService#injectorTypeExists(String)} (backed by existsByTypeAndTenantId) when only
-   *     existence matters.
-   */
-  @NotNull
-  Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
+  @Query(
+      "SELECT i FROM Injector i "
+          + "WHERE i.type = :externalReference AND i.tenantId = :tenantId "
+          + "ORDER BY i.id")
+  List<Injector> findBySecurityPlatformExternalReferenceByTenantId(
+      @Param("externalReference") @NotNull String externalReference,
+      @Param("tenantId") @NotNull String tenantId);
+
+  @Query(
+      "SELECT i FROM Injector i "
+          + "WHERE i.type = :contractType AND i.tenantId = :tenantId "
+          + "ORDER BY i.id")
+  List<Injector> findByPhishingContractTypeByTenantId(
+      @Param("contractType") @NotNull String contractType,
+      @Param("tenantId") @NotNull String tenantId);
 
   @Query(
       "SELECT l.injector FROM InjectorInjectorContract l "

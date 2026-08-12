@@ -1,7 +1,6 @@
 package io.openaev.executors;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -132,8 +131,6 @@ class ExecutorTest {
       // -------- Assert --------
       verify(injectorRepository)
           .findFirstByContractsCompositeIdIdAndTenantId(CONTRACT_ID, TENANT_ID);
-      // The stale, filter-guarded fallback must not be used anymore
-      verify(injectorRepository, never()).findByTypeAndTenantId(any(), any());
     }
 
     @Test

@@ -83,8 +83,8 @@ class PhishingLandingPageServiceTest {
     PhishingLandingPage landingPage = new PhishingLandingPage();
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
-    when(injectorRepository.findByTypeAndTenantId(eq(PhishingContract.TYPE), any()))
-        .thenReturn(Optional.empty());
+    when(injectorRepository.findByPhishingContractTypeByTenantId(eq(PhishingContract.TYPE), any()))
+        .thenReturn(List.of());
 
     // -- ACT --
     InjectorContract contract = phishingLandingPageService.synchroniseInjectorContract(landingPage);
@@ -105,8 +105,8 @@ class PhishingLandingPageServiceTest {
 
     Injector injector = new Injector();
     injector.setId("phishing-injector");
-    when(injectorRepository.findByTypeAndTenantId(eq(PhishingContract.TYPE), any()))
-        .thenReturn(Optional.of(injector));
+    when(injectorRepository.findByPhishingContractTypeByTenantId(eq(PhishingContract.TYPE), any()))
+        .thenReturn(List.of(injector));
     when(injectorContractRepository.findById(any(InjectorContractId.class)))
         .thenReturn(Optional.empty());
 
@@ -212,8 +212,8 @@ class PhishingLandingPageServiceTest {
   private void arrangeSynchroniseStubs() throws Exception {
     Injector injector = new Injector();
     injector.setId("phishing-injector");
-    when(injectorRepository.findByTypeAndTenantId(eq(PhishingContract.TYPE), any()))
-        .thenReturn(Optional.of(injector));
+    when(injectorRepository.findByPhishingContractTypeByTenantId(eq(PhishingContract.TYPE), any()))
+        .thenReturn(List.of(injector));
     when(injectorContractRepository.findById(any(InjectorContractId.class)))
         .thenReturn(Optional.empty());
     when(phishingContract.getConfig())
@@ -317,8 +317,8 @@ class PhishingLandingPageServiceTest {
     when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(landingPage));
     when(documentService.document("doc-dark")).thenReturn(darkLogo);
     when(landingPageRepository.save(any(PhishingLandingPage.class))).thenReturn(landingPage);
-    when(injectorRepository.findByTypeAndTenantId(eq(PhishingContract.TYPE), any()))
-        .thenReturn(Optional.empty());
+    when(injectorRepository.findByPhishingContractTypeByTenantId(eq(PhishingContract.TYPE), any()))
+        .thenReturn(List.of());
 
     // -- ACT --
     PhishingLandingPage updated = phishingLandingPageService.updateLogos("lp-1", "doc-dark", null);
@@ -363,8 +363,8 @@ class PhishingLandingPageServiceTest {
     // -- ARRANGE --
     when(landingPageRepository.save(any(PhishingLandingPage.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
-    when(injectorRepository.findByTypeAndTenantId(eq(PhishingContract.TYPE), any()))
-        .thenReturn(Optional.empty());
+    when(injectorRepository.findByPhishingContractTypeByTenantId(eq(PhishingContract.TYPE), any()))
+        .thenReturn(List.of());
 
     for (String url :
         new String[] {"/dashboard", "https://example.com/next", "http://example.com"}) {

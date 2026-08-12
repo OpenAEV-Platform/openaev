@@ -4,8 +4,6 @@ import static io.openaev.rest.asset.security_platforms.SecurityPlatformApi.SECUR
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -29,7 +27,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,8 +91,9 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("existsByTypeAndTenantId stays safe with duplicate injector types per tenant")
-  void existsByTypeSupportsNonUniqueTypes() {
+  @DisplayName(
+      "findBySecurityPlatformExternalReferenceByTenantId supports duplicates and returns all matches")
+  void findBySecurityPlatformExternalReferenceSupportsNonUniqueTypes() {
     String duplicateType = "duplicate-type-" + UUID.randomUUID();
     injectorRepository.save(
         InjectorFixture.createInjector(UUID.randomUUID().toString(), "dup-1", duplicateType));
@@ -104,14 +102,12 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    assertTrue(
-        injectorRepository.existsByTypeAndTenantId(
-            duplicateType, TenantContext.getCurrentTenant()));
-    assertThrows(
-        IncorrectResultSizeDataAccessException.class,
-        () ->
-            injectorRepository.findByTypeAndTenantId(
-                duplicateType, TenantContext.getCurrentTenant()));
+    assertEquals(
+        2,
+        injectorRepository
+            .findBySecurityPlatformExternalReferenceByTenantId(
+                duplicateType, TenantContext.getCurrentTenant())
+            .size());
   }
 
   @Test
@@ -150,7 +146,10 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
 
     Injector linked =
         injectorRepository
-            .findByTypeAndTenantId(INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .findBySecurityPlatformExternalReferenceByTenantId(
+                INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .stream()
+            .findFirst()
             .orElseThrow();
     injectorRepository.delete(linked);
     entityManager.flush();
@@ -207,7 +206,10 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
     // The caller's injector links to the caller-tenant platform, not the foreign one.
     Injector reloaded =
         injectorRepository
-            .findByTypeAndTenantId(INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .findBySecurityPlatformExternalReferenceByTenantId(
+                INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .stream()
+            .findFirst()
             .orElseThrow();
     assertEquals(platformId, reloaded.getSecurityPlatform().getId());
   }

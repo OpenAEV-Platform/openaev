@@ -210,10 +210,9 @@ class V1_DataImporterTest extends IntegrationTest {
             .findById("93d27459-68d0-43b1-ad65-eacc3cfa5cf7")
             .orElseThrow();
     assertTrue(importedContract.getInjectors().isEmpty());
-    assertTrue(
-        this.injectorRepository
-            .findByTypeAndTenantId(NMAP_DUMMY_INJECTOR_TYPE, TenantContext.getCurrentTenant())
-            .isEmpty());
+    assertFalse(
+        this.injectorRepository.existsByTypeAndTenantId(
+            NMAP_DUMMY_INJECTOR_TYPE, TenantContext.getCurrentTenant()));
   }
 
   @Test
