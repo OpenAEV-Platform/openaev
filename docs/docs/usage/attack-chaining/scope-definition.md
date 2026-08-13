@@ -10,8 +10,7 @@ A scope is made of:
 - An **allow list** and a **deny list** of targets (Assets, Asset groups, or manually entered/CSV-imported IPs, IP
   subnets, and hostnames). The deny list always takes priority: a target listed in both is excluded.
 - **Variables**: named values you can reuse across your logic (see [Variables](#variables)).
-- A **timeout**: the maximum total runtime for the whole chained run. Note that the timeout keeps counting down even
-  while the Simulation is paused — pausing does not stop the clock.
+- A **timeout**: the maximum total runtime for the whole chained run.
 - A **rate limit**: how frequently an Action is allowed to execute — the interval between consecutive executions.
 
 ## Why use it?

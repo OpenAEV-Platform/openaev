@@ -36,7 +36,7 @@ You do not have to stop a run to change its direction. Steering is a first-class
 - **Edit live configuration**: adjust scope, rate limits, or safe mode on the fly. The change is applied to the live
   run and its chained Simulation without a restart.
 - **Answer questions**: when the AI is in **Waiting input**, answer its question to unblock it.
-- **Pause / resume / cancel**: full lifecycle control over the run and its underlying Simulation.
+- **Stop**: stop the run and its underlying Simulation.
 
 ## Configure the specialist agents (Settings → Customization)
 

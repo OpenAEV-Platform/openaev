@@ -45,7 +45,7 @@ The drawer's available actions depend on which entry point opened it:
   engages.
 
 While an autonomous run is active, the Scenario's page becomes its cockpit: the AI overview, the live attack-path
-graph, and an always-open reasoning panel, with pause / resume / stop controls in the header. Manual configuration
+graph, and an always-open reasoning panel, with a stop control in the header. Manual configuration
 (scope, logic, manual launch) is not exposed while the run is autonomous — the AI owns it.
 
 ## What's next?

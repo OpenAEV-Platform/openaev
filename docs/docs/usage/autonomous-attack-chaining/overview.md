@@ -88,11 +88,10 @@ A run moves through these states:
 |---|---|
 | **Created** | The run exists but has not been handed to the orchestrator yet. |
 | **Running** | The orchestrator is actively planning and executing. |
-| **Paused** | You paused the run; the underlying chained Simulation is paused too. |
 | **Waiting input** | The AI is blocked and asked you a question. It resumes once you answer. |
 | **Completed** | The objective was reached, or the AI decided to stop successfully. |
 | **Failed** | The run ended with an error. |
-| **Canceled** | You stopped the run. |
+| **Stopped** | You stopped the run. |
 
 ## Capability gaps and advice
 
