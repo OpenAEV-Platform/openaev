@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * roles_capabilities(role_id, capability)}.
  */
 @Component
-public class V6_20260813100000000__Add_credentials_capabilities_to_default_roles
+public class V6_20260813160000000__Add_credentials_capabilities_to_default_roles
     extends BaseJavaMigration {
 
   @Override
