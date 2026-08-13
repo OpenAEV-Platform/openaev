@@ -871,7 +871,10 @@ public class InjectExecutionStepTest extends IntegrationTest {
         .executionContext(eq(deniedUser), any(Inject.class), anyString());
     // Explicit drawer audience stays authoritative: scope players are never consulted.
     verify(scopeService, never()).getValidPlayers(any());
-    verify(exerciseTeamUserService).enableTargetedTeamMembers(exercise.getId(), List.of("team-1"));
+    // The denylist travels into the enable step so the denied player is never persisted into
+    // the simulation audience (exercise_teams_users) either.
+    verify(exerciseTeamUserService)
+        .enableTargetedTeamMembers(exercise.getId(), List.of("team-1"), Set.of("user-denied"));
   }
 
   @Test
@@ -902,7 +905,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertEquals(1, recipients.size());
     verify(executionContextService).executionContext(scopePlayer, inject, "Direct execution");
     // No targeted team to enable on the simulation.
-    verify(exerciseTeamUserService, never()).enableTargetedTeamMembers(any(), any());
+    verify(exerciseTeamUserService, never()).enableTargetedTeamMembers(any(), any(), any());
   }
 
   @Test

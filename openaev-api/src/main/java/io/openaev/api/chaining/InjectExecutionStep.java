@@ -285,15 +285,18 @@ public class InjectExecutionStep implements ActionStep {
       return List.of();
     }
 
-    if (!inject.isAllTeams() && !teams.isEmpty()) {
-      exerciseTeamUserService.enableTargetedTeamMembers(
-          exercise.getId(), teams.stream().map(Team::getId).toList());
-    }
-
     // A player denylisted in the workflow scope never receives an audience-centric inject, even
-    // as a member of a targeted team. Scope players are already denylist-filtered upstream.
+    // as a member of a targeted team. Resolved BEFORE enabling the teams on the simulation so a
+    // denied player is never persisted into the exercise_teams_users audience either - exclusion
+    // from team expansion, not just from this inject's recipients. Scope players are already
+    // denylist-filtered upstream.
     Set<String> deniedPlayerIds =
         workflow != null ? scopeService.getDeniedPlayerIds(workflow.getId()) : Set.of();
+
+    if (!inject.isAllTeams() && !teams.isEmpty()) {
+      exerciseTeamUserService.enableTargetedTeamMembers(
+          exercise.getId(), teams.stream().map(Team::getId).toList(), deniedPlayerIds);
+    }
 
     Map<String, ExecutionContext> byUser = new LinkedHashMap<>();
     for (Team team : teams) {
