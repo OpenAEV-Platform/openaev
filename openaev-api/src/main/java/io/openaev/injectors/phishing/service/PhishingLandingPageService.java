@@ -52,6 +52,7 @@ import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -110,6 +111,7 @@ public class PhishingLandingPageService {
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final InjectIndexCleanupService injectIndexCleanupService;
+  private final ChainingStepCleanupService chainingStepCleanupService;
   private final AttackPatternRepository attackPatternRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final PhishingContract phishingContract;
@@ -412,6 +414,11 @@ public class PhishingLandingPageService {
           injectIndexCleanupService.injectIdsByContractIds(List.of(landingPage.getId()), tenantId);
       injectorContractRepository.deleteById(contractId);
       injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+      // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
+      // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject
+      // de-index.
+      chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+          List.of(landingPage.getId()));
     }
   }
 

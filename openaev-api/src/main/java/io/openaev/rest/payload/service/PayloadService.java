@@ -46,6 +46,7 @@ import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -83,6 +84,7 @@ public class PayloadService {
   private final DomainService domainService;
   private final TagService tagService;
   private final InjectIndexCleanupService injectIndexCleanupService;
+  private final ChainingStepCleanupService chainingStepCleanupService;
 
   private final PayloadMapper payloadMapper;
 
@@ -590,10 +592,15 @@ public class PayloadService {
             .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
     // Payload deletion cascades at the DB level to its injector contract and then to the injects
     // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
-    // event fires for them.
+    // event fires for them. Chaining steps referencing that contract have no FK to cascade on (the
+    // contract is only a JSON snapshot in step_data), so resolve the contract ids BEFORE the delete
+    // and sweep the orphaned step templates explicitly too.
+    List<String> cascadeDeletedContractIds =
+        injectorContractRepository.findContractIdsByPayloadId(payloadId);
     List<String> cascadeDeletedInjectIds =
         injectIndexCleanupService.injectIdsByPayloadId(payloadId, payload.getTenant().getId());
     payloadRepository.deleteById(payloadId);
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(cascadeDeletedContractIds);
   }
 }

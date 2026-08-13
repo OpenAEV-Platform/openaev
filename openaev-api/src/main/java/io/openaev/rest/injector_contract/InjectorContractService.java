@@ -49,6 +49,7 @@ import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -109,6 +110,7 @@ public class InjectorContractService implements DependenciesManager {
   private final OrganizationService organizationService;
   private final InjectIndexCleanupService injectIndexCleanupService;
   private final StepRepository stepRepository;
+  private final ChainingStepCleanupService chainingStepCleanupService;
 
   private final List<String> listDefaultInjectorContract =
       List.of(
@@ -557,6 +559,10 @@ public class InjectorContractService implements DependenciesManager {
             List.of(injectorContract.getId()), tenantId);
     this.injectorContractRepository.delete(injectorContract);
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
+    // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        List.of(injectorContract.getId()));
   }
 
   /**
@@ -583,6 +589,10 @@ public class InjectorContractService implements DependenciesManager {
     this.injectorContractRepository.deleteById(
         new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()));
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
+    // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        List.of(injectorContractId));
   }
 
   /**

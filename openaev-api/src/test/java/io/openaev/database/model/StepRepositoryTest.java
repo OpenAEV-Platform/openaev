@@ -274,6 +274,80 @@ class StepRepositoryTest extends IntegrationTest {
   }
 
   @Test
+  void whenFindTemplateStepsByInjectorContractIds_thenMatchesBothShapesAndExcludesRunSteps() {
+    // GIVEN: two TEMPLATE steps referencing the doomed contracts (one per serialized shape), a
+    // TEMPLATE step on an unrelated contract, and a RUN step on the same doomed contract.
+    String objectContractId = "cascade-contract-object";
+    String stringContractId = "cascade-contract-string";
+    String otherContractId = "cascade-contract-other";
+
+    Step objectShapeTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + objectContractId
+                    + "\"}}")
+            .build();
+    Step stringShapeTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"inject_injector_contract\": \"" + stringContractId + "\"}")
+            .build();
+    Step unrelatedTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + otherContractId
+                    + "\"}}")
+            .build();
+    // A RUN step references the doomed contract too, but carries immutable execution history and
+    // must survive: it is excluded by the step_status = 'TEMPLATE' guard even though its
+    // step_template_id is also null here.
+    Step runStepSameContract =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.RUN)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + objectContractId
+                    + "\"}}")
+            .build();
+
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+        .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withStep(stepComposer.forStep(objectShapeTemplate))
+        .withStep(stepComposer.forStep(stringShapeTemplate))
+        .withStep(stepComposer.forStep(unrelatedTemplate))
+        .withStep(stepComposer.forStep(runStepSameContract))
+        .persist();
+
+    // WHEN
+    List<Step> matched =
+        stepRepository.findTemplateStepsByInjectorContractIds(
+            List.of(objectContractId, stringContractId));
+
+    // THEN
+    Set<String> matchedIds =
+        matched.stream().map(Step::getId).collect(java.util.stream.Collectors.toSet());
+    Assertions.assertEquals(
+        2, matchedIds.size(), "Only the two TEMPLATE steps on the doomed contracts match");
+    Assertions.assertTrue(
+        matchedIds.contains(objectShapeTemplate.getId()), "object-shape TEMPLATE matches");
+    Assertions.assertTrue(
+        matchedIds.contains(stringShapeTemplate.getId()), "string-shape TEMPLATE matches");
+    Assertions.assertFalse(
+        matchedIds.contains(unrelatedTemplate.getId()), "unrelated contract is excluded");
+    Assertions.assertFalse(
+        matchedIds.contains(runStepSameContract.getId()), "RUN step is preserved");
+  }
+
+  @Test
   void whenExistsInjectorContractByWorkflowIdAndInjectorContractId_thenChecksBothJsonShapes() {
     // GIVEN
     String objectContractId = "contract-object";

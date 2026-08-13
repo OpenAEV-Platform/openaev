@@ -190,6 +190,22 @@ public interface InjectorContractRepository
       nativeQuery = true)
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
+  /**
+   * Returns the injector contract ids backed by the given payload. Deleting a payload cascades to
+   * its contract at the database level ({@code injector_contract_payload ... ON DELETE CASCADE}),
+   * so the payload-delete path must resolve these ids BEFORE the delete to cascade-clean the
+   * chaining steps that reference the doomed contract (the step -> contract link lives only inside
+   * {@code step_data}, with no FK to cascade on).
+   *
+   * @param payloadId the payload whose contract ids are resolved
+   * @return the injector contract ids (usually one), empty when the payload backs no contract
+   */
+  @Query(
+      value =
+          "SELECT ic.injector_contract_id FROM injectors_contracts ic WHERE ic.injector_contract_payload = :payloadId",
+      nativeQuery = true)
+  List<String> findContractIdsByPayloadId(@Param("payloadId") String payloadId);
+
   @Query(
       "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "
           + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.payload IS NOT NULL")

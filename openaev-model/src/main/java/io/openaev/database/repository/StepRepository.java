@@ -286,4 +286,43 @@ public interface StepRepository extends JpaRepository<Step, String> {
   boolean existsInjectorContractByWorkflowIdAndInjectorContractId(
       @Param("workflowId") String workflowId,
       @Param("injectorContractId") String injectorContractId);
+
+  /**
+   * Returns the TEMPLATE steps (authored logic-map nodes) whose frozen {@code step_data} references
+   * any of the given injector contract ids, across every workflow.
+   *
+   * <p>Unlike regular injects, a chaining step has NO foreign key to its injector contract - the
+   * contract lives only as a JSON snapshot inside {@code step_data}, so there is nothing for the
+   * database {@code ON DELETE CASCADE} to act on. This query is the JSONB counterpart used to
+   * cascade-clean those steps when their contract / payload is deleted from the threat arsenal.
+   * Both serialized shapes are matched: the full contract object (UI steps, {@code
+   * inject_injector_contract.injector_contract_id}) and the legacy plain-string contract id.
+   *
+   * <p>Scoped to TEMPLATE steps on purpose: RUN steps carry immutable execution history and must
+   * survive their contract's deletion, mirroring the TEMPLATE-only rule of {@code
+   * WorkflowScopeRuleCascadeListener}. The canonical {@code step_status = 'TEMPLATE'} check (the
+   * {@code step_status} named enum is cast to text for native SQL) is the primary guard; the
+   * redundant {@code step_template_id IS NULL} belt guarantees an orphaned run artifact with a null
+   * template link can never be mistaken for an authored node.
+   *
+   * @param injectorContractIds the deleted injector contract ids to look for
+   * @return the matching TEMPLATE steps (empty when the input is empty)
+   */
+  @Query(
+      value =
+          """
+        SELECT * FROM steps s
+        WHERE s.step_status::text = 'TEMPLATE'
+          AND s.step_template_id IS NULL
+          AND (
+            (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
+              AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' IN (:injectorContractIds))
+            OR
+            (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'string'
+              AND s.step_data ->> 'inject_injector_contract' IN (:injectorContractIds))
+          )
+        """,
+      nativeQuery = true)
+  List<Step> findTemplateStepsByInjectorContractIds(
+      @Param("injectorContractIds") Collection<String> injectorContractIds);
 }
