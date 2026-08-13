@@ -107,7 +107,7 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
 
   @Test
   @DisplayName("Deleting the injector contract wipes the TEMPLATE step but keeps the RUN step")
-  void whenContractDeleted_thenTemplateStepIsWipedAndRunStepSurvives() {
+  void given_contractDeletedById_should_wipeTemplateStepAndKeepRunStep() {
     Fixture fixture = persistContractAndScenarioSteps();
 
     // Sanity: both steps exist before the deletion.
@@ -130,7 +130,7 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
 
   @Test
   @DisplayName("Deleting the payload cascades through its contract to wipe the TEMPLATE step")
-  void whenPayloadDeleted_thenTemplateStepIsWiped() {
+  void given_payloadDeleted_should_wipeTemplateStep() {
     Fixture fixture = persistContractAndScenarioSteps();
 
     Assertions.assertTrue(stepRepository.findById(fixture.templateStepId()).isPresent());
@@ -152,7 +152,7 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
 
   @Test
   @DisplayName("Deleting a custom contract through the user-facing path wipes the TEMPLATE step")
-  void whenCustomContractDeletedThroughApiPath_thenTemplateStepIsWipedAndRunStepSurvives() {
+  void given_customContractDeletedThroughUserFacingPath_should_wipeTemplateStepAndKeepRunStep() {
     Fixture fixture = persistContractAndScenarioSteps();
 
     Assertions.assertTrue(stepRepository.findById(fixture.templateStepId()).isPresent());
@@ -175,7 +175,7 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
 
   @Test
   @DisplayName("Deleting the injector sweeps the TEMPLATE steps of its orphaned contracts")
-  void whenInjectorDeleted_thenTemplateStepIsWipedAndRunStepSurvives()
+  void given_injectorDeleted_should_wipeTemplateStepAndKeepRunStep()
       throws ConnectorStatusException {
     Fixture fixture = persistContractAndScenarioSteps();
 

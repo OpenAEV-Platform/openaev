@@ -36,14 +36,14 @@ class ChainingStepCleanupServiceTest {
 
   @Test
   @DisplayName("null contract ids is a no-op that never touches the repositories")
-  void nullInput_isNoOp() {
+  void given_nullContractIds_should_noOp() {
     Assertions.assertEquals(0, service.deleteTemplateStepsByInjectorContractIds(null, TENANT_ID));
     verifyNoInteractions(stepRepository, conditionService);
   }
 
   @Test
   @DisplayName("empty contract ids is a no-op that never touches the repositories")
-  void emptyInput_isNoOp() {
+  void given_emptyContractIds_should_noOp() {
     Assertions.assertEquals(
         0, service.deleteTemplateStepsByInjectorContractIds(List.of(), TENANT_ID));
     verifyNoInteractions(stepRepository, conditionService);
@@ -51,7 +51,7 @@ class ChainingStepCleanupServiceTest {
 
   @Test
   @DisplayName("a null tenant fails fast instead of silently sweeping nothing")
-  void nullTenant_failsFast() {
+  void given_nullTenant_should_failFast() {
     Assertions.assertThrows(
         NullPointerException.class,
         () -> service.deleteTemplateStepsByInjectorContractIds(List.of("c1"), null));
@@ -60,7 +60,7 @@ class ChainingStepCleanupServiceTest {
 
   @Test
   @DisplayName("no matching steps returns 0 and deletes nothing")
-  void noMatches_returnsZero() {
+  void given_noMatchingSteps_should_returnZero() {
     when(stepRepository.findTemplateStepsByInjectorContractIds(List.of("c1"), TENANT_ID))
         .thenReturn(List.of());
 
@@ -74,7 +74,7 @@ class ChainingStepCleanupServiceTest {
 
   @Test
   @DisplayName("each matched step has its conditions pruned before the step row is removed")
-  void matches_pruneConditionsThenDeleteSteps() {
+  void given_matchingSteps_should_pruneConditionsThenDeleteSteps() {
     Step s1 = templateStep("step-1");
     Step s2 = templateStep("step-2");
     when(stepRepository.findTemplateStepsByInjectorContractIds(List.of("c1", "c2"), TENANT_ID))

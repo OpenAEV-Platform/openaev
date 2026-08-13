@@ -277,7 +277,7 @@ class StepRepositoryTest extends IntegrationTest {
   }
 
   @Test
-  void whenFindTemplateStepsByInjectorContractIds_thenMatchesBothShapesAndExcludesRunSteps() {
+  void given_bothStepDataShapesAcrossTenants_should_matchOnlyTenantTemplateSteps() {
     // GIVEN: two TEMPLATE steps referencing the doomed contracts (one per serialized shape), a
     // TEMPLATE step on an unrelated contract, and a RUN step on the same doomed contract.
     String objectContractId = "cascade-contract-object";
