@@ -326,6 +326,9 @@ interface AutonomousReasoningPanelProps {
   run: AutonomousRun;
   /** Lift status transitions up so the hero + tab set stay in sync without a second poll loop. */
   onRunUpdate?: (run: AutonomousRun) => void;
+  /** Share the incrementally polled timeline with a sibling (the overview outcome layer) so that
+   *  layer does not start a second full-from-cursor-0 poll of the same endpoint. */
+  onTimelineEvents?: (events: AutonomousEvent[]) => void;
   /** Live panel width (px), owned by the parent via {@link useAutonomousPanelWidth} so the content
    *  padding follows the drag. */
   width?: number;
@@ -348,6 +351,7 @@ interface AutonomousReasoningPanelProps {
 const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps> = ({
   run: initialRun,
   onRunUpdate,
+  onTimelineEvents,
   width = AUTONOMOUS_PANEL_WIDTH,
   onWidthChange,
   readOnly = false,
@@ -364,6 +368,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
 
   const [run, setRun] = useState<AutonomousRun>(initialRun);
   const [events, setEvents] = useState<AutonomousEvent[]>([]);
+  useEffect(() => {
+    onTimelineEvents?.(events);
+  }, [events, onTimelineEvents]);
   const [directive, setDirective] = useState('');
   // Which proposed one-click choice the operator picked (null = none; they can still type freely in
   // the always-visible composer, which takes precedence over a selected choice).

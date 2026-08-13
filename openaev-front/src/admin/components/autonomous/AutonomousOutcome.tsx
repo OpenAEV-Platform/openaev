@@ -216,8 +216,11 @@ const OutcomeCard: FunctionComponent<{
 interface AutonomousOutcomeProps {
   run: AutonomousRun;
   // Live cockpit polls the timeline while the run is active; the durable read on a settled scenario
-  // fetches once and never polls. Defaults to live.
+  // fetches once and never polls. Defaults to live. Ignored when `sharedEvents` is provided.
   live?: boolean;
+  // When the parent already owns a live timeline (the reasoning panel), reuse it instead of
+  // starting a second full-from-cursor-0 poll of the same endpoint.
+  sharedEvents?: AutonomousEvent[];
 }
 
 /**
@@ -231,7 +234,7 @@ interface AutonomousOutcomeProps {
  * the proofs column, the "Proofs" hero stat and the sample PROOF timeline node are all dropped, and
  * the gaps column takes the full width.
  */
-const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, live = true }) => {
+const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, live = true, sharedEvents }) => {
   const theme = useTheme();
   const { t, nsdt, vnsdt } = useFormatter();
   const accent = theme.palette.ai?.main ?? theme.palette.primary.main;
@@ -244,7 +247,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
   const status = run.autonomous_run_status;
   const simulationId = run.autonomous_run_simulation_id;
 
-  const [events, setEvents] = useState<AutonomousEvent[]>([]);
+  const [events, setEvents] = useState<AutonomousEvent[]>(sharedEvents ?? []);
   // The gap / proof card the operator drilled into, with the tags already
   // extracted so the dialog does not re-parse them.
   const [selectedOutcome, setSelectedOutcome] = useState<{
@@ -259,24 +262,33 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
   const timelinePinnedRef = useRef(true);
 
+  const usesSharedTimeline = sharedEvents !== undefined;
+  useEffect(() => {
+    if (sharedEvents !== undefined) {
+      setEvents(sharedEvents);
+    }
+  }, [sharedEvents]);
+
   const reload = useCallback(() => fetchAutonomousTimeline(runId, 0)
     .then(res => setEvents(res.data ?? []))
     .catch(() => {}), [runId]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (!usesSharedTimeline) {
+      reload();
+    }
+  }, [reload, usesSharedTimeline]);
 
   const isActive = ACTIVE_STATUSES.includes(status);
   useEffect(() => {
-    if (!live || !isActive) {
+    if (usesSharedTimeline || !live || !isActive) {
       return undefined;
     }
     const interval = setInterval(() => {
       reload();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [live, isActive, reload]);
+  }, [live, isActive, reload, usesSharedTimeline]);
 
   // Keep timelinePinnedRef in sync with how close the operator is to the right
   // edge, so we only tail-follow when they are already watching the latest.
