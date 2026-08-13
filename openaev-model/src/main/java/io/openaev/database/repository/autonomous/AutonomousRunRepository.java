@@ -14,9 +14,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 /**
- * Tenant-active store for autonomous runs. The tenant predicate on {@code autonomous_runs} is added
- * by the statement inspector, so these derived queries stay tenant-scoped without an explicit
- * clause.
+ * Store for autonomous runs. {@code autonomous_runs} is NOT yet onboarded to the tenant statement
+ * inspector (tracked in issue #7396), so derived queries here are not tenant-scoped on their own;
+ * the queries that must be tenant-correct today carry an explicit {@code tenant_id} predicate, and
+ * resource-level access is gated by {@code AutonomousRunAccessControl}.
  */
 @Repository
 public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, String> {

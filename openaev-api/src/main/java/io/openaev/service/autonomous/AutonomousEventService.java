@@ -40,6 +40,13 @@ public class AutonomousEventService {
   public static final Set<String> TERMINAL_STATUS_TITLES =
       Set.of("Run canceled", "Run completed", "Run timed out", "Run failed");
 
+  /**
+   * High 32 bits of the per-run advisory-lock key, namespacing autonomous event-sequence locks so
+   * they can never collide with any other advisory lock the platform might take. The value is
+   * arbitrary but stable ("AE" = autonomous event).
+   */
+  private static final long EVENT_SEQUENCE_LOCK_NAMESPACE = 0x4145_0001L;
+
   @Transactional(rollbackFor = Exception.class)
   public AutonomousEvent append(
       String runId,
@@ -63,6 +70,13 @@ public class AutonomousEventService {
       String title,
       String content,
       String data) {
+    // Serialise concurrent appenders to THIS run before the read-max-then-insert below: two
+    // decision cycles (or a cycle racing an operator directive) writing to the same run must not
+    // both compute the same next sequence. The transaction advisory lock makes both succeed as N
+    // and N+1; the UNIQUE (run_id, sequence) index is the backstop that makes a duplicate
+    // impossible regardless. Re-acquiring the same key inside one transaction (the terminal-once
+    // path locks before its existence check, then reaches this) is a cheap no-op.
+    eventRepository.lockRunEventSequence(sequenceLockKey(runId));
     AutonomousEvent event = new AutonomousEvent();
     event.setRunId(runId);
     event.setSequence(eventRepository.findMaxSequence(runId) + 1);
@@ -88,6 +102,16 @@ public class AutonomousEventService {
   }
 
   /**
+   * Builds the 64-bit advisory-lock key for a run: the fixed {@link #EVENT_SEQUENCE_LOCK_NAMESPACE}
+   * in the high 32 bits and the run id's hash in the low 32 bits. A hash collision across two
+   * different runs merely serialises their (independent) appends for an instant - never a
+   * correctness issue - while an exact per-run match is what actually closes the sequence race.
+   */
+  private static long sequenceLockKey(String runId) {
+    return (EVENT_SEQUENCE_LOCK_NAMESPACE << 32) | (runId.hashCode() & 0xFFFF_FFFFL);
+  }
+
+  /**
    * Appends a run's END event ("Run canceled" / "Run completed" / "Run timed out" / "Run failed")
    * exactly once per run life. Any second terminal narration - a racing settle path that also won a
    * flip, or the reconcile re-settling a run that a late orchestrator write briefly resurrected -
@@ -98,6 +122,13 @@ public class AutonomousEventService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousEvent appendTerminalStatusOnce(
       String runId, String simulationId, String title, String content) {
+    // Take the per-run advisory lock BEFORE the existence check, not only inside doAppend: two
+    // racing settle paths could otherwise both observe "no terminal event yet", then serialise on
+    // the append lock and write two distinct terminal lines as N and N+1 - which the unique
+    // (run_id, sequence) index cannot prevent. Holding the lock across check + append makes the
+    // second transaction wait, then (READ COMMITTED) observe the first one's committed terminal
+    // event and drop its duplicate.
+    eventRepository.lockRunEventSequence(sequenceLockKey(runId));
     if (eventRepository.existsTerminalStatusEvent(runId, TERMINAL_STATUS_TITLES)) {
       return null;
     }
@@ -115,9 +146,27 @@ public class AutonomousEventService {
         runId, sinceSequence);
   }
 
-  /** Purges a run's entire decision timeline (used when the run itself is deleted). */
+  /**
+   * Purges a run's entire decision timeline (used when the run itself is deleted, or reset by
+   * restart / promote).
+   *
+   * <p>The purge participates in the same per-run advisory-lock protocol as the appenders: without
+   * it, a purge racing an in-flight terminal append could interleave so the old life's "Run
+   * canceled" row commits AFTER the reset wiped the timeline, resurrecting a stale terminal line
+   * inside a freshly reset (or about-to-be-deleted) timeline. Holding the lock serialises the two:
+   * an append that wins commits first and is then purged with everything else; a purge that wins
+   * leaves the late appender to re-check against the run's committed state (its callers gate on a
+   * row-locked status read, so a stale settle no longer narrates at all).
+   *
+   * <p>LOCK ORDER: every caller that also writes the {@code autonomous_runs} row takes the run ROW
+   * lock BEFORE this advisory lock (restart / promote read through {@code requireForUpdate}; the
+   * teardown paths re-read through the row-locking lookup) - the same {@code row -> advisory} order
+   * the settle paths use (conditional row-locking UPDATE, then terminal append). Acquiring in the
+   * opposite order would deadlock a purge against a concurrent settle.
+   */
   @Transactional(rollbackFor = Exception.class)
   public void deleteByRun(String runId) {
+    eventRepository.lockRunEventSequence(sequenceLockKey(runId));
     eventRepository.deleteByRunId(runId);
   }
 }

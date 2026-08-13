@@ -23,6 +23,19 @@ public interface AutonomousEventRepository extends JpaRepository<AutonomousEvent
   long findMaxSequence(@Param("runId") String runId);
 
   /**
+   * Takes a PostgreSQL transaction-scoped advisory lock keyed on {@code key} and returns once it is
+   * held. {@code AutonomousEventService} calls this before its {@link #findMaxSequence} +1 insert
+   * so two appenders writing to the same run serialise instead of both computing the same next
+   * sequence. The lock auto-releases at commit/rollback and is cluster-wide (it holds across API
+   * nodes), unlike a JVM lock; it complements the UNIQUE {@code (run_id, sequence)} index, which is
+   * the hard backstop. Wrapped as {@code SELECT 1 FROM (...)} so the {@code void} lock function
+   * maps to a plain scalar (the volatile function is still evaluated to produce the row). Must run
+   * inside a transaction.
+   */
+  @Query(value = "SELECT 1 FROM (SELECT pg_advisory_xact_lock(:key)) AS locked", nativeQuery = true)
+  Integer lockRunEventSequence(@Param("key") long key);
+
+  /**
    * True when the run already carries a STATUS event whose title is one of {@code titles}. Used to
    * narrate a run's END (canceled / completed / timed out / failed) at most once per run life: an
    * operator Stop, the timeout watchdog and the read-path reconcile can all reach a run, and a
