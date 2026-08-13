@@ -9,7 +9,7 @@ import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
@@ -19,6 +19,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.command.CommandArgumentBinder;
+import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -44,6 +45,8 @@ public class ExecutableInjectService {
   private final InjectStatusService injectStatusService;
   private final InjectExpectationService injectExpectationService;
   private final PayloadService payloadService;
+
+  @Resource protected ObjectMapper mapper;
 
   private static final Set<String> RESERVED_PLACEHOLDERS = Set.of("location", "payload_location");
   private static final Pattern argumentsRegex = Pattern.compile("#\\{([^#{}]+)}");
@@ -109,14 +112,13 @@ public class ExecutableInjectService {
       ObjectNode injectContent,
       boolean enforceMandatory) {
 
+    Set<String> argumentKeys = getArgumentsFromCommandLines(command);
     List<PayloadArgument> payloadArguments =
         defaultPayloadArguments != null ? defaultPayloadArguments : List.of();
     List<ObjectNode> contractFields =
         injectorContractContentFields != null ? injectorContractContentFields : List.of();
     ObjectNode safeInjectContent =
-        injectContent != null ? injectContent : JsonNodeFactory.instance.objectNode();
-
-    Set<String> argumentKeys = getArgumentsFromCommandLines(command);
+        injectContent != null ? injectContent : mapper.createObjectNode();
 
     for (String argumentKey : argumentKeys) {
       if (RESERVED_PLACEHOLDERS.contains(argumentKey)) {
@@ -136,14 +138,12 @@ public class ExecutableInjectService {
               contractFields,
               safeInjectContent);
 
-      if (resolvedArgument.missing()) {
-        if (enforceMandatory && resolvedArgument.mandatory()) {
-          log.error(
-              "[Inject execution] Missing mandatory input '{}' -> step run can not be created/executed",
-              argumentKey);
-          throw new IllegalStateException(
-              "Missing mandatory input '%s' for inject execution".formatted(argumentKey));
-        }
+      if (resolvedArgument.missing() && enforceMandatory && resolvedArgument.mandatory()) {
+        log.error(
+            "[Inject execution] Missing mandatory input '{}' -> step run can not be created/executed",
+            argumentKey);
+        throw new IllegalStateException(
+            "Missing mandatory input '%s' for inject execution".formatted(argumentKey));
       }
       binder.bind(argumentKey, resolvedArgument.value());
     }
@@ -204,7 +204,7 @@ public class ExecutableInjectService {
     // If arg is a doc, specific handling
     // We need to resolve the doc name and add special prefix #{location} that will be resolved
     // by the implant
-    if (PrimitiveType.Document == type && hasText(value)) {
+    if (PrimitiveType.Document == type && !value.isEmpty()) {
       try {
         Document doc = documentService.document(value);
         value = "#{location}/" + doc.getName();
@@ -263,6 +263,7 @@ public class ExecutableInjectService {
       List<ObjectNode> injectorContractContentFields,
       String obfuscator) {
     OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
+
     String computedCommand = command;
     // cmd-specific rewrites are applied to the TEMPLATE only: running them after substitution would
     // let an argument value smuggle a %VAR% / newline through them.
