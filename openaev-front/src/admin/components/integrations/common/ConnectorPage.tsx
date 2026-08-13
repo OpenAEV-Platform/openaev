@@ -5,7 +5,6 @@ import { type ReactNode, useContext, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router';
 
 import { updateRequestedStatus } from '../../../../actions/connector_instances/connector-instance-actions';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
 import useDialog from '../../../../components/common/dialog/useDialog';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
@@ -17,19 +16,16 @@ import { AbilityContext } from '../../../../utils/permissions/permissionsContext
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ActionButton from './ActionButton';
-import builtinConnectorDescription from './builtinConnectorDescriptions';
-import { computeConnectorLiveliness } from './connector-liveliness';
+import { isConnectorAlive } from './connector-liveliness';
 import ConnectorAlerts from './ConnectorAlerts';
-import ConnectorBuiltinInfo from './ConnectorBuiltinInfo';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
-import { ConnectorContext, isSupportedByFiligran } from './ConnectorContext';
+import { ConnectorContext } from './ConnectorContext';
 import ConnectorDetailHero from './ConnectorDetailHero';
 import type { ConnectorContextLayoutType } from './ConnectorLayout';
 import ConnectorLogs from './ConnectorLogs';
 import ConnectorPopover from './ConnectorPopover';
 import ConnectorStatus from './ConnectorStatus';
 import MigrateButton from './MigrateButton';
-import isPlatformConnector from './platform-connectors';
 
 /** Deployed connector detail page (collectors / executors / injectors). */
 const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode }) => {
@@ -49,8 +45,6 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const heroType = catalogConnector?.catalog_connector_type
     ?? (connectorType.toUpperCase() as 'INJECTOR' | 'COLLECTOR' | 'EXECUTOR' | 'SECRETS_PROVIDER');
   const heroExternal = catalogConnector?.catalog_connector_manager_supported ?? connector?.isExternal;
-  // Per-type fallback description for built-in connectors (no catalog entry).
-  const builtinDescription = connector?.type ? builtinConnectorDescription(connector.type) : undefined;
   const createInstanceDrawer = useDialog();
 
   const onCloseCreateInstanceDrawer = () => {
@@ -88,8 +82,8 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   // injector has not registered yet) and never receives the SSE status updates,
   // so keying the chip on it would leave a freshly started instance on
   // "Stopped" forever.
-  const liveliness = connector
-    ? computeConnectorLiveliness({
+  const isStarted = connector
+    ? isConnectorAlive({
         ...connector,
         connectorInstance: instance ?? connector.connectorInstance,
       })
@@ -110,34 +104,11 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
     dispatch(updateRequestedStatus(instance.connector_instance_id, { connector_instance_requested_status: next }));
   };
 
-  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+  const canUserManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   // A catalog entry is required to migrate: the drawer posts the catalog id and
   // needs its configuration schema, so without one the request can only fail.
-  const showMigrateButton = connector?.isExternal === true && !instance && isXtmComposerUp
-    && canManage && !!catalogConnector;
+  const showMigrateButton = connector?.isExternal && !instance && isXtmComposerUp && canUserManage && !!catalogConnector;
   const disabledUpdateButtons = !isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported === true);
-  // A connector with no managed instance (registered directly / manually, not
-  // deployed through the Integration Manager) has no instance popover, so it
-  // could never be removed. Offer a direct delete of the connector entity - the
-  // heartbeat is what keeps it alive, so a stopped connector that no longer
-  // pings can now be cleaned up.
-  //
-  // Built-in in-process connectors (Manual / Email / Channel / Challenge
-  // injectors, the Expiration Manager collectors, the implant executor, the
-  // local secrets provider) are NEVER deletable: they are the platform itself
-  // and only exist in memory (no managed instance to stop), so removing the
-  // entity would break core execution with no way to re-create it from the UI.
-  // `liveliness.builtIn` (non-external + implemented in code) captures exactly
-  // that set while still allowing deletion of legacy rows whose implementation
-  // was dropped (not existing -> not built-in) and of external connectors.
-  // OpenCTI parity: a started external connector can never be deleted - stop it
-  // first. For an unmanaged connector the kebab only ever contains Delete, so
-  // whenever delete is unavailable the kebab disappears entirely; the backend
-  // enforces the same rule.
-  const canDeleteConnector = canManage && !instance && !!connector?.id
-    && !isPlatformConnector(connector?.type)
-    && !liveliness?.builtIn
-    && !(connector?.isExternal === true && liveliness?.started === true);
 
   const handleDeleteConnector = () => {
     if (!connector?.id) return;
@@ -160,9 +131,9 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         logoSrc={connectorLogoUrl}
         type={heroType}
         useCases={catalogConnector?.catalog_connector_use_cases}
-        verified={isSupportedByFiligran(connector, catalogConnector?.catalog_connector_verified)}
+        verified={connector.isFiligranVerified}
         external={heroExternal}
-        statusChip={liveliness && (
+        statusChip={(
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -172,12 +143,12 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
             <ConnectorStatus
               variant={(() => {
                 if (isStatusLoading) return 'loading';
-                return liveliness.started ? 'started' : 'stopped';
+                return isStarted ? 'started' : 'stopped';
               })()}
             />
             <Tooltip title={(() => {
-              if (liveliness.builtIn) return t('Runs inside the platform');
-              if (liveliness.lastSeen) return `${t('Last Seen')}: ${nsdt(liveliness.lastSeen)}`;
+              if (connector.id != undefined && !connector.isExternal) return t('Runs inside the platform');
+              if (connector.lastSeen) return `${t('Last Seen')}: ${nsdt(connector.lastSeen)}`;
               return t('Never updated');
             })()}
             >
@@ -192,11 +163,11 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
                   height: 8,
                   flexShrink: 0,
                   borderRadius: '50%',
-                  backgroundColor: liveliness.healthy ? theme.palette.success.main : theme.palette.error.main,
-                  boxShadow: `0 0 6px ${liveliness.healthy ? theme.palette.success.main : theme.palette.error.main}`,
+                  backgroundColor: isStarted ? theme.palette.success.main : theme.palette.error.main,
+                  boxShadow: `0 0 6px ${isStarted ? theme.palette.success.main : theme.palette.error.main}`,
                 }}
                 />
-                {liveliness.lastSeen && (
+                {connector.lastSeen && (
                   <Typography
                     variant="body2"
                     sx={{
@@ -205,7 +176,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
                       color: 'text.secondary',
                     }}
                   >
-                    {moment(liveliness.lastSeen).fromNow()}
+                    {moment(connector.lastSeen).fromNow()}
                   </Typography>
                 )}
               </div>
@@ -217,32 +188,18 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
             {showMigrateButton && (
               <MigrateButton onMigrateBtnClick={() => createInstanceDrawer.handleOpen()} />
             )}
-            {canManage && instance?.connector_instance_id && (
+            {canUserManage && instance?.connector_instance_id && (
               <ActionButton
                 onUpdate={onUpdateRequestedStatusClick}
                 disabled={disabledUpdateButtons}
                 status={instanceRequestedStatus}
               />
             )}
-            {/* Kebab always LAST, like every other detail hero in the app. Kept
-                openable when the Integration Manager is down: the Update drawer
-                shows the warning inside and disables the form, so the action
-                surface stays reachable (OpenCTI pattern). */}
-            {canManage && instance?.connector_instance_id && (
+            {canUserManage && instance?.connector_instance_id && (
               <ConnectorPopover
                 connectorInstanceId={instance.connector_instance_id}
                 connectorName={connector?.name || catalogConnector?.catalog_connector_title || ''}
-                disabled={!isEnterpriseEdition}
-              />
-            )}
-            {canDeleteConnector && (
-              <ButtonPopover
-                variant="icon"
-                entries={[{
-                  label: 'Delete',
-                  action: () => setIsDeleteOpen(true),
-                  userRight: true,
-                }]}
+                disabled={disabledUpdateButtons}
               />
             )}
           </>
@@ -255,12 +212,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
       />
       {currentTab === 'overview' && (
         <>
-          {/* Built-in connectors have no catalog entry, so the catalog info card
-              would leave the Overview empty. Fall back to the connector's own
-              (per-type) description so the tab always shows at least that. */}
-          {catalogConnector
-            ? <ConnectorCatalogInfo catalogConnector={catalogConnector} />
-            : <ConnectorBuiltinInfo description={builtinDescription ? t(builtinDescription) : undefined} />}
+          {catalogConnector && <ConnectorCatalogInfo catalogConnector={catalogConnector} />}
           {extraInfoComponent}
         </>
       )}

@@ -22,42 +22,18 @@ import type {
 } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 
-/**
- * Freshest of the available heartbeat signals: an external collector bumps its
- * registration date (~40s ping) while a built-in one stamps its last execution,
- * so taking either one alone can show a healthy connector as down.
- */
-const latestOf = (...dates: (string | undefined)[]): string | undefined =>
-  dates
-    .filter((d): d is string => d != null)
-    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
-
 export interface ConnectorOutput {
   id: string;
   name: string;
   type: string;
   catalog?: CatalogConnectorSimpleOutput;
-  updatedAt?: string;
+  lastSeen?: string;
   connectorInstance?: ConnectorInstanceOutput;
-  isExternal?: boolean;
-  isExisting?: boolean;
+  isExternal: boolean;
+  canRead: boolean;
+  canManage: boolean;
+  isFiligranVerified: boolean;
 }
-
-/**
- * Support semantics (same as OpenCTI): "Supported by Filigran" comes from the
- * CATALOG's verified flag, and built-in connectors (shipped inside the
- * platform, usually without a catalog entry) are Filigran-supported by
- * definition. The connector output's own `is_verified` field must NOT drive
- * this badge: the backend sets it to "has a connector instance" (see
- * InjectorMapper / CollectorMapper / ExecutorMapper), so any deployed
- * community connector would wrongly appear Filigran-supported.
- */
-export const isSupportedByFiligran = (
-  connector: Pick<ConnectorOutput, 'isExternal' | 'isExisting'> | undefined,
-  catalogVerified: boolean | undefined,
-): boolean =>
-  catalogVerified === true
-  || (connector != null && connector.isExternal !== true && connector.isExisting === true);
 
 export interface ConnectorContextType<T> {
   connectorType: 'collector' | 'injector' | 'executor' | 'secrets_provider';
@@ -97,10 +73,12 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     name: data?.injector_name,
     type: data?.injector_type,
     catalog: data?.catalog,
-    updatedAt: data?.injector_updated_at,
+    lastSeen: data?.last_execution,
     connectorInstance: data?.connector_instance,
-    isExternal: data?.injector_external,
-    isExisting: data?.existing_injector,
+    canRead: !!data?.can_read,
+    canManage: !!data?.can_manage,
+    isFiligranVerified: !!data?.is_verified,
+    isExternal: !!data?.is_external,
   }),
 };
 
@@ -118,10 +96,12 @@ export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> 
     name: data?.collector_name,
     type: data?.collector_type,
     catalog: data?.catalog,
-    updatedAt: latestOf(data?.collector_last_execution, data?.collector_updated_at),
+    lastSeen: data?.last_execution,
     connectorInstance: data?.connector_instance,
-    isExternal: data?.collector_external,
-    isExisting: data?.existing_collector,
+    canRead: !!data?.can_read,
+    canManage: !!data?.can_manage,
+    isFiligranVerified: !!data?.is_verified,
+    isExternal: !!data?.is_external,
   }),
   routes: {
     list: '/admin/integrations/deployed',
@@ -147,9 +127,12 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     name: data?.executor_name,
     type: data?.executor_type,
     catalog: data?.catalog,
-    updatedAt: data?.executor_updated_at,
+    lastSeen: data?.last_execution,
     connectorInstance: data?.connector_instance,
-    isExisting: data?.existing_executor,
+    canRead: !!data?.can_read,
+    canManage: !!data?.can_manage,
+    isFiligranVerified: !!data?.is_verified,
+    isExternal: !!data?.is_external,
   }),
 };
 
@@ -173,7 +156,11 @@ export const secretsProviderConfig: ConnectorContextType<SecretsProviderOutput> 
     catalog: data?.catalog,
     isVerified: data?.is_verified ?? false,
     connectorInstance: data?.connector_instance,
-    isExisting: data?.existing_secret_provider,
+    canRead: !!data?.can_read,
+    canManage: !!data?.can_manage,
+    isFiligranVerified: !!data?.is_verified,
+    isExternal: !!data?.is_external,
+    lastSeen: data?.last_execution,
   }),
 };
 

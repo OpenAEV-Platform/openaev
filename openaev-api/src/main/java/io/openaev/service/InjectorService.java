@@ -124,10 +124,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       Injector injector,
       String displayName,
       CatalogConnector catalogConnector,
-      ConnectorInstance instance,
-      boolean existingInjector) {
-    return injectorMapper.toInjectorOutput(
-        injector, displayName, catalogConnector, instance, existingInjector);
+      ConnectorInstance instance) {
+    return injectorMapper.toInjectorOutput(injector, displayName, catalogConnector, instance);
   }
 
   @Override
@@ -210,16 +208,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    */
   public Iterable<InjectorOutput> injectorsOutput(boolean isIncludeNext) {
     return getConnectorsOutput(isIncludeNext);
-  }
-
-  /**
-   * Find injector by its type
-   *
-   * @param injectorType injector type to search for
-   * @return an Optional containing the injector if found, empty otherwise
-   */
-  public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
-    return injectorRepository.findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant());
   }
 
   /**

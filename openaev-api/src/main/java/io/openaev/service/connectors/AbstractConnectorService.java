@@ -57,14 +57,12 @@ public abstract class AbstractConnectorService<
    *     connector is deployed through the Integration Manager, entity name otherwise)
    * @param catalogConnector the matching catalog entry, if any
    * @param instance the owning connector instance, if any
-   * @param existingConnector false for pending connectors not yet registered
    */
   protected abstract Output mapToOutput(
       T connector,
       String displayName,
       CatalogConnector catalogConnector,
-      ConnectorInstance instance,
-      boolean existingConnector);
+      ConnectorInstance instance);
 
   protected abstract T createNewConnector();
 
@@ -105,7 +103,7 @@ public abstract class AbstractConnectorService<
     if (instance instanceof ConnectorInstancePersisted persistedInstance) {
       displayName = getConfiguredConnectorName(persistedInstance).orElse(displayName);
     }
-    return mapToOutput(connector, displayName, catalogConnector, instance, true);
+    return mapToOutput(connector, displayName, catalogConnector, instance);
   }
 
   private Output toExistingConnectorOutput(
@@ -239,8 +237,7 @@ public abstract class AbstractConnectorService<
                         newConnector,
                         newConnector.getName(),
                         entry.getValue().getCatalogConnector(),
-                        entry.getValue(),
-                        false));
+                        entry.getValue()));
               });
     }
 

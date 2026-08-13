@@ -14,7 +14,7 @@ const BUILTIN_CONNECTOR_DESCRIPTIONS: Record<string, string> = {
   // Executors
   openaev_agent: 'Run injects directly on your endpoints through the native OpenAEV agent, without any third-party tool.',
   // Collectors
-  openaev_fake_detector: 'Automatically expire inject expectations left unfilled past their time window.',
+  openaev_expiration_manager: 'Automatically expire inject expectations left unfilled past their time window.',
   openaev_expectations_vulnerability_manager: 'Score vulnerability expectations against detected findings to track exposure.',
   // Secrets providers
   openaev_local_secret_provider: 'Store and retrieve simulation credentials directly inside the platform, without an external secrets manager.',
