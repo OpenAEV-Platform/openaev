@@ -146,9 +146,27 @@ public class AutonomousEventService {
         runId, sinceSequence);
   }
 
-  /** Purges a run's entire decision timeline (used when the run itself is deleted). */
+  /**
+   * Purges a run's entire decision timeline (used when the run itself is deleted, or reset by
+   * restart / promote).
+   *
+   * <p>The purge participates in the same per-run advisory-lock protocol as the appenders: without
+   * it, a purge racing an in-flight terminal append could interleave so the old life's "Run
+   * canceled" row commits AFTER the reset wiped the timeline, resurrecting a stale terminal line
+   * inside a freshly reset (or about-to-be-deleted) timeline. Holding the lock serialises the two:
+   * an append that wins commits first and is then purged with everything else; a purge that wins
+   * leaves the late appender to re-check against the run's committed state (its callers gate on a
+   * row-locked status read, so a stale settle no longer narrates at all).
+   *
+   * <p>LOCK ORDER: every caller that also writes the {@code autonomous_runs} row takes the run ROW
+   * lock BEFORE this advisory lock (restart / promote read through {@code requireForUpdate}; the
+   * teardown paths re-read through the row-locking lookup) - the same {@code row -> advisory} order
+   * the settle paths use (conditional row-locking UPDATE, then terminal append). Acquiring in the
+   * opposite order would deadlock a purge against a concurrent settle.
+   */
   @Transactional(rollbackFor = Exception.class)
   public void deleteByRun(String runId) {
+    eventRepository.lockRunEventSequence(sequenceLockKey(runId));
     eventRepository.deleteByRunId(runId);
   }
 }

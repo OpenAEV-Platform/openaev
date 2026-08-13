@@ -222,6 +222,19 @@ public class AutonomousRunService {
             () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Autonomous run not found"));
   }
 
+  /**
+   * Re-reads {@code run} through the row-locking lookup before a teardown purges its timeline:
+   * {@link AutonomousEventService#deleteByRun} takes the per-run event advisory lock, and every
+   * path that combines it with a run-row write must acquire the run ROW lock first (the settle
+   * paths' {@code row -> advisory} order - conditional row-locking UPDATE, then terminal append) -
+   * or a purge and a concurrent settle would deadlock on the two locks. When the row is already
+   * gone (a concurrent teardown won), the stale entity is returned unchanged: the purge and delete
+   * that follow are idempotent no-ops.
+   */
+  private AutonomousRun lockForPurge(AutonomousRun run) {
+    return runRepository.findByIdForUpdate(run.getId()).orElse(run);
+  }
+
   /** A settled run: canceled, completed or failed. Nothing may execute or be authored on it. */
   private static boolean isTerminal(AutonomousRunStatus status) {
     return status == AutonomousRunStatus.CANCELED
@@ -1285,7 +1298,11 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun restart(String runId) {
     requireFeature();
-    AutonomousRun run = require(runId);
+    // Row-locked read: the reset purges the decision timeline (deleteByRun takes the per-run event
+    // advisory lock) and rewrites the run row, so it must hold the run ROW lock FIRST - the same
+    // row -> advisory acquisition order as the settle paths (conditional row-locking UPDATE, then
+    // terminal append). It also serialises the whole hard reset with a concurrent pause / settle.
+    AutonomousRun run = requireForUpdate(runId);
     accessControl.assertCanManage(run);
     // Stop the previous XTM One orchestration before tearing its simulation down, so a lingering
     // decision cycle can't dispatch injects against the simulation we are about to delete. The
@@ -1368,7 +1385,11 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun promoteToRealRun(String runId) {
     requireFeature();
-    AutonomousRun run = require(runId);
+    // Row-locked read, like restart(): the promotion purges the decision timeline (deleteByRun
+    // takes the per-run event advisory lock) and rewrites the run row, so the run ROW lock comes
+    // first (row -> advisory, the settle paths' order). The plan-settled gate below also becomes
+    // a locked check-then-act instead of racing a concurrent status write.
+    AutonomousRun run = requireForUpdate(runId);
     accessControl.assertCanManage(run);
     if (!run.isPlanMode()) {
       throw new ResponseStatusException(
@@ -1490,8 +1511,13 @@ public class AutonomousRunService {
       }
       return duplicate;
     }
-    // IN_PLACE (irreversible). Halt + purge the orchestration first so no lingering decision cycle
-    // keeps authoring against a scenario that is about to be manual.
+    // IN_PLACE (irreversible). Row-locked re-read first: this branch purges the timeline
+    // (deleteByRun takes the per-run event advisory lock) and deletes the run row, so the run ROW
+    // lock must come first (row -> advisory, the settle paths' order). Also serialises the
+    // status-based simulation transition below with a concurrent settle.
+    run = lockForPurge(run);
+    // Halt + purge the orchestration first so no lingering decision cycle keeps authoring against
+    // a scenario that is about to be manual.
     cancelOrchestratorAfterCommit(runId, "converted to a manual chained scenario", true);
     // Converting a still-active run leaves its simulation parked in a keep-alive RUNNING state
     // with no orchestrator left to ever feed or end it - settle it exactly like a cancel would.
@@ -1593,6 +1619,11 @@ public class AutonomousRunService {
    * results) is deleted with the run.
    */
   private void tearDownRun(AutonomousRun run) {
+    // Row-locked re-read first: the teardown purges the timeline (deleteByRun takes the per-run
+    // event advisory lock) and deletes the run row, so the run ROW lock must come first
+    // (row -> advisory, the settle paths' order) or this teardown could deadlock a concurrent
+    // settle narrating its terminal event.
+    run = lockForPurge(run);
     // Halt the XTM One orchestration first: once the run row is gone OpenAEV can no longer be
     // driven, but a still-live durable execution would keep self-resuming and dispatching injects.
     // Fired after commit (the run id is captured now) so the upstream cancel resolves the same
@@ -1657,6 +1688,10 @@ public class AutonomousRunService {
       // active run intact (the hero already hides the manual launch while a run is active).
       return;
     }
+    // Row-locked re-read first: the supersession purges the timeline (deleteByRun takes the
+    // per-run event advisory lock) and deletes the run row, so the run ROW lock must come first
+    // (row -> advisory, the settle paths' order).
+    prior = lockForPurge(prior);
     String priorId = prior.getId();
     cancelOrchestratorAfterCommit(priorId, reason, true);
     if (prior.isPlanMode() && hasText(prior.getSimulationId())) {

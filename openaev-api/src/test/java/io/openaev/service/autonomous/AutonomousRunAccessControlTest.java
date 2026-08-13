@@ -8,12 +8,14 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.model.autonomous.AutonomousRun;
+import io.openaev.service.GrantService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.util.List;
@@ -41,6 +43,7 @@ class AutonomousRunAccessControlTest {
 
   @Mock private UserService userService;
   @Mock private PermissionService permissionService;
+  @Mock private GrantService grantService;
   @InjectMocks private AutonomousRunAccessControl accessControl;
 
   private User user;
@@ -136,20 +139,38 @@ class AutonomousRunAccessControlTest {
   class ListFiltering {
 
     @Test
-    @DisplayName("retainReadable keeps only the runs the caller can READ")
-    void given_mixedReadability_when_retainReadable_then_keepsOnlyReadableRuns() {
-      AutonomousRun readable = run("sim-ok", null);
-      AutonomousRun hidden = run("sim-nope", null);
-      when(permissionService.hasPermission(
-              any(), any(), eq("sim-ok"), eq(ResourceType.SIMULATION), eq(Action.READ)))
+    @DisplayName("A capability-level reader keeps every run without any grant query")
+    void given_capabilityReader_when_retainReadable_then_keepsAllWithoutGrantQuery() {
+      when(permissionService.hasCapabilityPermission(any(), any(), eq(Action.READ)))
           .thenReturn(true);
-      when(permissionService.hasPermission(
-              any(), any(), eq("sim-nope"), eq(ResourceType.SIMULATION), eq(Action.READ)))
+
+      List<AutonomousRun> kept =
+          accessControl.retainReadable(List.of(run("sim-1", null), run(null, "scenario-1")));
+
+      assertThat(kept).hasSize(2);
+      verifyNoInteractions(grantService);
+    }
+
+    @Test
+    @DisplayName("A grant-only reader filters through ONE batched grant fetch, no per-run lookups")
+    void given_grantOnlyReader_when_retainReadable_then_filtersWithSingleBatchedGrantFetch() {
+      AutonomousRun grantedSimulation = run("sim-ok", null);
+      AutonomousRun hiddenSimulation = run("sim-nope", null);
+      AutonomousRun grantedScenario = run(null, "scenario-ok");
+      AutonomousRun unboundRun = run(null, null);
+      when(permissionService.hasCapabilityPermission(any(), any(), eq(Action.READ)))
           .thenReturn(false);
+      when(grantService.findReadGrantedResourceIds(user))
+          .thenReturn(List.of("sim-ok", "scenario-ok"));
 
-      List<AutonomousRun> kept = accessControl.retainReadable(List.of(readable, hidden));
+      List<AutonomousRun> kept =
+          accessControl.retainReadable(
+              List.of(grantedSimulation, hiddenSimulation, grantedScenario, unboundRun));
 
-      assertThat(kept).containsExactly(readable);
+      assertThat(kept).containsExactly(grantedSimulation, grantedScenario);
+      // The N+1 regression guard: one batched fetch, zero per-run permission lookups.
+      verify(grantService).findReadGrantedResourceIds(user);
+      verify(permissionService, never()).hasPermission(any(), any(), any(), any(), any());
     }
   }
 

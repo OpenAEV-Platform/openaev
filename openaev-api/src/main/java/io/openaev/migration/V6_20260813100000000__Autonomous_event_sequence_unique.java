@@ -26,12 +26,17 @@ import org.springframework.stereotype.Component;
  * old index is dropped and the unique index created with {@code IF [NOT] EXISTS}. On a clean table
  * every sequence already equals its row number, so re-running is a no-op.
  *
- * <p>The whole pass runs behind a {@code SHARE ROW EXCLUSIVE} table lock held for the migration's
+ * <p>The whole pass runs behind an {@code ACCESS EXCLUSIVE} table lock held for the migration's
  * single transaction: during a rolling deployment an old application node (without the per-run
  * advisory lock) could otherwise insert a fresh duplicate between the resequencing and the index
- * build and fail it. Writers queue behind the lock, reads stay unblocked; the {@code
- * autonomous_events} table is a new, preview-flag-gated, human-review-cadence store, so the brief
- * write stall is safe.
+ * build and fail it. The strongest mode is deliberate - it is acquired as the FIRST statement, so
+ * the migration never upgrades its lock later: {@code DROP INDEX} needs {@code ACCESS EXCLUSIVE}
+ * anyway, and upgrading from a weaker table lock while an in-flight appender holds {@code ACCESS
+ * SHARE} (from its max-sequence read) with its INSERT queued behind us is a textbook lock-upgrade
+ * deadlock that would abort the migration mid-deployment. Taken up front, an in-flight appender
+ * simply finishes first (the migration holds nothing while it waits) and everything else queues for
+ * the migration's brief duration; the {@code autonomous_events} table is a new, preview-flag-gated,
+ * human-review-cadence store, so the momentary stall is safe.
  */
 @Component
 public class V6_20260813100000000__Autonomous_event_sequence_unique extends BaseJavaMigration {
@@ -42,11 +47,15 @@ public class V6_20260813100000000__Autonomous_event_sequence_unique extends Base
       // Shield the repair + enforcement from live writers: during a rolling deployment an OLD
       // application node (without the per-run advisory lock) can still append while this runs, so
       // an insert landing between the resequencing CTE and the index build could re-introduce a
-      // duplicate and fail the unique-index creation. SHARE ROW EXCLUSIVE conflicts with every
-      // INSERT/UPDATE/DELETE (writers queue behind the migration) while still allowing reads, and
-      // Flyway runs this migration in a single transaction, so the lock spans both statements and
-      // makes repair + enforcement atomic with respect to concurrent appenders.
-      statement.execute("LOCK TABLE autonomous_events IN SHARE ROW EXCLUSIVE MODE;");
+      // duplicate and fail the unique-index creation. Flyway runs this migration in a single
+      // transaction, so the lock spans every statement below. ACCESS EXCLUSIVE (not a weaker
+      // write-blocking mode) because the DROP INDEX below requires it anyway and it must be the
+      // FIRST lock taken: with only SHARE ROW EXCLUSIVE held, an old-node appender that already
+      // did its max-sequence read (holding ACCESS SHARE) queues its INSERT behind us, and our
+      // later DROP INDEX then waits on its ACCESS SHARE - a mutual wait on granted locks, i.e. a
+      // deadlock that aborts the migration mid-deployment. Acquired up front, the migration holds
+      // nothing while it waits (in-flight appenders finish first), then never upgrades.
+      statement.execute("LOCK TABLE autonomous_events IN ACCESS EXCLUSIVE MODE;");
       // Resequence any run carrying (run_id, sequence) duplicates so the unique index can be
       // built WITHOUT deleting timeline rows: each duplicate is a distinct decision/audit event,
       // so all rows are kept and the run's timeline is renumbered 1..N in deterministic order

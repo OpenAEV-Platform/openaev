@@ -4,10 +4,12 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.model.autonomous.AutonomousRun;
+import io.openaev.service.GrantService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
@@ -54,6 +56,7 @@ public class AutonomousRunAccessControl {
 
   private final UserService userService;
   private final PermissionService permissionService;
+  private final GrantService grantService;
 
   /** Throws 403 unless the caller can READ the run's bound simulation / scenario. */
   public void assertCanRead(AutonomousRun run) {
@@ -74,13 +77,62 @@ public class AutonomousRunAccessControl {
   }
 
   /**
-   * Keeps only the runs the caller can READ. Resolves the current user ONCE (it is DB-backed for
-   * non-admins) rather than per row, mirroring {@link
-   * io.openaev.service.attackpath.AttackPathAccessControl#retainReadable}.
+   * Keeps only the runs the caller can READ, without issuing a per-run query. This backs the
+   * UNBOUNDED run-list endpoint, so the {@link PermissionService#hasPermission} composition is
+   * decomposed into its two halves and each is resolved in O(1) queries for the whole list:
+   *
+   * <ul>
+   *   <li>the resource-id-independent half (open-resource / admin / BYPASS / capability) depends
+   *       only on the resource TYPE - resolved once per type, in memory, instead of per row;
+   *   <li>the per-resource half (a read grant on the run's bound simulation / scenario) is
+   *       batch-fetched with a SINGLE query ({@link GrantService#findReadGrantedResourceIds}) and
+   *       checked by containment, instead of one exists-lookup per run - for a grant-only caller
+   *       the previous shape was an N+1 on the size of the tenant's run list.
+   * </ul>
+   *
+   * <p>The current user is likewise resolved ONCE (it is DB-backed for non-admins). {@link
+   * #granted} remains the single-run authority used by the point gates; this is the same decision
+   * decomposed for a list, kept semantically identical for the grant-managed SIMULATION / SCENARIO
+   * types.
    */
   public List<AutonomousRun> retainReadable(List<AutonomousRun> runs) {
+    if (runs.isEmpty()) {
+      return runs;
+    }
     User user = userService.currentUser();
-    return runs.stream().filter(run -> granted(user, run, Action.READ)).toList();
+    boolean simulationsReadable = typeReadable(user, ResourceType.SIMULATION);
+    boolean scenariosReadable = typeReadable(user, ResourceType.SCENARIO);
+    // Only a grant-only caller needs the grant set; a capability-level reader never queries it.
+    Set<String> readGrantedIds =
+        simulationsReadable && scenariosReadable
+            ? Set.of()
+            : Set.copyOf(grantService.findReadGrantedResourceIds(user));
+    return runs.stream()
+        .filter(
+            run -> {
+              String simulationId = run.getSimulationId();
+              if (StringUtils.hasText(simulationId)) {
+                return simulationsReadable || readGrantedIds.contains(simulationId);
+              }
+              String scenarioId = run.getScenarioId();
+              if (StringUtils.hasText(scenarioId)) {
+                return scenariosReadable || readGrantedIds.contains(scenarioId);
+              }
+              // Same fallback as granted(): a run bound to neither is a capability-only check.
+              return permissionService.hasCapabilityPermission(
+                  user, ResourceType.SIMULATION, Action.READ);
+            })
+        .toList();
+  }
+
+  /**
+   * The resource-id-independent half of {@link PermissionService#hasPermission} for READ on a
+   * grant-managed type: the open-resource shortcut plus admin / BYPASS / capability. A caller
+   * passing this can read every resource of the type, so no per-resource grant lookup is needed.
+   */
+  private boolean typeReadable(User user, ResourceType resourceType) {
+    return PermissionService.isOpenResource(resourceType, Action.READ)
+        || permissionService.hasCapabilityPermission(user, resourceType, Action.READ);
   }
 
   /** Requires READ on a scenario before an operator reads an AI-run configuration through it. */

@@ -106,7 +106,7 @@ class AutonomousRunServiceTest {
     AutonomousRun run = new AutonomousRun();
     run.setPlanMode(false);
     run.setStatus(AutonomousRunStatus.RUNNING);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
 
     assertThatThrownBy(() -> service.promoteToRealRun("run-1"))
         .isInstanceOf(ResponseStatusException.class);
@@ -119,7 +119,7 @@ class AutonomousRunServiceTest {
     AutonomousRun run = new AutonomousRun();
     run.setPlanMode(true);
     run.setStatus(AutonomousRunStatus.PLANNING);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
 
     assertThatThrownBy(() -> service.promoteToRealRun("run-1"))
         .isInstanceOf(ResponseStatusException.class);
@@ -486,7 +486,7 @@ class AutonomousRunServiceTest {
     run.setStartedAt(Instant.now().minusSeconds(600));
     run.setDeadlineAt(Instant.now().minusSeconds(5));
     run.setWinddownPhase("WINDDOWN_1M");
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
     AutonomousRun restarted = service.restart("run-1");
@@ -517,7 +517,7 @@ class AutonomousRunServiceTest {
   @DisplayName("restart from WAITING_INPUT no longer 409s: the parked run is reset like any other")
   void restartFromWaitingInputIsAllowed() throws Exception {
     AutonomousRun run = restartableRun(AutonomousRunStatus.WAITING_INPUT);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
     AutonomousRun restarted = service.restart("run-1");
@@ -533,7 +533,7 @@ class AutonomousRunServiceTest {
   @DisplayName("restart from a settled status keeps working exactly as before")
   void restartFromSettledStatusStillWorks() throws Exception {
     AutonomousRun run = restartableRun(AutonomousRunStatus.COMPLETED);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
     AutonomousRun restarted = service.restart("run-1");
@@ -549,7 +549,7 @@ class AutonomousRunServiceTest {
   void restartOfPlanModeReprovisionsTemplateOnly() throws Exception {
     AutonomousRun run = restartableRun(AutonomousRunStatus.PLANNED);
     run.setPlanMode(true);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
     AutonomousRun restarted = service.restart("run-1");
