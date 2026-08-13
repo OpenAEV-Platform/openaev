@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +43,7 @@ class StepServiceTest {
   @Mock private ActionStep actionStep;
   @Mock private WorkflowService workflowService;
   @Mock private ConditionService conditionService;
+  @Mock private StepTargetingService stepTargetingService;
   @Mock private StepAutoLinkService stepAutoLinkService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
@@ -1797,6 +1799,100 @@ class StepServiceTest {
       assertEquals(ConditionType.AND, savedConditions.get(0).getType());
       assertEquals(ConditionType.MAPPER, savedConditions.get(1).getType());
       assertEquals("leaf", savedConditions.get(2).getValue());
+    }
+  }
+
+  @Nested
+  @DisplayName("syncScopeAssetsOnStepTemplates")
+  class SyncScopeAssetsOnStepTemplates {
+
+    private Step injectStepTemplate(String id, String data) {
+      Step step = new Step();
+      step.setId(id);
+      step.setStepAction(StepActionClass.INJECT_EXECUTION);
+      step.setData(data);
+      return step;
+    }
+
+    @Test
+    @DisplayName(
+        "given an asset-centric step template, should rewrite inject_assets with the scope")
+    void given_assetCentricStepTemplate_should_rewriteInjectAssetsWithScope() {
+      // Arrange — action authored while the allowlist was still empty
+      when(workflow.getId()).thenReturn("wf-1");
+      Step template =
+          injectStepTemplate("step-1", "{\"inject_title\":\"nmap\",\"inject_assets\":[]}");
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
+          .thenReturn(List.of(template));
+      when(stepTargetingService.isAssetCentric(template)).thenReturn(true);
+
+      // Act — an asset is added to the allowlist afterwards
+      int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
+
+      // Assert
+      assertEquals(1, updated);
+      assertEquals(
+          "{\"inject_title\":\"nmap\",\"inject_assets\":[\"asset-1\"]}", template.getData());
+      verify(stepRepository).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("given an audience-centric step template, should leave its data untouched")
+    void given_audienceCentricStepTemplate_should_leaveDataUntouched() {
+      // Arrange — an email action targets teams, never the scope assets
+      when(workflow.getId()).thenReturn("wf-1");
+      String data = "{\"inject_title\":\"email\",\"inject_assets\":[]}";
+      Step template = injectStepTemplate("step-1", data);
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
+          .thenReturn(List.of(template));
+      when(stepTargetingService.isAssetCentric(template)).thenReturn(false);
+
+      // Act
+      int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
+
+      // Assert
+      assertEquals(0, updated);
+      assertEquals(data, template.getData());
+      verify(stepRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("given step data already aligned on the scope, should not write anything")
+    void given_alreadyAlignedStepData_should_notWriteAnything() {
+      // Arrange
+      when(workflow.getId()).thenReturn("wf-1");
+      String data = "{\"inject_assets\":[\"asset-1\"]}";
+      Step template = injectStepTemplate("step-1", data);
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
+          .thenReturn(List.of(template));
+      when(stepTargetingService.isAssetCentric(template)).thenReturn(true);
+
+      // Act
+      int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
+
+      // Assert
+      assertEquals(0, updated);
+      assertEquals(data, template.getData());
+      verify(stepRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("given a step template without inject action, should be ignored")
+    void given_stepTemplateWithoutInjectAction_should_beIgnored() {
+      // Arrange
+      when(workflow.getId()).thenReturn("wf-1");
+      Step template = injectStepTemplate("step-1", "{\"inject_assets\":[]}");
+      template.setStepAction(null);
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
+          .thenReturn(List.of(template));
+
+      // Act
+      int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
+
+      // Assert
+      assertEquals(0, updated);
+      verify(stepTargetingService, never()).isAssetCentric(any());
+      verify(stepRepository, never()).saveAll(anyList());
     }
   }
 }

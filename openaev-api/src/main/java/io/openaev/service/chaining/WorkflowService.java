@@ -52,6 +52,7 @@ public class WorkflowService {
   private final StepDelayQueueService stepDelayQueueService;
   private final SimulationRateLimitService simulationRateLimitService;
   private final ScopeSnapshotService scopeSnapshotService;
+  private final ScopeService scopeService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
@@ -188,11 +189,14 @@ public class WorkflowService {
       @NotBlank String workflowId, WorkflowConfigurationInput input) {
     Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     WorkflowEditability.assertLogicMapEditable(workflow);
-    boolean changed = applyConfigurationInput(input, workflow);
-    if (changed) {
+    ConfigurationChange change = applyConfigurationInput(input, workflow);
+    if (change.changed()) {
       boolean workflowExecutedNotEmpty = !workflow.getWorkflowsExecuted().isEmpty();
       workflow.setEdited(workflowExecutedNotEmpty);
       workflowRepository.save(workflow);
+    }
+    if (change.scopeRulesChanged()) {
+      realignTemplateActionTargets(workflow);
     }
     return workflow;
   }
@@ -216,7 +220,7 @@ public class WorkflowService {
       @NotBlank String simulationId, WorkflowConfigurationInput input) {
     List<Workflow> runs = findWorkflowRunBySimulationId(simulationId);
     for (Workflow run : runs) {
-      if (applyConfigurationInput(input, run)) {
+      if (applyConfigurationInput(input, run).changed()) {
         workflowRepository.save(run);
       }
     }
@@ -253,7 +257,12 @@ public class WorkflowService {
     if (hasText(scenarioId)) {
       try {
         findWorkflowTemplateByScenarioId(scenarioId)
-            .ifPresent(w -> writeAllowlistRules(w, rules, replaceExisting));
+            .ifPresent(
+                w -> {
+                  if (writeAllowlistRules(w, rules, replaceExisting)) {
+                    realignTemplateActionTargets(w);
+                  }
+                });
       } catch (ChainingException e) {
         log.warn(
             "[Chaining] Could not write scope on scenario {} template workflow", scenarioId, e);
@@ -286,8 +295,11 @@ public class WorkflowService {
           if (current == null) rulesToRemove.add(rule);
         }
       }
-      template.getWorkflowScopeRules().removeAll(rulesToRemove);
-      workflowRepository.save(template);
+      if (!rulesToRemove.isEmpty()) {
+        template.getWorkflowScopeRules().removeAll(rulesToRemove);
+        workflowRepository.save(template);
+        realignTemplateActionTargets(template);
+      }
     }
   }
 
@@ -306,7 +318,13 @@ public class WorkflowService {
     }
     if (hasText(scenarioId)) {
       try {
-        findWorkflowTemplateByScenarioId(scenarioId).ifPresent(w -> appendScopeRules(w, rules));
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .ifPresent(
+                w -> {
+                  if (appendScopeRules(w, rules)) {
+                    realignTemplateActionTargets(w);
+                  }
+                });
       } catch (ChainingException e) {
         log.warn("[Chaining] Could not seed scope on scenario {} template workflow", scenarioId, e);
       }
@@ -316,7 +334,7 @@ public class WorkflowService {
     }
   }
 
-  private void appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
+  private boolean appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
     List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
     Set<String> existingKeys =
         existing.stream()
@@ -336,9 +354,10 @@ public class WorkflowService {
     if (changed) {
       workflowRepository.save(workflow);
     }
+    return changed;
   }
 
-  private void writeAllowlistRules(
+  private boolean writeAllowlistRules(
       Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs, boolean replaceExisting) {
     List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
     boolean changed = false;
@@ -360,6 +379,27 @@ public class WorkflowService {
     if (changed) {
       workflowRepository.save(workflow);
     }
+    return changed;
+  }
+
+  /**
+   * Re-aligns all asset-centric step templates with the workflow's current scope assets.
+   *
+   * <p>ScopeService resolves from persisted rules, so pending workflow updates must be flushed
+   * first.
+   */
+  private void realignTemplateActionTargets(Workflow workflow) {
+    if (workflow == null || !WorkflowStatus.TEMPLATE.equals(workflow.getStatus())) {
+      return;
+    }
+    workflowRepository.flush();
+    List<String> scopedAssetIds =
+        Optional.ofNullable(scopeService.getValidAssets(workflow.getId()))
+            .orElse(List.of())
+            .stream()
+            .map(Asset::getId)
+            .toList();
+    stepService.syncScopeAssetsOnStepTemplates(workflow, scopedAssetIds);
   }
 
   /**
@@ -866,10 +906,10 @@ public class WorkflowService {
   // -- Configuration Update --
 
   /**
-   * Copies all fields from {@code input} onto {@code workflow} and returns {@code true} when at
-   * least one value changed.
+   * Copies all fields from {@code input} onto {@code workflow} and reports what actually changed.
    */
-  private boolean applyConfigurationInput(WorkflowConfigurationInput input, Workflow workflow) {
+  private ConfigurationChange applyConfigurationInput(
+      WorkflowConfigurationInput input, Workflow workflow) {
     boolean changed = false;
     boolean rateLimitChanged = false;
     boolean timeoutChanged = false;
@@ -919,8 +959,14 @@ public class WorkflowService {
           attempts, seconds, !input.isRateLimitEnabled());
     }
 
-    return rulesChanged || variablesChanged || changed;
+    return new ConfigurationChange(rulesChanged || variablesChanged || changed, rulesChanged);
   }
+
+  /**
+   * Outcome of a configuration update: whether anything changed at all, and whether the scope rules
+   * specifically changed (which requires realigning the step templates' asset perimeter).
+   */
+  private record ConfigurationChange(boolean changed, boolean scopeRulesChanged) {}
 
   /**
    * Reconciles the workflow's scope-rule collection against the provided inputs: removes rules not
