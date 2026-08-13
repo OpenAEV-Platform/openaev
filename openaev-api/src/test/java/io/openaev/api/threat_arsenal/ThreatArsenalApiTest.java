@@ -355,7 +355,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(json)
                   .with(csrf()))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message", containsString("output_parser_type must be REGEX")));
     }
 
     @Test

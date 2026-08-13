@@ -224,5 +224,30 @@ class RestBehaviorTest {
       assertNotNull(response.getBody());
       assertTrue(response.getBody().getMessage().contains("Malformed"));
     }
+
+    @Test
+    @DisplayName(
+        "IllegalArgumentException from @JsonCreator (wrapped by Jackson) is returned as the 400"
+            + " message")
+    void given_jsonCreatorIllegalArgument_should_surfaceCreatorMessage() {
+      // GIVEN - Jackson wraps @JsonCreator IAE in JsonMappingException /
+      // ValueInstantiationException
+      IllegalArgumentException iae =
+          new IllegalArgumentException(
+              "output_parser_type must be REGEX; finding types like credentials belong in"
+                  + " contract_output_element_type, not output_parser_type. Got: credentials");
+      JsonMappingException wrapped =
+          JsonMappingException.from((JsonParser) null, "Cannot construct instance", iae);
+      HttpMessageNotReadableException ex =
+          new HttpMessageNotReadableException("JSON parse error", wrapped, null);
+
+      // WHEN
+      ResponseEntity<ErrorMessage> response = new RestBehavior().handleHttpMessageNotReadable(ex);
+
+      // THEN
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      assertNotNull(response.getBody());
+      assertEquals(iae.getMessage(), response.getBody().getMessage());
+    }
   }
 }
