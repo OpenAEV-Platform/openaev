@@ -906,6 +906,70 @@ public class ConditionServiceTest {
               .collect(java.util.stream.Collectors.toSet());
       assertEquals(Set.of("pool-a", "pool-b"), values);
     }
+
+    @Test
+    void given_defaultMapperAndMissingLinkedMapper_should_generateSingleBatchWithDefaultOnly() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-default-plus-missing-linked");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.DEFAULT, PrimitiveType.Text, "admin"),
+              mapper(MappingType.LOCAL, PrimitiveType.Host, null));
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-default-plus-missing-linked"))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("admin", json.get("Text").getAsString());
+      assertFalse(json.has("Host"));
+
+      Map<String, String> mapperValuesByKey =
+          batches.getFirst().usedMappers().stream()
+              .collect(java.util.stream.Collectors.toMap(Condition::getKey, Condition::getValue));
+      assertEquals("admin", mapperValuesByKey.get("Text"));
+      assertNull(mapperValuesByKey.get("Host"));
+    }
+
+    @Test
+    void given_allLinkedMappersMissingValues_should_generateSingleEmptyInputBatch() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-all-linked-missing");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-all-linked-missing"))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals(0, json.size());
+      assertEquals(2, batches.getFirst().usedMappers().size());
+      assertTrue(
+          batches.getFirst().usedMappers().stream().allMatch(mapper -> mapper.getValue() == null));
+    }
   }
 
   /* ============================================================

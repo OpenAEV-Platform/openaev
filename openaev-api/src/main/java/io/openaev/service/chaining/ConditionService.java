@@ -33,6 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
+  private static final String OPTIONAL_MISSING_SOURCE_KEY = "OPTIONAL_MISSING";
+
   private final WorkflowStateService workflowStateService;
 
   private final ConditionUtils conditionUtils;
@@ -1245,7 +1247,9 @@ public class ConditionService {
    */
   private Map<String, String> toComboMap(List<WorkflowStateEntries.Pair> pairs) {
     Map<String, String> combo = new TreeMap<>();
-    pairs.forEach(pair -> combo.put(pair.key(), pair.value()));
+    pairs.stream()
+        .filter(pair -> pair.value() != null)
+        .forEach(pair -> combo.put(pair.key(), pair.value()));
     return combo;
   }
 
@@ -1299,6 +1303,14 @@ public class ConditionService {
       pairs.add(
           new WorkflowStateEntries.Pair(
               targetKey != null ? targetKey : "DEFINED_VALUE", definedValue));
+    }
+
+    if (pairs.isEmpty()) {
+      String sourceKey =
+          mapperContext.sourceKeys().isEmpty()
+              ? OPTIONAL_MISSING_SOURCE_KEY
+              : mapperContext.sourceKeys().getFirst();
+      pairs.add(new WorkflowStateEntries.Pair(sourceKey, null));
     }
 
     return pairs;
