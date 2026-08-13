@@ -1157,13 +1157,51 @@ Guarded by `TopBarNotifications.test.tsx` and `BulkOperationsIndicator.test.tsx`
 plus `MuiBadge-` added to the shared `expectNoMuiControls` list so a relapse
 fails rather than being noticed at a checkpoint.
 
-**`Divider` and `Popover`: still open.** Re-verified against the export surface
-at `8798cbb` — neither `Separator`/`Divider` nor `Popover` is a public export.
-Library PR #105 added "the Popover primitive", but it is internal (it backs
-`Combobox`); `require()`ing the built entry point returns `undefined` for
-`Popover`, `PopoverTrigger` and `PopoverContent`. So the bulk-operations panel
-stays a MUI `Popover`, and the bar's AI/actions rule stays a hand-painted
-`<div role="separator">`.
+### Status, 2026-08-13 (later the same day) — three of four are closed
+
+**The bar's rule: RECEIVED and ADOPTED** at pin `7e7b417` (library PR #117). Not
+as a general-purpose `Separator` — as `HeaderGroup separatorBefore`, a `::before`
+on the trailing cluster. That answers this bar's need better than a component
+would: no DOM node to announce or focus, and 16px of clear space anchored to the
+group rather than inherited from whatever gap the parent runs. The hand-painted
+`<div role="separator">` is deleted.
+
+Composition matters and cost a read of the library's own source: the 16px BEFORE
+the rule is `ml-2` **plus the parent cluster's `gap-2`**, so the separator-bearing
+group must sit INSIDE a cluster, not directly under the `Header` (which has no
+gap). Modelled as Figma does — an outer `HeaderGroup` for the whole trailing
+frame, holding the AI cluster and an inner `<HeaderGroup separatorBefore>` around
+the platform actions. Measured in both themes:
+`AI cluster (gap 8) │ 16 │ rule 1px @50% │ 16 │ actions (gap 8)`.
+
+**`Progress`: RECEIVED and ADOPTED** at the same pin (library PR #115), as two
+components rather than one — `Spinner` (indeterminate) and `ProgressBar`
+(determinate). Both usages converted, and the dated exemption that tolerated MUI
+progress in `expectNoMuiControls` is **deleted**: the guard is strict again.
+
+Three consequences, all accepted rather than compensated:
+
+| | before (MUI) | after (library) |
+|---|---|---|
+| ring on the bar button | `CircularProgress size={32} thickness={2}`, brand at 50% alpha | `Spinner size="lg"` — **24px**, the largest designed step; full-opacity brand |
+| ring per running row | `CircularProgress size={14} thickness={5}` | `Spinner size="sm"` — 16px |
+| bar per operation | `LinearProgress` 6px, radius 3, coloured per status | `ProgressBar` — **4px** (`md`), radius 4, **one colour** |
+
+`ProgressBar` has no colour axis by design ("nothing in either product colours a
+progress bar" — its RFC §7). This product did: brand while running, success green
+once complete, error red on failure. The colour is **gone from the bar**; the
+status is still carried by the leading icon and by the caption, whose colour the
+product keeps. If that reads as a loss, the ask is a `tone` on `ProgressBar`, not
+a product-side override.
+
+**`Popover`: still the only one open.** Re-verified against the export surface at
+`7e7b417`: `Popover`, `PopoverTrigger` and `PopoverContent` all resolve to
+`undefined` from the built entry point — PR #105's primitive remains internal (it
+backs `Combobox`). So the bulk-operations panel stays a MUI `Popover`, and with it
+the `MuiBox` wrappers that lay its rows out. Those are pure layout, not controls,
+and this product compiles no Tailwind of its own, so replacing them with utility
+classes would produce silent no-ops; they move when the panel is rebuilt on a
+library `Popover`.
 
 **`Progress`: a fourth control, named here for the first time.** It was missing
 from the original list of three because the bar only shows it while an operation

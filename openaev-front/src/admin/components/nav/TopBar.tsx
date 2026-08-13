@@ -128,69 +128,66 @@ const TopBar: FunctionComponent = () => {
             onClear={() => setSearchValue('')}
           />
         </HeaderGroup>
+        {/* Figma's `Right` frame: the AI cluster, then the platform actions behind the leading rule. */}
         <HeaderGroup>
-          {/* Same availability predicate the XTM One buttons apply, so the divider never renders as an orphan. */}
           {isXtmOneAvailable(settings) && (
             <>
               <AskArianeButton />
               <CtemCommandCenterButton />
-              {/* FDS-WORKAROUND #22: separator from the library's border token — remove when it ships a divider — see fds-migration/LIBRARY-FEEDBACK.md */}
-              <div
-                role="separator"
-                aria-orientation="vertical"
-                className="self-stretch w-px my-2 mx-1.5 bg-border-medium"
-              />
             </>
           )}
-          {settings.platform_license?.license_type === 'nfr' && (
-            // Same technique as the Navbar pilot's EE chip (LeftBarTenantSwitcher): the library's Chip, coloured by a token.
-            <Chip label="EE DEV LICENSE" severity="critical" />
-          )}
-          <BulkOperationsIndicator />
-          {/* OpenCTI-aligned pair: triggers alarm, then the notifications bell. */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <TopBarIconLink
-                aria-label="triggers"
-                to="/admin/profile/triggers"
-                active={location.pathname === '/admin/profile/triggers'}
-                icon={<AlarmOnOutlined fontSize="medium" />}
-              />
-            </TooltipTrigger>
-            <TooltipContent>{t('Triggers')}</TooltipContent>
-          </Tooltip>
-          <TopBarNotifications />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <TopBarIconLink
-                aria-label={t('Install simulation agents')}
-                to="/admin/agents"
-                active={location.pathname === '/admin/agents'}
-                icon={<ImportantDevicesOutlined fontSize="medium" />}
-              />
-            </TooltipTrigger>
-            <TooltipContent>{t('Install simulation agents')}</TooltipContent>
-          </Tooltip>
-          {/* MenuTrigger + asChild around an IconButton is the library's canonical pairing. */}
-          <Menu open={menuOpen} onOpenChange={setMenuOpen}>
-            <MenuTrigger asChild>
-              <IconButton
-                priority="tertiary"
-                aria-label="account-menu"
-                id="profile-menu-button"
-                active={location.pathname === '/admin/profile'}
-                icon={<AccountCircleOutlined fontSize="medium" />}
-              />
-            </MenuTrigger>
-            <MenuContent align="end">
-              <MenuItem asChild onSelect={handleCloseMenu}>
-                <Link to="/admin/profile">{t('Profile')}</Link>
-              </MenuItem>
-              <MenuItem aria-label="logout-item" onSelect={handleLogout}>
-                {t('Logout')}
-              </MenuItem>
-            </MenuContent>
-          </Menu>
+          {/* The rule belongs to the FOLLOWING cluster (library API), and only when something precedes it. */}
+          <HeaderGroup separatorBefore={isXtmOneAvailable(settings)}>
+            {settings.platform_license?.license_type === 'nfr' && (
+              // Same technique as the Navbar pilot's EE chip (LeftBarTenantSwitcher): the library's Chip, coloured by a token.
+              <Chip label="EE DEV LICENSE" severity="critical" />
+            )}
+            <BulkOperationsIndicator />
+            {/* OpenCTI-aligned pair: triggers alarm, then the notifications bell. */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TopBarIconLink
+                  aria-label="triggers"
+                  to="/admin/profile/triggers"
+                  active={location.pathname === '/admin/profile/triggers'}
+                  icon={<AlarmOnOutlined fontSize="medium" />}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('Triggers')}</TooltipContent>
+            </Tooltip>
+            <TopBarNotifications />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TopBarIconLink
+                  aria-label={t('Install simulation agents')}
+                  to="/admin/agents"
+                  active={location.pathname === '/admin/agents'}
+                  icon={<ImportantDevicesOutlined fontSize="medium" />}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('Install simulation agents')}</TooltipContent>
+            </Tooltip>
+            {/* MenuTrigger + asChild around an IconButton is the library's canonical pairing. */}
+            <Menu open={menuOpen} onOpenChange={setMenuOpen}>
+              <MenuTrigger asChild>
+                <IconButton
+                  priority="tertiary"
+                  aria-label="account-menu"
+                  id="profile-menu-button"
+                  active={location.pathname === '/admin/profile'}
+                  icon={<AccountCircleOutlined fontSize="medium" />}
+                />
+              </MenuTrigger>
+              <MenuContent align="end">
+                <MenuItem asChild onSelect={handleCloseMenu}>
+                  <Link to="/admin/profile">{t('Profile')}</Link>
+                </MenuItem>
+                <MenuItem aria-label="logout-item" onSelect={handleLogout}>
+                  {t('Logout')}
+                </MenuItem>
+              </MenuContent>
+            </Menu>
+          </HeaderGroup>
         </HeaderGroup>
       </Header>
       {isXtmOneAvailable(settings) && isArianeChatOpen && (

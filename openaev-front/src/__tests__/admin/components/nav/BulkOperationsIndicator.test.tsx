@@ -6,9 +6,11 @@ import '@testing-library/jest-dom/vitest';
 
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { expectNoMuiControls } from '../../../utils/designSystemAssertions';
 
 // Only the counter matters here, not the SSE plumbing behind it.
 let running = 0;
@@ -66,6 +68,21 @@ describe('BulkOperationsIndicator running counter', () => {
     renderIndicator();
     expect(trigger()).toHaveAccessibleDescription('5');
     expect(trigger()).toHaveAccessibleName('bulk-operations-menu');
+  });
+
+  it('shows progress with the library components, not MUI ones', async () => {
+    // The library shipped Spinner + ProgressBar (#115), so the dated exemption
+    // that tolerated MUI progress in the guard is gone and this must hold.
+    running = 2;
+    renderIndicator();
+    // The ring beside the glyph, and the per-operation bars inside the panel.
+    fireEvent.click(trigger());
+    await waitFor(() => expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0));
+    expectNoMuiControls(document.body, 'the bulk-operations button and its panel');
+    // The bars stay determinate: the value is what a screen reader reads.
+    for (const bar of screen.getAllByRole('progressbar')) {
+      expect(bar.getAttribute('aria-valuenow')).not.toBeNull();
+    }
   });
 
   it('says nothing when nothing is running', () => {

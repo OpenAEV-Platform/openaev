@@ -1,15 +1,14 @@
-import { Badge, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Badge, IconButton, ProgressBar, Spinner, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AutoAwesomeMotionOutlined, CheckCircleOutlined, ErrorOutlined } from '@mui/icons-material';
-import { Box, CircularProgress, LinearProgress, Popover, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Popover } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
 import { type BulkOperation, seedBulkOperations, useBulkOperations } from '../../../utils/bulkOperations';
 
-/** Spinner ring around the glyph. The offset is half the size, which is what centres it. */
-const SPINNER_SIZE = 32;
-const SPINNER_THICKNESS = 2;
+/** The library Spinner's `lg` box (its largest designed step), and half of it, which is what centres it. */
+const SPINNER_SIZE = 24;
 const SPINNER_CENTRING_OFFSET = `-${SPINNER_SIZE / 2}px`;
 
 /**
@@ -97,16 +96,14 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                 >
                   <AutoAwesomeMotionOutlined fontSize="medium" />
                   {runningCount > 0 && (
-                    <CircularProgress
-                      size={SPINNER_SIZE}
-                      thickness={SPINNER_THICKNESS}
-                      sx={{
+                    <Spinner
+                      size="lg"
+                      style={{
                         position: 'absolute',
                         top: '50%',
                         left: '50%',
                         marginTop: SPINNER_CENTRING_OFFSET,
                         marginLeft: SPINNER_CENTRING_OFFSET,
-                        color: alpha(theme.palette.primary.main, 0.5),
                       }}
                     />
                   )}
@@ -145,9 +142,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-            {t('Massive operations')}
-          </Typography>
+          <Text variant="content-base-bold">{t('Massive operations')}</Text>
         </Box>
         <Box sx={{
           maxHeight: 400,
@@ -170,9 +165,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                 color: theme.palette.text.secondary,
               }}
               />
-              <Typography variant="body2" color="textSecondary">
-                {t('No massive operation yet')}
-              </Typography>
+              <Text variant="content-base" className="text-default-secondary">{t('No massive operation yet')}</Text>
             </Box>
           )}
           {operations.map((operation) => {
@@ -218,37 +211,27 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                       }}
                       />
                     )}
-                    {operation.bulk_operation_status === 'RUNNING' && (
-                      <CircularProgress size={14} thickness={5} sx={{ color }} />
-                    )}
-                    <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
+                    {operation.bulk_operation_status === 'RUNNING' && <Spinner size="sm" />}
+                    <Text
+                      variant="content-base-medium"
+                      id={`bulk-op-title-${operation.bulk_operation_id}`}
+                      className="truncate"
+                    >
                       {operationTitle(operation)}
-                    </Typography>
+                    </Text>
                   </Box>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color,
-                      fontWeight: 600,
-                      flexShrink: 0,
-                    }}
+                  <Text
+                    variant="content-caption"
+                    className="shrink-0"
+                    style={{ color }}
                   >
                     {statusCaption(operation)}
-                  </Typography>
+                  </Text>
                 </Box>
-                <LinearProgress
-                  variant="determinate"
+                {/* Determinate: named by the operation title above, so the value is announced with it. */}
+                <ProgressBar
                   value={progressValue(operation)}
-                  sx={{
-                    'height': 6,
-                    'borderRadius': 3,
-                    'backgroundColor': alpha(color, 0.15),
-                    '& .MuiLinearProgress-bar': {
-                      borderRadius: 3,
-                      backgroundColor: color,
-                      transition: 'transform 0.4s ease',
-                    },
-                  }}
+                  aria-labelledby={`bulk-op-title-${operation.bulk_operation_id}`}
                 />
                 <Box sx={{
                   display: 'flex',
@@ -256,12 +239,12 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                   justifyContent: 'space-between',
                 }}
                 >
-                  <Typography variant="caption" color="textSecondary">
+                  <Text variant="content-caption" className="text-default-secondary">
                     {`${operation.bulk_operation_processed} / ${operation.bulk_operation_total}`}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
+                  </Text>
+                  <Text variant="content-caption" className="text-default-secondary">
                     {nsdt(operation.bulk_operation_started_at)}
-                  </Typography>
+                  </Text>
                 </Box>
               </Box>
             );

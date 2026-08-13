@@ -253,3 +253,47 @@ in filigran-design-system).
   so for months the guard was asserting on an empty bar. The badges were only caught
   once each child got its own test. A guard that runs on a mocked-out subtree should
   say so, or the suite should assert that it saw something.
+
+### 2026-08-13 — final bump 7e7b417: separator, Progress, Text; the bar is closed
+- Branch: sandyghs-miniature-enigma
+- Pin: `8798cbb` -> `7e7b4175d6c442ecb98d6c28dd42004ee71d6b29`.
+- Gate, checked on the INSTALLED BUILD rather than the changelog, four for four:
+  `Spinner`/`ProgressBar` resolve from the built entry point (#115); the
+  `text-gradient-*` utilities carry `>*{-webkit-text-fill-color:currentColor}` ×4
+  (#116); `separatorBefore?: boolean` is on `HeaderGroupProps` (#117); `Badge` was
+  already adopted (#114). One near-miss worth recording: my first grep for the
+  gradient fix looked only inside the `.text-gradient-*{…}` blocks and reported it
+  MISSING — the fix emits a CHILD rule, `.text-gradient-ia>*{…}`. The build had it;
+  the grep did not. A gate is only as good as its selector.
+- Separator (Samuel's review, Sandy's arbitration): the bar is now
+  `[AI cluster] 16 │ 16 [platform actions]`, both clusters at the library's own
+  `gap-2`. Delivered by `HeaderGroup separatorBefore`, and the hand-painted
+  `<div role="separator">` is gone. The composition is not obvious and is worth
+  knowing: the 16px BEFORE the rule is the group's `ml-2` plus **the parent
+  cluster's** `gap-2`, so the separator-bearing group has to sit inside a cluster.
+  Directly under the `Header` (which has no gap) it would have measured 8px.
+  Measured 16/16 in both themes, action order unchanged.
+- Progress: both usages moved to the library (`Spinner` lg 24px on the bar button,
+  `Spinner` sm 16px per running row, `ProgressBar` for the per-operation bars,
+  named by the row title through `aria-labelledby` so the value is announced with
+  it). The exemption in `expectNoMuiControls` is deleted — strict again. Visible
+  consequences, accepted: the ring is 24px where it was 32 (the library's scale
+  stops there), and the bars lose their per-status colour (`ProgressBar` has no
+  colour axis) while keeping 4px instead of 6. Details in LIBRARY-FEEDBACK #22.
+- `Typography` -> `Text` in the panel (7 sites). The status caption keeps its
+  product colour inline: the library models no per-status text colour, and that is
+  the signal Sandy asked to preserve.
+- Balayage on the rendered DOM, both themes, running-operations state forced:
+  **bar + rail 0 offenders**. The panel still shows the MUI `Popover` (backdrop +
+  paper) and 14 `MuiBox` layout wrappers — listed, not bricolé: `Box` is layout
+  rather than a control, this app compiles no Tailwind so utility classes it
+  invented would be silent no-ops, and the whole panel moves when a library
+  `Popover` exists.
+- 768px overflow: 69px -> **85px**. The extra 16px are the separator's clear space.
+  Same acceptance as before (non-default state, pre-existing 1400px page floor).
+- Friction / process feedback: the library's own source was the only place the
+  separator's spacing contract was written down — the prop's TSDoc says "16px on
+  both sides", which is true only if the parent cluster runs `gap-2`. A consumer
+  reading the prop alone would have built it directly under the `Header` and
+  measured 8│16 without knowing why. Worth stating the required nesting in the
+  prop's own documentation.

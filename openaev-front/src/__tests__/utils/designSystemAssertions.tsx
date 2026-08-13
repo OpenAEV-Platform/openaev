@@ -29,33 +29,16 @@ import { expect } from 'vitest';
 const MUI_CONTROL_CLASS = /\bMui(ButtonBase|Button|IconButton|Chip|Badge|CircularProgress|LinearProgress|TextField|InputBase|OutlinedInput|FormControl|Menu|MenuItem|Tooltip|Divider)-/;
 
 /**
- * Controls that ARE detected above but are tolerated for now, each with the
- * condition that retires the exemption. Listing them here rather than leaving
- * them out of `MUI_CONTROL_CLASS` is deliberate: the day the condition is met,
- * deleting one entry turns the guard red and the migration becomes mandatory
- * instead of optional.
- */
-const EXEMPT_MUI_CONTROLS: {
-  pattern: RegExp;
-  until: string;
-}[] = [
-  {
-    // Added 2026-08-13 (Sandy, R2). The running-operations spinner in the bar and
-    // the per-operation bars in its panel. The library ships no progress
-    // component at pin 8798cbb — see fds-migration/LIBRARY-FEEDBACK.md #22.
-    pattern: /\bMui(CircularProgress|LinearProgress)-/,
-    until: 'the library ships a Progress component (LIBRARY-FEEDBACK #22)',
-  },
-];
-
-/**
- * Every MUI class on the element itself, ignoring icon glyphs (the standing
- * exception) and the dated exemptions above.
+ * Every MUI class on the element itself, ignoring icon glyphs (the exception).
+ *
+ * There is no exemption list any more. Progress carried the only one, dated
+ * 2026-08-13 and conditioned on the library shipping the component; it did
+ * (Spinner + ProgressBar, PR #115), the two usages were converted, and the
+ * exemption was deleted with them. The guard is strict again.
  */
 const muiControlClassesOf = (element: Element): string[] => String(element.getAttribute('class') ?? '')
   .split(/\s+/)
-  .filter(cls => MUI_CONTROL_CLASS.test(cls))
-  .filter(cls => !EXEMPT_MUI_CONTROLS.some(exempt => exempt.pattern.test(cls)));
+  .filter(cls => MUI_CONTROL_CLASS.test(cls));
 
 /**
  * Asserts the element is styled by the library and by no MUI control class.
