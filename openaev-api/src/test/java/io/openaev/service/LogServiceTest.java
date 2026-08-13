@@ -404,7 +404,7 @@ class LogServiceTest {
       logService.logRequestEvent(
           "update",
           "success",
-          ResourceType.CREDENTIAL_ASSET,
+          ResourceType.CREDENTIAL,
           "cred-1",
           input,
           output,
