@@ -235,6 +235,20 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
+  // A chaining lifecycle operation refused by product decision (e.g. pausing a chained
+  // simulation): a client error, not a platform failure, so it must carry its business message
+  // with a 400 instead of the 500 the checked ChainingException produced. ChainingException itself
+  // is deliberately NOT mapped here: it also carries internal chaining engine failures, which must
+  // keep surfacing as 500.
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(ChainingOperationNotSupportedException.class)
+  public ResponseEntity<ErrorMessage> handleChainingOperationNotSupportedException(
+      ChainingOperationNotSupportedException ex) {
+    ErrorMessage message = new ErrorMessage(ex.getMessage());
+    log.debug("ChainingOperationNotSupportedException: {}", ex.getMessage(), ex);
+    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  }
+
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   @ExceptionHandler(TenantSelectorRequiredException.class)
   public ResponseEntity<ErrorMessage> handleTenantSelectorRequiredException(

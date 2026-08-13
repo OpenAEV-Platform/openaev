@@ -2,6 +2,7 @@ package io.openaev.rest.helper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.core.JsonParser;
@@ -9,6 +10,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.Filters.FilterOperator;
+import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ChainingOperationNotSupportedException;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -45,6 +48,61 @@ class RestBehaviorTest {
                     "wrapped by the persistence layer", new TenantFilteringException("refused")));
 
     assertEquals("handleTenantFilteringException", resolved.getName());
+  }
+
+  @Nested
+  @DisplayName("ChainingOperationNotSupportedException handling")
+  class ChainingOperationNotSupportedHandling {
+
+    @Test
+    @DisplayName("a refused chaining operation returns a 400 carrying its business message")
+    void given_refusedChainingOperation_should_return400WithMessage() {
+      // GIVEN - the product decision refusal (pausing a chained simulation)
+      ChainingOperationNotSupportedException ex =
+          new ChainingOperationNotSupportedException(
+              "Pausing a chained simulation is not allowed yet, please contact support");
+
+      // WHEN
+      ResponseEntity<ErrorMessage> response =
+          new RestBehavior().handleChainingOperationNotSupportedException(ex);
+
+      // THEN
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      assertNotNull(response.getBody());
+      assertEquals(
+          "Pausing a chained simulation is not allowed yet, please contact support",
+          response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName("the handler is registered for ChainingOperationNotSupportedException")
+    void given_chainingOperationNotSupported_should_resolveCorrectHandler() {
+      // GIVEN
+      ExceptionHandlerMethodResolver resolver =
+          new ExceptionHandlerMethodResolver(RestBehavior.class);
+
+      // WHEN
+      Method resolved =
+          resolver.resolveMethodByThrowable(new ChainingOperationNotSupportedException("refused"));
+
+      // THEN
+      assertNotNull(resolved);
+      assertEquals("handleChainingOperationNotSupportedException", resolved.getName());
+    }
+
+    @Test
+    @DisplayName("the checked ChainingException stays unmapped (internal engine failures keep 500)")
+    void given_chainingException_should_notResolveAnyHandler() {
+      // GIVEN - the generic internal chaining wrapper, deliberately left unhandled
+      ExceptionHandlerMethodResolver resolver =
+          new ExceptionHandlerMethodResolver(RestBehavior.class);
+
+      // WHEN
+      Method resolved = resolver.resolveMethodByThrowable(new ChainingException("engine failure"));
+
+      // THEN
+      assertNull(resolved);
+    }
   }
 
   @Nested

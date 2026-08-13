@@ -92,13 +92,16 @@ import ExerciseStatus from './ExerciseStatus';
 import SecurityPlatformIndicator from './SecurityPlatformIndicator';
 import SimulationConfiguration from './SimulationConfiguration';
 
-const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing }: {
+// Exported for testing: the lifecycle CTAs are pure props-driven UI, so they are covered on their
+// own rather than through the whole (store/router-bound) header.
+export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing, isChaining }: {
   exerciseId: Exercise['exercise_id'];
   exerciseStatus: Exercise['exercise_status'];
   exerciseName: Exercise['exercise_name'];
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
   isScopeMissing: boolean;
+  isChaining: boolean;
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -149,7 +152,11 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         return (<div />);
       }
       case 'RUNNING': {
-        if (permissions.canLaunch) {
+        // Chaining does not support pausing (the queue-based engine has no pause semantics), so
+        // the CTA simply does not exist for a chained simulation - the backend refuses it too.
+        // Resume ('PAUSED' below) stays available so a simulation already paused in database can
+        // still be resumed. Stop remains offered by dangerousButton().
+        if (permissions.canLaunch && !isChaining) {
           return (
             <Button
               startIcon={<PauseOutlined />}
@@ -594,6 +601,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   onLoading={onLoading}
                   isLoading={isLoading}
                   isScopeMissing={isScopeMissing}
+                  isChaining={isSimulationChaining}
                 />
               )}
               {/* Unified parent-scenario pivot: whenever a simulation was run from a scenario (manual
