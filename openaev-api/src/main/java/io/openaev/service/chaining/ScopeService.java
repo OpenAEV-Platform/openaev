@@ -2,8 +2,10 @@ package io.openaev.service.chaining;
 
 import static io.openaev.utils.JsonUtils.gson;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
@@ -27,6 +29,7 @@ public class ScopeService {
   private final AssetGroupService assetGroupService;
   private final WorkflowStateService workflowStateService;
   private final TeamRepository teamRepository;
+  private final UserRepository userRepository;
   private final EndpointService endpointService;
   private final EndpointMapper endpointMapper;
   private final AssetGroupMapper assetGroupMapper;
@@ -161,30 +164,63 @@ public class ScopeService {
    * denylisted TEAM rules. Mirrors {@link #getValidAssets(String)} for the audience axis.
    */
   public List<Team> getValidTeams(String workflowId) {
-    List<WorkflowScopeRule> allRules = workflowScopeRuleRepository.findAllByWorkflowId(workflowId);
+    List<String> keptTeamIds =
+        resolveAllowedMinusDeniedIds(
+            workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
+            ScopeRuleValueType.TEAM_ID);
+    return keptTeamIds.isEmpty() ? List.of() : teamRepository.findAllById(keptTeamIds);
+  }
 
-    Set<String> allowedTeamIds =
+  /**
+   * Returns the individual players that are in scope for the given workflow: allowlisted PLAYER
+   * rules minus denylisted PLAYER rules. Mirrors {@link #getValidTeams(String)} so audience-centric
+   * (tabletop) injects can consume players placed directly in the scope.
+   *
+   * <p>Users are platform-level entities whose tenant membership lives in {@code users_tenants}, so
+   * unlike teams (tenant-filtered entities) the lookup must be explicitly tenant-scoped: a stale or
+   * crafted PLAYER rule must never resolve a user outside the workflow's tenant.
+   */
+  public List<User> getValidPlayers(String workflowId) {
+    List<String> keptPlayerIds =
+        resolveAllowedMinusDeniedIds(
+            workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
+            ScopeRuleValueType.PLAYER_ID);
+    return keptPlayerIds.isEmpty()
+        ? List.of()
+        : userRepository.findAllByIdInAndTenantId(keptPlayerIds, TenantContext.getCurrentTenant());
+  }
+
+  /**
+   * Returns the player IDs denylisted in the workflow scope. A denylisted player must never receive
+   * an audience-centric inject, even as a member of an allowlisted team.
+   */
+  public Set<String> getDeniedPlayerIds(String workflowId) {
+    return collectRuleValues(
+        workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
+        ScopeRuleSelectedMode.DENYLIST,
+        ScopeRuleValueType.PLAYER_ID);
+  }
+
+  /**
+   * Applies the allowlist-minus-denylist rule for ID-valued scope rules of the given type,
+   * preserving allowlist insertion order.
+   */
+  private List<String> resolveAllowedMinusDeniedIds(
+      List<WorkflowScopeRule> allRules, ScopeRuleValueType valueType) {
+    Set<String> allowedIds =
         allRules.stream()
             .filter(rule -> ScopeRuleSelectedMode.ALLOWLIST.equals(rule.getSelectedMode()))
-            .filter(rule -> ScopeRuleValueType.TEAM_ID.equals(rule.getValueType()))
+            .filter(rule -> valueType.equals(rule.getValueType()))
             .map(WorkflowScopeRule::getRuleValue)
+            .filter(Objects::nonNull)
             .collect(Collectors.toCollection(LinkedHashSet::new));
 
-    if (allowedTeamIds.isEmpty()) {
+    if (allowedIds.isEmpty()) {
       return List.of();
     }
 
-    Set<String> deniedTeamIds =
-        allRules.stream()
-            .filter(rule -> ScopeRuleSelectedMode.DENYLIST.equals(rule.getSelectedMode()))
-            .filter(rule -> ScopeRuleValueType.TEAM_ID.equals(rule.getValueType()))
-            .map(WorkflowScopeRule::getRuleValue)
-            .collect(Collectors.toSet());
-
-    List<String> keptTeamIds =
-        allowedTeamIds.stream().filter(id -> !deniedTeamIds.contains(id)).toList();
-
-    return keptTeamIds.isEmpty() ? List.of() : teamRepository.findAllById(keptTeamIds);
+    Set<String> deniedIds = collectRuleValues(allRules, ScopeRuleSelectedMode.DENYLIST, valueType);
+    return allowedIds.stream().filter(id -> !deniedIds.contains(id)).toList();
   }
 
   private Set<Asset> getAssetsAllowedByAssetId(List<WorkflowScopeRule> allowlistRules) {
