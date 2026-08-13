@@ -344,9 +344,10 @@ public abstract class AbstractConnectorService<
    * Rejects the deletion of a connector that is still running (OpenCTI parity: a started connector
    * can never be deleted, it must be stopped first).
    *
-   * <p>A managed connector must clear both the instance status and the heartbeat: on status alone
-   * it was deleted on the mere intention to stop it, and its still-live container put the row back,
-   * orphaned.
+   * <p>A managed connector (owned by an Integration Manager instance) must clear both the instance
+   * status and the heartbeat: on status alone it was deleted on the mere intention to stop it, and
+   * its still-live container put the row back, orphaned. Unmanaged connectors have no owning
+   * instance and are therefore gated by heartbeat only.
    *
    * @param connector the connector entity being deleted
    * @param lastHeartbeat the connector's last registration heartbeat ({@code updatedAt})

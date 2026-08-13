@@ -515,11 +515,14 @@ public class ConnectorInstanceService {
         HeartbeatWindow.forInstance(instance, instance.getCatalogConnector().getContainerType());
     if (lastHeartbeat != null && lastHeartbeat.isAfter(Instant.now().minus(heartbeatWindow))) {
       throw new BadRequestException(
-          "The connector "
+          "The "
+              + instance.getCatalogConnector().getContainerType().name().toLowerCase(Locale.ROOT)
+              + " "
               + connectorId
               + " is still running (last heartbeat "
               + lastHeartbeat
-              + "): stop it before deleting its instance");
+              + "): stop it before deleting its instance "
+              + instance.getId());
     }
   }
 
