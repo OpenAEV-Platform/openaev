@@ -41,6 +41,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,7 @@ class PhishingLandingPageServiceTest {
   @Mock private InjectorRepository injectorRepository;
   @Mock private InjectorContractRepository injectorContractRepository;
   @Mock private InjectIndexCleanupService injectIndexCleanupService;
+  @Mock private ChainingStepCleanupService chainingStepCleanupService;
   @Mock private AttackPatternRepository attackPatternRepository;
   @Mock private ExpectationBuilderService expectationBuilderService;
   @Mock private PhishingContract phishingContract;
@@ -255,6 +257,9 @@ class PhishingLandingPageServiceTest {
     // -- ASSERT --
     verify(injectorContractRepository).deleteById(any(InjectorContractId.class));
     verify(landingPageRepository).deleteById("lp-1");
+    // The chaining logic maps are swept for the deleted contract, scoped to the resolved tenant.
+    verify(chainingStepCleanupService)
+        .deleteTemplateStepsByInjectorContractIds(eq(List.of("lp-1")), any());
   }
 
   @Test
