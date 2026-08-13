@@ -16,7 +16,17 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
+import {
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  IconButton,
+  Tooltip,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -26,7 +36,14 @@ import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/w
 import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
 import { fetchExerciseArticles } from '../../../../actions/channels/article-action';
 import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
-import { dismissExerciseExpectationsDrift, fetchExerciseExpectationsDrift, fetchExerciseTeams, realignExerciseExpectations, searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
+import {
+  dismissExerciseExpectationsDrift,
+  fetchExerciseExpectationsDrift,
+  fetchExerciseTeams,
+  realignExerciseExpectations,
+  searchExerciseHealthchecks,
+  updateExerciseStatus,
+} from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { fetchExerciseInjectsSimple, reconcileExerciseInjects } from '../../../../actions/Inject';
@@ -42,7 +59,17 @@ import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team } from '../../../../utils/api-types';
+import {
+  type Article,
+  type Challenge,
+  type Exercise,
+  type Exercise as ExerciseType,
+  type ExpectationsDriftOutput,
+  type HealthCheck,
+  type Inject,
+  type SimulationDetails,
+  type Team,
+} from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
@@ -54,10 +81,14 @@ import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
-import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
+import {
+  CONTEXTUAL_ENTITY_WIDGET_IDS,
+  contextualResultsUrl,
+} from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import ExerciseDatePopover from './ExerciseDatePopover';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
 import ExerciseStatus from './ExerciseStatus';
+import SecurityPlatformIndicator from './SecurityPlatformIndicator';
 import SimulationConfiguration from './SimulationConfiguration';
 
 const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing }: {
@@ -264,7 +295,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   const dispatch = useAppDispatch();
 
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
-  const { exercise, challenges, injects, teams, articles } = useHelper((helper: ExercisesHelper & ChallengeHelper & InjectHelper & TeamsHelper & ArticlesHelper) => {
+  const {
+    exercise,
+    challenges,
+    injects,
+    teams,
+    articles,
+  } = useHelper((helper: ExercisesHelper & ChallengeHelper & InjectHelper & TeamsHelper & ArticlesHelper) => {
     return {
       exercise: helper.getExercise(exerciseId) as SimulationDetails,
       challenges: helper.getExerciseChallenges(exerciseId) as Challenge[],
@@ -342,7 +379,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
       .then((result: { data: ExpectationsDriftOutput }) => {
         if (!stale) setExpectationsDrift(result.data);
       })
-      .catch(() => {});
+      .catch(() => {
+      });
     return () => {
       stale = true;
     };
@@ -437,7 +475,11 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
               <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
               <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
               {exercise.exercise_category && (
-                <ItemCategory category={exercise.exercise_category} label={t(exercise.exercise_category)} size="small" />
+                <ItemCategory
+                  category={exercise.exercise_category}
+                  label={t(exercise.exercise_category)}
+                  size="small"
+                />
               )}
               <Chip
                 size="small"
@@ -455,6 +497,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
           )}
           action={(
             <>
+              {/* "Collector(s) present" indicator - self-hides when no
+                  connector-managed security platform exists. For a launched chained simulation it
+                  shows the platforms frozen at execution time (ADR-006), not the live tenant set. */}
+              <SecurityPlatformIndicator
+                workflowId={exerciseWorkflowId}
+                launched={exercise.exercise_status !== 'SCHEDULED'}
+              />
               {/* Contextual configuration alert - self-hides when healthy. Autonomous runs are
                   scoped and driven by the AI, so the "configure scope" nudge never applies. */}
               {permissions.canManage && !isAutonomous && (
@@ -474,7 +523,9 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   overflow) so teams/players setup is discoverable, with an
                   explicit tooltip describing what it configures. */}
               {permissions.canManage && !isSimulationChaining && (
-                <Tooltip title={t('Configure the teams, players and audience involved in this simulation')}>
+                <Tooltip
+                  title={t('Configure the teams, players and audience involved in this simulation')}
+                >
                   <Button
                     variant="outlined"
                     color="primary"

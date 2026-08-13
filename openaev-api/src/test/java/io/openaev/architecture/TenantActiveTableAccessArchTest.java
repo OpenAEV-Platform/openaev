@@ -52,6 +52,7 @@ import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
+import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
@@ -225,6 +226,10 @@ class TenantActiveTableAccessArchTest {
               // Explicit tenantId param threaded from the caller (native DELETE ... AND
               // tenant_id = ?), not inspector-scoped: safe regardless of activation:
               ConnectorInstanceService.class,
+              // Explicit tenantId param threaded from the launch path (native SELECT ... WHERE
+              // tenant_id = ?), used to freeze the connected security platforms at RUN creation
+              // (ADR-006): safe regardless of activation:
+              ScopeSnapshotService.class,
               // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
               InventoryMetricCollector.class)
           .should()

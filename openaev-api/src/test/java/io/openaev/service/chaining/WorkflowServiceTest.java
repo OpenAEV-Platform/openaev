@@ -51,6 +51,7 @@ class WorkflowServiceTest {
   @Mock private ConditionService conditionService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private SimulationRateLimitService simulationRateLimitService;
+  @Mock private ScopeSnapshotService scopeSnapshotService;
   @Mock private WorkflowStateService workflowStateService;
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -972,6 +973,7 @@ class WorkflowServiceTest {
               workflowStateService,
               stepDelayQueueService,
               simulationRateLimitService,
+              scopeSnapshotService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -1252,6 +1254,7 @@ class WorkflowServiceTest {
               workflowStateService,
               stepDelayQueueService,
               simulationRateLimitService,
+              scopeSnapshotService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -1438,6 +1441,7 @@ class WorkflowServiceTest {
               workflowStateService,
               stepDelayQueueService,
               simulationRateLimitService,
+              scopeSnapshotService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -1659,6 +1663,7 @@ class WorkflowServiceTest {
               workflowStateService,
               stepDelayQueueService,
               simulationRateLimitService,
+              scopeSnapshotService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,

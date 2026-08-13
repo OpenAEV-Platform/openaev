@@ -729,6 +729,8 @@ public class ExerciseService {
         // Delete attack path execution
         this.attackPathExecutionService.deleteAllBySimulationId(
             exercise.getId(), exercise.getTenant().getId());
+        // Clean scope rules of the simulation
+        workflowService.cleanScopeRulesSimulation(exercise.getId());
       }
       urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
@@ -783,13 +785,15 @@ public class ExerciseService {
           List<Step> stepsToUpdate = new ArrayList<>();
           run.forEach(
               workflow -> {
-                workflow.setStatus(WorkflowStatus.END);
+                // Single END transition (also freezes the end scope snapshot once - ADR-006):
+                // never set the status directly, or the canceled run keeps drifting "during
+                // execution" forever.
+                workflowService.endWorkflow(workflow);
                 List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
                 steps.forEach(step -> step.setStatus(StepStatus.END));
                 stepsToUpdate.addAll(steps);
               });
           stepService.saveSteps(stepsToUpdate);
-          workflowService.saveAll(run);
           workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
           // Stopping is not resetting: it ends the run and keeps its record. A manual chained
           // simulation used to drop ALL its injects here, which emptied the Execution screen while

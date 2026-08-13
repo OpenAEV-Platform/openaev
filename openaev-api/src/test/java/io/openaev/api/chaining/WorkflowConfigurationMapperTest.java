@@ -1,11 +1,12 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.WorkflowConfigurationMapper.toOutput;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleOutput;
 import io.openaev.database.model.*;
+import io.openaev.service.chaining.ScopeSnapshotService;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +15,14 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("WorkflowConfigurationMapper")
 class WorkflowConfigurationMapperTest {
+
+  // Status computation is covered separately; here a mock returns null (draft / no snapshot).
+  private final WorkflowConfigurationMapper mapper =
+      new WorkflowConfigurationMapper(mock(ScopeSnapshotService.class));
+
+  private WorkflowConfigurationOutput toOutput(Workflow workflow) {
+    return mapper.toOutput(workflow);
+  }
 
   @Nested
   @DisplayName("toOutput — inline configuration fields")

@@ -1956,6 +1956,7 @@ public class AutonomousRunService {
       case TEAM -> "TEAMS";
       case PLAYER -> "PLAYERS";
       case MANUAL, CSV -> "MANUAL";
+      case SECURITY_PLATFORM -> "SECURITY_PLATFORM";
     };
   }
 

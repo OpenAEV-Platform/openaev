@@ -1,4 +1,13 @@
-import { BlockOutlined, DnsOutlined, EditOutlined, GroupsOutlined, InfoOutlined, PersonOutlined, PublicOutlined, TaskAltOutlined } from '@mui/icons-material';
+import {
+  BlockOutlined,
+  DnsOutlined,
+  EditOutlined,
+  GroupsOutlined,
+  InfoOutlined,
+  PersonOutlined,
+  PublicOutlined,
+  TaskAltOutlined,
+} from '@mui/icons-material';
 import { Box, Button, Chip, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
@@ -84,7 +93,7 @@ interface ScopeColumnProps {
   rules: WorkflowScopeRuleOutput[];
   resolveLabel: (rule: WorkflowScopeRuleOutput) => string;
   /** Per-entry glyph (asset platform / category, team, person, ...) so a chip reads like it does
-   *  everywhere else in the app rather than a bare label. */
+     *  everywhere else in the app rather than a bare label. */
   resolveIcon: (rule: WorkflowScopeRuleOutput) => ReactElement;
   onAdd: () => void;
   readOnly?: boolean;
@@ -103,8 +112,7 @@ const ScopeColumn = ({
   resolveLabel,
   resolveIcon,
   onAdd,
-  readOnly = false,
-  accent,
+  readOnly = false, accent,
   headerIcon,
   infoTooltip,
 }: ScopeColumnProps) => {
@@ -225,7 +233,7 @@ const ScopeColumn = ({
                           {resolveIcon(rule)}
                         </Box>
                       )}
-                      label={label}
+                      label={rule.workflow_scope_rule_snapshot_start_label ?? label}
                       size="small"
                       variant="outlined"
                       sx={{

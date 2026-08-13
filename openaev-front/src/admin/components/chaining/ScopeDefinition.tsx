@@ -20,23 +20,30 @@ import useDataLoader from '../../../utils/hooks/useDataLoader';
 import useLivePolling from '../../../utils/hooks/useLivePolling';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import ChainingUpdatedBanner from './ChainingUpdatedBanner';
 import ScopeExecutionLimits from './ScopeExecutionLimits';
 import ScopeRules from './ScopeRules';
 import ScopeVariables from './ScopeVariables';
+import useSnapshotUpdated from './useSnapshotUpdated';
 
 interface ScopeDefinitionProps {
   workflowId: string;
   /** Read-only inspection mode (autonomous runs OR launched simulations): the scope is rendered but
-   *  made non-interactive. */
+     *  made non-interactive. */
   readOnly?: boolean;
   /** The scope belongs to an autonomous (AI-driven) run: swap the chaining-engine timeout for the
-   *  OpenAEV-owned session timeout and hide the per-step rate limit (it does not apply). */
+     *  OpenAEV-owned session timeout and hide the per-step rate limit (it does not apply). */
   autonomous?: boolean;
   /** OpenAEV-owned autonomous session timeout in seconds (default 24h). Only used when autonomous. */
   autonomousTimeoutSeconds?: number | null;
 }
 
-const ScopeDefinition = ({ workflowId, readOnly = false, autonomous = false, autonomousTimeoutSeconds }: ScopeDefinitionProps) => {
+const ScopeDefinition = ({
+  workflowId,
+  readOnly = false,
+  autonomous = false,
+  autonomousTimeoutSeconds,
+}: ScopeDefinitionProps) => {
   // Standard hooks
   const theme = useTheme();
   const dispatch = useAppDispatch();
@@ -47,6 +54,10 @@ const ScopeDefinition = ({ workflowId, readOnly = false, autonomous = false, aut
 
   // Fetching data
   const { workflowConfiguration } = useHelper((helper: WorkflowConfigurationHelper) => ({ workflowConfiguration: helper.getWorkflowConfiguration(workflowId) }));
+
+  // The Scope tab already loads the workflow configuration and the endpoint / asset-group inventory
+  // below, so the drift is resolved from data on hand - no extra fetching by the banner.
+  const updatedAssets = useSnapshotUpdated({ workflowConfiguration });
 
   useDataLoader(() => {
     dispatch(fetchWorkflowConfiguration(workflowId));
@@ -118,47 +129,56 @@ const ScopeDefinition = ({ workflowId, readOnly = false, autonomous = false, aut
   }, [workflowConfiguration, workflowId, dispatch]);
 
   return (
-    <Box
-      sx={{
-        // A balanced 2x2 card grid: row 1 pairs the allow-list and deny-list; row 2 pairs the
-        // variables card with a combined time-out + rate-limit card. Cells stretch to equal height
-        // per row so the screen reads as four aligned cards rather than a ragged stack.
-        display: 'grid',
-        gridTemplateColumns: {
-          xs: '1fr',
-          md: '1fr 1fr',
-        },
-        gap: theme.spacing(3),
-        alignItems: 'stretch',
-        ...(readOnly
-          ? {
-              // Keep the scope visible for inspection but block every mutation on autonomous runs -
-              // and make the (otherwise primary-blue) add / delete / toggle affordances actually
-              // read as disabled, since the AI owns the scope and they are not clickable here.
-              'pointerEvents': 'none',
-              'userSelect': 'text',
-              '& .MuiButton-root, & .MuiIconButton-root': { color: theme.palette.text.disabled },
-              '& .MuiSwitch-root': { opacity: 0.5 },
-            }
-          : {}),
-      }}
-      aria-disabled={readOnly || undefined}
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing(3),
+    }}
     >
-      {/* Row 1: allow list | deny list (ScopeRules renders both cards as a fragment). */}
-      <ScopeRules
-        workflowId={workflowId}
-        workflowConfiguration={workflowConfiguration}
-        onUpdate={handleUpdate}
-        readOnly={readOnly}
-      />
-      {/* Row 2: variables | combined execution limits. */}
-      <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
-      <ScopeExecutionLimits
-        workflowConfiguration={workflowConfiguration}
-        onUpdate={handleUpdate}
-        autonomous={autonomous}
-        autonomousTimeoutSeconds={autonomousTimeoutSeconds}
-      />
+      {/* Advisory banner: warns when a launched simulation's scope drifted from its launch snapshot. */}
+      <ChainingUpdatedBanner updatedAssets={updatedAssets} />
+      <Box
+        sx={{
+          // A balanced 2x2 card grid: row 1 pairs the allow-list and deny-list; row 2 pairs the
+          // variables card with a combined time-out + rate-limit card. Cells stretch to equal height
+          // per row so the screen reads as four aligned cards rather than a ragged stack.
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            md: '1fr 1fr',
+          },
+          gap: theme.spacing(3),
+          alignItems: 'stretch',
+          ...(readOnly
+            ? {
+                // Keep the scope visible for inspection but block every mutation on autonomous runs -
+                // and make the (otherwise primary-blue) add / delete / toggle affordances actually
+                // read as disabled, since the AI owns the scope and they are not clickable here.
+                'pointerEvents': 'none',
+                'userSelect': 'text',
+                '& .MuiButton-root, & .MuiIconButton-root': { color: theme.palette.text.disabled },
+                '& .MuiSwitch-root': { opacity: 0.5 },
+              }
+            : {}),
+        }}
+        aria-disabled={readOnly || undefined}
+      >
+        {/* Row 1: allow list | deny list (ScopeRules renders both cards as a fragment). */}
+        <ScopeRules
+          workflowId={workflowId}
+          workflowConfiguration={workflowConfiguration}
+          onUpdate={handleUpdate}
+          readOnly={readOnly}
+        />
+        {/* Row 2: variables | combined execution limits. */}
+        <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
+        <ScopeExecutionLimits
+          workflowConfiguration={workflowConfiguration}
+          onUpdate={handleUpdate}
+          autonomous={autonomous}
+          autonomousTimeoutSeconds={autonomousTimeoutSeconds}
+        />
+      </Box>
     </Box>
   );
 };
