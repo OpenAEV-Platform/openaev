@@ -181,6 +181,7 @@ public class PresetTenantData {
           Set.of(
               Capability.ACCESS_ASSESSMENT,
               Capability.ACCESS_ASSETS,
+              Capability.ACCESS_CREDENTIALS,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.ACCESS_DASHBOARDS,
               Capability.ACCESS_REPORTINGS,
@@ -202,6 +203,8 @@ public class PresetTenantData {
               Capability.ACCESS_ASSETS,
               Capability.MANAGE_ASSETS,
               Capability.DELETE_ASSETS,
+              Capability.MANAGE_CREDENTIALS,
+              Capability.DELETE_CREDENTIALS,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.MANAGE_THREAT_ARSENALS,
               Capability.DELETE_THREAT_ARSENALS,

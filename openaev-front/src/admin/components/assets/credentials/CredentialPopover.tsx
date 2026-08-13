@@ -82,12 +82,12 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
     {
       label: 'Update',
       action: handleOpenEdit,
-      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.CREDENTIALS),
     },
     {
       label: 'Delete',
       action: handleOpenDelete,
-      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.CREDENTIALS),
     },
   ];
 

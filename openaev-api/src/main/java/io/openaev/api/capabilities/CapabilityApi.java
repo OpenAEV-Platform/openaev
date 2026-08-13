@@ -1,9 +1,12 @@
 package io.openaev.api.capabilities;
 
 import io.openaev.database.model.CapabilityScope;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.Duration;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,8 +16,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/capabilities")
 public class CapabilityApi {
+
+  private final PreviewFeatureService previewFeatureService;
+
   @Operation(
       summary = "Get the capability tree",
       description =
@@ -24,7 +31,9 @@ public class CapabilityApi {
   @GetMapping
   public ResponseEntity<List<CapabilityOutput>> getCapabilities(
       @RequestParam(required = false) CapabilityScope scope) {
-    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(scope);
+    boolean credentialAssetEnabled =
+        previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET);
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(scope, credentialAssetEnabled);
     return ResponseEntity.ok().cacheControl(CacheControl.maxAge(Duration.ofDays(1))).body(tree);
   }
 }
