@@ -416,9 +416,9 @@ public class PhishingLandingPageService {
       injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
       // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
       // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject
-      // de-index.
+      // de-index. The sweep is tenant-scoped to never touch another tenant's logic maps.
       chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
-          List.of(landingPage.getId()));
+          List.of(landingPage.getId()), tenantId);
     }
   }
 

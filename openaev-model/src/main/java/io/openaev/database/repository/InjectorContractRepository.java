@@ -191,20 +191,27 @@ public interface InjectorContractRepository
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
   /**
-   * Returns the injector contract ids backed by the given payload. Deleting a payload cascades to
-   * its contract at the database level ({@code injector_contract_payload ... ON DELETE CASCADE}),
-   * so the payload-delete path must resolve these ids BEFORE the delete to cascade-clean the
-   * chaining steps that reference the doomed contract (the step -> contract link lives only inside
-   * {@code step_data}, with no FK to cascade on).
+   * Returns the injector contract ids of the given tenant backed by the given payload. Deleting a
+   * payload cascades to its contract at the database level ({@code injector_contract_payload ... ON
+   * DELETE CASCADE}), so the payload-delete path must resolve these ids BEFORE the delete to
+   * cascade-clean the chaining steps that reference the doomed contract (the step -> contract link
+   * lives only inside {@code step_data}, with no FK to cascade on).
+   *
+   * <p>The explicit tenant clause is required because native SQL bypasses the Hibernate {@code
+   * tenantFilter} on this table: default contracts provisioned per tenant all point at the same
+   * payload row, so an unscoped lookup would return one contract id per tenant instead of only the
+   * deleting tenant's contract.
    *
    * @param payloadId the payload whose contract ids are resolved
+   * @param tenantId the tenant whose contracts are considered (the payload's own tenant)
    * @return the injector contract ids (usually one), empty when the payload backs no contract
    */
   @Query(
       value =
-          "SELECT ic.injector_contract_id FROM injectors_contracts ic WHERE ic.injector_contract_payload = :payloadId",
+          "SELECT ic.injector_contract_id FROM injectors_contracts ic WHERE ic.injector_contract_payload = :payloadId AND ic.tenant_id = :tenantId",
       nativeQuery = true)
-  List<String> findContractIdsByPayloadId(@Param("payloadId") String payloadId);
+  List<String> findContractIdsByPayloadId(
+      @Param("payloadId") String payloadId, @Param("tenantId") String tenantId);
 
   @Query(
       "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "

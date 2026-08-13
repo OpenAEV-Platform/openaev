@@ -594,13 +594,17 @@ public class PayloadService {
     // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
     // event fires for them. Chaining steps referencing that contract have no FK to cascade on (the
     // contract is only a JSON snapshot in step_data), so resolve the contract ids BEFORE the delete
-    // and sweep the orphaned step templates explicitly too.
+    // and sweep the orphaned step templates explicitly too. Both lookups and the sweep are scoped
+    // to the payload's tenant: native SQL bypasses the Hibernate tenantFilter, and the default
+    // contracts share their ids (and this payload row) across every tenant.
+    String tenantId = payload.getTenant().getId();
     List<String> cascadeDeletedContractIds =
-        injectorContractRepository.findContractIdsByPayloadId(payloadId);
+        injectorContractRepository.findContractIdsByPayloadId(payloadId, tenantId);
     List<String> cascadeDeletedInjectIds =
-        injectIndexCleanupService.injectIdsByPayloadId(payloadId, payload.getTenant().getId());
+        injectIndexCleanupService.injectIdsByPayloadId(payloadId, tenantId);
     payloadRepository.deleteById(payloadId);
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
-    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(cascadeDeletedContractIds);
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        cascadeDeletedContractIds, tenantId);
   }
 }

@@ -19,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ChainingStepCleanupServiceTest {
 
+  private static final String TENANT_ID = "tenant-1";
+
   @Mock private StepRepository stepRepository;
   @Mock private ConditionService conditionService;
   @InjectMocks private ChainingStepCleanupService service;
@@ -35,26 +37,37 @@ class ChainingStepCleanupServiceTest {
   @Test
   @DisplayName("null contract ids is a no-op that never touches the repositories")
   void nullInput_isNoOp() {
-    Assertions.assertEquals(0, service.deleteTemplateStepsByInjectorContractIds(null));
+    Assertions.assertEquals(0, service.deleteTemplateStepsByInjectorContractIds(null, TENANT_ID));
     verifyNoInteractions(stepRepository, conditionService);
   }
 
   @Test
   @DisplayName("empty contract ids is a no-op that never touches the repositories")
   void emptyInput_isNoOp() {
-    Assertions.assertEquals(0, service.deleteTemplateStepsByInjectorContractIds(List.of()));
+    Assertions.assertEquals(
+        0, service.deleteTemplateStepsByInjectorContractIds(List.of(), TENANT_ID));
+    verifyNoInteractions(stepRepository, conditionService);
+  }
+
+  @Test
+  @DisplayName("a null tenant fails fast instead of silently sweeping nothing")
+  void nullTenant_failsFast() {
+    Assertions.assertThrows(
+        NullPointerException.class,
+        () -> service.deleteTemplateStepsByInjectorContractIds(List.of("c1"), null));
     verifyNoInteractions(stepRepository, conditionService);
   }
 
   @Test
   @DisplayName("no matching steps returns 0 and deletes nothing")
   void noMatches_returnsZero() {
-    when(stepRepository.findTemplateStepsByInjectorContractIds(List.of("c1")))
+    when(stepRepository.findTemplateStepsByInjectorContractIds(List.of("c1"), TENANT_ID))
         .thenReturn(List.of());
 
-    Assertions.assertEquals(0, service.deleteTemplateStepsByInjectorContractIds(List.of("c1")));
+    Assertions.assertEquals(
+        0, service.deleteTemplateStepsByInjectorContractIds(List.of("c1"), TENANT_ID));
 
-    verify(stepRepository).findTemplateStepsByInjectorContractIds(List.of("c1"));
+    verify(stepRepository).findTemplateStepsByInjectorContractIds(List.of("c1"), TENANT_ID);
     verify(conditionService, never()).deleteAllConditionsByStepId(anyString());
     verify(stepRepository, never()).delete(any());
   }
@@ -64,10 +77,10 @@ class ChainingStepCleanupServiceTest {
   void matches_pruneConditionsThenDeleteSteps() {
     Step s1 = templateStep("step-1");
     Step s2 = templateStep("step-2");
-    when(stepRepository.findTemplateStepsByInjectorContractIds(List.of("c1", "c2")))
+    when(stepRepository.findTemplateStepsByInjectorContractIds(List.of("c1", "c2"), TENANT_ID))
         .thenReturn(List.of(s1, s2));
 
-    int removed = service.deleteTemplateStepsByInjectorContractIds(List.of("c1", "c2"));
+    int removed = service.deleteTemplateStepsByInjectorContractIds(List.of("c1", "c2"), TENANT_ID);
 
     Assertions.assertEquals(2, removed);
     // The conditions (graph edges) must be unlinked/pruned BEFORE the owning step is deleted, per

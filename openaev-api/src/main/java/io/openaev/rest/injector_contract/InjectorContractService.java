@@ -561,8 +561,10 @@ public class InjectorContractService implements DependenciesManager {
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
     // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
     // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
+    // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
+    // sweep would wipe other tenants' authored logic-map nodes.
     chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
-        List.of(injectorContract.getId()));
+        List.of(injectorContract.getId()), tenantId);
   }
 
   /**
@@ -583,16 +585,18 @@ public class InjectorContractService implements DependenciesManager {
   public void deleteInjectorContractById(String injectorContractId) {
     // The injects FK on injectors_contracts is ON DELETE CASCADE: collect the doomed inject ids
     // before the delete and de-index them explicitly (no JPA lifecycle fires for DB cascades).
+    String tenantId = TenantContext.getCurrentTenant();
     List<String> cascadeDeletedInjectIds =
-        injectIndexCleanupService.injectIdsByContractIds(
-            List.of(injectorContractId), TenantContext.getCurrentTenant());
+        injectIndexCleanupService.injectIdsByContractIds(List.of(injectorContractId), tenantId);
     this.injectorContractRepository.deleteById(
-        new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()));
+        new InjectorContractId(injectorContractId, tenantId));
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
     // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
     // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
+    // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
+    // sweep would wipe other tenants' authored logic-map nodes.
     chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
-        List.of(injectorContractId));
+        List.of(injectorContractId), tenantId);
   }
 
   /**
