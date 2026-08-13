@@ -1,10 +1,12 @@
 package io.openaev.database.raw;
 
 /**
- * (injector_contract_id, tenant_id) pair of an injector contract row. Used by cross-tenant cascade
- * inventories: default contracts are provisioned id-for-id into every tenant while keeping the
- * payload FK of the original row, so a payload deletion cascades contract rows across tenants and
- * each affected tenant must be swept separately.
+ * (injector_contract_id, tenant_id) pair of an injector contract row. A forward-compatible
+ * inventory shape for cascade cleanups that must sweep exactly the rows a database cascade deletes,
+ * each pair's tenant swept with its own tenant-scoped call. Today {@code
+ * unique_injector_contract_payload} (V4_98) guarantees a payload backs at most one contract row
+ * platform-wide, so payload-driven inventories hold at most one pair; the pair shape keeps those
+ * paths correct if that 1:1 constraint is ever relaxed.
  */
 public interface RawContractTenant {
 
