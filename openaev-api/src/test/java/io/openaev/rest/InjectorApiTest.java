@@ -25,9 +25,11 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.service.FileService;
+import io.openaev.service.InjectorService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -41,6 +43,8 @@ import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,6 +73,7 @@ public class InjectorApiTest extends IntegrationTest {
   @Autowired private EntityManager em;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private FileService fileService;
+  @Autowired private InjectorService injectorService;
 
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -785,6 +790,51 @@ public class InjectorApiTest extends IntegrationTest {
     void given_missingInjectorImage_should_return404() throws Exception {
       // -- Act / Assert --
       mvc.perform(get(INJECT0R_URI + "/nonexistent-type/image")).andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
+  @DisplayName("Deleting a managed injector")
+  class DeleteManagedInjector {
+
+    private Injector persistExternalInjector(String name, Instant lastHeartbeat) {
+      Injector injector = createDefaultInjector(name);
+      injector.setExternal(true);
+      injector.setUpdatedAt(lastHeartbeat);
+      return injectorRepository.save(injector);
+    }
+
+    @Test
+    @DisplayName(
+        "Is refused while its container is still registering, even once a stop is requested")
+    void givenStillPingingInjector_should_refuseDeletion() throws Exception {
+      // Instance stopped, but only the heartbeat says whether the container is really gone.
+      Injector injector = persistExternalInjector("nmap-alive", Instant.now());
+      getInjectorInstance(injector.getId(), injector.getName());
+
+      assertThatThrownBy(() -> injectorService.deleteInjector(injector.getId()))
+          .isInstanceOf(BadRequestException.class)
+          .hasMessageContaining("still running");
+
+      assertThat(
+              injectorRepository.findByIdAndTenantId(
+                  injector.getId(), TenantContext.getCurrentTenant()))
+          .isPresent();
+    }
+
+    @Test
+    @DisplayName("Goes through once the container has stopped pinging")
+    void givenSilentInjector_should_deleteIt() throws Exception {
+      Injector injector =
+          persistExternalInjector("nmap-silent", Instant.now().minus(Duration.ofHours(1)));
+      getInjectorInstance(injector.getId(), injector.getName());
+
+      injectorService.deleteInjector(injector.getId());
+
+      assertThat(
+              injectorRepository.findByIdAndTenantId(
+                  injector.getId(), TenantContext.getCurrentTenant()))
+          .isEmpty();
     }
   }
 }

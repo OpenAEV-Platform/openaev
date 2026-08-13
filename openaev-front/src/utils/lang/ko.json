@@ -4047,6 +4047,7 @@
   "vulnerable-endpoint": "취약한 엔드포인트",
   "vulnerable-endpoint-plural": "취약한 엔드포인트",
   "vulnerable-endpoint-singular": "취약한 엔드포인트",
+  "Wait until the connector stops pinging before deleting it": "커넥터가 응답을 멈출 때까지 기다린 후 삭제하세요",
   "Waiting for": "Waiting for",
   "Waiting for {count} background tasks…": "백그라운드 작업 {count}건을 기다리는 중…",
   "Waiting for a specialist agent": "Waiting for a specialist agent",

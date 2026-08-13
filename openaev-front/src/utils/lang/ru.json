@@ -4047,6 +4047,7 @@
   "vulnerable-endpoint": "Уязвимая конечная точка",
   "vulnerable-endpoint-plural": "уязвимые конечные точки",
   "vulnerable-endpoint-singular": "уязвимая конечная точка",
+  "Wait until the connector stops pinging before deleting it": "Дождитесь, пока коннектор перестанет отправлять сигналы, прежде чем удалять его",
   "Waiting for": "Waiting for",
   "Waiting for {count} background tasks…": "Ожидание {count} фоновых задач…",
   "Waiting for a specialist agent": "Waiting for a specialist agent",

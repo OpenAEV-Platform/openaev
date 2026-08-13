@@ -4047,6 +4047,7 @@
   "vulnerable-endpoint": "Endpoint vulnérable",
   "vulnerable-endpoint-plural": "endpoints vulnérables",
   "vulnerable-endpoint-singular": "endpoint vulnérable",
+  "Wait until the connector stops pinging before deleting it": "Attendez que le connecteur cesse d'émettre avant de le supprimer",
   "Waiting for": "Waiting for",
   "Waiting for {count} background tasks…": "En attente de {count} tâches en arrière-plan…",
   "Waiting for a specialist agent": "Waiting for a specialist agent",

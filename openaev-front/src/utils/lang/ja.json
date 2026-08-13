@@ -4047,6 +4047,7 @@
   "vulnerable-endpoint": "脆弱なエンドポイント",
   "vulnerable-endpoint-plural": "脆弱なエンドポイント",
   "vulnerable-endpoint-singular": "脆弱なエンドポイント",
+  "Wait until the connector stops pinging before deleting it": "コネクターが応答を停止するまで待ってから削除してください",
   "Waiting for": "Waiting for",
   "Waiting for {count} background tasks…": "{count} 件のバックグラウンドタスクを待っています…",
   "Waiting for a specialist agent": "Waiting for a specialist agent",

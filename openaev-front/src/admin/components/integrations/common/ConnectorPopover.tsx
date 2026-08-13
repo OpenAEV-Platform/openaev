@@ -10,6 +10,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import UpdateConnectorInstanceDrawer from '../connector_instance/UpdateConnectorInstanceDrawer';
+import { isHeartbeatFresh } from './connector-liveliness';
 import { ConnectorContext } from './ConnectorContext';
 import type { ConnectorContextLayoutType } from './ConnectorLayout';
 
@@ -56,12 +57,16 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
   const onOpenUpdateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(true);
   const onCloseUpdateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(false);
 
-  // OpenCTI parity: a started managed connector can never be deleted. Deletion
-  // is only allowed once a stop has been requested (requested status stopping)
-  // or is effective (current status stopped); the backend enforces the same
-  // rule. The entry stays visible but disabled, with the reason as tooltip.
-  const canDeleteInstance = instance?.connector_instance_requested_status === 'stopping'
+  // Deletable once nothing can bring it back: a stop asked for or done, and no recent heartbeat.
+  // The stop is only ever requested, so the container may well still be registering. Same rule
+  // server-side.
+  const stopRequestedOrEffective = instance?.connector_instance_requested_status === 'stopping'
     || instance?.connector_instance_current_status === 'stopped';
+  const stillPinging = connector?.isExternal === true && isHeartbeatFresh(connector?.updatedAt);
+  const canDeleteInstance = stopRequestedOrEffective && !stillPinging;
+  const deleteDisabledMessage = stopRequestedOrEffective
+    ? 'Wait until the connector stops pinging before deleting it'
+    : 'Stop the connector before deleting it';
 
   // Button Popover
   const entries = [
@@ -76,7 +81,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
       userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TENANT_SETTINGS),
       disabled: !canDeleteInstance,
       // Raw i18n key: ButtonPopover translates disabledMessage itself (like label).
-      disabledMessage: 'Stop the connector before deleting it',
+      disabledMessage: deleteDisabledMessage,
     }];
 
   return (

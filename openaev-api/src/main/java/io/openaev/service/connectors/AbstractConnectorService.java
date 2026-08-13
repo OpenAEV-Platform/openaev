@@ -19,11 +19,10 @@ public abstract class AbstractConnectorService<
     T extends BaseConnectorEntity & TenantIdBase, Output> {
 
   /**
-   * An external connector that pinged within this window is considered running. Mirrors the
-   * frontend liveliness threshold (LIVELINESS_THRESHOLD_MS): external connectors re-register every
-   * ~40s, so two minutes without a heartbeat means the process is down.
+   * An external connector that pinged within this window is considered running. Managed connectors
+   * refine it from their declared run period; see {@link HeartbeatWindow}.
    */
-  public static final Duration ACTIVE_HEARTBEAT_WINDOW = Duration.ofMinutes(2);
+  public static final Duration ACTIVE_HEARTBEAT_WINDOW = HeartbeatWindow.DEFAULT;
 
   protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
@@ -345,17 +344,9 @@ public abstract class AbstractConnectorService<
    * Rejects the deletion of a connector that is still running (OpenCTI parity: a started connector
    * can never be deleted, it must be stopped first).
    *
-   * <p>Two cases, mirroring the frontend gating:
-   *
-   * <ul>
-   *   <li>deployed through the Integration Manager: the owning instance decides - deletion is only
-   *       allowed once a stop has been requested ({@code requestedStatus == stopping}) or is
-   *       effective ({@code currentStatus == stopped});
-   *   <li>unmanaged external connector: the registration heartbeat decides - a ping within {@link
-   *       #ACTIVE_HEARTBEAT_WINDOW} means the container is alive and must be stopped (externally)
-   *       before the row can be removed. Deleting an active row is futile anyway: the connector
-   *       re-registers on its next heartbeat.
-   * </ul>
+   * <p>A managed connector must clear both the instance status and the heartbeat: on status alone
+   * it was deleted on the mere intention to stop it, and its still-live container put the row back,
+   * orphaned.
    *
    * @param connector the connector entity being deleted
    * @param lastHeartbeat the connector's last registration heartbeat ({@code updatedAt})
@@ -365,12 +356,15 @@ public abstract class AbstractConnectorService<
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
         connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
             this.connectorType.getIdKeyName(), connector.getId(), connector.getTenantId());
+    Duration heartbeatWindow = ACTIVE_HEARTBEAT_WINDOW;
     if (relatedIds != null && relatedIds.getConnectorInstanceId() != null) {
       connectorInstanceService.throwIfInstanceRunning(relatedIds.getConnectorInstanceId());
-      return;
+      heartbeatWindow =
+          HeartbeatWindow.forInstance(
+              connectorInstanceService.connectorInstanceById(relatedIds.getConnectorInstanceId()),
+              this.connectorType);
     }
-    if (lastHeartbeat != null
-        && lastHeartbeat.isAfter(Instant.now().minus(ACTIVE_HEARTBEAT_WINDOW))) {
+    if (lastHeartbeat != null && lastHeartbeat.isAfter(Instant.now().minus(heartbeatWindow))) {
       throw new BadRequestException(
           "The "
               + this.connectorType.name().toLowerCase(Locale.ROOT)
