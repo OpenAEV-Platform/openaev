@@ -33,6 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
+  private static final String OPTIONAL_MISSING_SOURCE_KEY = "OPTIONAL_MISSING";
+
   private final WorkflowStateService workflowStateService;
 
   private final ConditionUtils conditionUtils;
@@ -1245,7 +1247,9 @@ public class ConditionService {
    */
   private Map<String, String> toComboMap(List<WorkflowStateEntries.Pair> pairs) {
     Map<String, String> combo = new TreeMap<>();
-    pairs.forEach(pair -> combo.put(pair.key(), pair.value()));
+    pairs.stream()
+        .filter(pair -> pair.value() != null)
+        .forEach(pair -> combo.put(pair.key(), pair.value()));
     return combo;
   }
 
@@ -1275,9 +1279,16 @@ public class ConditionService {
     List<WorkflowStateEntries.Pair> pairs = new ArrayList<>();
     Set<String> seenValues = new HashSet<>();
     for (String sourceKey : mapperContext.sourceKeys()) {
-      Set<String> values =
+      Set<String> values = new LinkedHashSet<>();
+      Set<String> directValues =
           resolveValuesByMappingType(
               sourceKey, mapperContext.mappingType(), localEntries, globalEntries);
+      if (directValues != null) {
+        values.addAll(directValues);
+      }
+      values.addAll(
+          resolveCorrelatedValuesByMappingType(
+              sourceKey, mapperContext.mappingType(), localEntries, globalEntries));
       if (values == null || values.isEmpty()) {
         continue;
       }
@@ -1301,7 +1312,34 @@ public class ConditionService {
               targetKey != null ? targetKey : "DEFINED_VALUE", definedValue));
     }
 
+    if (pairs.isEmpty()) {
+      String sourceKey =
+          mapperContext.sourceKeys().isEmpty()
+              ? OPTIONAL_MISSING_SOURCE_KEY
+              : mapperContext.sourceKeys().getFirst();
+      pairs.add(new WorkflowStateEntries.Pair(sourceKey, null));
+    }
+
     return pairs;
+  }
+
+  private Set<String> resolveCorrelatedValuesByMappingType(
+      String key,
+      MappingType mappingType,
+      WorkflowStateEntries localEntries,
+      WorkflowStateEntries globalEntries) {
+    WorkflowStateEntries sourceEntries =
+        mappingType == MappingType.GLOBAL ? globalEntries : localEntries;
+    if (sourceEntries.getCorrelated() == null || sourceEntries.getCorrelated().isEmpty()) {
+      return Set.of();
+    }
+    return sourceEntries.getCorrelated().stream()
+        .flatMap(tuple -> tuple.getValues().stream())
+        .filter(pair -> key.equals(pair.key()))
+        .map(WorkflowStateEntries.Pair::value)
+        .filter(Objects::nonNull)
+        .filter(value -> !value.isBlank())
+        .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
   /**
