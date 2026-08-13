@@ -341,3 +341,33 @@ in filigran-design-system).
   the rest of the app while open. The first run of this checkpoint reported empty
   descriptions and I nearly recorded that as a regression. Any a11y measurement of
   the bar has to be taken with portalled surfaces closed.
+
+### 2026-08-14 — review reserves: the token bridge's provenance hash
+- Branch: sandyghs-miniature-enigma
+- Changed: openaev-front/src/components/fds-tokens.generated.{ts,meta.json} (regenerated).
+- The reserve was right, and it is the false green this log predicted two entries
+  ago. Library PR #116 touched `theme.css` (blob `aed2ab424` -> `14093a8`), so the
+  bridge's recorded `themeCssHash` no longer described the pinned tokens. The
+  conformity check kept reporting `bridge-freshness: OK` because it compares the
+  bridge against the SIBLING library checkout, which was sitting 30+ commits back
+  at `8ab126d`. Two bumps passed that way.
+- Regenerated from the library at the pin. **No token value moved**: the emitted
+  file differs by exactly one line, the provenance hash
+  (`sha256:e2eb556…` -> `sha256:70ff37b…`), which is what #116 was expected to do —
+  it changed `-webkit-text-fill-color` inside `@utility` blocks, not a token.
+- Two things worth carrying upstream:
+  1. `bridge-freshness` should hash `theme.css` **at the pinned commit** (the pin is
+     in `package.json`, and the blob is fetchable), not at whatever the neighbouring
+     clone happens to have checked out. As written, the check is only as fresh as a
+     sibling nobody is required to update — so it can report OK on a stale bridge,
+     which is the one thing it exists to prevent.
+  2. `--write-to-product` resolves the product through `resolveWorkspaceRoot()`, so
+     from a git worktree it writes into the MAIN clone, not the worktree the
+     generator was run beside. It silently wrote to a checkout on another branch
+     here; reverted, and re-run with the explicit `--out-dir`, which the script's
+     own comment describes as the always-safe destination. A worktree-aware root,
+     or a printed destination requiring confirmation, would have caught it.
+- The sibling library checkout is left DETACHED at the pin `35a4768`, which is what
+  makes `bridge-freshness` meaningful; its branch ref (`sandyghs-miniature-enigma`
+  @ `8ab126d`) is untouched.
+- Friction / process feedback: see the two points above.
