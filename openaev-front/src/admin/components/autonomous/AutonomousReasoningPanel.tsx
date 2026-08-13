@@ -548,7 +548,16 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     && !questionAnsweredInTimeline
     ? latestQuestion
     : undefined;
+  // Sanitize the LLM-authored labels at derivation (not render) time and DROP a choice whose label
+  // sanitizes to nothing: falling back to the raw text would leak the exact tool markup
+  // sanitizeEventText strips, and an unlabeled radio is unpickable anyway - the free-text composer
+  // remains as the answer path. The `value` (what is sent back to the orchestrator) stays raw.
   const questionChoices = (pendingQuestion ? parseQuestionChoices(pendingQuestion.autonomous_event_data) : [])
+    .map(choice => ({
+      ...choice,
+      label: sanitizeEventText(choice.label),
+    }))
+    .filter(choice => choice.label.length > 0)
     .slice(0, MAX_QUESTION_CHOICES);
   const hasChoices = questionChoices.length > 0;
 
@@ -569,10 +578,19 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     composerPlaceholder = t('Answer the AI (e.g. the web apps in scope are app-prod-01 and app-prod-02)');
   }
 
-  // Reset the choice selection whenever a new question arrives.
+  // Reset the composer + choice selection ONLY when a genuinely NEW question arrives. Keyed on the
+  // last question id seen (not on every pendingQuestion identity change): after a failed send the
+  // SAME question resurfaces (the optimistic dismissal is rolled back), and an unconditional reset
+  // would fire on that undefined -> same-id transition and wipe the restored answer text right
+  // after the catch put it back - stranding the operator exactly like the bug this PR fixes.
+  const lastQuestionIdRef = useRef<string | null>(null);
   useEffect(() => {
-    setSelectedChoice(null);
-    setDirective('');
+    const questionId = pendingQuestion?.autonomous_event_id ?? null;
+    if (questionId !== null && questionId !== lastQuestionIdRef.current) {
+      lastQuestionIdRef.current = questionId;
+      setSelectedChoice(null);
+      setDirective('');
+    }
   }, [pendingQuestion?.autonomous_event_id]);
 
   // Keep the stream pinned to its tail as it grows - but only while the operator was already at (or
@@ -607,9 +625,11 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       .catch(() => {
         // The send failed (network / backend). Roll back the optimistic dismissal so the question
         // re-surfaces, and restore the operator's text - otherwise the callout is gone for good and
-        // the run is stranded in WAITING_INPUT with no way to answer it.
+        // the run is stranded in WAITING_INPUT with no way to answer it. Restore ONLY while the
+        // composer is still empty: the field stays live during the in-flight request, so the
+        // operator may already be typing something new and the rollback must not clobber it.
         setAnsweredQuestionId(current => (current === dismissedQuestionId ? null : current));
-        setDirective(trimmed);
+        setDirective(current => (current.trim().length === 0 ? trimmed : current));
       })
       .finally(() => {
         sendingRef.current = false;
@@ -1149,7 +1169,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                                   }}
                                 />
                               )}
-                              label={sanitizeEventText(choice.label) || choice.label}
+                              label={choice.label}
                               sx={{
                                 'margin': 0,
                                 'alignItems': 'flex-start',
