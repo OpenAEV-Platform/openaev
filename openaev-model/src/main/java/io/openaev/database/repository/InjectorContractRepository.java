@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.*;
 import io.openaev.database.model.attackpath.projection.AttackPathInjectorPatternRow;
+import io.openaev.database.raw.RawContractTenant;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.raw.RawPayloadRelatedIds;
 import jakarta.validation.constraints.NotNull;
@@ -191,27 +192,29 @@ public interface InjectorContractRepository
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
   /**
-   * Returns the injector contract ids of the given tenant backed by the given payload. Deleting a
-   * payload cascades to its contract at the database level ({@code injector_contract_payload ... ON
-   * DELETE CASCADE}), so the payload-delete path must resolve these ids BEFORE the delete to
-   * cascade-clean the chaining steps that reference the doomed contract (the step -> contract link
-   * lives only inside {@code step_data}, with no FK to cascade on).
+   * Returns the (injector_contract_id, tenant_id) pair of EVERY contract row backed by the given
+   * payload, across all tenants. Deleting a payload cascades to its contracts at the database level
+   * ({@code injector_contract_payload ... ON DELETE CASCADE}), so the payload-delete path must
+   * resolve these pairs BEFORE the delete to cascade-clean the chaining steps that reference the
+   * doomed contracts (the step -> contract link lives only inside {@code step_data}, with no FK to
+   * cascade on).
    *
-   * <p>The explicit tenant clause is required because native SQL bypasses the Hibernate {@code
-   * tenantFilter} on this table: default contracts provisioned per tenant all point at the same
-   * payload row, so an unscoped lookup would return one contract id per tenant instead of only the
-   * deleting tenant's contract.
+   * <p>Deliberately NOT tenant-scoped, unlike the other native queries here: the sweep set must be
+   * exactly what the database cascade deletes, whatever tenant it lives in. Today the schema
+   * guarantees at most one row - {@code unique_injector_contract_payload} (V4_98) is a
+   * single-column unique on the payload FK, so a payload backs one contract platform-wide - but
+   * returning the (contract, tenant) pair keeps the delete path correct even if that 1:1 constraint
+   * is ever relaxed. The caller sweeps each returned tenant separately; the sweep itself stays
+   * strictly tenant-scoped per pair.
    *
-   * @param payloadId the payload whose contract ids are resolved
-   * @param tenantId the tenant whose contracts are considered (the payload's own tenant)
-   * @return the injector contract ids (usually one), empty when the payload backs no contract
+   * @param payloadId the payload whose contract rows are enumerated
+   * @return one (contract id, tenant id) pair per contract row referencing the payload
    */
   @Query(
       value =
-          "SELECT ic.injector_contract_id FROM injectors_contracts ic WHERE ic.injector_contract_payload = :payloadId AND ic.tenant_id = :tenantId",
+          "SELECT ic.injector_contract_id AS injector_contract_id, ic.tenant_id AS tenant_id FROM injectors_contracts ic WHERE ic.injector_contract_payload = :payloadId",
       nativeQuery = true)
-  List<String> findContractIdsByPayloadId(
-      @Param("payloadId") String payloadId, @Param("tenantId") String tenantId);
+  List<RawContractTenant> findContractTenantPairsByPayloadId(@Param("payloadId") String payloadId);
 
   @Query(
       "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "

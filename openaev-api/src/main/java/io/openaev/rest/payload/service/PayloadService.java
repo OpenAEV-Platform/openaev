@@ -599,19 +599,22 @@ public class PayloadService {
             .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
     // Payload deletion cascades at the DB level to its injector contract and then to the injects
     // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
-    // event fires for them. Chaining steps referencing that contract have no FK to cascade on (the
-    // contract is only a JSON snapshot in step_data), so resolve the contract ids BEFORE the delete
-    // and sweep the orphaned step templates explicitly too. Both lookups and the sweep are scoped
-    // to the payload's tenant: native SQL bypasses the Hibernate tenantFilter, and the default
-    // contracts share their ids (and this payload row) across every tenant.
+    // event fires for them. Chaining steps referencing that contract have no FK to cascade on
+    // (the contract is only a JSON snapshot in step_data), so inventory the doomed contract rows
+    // BEFORE the delete and sweep the orphaned step templates explicitly too. The inventory is
+    // grouped by tenant and each sweep stays scoped to its own tenant: today a payload backs at
+    // most one contract platform-wide (unique_injector_contract_payload), the grouping simply
+    // keeps this path correct if that 1:1 constraint is ever relaxed.
     String tenantId = payload.getTenant().getId();
-    List<String> cascadeDeletedContractIds =
-        injectorContractService.findContractIdsByPayloadId(payloadId, tenantId);
+    Map<String, List<String>> cascadeDeletedContractIdsPerTenant =
+        injectorContractService.findContractIdsByPayloadIdPerTenant(payloadId);
     List<String> cascadeDeletedInjectIds =
         injectIndexCleanupService.injectIdsByPayloadId(payloadId, tenantId);
     payloadRepository.deleteById(payloadId);
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
-    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
-        cascadeDeletedContractIds, tenantId);
+    cascadeDeletedContractIdsPerTenant.forEach(
+        (contractTenantId, contractIds) ->
+            chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+                contractIds, contractTenantId));
   }
 }

@@ -20,6 +20,7 @@ import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.SessionHelper;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawContractTenant;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -584,17 +585,27 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
-   * Returns the injector contract ids of the given tenant backed by the given payload - the service
-   * pass-through for {@code InjectorContractRepository#findContractIdsByPayloadId} so consumers
-   * outside this service (the payload-delete path) never touch the repository directly.
+   * Returns the injector contract ids backed by the given payload, grouped by tenant - the service
+   * pass-through for {@code InjectorContractRepository#findContractTenantPairsByPayloadId} so
+   * consumers outside this service (the payload-delete path) never touch the repository directly.
+   *
+   * <p>The result deliberately spans all tenants so the payload-delete path sweeps exactly what the
+   * database cascade removes, each tenant with its own tenant-scoped call. Today {@code
+   * unique_injector_contract_payload} guarantees a payload backs at most one contract
+   * platform-wide, so the map holds at most one entry - the grouped shape simply keeps the delete
+   * path correct if that 1:1 constraint is ever relaxed.
    *
    * @param payloadId the payload whose contract ids are resolved
-   * @param tenantId the tenant whose contracts are considered (the payload's own tenant)
-   * @return the injector contract ids (usually one), empty when the payload backs no contract
+   * @return contract ids grouped by tenant id, empty when the payload backs no contract
    */
   @Transactional(readOnly = true)
-  public List<String> findContractIdsByPayloadId(String payloadId, String tenantId) {
-    return this.injectorContractRepository.findContractIdsByPayloadId(payloadId, tenantId);
+  public Map<String, List<String>> findContractIdsByPayloadIdPerTenant(String payloadId) {
+    return this.injectorContractRepository.findContractTenantPairsByPayloadId(payloadId).stream()
+        .collect(
+            Collectors.groupingBy(
+                RawContractTenant::getTenant_id,
+                Collectors.mapping(
+                    RawContractTenant::getInjector_contract_id, Collectors.toList())));
   }
 
   /**
