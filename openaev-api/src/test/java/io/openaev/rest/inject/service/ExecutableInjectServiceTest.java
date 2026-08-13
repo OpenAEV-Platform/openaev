@@ -97,7 +97,7 @@ class ExecutableInjectServiceTest {
                     List.of(usernameField),
                     "plain-text"))
         .isInstanceOf(InvocationTargetException.class)
-        .hasCauseInstanceOf(IllegalStateException.class)
+        .hasCauseInstanceOf(IllegalArgumentException.class)
         .hasRootCauseMessage("Missing mandatory input 'username' for inject execution");
   }
 
