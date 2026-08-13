@@ -142,7 +142,7 @@ public class ExecutableInjectService {
         log.error(
             "[Inject execution] Missing mandatory input '{}' -> step run can not be created/executed",
             argumentKey);
-        throw new IllegalStateException(
+        throw new IllegalArgumentException(
             "Missing mandatory input '%s' for inject execution".formatted(argumentKey));
       }
       binder.bind(argumentKey, resolvedArgument.value());
