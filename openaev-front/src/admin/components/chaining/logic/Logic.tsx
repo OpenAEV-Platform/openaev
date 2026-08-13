@@ -71,6 +71,9 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
   // Latest event metas
   const [eventMetas, setEventMetas] = useState<Record<string, EventMeta>>({});
 
+  // Re-read the scope perimeter whenever the workflow changes and after each graph refresh, so an
+  // action configured right after a scope edit inherits the current assets/teams (the backend
+  // realigns the already-authored steps on its side).
   useEffect(() => {
     if (workflowId) {
       fetchValidAssets(workflowId).then((assets: ScopeAssetOutput[]) => {
@@ -80,7 +83,7 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
         setValidTeams(teams);
       });
     }
-  }, [workflowId]);
+  }, [workflowId, refreshKey]);
 
   // Fingerprint of the workflow's shape (which steps/triggers exist and when each last changed) so a
   // live poll can tell a real edit from a no-op tick: it re-draws the graph on an add, a delete or an

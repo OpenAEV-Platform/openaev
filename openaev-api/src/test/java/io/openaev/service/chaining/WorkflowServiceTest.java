@@ -52,6 +52,7 @@ class WorkflowServiceTest {
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private ScopeSnapshotService scopeSnapshotService;
+  @Mock private ScopeService scopeService;
   @Mock private WorkflowStateService workflowStateService;
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -792,6 +793,53 @@ class WorkflowServiceTest {
               .orElseThrow();
       assertEquals(ScopeRuleValueType.ASSET_GROUP_ID, mappedAssetGroupRule.getValueType());
     }
+
+    @Test
+    @DisplayName("should realign step templates on the new scope when scope rules changed")
+    void given_changedScopeRules_should_realignStepTemplatesOnNewScope() {
+      // Arrange — an action was authored before the asset was added to the allowlist
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
+      Asset asset = new Asset();
+      asset.setId("asset-123");
+
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets(workflowId)).thenReturn(List.of(asset));
+
+      // Act
+      workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert — the scope is pushed onto the already-authored step templates
+      verify(workflowRepository).flush();
+      verify(stepService).syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123"));
+    }
+
+    @Test
+    @DisplayName("should not realign step templates when no scope rule changed")
+    void given_unchangedScopeRules_should_notRealignStepTemplates() {
+      // Arrange — only a rate-limit field changes
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setRateLimitEnabled(true);
+
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+
+      // Act
+      workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert
+      verify(stepService, never()).syncScopeAssetsOnStepTemplates(any(), any());
+      verify(scopeService, never()).getValidAssets(any());
+    }
   }
 
   @Nested
@@ -974,6 +1022,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               simulationRateLimitService,
               scopeSnapshotService,
+              scopeService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -1255,6 +1304,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               simulationRateLimitService,
               scopeSnapshotService,
+              scopeService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -1442,6 +1492,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               simulationRateLimitService,
               scopeSnapshotService,
+              scopeService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -1664,6 +1715,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               simulationRateLimitService,
               scopeSnapshotService,
+              scopeService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,

@@ -52,6 +52,7 @@ public class WorkflowService {
   private final StepDelayQueueService stepDelayQueueService;
   private final SimulationRateLimitService simulationRateLimitService;
   private final ScopeSnapshotService scopeSnapshotService;
+  private final ScopeService scopeService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
@@ -188,11 +189,21 @@ public class WorkflowService {
       @NotBlank String workflowId, WorkflowConfigurationInput input) {
     Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     WorkflowEditability.assertLogicMapEditable(workflow);
-    boolean changed = applyConfigurationInput(input, workflow);
-    if (changed) {
+    ConfigurationChange change = applyConfigurationInput(input, workflow);
+    if (change.changed()) {
       boolean workflowExecutedNotEmpty = !workflow.getWorkflowsExecuted().isEmpty();
       workflow.setEdited(workflowExecutedNotEmpty);
       workflowRepository.save(workflow);
+    }
+    if (change.scopeRulesChanged()) {
+      // The asset perimeter of an action is a copy of the workflow scope, so an action authored
+      // before (or between) scope edits must follow the new scope instead of keeping its stale
+      // snapshot. Flush first so the scope rules just written are visible to ScopeService, which
+      // re-reads them from the repository.
+      workflowRepository.flush();
+      List<String> scopedAssetIds =
+          scopeService.getValidAssets(workflow.getId()).stream().map(Asset::getId).toList();
+      stepService.syncScopeAssetsOnStepTemplates(workflow, scopedAssetIds);
     }
     return workflow;
   }
@@ -216,7 +227,7 @@ public class WorkflowService {
       @NotBlank String simulationId, WorkflowConfigurationInput input) {
     List<Workflow> runs = findWorkflowRunBySimulationId(simulationId);
     for (Workflow run : runs) {
-      if (applyConfigurationInput(input, run)) {
+      if (applyConfigurationInput(input, run).changed()) {
         workflowRepository.save(run);
       }
     }
@@ -866,10 +877,10 @@ public class WorkflowService {
   // -- Configuration Update --
 
   /**
-   * Copies all fields from {@code input} onto {@code workflow} and returns {@code true} when at
-   * least one value changed.
+   * Copies all fields from {@code input} onto {@code workflow} and reports what actually changed.
    */
-  private boolean applyConfigurationInput(WorkflowConfigurationInput input, Workflow workflow) {
+  private ConfigurationChange applyConfigurationInput(
+      WorkflowConfigurationInput input, Workflow workflow) {
     boolean changed = false;
     boolean rateLimitChanged = false;
     boolean timeoutChanged = false;
@@ -919,8 +930,14 @@ public class WorkflowService {
           attempts, seconds, !input.isRateLimitEnabled());
     }
 
-    return rulesChanged || variablesChanged || changed;
+    return new ConfigurationChange(rulesChanged || variablesChanged || changed, rulesChanged);
   }
+
+  /**
+   * Outcome of a configuration update: whether anything changed at all, and whether the scope rules
+   * specifically changed (which requires realigning the step templates' asset perimeter).
+   */
+  private record ConfigurationChange(boolean changed, boolean scopeRulesChanged) {}
 
   /**
    * Reconciles the workflow's scope-rule collection against the provided inputs: removes rules not
