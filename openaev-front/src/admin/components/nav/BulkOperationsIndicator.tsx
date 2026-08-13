@@ -7,8 +7,8 @@ import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, 
 import { useFormatter } from '../../../components/i18n';
 import { type BulkOperation, seedBulkOperations, useBulkOperations } from '../../../utils/bulkOperations';
 
-/** The library Spinner's `lg` box (its largest designed step), and half of it, which is what centres it. */
-const SPINNER_SIZE = 24;
+/** The library Spinner's `xl` box — the tier added for this pattern — and half of it, which centres it. */
+const SPINNER_SIZE = 32;
 const SPINNER_CENTRING_OFFSET = `-${SPINNER_SIZE / 2}px`;
 
 /**
@@ -75,6 +75,19 @@ const BulkOperationsIndicator: FunctionComponent = () => {
     }
   };
 
+  // The library's own axis (#118). No `warning` tone exists yet, so a status that
+  // wanted one would keep the default rather than borrow a neighbouring family.
+  const statusTone = (operation: BulkOperation) => {
+    switch (operation.bulk_operation_status) {
+      case 'COMPLETED':
+        return 'success' as const;
+      case 'FAILED':
+        return 'error' as const;
+      default:
+        return 'default' as const;
+    }
+  };
+
   return (
     <>
       <Tooltip>
@@ -97,7 +110,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                   <AutoAwesomeMotionOutlined fontSize="medium" />
                   {runningCount > 0 && (
                     <Spinner
-                      size="lg"
+                      size="xl"
                       style={{
                         position: 'absolute',
                         top: '50%',
@@ -231,6 +244,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                 {/* Determinate: named by the operation title above, so the value is announced with it. */}
                 <ProgressBar
                   value={progressValue(operation)}
+                  tone={statusTone(operation)}
                   aria-labelledby={`bulk-op-title-${operation.bulk_operation_id}`}
                 />
                 <Box sx={{

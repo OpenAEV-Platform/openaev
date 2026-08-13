@@ -297,3 +297,47 @@ in filigran-design-system).
   reading the prop alone would have built it directly under the `Header` and
   measured 8│16 without knowing why. Worth stating the required nesting in the
   prop's own documentation.
+
+### 2026-08-13 — final bump 35a4768: the bar and rail are 100% library
+- Branch: sandyghs-miniature-enigma
+- Pin: `7e7b417` -> `35a476849ba72d48cacae2568643f0b5638bc468` (PRs #118 and #119).
+- Gate, on the RENDERED build rather than the types — which mattered, because the
+  types would have lied by omission the day before. Yesterday's attempt at this
+  same bump was a STOP: `Spinner size="xl"` type-checked and silently rendered
+  `size-6` (24px), and the `Badge` default was still `brand`. Both are now real:
+
+  ```
+  Spinner sm->size-4  md->size-5  lg->size-6  xl->size-8   (32px, the tier asked for)
+  Badge   default -> bg-feedback-error-secondary            (red, was brand)
+  ProgressBar tone default->brand  success->success  error->error
+  ```
+- Spinner: the bar's ring goes `lg` -> `xl`. Measured: the ring was 24px on a 24px
+  glyph, i.e. **0.00px clearance** — invisible, hidden behind the glyph. At 32px the
+  clearance is **4.00px** and it encircles the glyph again. (Sandy's brief said
+  3.33px; the difference is the glyph, which measures 24px here at MUI's
+  `fontSize="medium"`, not 20px.)
+- ProgressBar: the per-status colour is back, from the library's `tone` axis rather
+  than the `sx` the migration removed — RUNNING default, COMPLETED success, FAILED
+  error. Red before fix on the three fills.
+- Badge: both badges turn RED without a line of product change, because the
+  library default moved. The product passes NO `tone`, deliberately: which sites
+  read as alert and which as information is Sandy's call, one word per site.
+- Guard, now biting per SYMBOL instead of per hand-kept name. The old list had to
+  be extended three times (`Chip`, then `Badge`, then progress), and each time the
+  control had been in the bar for weeks looking compliant because nothing asked
+  about it. Inverted: every `Mui<Symbol>-` class is a violation unless explicitly
+  allowed. Allowed = icon glyphs (standing designer exception) and the Popover
+  subtree (dated exemption, removal condition = the library exports a `Popover`).
+  Mutation-proven: a MUI `Typography` — a symbol the old list never contained —
+  now reddens the guard.
+- Sweep on the rendered DOM, both themes, running + unread forced: **155 elements
+  across bar, rail and panel; 0 offenders.** 14 MUI nodes remain, all inside the
+  Popover subtree and all covered by the dated exemption.
+- Separator re-measured after the bump: 16 │ 16 with 8px cluster gaps, both themes.
+- Accessible descriptions re-measured in Chromium's tree: bell "7", bulk "2".
+- 768px overflow unchanged at 85px.
+- Friction / process feedback: measuring the accessible tree with the panel OPEN
+  returns nothing for the bar — MUI's `Popover` is a `Modal`, so it `aria-hidden`s
+  the rest of the app while open. The first run of this checkpoint reported empty
+  descriptions and I nearly recorded that as a regression. Any a11y measurement of
+  the bar has to be taken with portalled surfaces closed.

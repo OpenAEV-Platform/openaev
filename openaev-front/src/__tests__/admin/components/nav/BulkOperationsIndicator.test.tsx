@@ -12,18 +12,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { expectNoMuiControls } from '../../../utils/designSystemAssertions';
 
-// Only the counter matters here, not the SSE plumbing behind it.
+// Only the rendering matters here, not the SSE plumbing behind it. `running` is
+// a count of RUNNING rows; `statuses` drives an explicit mix when a test needs one.
 let running = 0;
+let statuses: string[] | null = null;
 vi.mock('../../../../utils/bulkOperations', () => ({
   seedBulkOperations: () => {},
-  useBulkOperations: () => Array.from({ length: running }, (_unused, index) => ({
-    bulk_operation_id: `op-${index}`,
-    bulk_operation_status: 'RUNNING',
-    bulk_operation_action: 'delete',
-    bulk_operation_entity: 'scenarios',
-    bulk_operation_processed: 1,
-    bulk_operation_total: 10,
-  })),
+  useBulkOperations: () => (statuses ?? Array.from({ length: running }, () => 'RUNNING'))
+    .map((status, index) => ({
+      bulk_operation_id: `op-${index}`,
+      bulk_operation_status: status,
+      bulk_operation_action: 'delete',
+      bulk_operation_entity: 'scenarios',
+      bulk_operation_processed: 1,
+      bulk_operation_total: 10,
+    })),
 }));
 
 const { default: BulkOperationsIndicator } = await import('../../../../admin/components/nav/BulkOperationsIndicator');
@@ -47,6 +50,7 @@ describe('BulkOperationsIndicator running counter', () => {
   afterEach(() => {
     cleanup();
     running = 0;
+    statuses = null;
   });
 
   it('counts running operations with the library Badge, not a MUI one', () => {
@@ -83,6 +87,20 @@ describe('BulkOperationsIndicator running counter', () => {
     for (const bar of screen.getAllByRole('progressbar')) {
       expect(bar.getAttribute('aria-valuenow')).not.toBeNull();
     }
+  });
+
+  it('colours each bar by its operation status', async () => {
+    // The library gained a `tone` axis (#118), so the per-status colour the
+    // product had before the migration comes back — from tokens, not from `sx`.
+    statuses = ['RUNNING', 'COMPLETED', 'FAILED'];
+    renderIndicator();
+    fireEvent.click(trigger());
+    await waitFor(() => expect(screen.getAllByRole('progressbar')).toHaveLength(3));
+    const fills = screen.getAllByRole('progressbar')
+      .map(bar => String(bar.firstElementChild?.getAttribute('class') ?? ''));
+    expect(fills[0]).toContain('bg-filigran-brand-primary');
+    expect(fills[1]).toContain('bg-feedback-success-primary');
+    expect(fills[2]).toContain('bg-feedback-error-primary');
   });
 
   it('says nothing when nothing is running', () => {

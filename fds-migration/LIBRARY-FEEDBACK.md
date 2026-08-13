@@ -1194,22 +1194,30 @@ status is still carried by the leading icon and by the caption, whose colour the
 product keeps. If that reads as a loss, the ask is a `tone` on `ProgressBar`, not
 a product-side override.
 
-**`Popover`: still the only one open.** Re-verified against the export surface at
-`7e7b417`: `Popover`, `PopoverTrigger` and `PopoverContent` all resolve to
+**`Popover`: the only one still open.** Re-verified against the export surface at
+`35a4768`: `Popover`, `PopoverTrigger` and `PopoverContent` all resolve to
 `undefined` from the built entry point — PR #105's primitive remains internal (it
-backs `Combobox`). So the bulk-operations panel stays a MUI `Popover`, and with it
-the `MuiBox` wrappers that lay its rows out. Those are pure layout, not controls,
-and this product compiles no Tailwind of its own, so replacing them with utility
-classes would produce silent no-ops; they move when the panel is rebuilt on a
-library `Popover`.
+backs `Combobox`). The bulk-operations panel therefore stays a MUI `Popover`, and
+with it the `MuiBox` wrappers that lay its rows out. That subtree is the single
+exemption left in `expectNoMuiControls`, dated and conditioned on this entry.
 
-**`Progress`: a fourth control, named here for the first time.** It was missing
-from the original list of three because the bar only shows it while an operation
-runs, so no checkpoint had it on screen. There are two distinct usages, and they
-are not the same component:
+### Status, 2026-08-13 (final bump `35a4768`) — everything but Popover is closed
 
-| Usage | Where | Shape | Determinate? | Measured |
-|---|---|---|---|---|
+The three narrownesses this entry recorded as accepted consequences were all
+answered by the library, and the product now takes each one:
+
+| | recorded as accepted | answered by | now |
+|---|---|---|---|
+| spinner capped at 24px, sitting ON a 24px glyph (0.00px clearance) | PR #119 adds an `xl` tier | `Spinner size="xl"` — 32px, **4.00px** clearance, measured |
+| `ProgressBar` has no colour axis, so the bars lost their per-status colour | PR #118 adds `tone` | `tone` = success / error / default from `bulk_operation_status`; the completed bar is green again |
+| `Badge` default was `brand` | PR #119 makes `error` the default | both badges are red **with no product change** — the product passes no `tone`; per-site arbitration is Sandy's |
+
+One gap remains inside a shipped component, worth naming rather than working
+around: **`ProgressBar` has no `warning` tone**. Nothing in this bar needs one
+today (the three statuses map onto default/success/error), but a status that did
+would keep the default rather than borrow a neighbouring family.
+
+---|---|---|---|---|
 | ring around the glyph | the bar's bulk-operations button | circular, `stroke-width: 2px` | **no** — no `aria-valuenow`, it spins while `runningCount > 0` | declared 32×32, centred over a 20×20 glyph in a 36×36 button. Its *rect* reads ~42px because an indeterminate ring rotates and `getBoundingClientRect` returns the rotated axis-aligned box — the drawn circle is 32 |
 | one bar per operation | the bulk-operations panel | linear, `border-radius: 12px` | **yes** — `aria-valuenow` = `processed/total` (35, 76, 100 in the captures), plus a `%` caption the consumer renders | 328×6, full panel width minus padding |
 

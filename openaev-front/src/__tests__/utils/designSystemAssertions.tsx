@@ -21,24 +21,44 @@ import { expect } from 'vitest';
  * carrying a MuiSvgIcon class is therefore not a violation.
  */
 
-// This list grows every time a control turns out to have been invisible to the
-// rule rather than compliant with it: `Chip` was added at review #7305 (the bar's
-// "EE DEV LICENSE" tag had survived several checkpoints), `Badge` once the
-// library shipped one (#114) and the two MUI badges in the bar became debt with
-// a replacement rather than a filed gap.
-const MUI_CONTROL_CLASS = /\bMui(ButtonBase|Button|IconButton|Chip|Badge|CircularProgress|LinearProgress|TextField|InputBase|OutlinedInput|FormControl|Menu|MenuItem|Tooltip|Divider)-/;
+/**
+ * ANY MUI symbol counts, not a hand-kept list of them.
+ *
+ * The list this replaced had to be extended three times — `Chip` at review
+ * #7305, `Badge` once the library shipped one, progress after that — and each
+ * time the control had been sitting in the bar for weeks, compliant-looking
+ * because nothing asked about it. An allowlist of what is FORBIDDEN can only
+ * ever be behind. So the rule is inverted: every `Mui<Symbol>-` class is a
+ * violation unless it is explicitly allowed below.
+ */
+const ANY_MUI_CLASS = /\bMui[A-Z][A-Za-z]*-/;
+
+/** Icon glyphs stay MUI — the designer's standing exception since the Navbar pilot. */
+const MUI_GLYPH_CLASS = /\bMuiSvgIcon-/;
 
 /**
- * Every MUI class on the element itself, ignoring icon glyphs (the exception).
+ * The one tolerated surface, dated and conditioned.
  *
- * There is no exemption list any more. Progress carried the only one, dated
- * 2026-08-13 and conditioned on the library shipping the component; it did
- * (Spinner + ProgressBar, PR #115), the two usages were converted, and the
- * exemption was deleted with them. The guard is strict again.
+ * 2026-08-13 — the bulk-operations panel is a MUI `Popover`, because the library
+ * has none: PR #105 added a Popover primitive but kept it internal (it backs
+ * `Combobox`), and `require()` on the built entry point returns `undefined` for
+ * `Popover`/`PopoverTrigger`/`PopoverContent`. The whole panel subtree is exempt,
+ * not just the paper: its rows are laid out by MUI `Box`, which only exists
+ * because the surface does.
+ *
+ * REMOVAL CONDITION: the day the library exports a `Popover`, delete this and the
+ * guard reddens on the panel until it is rebuilt. See
+ * fds-migration/LIBRARY-FEEDBACK.md #22 — the only item still open there.
  */
+const EXEMPT_SUBTREE_SELECTOR = '[class*="MuiPopover-"]';
+
+const isInsideExemptSubtree = (element: Element): boolean => Boolean(element.closest(EXEMPT_SUBTREE_SELECTOR));
+
+/** Every MUI symbol on the element itself, minus the glyph exception. */
 const muiControlClassesOf = (element: Element): string[] => String(element.getAttribute('class') ?? '')
   .split(/\s+/)
-  .filter(cls => MUI_CONTROL_CLASS.test(cls));
+  .filter(cls => ANY_MUI_CLASS.test(cls))
+  .filter(cls => !MUI_GLYPH_CLASS.test(cls));
 
 /**
  * Asserts the element is styled by the library and by no MUI control class.
@@ -92,6 +112,7 @@ export const expectLibrarySearchField = (element: Element | null | undefined, wh
 export const expectNoMuiControls = (root: Element, what: string) => {
   const offenders = Array.from(root.querySelectorAll('*'))
     .filter(el => muiControlClassesOf(el).length > 0)
+    .filter(el => !isInsideExemptSubtree(el))
     .map(el => `${el.tagName.toLowerCase()}.${muiControlClassesOf(el)[0]}`);
   expect(offenders, `${what}: MUI controls still present`).toEqual([]);
 };
