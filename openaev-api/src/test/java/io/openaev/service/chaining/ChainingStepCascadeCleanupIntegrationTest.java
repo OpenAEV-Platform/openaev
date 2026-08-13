@@ -76,9 +76,13 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
     PayloadComposer.Composer payloadWrapper =
         payloadComposer.forPayload(PayloadFixture.createDefaultCommand());
     Injector payloadInjector = InjectorFixture.createDefaultPayloadInjector();
+    // Custom so the user-facing deleteInjectorContract(String) path (custom-only guard) can be
+    // exercised against the same fixture graph; the other delete paths ignore the flag.
+    InjectorContract customContract = InjectorContractFixture.createDefaultInjectorContract();
+    customContract.setCustom(true);
     InjectorContractComposer.Composer contractWrapper =
         injectorContractComposer
-            .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+            .forInjectorContract(customContract)
             .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
             .withInjector(payloadInjector)
             .withPayload(payloadWrapper);
@@ -141,6 +145,29 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
     Assertions.assertTrue(
         stepRepository.findById(fixture.templateStepId()).isEmpty(),
         "TEMPLATE step must be wiped when the payload behind its contract is deleted");
+    Assertions.assertTrue(
+        stepRepository.findById(fixture.runStepId()).isPresent(),
+        "RUN step carries immutable execution history and must survive");
+  }
+
+  @Test
+  @DisplayName("Deleting a custom contract through the user-facing path wipes the TEMPLATE step")
+  void whenCustomContractDeletedThroughApiPath_thenTemplateStepIsWipedAndRunStepSurvives() {
+    Fixture fixture = persistContractAndScenarioSteps();
+
+    Assertions.assertTrue(stepRepository.findById(fixture.templateStepId()).isPresent());
+
+    // WHEN: the user-facing delete path is used - deleteInjectorContract(String) resolves the
+    // entity, enforces the custom-only guard and tears it down through the JPA entity delete,
+    // a different code path from the by-id delete covered above.
+    injectorContractService.deleteInjectorContract(fixture.contractId());
+    entityManager.flush();
+    entityManager.clear();
+
+    // THEN
+    Assertions.assertTrue(
+        stepRepository.findById(fixture.templateStepId()).isEmpty(),
+        "TEMPLATE step must be wiped when the contract is deleted through the user-facing path");
     Assertions.assertTrue(
         stepRepository.findById(fixture.runStepId()).isPresent(),
         "RUN step carries immutable execution history and must survive");

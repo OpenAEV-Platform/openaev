@@ -584,6 +584,20 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Returns the injector contract ids of the given tenant backed by the given payload - the service
+   * pass-through for {@code InjectorContractRepository#findContractIdsByPayloadId} so consumers
+   * outside this service (the payload-delete path) never touch the repository directly.
+   *
+   * @param payloadId the payload whose contract ids are resolved
+   * @param tenantId the tenant whose contracts are considered (the payload's own tenant)
+   * @return the injector contract ids (usually one), empty when the payload backs no contract
+   */
+  @Transactional(readOnly = true)
+  public List<String> findContractIdsByPayloadId(String payloadId, String tenantId) {
+    return this.injectorContractRepository.findContractIdsByPayloadId(payloadId, tenantId);
+  }
+
+  /**
    * Deletes an injector contract by its ID using a direct DELETE query (no entity loading).
    *
    * @param injectorContractId the contract ID to delete

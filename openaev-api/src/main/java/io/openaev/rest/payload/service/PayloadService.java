@@ -41,6 +41,7 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
@@ -86,6 +87,7 @@ public class PayloadService {
   private final TagService tagService;
   private final InjectIndexCleanupService injectIndexCleanupService;
   private final ChainingStepCleanupService chainingStepCleanupService;
+  private final InjectorContractService injectorContractService;
 
   private final PayloadMapper payloadMapper;
 
@@ -604,7 +606,7 @@ public class PayloadService {
     // contracts share their ids (and this payload row) across every tenant.
     String tenantId = payload.getTenant().getId();
     List<String> cascadeDeletedContractIds =
-        injectorContractRepository.findContractIdsByPayloadId(payloadId, tenantId);
+        injectorContractService.findContractIdsByPayloadId(payloadId, tenantId);
     List<String> cascadeDeletedInjectIds =
         injectIndexCleanupService.injectIdsByPayloadId(payloadId, tenantId);
     payloadRepository.deleteById(payloadId);
