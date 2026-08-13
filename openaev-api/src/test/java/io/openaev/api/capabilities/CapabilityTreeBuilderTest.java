@@ -131,6 +131,44 @@ class CapabilityTreeBuilderTest {
   }
 
   @Test
+  @DisplayName("Tenant tree nests the users, groups and roles triad under its own category")
+  void should_build_correct_hierarchy_for_tenant_users_groups_and_roles() {
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT);
+
+    // -- ASSERT --
+    CapabilityOutput category =
+        tree.stream()
+            .filter(n -> TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(category.checkable()).isFalse();
+    assertThat(category.scopes()).containsExactly(TENANT.name());
+
+    // Reaching these at all proves they are not hidden: computeTree filters hidden capabilities
+    // out.
+    CapabilityOutput access =
+        category.children().stream()
+            .filter(n -> ACCESS_TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(access.checkable()).isTrue();
+    CapabilityOutput manage =
+        access.children().stream()
+            .filter(n -> MANAGE_TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(manage.checkable()).isTrue();
+    assertThat(manage.children())
+        .anyMatch(
+            n -> DELETE_TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()) && n.checkable());
+
+    // Tenant-scoped only: it must not leak into the platform tree.
+    assertThat(CapabilityTreeBuilder.buildTree(PLATFORM))
+        .noneMatch(n -> TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()));
+  }
+
+  @Test
   void should_not_include_tenant_settings_in_platform_scope() {
     // -- ACT --
     List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(PLATFORM);
