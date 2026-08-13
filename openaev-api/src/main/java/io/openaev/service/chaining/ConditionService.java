@@ -9,6 +9,7 @@ import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.database.repository.StepConditionRow;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.BadRequestException;
@@ -562,6 +563,26 @@ public class ConditionService {
   @Transactional(readOnly = true)
   public List<Condition> findAllConditionsByStepId(String stepId) {
     return conditionRepository.findAllLinkedToStepId(stepId);
+  }
+
+  /**
+   * Batched variant of {@link #findAllConditionsByStepId(String)}: retrieves the conditions linked
+   * to any of the given steps in a single query and groups them by step id, so callers iterating
+   * over many steps (e.g. launch validation over a workflow's templates) avoid an N+1 pattern.
+   *
+   * @param stepIds step identifiers
+   * @return conditions grouped by step id; steps without conditions are absent from the map
+   */
+  @Transactional(readOnly = true)
+  public Map<String, List<Condition>> findAllConditionsByStepIds(Set<String> stepIds) {
+    if (stepIds == null || stepIds.isEmpty()) {
+      return Map.of();
+    }
+    return conditionRepository.findAllLinkedToStepIdIn(stepIds).stream()
+        .collect(
+            Collectors.groupingBy(
+                StepConditionRow::stepTemplateId,
+                Collectors.mapping(StepConditionRow::condition, Collectors.toList())));
   }
 
   // -- CONDITION EVALUATION --
