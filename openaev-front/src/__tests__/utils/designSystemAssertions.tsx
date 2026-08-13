@@ -21,10 +21,12 @@ import { expect } from 'vitest';
  * carrying a MuiSvgIcon class is therefore not a violation.
  */
 
-// `Chip` was missing from this list until review #7305, which is exactly why the
-// bar's "EE DEV LICENSE" tag stayed a MUI Chip through several checkpoints: the
-// scope rule was assertable and this control was simply not being asked about.
-const MUI_CONTROL_CLASS = /\bMui(ButtonBase|Button|IconButton|Chip|TextField|InputBase|OutlinedInput|FormControl|Menu|MenuItem|Tooltip|Divider)-/;
+// This list grows every time a control turns out to have been invisible to the
+// rule rather than compliant with it: `Chip` was added at review #7305 (the bar's
+// "EE DEV LICENSE" tag had survived several checkpoints), `Badge` once the
+// library shipped one (#114) and the two MUI badges in the bar became debt with
+// a replacement rather than a filed gap.
+const MUI_CONTROL_CLASS = /\bMui(ButtonBase|Button|IconButton|Chip|Badge|TextField|InputBase|OutlinedInput|FormControl|Menu|MenuItem|Tooltip|Divider)-/;
 
 /** Every MUI class on the element itself, ignoring icon glyphs (the exception). */
 const muiControlClassesOf = (element: Element): string[] => String(element.getAttribute('class') ?? '')

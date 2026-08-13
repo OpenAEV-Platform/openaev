@@ -1,6 +1,5 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Badge, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { NotificationsOutlined } from '@mui/icons-material';
-import { Badge } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
 
@@ -33,9 +32,9 @@ const TopBarNotifications = () => {
           aria-label="notifications"
           to="/admin/profile/notifications"
           active={location.pathname.startsWith('/admin/profile/notifications')}
-          // FDS-WORKAROUND #22: unread dot stays MUI — remove when the library ships a Badge — see fds-migration/LIBRARY-FEEDBACK.md
+          // `dot` shows that there is something without the count; the value is still announced.
           icon={(
-            <Badge color="secondary" variant="dot" invisible={unreadCount === 0}>
+            <Badge content={unreadCount} dot invisible={unreadCount === 0}>
               <NotificationsOutlined fontSize="medium" />
             </Badge>
           )}

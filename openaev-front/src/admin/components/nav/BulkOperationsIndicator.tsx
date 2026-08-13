@@ -1,11 +1,16 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Badge, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AutoAwesomeMotionOutlined, CheckCircleOutlined, ErrorOutlined } from '@mui/icons-material';
-import { Badge, Box, CircularProgress, LinearProgress, Popover, Typography } from '@mui/material';
+import { Box, CircularProgress, LinearProgress, Popover, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
 import { type BulkOperation, seedBulkOperations, useBulkOperations } from '../../../utils/bulkOperations';
+
+/** Spinner ring around the glyph. The offset is half the size, which is what centres it. */
+const SPINNER_SIZE = 32;
+const SPINNER_THICKNESS = 2;
+const SPINNER_CENTRING_OFFSET = `-${SPINNER_SIZE / 2}px`;
 
 /**
  * Permanent top bar entry for massive (bulk) operations: a badge with the number of running
@@ -14,15 +19,6 @@ import { type BulkOperation, seedBulkOperations, useBulkOperations } from '../..
  * user-scoped aggregated `bulk-operation` SSE events (per-entity events are suppressed during
  * massive operations), and seeded from GET /api/bulk-operations on mount.
  */
-/** Unread-count bubble anatomy, carried over unchanged from the legacy MUI bar. */
-const BADGE_FONT_SIZE = 10;
-const BADGE_MIN_SIZE = 16;
-
-/** Spinner ring around the glyph. The offset is half the size, which is what centres it. */
-const SPINNER_SIZE = 32;
-const SPINNER_THICKNESS = 2;
-const SPINNER_CENTRING_OFFSET = `-${SPINNER_SIZE / 2}px`;
-
 const BulkOperationsIndicator: FunctionComponent = () => {
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
@@ -90,25 +86,14 @@ const BulkOperationsIndicator: FunctionComponent = () => {
             aria-label="bulk-operations-menu"
             onClick={handleOpen}
             active={Boolean(anchorEl)}
-            // FDS-WORKAROUND #22: badge and spinner stay MUI in a positioned span — remove when the library ships a Badge — see fds-migration/LIBRARY-FEEDBACK.md
+            // The spinner overlays the glyph, and the library's icon slot is not a positioning context.
             icon={(
               <span style={{
                 position: 'relative',
                 display: 'inline-flex',
               }}
               >
-                <Badge
-                  badgeContent={runningCount}
-                  color="primary"
-                  overlap="circular"
-                  sx={{
-                    '& .MuiBadge-badge': {
-                      fontSize: BADGE_FONT_SIZE,
-                      height: BADGE_MIN_SIZE,
-                      minWidth: BADGE_MIN_SIZE,
-                    },
-                  }}
-                >
+                <Badge content={runningCount} circularAnchor>
                   <AutoAwesomeMotionOutlined fontSize="medium" />
                 </Badge>
                 {runningCount > 0 && (

@@ -1125,12 +1125,45 @@ library ships no counterpart:
 | `Popover` | the bulk-operations panel (progress bars, not a menu) | `Menu` (command rows), `Dialog` (modal) |
 
 The divider was replaced with a plain rule painted from the library's own
-border token; `Badge` and `Popover` stay MUI.
+border token; `Badge` and `Popover` stayed MUI.
 
 **Suggested.** A general-purpose `Separator` is nearly free and would remove
 the last hand-painted rule. `Badge` and `Popover` are real components and
 should be sized as such — but they should be *named*, so products stop
 discovering the gap one pilot at a time.
+
+### Status, 2026-08-13 — one of the three is closed
+
+**`Badge`: RECEIVED and ADOPTED** at pin `8798cbb` (library PR #114). Both MUI
+badges in the bar are gone, and the compensation markers with them:
+
+| | before (MUI) | after (library `Badge`) |
+|---|---|---|
+| unread notifications | `<Badge color="secondary" variant="dot">` | `<Badge content={unreadCount} dot>` — the count is still announced while the visual stays a dot |
+| running bulk operations | `<Badge badgeContent color="primary" overlap="circular">` + an `sx` forcing 10px text in a 16px box | `<Badge content={runningCount} circularAnchor>` — the library's own 20px counter |
+
+Two consequences, both accepted rather than compensated:
+
+- the counter grows from **16px to 20px** (`h-5 min-w-5`). Sandy's arbitration:
+  it displays a count, so it takes the default counter size; the growth is
+  assumed. The three `sx` overrides that forced the old size are deleted, not
+  re-expressed.
+- the unread dot's colour moves from the product's MUI `secondary` to the
+  library `Badge`'s default `brand` tone. `BadgeTone` is
+  `brand | error | success | neutral`, with no equivalent of the old value, and
+  inventing one product-side is what this entry exists to stop.
+
+Guarded by `TopBarNotifications.test.tsx` and `BulkOperationsIndicator.test.tsx`,
+plus `MuiBadge-` added to the shared `expectNoMuiControls` list so a relapse
+fails rather than being noticed at a checkpoint.
+
+**`Divider` and `Popover`: still open.** Re-verified against the export surface
+at `8798cbb` — neither `Separator`/`Divider` nor `Popover` is a public export.
+Library PR #105 added "the Popover primitive", but it is internal (it backs
+`Combobox`); `require()`ing the built entry point returns `undefined` for
+`Popover`, `PopoverTrigger` and `PopoverContent`. So the bulk-operations panel
+stays a MUI `Popover`, and the bar's AI/actions rule stays a hand-painted
+`<div role="separator">`.
 
 ---
 

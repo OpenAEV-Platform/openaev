@@ -159,3 +159,55 @@ in filigran-design-system).
   in good faith and had to be told the same thing the previous pilot was told.
   It belongs in the playbook next to Step 8 ("build the product adapter"), as a
   budget: one marker line per site, prose in the product's `fds-migration/`.
+
+### 2026-08-13 — bump to 8798cbb: the bar and rail become 100% library
+- Branch: sandyghs-miniature-enigma
+- Pin: `990810f` -> `8798cbbd9ae4590af8c79cd43c90b56cfb4497b7` (library PR #114, Badge).
+- Rule applied (Sandy, 2026-08-13): an implemented component is composed of
+  library components only — no MUI, nothing hand-styled, inside it. What has no
+  library equivalent is LISTED, not improvised.
+- Gate checked before bumping: `main` carries #114 **and** the two Chip EE fixes
+  (label visible on hover, disabled border). Both landed *inside* #113, i.e. in
+  the pin this branch was already on — verified in the installed build, not from
+  the changelog: the label/icon spans carry `relative` with the painting-order
+  rationale, and `disabled && isEnterpriseEdition && "border border-elevation-subtle"`
+  is present. The `375c932` commit these were said to postdate does not exist in
+  the repository, on any ref.
+- Converted, three sites, each with a red-before-fix guard:
+  1. **Ask Ariane EE marker** — was a hand-styled span in a MUI Tooltip
+     (9px/600 text, 21x14 box, `theme.palette.ee.*`); now
+     `<Chip label="EE" severity="ee" />`, decorative (`aria-hidden`), so the
+     button keeps its own accessible name. The legacy `EEChip` component is
+     untouched: it has ten other call sites outside this pilot's scope.
+  2. **Unread notifications dot** — MUI `Badge variant="dot"` ->
+     `<Badge content={unreadCount} dot>`. The count is still announced while the
+     visual stays a dot.
+  3. **Running bulk operations counter** — MUI `Badge` with an `sx` forcing 10px
+     text in a 16px box -> `<Badge content={runningCount} circularAnchor>`, the
+     library's own 20px counter. The 16 -> 20px growth is Sandy's arbitration.
+- Feedback #22 partly closed: `Badge` received and adopted, before/after
+  recorded. `Divider`/`Separator` and `Popover` remain open, re-verified against
+  the export surface at `8798cbb` — #105's Popover primitive is internal, so
+  `require()` returns `undefined` for it.
+- Guard widened: `MuiBadge-` added to `expectNoMuiControls` (`MuiChip-` was added
+  at the previous review). Both badges would now fail rather than pass unnoticed.
+- Still not library, and deliberately not improvised — the list for Sandy:
+  | What | Where | Why it stays |
+  |---|---|---|
+  | `Popover` | bulk-operations panel | no public export; #105's primitive is internal |
+  | Circular + linear progress | the spinner ring, the per-operation bars | no progress component in the library |
+  | General-purpose `Separator` | the AI/actions rule in the bar | only `NavbarSeparator`/`MenuSeparator`/`SelectSeparator`, each bound to its own component |
+  | Icon glyphs (`SvgIcon`, `@mui/icons-material`) | every control | the designer's standing exception, same as the Navbar pilot |
+  The panel's `Typography` **could** move to the library's `Text` today. It is
+  listed with the block rather than converted, because the surface cannot reach
+  100% until Popover and Progress exist and will be rebuilt then; converting its
+  text only would be churn on a surface that must be revisited. Say the word and
+  it is a ten-minute change.
+- `theme.css` is byte-identical at both pins (blob `aed2ab424`), so the MUI token
+  bridge stays fresh and needs no regeneration.
+- Friction / process feedback: the conformity script's `bridge-freshness` compares
+  against the *sibling checkout*, which is 30+ commits behind `main` here. It
+  reported OK twice in a row, and both times that was only true because
+  `theme.css` happened not to move. It should compare against the pinned commit,
+  not against whatever the neighbouring clone has checked out, or it will one day
+  report fresh on a stale bridge.

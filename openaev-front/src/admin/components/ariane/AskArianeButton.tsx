@@ -1,4 +1,4 @@
-import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
 import { SvgIcon } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
@@ -9,7 +9,6 @@ import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import EEChip from '../common/entreprise_edition/EEChip';
 import FiligranAiCguDialog from './FiligranAiCguDialog';
 import { useChatbot } from './useChatbotHooks';
 import isXtmOneAvailable from './xtmOneAvailability';
@@ -73,7 +72,8 @@ const AskArianeButton = () => {
           }}
         />
       )}
-      endIcon={!isEnterpriseEdition ? <span><EEChip /></span> : undefined}
+      // Decorative: the button owns the behaviour and the accessible name.
+      endIcon={!isEnterpriseEdition ? <span aria-hidden="true"><Chip label={t('EE')} severity="ee" /></span> : undefined}
     >
       {t('Ask Ariane')}
     </Button>
