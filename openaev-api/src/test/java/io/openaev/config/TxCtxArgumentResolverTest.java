@@ -5,12 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exception.TenantSelectorRequiredException;
-import io.openaev.service.tenants.TenantService;
 import java.util.Arrays;
-import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,7 +35,7 @@ class TxCtxArgumentResolverTest {
 
   private static final String USER_ID = "user-id";
 
-  @Mock private TenantService tenantService;
+  @Mock private TenantMembershipCacheManager membershipCache;
   @Mock private MethodParameter parameter;
   @Mock private NativeWebRequest webRequest;
 
@@ -44,7 +43,7 @@ class TxCtxArgumentResolverTest {
 
   @BeforeEach
   void setUp() {
-    resolver = new TxCtxArgumentResolver(new TenantScopeResolver(), tenantService);
+    resolver = new TxCtxArgumentResolver(new TenantScopeResolver(), membershipCache);
     OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
     when(principal.getId()).thenReturn(USER_ID);
     Authentication authentication = mock(Authentication.class);
@@ -58,8 +57,7 @@ class TxCtxArgumentResolverTest {
   }
 
   private void authorizeTenants(String... tenantIds) {
-    List<Tenant> tenants = Arrays.stream(tenantIds).map(Tenant::new).toList();
-    when(tenantService.findTenantsByUserId(USER_ID)).thenReturn(tenants);
+    when(membershipCache.findTenantIdsByUserId(USER_ID)).thenReturn(Arrays.asList(tenantIds));
   }
 
   private void requireSelector() {

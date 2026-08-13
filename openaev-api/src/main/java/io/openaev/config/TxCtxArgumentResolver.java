@@ -1,9 +1,9 @@
 package io.openaev.config;
 
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exception.TenantSelectorRequiredException;
-import io.openaev.service.tenants.TenantService;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -37,7 +37,7 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
   static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
 
   private final TenantScopeResolver scopeResolver;
-  private final TenantService tenantService;
+  private final TenantMembershipCacheManager membershipCache;
 
   @Override
   public boolean supportsParameter(MethodParameter parameter) {
@@ -52,9 +52,8 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
       WebDataBinderFactory binderFactory) {
     Set<String> selector = extractSelector(webRequest);
     Set<String> authorized =
-        tenantService.findTenantsByUserId(SessionHelper.currentUser().getId()).stream()
-            .map(Tenant::getId)
-            .collect(Collectors.toSet());
+        new LinkedHashSet<>(
+            membershipCache.findTenantIdsByUserId(SessionHelper.currentUser().getId()));
     if (selector.isEmpty() && parameter.hasParameterAnnotation(RequireTenantSelector.class)) {
       selector = fallbackSelector(authorized);
     }

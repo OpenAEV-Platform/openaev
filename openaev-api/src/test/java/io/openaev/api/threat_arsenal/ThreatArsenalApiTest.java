@@ -336,7 +336,26 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       Payload payload = payloadRepository.findById(payloadId).orElse(null);
       assertNotNull(payload);
       assertEquals(1, payload.getOutputParsers().size());
-      ;
+    }
+
+    @Test
+    @DisplayName("Creating an action with output_parser_type=credentials should return 400 not 500")
+    void given_outputParserTypeCredentials_should_returnBadRequest() throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          ThreatArsenalInputFixture.createCommandLineActionWithOutputParser(
+              List.of(domain.getId()));
+      String json =
+          asJsonString(input)
+              .replace(
+                  "\"output_parser_type\":\"REGEX\"", "\"output_parser_type\":\"credentials\"");
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(json)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -613,7 +632,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given action_domains not_eq with AND and two values should return no result for search and domain counts")
+        "given action_domains not_eq with AND and two values should return no result for search and"
+            + " domain counts")
     void given_actionDomainsNotEqAndWithTwoValues_should_returnNoResultForSearchAndDomainCounts()
         throws Exception {
       // Arrange
@@ -665,7 +685,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given action_domains not_eq with AND and one value should keep contracts from other domains")
+        "given action_domains not_eq with AND and one value should keep contracts from other"
+            + " domains")
     void given_actionDomainsNotEqAndWithOneValue_should_keepOtherDomains() throws Exception {
       // Arrange
       SearchPaginationInput input =
@@ -848,7 +869,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given a providing (findings) filter the search must not fail with a SELECT DISTINCT / ORDER BY SQL error")
+        "given a providing (findings) filter the search must not fail with a SELECT DISTINCT /"
+            + " ORDER BY SQL error")
     void given_providingFilter_should_returnOkAndNotFailWithDistinctOrderBy() throws Exception {
       // A providing filter (injector_contract_providing) forces query.distinct(true).
       // Combined with the default composite-id sort, whose ORDER BY expands to
@@ -1095,7 +1117,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Searching non-tabletop threat arsenal with domain filter should return only matching non-tabletop contracts")
+        "Searching non-tabletop threat arsenal with domain filter should return only matching"
+            + " non-tabletop contracts")
     void given_nonTabletopSearchWithDomainFilter_should_returnFilteredResults() throws Exception {
       // Arrange
       SearchPaginationInput input =
@@ -1131,7 +1154,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Searching non-tabletop threat arsenal with tag filter should return only matching non-tabletop contracts")
+        "Searching non-tabletop threat arsenal with tag filter should return only matching"
+            + " non-tabletop contracts")
     void given_nonTabletopSearchWithTagFilter_should_returnFilteredResults() throws Exception {
       // Arrange
       SearchPaginationInput input =
@@ -1770,12 +1794,14 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               content()
                   .string(
                       containsString(
-                          "Only payload-based threat arsenal items can provide security platforms for action remediation.")));
+                          "Only payload-based threat arsenal items can provide security platforms"
+                              + " for action remediation.")));
     }
 
     @Test
     @DisplayName(
-        "Getting security platforms for a payload-based action should return the associated security platforms")
+        "Getting security platforms for a payload-based action should return the associated"
+            + " security platforms")
     void given_payloadContract_should_returnSecurityPlatformsForActionRemediation()
         throws Exception {
       // Arrange

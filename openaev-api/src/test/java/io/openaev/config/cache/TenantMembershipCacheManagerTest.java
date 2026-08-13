@@ -5,10 +5,12 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.config.CachingConfig;
 import io.openaev.database.repository.TenantRepository;
+import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -25,15 +27,20 @@ class TenantMembershipCacheManagerTest {
   @Autowired private TenantMembershipCacheManager tenantMembershipCacheManager;
   @Autowired private CacheManager cacheManager;
   @MockitoBean private TenantRepository tenantRepository;
+  @MockitoBean private JdbcTemplate jdbcTemplate;
 
   @BeforeEach
   void setUp() {
     // Arrange — clear cache before each test
-    var cache = cacheManager.getCache("tenantMembership");
-    if (cache != null) {
-      cache.clear();
+    var membershipCache = cacheManager.getCache("tenantMembership");
+    if (membershipCache != null) {
+      membershipCache.clear();
     }
-    reset(tenantRepository);
+    var userTenantIdsCache = cacheManager.getCache("userTenantIds");
+    if (userTenantIdsCache != null) {
+      userTenantIdsCache.clear();
+    }
+    reset(tenantRepository, jdbcTemplate);
   }
 
   @Nested
@@ -148,6 +155,52 @@ class TenantMembershipCacheManagerTest {
       // Assert — evicted key hit DB twice, other key only once
       verify(tenantRepository, times(2)).existsByUserIdAndTenantId(USER_ID, TENANT_ID);
       verify(tenantRepository, times(1)).existsByUserIdAndTenantId(USER_ID, otherTenantId);
+    }
+
+    @Test
+    @DisplayName("given_cached_tenant_ids_should_call_jdbc_again_after_eviction")
+    void given_cached_tenant_ids_should_call_jdbc_again_after_eviction() {
+      // Arrange
+      when(jdbcTemplate.queryForList(
+              TenantMembershipCacheManager.USER_TENANT_IDS_SQL, String.class, USER_ID))
+          .thenReturn(List.of(TENANT_ID));
+
+      // Act — populate cache
+      tenantMembershipCacheManager.findTenantIdsByUserId(USER_ID);
+
+      // Act — evict membership also busts userTenantIds
+      tenantMembershipCacheManager.evict(USER_ID, TENANT_ID);
+
+      // Act — should hit jdbc again
+      tenantMembershipCacheManager.findTenantIdsByUserId(USER_ID);
+
+      // Assert
+      verify(jdbcTemplate, times(2))
+          .queryForList(TenantMembershipCacheManager.USER_TENANT_IDS_SQL, String.class, USER_ID);
+    }
+  }
+
+  @Nested
+  @DisplayName("findTenantIdsByUserId")
+  class FindTenantIdsByUserId {
+
+    @Test
+    @DisplayName("given_cached_result_should_not_call_jdbc_on_second_call")
+    void given_cached_result_should_not_call_jdbc_on_second_call() {
+      // Arrange
+      when(jdbcTemplate.queryForList(
+              TenantMembershipCacheManager.USER_TENANT_IDS_SQL, String.class, USER_ID))
+          .thenReturn(List.of(TENANT_ID));
+
+      // Act
+      List<String> firstResult = tenantMembershipCacheManager.findTenantIdsByUserId(USER_ID);
+      List<String> secondResult = tenantMembershipCacheManager.findTenantIdsByUserId(USER_ID);
+
+      // Assert
+      assertThat(firstResult).containsExactly(TENANT_ID);
+      assertThat(secondResult).containsExactly(TENANT_ID);
+      verify(jdbcTemplate, times(1))
+          .queryForList(TenantMembershipCacheManager.USER_TENANT_IDS_SQL, String.class, USER_ID);
     }
   }
 }
