@@ -83,14 +83,14 @@ public class RestBehavior {
   }
 
   private static String unreadableBodyDetail(HttpMessageNotReadableException ex) {
-    InvalidFormatException ife = findCause(ex, InvalidFormatException.class);
+    InvalidFormatException ife = findDeepestCause(ex, InvalidFormatException.class);
     if (ife != null) {
       return invalidFormatDetail(ife);
     }
     // @JsonCreator methods throw IllegalArgumentException; Jackson wraps that in
     // ValueInstantiationException / JsonMappingException. Surface the creator message so clients
     // get an actionable 400 instead of the generic "Malformed or unreadable request body".
-    IllegalArgumentException iae = findCause(ex, IllegalArgumentException.class);
+    IllegalArgumentException iae = findDeepestCause(ex, IllegalArgumentException.class);
     if (iae != null && iae.getMessage() != null && !iae.getMessage().isBlank()) {
       return abbreviateMessage(iae.getMessage());
     }
@@ -120,15 +120,20 @@ public class RestBehavior {
         : message.substring(0, MAX_UNREADABLE_DETAIL_LENGTH) + "...";
   }
 
-  private static <T extends Throwable> T findCause(Throwable throwable, Class<T> type) {
+  // Returns the deepest matching cause: outer wrappers (Spring, Jackson) restate the original
+  // message with framework noise, so the root cause carries the actionable text. The
+  // identity-based visited set guards against cyclic cause chains.
+  private static <T extends Throwable> T findDeepestCause(Throwable throwable, Class<T> type) {
+    T deepest = null;
+    Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
     Throwable current = throwable;
-    while (current != null) {
+    while (current != null && visited.add(current)) {
       if (type.isInstance(current)) {
-        return type.cast(current);
+        deepest = type.cast(current);
       }
       current = current.getCause();
     }
-    return null;
+    return deepest;
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)

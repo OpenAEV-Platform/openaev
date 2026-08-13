@@ -360,6 +360,29 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Creating an action with an unknown output_parser_mode should return 400 not 500")
+    void given_unknownOutputParserMode_should_returnBadRequest() throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          ThreatArsenalInputFixture.createCommandLineActionWithOutputParser(
+              List.of(domain.getId()));
+      String json =
+          asJsonString(input)
+              .replace("\"output_parser_mode\":\"STDOUT\"", "\"output_parser_mode\":\"pipe\"");
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(json)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest())
+          .andExpect(
+              jsonPath(
+                  "$.message",
+                  containsString("output_parser_mode must be STDOUT, STDERR, or READ_FILE")));
+    }
+
+    @Test
     @DisplayName("Creating an action with tags should create injectorContract with tags")
     void given_inputWithTags_should_createInjectorContractWithTags() throws Exception {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();

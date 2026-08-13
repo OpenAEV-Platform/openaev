@@ -3,15 +3,19 @@ package io.openaev.rest.helper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.Filters.FilterOperator;
+import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ChainingOperationNotSupportedException;
+import io.openaev.rest.payload.output_parser.OutputParserInput;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -248,6 +252,90 @@ class RestBehaviorTest {
       assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
       assertNotNull(response.getBody());
       assertEquals(iae.getMessage(), response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName(
+        "a real Jackson enum @JsonCreator failure surfaces the allowed values in the 400 message")
+    void given_realJacksonEnumCreatorFailure_should_surfaceAllowedValues() {
+      // GIVEN - the exact server-side failure shape: the application mapper deserializing the
+      // real input DTO with an unknown enum value (Jackson wraps the creator
+      // IllegalArgumentException in a ValueInstantiationException)
+      JacksonException jacksonFailure =
+          assertThrows(
+              JacksonException.class,
+              () ->
+                  ObjectMapperHelper.openAEVJsonMapper()
+                      .readValue(
+                          "{\"output_parser_mode\":\"STDOUT\","
+                              + "\"output_parser_type\":\"credentials\"}",
+                          OutputParserInput.class));
+      HttpMessageNotReadableException ex =
+          new HttpMessageNotReadableException("JSON parse error", jacksonFailure, null);
+
+      // WHEN
+      ResponseEntity<ErrorMessage> response = new RestBehavior().handleHttpMessageNotReadable(ex);
+
+      // THEN
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      assertNotNull(response.getBody());
+      assertTrue(response.getBody().getMessage().contains("output_parser_type must be REGEX"));
+    }
+
+    @Test
+    @DisplayName("the deepest IllegalArgumentException in the cause chain provides the 400 message")
+    void given_nestedIllegalArguments_should_surfaceDeepestMessage() {
+      // GIVEN - an intermediate IAE wrapper restating the root creator message with noise
+      IllegalArgumentException root =
+          new IllegalArgumentException(
+              "output_parser_mode must be STDOUT, STDERR, or READ_FILE. Got: pipe");
+      IllegalArgumentException outer = new IllegalArgumentException("Cannot deserialize", root);
+      HttpMessageNotReadableException ex =
+          new HttpMessageNotReadableException("JSON parse error", outer, null);
+
+      // WHEN
+      ResponseEntity<ErrorMessage> response = new RestBehavior().handleHttpMessageNotReadable(ex);
+
+      // THEN
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      assertNotNull(response.getBody());
+      assertEquals(root.getMessage(), response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName("a cyclic cause chain terminates and falls back to the generic message")
+    void given_cyclicCauseChain_should_fallBackToGenericMessage() {
+      // GIVEN - two exceptions referencing each other as causes
+      RuntimeException first = new RuntimeException("first");
+      RuntimeException second = new RuntimeException("second", first);
+      first.initCause(second);
+      HttpMessageNotReadableException ex =
+          new HttpMessageNotReadableException("JSON parse error", first, null);
+
+      // WHEN
+      ResponseEntity<ErrorMessage> response = new RestBehavior().handleHttpMessageNotReadable(ex);
+
+      // THEN
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      assertNotNull(response.getBody());
+      assertEquals("Malformed or unreadable request body", response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName("a blank IllegalArgumentException message falls back to the generic message")
+    void given_blankIllegalArgumentMessage_should_fallBackToGenericMessage() {
+      // GIVEN
+      HttpMessageNotReadableException ex =
+          new HttpMessageNotReadableException(
+              "JSON parse error", new IllegalArgumentException("   "), null);
+
+      // WHEN
+      ResponseEntity<ErrorMessage> response = new RestBehavior().handleHttpMessageNotReadable(ex);
+
+      // THEN
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      assertNotNull(response.getBody());
+      assertEquals("Malformed or unreadable request body", response.getBody().getMessage());
     }
   }
 }
