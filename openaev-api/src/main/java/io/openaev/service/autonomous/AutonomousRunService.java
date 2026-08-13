@@ -69,6 +69,7 @@ import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.IpAddressUtils;
 import io.openaev.xtmone.XtmOneClient;
 import java.time.Duration;
 import java.time.Instant;
@@ -186,6 +187,12 @@ public class AutonomousRunService {
   // writing inside the caller's (read-only) transaction, and mark it rollback-only.
   private final AutonomousRunReconciliationWriter reconciliationWriter;
 
+  // Resource-level RBAC for the operator control surface. The controller keeps skipRBAC (the run's
+  // authority derives from its bound simulation/scenario, which the declarative aspect cannot
+  // name),
+  // so every operator-facing read/mutation gates in-service through this component.
+  private final AutonomousRunAccessControl accessControl;
+
   private void requireFeature() {
     if (!previewFeatureService.isAutonomousAttackPathEnabled()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND);
@@ -281,6 +288,14 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun create(AutonomousRunCreateInput input) {
+    requireFeature();
+    // A caller-provided scenario must be one the operator can launch; a bare (auto-provisioned) run
+    // only needs the launch-assessment capability floor.
+    if (input != null && hasText(input.getScenarioId())) {
+      accessControl.assertCanManageScenario(input.getScenarioId());
+    } else {
+      accessControl.assertCanCreate();
+    }
     return doCreate(input);
   }
 
@@ -485,6 +500,7 @@ public class AutonomousRunService {
           HttpStatus.BAD_REQUEST,
           "The scenario must define a chaining (attack path) workflow to run autonomously");
     }
+    accessControl.assertCanManageScenario(scenarioId);
     // Relaunching is first-class: a scenario whose previous autonomous run (or plan) has settled
     // can be launched again. The settled run row is superseded so the new run can bind (one run
     // per scenario); a still-active run is refused instead.
@@ -543,6 +559,7 @@ public class AutonomousRunService {
           HttpStatus.BAD_REQUEST,
           "The scenario must be a chained scenario to be planned by the orchestrator");
     }
+    accessControl.assertCanManageScenario(scenarioId);
     AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
     Scenario scenario = scenarioService.scenario(scenarioId);
     // Refine (follow-up) vs rebuild (from scratch): refine keeps the existing logic + history and
@@ -775,6 +792,8 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun start(String runId) {
+    requireFeature();
+    accessControl.assertCanManage(require(runId));
     return doStart(runId);
   }
 
@@ -982,6 +1001,7 @@ public class AutonomousRunService {
   public AutonomousRun pause(String runId) {
     requireFeature();
     AutonomousRun run = requireForUpdate(runId);
+    accessControl.assertCanManage(run);
     assertRunNotTerminal(run, "paused");
     transitionSimulation(run, ExerciseStatus.PAUSED);
     run.setStatus(AutonomousRunStatus.PAUSED);
@@ -999,6 +1019,7 @@ public class AutonomousRunService {
   public AutonomousRun resume(String runId) {
     requireFeature();
     AutonomousRun run = requireForUpdate(runId);
+    accessControl.assertCanManage(run);
     assertRunNotTerminal(run, "resumed");
     transitionSimulation(run, ExerciseStatus.RUNNING);
     // Mirror start() / addDirective(): a plan-mode run returns to PLANNING (it is still authoring
@@ -1035,6 +1056,7 @@ public class AutonomousRunService {
   public AutonomousRun cancel(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
+    accessControl.assertCanManage(run);
     if (run.getStatus() == AutonomousRunStatus.CANCELED) {
       return run;
     }
@@ -1260,6 +1282,7 @@ public class AutonomousRunService {
   public AutonomousRun restart(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
+    accessControl.assertCanManage(run);
     // Stop the previous XTM One orchestration before tearing its simulation down, so a lingering
     // decision cycle can't dispatch injects against the simulation we are about to delete. The
     // subsequent start() re-engages the run cleanly (upstream start resets the same execution).
@@ -1342,6 +1365,7 @@ public class AutonomousRunService {
   public AutonomousRun promoteToRealRun(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
+    accessControl.assertCanManage(run);
     if (!run.isPlanMode()) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Only built (non-executed) logic can be launched as a live run");
@@ -1433,6 +1457,7 @@ public class AutonomousRunService {
   public Scenario convertToManual(String runId, ConvertToManualMode mode) {
     requireFeature();
     AutonomousRun run = require(runId);
+    accessControl.assertCanManage(run);
     String scenarioId = run.getScenarioId();
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(
@@ -1704,6 +1729,29 @@ public class AutonomousRunService {
   }
 
   /**
+   * Whether the orchestrator status callback may move {@code run} to {@code target}. Encodes the
+   * transition matrix for the one status source that is not OpenAEV itself: CREATED (initial),
+   * PAUSED (operator) and CANCELED (OpenAEV-authoritative) are never orchestrator-driven, and the
+   * dry-run-only (PLANNING / PLANNED) versus execute-only (RUNNING) states may not be crossed
+   * against the run's mode. Terminal-source runs are already short-circuited before this is
+   * reached, so every remaining legitimate push (RUNNING/WAITING_INPUT/COMPLETED/FAILED for a live
+   * run; PLANNING/PLANNED/WAITING_INPUT/COMPLETED/FAILED for a plan run) is allowed.
+   */
+  private boolean isOrchestratorStatusAllowed(AutonomousRun run, AutonomousRunStatus target) {
+    if (target == AutonomousRunStatus.CREATED
+        || target == AutonomousRunStatus.PAUSED
+        || target == AutonomousRunStatus.CANCELED) {
+      return false;
+    }
+    if (run.isPlanMode()) {
+      // A dry-run authors a plan and never executes, so RUNNING is not a state it can be driven to.
+      return target != AutonomousRunStatus.RUNNING;
+    }
+    // A live run executes; the dry-run-only planning states are not part of its lifecycle.
+    return target != AutonomousRunStatus.PLANNING && target != AutonomousRunStatus.PLANNED;
+  }
+
+  /**
    * Applies a run-status transition pushed by the orchestrator (waiting-input, completed,
    * failed...).
    */
@@ -1722,6 +1770,23 @@ public class AutonomousRunService {
     if (run.getStatus() == AutonomousRunStatus.CANCELED
         || run.getStatus() == AutonomousRunStatus.COMPLETED
         || run.getStatus() == AutonomousRunStatus.FAILED) {
+      return run;
+    }
+    // Validate the transition instead of accepting any target. This callback is the ONE status
+    // source that is not OpenAEV itself, so it must only drive the run through states the
+    // orchestrator actually owns: CREATED is the pre-handoff initial state, PAUSED is operator-only
+    // (pause/resume), CANCELED is OpenAEV-authoritative (operator Stop / timeout hard-stop, via
+    // cancel()); and the dry-run-only planning states (PLANNING/PLANNED) versus the execute-only
+    // RUNNING state may not be crossed against the run's mode. A callback naming a disallowed
+    // target
+    // is a stale or confused write - ignore it (idempotent no-op) so it can neither resurrect an
+    // operator state nor flip a run across the plan/live divide.
+    if (!isOrchestratorStatusAllowed(run, status)) {
+      log.warn(
+          "[Autonomous] Ignoring illegal orchestrator status transition {} -> {} for run {}",
+          run.getStatus(),
+          status,
+          runId);
       return run;
     }
     run.setStatus(status);
@@ -1803,6 +1868,7 @@ public class AutonomousRunService {
   public AutonomousDirective addDirective(String runId, String content) {
     requireFeature();
     AutonomousRun run = requireForUpdate(runId);
+    accessControl.assertCanManage(run);
     assertRunNotTerminal(run, "steered");
     AutonomousDirective directive = new AutonomousDirective();
     directive.setRunId(runId);
@@ -1885,6 +1951,7 @@ public class AutonomousRunService {
   public List<Workflow> applyLiveConfiguration(String runId, WorkflowConfigurationInput input) {
     requireFeature();
     AutonomousRun run = require(runId);
+    accessControl.assertCanManage(run);
     List<Workflow> updated =
         workflowService.updateRunWorkflowConfiguration(run.getSimulationId(), input);
     eventService.append(
@@ -2977,7 +3044,10 @@ public class AutonomousRunService {
     return source == ScopeRuleSource.MANUAL || source == ScopeRuleSource.CSV;
   }
 
-  /** True when {@code value} matches any MANUAL/CSV rule of the given mode (exact or IPv4 CIDR). */
+  /**
+   * True when {@code value} matches any MANUAL/CSV rule of the given mode (exact or IPv4/IPv6
+   * CIDR).
+   */
   private boolean matchesNetworkRules(
       List<WorkflowScopeRule> rules, ScopeRuleSelectedMode mode, String value) {
     if (!hasText(value)) {
@@ -2997,60 +3067,22 @@ public class AutonomousRunService {
     return false;
   }
 
-  /** Matches a scope rule value against a candidate: case-insensitive exact, or IPv4-in-CIDR. */
+  /**
+   * Matches a scope rule value against a candidate: case-insensitive exact, or IP-in-CIDR for both
+   * IPv4 and IPv6. Containment is delegated to {@link IpAddressUtils#isIpInSubnet} (the same helper
+   * the rest of the platform's scope resolution uses), which returns false when the address
+   * families differ or either side fails to parse - so an IPv6 host is now correctly matched
+   * against an IPv6 CIDR rule instead of silently falling through as it did with the old IPv4-only
+   * check.
+   */
   private boolean networkValueMatches(String ruleValue, String candidate) {
     if (ruleValue.equalsIgnoreCase(candidate)) {
       return true;
     }
     if (ruleValue.contains("/")) {
-      return ipv4InCidr(candidate, ruleValue);
+      return IpAddressUtils.isIpInSubnet(candidate, ruleValue);
     }
     return false;
-  }
-
-  /** Minimal IPv4 CIDR containment check; returns false for anything it cannot parse as IPv4. */
-  private boolean ipv4InCidr(String ip, String cidr) {
-    try {
-      String[] parts = cidr.split("/");
-      if (parts.length != 2) {
-        return false;
-      }
-      long base = ipv4ToLong(parts[0]);
-      long addr = ipv4ToLong(ip);
-      if (base < 0 || addr < 0) {
-        return false;
-      }
-      int prefix = Integer.parseInt(parts[1].trim());
-      if (prefix < 0 || prefix > 32) {
-        return false;
-      }
-      long mask = prefix == 0 ? 0L : (0xFFFFFFFFL << (32 - prefix)) & 0xFFFFFFFFL;
-      return (base & mask) == (addr & mask);
-    } catch (RuntimeException e) {
-      return false;
-    }
-  }
-
-  /** IPv4 dotted-quad to unsigned long, or -1 when not a valid IPv4 literal. */
-  private long ipv4ToLong(String ip) {
-    String[] octets = ip.trim().split("\\.");
-    if (octets.length != 4) {
-      return -1;
-    }
-    long value = 0;
-    for (String octet : octets) {
-      int n;
-      try {
-        n = Integer.parseInt(octet);
-      } catch (NumberFormatException e) {
-        return -1;
-      }
-      if (n < 0 || n > 255) {
-        return -1;
-      }
-      value = (value << 8) | n;
-    }
-    return value;
   }
 
   // endregion
@@ -3062,13 +3094,18 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun get(String runId) {
     requireFeature();
-    return reconcileWithSimulation(require(runId));
+    AutonomousRun run = require(runId);
+    accessControl.assertCanRead(run);
+    return reconcileWithSimulation(run);
   }
 
   @Transactional(readOnly = true)
   public List<AutonomousRun> list() {
     requireFeature();
-    return runRepository.findAllByOrderByCreatedAtDesc();
+    // Filter the tenant-wide list to runs the caller can READ: without this, every run's objective
+    // and status leaked to any Enterprise-Edition user regardless of their simulation/scenario
+    // access.
+    return accessControl.retainReadable(runRepository.findAllByOrderByCreatedAtDesc());
   }
 
   /**
@@ -3080,13 +3117,15 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun getBySimulation(String simulationId) {
     requireFeature();
-    return reconcileWithSimulation(
+    AutonomousRun run =
         runRepository
             .findBySimulationId(simulationId)
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "No autonomous run drives this simulation")));
+                        HttpStatus.NOT_FOUND, "No autonomous run drives this simulation"));
+    accessControl.assertCanRead(run);
+    return reconcileWithSimulation(run);
   }
 
   /**
@@ -3099,13 +3138,15 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun getByScenario(String scenarioId) {
     requireFeature();
-    return reconcileWithSimulation(
+    AutonomousRun run =
         runRepository
             .findByScenarioId(scenarioId)
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "No autonomous run drives this scenario")));
+                        HttpStatus.NOT_FOUND, "No autonomous run drives this scenario"));
+    accessControl.assertCanRead(run);
+    return reconcileWithSimulation(run);
   }
 
   /**
@@ -3119,6 +3160,7 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    accessControl.assertCanReadScenario(scenarioId);
     Scenario scenario = scenarioService.scenario(scenarioId);
     Map<String, Object> stored = scenario.getAutonomousConfig();
     if (stored == null || stored.isEmpty()) {
@@ -3140,6 +3182,7 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    accessControl.assertCanManageScenario(scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
@@ -3163,7 +3206,7 @@ public class AutonomousRunService {
   @Transactional(readOnly = true)
   public List<AutonomousEvent> timeline(String runId, long sinceSequence) {
     requireFeature();
-    require(runId);
+    accessControl.assertCanRead(require(runId));
     return sinceSequence > 0
         ? eventService.timelineSince(runId, sinceSequence)
         : eventService.timeline(runId);
@@ -3172,7 +3215,7 @@ public class AutonomousRunService {
   @Transactional(readOnly = true)
   public List<AutonomousDirective> directives(String runId) {
     requireFeature();
-    require(runId);
+    accessControl.assertCanRead(require(runId));
     return directiveRepository.findByRunIdOrderByCreatedAtAsc(runId);
   }
 
@@ -3204,6 +3247,7 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public List<String> updateDefaultAdditionalAgentIds(List<String> agentIds) {
     requireFeature();
+    accessControl.assertAdmin();
     List<String> cleaned = new ArrayList<>();
     if (agentIds != null) {
       for (String id : agentIds) {
@@ -3278,6 +3322,7 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public Map<String, String> updateDefaultAdditionalAgentModes(Map<String, String> agentModes) {
     requireFeature();
+    accessControl.assertAdmin();
     Map<String, String> cleaned = normalizeAgentModes(agentModes, null);
     String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key();
     Setting setting =

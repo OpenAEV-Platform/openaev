@@ -40,6 +40,13 @@ public class AutonomousEventService {
   public static final Set<String> TERMINAL_STATUS_TITLES =
       Set.of("Run canceled", "Run completed", "Run timed out", "Run failed");
 
+  /**
+   * High 32 bits of the per-run advisory-lock key, namespacing autonomous event-sequence locks so
+   * they can never collide with any other advisory lock the platform might take. The value is
+   * arbitrary but stable ("AE" = autonomous event).
+   */
+  private static final long EVENT_SEQUENCE_LOCK_NAMESPACE = 0x4145_0001L;
+
   @Transactional(rollbackFor = Exception.class)
   public AutonomousEvent append(
       String runId,
@@ -63,6 +70,13 @@ public class AutonomousEventService {
       String title,
       String content,
       String data) {
+    // Serialise concurrent appenders to THIS run before the read-max-then-insert below: two
+    // decision
+    // cycles (or a cycle racing an operator directive) writing to the same run must not both
+    // compute
+    // the same next sequence. The transaction advisory lock makes both succeed as N and N+1; the
+    // UNIQUE (run_id, sequence) index is the backstop that makes a duplicate impossible regardless.
+    eventRepository.lockRunEventSequence(sequenceLockKey(runId));
     AutonomousEvent event = new AutonomousEvent();
     event.setRunId(runId);
     event.setSequence(eventRepository.findMaxSequence(runId) + 1);
@@ -85,6 +99,16 @@ public class AutonomousEventService {
       }
     }
     return saved;
+  }
+
+  /**
+   * Builds the 64-bit advisory-lock key for a run: the fixed {@link #EVENT_SEQUENCE_LOCK_NAMESPACE}
+   * in the high 32 bits and the run id's hash in the low 32 bits. A hash collision across two
+   * different runs merely serialises their (independent) appends for an instant - never a
+   * correctness issue - while an exact per-run match is what actually closes the sequence race.
+   */
+  private static long sequenceLockKey(String runId) {
+    return (EVENT_SEQUENCE_LOCK_NAMESPACE << 32) | (runId.hashCode() & 0xFFFF_FFFFL);
   }
 
   /**

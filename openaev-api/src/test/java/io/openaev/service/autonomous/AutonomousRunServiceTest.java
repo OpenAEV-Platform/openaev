@@ -76,6 +76,9 @@ class AutonomousRunServiceTest {
   @Mock private ScenarioToExerciseService scenarioToExerciseService;
   @Mock private XtmOneClient xtmOneClient;
   @Mock private OpenAEVConfig openAEVConfig;
+  // Lenient by default (void asserts are no-ops): these unit tests exercise lifecycle logic, not
+  // authorization. The deny paths are covered by AutonomousRunAccessControlTest.
+  @Mock private AutonomousRunAccessControl accessControl;
 
   @InjectMocks private AutonomousRunService service;
 
