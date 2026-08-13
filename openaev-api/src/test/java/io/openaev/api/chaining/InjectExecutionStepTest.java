@@ -22,11 +22,14 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.execution.ExecutionContext;
+import io.openaev.execution.ExecutionContextService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.ExerciseTeamUserService;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
@@ -55,6 +58,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private ConditionUtils conditionUtils;
   @MockitoBean private io.openaev.executors.Executor executor;
   @MockitoBean private ScopeService scopeService;
+  @MockitoBean private ExerciseTeamUserService exerciseTeamUserService;
+  @MockitoBean private ExecutionContextService executionContextService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -798,6 +803,142 @@ public class InjectExecutionStepTest extends IntegrationTest {
     String idInject = ex.getMessage().replace("Inject execution failed. Inject ID: ", "");
     Assertions.assertFalse(
         injectRepository.findById(idInject).isPresent(), idInject + " should not be persisted");
+  }
+
+  // ---------------------------------------------------------------------------
+  // resolveAudienceRecipients (tabletop audience: teams, scope players, denylist)
+  // ---------------------------------------------------------------------------
+
+  /** A tabletop (email) step snapshot with teams explicitly picked in the drawer. */
+  private static final String AUDIENCE_STEP_WITH_EXPLICIT_TEAMS_DATA =
+      """
+      {"inject_injector_contract":{"injector_contract_id":"contract-email",
+      "injector_contract_content":
+      "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
+      "inject_all_teams":false,"inject_teams":["team-1"]}
+      """;
+
+  /** The same tabletop step snapshot with no audience configured in the drawer. */
+  private static final String AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA =
+      """
+      {"inject_injector_contract":{"injector_contract_id":"contract-email",
+      "injector_contract_content":
+      "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
+      "inject_all_teams":false,"inject_teams":[]}
+      """;
+
+  private Step audienceReadyStep(String data) {
+    Step readyStep = new Step();
+    readyStep.setWorkflow(Workflow.builder().id("workflow-1").build());
+    readyStep.setData(data);
+    return readyStep;
+  }
+
+  @Test
+  void given_audienceStepWithDeniedTeamMember_whenResolvingRecipients_thenDeniedPlayerIsExcluded() {
+    // Arrange
+    User keptUser = new User();
+    keptUser.setId("user-kept");
+    User deniedUser = new User();
+    deniedUser.setId("user-denied");
+    Team team = new Team();
+    team.setId("team-1");
+    team.setName("Blue team");
+    team.setUsers(List.of(keptUser, deniedUser));
+
+    Exercise exercise = ExerciseFixture.createDefaultExercise();
+    Inject inject = new Inject();
+    inject.setExercise(exercise);
+    inject.setTeams(new ArrayList<>(List.of(team)));
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITH_EXPLICIT_TEAMS_DATA);
+
+    doReturn(Set.of("user-denied")).when(scopeService).getDeniedPlayerIds("workflow-1");
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertEquals(1, recipients.size());
+    verify(executionContextService).executionContext(keptUser, inject, "Blue team");
+    verify(executionContextService, never())
+        .executionContext(eq(deniedUser), any(Inject.class), anyString());
+    // Explicit drawer audience stays authoritative: scope players are never consulted.
+    verify(scopeService, never()).getValidPlayers(any());
+    verify(exerciseTeamUserService).enableTargetedTeamMembers(exercise.getId(), List.of("team-1"));
+  }
+
+  @Test
+  void
+      given_audienceStepWithoutAudience_whenResolvingRecipients_thenScopePlayersAreDirectRecipients() {
+    // Arrange
+    User scopePlayer = new User();
+    scopePlayer.setId("player-1");
+
+    Inject inject = new Inject();
+    inject.setExercise(ExerciseFixture.createDefaultExercise());
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA);
+
+    doReturn(List.of(scopePlayer)).when(scopeService).getValidPlayers("workflow-1");
+    doReturn(Set.of()).when(scopeService).getDeniedPlayerIds("workflow-1");
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertEquals(1, recipients.size());
+    verify(executionContextService).executionContext(scopePlayer, inject, "Direct execution");
+    // No targeted team to enable on the simulation.
+    verify(exerciseTeamUserService, never()).enableTargetedTeamMembers(any(), any());
+  }
+
+  @Test
+  void
+      given_playerBothInTargetedTeamAndScope_whenResolvingRecipients_thenSingleRecipientWithTeamLabel() {
+    // Arrange
+    User player = new User();
+    player.setId("player-1");
+    Team team = new Team();
+    team.setId("team-1");
+    team.setName("Blue team");
+    team.setUsers(List.of(player));
+
+    Inject inject = new Inject();
+    inject.setExercise(ExerciseFixture.createDefaultExercise());
+    // Teams set by the scope audience fallback; the drawer itself holds no audience.
+    inject.setTeams(new ArrayList<>(List.of(team)));
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA);
+
+    doReturn(List.of(player)).when(scopeService).getValidPlayers("workflow-1");
+    doReturn(Set.of()).when(scopeService).getDeniedPlayerIds("workflow-1");
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertEquals(1, recipients.size());
+    verify(executionContextService).executionContext(player, inject, "Blue team");
+    verify(executionContextService, never()).executionContext(player, inject, "Direct execution");
   }
 
   /**

@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import static io.openaev.utils.JsonUtils.gson;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
@@ -174,13 +175,19 @@ public class ScopeService {
    * Returns the individual players that are in scope for the given workflow: allowlisted PLAYER
    * rules minus denylisted PLAYER rules. Mirrors {@link #getValidTeams(String)} so audience-centric
    * (tabletop) injects can consume players placed directly in the scope.
+   *
+   * <p>Users are platform-level entities whose tenant membership lives in {@code users_tenants}, so
+   * unlike teams (tenant-filtered entities) the lookup must be explicitly tenant-scoped: a stale or
+   * crafted PLAYER rule must never resolve a user outside the workflow's tenant.
    */
   public List<User> getValidPlayers(String workflowId) {
     List<String> keptPlayerIds =
         resolveAllowedMinusDeniedIds(
             workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
             ScopeRuleValueType.PLAYER_ID);
-    return keptPlayerIds.isEmpty() ? List.of() : userRepository.findAllById(keptPlayerIds);
+    return keptPlayerIds.isEmpty()
+        ? List.of()
+        : userRepository.findAllByIdInAndTenantId(keptPlayerIds, TenantContext.getCurrentTenant());
   }
 
   /**

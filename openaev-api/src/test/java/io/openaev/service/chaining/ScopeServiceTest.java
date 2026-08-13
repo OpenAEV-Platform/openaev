@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
@@ -419,17 +420,41 @@ class ScopeServiceTest {
     User kept = new User();
     kept.setId("player-1");
 
-    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
-        .thenReturn(
-            List.of(
-                allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-1"),
-                allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-2"),
-                denylistRule(ScopeRuleValueType.PLAYER_ID, "player-2")));
-    when(userRepository.findAllById(List.of("player-1"))).thenReturn(List.of(kept));
+    TenantContext.setCurrentTenant("tenant-1");
+    try {
+      when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+          .thenReturn(
+              List.of(
+                  allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-1"),
+                  allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-2"),
+                  denylistRule(ScopeRuleValueType.PLAYER_ID, "player-2")));
+      when(userRepository.findAllByIdInAndTenantId(List.of("player-1"), "tenant-1"))
+          .thenReturn(List.of(kept));
 
-    List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
+      List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
 
-    assertThat(result).containsExactly(kept);
+      assertThat(result).containsExactly(kept);
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  @Test
+  @DisplayName("Valid players - lookup is tenant-scoped so out-of-tenant users never resolve")
+  void givenPlayerRuleOutsideTenant_whenGettingValidPlayers_thenUserIsNotResolved() {
+    TenantContext.setCurrentTenant("tenant-1");
+    try {
+      when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+          .thenReturn(List.of(allowlistRule(ScopeRuleValueType.PLAYER_ID, "ghost-player")));
+      when(userRepository.findAllByIdInAndTenantId(List.of("ghost-player"), "tenant-1"))
+          .thenReturn(List.of());
+
+      List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
+
+      assertThat(result).isEmpty();
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   @Test
