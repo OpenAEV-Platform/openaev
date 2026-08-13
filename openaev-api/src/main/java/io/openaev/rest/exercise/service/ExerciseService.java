@@ -751,15 +751,10 @@ public class ExerciseService {
     // we log the pause date to be able to recompute inject dates.
     if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
-      // Pause/resume of a chained simulation is still blocked in general, but autonomous
-      // (AI-driven) runs need first-class steering, so we lift the block for them: the
-      // orchestrator relies on being able to pause and resume the underlying chained simulation.
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())
-          && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
-        throw new ChainingOperationNotSupportedException(
-            "Pausing a chained simulation is not allowed yet, please contact support");
-      }
+      // Resume is deliberately NOT blocked for a chained simulation (issue #307): only pausing is
+      // unsupported by the queue-based chaining engine. A chained simulation already sitting in
+      // PAUSED (created before that block, or from a historical state) must remain resumable -
+      // the UI keeps offering its Resume button - otherwise it would be stuck forever.
       Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
       exercise.setCurrentPause(null);
       Pause pause = new Pause();
@@ -771,6 +766,10 @@ public class ExerciseService {
     // If pause is asked, just set the pause date.
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
+      // Pausing a chained simulation is unsupported (issue #307): the chaining engine is
+      // queue-based and has no pause semantics. Autonomous (AI-driven) runs need first-class
+      // steering though, so the block is lifted for them: the orchestrator relies on being able
+      // to pause and resume the underlying chained simulation.
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
           && workflowService.isSimulationChaining(exercise.getId())
           && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {

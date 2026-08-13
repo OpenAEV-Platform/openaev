@@ -675,6 +675,56 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     }
   }
 
+  @DisplayName("Resuming a chained simulation already paused in database is allowed")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void resumeAChainedSimulationTest() throws Exception {
+    // --PREPARE--
+    // Only pausing is unsupported by the chaining engine (issue #307). A chained simulation set
+    // directly to PAUSED in database - created before the pause block, or from a historical state
+    // - must still be resumable, exactly like a non-chained one, otherwise it would be stuck
+    // forever while the UI keeps offering its Resume button. The PAUSED state is seeded directly
+    // (not through a pause call, which would now be refused).
+    String originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
+    openAEVConfig.setEnabledDevFeatures(PreviewFeature.INJECT_CHAINING.getValue());
+    clearGlobalCache();
+    try {
+      Exercise chainedExercise = ExerciseFixture.createPausedAttackExercise(REFERENCE_TIME);
+      Workflow workflow = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+      workflowComposer
+          .forWorkflow(workflow)
+          .withSimulation(exerciseComposer.forExercise(chainedExercise))
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+      input.setStatus(ExerciseStatus.RUNNING);
+
+      // --EXECUTE--
+      String response =
+          mvc.perform(
+                  put(EXERCISE_URI + "/" + chainedExercise.getId() + "/status")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // --ASSERT--
+      assertEquals(ExerciseStatus.RUNNING.name(), JsonPath.read(response, "$.exercise_status"));
+      assertEquals(
+          Arrays.asList(ExerciseStatus.CANCELED.name(), ExerciseStatus.PAUSED.name()),
+          JsonPath.read(response, "$.exercise_next_possible_status"));
+    } finally {
+      openAEVConfig.setEnabledDevFeatures(originalDevFeatures);
+      clearGlobalCache();
+    }
+  }
+
   // The preview feature lookup is @Cacheable("global"), so the cache must be dropped on every
   // toggle of the enabled dev features.
   private void clearGlobalCache() {
