@@ -4,19 +4,23 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import io.openaev.IntegrationTest;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.injector_contract.ContractCardinality;
 import io.openaev.injector_contract.fields.ContractAsset;
 import io.openaev.injector_contract.fields.ContractAssetGroup;
 import io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts;
 import io.openaev.processor.datapack.V20260101_Starter_pack;
+import io.openaev.processor.datapack.V20260813_EE_chaining_starter_pack;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.utils.fixtures.DomainFixture;
@@ -39,6 +43,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,9 +72,11 @@ public class StarterPackTest extends IntegrationTest {
   @Autowired private ImportService importService;
   @Autowired private ZipJsonService<CustomDashboard> zipJsonService;
   @Autowired private ResourcePatternResolver resolver;
+  @Autowired private LicenseCacheManager licenseCacheManager;
   @Mock private ImportService mockImportService;
   @Mock private ZipJsonService<CustomDashboard> mockZipJsonService;
   @Mock private ResourcePatternResolver mockResolver;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private DomainComposer domainComposer;
@@ -514,6 +521,67 @@ public class StarterPackTest extends IntegrationTest {
           injectorContractRepository.findById(contract.getId()).orElseThrow();
       assertNotNull(reloaded.getPayload());
     }
+  }
+
+  @Test
+  @DisplayName("Should init EE chaining StarterPack when EE license is active")
+  public void shouldInitEEChainingStarterPackWhenLicenseActive() {
+    // PREPARE
+    when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+    V20260813_EE_chaining_starter_pack datapack =
+        new V20260813_EE_chaining_starter_pack(
+            dataPackService,
+            enterpriseEditionService,
+            licenseCacheManager,
+            importService,
+            resolver);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
+
+    // EXECUTE
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+
+    // VERIFY
+    assertThat(scenarioRepository.findAll())
+        .satisfiesOnlyOnce(
+            scenario ->
+                assertThat(scenario.getName())
+                    .isEqualTo("Internal AD Security Assessment (Chaining)"));
+
+    assertTrue(
+        dataPackService
+            .findByIdAndTenant(
+                V20260813_EE_chaining_starter_pack.class.getCanonicalName(),
+                new Tenant(TenantContext.getCurrentTenant()))
+            .isPresent());
+  }
+
+  @Test
+  @DisplayName("Should not init EE chaining StarterPack when EE license is inactive")
+  public void shouldNotInitEEChainingStarterPackWhenLicenseInactive() {
+    // PREPARE
+    when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+    V20260813_EE_chaining_starter_pack datapack =
+        new V20260813_EE_chaining_starter_pack(
+            dataPackService,
+            enterpriseEditionService,
+            licenseCacheManager,
+            importService,
+            resolver);
+    ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
+
+    // EXECUTE
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+
+    // VERIFY
+    assertThat(scenarioRepository.findAll()).isEmpty();
+
+    assertFalse(
+        dataPackService
+            .findByIdAndTenant(
+                V20260813_EE_chaining_starter_pack.class.getCanonicalName(),
+                new Tenant(TenantContext.getCurrentTenant()))
+            .isPresent());
   }
 
   private void verifyInjectorContracts() {
