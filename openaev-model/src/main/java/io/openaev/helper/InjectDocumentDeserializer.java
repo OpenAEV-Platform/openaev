@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.Document;
-import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectDocument;
 import jakarta.persistence.EntityManager;
 import java.io.IOException;
@@ -36,8 +35,9 @@ import java.io.IOException;
  * <p>The {@link Document} side is resolved against the injected {@link EntityManager}; a document
  * that no longer exists yields {@code null} so a deleted attachment degrades to "no attachment"
  * instead of failing the step. Without an EntityManager a stub carrying only the id is returned.
- * The owning {@link Inject} cannot be known mid-deserialization, so the {@code inject} side is left
- * null - consumers must re-parent the link (and prune {@code null} elements) before persisting.
+ * The owning {@link io.openaev.database.model.Inject} cannot be known mid-deserialization, so the
+ * {@code inject} side is left null - consumers must re-parent the link (and prune {@code null}
+ * elements) before persisting.
  */
 public class InjectDocumentDeserializer extends JsonDeserializer<InjectDocument> {
 
