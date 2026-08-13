@@ -2,10 +2,12 @@ package io.openaev.database.repository.autonomous;
 
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,6 +38,20 @@ public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, St
   @Query("SELECT r FROM AutonomousRun r WHERE r.id = :id AND r.tenant.id = :tenantId")
   Optional<AutonomousRun> findByIdAndTenantId(
       @Param("id") String id, @Param("tenantId") String tenantId);
+
+  /**
+   * Pessimistically locked lookup ({@code SELECT ... FOR UPDATE}) for operator lifecycle/steering
+   * actions (pause / resume / steer). The run row carries no optimistic version, so a plain
+   * read-check-save can silently overwrite a terminal status a concurrent writer (the read-path
+   * reconcile's or the watchdog's conditional terminal UPDATE, both row-locking) commits between
+   * the read and the save. Taking the row lock at the read serialises the whole check-then-act
+   * with those writers: if the terminal settle commits first, this read observes it and the
+   * terminal-state guard rejects the action; if this action wins the lock, the conditional UPDATE
+   * waits and then re-evaluates its status predicate against the committed row.
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT r FROM AutonomousRun r WHERE r.id = :id")
+  Optional<AutonomousRun> findByIdForUpdate(@Param("id") String id);
 
   /**
    * Ids of the given tenant's live runs whose OpenAEV-enforced deadline is at or within {@code
