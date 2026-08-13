@@ -257,9 +257,9 @@ public class InjectExecutionStep implements ActionStep {
    * <p>Individual players placed in the workflow scope are added as direct recipients (with the
    * "Direct execution" team label, like ad-hoc inject testing) when the step has no explicit
    * audience configured in the drawer and no MAPPER condition feeding its audience: the drawer
-   * stays authoritative when the operator picked an audience there, and a mapper-fed audience
-   * (e.g. upstream findings mapped into the "recipients" field) must not be widened with the
-   * scope's players.
+   * stays authoritative when the operator picked an audience there, and a mapper-fed audience (e.g.
+   * upstream findings mapped into the "recipients" field) must not be widened with the scope's
+   * players.
    *
    * <p>Asset/IP-centric injects (nmap, payloads) have no teams and never consume scope players, so
    * this returns an empty list and their execution is unchanged. Findings mapped as raw recipients
@@ -1355,7 +1355,8 @@ public class InjectExecutionStep implements ActionStep {
         // primitives
         // to drive events. Only the agent_id enrichment is agent-specific. Dropping the whole trace
         // here
-        // meant no port/share/... event could ever fire from a network injector's findings; keep the
+        // meant no port/share/... event could ever fire from a network injector's findings; keep
+        // the
         // structured output so it still feeds the workflow state.
         if (trace.getStructuredOutput() != null) {
           map.put("parsed", JsonParser.parseString(trace.getStructuredOutput().toString()));

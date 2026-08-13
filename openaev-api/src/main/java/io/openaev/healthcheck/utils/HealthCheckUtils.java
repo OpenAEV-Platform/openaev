@@ -567,9 +567,7 @@ public class HealthCheckUtils {
     boolean audienceStepNeedsScope = false;
     for (Step step : steps) {
       List<Condition> stepConditions =
-          step.getId() == null
-              ? List.of()
-              : conditionsByStep.getOrDefault(step.getId(), List.of());
+          step.getId() == null ? List.of() : conditionsByStep.getOrDefault(step.getId(), List.of());
       if (stepTargetingService.isAssetCentric(step)) {
         hasTechnicalStep = true;
         technicalStepNeedsScope =
