@@ -1279,9 +1279,16 @@ public class ConditionService {
     List<WorkflowStateEntries.Pair> pairs = new ArrayList<>();
     Set<String> seenValues = new HashSet<>();
     for (String sourceKey : mapperContext.sourceKeys()) {
-      Set<String> values =
+      Set<String> values = new LinkedHashSet<>();
+      Set<String> directValues =
           resolveValuesByMappingType(
               sourceKey, mapperContext.mappingType(), localEntries, globalEntries);
+      if (directValues != null) {
+        values.addAll(directValues);
+      }
+      values.addAll(
+          resolveCorrelatedValuesByMappingType(
+              sourceKey, mapperContext.mappingType(), localEntries, globalEntries));
       if (values == null || values.isEmpty()) {
         continue;
       }
@@ -1314,6 +1321,25 @@ public class ConditionService {
     }
 
     return pairs;
+  }
+
+  private Set<String> resolveCorrelatedValuesByMappingType(
+      String key,
+      MappingType mappingType,
+      WorkflowStateEntries localEntries,
+      WorkflowStateEntries globalEntries) {
+    WorkflowStateEntries sourceEntries =
+        mappingType == MappingType.GLOBAL ? globalEntries : localEntries;
+    if (sourceEntries.getCorrelated() == null || sourceEntries.getCorrelated().isEmpty()) {
+      return Set.of();
+    }
+    return sourceEntries.getCorrelated().stream()
+        .flatMap(tuple -> tuple.getValues().stream())
+        .filter(pair -> key.equals(pair.key()))
+        .map(WorkflowStateEntries.Pair::value)
+        .filter(Objects::nonNull)
+        .filter(value -> !value.isBlank())
+        .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
   /**

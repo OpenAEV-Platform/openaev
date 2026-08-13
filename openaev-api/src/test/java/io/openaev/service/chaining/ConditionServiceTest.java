@@ -934,11 +934,18 @@ public class ConditionServiceTest {
       assertEquals("admin", json.get("Text").getAsString());
       assertFalse(json.has("Host"));
 
-      Map<String, String> mapperValuesByKey =
+      Condition textMapper =
           batches.getFirst().usedMappers().stream()
-              .collect(java.util.stream.Collectors.toMap(Condition::getKey, Condition::getValue));
-      assertEquals("admin", mapperValuesByKey.get("Text"));
-      assertNull(mapperValuesByKey.get("Host"));
+              .filter(mapper -> "Text".equals(mapper.getKey()))
+              .findFirst()
+              .orElseThrow();
+      Condition hostMapper =
+          batches.getFirst().usedMappers().stream()
+              .filter(mapper -> "Host".equals(mapper.getKey()))
+              .findFirst()
+              .orElseThrow();
+      assertEquals("admin", textMapper.getValue());
+      assertNull(hostMapper.getValue());
     }
 
     @Test
