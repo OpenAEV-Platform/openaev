@@ -162,8 +162,10 @@ class TenantServiceTest extends IntegrationTest {
     session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
 
     Injector emailInjector =
-        injectorRepository
-            .findByTypeAndTenantId(EmailContract.TYPE, created.getId())
+        injectorRepository.findAll().stream()
+            .filter(i -> EmailContract.TYPE.equals(i.getType()))
+            .filter(i -> created.getId().equals(i.getTenantId()))
+            .findFirst()
             .orElseThrow(
                 () -> new AssertionError("the email injector was not provisioned for the tenant"));
     assertThat(emailInjector.getContracts())
@@ -178,8 +180,10 @@ class TenantServiceTest extends IntegrationTest {
     session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", DEFAULT_TENANT_UUID);
     Injector defaultEmailInjector =
-        injectorRepository
-            .findByTypeAndTenantId(EmailContract.TYPE, DEFAULT_TENANT_UUID)
+        injectorRepository.findAll().stream()
+            .filter(i -> EmailContract.TYPE.equals(i.getType()))
+            .filter(i -> DEFAULT_TENANT_UUID.equals(i.getTenantId()))
+            .findFirst()
             .orElseThrow(() -> new AssertionError("the default tenant lost its email injector"));
     assertThat(defaultEmailInjector.getContracts())
         .as("the default tenant's link must be untouched by the new-tenant copy")

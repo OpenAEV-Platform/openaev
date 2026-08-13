@@ -2745,7 +2745,8 @@ public class V1_DataImporter implements Importer {
    *
    * <ul>
    *   <li>(b) its injector type ({@code injector_contract_injector_type}) is present but no
-   *       injector of that type exists on the target ({@link InjectorService#injectorByType}); or
+   *       injector of that type exists on the target ({@link
+   *       InjectorService#injectorTypeExists(String)}); or
    *   <li>(a) its injector contract is neither already present on the target for the current tenant
    *       ({@code existsByContractIdAndTenant} / previously resolved) nor resolvable read-only from
    *       the payload external id ({@link #resolveInjectorContractReadOnly}).
@@ -2778,7 +2779,7 @@ public class V1_DataImporter implements Importer {
 
     // (b) Injector of the referenced type must exist on the target instance.
     String injectorType = extractInjectorType(injectContractNode);
-    if (hasText(injectorType) && injectorService.injectorByType(injectorType).isEmpty()) {
+    if (hasText(injectorType) && !injectorService.injectorTypeExists(injectorType)) {
       return Optional.of(
           new SkippedWorkflowStep(SkippedWorkflowStepType.INJECTOR, injectTitle, injectorType));
     }

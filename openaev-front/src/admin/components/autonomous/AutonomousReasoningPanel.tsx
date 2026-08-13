@@ -7,7 +7,7 @@ import {
 import { Box, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useCallback, useEffect, useRef, useState } from 'react';
+import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   addAutonomousDirective,
@@ -23,7 +23,7 @@ import { useFormatter } from '../../../components/i18n';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useChatbot, useChatbotContentMargin } from '../ariane/useChatbotHooks';
-import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
+import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, isHeartbeatEvent, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
 import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 
 // An "active" run is one the orchestrator is currently driving, so the panel keeps polling the
@@ -42,6 +42,10 @@ const POLL_INTERVAL_MS = 3000;
 // event cadence so an ordinary long action does not flip it to idle prematurely.
 const STALE_CAPTION_AFTER_MS = 180000;
 
+// The stream auto-follows the newest event only while the operator is within this distance (px) of
+// the bottom - anything further means they deliberately scrolled up to read an older decision.
+const STICK_TO_BOTTOM_THRESHOLD_PX = 80;
+
 // Cap the proposed one-click choices so the callout stays scannable: at most this many radio options
 // are ever shown, and the always-present free-text composer below is the escape hatch for anything
 // the operator would rather type.
@@ -52,6 +56,12 @@ const MAX_QUESTION_CHOICES = 3;
 // thinking-window caption keys off the latest one of these.
 const ACTIVITY_EVENT_TYPES = ['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const;
 const isActivityType = (type: string | undefined): boolean => (ACTIVITY_EVENT_TYPES as readonly string[]).includes(type ?? '');
+
+// A heartbeat older than this is treated as stale: the orchestrator only emits heartbeats WHILE a
+// decision cycle is actively running (~45s cadence), so a fresh one is positive proof the run is
+// grinding right now. Sized at ~2.5 cycles so one dropped beat or a slow poll never flips a working
+// run to idle, while a genuinely stopped cycle (park / stall) settles within a few seconds.
+const HEARTBEAT_FRESH_MS = 120000;
 
 interface QuestionChoice {
   id: string;
@@ -316,6 +326,9 @@ interface AutonomousReasoningPanelProps {
   run: AutonomousRun;
   /** Lift status transitions up so the hero + tab set stay in sync without a second poll loop. */
   onRunUpdate?: (run: AutonomousRun) => void;
+  /** Share the incrementally polled timeline with a sibling (the overview outcome layer) so that
+   *  layer does not start a second full-from-cursor-0 poll of the same endpoint. */
+  onTimelineEvents?: (events: AutonomousEvent[]) => void;
   /** Live panel width (px), owned by the parent via {@link useAutonomousPanelWidth} so the content
    *  padding follows the drag. */
   width?: number;
@@ -338,6 +351,7 @@ interface AutonomousReasoningPanelProps {
 const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps> = ({
   run: initialRun,
   onRunUpdate,
+  onTimelineEvents,
   width = AUTONOMOUS_PANEL_WIDTH,
   onWidthChange,
   readOnly = false,
@@ -354,6 +368,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
 
   const [run, setRun] = useState<AutonomousRun>(initialRun);
   const [events, setEvents] = useState<AutonomousEvent[]>([]);
+  useEffect(() => {
+    onTimelineEvents?.(events);
+  }, [events, onTimelineEvents]);
   const [directive, setDirective] = useState('');
   // Which proposed one-click choice the operator picked (null = none; they can still type freely in
   // the always-visible composer, which takes precedence over a selected choice).
@@ -363,6 +380,12 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   const [answeredQuestionId, setAnsweredQuestionId] = useState<string | null>(null);
   const cursorRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Whether the operator is at (or near) the bottom of the stream, sampled in the onScroll handler
+  // - i.e. BEFORE new content grows the list. Measuring inside the pin effect below would run
+  // after render, when a tall new decision has already pushed the bottom away by more than the
+  // threshold, silently breaking the auto-follow exactly when the operator was reading live.
+  // Starts true so a fresh stream pins to the newest event.
+  const stickToBottomRef = useRef(true);
   // Identity of the run/simulation the stream is currently populated for. The reset-and-reload
   // effect below keys off this so it fires ONLY on a genuine run or simulation switch (navigation /
   // restart) - never spuriously on a re-render, which would blank the live stream to empty (and drop
@@ -463,6 +486,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     }
     streamKeyRef.current = nextKey;
     cursorRef.current = 0;
+    // A fresh stream should follow its newest event even if the operator had scrolled up in the
+    // previous run's timeline.
+    stickToBottomRef.current = true;
     setEvents([]);
     pollTimelineRef.current();
   }, [runId, simulationId]);
@@ -481,18 +507,35 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     return () => clearInterval(interval);
   }, [isActive, refreshRun, pollTimeline]);
 
-  // Keep the stream pinned to the latest decision as it grows.
+  // The operator-facing decision feed excludes heartbeats (they are freshness pings, not
+  // decisions), so a long silent burst does not fill the timeline with "Working" rows. The
+  // freshness/caption logic below still keys off the raw `events` (including heartbeats) so the
+  // cockpit stays animated. Memoised: the predicate JSON-parses STATUS payloads, so it should run
+  // once per new batch of events, not on every incidental re-render.
+  const visibleEvents = useMemo(() => events.filter(e => !isHeartbeatEvent(e)), [events]);
+
+  // Keep the stream pinned to the latest decision as it grows - but only while the operator was
+  // already at (or near) the bottom before the new content rendered (see stickToBottomRef), so a
+  // new event never yanks them away from an older decision they scrolled up to read. Keyed on the
+  // VISIBLE feed length: filtered-out heartbeats do not change the rendered stream, so they should
+  // not re-trigger the pin at all.
   useEffect(() => {
     const node = scrollRef.current;
-    if (node) {
+    if (node && stickToBottomRef.current) {
       node.scrollTop = node.scrollHeight;
     }
-  }, [events.length]);
+  }, [visibleEvents.length]);
 
   const isWaitingInput = status === 'WAITING_INPUT';
-  const latestQuestion = isWaitingInput
-    ? [...events].reverse().find(e => e.autonomous_event_type === 'QUESTION')
-    : undefined;
+  // Newest-first lookups over the stream. findLast scans backwards without cloning, and the
+  // results are memoised so the scans (and isHeartbeatEvent's JSON.parse) run once per new batch
+  // of events - not on every incidental re-render (typing in the composer, the 3s status poll).
+  const newestQuestion = useMemo(
+    () => events.findLast(e => e.autonomous_event_type === 'QUESTION'),
+    [events],
+  );
+  // Only surface it while the run is actually parked on the operator.
+  const latestQuestion = isWaitingInput ? newestQuestion : undefined;
   // A question is ALREADY answered if the operator's reply (a DIRECTIVE event, "Operator directive
   // queued") was recorded after it in the timeline. Deriving this from the stream - not only from the
   // optimistic local answeredQuestionId - is what keeps an answered question from re-surfacing: local
@@ -576,14 +619,37 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // as it moves (deciding -> acting -> analyzing ...). Crucially, once the operator answers we flip
   // to "Processing your answer" immediately -- the backend status stays WAITING_INPUT until the next
   // 3s poll, so keying off status alone would freeze on "Waiting for your input".
-  const lastActivityType = [...events].reverse().find(
-    e => isActivityType(e.autonomous_event_type),
-  )?.autonomous_event_type;
+  const lastActivityEvent = useMemo(
+    () => events.findLast(e => isActivityType(e.autonomous_event_type)),
+    [events],
+  );
+  const lastActivityType = lastActivityEvent?.autonomous_event_type;
+
+  // A fresh heartbeat is positive proof the orchestrator is grinding a cycle RIGHT NOW (they only
+  // fire while the agent chat is running). It is the signal that turns an in-progress delegation
+  // from a static "Waiting for X" into a live, pulsing "Consulting X" - the reported "the right
+  // panel never shows it is actually working" symptom. Filtered out of the feed everywhere else,
+  // here it is read only for its timestamp.
+  const lastHeartbeatAt = useMemo(
+    () => events.findLast(isHeartbeatEvent)?.autonomous_event_created_at,
+    [events],
+  );
+  const heartbeatFresh = lastHeartbeatAt
+    ? Date.now() - new Date(lastHeartbeatAt).getTime() < HEARTBEAT_FRESH_MS
+    : false;
+  const workingByHeartbeat = isActive && !isWaitingInput && heartbeatFresh;
+
+  // The live "working for Nm Ns" clock should measure the current move, not the 45s heartbeat
+  // cadence: anchor it to the newest REAL activity event (e.g. the delegation start) so a long
+  // consult reads "Consulting X - 3m 20s" instead of resetting every heartbeat.
+  const activitySince = lastActivityEvent?.autonomous_event_created_at
+    ?? (events.length > 0 ? events[events.length - 1].autonomous_event_created_at : undefined);
 
   // The latest agent-delegation event drives the "delegating to / waiting for <agent>" caption. A
   // 'start' phase with no following 'result' reads as waiting (static), mirroring the parked model.
-  const lastDelegation = [...events].reverse().find(
-    e => e.autonomous_event_type === 'AGENT_DELEGATION',
+  const lastDelegation = useMemo(
+    () => events.findLast(e => e.autonomous_event_type === 'AGENT_DELEGATION'),
+    [events],
   );
   const delegationInfo = (() => {
     if (!lastDelegation) {
@@ -629,8 +695,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       return false;
     }
   })();
-  // Parked only when the newest STATUS is a genuine end-of-cycle wait (NOT an engagement marker).
-  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS' && !engagedOnStatus;
+  // A heartbeat STATUS means the orchestrator is actively grinding a long cycle - the opposite of a
+  // park. It must NOT read as the calm "Awaiting the next event"; instead we fall through to the
+  // switch below so the caption keeps animating over the last real activity.
+  const heartbeatOnStatus = isHeartbeatEvent(newestEvent);
+  // Parked only when the newest STATUS is a genuine end-of-cycle wait (NOT an engagement marker and
+  // NOT a still-working heartbeat).
+  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS'
+    && !engagedOnStatus && !heartbeatOnStatus;
   // Has the orchestrator RESUMED since the operator answered? The backend run status stays
   // WAITING_INPUT until a later 3s poll flips it, so it lies about "still waiting" for a while. The
   // truthful signal is a fresh activity event: once the newest event is a DECISION / TOOL_ACTION /
@@ -729,6 +801,19 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         const who = delegationInfo?.agentName;
         const delegationColor = theme.palette.ai?.main ?? accent;
         if (delegationInfo?.waiting) {
+          // A specialist consult can run for minutes with no orchestrator-side event. While
+          // heartbeats keep arriving the sub-agent is demonstrably working, so render a live,
+          // pulsing "Consulting X" with the elapsed clock instead of a static "Waiting for X" that
+          // reads as a stalled cockpit. Only once the heartbeats stop (a genuine stall) does it
+          // settle back to the calm static wait.
+          if (workingByHeartbeat) {
+            return {
+              key: 'delegating-working',
+              label: who ? `${t('Consulting')} ${who}` : t('Consulting a specialist agent'),
+              color: delegationColor,
+              active: true,
+            };
+          }
           return {
             key: 'delegating-wait',
             label: who ? `${t('Waiting for')} ${who}` : t('Waiting for a specialist agent'),
@@ -848,13 +933,17 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       {/* Reasoning stream. */}
       <Box
         ref={scrollRef}
+        onScroll={(event) => {
+          const node = event.currentTarget;
+          stickToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < STICK_TO_BOTTOM_THRESHOLD_PX;
+        }}
         sx={{
           flex: 1,
           overflowY: 'auto',
           padding: theme.spacing(1, 2),
         }}
       >
-        {events.length === 0 && !isActive
+        {visibleEvents.length === 0 && !isActive
           ? (
               <Stack sx={{
                 alignItems: 'center',
@@ -880,7 +969,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 paddingBlock: 1,
               }}
               >
-                {events.map((event) => {
+                {visibleEvents.map((event) => {
                   const color = eventAccent(event, theme);
                   const eventTitle = sanitizeEventText(event.autonomous_event_title);
                   const eventContent = sanitizeEventText(event.autonomous_event_content);
@@ -961,7 +1050,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     phase={thinkingPhase}
                     theme={theme}
                     lines={thinkingLines}
-                    activitySince={newestEvent?.autonomous_event_created_at}
+                    activitySince={activitySince}
                   />
                 )}
               </Stack>

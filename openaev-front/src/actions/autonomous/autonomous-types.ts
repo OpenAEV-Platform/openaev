@@ -149,6 +149,11 @@ export interface AutonomousRunCreateInput {
   // Dry-run: design the attack path (scope, steps, decisions) without executing anything. The
   // operator can review the plan and later run it for real.
   plan_mode?: boolean;
+  // Refine (follow-up) build: the orchestrator refines the scenario's EXISTING authored logic
+  // instead of rebuilding from scratch. The authored steps + a prior AI-built run's decision
+  // timeline (history) are kept and reopened. false/omitted = rebuild from scratch (wipe + fresh).
+  // Only meaningful for the plan/build action.
+  refine?: boolean;
   // OpenAEV-enforced maximum run lifetime in seconds. Defaults to 24h server-side when omitted.
   timeout_seconds?: number;
 }
