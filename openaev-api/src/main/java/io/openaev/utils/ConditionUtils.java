@@ -129,7 +129,7 @@ public class ConditionUtils {
    *
    * @param value the value to check
    * @param node the condition tree node to inspect
-   * @param keyTypeName the key type {@code value} was extracted for
+   * @param keyTypeName the {@link io.openaev.database.model.PrimitiveType#name()} (e.g. "Port", "Host") the {@code value} was extracted for
    * @return {@code true} if the value satisfies at least one same-key-type leaf condition
    */
   public boolean matchesAnyLeafCondition(String value, Condition node, String keyTypeName) {
