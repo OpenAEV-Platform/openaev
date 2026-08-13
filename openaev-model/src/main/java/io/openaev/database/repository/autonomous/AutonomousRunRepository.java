@@ -44,8 +44,8 @@ public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, St
    * actions (pause / resume / steer). The run row carries no optimistic version, so a plain
    * read-check-save can silently overwrite a terminal status a concurrent writer (the read-path
    * reconcile's or the watchdog's conditional terminal UPDATE, both row-locking) commits between
-   * the read and the save. Taking the row lock at the read serialises the whole check-then-act
-   * with those writers: if the terminal settle commits first, this read observes it and the
+   * the read and the save. Taking the row lock at the read serialises the whole check-then-act with
+   * those writers: if the terminal settle commits first, this read observes it and the
    * terminal-state guard rejects the action; if this action wins the lock, the conditional UPDATE
    * waits and then re-evaluates its status predicate against the committed row.
    */
