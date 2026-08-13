@@ -9,6 +9,7 @@ import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Step;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,25 @@ public class StepTargetingService {
 
   /** Contract field key that drives network (IP/manual) targeting on external injectors. */
   private static final String TARGET_SELECTOR_FIELD_KEY = "target_selector";
+
+  /**
+   * Inject content keys through which a MAPPER condition can feed technical execution targets
+   * (assets or raw IPs). A mapper writing anywhere else (command argument, email subject, ...)
+   * enriches the inject content but provides no execution target.
+   */
+  private static final Set<String> TECHNICAL_TARGET_CONTENT_KEYS =
+      Set.of(
+          "targets",
+          "targets_assets",
+          InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS,
+          InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS);
+
+  /**
+   * Inject content keys through which a MAPPER condition can feed an audience: the teams field of
+   * tabletop contracts or the raw {@code recipients} addresses of email-like contracts.
+   */
+  private static final Set<String> AUDIENCE_TARGET_CONTENT_KEYS =
+      Set.of("recipients", InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TEAMS);
 
   private final InjectorContractService injectorContractService;
   private final ConditionService conditionService;
@@ -186,17 +206,110 @@ public class StepTargetingService {
   }
 
   /**
-   * Returns {@code true} when the step has at least one MAPPER condition, i.e. its inject content
-   * (including potential targets or recipients) is fed dynamically from upstream step outputs.
+   * Returns {@code true} when the step has at least one MAPPER condition that feeds actual
+   * execution targets for its axis (technical: assets / asset groups / manual targets; audience:
+   * teams / raw recipients) from upstream step outputs. A mapper filling a non-targeting field
+   * (command argument, email subject or body, ...) is not a substitute for the workflow scope: the
+   * step still has no execution target of its own.
+   *
+   * <p>Conditions are looked up for the step itself and, when present, its template: batch mappers
+   * are relinked to the READY step at expansion time while drawer-authored mappers stay on the
+   * template.
    */
-  public boolean hasMapperConditions(Step step) {
-    if (step.getId() == null) {
+  public boolean hasTargetFeedingMapperConditions(Step step, boolean assetCentric) {
+    Set<String> stepIds = new LinkedHashSet<>();
+    if (step.getId() != null) {
+      stepIds.add(step.getId());
+    }
+    if (step.getStepTemplate() != null && step.getStepTemplate().getId() != null) {
+      stepIds.add(step.getStepTemplate().getId());
+    }
+    if (stepIds.isEmpty()) {
       return false;
     }
-    List<Condition> conditions = conditionService.findAllConditionsByStepId(step.getId());
-    return conditions != null
-        && conditions.stream()
-            .anyMatch(condition -> ConditionType.MAPPER.equals(condition.getType()));
+    List<Condition> conditions =
+        conditionService.findAllConditionsByStepIds(stepIds).values().stream()
+            .flatMap(List::stream)
+            .toList();
+    return hasTargetFeedingMapperConditions(step, conditions, assetCentric);
+  }
+
+  /**
+   * Variant of {@link #hasTargetFeedingMapperConditions(Step, boolean)} operating on pre-fetched
+   * conditions, so callers iterating over many steps (launch validation) can batch the condition
+   * lookup with {@code ConditionService#findAllConditionsByStepIds} instead of querying per step.
+   */
+  public boolean hasTargetFeedingMapperConditions(
+      Step step, List<Condition> conditions, boolean assetCentric) {
+    if (conditions == null || conditions.isEmpty()) {
+      return false;
+    }
+    return conditions.stream()
+        .filter(condition -> ConditionType.MAPPER.equals(condition.getType()))
+        .anyMatch(condition -> isTargetFeedingKey(step, condition.getKey(), assetCentric));
+  }
+
+  /**
+   * Returns {@code true} when a mapper destination content key provides execution targets for the
+   * step's axis: either a well-known targeting key, or a contract field whose declared type is a
+   * targeting widget (asset / asset group / targeted-asset for technical steps, team for audience
+   * steps) in the contract snapshot baked into the step data.
+   */
+  private boolean isTargetFeedingKey(Step step, String contentKey, boolean assetCentric) {
+    if (contentKey == null || contentKey.isBlank()) {
+      return false;
+    }
+    Set<String> directKeys =
+        assetCentric ? TECHNICAL_TARGET_CONTENT_KEYS : AUDIENCE_TARGET_CONTENT_KEYS;
+    if (directKeys.contains(contentKey)) {
+      return true;
+    }
+    String fieldType = contractFieldTypeForKey(step, contentKey);
+    if (fieldType == null) {
+      return false;
+    }
+    return assetCentric
+        ? ASSET_TARGET_FIELD_TYPES.contains(fieldType)
+        : InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_TEAM.equals(fieldType);
+  }
+
+  /**
+   * Resolves the declared type of the contract field carrying the given key from the contract
+   * content snapshot baked into the step data, or {@code null} when it cannot be resolved.
+   */
+  private String contractFieldTypeForKey(Step step, String key) {
+    JsonObject contract = contractFromStepData(step);
+    if (contract == null) {
+      return null;
+    }
+    JsonElement content = contract.get("injector_contract_content");
+    if (content == null || !content.isJsonPrimitive()) {
+      return null;
+    }
+    try {
+      JsonElement parsed = JsonParser.parseString(content.getAsString());
+      if (!parsed.isJsonObject()) {
+        return null;
+      }
+      JsonElement fields = parsed.getAsJsonObject().get(InjectorContract.CONTRACT_CONTENT_FIELDS);
+      if (fields == null || !fields.isJsonArray()) {
+        return null;
+      }
+      for (JsonElement fieldElement : fields.getAsJsonArray()) {
+        if (!fieldElement.isJsonObject()) {
+          continue;
+        }
+        JsonObject field = fieldElement.getAsJsonObject();
+        if (key.equals(asTextOrEmpty(field.get(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY)))) {
+          return asTextOrEmpty(field.get(InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE));
+        }
+      }
+    } catch (Exception e) {
+      log.warn(
+          "Failed to parse contract content snapshot for step {} while resolving field type",
+          step.getId());
+    }
+    return null;
   }
 
   /** Reads {@code inject_injector_contract.injector_contract_id} from serialized step data. */

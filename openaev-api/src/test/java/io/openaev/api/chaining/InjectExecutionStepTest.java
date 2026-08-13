@@ -22,6 +22,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.rest.exception.ChainingException;
@@ -63,6 +64,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private TeamRepository teamRepository;
   @Autowired InjectExecutionStep injectExecutionStep;
   @Autowired AttackPathExecutionIngestionService attackPathExecutionIngestionService;
   ObjectMapper mapper = new ObjectMapper();
@@ -905,7 +907,35 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertEquals(1, recipients.size());
     verify(executionContextService).executionContext(scopePlayer, inject, "Direct execution");
     // No targeted team to enable on the simulation.
-    verify(exerciseTeamUserService, never()).enableTargetedTeamMembers(any(), any(), any());
+    verifyNoInteractions(exerciseTeamUserService);
+  }
+
+  @Test
+  void given_audienceStepWithRecipientsMapper_whenResolvingRecipients_thenScopePlayersAreSkipped() {
+    // Arrange: a mapper feeds the "recipients" content field from upstream outputs, so the
+    // mapped audience is authoritative and scope players must not widen it.
+    Inject inject = new Inject();
+    inject.setExercise(ExerciseFixture.createDefaultExercise());
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA);
+    readyStep.setId("ready-mapper-1");
+
+    Condition recipientsMapper = new Condition();
+    recipientsMapper.setType(ConditionType.MAPPER);
+    recipientsMapper.setKey("recipients");
+    doReturn(Map.of("ready-mapper-1", List.of(recipientsMapper)))
+        .when(conditionService)
+        .findAllConditionsByStepIds(any());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertTrue(recipients.isEmpty());
+    verify(scopeService, never()).getValidPlayers(any());
   }
 
   @Test
@@ -942,6 +972,121 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertEquals(1, recipients.size());
     verify(executionContextService).executionContext(player, inject, "Blue team");
     verify(executionContextService, never()).executionContext(player, inject, "Direct execution");
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep audience fallback (scope teams consumed at run time)
+  // ---------------------------------------------------------------------------
+
+  /** Email-style (audience-centric) contract content: team + recipients fields, no payload. */
+  private static final String EMAIL_CONTRACT_CONTENT =
+      "{\"fields\":[{\"key\":\"teams\",\"type\":\"team\",\"cardinality\":\"n\"},"
+          + "{\"key\":\"recipients\",\"type\":\"text\",\"cardinality\":\"1\"},"
+          + "{\"key\":\"subject\",\"type\":\"text\",\"cardinality\":\"1\"}]}";
+
+  /**
+   * Builds a READY email step through the real create/ready path so its data carries the full
+   * serialized inject and contract snapshot, with the given teams picked in the drawer.
+   */
+  private Step emailReadyStep(List<String> drawerTeamIds) throws Exception {
+    Injector emailInjector =
+        injectorRepository.save(
+            InjectorFixture.createInjector(
+                UUID.randomUUID().toString(), "Email injector", "openaev_email_test"));
+    InjectorContract emailContract =
+        InjectorContractFixture.createInjectorContract(
+            Map.of("en", "Email"), EMAIL_CONTRACT_CONTENT);
+    emailContract.addInjector(emailInjector);
+    InjectorContract emailContractSaved = injectorContractRepository.save(emailContract);
+    emailInjector.linkContract(emailContractSaved);
+    injectorRepository.save(emailInjector);
+    doReturn(emailContractSaved)
+        .when(injectorContractService)
+        .injectorContract(emailContractSaved.getId());
+
+    String teamsJson =
+        drawerTeamIds.stream()
+            .map(id -> "\"" + id + "\"")
+            .collect(java.util.stream.Collectors.joining(","));
+    String emailInputJson =
+        """
+        {"type":"inject","inject_title":"tabletop email","inject_description":"",
+         "inject_injector_contract":"%s","inject_injector":"%s",
+         "inject_content":{"subject":"Subject","body":"Body"},
+         "inject_depends_on":[],"inject_depends_duration":0,
+         "inject_teams":[%s],"inject_assets":[],"inject_asset_groups":[],
+         "inject_documents":[],"inject_all_teams":false,"inject_tags":[],"inject_enabled":true}
+        """
+            .formatted(emailContractSaved.getId(), emailInjector.getId(), teamsJson);
+    InjectInput injectInput = mapper.readValue(emailInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+    Step stepTemplate = injectExecutionStep.create(step, workflowTemplate).orElseThrow();
+
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    return injectExecutionStep.ready(stepTemplate, null, workflowRun).orElseThrow();
+  }
+
+  @Test
+  void given_audienceStepWithoutDrawerAudience_whenBuildingInject_thenScopeTeamsAreConsumed()
+      throws Exception {
+    // Arrange
+    Step readyStep = emailReadyStep(List.of());
+    Team scopeTeam = new Team();
+    scopeTeam.setId("scope-team-1");
+    scopeTeam.setName("Scope team");
+    doReturn(List.of(scopeTeam)).when(scopeService).getValidTeams(any());
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: empty drawer audience falls back to the workflow scope's teams.
+    assertNotNull(inject);
+    assertEquals(List.of("scope-team-1"), inject.getTeams().stream().map(Team::getId).toList());
+  }
+
+  @Test
+  void given_audienceStepWithRecipientsMapper_whenBuildingInject_thenScopeFallbackIsSkipped()
+      throws Exception {
+    // Arrange: the step's audience is mapper-fed (upstream findings mapped into "recipients"),
+    // so the scope-team fallback must not widen the mapped audience.
+    Step readyStep = emailReadyStep(List.of());
+    readyStep.setId("ready-step-mapper");
+    Condition recipientsMapper = new Condition();
+    recipientsMapper.setType(ConditionType.MAPPER);
+    recipientsMapper.setKey("recipients");
+    doReturn(Map.of("ready-step-mapper", List.of(recipientsMapper)))
+        .when(conditionService)
+        .findAllConditionsByStepIds(any());
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert
+    assertNotNull(inject);
+    assertTrue(inject.getTeams() == null || inject.getTeams().isEmpty());
+    verify(scopeService, never()).getValidTeams(any());
+  }
+
+  @Test
+  void given_audienceStepWithExplicitDrawerTeams_whenBuildingInject_thenScopeIsNotConsulted()
+      throws Exception {
+    // Arrange
+    Team drawerTeam = teamRepository.save(TeamFixture.getDefaultTeam());
+    Step readyStep = emailReadyStep(List.of(drawerTeam.getId()));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the drawer audience stays authoritative, the scope is never consulted.
+    assertNotNull(inject);
+    assertEquals(List.of(drawerTeam.getId()), inject.getTeams().stream().map(Team::getId).toList());
+    verify(scopeService, never()).getValidTeams(any());
   }
 
   /**

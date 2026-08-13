@@ -33,6 +33,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.TagRuleService;
 import io.openaev.service.UserService;
+import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.InjectUtils;
@@ -133,6 +134,8 @@ class InjectServiceTest {
 
   @Mock private StepTargetingService stepTargetingService;
 
+  @Mock private ConditionService conditionService;
+
   @Spy private InjectorContractContentUtils injectorContractContentUtils;
 
   @Mock private ApplicationEventPublisher eventPublisher;
@@ -153,7 +156,8 @@ class InjectServiceTest {
     ReflectionTestUtils.setField(
         injectService,
         "healthCheckUtils",
-        new HealthCheckUtils(new ExecutorUtils(assetAgentJobRepository), stepTargetingService));
+        new HealthCheckUtils(
+            new ExecutorUtils(assetAgentJobRepository), stepTargetingService, conditionService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -163,7 +167,9 @@ class InjectServiceTest {
             injectExpectationMapper,
             injectUtils,
             new HealthCheckUtils(
-                new ExecutorUtils(assetAgentJobRepository), stepTargetingService)));
+                new ExecutorUtils(assetAgentJobRepository),
+                stepTargetingService,
+                conditionService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -845,7 +851,7 @@ class InjectServiceTest {
     InjectInput injectInput = new InjectInput();
     injectInput.setTitle("Test inject");
     injectInput.setInjectorContract(injectorContractId);
-    // injectorId is NOT set — auto-resolve from contract
+    // injectorId is NOT set - auto-resolve from contract
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();

@@ -702,6 +702,44 @@ public class HealthCheckUtilsTest {
     }
 
     @Test
+    void
+        given_audience_scope_entries_and_only_explicit_audience_steps_should_return_ineffective_audience_warning() {
+      // -- PREPARE -- every audience step carries an explicit drawer audience, so the scope's
+      // team entry is never consumed by the fallback and must be flagged as ineffective.
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.TEAM_ID, "team-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_EXPLICIT_TEAMS_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(hasDetail(checks, HealthCheck.Detail.INEFFECTIVE_AUDIENCE_TARGETS));
+      assertFalse(hasDetail(checks, HealthCheck.Detail.MISSING_AUDIENCE_TARGETS));
+    }
+
+    @Test
+    void given_audience_scope_entries_and_scope_relying_audience_step_should_not_warn() {
+      // -- PREPARE -- the audience step has no drawer audience: it consumes the scope entry.
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.TEAM_ID, "team-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertFalse(hasDetail(checks, HealthCheck.Detail.INEFFECTIVE_AUDIENCE_TARGETS));
+      assertFalse(hasDetail(checks, HealthCheck.Detail.MISSING_AUDIENCE_TARGETS));
+    }
+
+    @Test
     void given_empty_scope_with_steps_should_only_return_empty_warning() {
       // -- PREPARE --
       Workflow workflow = new Workflow();

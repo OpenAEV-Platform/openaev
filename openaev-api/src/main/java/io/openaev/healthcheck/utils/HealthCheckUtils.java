@@ -16,6 +16,7 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
+import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
@@ -44,6 +45,7 @@ public class HealthCheckUtils {
 
   private final ExecutorUtils executorUtils;
   private final StepTargetingService stepTargetingService;
+  private final ConditionService conditionService;
 
   /**
    * Run all mail service checks for one inject
@@ -447,7 +449,7 @@ public class HealthCheckUtils {
                       actualValues.stream().anyMatch(specificValuesNode::contains);
 
                   if (!conditionMet) {
-                    continue; // condition not met → skip
+                    continue; // condition not met -> skip
                   }
                 }
               }
@@ -499,18 +501,28 @@ public class HealthCheckUtils {
    * workflow's steps with {@link StepTargetingService} and emits:
    *
    * <ul>
-   *   <li>{@code EMPTY} (warning) when the allowlist has no usable entry at all — the historical
+   *   <li>{@code EMPTY} (warning) when the allowlist has no usable entry at all - the historical
    *       check, kept as the first-line message while the scope is entirely empty;
    *   <li>{@code MISSING_TECHNICAL_TARGETS} (error) when at least one technical step relies on the
-   *       scope (no explicit assets/targets in its drawer, no mapper feeding it) but the allowlist
-   *       holds no technical entry;
+   *       scope (no explicit assets/targets in its drawer, no target-feeding mapper) but the
+   *       allowlist holds no technical entry;
    *   <li>{@code MISSING_AUDIENCE_TARGETS} (error) when at least one tabletop step relies on the
-   *       scope (no explicit audience in its drawer, no mapper feeding it) but the allowlist holds
-   *       no team/player entry;
-   *   <li>{@code INEFFECTIVE_TECHNICAL_TARGETS} / {@code INEFFECTIVE_AUDIENCE_TARGETS} (warnings)
-   *       when the allowlist holds entries of a kind that no step of the workflow can consume —
-   *       they would be silently ignored at run time.
+   *       scope (no explicit audience in its drawer, no target-feeding mapper) but the allowlist
+   *       holds no team/player entry;
+   *   <li>{@code INEFFECTIVE_TECHNICAL_TARGETS} (warning) when the allowlist holds technical
+   *       entries but the workflow has no technical step: the scope fan-out never consumes them;
+   *   <li>{@code INEFFECTIVE_AUDIENCE_TARGETS} (warning) when the allowlist holds team/player
+   *       entries but no tabletop step actually falls back to them (every audience step either
+   *       carries an explicit drawer audience or is mapper-fed) - the entries would be silently
+   *       ignored at run time. Technical entries differ: the per-asset fan-out consumes them for
+   *       every technical step, explicit drawer targets or not, so only a fully technical-step-less
+   *       workflow makes them ineffective.
    * </ul>
+   *
+   * <p>Only MAPPER conditions that feed actual execution targets (assets, manual targets, teams,
+   * raw recipients) count as a substitute for the scope; a mapper filling a command argument or an
+   * email subject leaves the step scope-dependent. Conditions are prefetched for all steps in one
+   * query to avoid an N+1 pattern during launch validation.
    *
    * <p>The {@code MISSING_*} errors are suppressed while the scope is entirely empty ({@code EMPTY}
    * already gates the launch, stacking banners would be noise), and the {@code INEFFECTIVE_*}
@@ -544,25 +556,33 @@ public class HealthCheckUtils {
 
     List<Step> steps = ofNullable(workflow.getSteps()).orElse(List.of());
     // A step "relies on the scope" when nothing else can provide its targets: no explicit
-    // configuration in the Configure-action drawer and no MAPPER condition feeding it dynamically
-    // from upstream outputs. Single pass so each step is classified exactly once.
+    // configuration in the Configure-action drawer and no MAPPER condition feeding its execution
+    // targets dynamically from upstream outputs. Conditions are prefetched for every step in one
+    // batched query, and each step is classified exactly once in a single pass.
+    Map<String, List<Condition>> conditionsByStep =
+        conditionService.findAllConditionsByStepIds(
+            steps.stream().map(Step::getId).filter(Objects::nonNull).collect(Collectors.toSet()));
     boolean hasTechnicalStep = false;
-    boolean hasAudienceStep = false;
     boolean technicalStepNeedsScope = false;
     boolean audienceStepNeedsScope = false;
     for (Step step : steps) {
+      List<Condition> stepConditions =
+          step.getId() == null
+              ? List.of()
+              : conditionsByStep.getOrDefault(step.getId(), List.of());
       if (stepTargetingService.isAssetCentric(step)) {
         hasTechnicalStep = true;
         technicalStepNeedsScope =
             technicalStepNeedsScope
                 || (!stepTargetingService.hasExplicitTechnicalTargets(step)
-                    && !stepTargetingService.hasMapperConditions(step));
+                    && !stepTargetingService.hasTargetFeedingMapperConditions(
+                        step, stepConditions, true));
       } else {
-        hasAudienceStep = true;
         audienceStepNeedsScope =
             audienceStepNeedsScope
                 || (!stepTargetingService.hasExplicitAudience(step)
-                    && !stepTargetingService.hasMapperConditions(step));
+                    && !stepTargetingService.hasTargetFeedingMapperConditions(
+                        step, stepConditions, false));
       }
     }
 
@@ -602,7 +622,9 @@ public class HealthCheckUtils {
                 HealthCheck.Status.WARNING,
                 now()));
       }
-      if (hasAudienceEntries && !hasAudienceStep) {
+      // Audience entries are only consumed by the scope fallback, which explicit-drawer and
+      // mapper-fed audience steps skip: warn whenever no step actually needs them.
+      if (hasAudienceEntries && !audienceStepNeedsScope) {
         result.add(
             new HealthCheck(
                 HealthCheck.Type.SCOPE_DEFINITION,

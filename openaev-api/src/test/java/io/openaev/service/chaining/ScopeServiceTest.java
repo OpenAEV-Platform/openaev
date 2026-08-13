@@ -88,7 +88,7 @@ class ScopeServiceTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("One asset in allowlist and no denylist rules — returns the asset")
+  @DisplayName("One asset in allowlist and no denylist rules - returns the asset")
   void givenOneAssetInAllowlist_whenNoDenylistRules_thenReturnsAsset() {
     Endpoint endpoint = endpointWithSeenIp("asset-1", "host-1", "10.0.0.1");
 
@@ -102,7 +102,7 @@ class ScopeServiceTest {
   }
 
   @Test
-  @DisplayName("No allowlist rules but several denylist values — returns empty list")
+  @DisplayName("No allowlist rules but several denylist values - returns empty list")
   void givenNoAllowlistRules_whenSeveralDenylistValues_thenReturnsEmpty() {
     when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
         .thenReturn(
@@ -116,7 +116,7 @@ class ScopeServiceTest {
   }
 
   @Test
-  @DisplayName("Asset in allowlist, several non-matching IPs in denylist — returns the asset")
+  @DisplayName("Asset in allowlist, several non-matching IPs in denylist - returns the asset")
   void givenOneAssetInAllowlist_whenDenylistIpsDoNotMatch_thenReturnsAsset() {
     Endpoint endpoint = endpointWithSeenIp("asset-1", "host-1", "10.0.0.1");
 
@@ -135,7 +135,7 @@ class ScopeServiceTest {
 
   @Test
   @DisplayName(
-      "Several assets in allowlist, denylist IP matches one asset's seenIp — that asset is filtered out")
+      "Several assets in allowlist, denylist IP matches one asset's seenIp - that asset is filtered out")
   void givenSeveralAssetsInAllowlist_whenDenylistIpMatchesSeenIp_thenMatchingAssetIsFilteredOut() {
     Endpoint targeted = endpointWithSeenIp("asset-1", "host-1", "10.0.0.1");
     Endpoint other1 = endpointWithSeenIp("asset-2", "host-2", "10.0.0.2");
@@ -159,7 +159,7 @@ class ScopeServiceTest {
 
   @Test
   @DisplayName(
-      "Several assets in allowlist, denylist IP matches one of an asset's IPs array — that asset is filtered out")
+      "Several assets in allowlist, denylist IP matches one of an asset's IPs array - that asset is filtered out")
   void
       givenSeveralAssetsInAllowlist_whenDenylistIpMatchesOneOfIpsArray_thenMatchingAssetIsFilteredOut() {
     Endpoint targeted = endpointWithIps("asset-1", "host-1", "10.0.0.1", "10.0.0.99");
@@ -184,7 +184,7 @@ class ScopeServiceTest {
 
   @Test
   @DisplayName(
-      "Several assets in allowlist, denylist subnet covers one asset's seenIp — that asset is filtered out")
+      "Several assets in allowlist, denylist subnet covers one asset's seenIp - that asset is filtered out")
   void
       givenSeveralAssetsInAllowlist_whenDenylistSubnetMatchesSeenIp_thenMatchingAssetIsFilteredOut() {
     Endpoint targeted = endpointWithSeenIp("asset-1", "host-1", "192.168.1.50");
@@ -209,7 +209,7 @@ class ScopeServiceTest {
 
   @Test
   @DisplayName(
-      "Several assets in allowlist, denylist subnet covers one of an asset's IPs array — that asset is filtered out")
+      "Several assets in allowlist, denylist subnet covers one of an asset's IPs array - that asset is filtered out")
   void
       givenSeveralAssetsInAllowlist_whenDenylistSubnetMatchesOneOfIpsArray_thenMatchingAssetIsFilteredOut() {
     Endpoint targeted = endpointWithIps("asset-1", "host-1", "10.0.0.5", "192.168.1.10");

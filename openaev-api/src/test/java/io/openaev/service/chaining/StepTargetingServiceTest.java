@@ -11,7 +11,10 @@ import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Step;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -206,37 +209,112 @@ class StepTargetingServiceTest {
   }
 
   // ---------------------------------------------------------------------------
-  // hasMapperConditions
+  // hasTargetFeedingMapperConditions
   // ---------------------------------------------------------------------------
 
+  private Condition mapperTo(String contentKey) {
+    Condition mapperCondition = new Condition();
+    mapperCondition.setType(ConditionType.MAPPER);
+    mapperCondition.setKey(contentKey);
+    return mapperCondition;
+  }
+
   @Test
-  @DisplayName("hasMapperConditions - unsaved step (null id) never hits the condition lookup")
-  void givenUnsavedStep_whenCheckingMapperConditions_thenFalseWithoutLookup() {
-    assertThat(stepTargetingService.hasMapperConditions(stepWithData("{}"))).isFalse();
+  @DisplayName("target-feeding mappers - unsaved step (null id) never hits the condition lookup")
+  void givenUnsavedStep_whenCheckingTargetFeedingMappers_thenFalseWithoutLookup() {
+    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(stepWithData("{}"), true))
+        .isFalse();
     verifyNoInteractions(conditionService);
   }
 
   @Test
-  @DisplayName("hasMapperConditions - MAPPER condition on the step returns true")
-  void givenMapperCondition_whenCheckingMapperConditions_thenTrue() {
-    Step step = Step.builder().build();
+  @DisplayName("target-feeding mappers - mapper into manual targets counts for a technical step")
+  void givenMapperIntoTargets_whenCheckingTechnicalAxis_thenTrue() {
+    Step step = stepWithData(TARGET_SELECTOR_STEP_DATA);
     step.setId("step-1");
-    Condition mapperCondition = new Condition();
-    mapperCondition.setType(ConditionType.MAPPER);
-    when(conditionService.findAllConditionsByStepId("step-1")).thenReturn(List.of(mapperCondition));
+    when(conditionService.findAllConditionsByStepIds(Set.of("step-1")))
+        .thenReturn(Map.of("step-1", List.of(mapperTo("targets"))));
 
-    assertThat(stepTargetingService.hasMapperConditions(step)).isTrue();
+    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(step, true)).isTrue();
   }
 
   @Test
-  @DisplayName("hasMapperConditions - only non-MAPPER conditions returns false")
-  void givenOnlyDependConditions_whenCheckingMapperConditions_thenFalse() {
-    Step step = Step.builder().build();
+  @DisplayName("target-feeding mappers - mapper into a command argument does not count")
+  void givenMapperIntoCommandArgument_whenCheckingTechnicalAxis_thenFalse() {
+    Step step = stepWithData(PAYLOAD_STEP_DATA);
     step.setId("step-2");
+    when(conditionService.findAllConditionsByStepIds(Set.of("step-2")))
+        .thenReturn(Map.of("step-2", List.of(mapperTo("target_ip"))));
+
+    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(step, true)).isFalse();
+  }
+
+  @Test
+  @DisplayName("target-feeding mappers - mapper into recipients counts for an audience step")
+  void givenMapperIntoRecipients_whenCheckingAudienceAxis_thenTrue() {
+    Step step = stepWithData(EMAIL_STEP_DATA);
+    step.setId("step-3");
+    when(conditionService.findAllConditionsByStepIds(Set.of("step-3")))
+        .thenReturn(Map.of("step-3", List.of(mapperTo("recipients"))));
+
+    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(step, false)).isTrue();
+  }
+
+  @Test
+  @DisplayName("target-feeding mappers - mapper into the email subject does not count")
+  void givenMapperIntoSubject_whenCheckingAudienceAxis_thenFalse() {
+    Step step = stepWithData(EMAIL_STEP_DATA);
+    step.setId("step-4");
+    when(conditionService.findAllConditionsByStepIds(Set.of("step-4")))
+        .thenReturn(Map.of("step-4", List.of(mapperTo("subject"))));
+
+    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(step, false)).isFalse();
+  }
+
+  @Test
+  @DisplayName("target-feeding mappers - mapper into a team-typed contract field counts")
+  void givenMapperIntoTeamTypedField_whenCheckingAudienceAxis_thenTrue() {
+    // Custom field key resolved as team-typed through the contract snapshot.
+    String data =
+        """
+        {"inject_injector_contract":{"injector_contract_id":"contract-email",
+        "injector_contract_content":
+        "{\\"fields\\":[{\\"key\\":\\"custom_audience\\",\\"type\\":\\"team\\"}]}"}}
+        """;
+    Step step = stepWithData(data);
+    step.setId("step-5");
+    when(conditionService.findAllConditionsByStepIds(Set.of("step-5")))
+        .thenReturn(Map.of("step-5", List.of(mapperTo("custom_audience"))));
+
+    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(step, false)).isTrue();
+  }
+
+  @Test
+  @DisplayName("target-feeding mappers - non-MAPPER conditions never count")
+  void givenOnlyDependConditions_whenCheckingTargetFeedingMappers_thenFalse() {
+    Step step = stepWithData(EMAIL_STEP_DATA);
+    step.setId("step-6");
     Condition dependCondition = new Condition();
     dependCondition.setType(ConditionType.DEPEND_ON);
-    when(conditionService.findAllConditionsByStepId("step-2")).thenReturn(List.of(dependCondition));
+    dependCondition.setKey("recipients");
+    when(conditionService.findAllConditionsByStepIds(Set.of("step-6")))
+        .thenReturn(Map.of("step-6", List.of(dependCondition)));
 
-    assertThat(stepTargetingService.hasMapperConditions(step)).isFalse();
+    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(step, false)).isFalse();
+  }
+
+  @Test
+  @DisplayName("target-feeding mappers - template-linked mappers are found from the ready step")
+  void givenTemplateLinkedMapper_whenCheckingFromReadyStep_thenTrue() {
+    Step template = Step.builder().build();
+    template.setId("template-1");
+    Step readyStep = stepWithData(EMAIL_STEP_DATA);
+    readyStep.setId("ready-1");
+    readyStep.setStepTemplate(template);
+    when(conditionService.findAllConditionsByStepIds(
+            new LinkedHashSet<>(List.of("ready-1", "template-1"))))
+        .thenReturn(Map.of("template-1", List.of(mapperTo("recipients"))));
+
+    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(readyStep, false)).isTrue();
   }
 }
