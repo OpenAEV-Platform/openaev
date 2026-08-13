@@ -8,8 +8,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PrimitiveType;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -66,19 +64,8 @@ class ExecutableInjectServiceTest {
 
   @Test
   @DisplayName("Should block execution when mandatory value is missing")
-  void given_mandatoryMissingArgument_should_blockExecution() throws Exception {
+  void given_mandatoryMissingArgument_should_blockExecution() {
     // Arrange
-    Method method =
-        ExecutableInjectService.class.getDeclaredMethod(
-            "processAndEncodeCommand",
-            String.class,
-            String.class,
-            List.class,
-            ObjectNode.class,
-            List.class,
-            String.class);
-    method.setAccessible(true);
-
     ObjectNode injectContent = JsonNodeFactory.instance.objectNode();
     ObjectNode usernameField = JsonNodeFactory.instance.objectNode();
     usernameField.put(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY, "username");
@@ -88,17 +75,35 @@ class ExecutableInjectServiceTest {
     // Act / Assert
     assertThatThrownBy(
             () ->
-                method.invoke(
-                    service,
+                service.renderCommandForExecution(
                     "nxc smb -u #{username}",
                     "sh",
                     List.of(payloadArgument("username", "")),
                     injectContent,
-                    List.of(usernameField),
-                    "plain-text"))
-        .isInstanceOf(InvocationTargetException.class)
-        .hasCauseInstanceOf(IllegalStateException.class)
-        .hasRootCauseMessage("Missing mandatory input 'username' for inject execution");
+                    List.of(usernameField)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Missing mandatory input 'username' for inject execution");
+  }
+
+  @Test
+  @DisplayName("Should keep positional placeholders when optional value is missing")
+  void given_optionalMissingPositional_should_notPrunePlaceholderOutsideFlags() {
+    // Arrange
+    ObjectNode injectContent = JsonNodeFactory.instance.objectNode();
+    String command = "tool run #{mode}";
+
+    ObjectNode modeField = JsonNodeFactory.instance.objectNode();
+    modeField.put(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY, "mode");
+    modeField.put(InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY, false);
+    modeField.put(InjectorContract.DEFAULT_VALUE_FIELD, "");
+
+    // Act
+    String result =
+        service.resolveArgumentsForDisplay(
+            command, List.of(payloadArgument("mode", "")), List.of(modeField), injectContent);
+
+    // Assert
+    assertThat(result).isEqualTo("tool run ");
   }
 
   private static PayloadArgument payloadArgument(String key, String defaultValue) {
