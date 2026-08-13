@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StepService {
 
   private final InjectExecutionStep injectExecutionStep;
+  private final StepTargetingService stepTargetingService;
 
   private final InjectService injectService;
   private final ConditionService conditionService;
@@ -733,7 +734,7 @@ public class StepService {
     for (Step template : findAllStepTemplateByWorkflow(workflow.getId())) {
       if (!StepActionClass.INJECT_EXECUTION.equals(template.getStepAction())
           || template.getData() == null
-          || !injectExecutionStep.stepSupportsAssetTargeting(template)) {
+          || !stepTargetingService.isAssetCentric(template)) {
         continue;
       }
       String newData = withScopeAssets(template, scopedAssetIds);

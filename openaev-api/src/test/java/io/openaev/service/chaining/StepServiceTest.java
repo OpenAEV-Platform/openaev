@@ -43,6 +43,7 @@ class StepServiceTest {
   @Mock private ActionStep actionStep;
   @Mock private WorkflowService workflowService;
   @Mock private ConditionService conditionService;
+  @Mock private StepTargetingService stepTargetingService;
   @Mock private StepAutoLinkService stepAutoLinkService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
@@ -1823,7 +1824,7 @@ class StepServiceTest {
           injectStepTemplate("step-1", "{\"inject_title\":\"nmap\",\"inject_assets\":[]}");
       when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
           .thenReturn(List.of(template));
-      when(injectExecutionStep.stepSupportsAssetTargeting(template)).thenReturn(true);
+      when(stepTargetingService.isAssetCentric(template)).thenReturn(true);
 
       // Act — an asset is added to the allowlist afterwards
       int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
@@ -1844,7 +1845,7 @@ class StepServiceTest {
       Step template = injectStepTemplate("step-1", data);
       when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
           .thenReturn(List.of(template));
-      when(injectExecutionStep.stepSupportsAssetTargeting(template)).thenReturn(false);
+      when(stepTargetingService.isAssetCentric(template)).thenReturn(false);
 
       // Act
       int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
@@ -1864,7 +1865,7 @@ class StepServiceTest {
       Step template = injectStepTemplate("step-1", data);
       when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
           .thenReturn(List.of(template));
-      when(injectExecutionStep.stepSupportsAssetTargeting(template)).thenReturn(true);
+      when(stepTargetingService.isAssetCentric(template)).thenReturn(true);
 
       // Act
       int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
@@ -1890,7 +1891,7 @@ class StepServiceTest {
 
       // Assert
       assertEquals(0, updated);
-      verify(injectExecutionStep, never()).stepSupportsAssetTargeting(any());
+      verify(stepTargetingService, never()).isAssetCentric(any());
       verify(stepRepository, never()).saveAll(anyList());
     }
   }
