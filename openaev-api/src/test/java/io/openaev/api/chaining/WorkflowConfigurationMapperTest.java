@@ -25,7 +25,7 @@ class WorkflowConfigurationMapperTest {
   }
 
   @Nested
-  @DisplayName("toOutput — inline configuration fields")
+  @DisplayName("toOutput - inline configuration fields")
   class InlineConfigurationFieldsTests {
 
     @Test
@@ -70,7 +70,7 @@ class WorkflowConfigurationMapperTest {
   }
 
   @Nested
-  @DisplayName("toOutput — scope rules")
+  @DisplayName("toOutput - scope rules")
   class ScopeRuleOutputTests {
 
     @Test
@@ -133,7 +133,7 @@ class WorkflowConfigurationMapperTest {
   }
 
   @Nested
-  @DisplayName("toOutput — audience snapshot labels")
+  @DisplayName("toOutput - audience snapshot labels")
   class AudienceSnapshotLabelTests {
 
     @Test
@@ -204,7 +204,7 @@ class WorkflowConfigurationMapperTest {
   }
 
   @Nested
-  @DisplayName("toOutput — scope variables")
+  @DisplayName("toOutput - scope variables")
   class ScopeVariableOutputTests {
 
     @Test

@@ -22,15 +22,15 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Builds the immutable execution-time photos of a workflow's scope rules (see ADR-006). Composes
  * the existing resolution services ({@link AssetService}, {@link AssetGroupService}, {@link
- * CollectorRepository}, {@link TeamRepository}, {@link UserRepository}) — it is an orchestrator,
+ * CollectorRepository}, {@link TeamRepository}, {@link UserRepository}) - it is an orchestrator,
  * not a new resolver.
  *
  * <p>Two entry points, both operating on a RUN workflow's rules:
  *
  * <ul>
- *   <li>{@link #freezeLaunch(Workflow, String)} — sets the launch {@code snapshot} on each copied
+ *   <li>{@link #freezeLaunch(Workflow, String)} - sets the launch {@code snapshot} on each copied
  *       asset rule and appends one {@code SECURITY_PLATFORM} rule per connected tenant platform.
- *   <li>{@link #freezeEnd(Workflow)} — sets the {@code snapshotEnd} on every rule of a run reaching
+ *   <li>{@link #freezeEnd(Workflow)} - sets the {@code snapshotEnd} on every rule of a run reaching
  *       END/STOP, re-running the same resolution.
  * </ul>
  */
@@ -99,11 +99,11 @@ public class ScopeSnapshotService {
   /**
    * Recomputes the change status of a rule from its two frozen snapshots and the current live state
    * (see ADR-006). Returns {@code null} for a rule without a launch snapshot (draft / scenario /
-   * pre-ADR-006) — the frontend then falls back to live resolution.
+   * pre-ADR-006) - the frontend then falls back to live resolution.
    *
    * <p>The signature is <b>composition- and agent-aware</b> for an asset / group (label + each
    * frozen asset's id, name, agent count and executor set), so an asset added / removed / renamed
-   * or an agent added / removed inside the scope flips the status — never a misleading "unchanged".
+   * or an agent added / removed inside the scope flips the status - never a misleading "unchanged".
    * Precedence: a during-execution change dominates an after-execution one; while the run is still
    * RUNNING (no end snapshot) the current state is the in-progress end reference.
    */
@@ -176,8 +176,8 @@ public class ScopeSnapshotService {
   }
 
   /**
-   * Change signature of a rule. Security platform: id + type + updatedAt (reinstall → current null
-   * → DELETED; reconfiguration → later updatedAt → MODIFIED). Asset / group: label + the frozen
+   * Change signature of a rule. Security platform: id + type + updatedAt (reinstall -> current null
+   * -> DELETED; reconfiguration -> later updatedAt -> MODIFIED). Asset / group: label + the frozen
    * asset set (id, name, agent count, executor set) so a composition or agent change flips the
    * status. TEAM / PLAYER: the resolved name label (a rename flips the status, membership does
    * not). MANUAL / CSV: the raw label.
@@ -273,7 +273,7 @@ public class ScopeSnapshotService {
           .assets(List.of(toAssetSnapshot(asset)))
           .build();
     } catch (ElementNotFoundException e) {
-      // Only a genuine "no longer exists" maps to null (→ DELETED). Any other error must surface.
+      // Only a genuine "no longer exists" maps to null (-> DELETED). Any other error must surface.
       return null;
     }
   }
@@ -363,7 +363,7 @@ public class ScopeSnapshotService {
   /**
    * One {@code SECURITY_PLATFORM} rule per connected tenant security platform (a collector with a
    * non-null security platform FK), each carrying its launch snapshot. {@code selectedMode} is left
-   * null (informative, not an allow/deny target — see ADR-006).
+   * null (informative, not an allow/deny target - see ADR-006).
    */
   private List<WorkflowScopeRule> buildSecurityPlatformRules(
       Workflow workflowRun, String tenantId) {

@@ -13060,7 +13060,7 @@ export interface WorkflowScopeRuleOutput {
     | "DELETED_AFTER_EXECUTION";
   /** Selected item value */
   workflow_scope_rule_value?: string;
-  /** Display-name snapshot of the referenced asset / asset group, captured when the rule was created or updated. Lets a past simulation's scope stay readable after the referenced asset / group is deleted. Null for non-asset rules or when the id could not be resolved within the tenant. */
+  /** Display-name snapshot of the referenced asset / asset group / team / player, captured when the rule was created or updated. Lets a past simulation's scope stay readable after the referenced entity is deleted. Null for MANUAL / CSV rules or when the id could not be resolved within the tenant. */
   workflow_scope_rule_value_label?: string;
 }
 

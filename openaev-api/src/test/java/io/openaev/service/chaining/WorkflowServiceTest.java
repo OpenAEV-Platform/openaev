@@ -351,7 +351,7 @@ class WorkflowServiceTest {
       // Act
       Workflow result = workflowService.launchWorkflowSimulation(template);
 
-      // Assert — one save: for the run (no version bump since template is not edited)
+      // Assert - one save: for the run (no version bump since template is not edited)
       verify(workflowRepository, times(1)).save(any(Workflow.class));
 
       List<WorkflowScopeRule> copiedRules = result.getWorkflowScopeRules();
@@ -698,7 +698,7 @@ class WorkflowServiceTest {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
 
-      // rateLimitEnabled differs from mock default (false) → change detected
+      // rateLimitEnabled differs from mock default (false) -> change detected
       WorkflowConfigurationInput input = new WorkflowConfigurationInput();
       input.setRateLimitEnabled(true);
 
@@ -709,7 +709,7 @@ class WorkflowServiceTest {
       // Act
       Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
 
-      // Assert — service loads the entity, applies the input, saves, and returns the original
+      // Assert - service loads the entity, applies the input, saves, and returns the original
       // entity
       verify(workflowRepository, times(1)).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
       verify(workflowRepository).save(workflowCaptor.capture());
@@ -747,7 +747,7 @@ class WorkflowServiceTest {
       WorkflowConfigurationInput input = new WorkflowConfigurationInput();
       input.setSafeModeEnabled(true);
       input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
-      // Service now owns the apply logic — no manual mapper call needed
+      // Service now owns the apply logic - no manual mapper call needed
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
@@ -799,7 +799,7 @@ class WorkflowServiceTest {
     @Test
     @DisplayName("should realign step templates on the new scope when scope rules changed")
     void given_changedScopeRules_should_realignStepTemplatesOnNewScope() {
-      // Arrange — an action was authored before the asset was added to the allowlist
+      // Arrange - an action was authored before the asset was added to the allowlist
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow =
           Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
@@ -816,7 +816,7 @@ class WorkflowServiceTest {
       // Act
       workflowService.updateWorkflowConfiguration(workflowId, input);
 
-      // Assert — the scope is pushed onto the already-authored step templates
+      // Assert - the scope is pushed onto the already-authored step templates
       verify(workflowRepository).flush();
       verify(stepService).syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123"));
     }
@@ -824,7 +824,7 @@ class WorkflowServiceTest {
     @Test
     @DisplayName("should not realign step templates when no scope rule changed")
     void given_unchangedScopeRules_should_notRealignStepTemplates() {
-      // Arrange — only a rate-limit field changes
+      // Arrange - only a rate-limit field changes
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow =
           Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
@@ -1035,10 +1035,10 @@ class WorkflowServiceTest {
   }
 
   // ========================================================================
-  // updateWorkflowConfiguration – logic-map freeze (ADR-005)
+  // updateWorkflowConfiguration - logic-map freeze (ADR-005)
   // ========================================================================
   @Nested
-  @DisplayName("updateWorkflowConfiguration – logic-map freeze (ADR-005)")
+  @DisplayName("updateWorkflowConfiguration - logic-map freeze (ADR-005)")
   class LogicMapFreezeTests {
 
     private Workflow buildTemplateWithSimulation(ExerciseStatus status) {
@@ -1137,10 +1137,10 @@ class WorkflowServiceTest {
   }
 
   // ========================================================================
-  // updateWorkflowConfiguration – scope variables
+  // updateWorkflowConfiguration - scope variables
   // ========================================================================
   @Nested
-  @DisplayName("updateWorkflowConfiguration – scope variables")
+  @DisplayName("updateWorkflowConfiguration - scope variables")
   class ScopeVariablesTests {
 
     private WorkflowService service;
@@ -1238,7 +1238,7 @@ class WorkflowServiceTest {
       // Act
       Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
 
-      // Assert — same instance mutated in-place
+      // Assert - same instance mutated in-place
       assertEquals(1, result.getWorkflowScopeVariables().size());
       ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
       assertSame(existing, updated);
@@ -1262,7 +1262,7 @@ class WorkflowServiceTest {
       org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
       workflow.getWorkflowScopeVariables().add(existing);
 
-      // Input omits the existing variable → it should be removed
+      // Input omits the existing variable -> it should be removed
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of());
 
@@ -1298,7 +1298,7 @@ class WorkflowServiceTest {
       // Act
       Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
 
-      // Assert — no change detected, save must not be called
+      // Assert - no change detected, save must not be called
       assertSame(workflow, result);
       verify(workflowRepository, never()).save(any());
     }
@@ -1424,7 +1424,7 @@ class WorkflowServiceTest {
   // Scope Metrics Tests
   // ========================================================================
   @Nested
-  @DisplayName("updateWorkflowConfiguration – scope metrics")
+  @DisplayName("updateWorkflowConfiguration - scope metrics")
   class ScopeMetricsTests {
 
     private WorkflowService service;
@@ -1483,18 +1483,18 @@ class WorkflowServiceTest {
       // Act
       service.updateWorkflowConfiguration(workflow.getId(), input);
 
-      // Assert — creation metrics recorded per mode
+      // Assert - creation metrics recorded per mode
       verify(scopeMetricCollector).recordScopeCreated("ALLOWLIST", 3);
       verify(scopeMetricCollector).recordScopeCreated("DENYLIST", 2);
 
-      // Assert — entry-added metrics recorded per type|source
+      // Assert - entry-added metrics recorded per type|source
       verify(scopeMetricCollector).recordEntryAdded("IP", "MANUAL", 1);
       verify(scopeMetricCollector).recordEntryAdded("DOMAIN", "MANUAL", 1);
       verify(scopeMetricCollector).recordEntryAdded("ASSET_ID", "ASSET", 1);
       verify(scopeMetricCollector).recordEntryAdded("IP_SUBNET", "MANUAL", 1);
       verify(scopeMetricCollector).recordEntryAdded("ASSET_GROUP_ID", "ASSET_GROUP", 1);
 
-      // Assert — usage recorded only for CSV/MANUAL, not ASSET/ASSET_GROUP
+      // Assert - usage recorded only for CSV/MANUAL, not ASSET/ASSET_GROUP
       verify(scopeMetricCollector).recordUsage(workflow.getId(), "MANUAL");
       verify(scopeMetricCollector, never()).recordUsage(anyString(), eq("ASSET"));
       verify(scopeMetricCollector, never()).recordUsage(anyString(), eq("ASSET_GROUP"));
@@ -1521,7 +1521,7 @@ class WorkflowServiceTest {
       workflow.getWorkflowScopeRules().getFirst().setId(UUID.randomUUID().toString());
       reset(scopeMetricCollector);
 
-      // Second call: same rules (now have IDs) — no new rules
+      // Second call: same rules (now have IDs) - no new rules
       WorkflowScopeRule existingRule = workflow.getWorkflowScopeRules().getFirst();
       WorkflowScopeRuleInput retainedInput =
           WorkflowScopeRuleInput.builder()
@@ -1536,7 +1536,7 @@ class WorkflowServiceTest {
       // Act
       service.updateWorkflowConfiguration(workflow.getId(), secondInput);
 
-      // Assert — no metric calls since no new (ID-less) rules were added
+      // Assert - no metric calls since no new (ID-less) rules were added
       verifyNoInteractions(scopeMetricCollector);
     }
 
@@ -1584,7 +1584,7 @@ class WorkflowServiceTest {
       // Act
       service.updateWorkflowConfiguration(workflow.getId(), secondInput);
 
-      // Assert — metrics only for the one new CSV rule
+      // Assert - metrics only for the one new CSV rule
       verify(scopeMetricCollector).recordScopeCreated(ScopeRuleSelectedMode.DENYLIST.name(), 1);
       verify(scopeMetricCollector)
           .recordEntryAdded(ScopeRuleValueType.DOMAIN.name(), ScopeRuleSource.CSV.name(), 1);
@@ -1612,7 +1612,7 @@ class WorkflowServiceTest {
   // Scope rule value-label snapshot Tests (#7164)
   // ========================================================================
   @Nested
-  @DisplayName("updateWorkflowConfiguration – scope rule value label snapshot")
+  @DisplayName("updateWorkflowConfiguration - scope rule value label snapshot")
   class ScopeRuleValueLabelTests {
 
     private static final String TENANT = "tenant-1";
@@ -1884,7 +1884,7 @@ class WorkflowServiceTest {
   // Safety Policy Metrics Tests
   // ========================================================================
   @Nested
-  @DisplayName("updateWorkflowConfiguration – safety policy metrics")
+  @DisplayName("updateWorkflowConfiguration - safety policy metrics")
   class SafetyPolicyMetrics {
 
     private WorkflowService service;
@@ -2050,7 +2050,7 @@ class WorkflowServiceTest {
     @Test
     @DisplayName("given workflow run has no template should return early without evaluating steps")
     void given_nullWorkflowTemplate_should_returnEarlyWithoutEvaluatingSteps() throws Exception {
-      // Arrange — run with no template (e.g. corrupted state)
+      // Arrange - run with no template (e.g. corrupted state)
       String workflowRunId = UUID.randomUUID().toString();
       Workflow workflowRun =
           Workflow.builder().id(workflowRunId).status(WorkflowStatus.RUN).build();
@@ -2060,7 +2060,7 @@ class WorkflowServiceTest {
       // Act
       Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
 
-      // Assert — returned as-is, step service never called
+      // Assert - returned as-is, step service never called
       assertSame(workflowRun, result);
       verify(stepService, never()).findAllStepTemplateByWorkflow(any());
     }
