@@ -7,6 +7,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.service.InjectorService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import jakarta.persistence.EntityManager;
@@ -48,9 +50,14 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
   @Autowired private DomainComposer domainComposer;
   @Autowired private InjectorContractService injectorContractService;
   @Autowired private PayloadService payloadService;
+  @Autowired private InjectorService injectorService;
 
   private record Fixture(
-      String contractId, String payloadId, String templateStepId, String runStepId) {}
+      String contractId,
+      String payloadId,
+      String injectorId,
+      String templateStepId,
+      String runStepId) {}
 
   private Step contractStep(StepStatus status, String contractId) {
     return Step.builder()
@@ -68,11 +75,12 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
   private Fixture persistContractAndScenarioSteps() {
     PayloadComposer.Composer payloadWrapper =
         payloadComposer.forPayload(PayloadFixture.createDefaultCommand());
+    Injector payloadInjector = InjectorFixture.createDefaultPayloadInjector();
     InjectorContractComposer.Composer contractWrapper =
         injectorContractComposer
             .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
             .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
-            .withInjector(InjectorFixture.createDefaultPayloadInjector())
+            .withInjector(payloadInjector)
             .withPayload(payloadWrapper);
     contractWrapper.persist();
     String contractId = contractWrapper.get().getId();
@@ -89,7 +97,8 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
 
     entityManager.flush();
     entityManager.clear();
-    return new Fixture(contractId, payloadId, templateStep.getId(), runStep.getId());
+    return new Fixture(
+        contractId, payloadId, payloadInjector.getId(), templateStep.getId(), runStep.getId());
   }
 
   @Test
@@ -132,6 +141,29 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
     Assertions.assertTrue(
         stepRepository.findById(fixture.templateStepId()).isEmpty(),
         "TEMPLATE step must be wiped when the payload behind its contract is deleted");
+    Assertions.assertTrue(
+        stepRepository.findById(fixture.runStepId()).isPresent(),
+        "RUN step carries immutable execution history and must survive");
+  }
+
+  @Test
+  @DisplayName("Deleting the injector sweeps the TEMPLATE steps of its orphaned contracts")
+  void whenInjectorDeleted_thenTemplateStepIsWipedAndRunStepSurvives()
+      throws ConnectorStatusException {
+    Fixture fixture = persistContractAndScenarioSteps();
+
+    Assertions.assertTrue(stepRepository.findById(fixture.templateStepId()).isPresent());
+
+    // WHEN: the injector is deleted - its contracts are linked to no other injector, so they are
+    // orphaned and removed with it, and their authored TEMPLATE steps must be swept too.
+    injectorService.deleteInjector(fixture.injectorId());
+    entityManager.flush();
+    entityManager.clear();
+
+    // THEN
+    Assertions.assertTrue(
+        stepRepository.findById(fixture.templateStepId()).isEmpty(),
+        "TEMPLATE step must be wiped when the injector behind its contract is deleted");
     Assertions.assertTrue(
         stepRepository.findById(fixture.runStepId()).isPresent(),
         "RUN step carries immutable execution history and must survive");
