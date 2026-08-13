@@ -206,7 +206,7 @@ public class StepTargetingService {
       return null;
     }
     JsonElement idElement = contract.get("injector_contract_id");
-    return (idElement == null || idElement.isJsonNull()) ? null : idElement.getAsString();
+    return (idElement != null && idElement.isJsonPrimitive()) ? idElement.getAsString() : null;
   }
 
   /** Reads the serialized {@code inject_injector_contract} object from step data. */

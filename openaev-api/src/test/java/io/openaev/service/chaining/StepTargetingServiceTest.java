@@ -128,6 +128,17 @@ class StepTargetingServiceTest {
   }
 
   @Test
+  @DisplayName("isAssetCentric - non-primitive contract id falls back to asset-centric, no lookup")
+  void givenMalformedContractId_whenClassifying_thenDefaultsToAssetCentricWithoutLookup() {
+    String data =
+        """
+        {"inject_injector_contract":{"injector_contract_id":{"unexpected":"object"}}}
+        """;
+    assertThat(stepTargetingService.isAssetCentric(stepWithData(data))).isTrue();
+    verifyNoInteractions(injectorContractService);
+  }
+
+  @Test
   @DisplayName("isAssetCentric - no content snapshot falls back to the live contract")
   void givenNoSnapshot_whenClassifying_thenFallsBackToLiveContract() {
     String data =
