@@ -544,9 +544,11 @@ public class InjectorContractService implements DependenciesManager {
     deleteInjectorContract(injectorContract);
   }
 
-  // Transactional so the contract delete and the chaining step sweep commit or roll back
-  // together (a sweep failure must not strand ghost steps behind an already-deleted contract).
-  @Transactional(rollbackFor = Exception.class)
+  // Deliberately NOT annotated @Transactional: this overload is only reached through the
+  // transactional deleteInjectorContract(String) entry point, and annotating it would create a
+  // proxy-bypassing intra-class call (TenantBackgroundTransactionArchTest
+  // no_transactional_self_invocation). The entry point's transaction makes the contract delete
+  // and the chaining step sweep commit or roll back together.
   public void deleteInjectorContract(InjectorContract injectorContract) {
     // Same compensation as deleteInjectorContractById: the injects FK on injectors_contracts is ON
     // DELETE CASCADE, so the injects (and, one hop further, their expectations and findings) vanish
