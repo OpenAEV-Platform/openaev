@@ -28,17 +28,15 @@ const TopBarNotifications = () => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <TopBarIconLink
-          aria-label="notifications"
-          to="/admin/profile/notifications"
-          active={location.pathname.startsWith('/admin/profile/notifications')}
-          // `dot` shows that there is something without the count; the value is still announced.
-          icon={(
-            <Badge content={unreadCount} dot invisible={unreadCount === 0}>
-              <NotificationsOutlined fontSize="medium" />
-            </Badge>
-          )}
-        />
+        {/* The Badge wraps the LINK, not the glyph: it describes its child, and the glyph slot is aria-hidden. */}
+        <Badge content={unreadCount} dot invisible={unreadCount === 0}>
+          <TopBarIconLink
+            aria-label="notifications"
+            to="/admin/profile/notifications"
+            active={location.pathname.startsWith('/admin/profile/notifications')}
+            icon={<NotificationsOutlined fontSize="medium" />}
+          />
+        </Badge>
       </TooltipTrigger>
       <TooltipContent>{t('Notifications')}</TooltipContent>
     </Tooltip>

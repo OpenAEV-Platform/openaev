@@ -1,3 +1,9 @@
+// `@testing-library/jest-dom` provides `toHaveAccessibleName` /
+// `toHaveAccessibleDescription`, which compute what a screen reader is handed —
+// following aria-describedby and honouring aria-hidden. Imported here rather than
+// in a global setup file: it costs ~2.5s per test file and only two files need it.
+import '@testing-library/jest-dom/vitest';
+
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -30,6 +36,8 @@ const renderIndicator = () => render(
   </ThemeProvider>,
 );
 
+const trigger = () => screen.getByRole('button', { name: 'bulk-operations-menu' });
+
 /** The library's counter badge is 20px square minimum (`h-5 min-w-5`). */
 const LIBRARY_COUNTER_SIZE = ['h-5', 'min-w-5'];
 
@@ -40,21 +48,30 @@ describe('BulkOperationsIndicator running counter', () => {
   });
 
   it('counts running operations with the library Badge, not a MUI one', () => {
-    // Compensation #22 is retired: the library shipped a Badge (#114), so the
-    // MUI one is no longer a filed gap, it is debt with a replacement.
     running = 3;
     renderIndicator();
     const counter = screen.getByText('3');
     const classes = String(counter.getAttribute('class') ?? '');
-    for (const cls of LIBRARY_COUNTER_SIZE) expect(classes).toContain(cls);
     // Sandy's arbitration: it displays a count, so it takes the library's
     // default 20px counter - the 16px -> 20px growth is assumed.
+    for (const cls of LIBRARY_COUNTER_SIZE) expect(classes).toContain(cls);
     expect(document.querySelectorAll('[class*="MuiBadge-"]')).toHaveLength(0);
   });
 
-  it('renders no counter when nothing is running', () => {
+  it('announces the count to assistive technology, not merely into the DOM', () => {
+    // Same defect as the bell: the badge used to live in the icon slot, which
+    // the library's IconButton renders `aria-hidden`. Asserted on the computed
+    // description so a relapse cannot pass.
+    running = 5;
+    renderIndicator();
+    expect(trigger()).toHaveAccessibleDescription('5');
+    expect(trigger()).toHaveAccessibleName('bulk-operations-menu');
+  });
+
+  it('says nothing when nothing is running', () => {
     renderIndicator();
     expect(screen.queryByText('0')).toBeNull();
+    expect(trigger()).toHaveAccessibleDescription('');
     expect(document.querySelectorAll('[class*="MuiBadge-"]')).toHaveLength(0);
   });
 });

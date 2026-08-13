@@ -26,12 +26,36 @@ import { expect } from 'vitest';
 // "EE DEV LICENSE" tag had survived several checkpoints), `Badge` once the
 // library shipped one (#114) and the two MUI badges in the bar became debt with
 // a replacement rather than a filed gap.
-const MUI_CONTROL_CLASS = /\bMui(ButtonBase|Button|IconButton|Chip|Badge|TextField|InputBase|OutlinedInput|FormControl|Menu|MenuItem|Tooltip|Divider)-/;
+const MUI_CONTROL_CLASS = /\bMui(ButtonBase|Button|IconButton|Chip|Badge|CircularProgress|LinearProgress|TextField|InputBase|OutlinedInput|FormControl|Menu|MenuItem|Tooltip|Divider)-/;
 
-/** Every MUI class on the element itself, ignoring icon glyphs (the exception). */
+/**
+ * Controls that ARE detected above but are tolerated for now, each with the
+ * condition that retires the exemption. Listing them here rather than leaving
+ * them out of `MUI_CONTROL_CLASS` is deliberate: the day the condition is met,
+ * deleting one entry turns the guard red and the migration becomes mandatory
+ * instead of optional.
+ */
+const EXEMPT_MUI_CONTROLS: {
+  pattern: RegExp;
+  until: string;
+}[] = [
+  {
+    // Added 2026-08-13 (Sandy, R2). The running-operations spinner in the bar and
+    // the per-operation bars in its panel. The library ships no progress
+    // component at pin 8798cbb — see fds-migration/LIBRARY-FEEDBACK.md #22.
+    pattern: /\bMui(CircularProgress|LinearProgress)-/,
+    until: 'the library ships a Progress component (LIBRARY-FEEDBACK #22)',
+  },
+];
+
+/**
+ * Every MUI class on the element itself, ignoring icon glyphs (the standing
+ * exception) and the dated exemptions above.
+ */
 const muiControlClassesOf = (element: Element): string[] => String(element.getAttribute('class') ?? '')
   .split(/\s+/)
-  .filter(cls => MUI_CONTROL_CLASS.test(cls));
+  .filter(cls => MUI_CONTROL_CLASS.test(cls))
+  .filter(cls => !EXEMPT_MUI_CONTROLS.some(exempt => exempt.pattern.test(cls)));
 
 /**
  * Asserts the element is styled by the library and by no MUI control class.

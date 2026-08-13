@@ -1165,6 +1165,32 @@ Library PR #105 added "the Popover primitive", but it is internal (it backs
 stays a MUI `Popover`, and the bar's AI/actions rule stays a hand-painted
 `<div role="separator">`.
 
+**`Progress`: a fourth control, named here for the first time.** It was missing
+from the original list of three because the bar only shows it while an operation
+runs, so no checkpoint had it on screen. There are two distinct usages, and they
+are not the same component:
+
+| Usage | Where | Shape | Determinate? | Measured |
+|---|---|---|---|---|
+| ring around the glyph | the bar's bulk-operations button | circular, `stroke-width: 2px` | **no** — no `aria-valuenow`, it spins while `runningCount > 0` | declared 32×32, centred over a 20×20 glyph in a 36×36 button. Its *rect* reads ~42px because an indeterminate ring rotates and `getBoundingClientRect` returns the rotated axis-aligned box — the drawn circle is 32 |
+| one bar per operation | the bulk-operations panel | linear, `border-radius: 12px` | **yes** — `aria-valuenow` = `processed/total` (35, 76, 100 in the captures), plus a `%` caption the consumer renders | 328×6, full panel width minus padding |
+
+Colours, measured in both themes: the running ring takes the brand colour at 50%
+alpha (`rgba(66, 202, 255, 0.5)` dark, `rgba(0, 21, 168, 0.5)` light). A linear
+bar pairs a solid fill with the same colour at 15% as its track, and switches
+family with status — brand while running, success green once complete.
+
+Both are MUI today (`CircularProgress`, `LinearProgress`). They are now detected
+by the shared `expectNoMuiControls` guard and carry an explicit **dated
+exemption** whose removal condition is this entry: the day a library `Progress`
+ships, deleting the exemption turns the guard red and forces the migration.
+
+**Suggested.** One component with a `variant` (`circular` | `linear`) and an
+optional `value`: omitted means indeterminate, present means determinate. Both
+usages in this bar need the same colour treatment (the running state uses the
+brand colour at 50% alpha today) and the linear one needs a caption slot or the
+consumer keeps rendering the `%` itself.
+
 ---
 
 ## 23. `Button` has no `active` prop, `IconButton` does

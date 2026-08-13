@@ -211,3 +211,45 @@ in filigran-design-system).
   `theme.css` happened not to move. It should compare against the pinned commit,
   not against whatever the neighbouring clone has checked out, or it will one day
   report fresh on a stale bridge.
+
+### 2026-08-13 — post-review: the badges are actually announced, progress is named
+- Branch: sandyghs-miniature-enigma
+- Decision (Sandy, 2026-08-13): the bar's 768px content overflow with the rail
+  expanded by hand moves from **57px to 69px** and is ACCEPTED. The 12px come from
+  the Ask Ariane EE marker growing from the legacy 21x14 span to the library chip's
+  33x24. Same reasoning as the original acceptance: a non-default state on a shell
+  that already carries a 1400px page floor.
+- R1, the announcement was a false green. The badge sat inside the icon slot, which
+  both `TopBarIconLink` and the library's `IconButton` render `aria-hidden` — so its
+  value reached nobody. The shipped test asserted `document.body.textContent`, which
+  cannot tell "in the DOM" from "announced", and passed. Demonstrated before fixing,
+  on the same code: the `textContent` assertion PASSED while
+  `toHaveAccessibleDescription('7')` FAILED with an empty received value.
+  Fixed by moving the Badge OUT of the icon slot, wrapping the control instead —
+  which is the library's own mechanism: `Badge` clones its single-element child and
+  appends `aria-describedby` pointing at itself, so the child must be the control.
+  `TopBarIconLink` gained an `aria-describedby` pass-through for that clone to land
+  on the anchor. Measured afterwards in Chromium's computed accessibility tree, both
+  themes: `link "notifications"` description `"7"`, `button "bulk-operations-menu"`
+  description `"2"`, names unchanged. The counter is 20x20 in the running app.
+  Assertions are now on `toHaveAccessibleName`/`toHaveAccessibleDescription`;
+  `textContent` is gone from these files. That required `@testing-library/jest-dom`
+  as a devDependency plus `setupFiles` in `vitest.config.ts` — the matchers compute
+  the name and description the way a screen reader does, honouring `aria-hidden`.
+- R2, progress is now a named gap. `MuiCircularProgress`/`MuiLinearProgress` are
+  detected by the shared guard and carry a dated exemption whose removal condition
+  is a library `Progress`; deleting that entry turns the guard red. Both usages were
+  measured and photographed with a temporary local shim (a fabricated running
+  operation, never committed, patch kept at
+  `~/.copilot/session-state/.../demo-progress-capture.patch`): the ring is
+  INDETERMINATE (32px drawn, 2px stroke, brand at 50% alpha, no `aria-valuenow`),
+  the bars are DETERMINATE (328x6, radius 12px, `aria-valuenow` 35/76/100, fill
+  switching to success green once complete). Written up in LIBRARY-FEEDBACK #22 with
+  a suggested API.
+- Left alone on purpose: the panel's `Typography` (moves to the library `Text` in
+  the loader bump), and Romuald's two threads (no re-solicitation).
+- Friction / process feedback: `expectNoMuiControls` is only as good as the subtree
+  it is handed. The bar-level test mocks the three interesting children to `null`,
+  so for months the guard was asserting on an empty bar. The badges were only caught
+  once each child got its own test. A guard that runs on a mocked-out subtree should
+  say so, or the suite should assert that it saw something.

@@ -80,39 +80,40 @@ const BulkOperationsIndicator: FunctionComponent = () => {
     <>
       <Tooltip>
         <TooltipTrigger asChild>
-          <IconButton
-            priority="tertiary"
-            aria-haspopup="true"
-            aria-label="bulk-operations-menu"
-            onClick={handleOpen}
-            active={Boolean(anchorEl)}
-            // The spinner overlays the glyph, and the library's icon slot is not a positioning context.
-            icon={(
-              <span style={{
-                position: 'relative',
-                display: 'inline-flex',
-              }}
-              >
-                <Badge content={runningCount} circularAnchor>
+          {/* The Badge wraps the BUTTON, not the glyph: it describes its child, and the glyph slot is aria-hidden. */}
+          <Badge content={runningCount} circularAnchor>
+            <IconButton
+              priority="tertiary"
+              aria-haspopup="true"
+              aria-label="bulk-operations-menu"
+              onClick={handleOpen}
+              active={Boolean(anchorEl)}
+              // The spinner overlays the glyph, and the library's icon slot is not a positioning context.
+              icon={(
+                <span style={{
+                  position: 'relative',
+                  display: 'inline-flex',
+                }}
+                >
                   <AutoAwesomeMotionOutlined fontSize="medium" />
-                </Badge>
-                {runningCount > 0 && (
-                  <CircularProgress
-                    size={SPINNER_SIZE}
-                    thickness={SPINNER_THICKNESS}
-                    sx={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      marginTop: SPINNER_CENTRING_OFFSET,
-                      marginLeft: SPINNER_CENTRING_OFFSET,
-                      color: alpha(theme.palette.primary.main, 0.5),
-                    }}
-                  />
-                )}
-              </span>
-            )}
-          />
+                  {runningCount > 0 && (
+                    <CircularProgress
+                      size={SPINNER_SIZE}
+                      thickness={SPINNER_THICKNESS}
+                      sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        marginTop: SPINNER_CENTRING_OFFSET,
+                        marginLeft: SPINNER_CENTRING_OFFSET,
+                        color: alpha(theme.palette.primary.main, 0.5),
+                      }}
+                    />
+                  )}
+                </span>
+              )}
+            />
+          </Badge>
         </TooltipTrigger>
         <TooltipContent>{t('Massive operations')}</TooltipContent>
       </Tooltip>

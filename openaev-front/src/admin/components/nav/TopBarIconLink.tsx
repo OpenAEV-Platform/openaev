@@ -18,6 +18,8 @@ interface TopBarIconLinkProps {
   'href'?: string;
   /** Current-page state, mirroring IconButton's `active`. */
   'active'?: boolean;
+  /** Forwarded to the anchor so a wrapping `Badge` can describe the control itself. */
+  'aria-describedby'?: string;
   /** Glyph colour, as a CSS value. Applied inline (see below); defaults to the library's brand token. */
   'color'?: string;
   'id'?: string;
@@ -31,6 +33,7 @@ const TopBarIconLink: FunctionComponent<TopBarIconLinkProps> = ({
   active,
   color = 'var(--color-filigran-brand-primary)',
   id,
+  'aria-describedby': ariaDescribedBy,
 }) => {
   // `tertiary` is the bar's anatomy; the default `primary` is a FILLED brand button.
   const classes = iconButtonVariants({ priority: 'tertiary' });
@@ -54,6 +57,7 @@ const TopBarIconLink: FunctionComponent<TopBarIconLinkProps> = ({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
+        aria-describedby={ariaDescribedBy}
         {...(active !== undefined && { 'aria-current': active ? 'page' : undefined })}
       >
         {content}
@@ -68,6 +72,7 @@ const TopBarIconLink: FunctionComponent<TopBarIconLinkProps> = ({
       className={classes}
       style={style}
       to={to ?? ''}
+      aria-describedby={ariaDescribedBy}
       {...(active !== undefined && { 'aria-current': active ? 'page' : undefined })}
     >
       {content}
