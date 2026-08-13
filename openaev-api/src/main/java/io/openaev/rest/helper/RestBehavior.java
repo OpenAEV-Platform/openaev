@@ -360,8 +360,7 @@ public class RestBehavior {
   @ExceptionHandler(TenantConnectorNotReadyException.class)
   public ResponseEntity<ErrorMessage> handleTenantConnectorNotReadyException(
       TenantConnectorNotReadyException ex) {
-    // Agents and connectors poll: a retryable status keeps them from treating a tenant still being
-    // provisioned as a permanent failure.
+    // Agents and connectors poll: a tenant still being provisioned must read as retryable.
     log.warn("Tenant connector not ready: {}", ex.getMessage());
     return new ResponseEntity<>(
         new ErrorMessage("TENANT_CONNECTOR_NOT_READY"), HttpStatus.SERVICE_UNAVAILABLE);

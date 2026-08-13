@@ -852,8 +852,8 @@ public class EndpointService implements AuditLoggedService {
 
   private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input, String tenantId) {
     AgentRegisterInput agentInput = new AgentRegisterInput();
-    // Pinned to the tenant instead of relying on the ambient filter: executor_id is shared by every
-    // tenant, and a null executor used to surface as an NPE (500) on every registration path.
+    // Pinned to the tenant rather than left to the ambient filter: executor_id is shared by every
+    // tenant, so an unpinned lookup either misses or matches several rows.
     agentInput.setExecutor(
         executorRepository
             .findByExecutorIdAndTenantId(OPENAEV_EXECUTOR_ID, tenantId)

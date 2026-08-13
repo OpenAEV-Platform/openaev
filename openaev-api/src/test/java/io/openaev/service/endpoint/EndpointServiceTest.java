@@ -340,7 +340,7 @@ class EndpointServiceTest {
       EndpointRegisterInput input = EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
 
       // -------- Act / Assert --------
-      // Used to NPE into a 500 that agents retried forever without a usable reason.
+      // Used to NPE into a 500 that agents retried forever.
       assertThrows(
           TenantConnectorNotReadyException.class,
           () -> endpointService.register(input, "tenant-without-executor"));
