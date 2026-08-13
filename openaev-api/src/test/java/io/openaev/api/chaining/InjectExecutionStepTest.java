@@ -18,12 +18,14 @@ import com.google.gson.JsonPrimitive;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.rest.exception.ChainingException;
@@ -39,8 +41,11 @@ import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.ConditionUtils;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.helpers.InjectTestHelper;
+import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,11 +71,14 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private TenantRepository tenantRepository;
   @Autowired private DocumentRepository documentRepository;
   @Autowired InjectExecutionStep injectExecutionStep;
   @Autowired AttackPathExecutionIngestionService attackPathExecutionIngestionService;
   ObjectMapper mapper = new ObjectMapper();
   @Autowired private InjectTestHelper injectTestHelper;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private EntityManager entityManager;
   String injectInputJson;
   InjectorContract injectorContractSaved;
   Asset savedAsset;
@@ -1164,6 +1172,45 @@ public class InjectExecutionStepTest extends IntegrationTest {
         ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
 
     // Assert: a deleted attachment degrades to "no attachment" instead of failing the step.
+    assertNotNull(inject);
+    assertTrue(inject.getDocuments().isEmpty());
+  }
+
+  @Test
+  void given_stepDataWithForeignTenantDocument_whenBuildingInject_thenAttachmentIsDropped()
+      throws Exception {
+    // Arrange: the step is authored under the current tenant, but its data references a document
+    // persisted under ANOTHER tenant (stale or crafted step id). The document resolution goes
+    // through a JPQL query precisely so Hibernate's tenantFilter applies; this test pins that
+    // guarantee - a future primary-key lookup (filters never apply to those) or a disabled filter
+    // would resolve the foreign document and fail here.
+    Step readyStep = emailReadyStep(List.of());
+    String currentTenantId = TenantContext.getCurrentTenant();
+    // A bare tenant row is enough here (no provisioning side effects): the document only needs a
+    // foreign tenant to be stamped with, and the run-path lookup only reads documents.
+    Tenant foreignTenant =
+        tenantRepository.save(TenantFixture.getTenant("inject-doc-isolation-" + UUID.randomUUID()));
+    Document foreignDocument;
+    tenantIsolationTestHelper.switchToTenant(foreignTenant.getId(), entityManager);
+    try {
+      foreignDocument = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    } finally {
+      tenantIsolationTestHelper.switchToTenant(currentTenantId, entityManager);
+    }
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    ObjectNode link = mapper.createObjectNode();
+    link.put("document_id", foreignDocument.getId());
+    link.put("document_attached", true);
+    data.putArray("inject_documents").add(link);
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act: deserialize through the real scoped run path (the helper re-enabled the tenantFilter
+    // for the current tenant on this session, as the transaction aspect does for the queue run).
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the foreign-tenant attachment degrades exactly like a deleted one - dropped, with
+    // the step still executable - instead of leaking another tenant's document.
     assertNotNull(inject);
     assertTrue(inject.getDocuments().isEmpty());
   }
