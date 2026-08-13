@@ -17,7 +17,7 @@ Raised during: the navigation pilot (replacing the legacy left menu with
 fixed upstream and verified here by re-measurement after a pin bump; each says
 so in its own **Status** line, with the library change that closed it. Entry 3
 is **resolved** too, by the `Menu` component (#74). The entries left open are 2,
-3b, 3c, 5, 8, 11, 12 and 13; 10 is a recorded decision, not a gap. Entry 14 was
+3b, 3c, 5, 8, 11 and 13; 10 is a recorded decision, not a gap. Entry 14 was
 blocking and is now **resolved** (#79), with a consumer-install proof running on
 every library pull request.
 
@@ -531,6 +531,56 @@ set `--fds-z-overlay` in the host stylesheet, open the ProductSwitcher menu
 over the header in both themes and both rail states, and check the computed
 `z-index` of `body > [data-radix-popper-content-wrapper]` is above `1100`.
 
+**Status — RESOLVED upstream** by library PR #96, adopted here at pin
+`c0d6f0753df6d295d6a9de04060ad3f7b7ad232b`. The ask was implemented as stated:
+six floating surfaces now resolve their level from `z-[var(--fds-z-overlay,50)]`
+(Dialog panel + scrim, `TooltipContent`, `SelectContent`, `Menu`'s shared panel
+surface, `NavbarSubmenu`'s flyout). The compensation has been deleted and
+replaced by the one-line host declaration this entry asked for:
+
+```css
+:root { --fds-z-overlay: 1300; }
+```
+
+*Why the variable reaches the wrapper the old rule had to target.* The element
+carrying the z-index for popper-positioned surfaces is Radix-generated, takes no
+`className`, and is styled inline — which is why the compensation needed
+`!important`. Radix derives that inline value from
+`getComputedStyle(content).zIndex`, so once the content resolves to 1300 Radix
+copies 1300 outward on its own. The declaration must sit on `:root`, not on an
+app wrapper: portalled content mounts on `document.body`, so a variable scoped
+to a subtree never reaches it.
+
+**Adoption verification — DONE, entry CLOSED.** Measured in the running
+product during the Header pilot checkpoint (library pin `c0d6f07`), with the
+compensation removed:
+
+| state | `body > [data-radix-popper-content-wrapper]` z-index | header z-index |
+|---|---|---|
+| dark / rail expanded | **1300** | 1100 |
+| light / rail expanded | **1300** | 1100 |
+
+The portalled surface stacks above the bar with **no `!important` anywhere** —
+`:root { --fds-z-overlay: 1300 }` alone is sufficient, which is exactly what
+library PR #96 promised. Radix copies the resolved level outward on its own.
+
+The collapsed rail is reported as not applicable rather than passed: the
+`ProductSwitcher` trigger is **not rendered at all** when the rail is
+collapsed (it exposes only the footer and the expand control), so there is no
+surface to open from it. Established by enumerating the collapsed rail's
+controls, not assumed.
+
+**Original outstanding note, for the record.** The removal test above is a
+*measurement in the running product*, and it has not been run yet: this pin bump
+was made ahead of the Header implementation, with no visual checkpoint attached.
+Recording it as verified on the strength of the library's own tests would repeat
+the mistake [#16](#16-the-productswitcher-trigger-has-no-pointer-cursor)
+documents — a defect that survived a full visual checkpoint because it was
+looked at rather than measured. To be executed at the first checkpoint where the
+product runs: computed `z-index` of `body > [data-radix-popper-content-wrapper]`
+with the ProductSwitcher menu open, in both themes × both rail states, expected
+above `1100`.
+
 ---
 
 ## 13. The stylesheet only carries the utilities the library itself uses
@@ -763,7 +813,11 @@ surfaces it. That lesson is now in the playbook's visual-verification step.
 
 ## 16. The `ProductSwitcher` trigger has no pointer cursor
 
-**Status.** Open. **No product compensation.** Found while verifying that
+**Status.** Fixed upstream by library PR #94, shipped in pin
+`c0d6f0753df6d295d6a9de04060ad3f7b7ad232b`. **Adoption not yet measured** — see
+the bottom of this entry. **No product compensation** existed, so there is
+nothing to remove; closing this entry is a measurement, not a deletion.
+Found while verifying that
 [#15](#15-the-collapse-toggle-has-no-pointer-cursor) was fixed — the same
 defect class, on a component the fix did not reach.
 
@@ -806,3 +860,576 @@ nothing in the product is broken by waiting for the pin that carries it.
 `getComputedStyle(trigger).cursor` on the ProductSwitcher trigger in both rail
 states and both themes; it must be `pointer`. Hovering by hand is not enough —
 this exact defect survived a full visual checkpoint before it was measured.
+
+**What #94 shipped.** The library took the argument above rather than a third
+per-component patch: the affordance moved to the shared interactive layers —
+`buttonVariants`, `iconButtonVariants`, `TabsTrigger`, `SelectTrigger` and the
+`Switch` root — so the `ProductSwitcher` trigger inherits it as an icon button,
+and any future button-rendered control starts out right by default. This is the
+cause-level fix this entry asked for.
+
+**Adoption verification — DONE, entry CLOSED.** Measured in the running
+product during the Header pilot checkpoint (library pin `c0d6f07`), reading
+`getComputedStyle(trigger).cursor`, never by hovering:
+
+| state | `ProductSwitcher` trigger | other rail controls |
+|---|---|---|
+| dark / rail expanded | **pointer** | Components, Settings, By Filigran, Collapse — all `pointer` |
+| light / rail expanded | **pointer** | idem |
+| dark / rail collapsed | not rendered | By Filigran, Expand — both `pointer` |
+| light / rail collapsed | not rendered | idem |
+
+The cause-level fix in #94 holds: every button-rendered control in the rail
+reports `pointer`, not just the one that was patched. As with entry 12, the
+collapsed rail does not render this trigger at all, so it is recorded as not
+applicable rather than silently counted as a pass.
+
+**Original outstanding note, for the record.** Not yet measured in this product. The
+pin bump carrying #94 was made ahead of the Header implementation, so the app
+was never brought up. Per the paragraph above, this entry is closed only by a
+computed-style reading, and asserting `pointer` from the library diff alone is
+precisely the shortcut that let this defect survive its first checkpoint. To be
+executed at the first checkpoint where the product runs.
+
+---
+
+Raised during: the **Header pilot** (replacing the hand-built MUI
+`AppBar`/`Toolbar` admin top bar with `Header`), library pin
+`c0d6f0753df6d295d6a9de04060ad3f7b7ad232b`.
+
+---
+
+## 17. A themeable surface has no supported hook for a product-driven colour
+
+**Needed.** This product's top bar is **customer-configurable**: the platform
+`background_color` setting (per-tenant, editable from the admin UI) reaches the
+bar through `palette.background.gradient`, and the bar's gradient has always
+followed it. Adopting `Header` must not take that away.
+
+**Today.** `Header` paints its glass layer with `before:bg-gradient-default`,
+i.e. the library token `--gradient-default`, which is assembled at `:root` from
+two stop tokens. The component exposes **no** prop, slot or documented custom
+property for a consumer-supplied background. `--fds-header-height` was added for
+the height, so the pattern exists — it simply was not extended to the colour.
+
+**Consequence.** The product had to re-declare `--gradient-default` itself as an
+inline style on the bar. That works, and `Header.tsx` even documents *why* it
+works, but it is a consumer reaching into a token the library considers
+internal:
+
+- it depends on the current internal shape (a single assembled gradient
+  property). If the library later inlines the two stops into the utility, or
+  renames the token, this product's customers silently lose their colour again
+  — with no build error and no visual marker beyond "a slightly different
+  shade";
+- overriding the two *stop* tokens instead is not an option at this scope: a
+  `var()` inside a custom-property declaration is substituted on the element
+  that declares it, so stops re-declared on a wrapper cannot reach a gradient
+  already assembled at `:root`. Only `:root` works for the stops, and that
+  would repaint every other library surface — a far larger blast radius than
+  the one change the product actually wants;
+- the stops must be passed **opaque**. The legacy bar faded them itself at 90%;
+  the library paints its own gradient layer at Figma's 94%. Pre-faded stops
+  would therefore apply the transparency twice, which is visible as a washed-out
+  bar and is the kind of mistake a consumer makes exactly once — so it belongs
+  in whatever hook replaces this workaround, as an explicit statement that the
+  consumer supplies colour and the library owns opacity.
+
+**Suggested.** Publish a first-class hook, in the same spirit as
+`--fds-header-height`: either a `--fds-header-background` custom property read
+by the component (`before:[background:var(--fds-header-background,var(--gradient-default))]`),
+or a documented guarantee that `--gradient-default` may be re-declared per
+element. Either makes the product's intent expressible and the contract stable;
+today it is neither.
+
+**Generalisation.** This is not about the Header. Any library surface a product
+lets its customers colour will hit the same wall — the question "how does a
+consumer supply a colour without forking the component or overriding a global
+token?" has no answer yet. Worth settling once, at token level.
+
+---
+
+## 18. `grow` and `grow="unbounded"` — the cap is right, its discoverability is not
+
+**Needed.** A search cluster whose window is `min-width: 200px`,
+`max-width: 500px` (design decision, Sandy, round 4 — it replaced the
+`550px / 50% / 680px` window the pilot first shipped).
+
+**Today.** `HeaderGroup grow` caps at Figma's 400px — **below this product's
+ceiling**, so the cap is not merely tighter than the product's preference, it
+cannot express it. `grow="unbounded"` exists precisely for this and was, per the
+RFC, added after measuring this bar. The capability is correct and the pilot used
+it as intended.
+
+**The gap is that nothing steers you to it.** `grow={true}` is the obvious
+choice from the prop name, it type-checks, and it renders a plausible-looking
+bar — just a silently narrower search field. Nothing fails.
+
+**Where a consumer can and cannot declare that window.** Worth stating, because
+the obvious place is the wrong one:
+
+- **On the `HeaderGroup`** — works, and is what this product does. The group is
+  the product's own layer; the field then fills it through `SearchField
+  fullWidth`, so the rendered field is exactly 200–500 wide.
+- **On the `SearchField` instance** — does *not* work. The component forwards
+  `className` to its wrapper but spreads its remaining props, **`style`
+  included**, onto the inner `<input>`. An inline width passed to the component
+  therefore sizes the text box inside the field rather than the field itself.
+- **Via `className` on the field** — not available to this product: it consumes
+  the library's prebuilt CSS and has no Tailwind build of its own, so a utility
+  class it invented would resolve to nothing (see
+  [#13](#13-the-stylesheet-only-carries-the-utilities-the-library-itself-uses)).
+- **Reaching into the component's internal selectors** — forbidden by the scope
+  rule, and the reason this entry exists rather than a product-side override.
+
+**One consequence worth keeping.** `grow="unbounded"` gives the group `min-w-0`,
+which lets it shrink past its own content, so an explicit floor is not cosmetic:
+without `min-width` the field is squeezed below its intended minimum at narrow
+viewports.
+
+**Suggested.** Two things. In the docs/meta: state the 400px cap and the
+`"unbounded"` escape on the `grow` prop description itself, where an implementer
+reads it, rather than only in the RFC's rationale. On `SearchField`: document
+which props reach the wrapper and which reach the inner input — the split is
+invisible from the type signature and a width silently lands on the wrong box.
+
+---
+
+## 19. The CI-secret guard artifact cannot express a call site that must stay unarmed
+
+**Context.** `process/artifacts/ci-design-system-secret.test.ts` is designed to
+be copied verbatim into a consuming product, and was — it is now
+`openaev-front/src/__tests__/ci-design-system-secret.test.ts`. It is a good
+artifact and it caught real wiring.
+
+**Needed.** This product has a workflow that must **never** receive the
+credential: `deploy-feature-branch-build.yml` checks out untrusted pull-request
+code (`ref: head_sha`) and then resolves the composite action from *that same
+tree*, so any secret passed in is attacker-controlled. It is deliberately left
+unarmed, and stays that way until the library is published to npm and the token
+disappears entirely.
+
+**Today.** The artifact's composite rule is "every caller of an action that
+declares the input passes it". That rule cannot express "this caller must not".
+The only offered escape is to exclude the file, which **silently un-guards it** —
+the one site where the guard matters most.
+
+**What this product did.** Inverted the exemption into an assertion: exempt
+sites are asserted to be *free* of the credential, so the security decision is
+machine-enforced rather than resting on a comment. Plus a staleness assertion
+that fails if an exemption stops matching a real call site, so the list cannot
+rot into a silent pass. Both are marked `PRODUCT-SPECIFIC ADDITION` in the file.
+
+**Suggested.** Fold the concept upstream: a `NEVER_ARMED` list in the artifact,
+asserted negatively, with the staleness check. "Must not be armed" is a normal
+state for a workflow handling untrusted input, not an exception — every product
+adopting this artifact will meet it.
+
+---
+
+## 20. `Navbar` and `Header` ship no positioning, so every product re-invents it — and gets it wrong
+
+**Severity.** Medium — silent visual defect, escapes every unit test.
+
+**What happened.** Both shell components render in flow and leave positioning to
+the product. Pilot 1 gave the rail `position: sticky; top: bannerHeight;
+align-self: flex-start`, which reads as correct and passed review. It is not.
+A sticky element resolves against its containing block, and the app shell's
+height is the *fractional* document height. Measured on `/admin`:
+
+| | value |
+|---|---|
+| shell (containing block) height | `1677.59px` |
+| document height | `1678px` |
+| remainder | `0.41px` |
+| rail drift at maximum scroll | `-0.41px` |
+
+The rail slid up by exactly the remainder at the end of a long scroll. It was
+caught by a designer's eye, not by any test — the drift is sub-pixel and only
+appears at maximum scroll on a page whose height has a fractional part, which
+is to say on most pages, unpredictably.
+
+The Header dodged this only because the pilot happened to give it
+`position: fixed`. Same doctrine ("fixed = immobile to the pixel"), two
+components, and nothing in the library makes the correct choice the easy one.
+
+**Why this is the library's problem, not the product's.** The fix is not one
+line. `fixed` takes the rail out of flow, so the product must also hand-roll an
+in-flow spacer, match its width to the rail's two states, *and* replay the
+library's own width transition (`width 0.15s cubic-bezier(0.4, 0, 0.2, 1)`) or
+the content visibly lags the rail while it animates. That transition is an
+internal library value the product has to read out of the browser and hard-code
+— the day the library retimes it, every product desynchronises silently.
+
+**Suggested.** Own the positioning contract, since the doctrine is already the
+library's:
+
+1. Ship `position: fixed` as the default on both components, with an offset
+   prop for the banner (`offsetTop`).
+2. Ship the spacer as part of `Navbar` — it is the only component that knows
+   its own two widths and its own transition curve.
+3. Failing both, export `NAVBAR_WIDTH_OPEN`, `NAVBAR_WIDTH_COLLAPSED` and
+   `NAVBAR_WIDTH_TRANSITION` so the product stops hard-coding measured values.
+
+**Condition for removal (product side).** When the library positions the rail
+itself, delete the `position/top/left` override and the `navbar-spacer` element
+in `AppNavbar.tsx`, and delete `navbarConstants.ts`; the rail must still measure
+`0.00px` drift under `openaev-front/rail-drift` measurement.
+
+---
+
+## 21. `IconButton` renders a hard `<button>` and accepts no `asChild`
+
+**Severity.** Medium — forces the product to choose between the library's
+component and correct link behaviour.
+
+**What happened.** Four controls in the top bar are genuine links: three router
+routes and one external XTM One URL. `IconButton` hard-renders `<button>` and
+its props are `Omit<ComponentPropsWithoutRef<"button">, …>` with no `asChild`,
+so it cannot carry a navigation target. Turning them into buttons with an
+`onClick` would drop middle-click, ⌘/Ctrl-click "open in new tab", "copy link
+address" and the browser's status-bar preview — a real behavioural loss, and
+the pilot's rule is iso-functionality.
+
+The product therefore applies `iconButtonVariants` to its own `<a>`/`<Link>`
+(`TopBarIconLink.tsx`). That keeps the library's states, but it re-implements
+the component's DOM contract by hand — including the `aria-hidden` glyph
+wrapper and the one class the component adds for `active`, neither of which is
+part of any published API.
+
+**Notable.** `Button` already has `asChild`, and `MenuTrigger`'s own
+documentation says it is "always meant to be used with `asChild` around a real
+library component … IconButton (~80% of sites)". The gap is `IconButton`'s
+alone, and it is the component most likely to be a link.
+
+**Suggested.** Give `IconButton` the same `asChild` `Button` already has.
+
+**Condition for removal (product side).** Delete `TopBarIconLink.tsx` and wrap
+`<Link>`/`<a>` in `<IconButton asChild>`; the icon-link tests must stay green.
+
+---
+
+## 22. Three controls in one bar have no library equivalent
+
+**Severity.** Low — each is small; together they decide how much of a product
+surface the library can actually own.
+
+**What happened.** Applying "where the library ships a component, use it" to
+the top bar left exactly three MUI survivors, all for the same reason — the
+library ships no counterpart:
+
+| Control | Used for | Nearest library export |
+|---|---|---|
+| `Divider` | the rule between the AI actions and the platform actions | `NavbarSeparator`, `MenuSeparator`, `SelectSeparator` — all bound to their own component |
+| `Badge` | the unread-notifications dot, the running-bulk-operations count | none |
+| `Popover` | the bulk-operations panel (progress bars, not a menu) | `Menu` (command rows), `Dialog` (modal) |
+
+The divider was replaced with a plain rule painted from the library's own
+border token; `Badge` and `Popover` stayed MUI.
+
+**Suggested.** A general-purpose `Separator` is nearly free and would remove
+the last hand-painted rule. `Badge` and `Popover` are real components and
+should be sized as such — but they should be *named*, so products stop
+discovering the gap one pilot at a time.
+
+### Status, 2026-08-13 — one of the three is closed
+
+**`Badge`: RECEIVED and ADOPTED** at pin `8798cbb` (library PR #114). Both MUI
+badges in the bar are gone, and the compensation markers with them:
+
+| | before (MUI) | after (library `Badge`) |
+|---|---|---|
+| unread notifications | `<Badge color="secondary" variant="dot">` | `<Badge content={unreadCount} dot>` — the count is still announced while the visual stays a dot |
+| running bulk operations | `<Badge badgeContent color="primary" overlap="circular">` + an `sx` forcing 10px text in a 16px box | `<Badge content={runningCount} circularAnchor>` — the library's own 20px counter |
+
+Two consequences, both accepted rather than compensated:
+
+- the counter grows from **16px to 20px** (`h-5 min-w-5`). Sandy's arbitration:
+  it displays a count, so it takes the default counter size; the growth is
+  assumed. The three `sx` overrides that forced the old size are deleted, not
+  re-expressed.
+- the unread dot's colour moves from the product's MUI `secondary` to the
+  library `Badge`'s default `brand` tone. `BadgeTone` is
+  `brand | error | success | neutral`, with no equivalent of the old value, and
+  inventing one product-side is what this entry exists to stop.
+
+Guarded by `TopBarNotifications.test.tsx` and `BulkOperationsIndicator.test.tsx`,
+plus `MuiBadge-` added to the shared `expectNoMuiControls` list so a relapse
+fails rather than being noticed at a checkpoint.
+
+### Status, 2026-08-13 (later the same day) — three of four are closed
+
+**The bar's rule: RECEIVED and ADOPTED** at pin `7e7b417` (library PR #117). Not
+as a general-purpose `Separator` — as `HeaderGroup separatorBefore`, a `::before`
+on the trailing cluster. That answers this bar's need better than a component
+would: no DOM node to announce or focus, and 16px of clear space anchored to the
+group rather than inherited from whatever gap the parent runs. The hand-painted
+`<div role="separator">` is deleted.
+
+Composition matters and cost a read of the library's own source: the 16px BEFORE
+the rule is `ml-2` **plus the parent cluster's `gap-2`**, so the separator-bearing
+group must sit INSIDE a cluster, not directly under the `Header` (which has no
+gap). Modelled as Figma does — an outer `HeaderGroup` for the whole trailing
+frame, holding the AI cluster and an inner `<HeaderGroup separatorBefore>` around
+the platform actions. Measured in both themes:
+`AI cluster (gap 8) │ 16 │ rule 1px @50% │ 16 │ actions (gap 8)`.
+
+**`Progress`: RECEIVED and ADOPTED** at the same pin (library PR #115), as two
+components rather than one — `Spinner` (indeterminate) and `ProgressBar`
+(determinate). Both usages converted, and the dated exemption that tolerated MUI
+progress in `expectNoMuiControls` is **deleted**: the guard is strict again.
+
+Three consequences, all accepted rather than compensated:
+
+| | before (MUI) | after (library) |
+|---|---|---|
+| ring on the bar button | `CircularProgress size={32} thickness={2}`, brand at 50% alpha | `Spinner size="lg"` — **24px**, the largest designed step; full-opacity brand |
+| ring per running row | `CircularProgress size={14} thickness={5}` | `Spinner size="sm"` — 16px |
+| bar per operation | `LinearProgress` 6px, radius 3, coloured per status | `ProgressBar` — **4px** (`md`), radius 4, **one colour** |
+
+`ProgressBar` has no colour axis by design ("nothing in either product colours a
+progress bar" — its RFC §7). This product did: brand while running, success green
+once complete, error red on failure. The colour is **gone from the bar**; the
+status is still carried by the leading icon and by the caption, whose colour the
+product keeps. If that reads as a loss, the ask is a `tone` on `ProgressBar`, not
+a product-side override.
+
+**`Popover`: the only one still open.** Re-verified against the export surface at
+`35a4768`: `Popover`, `PopoverTrigger` and `PopoverContent` all resolve to
+`undefined` from the built entry point — PR #105's primitive remains internal (it
+backs `Combobox`). The bulk-operations panel therefore stays a MUI `Popover`, and
+with it the `MuiBox` wrappers that lay its rows out. That subtree is the single
+exemption left in `expectNoMuiControls`, dated and conditioned on this entry.
+
+### Status, 2026-08-13 (final bump `35a4768`) — everything but Popover is closed
+
+The three narrownesses this entry recorded as accepted consequences were all
+answered by the library, and the product now takes each one:
+
+| | recorded as accepted | answered by | now |
+|---|---|---|---|
+| spinner capped at 24px, sitting ON a 24px glyph (0.00px clearance) | PR #119 adds an `xl` tier | `Spinner size="xl"` — 32px, **4.00px** clearance, measured |
+| `ProgressBar` has no colour axis, so the bars lost their per-status colour | PR #118 adds `tone` | `tone` = success / error / default from `bulk_operation_status`; the completed bar is green again |
+| `Badge` default was `brand` | PR #119 makes `error` the default | both badges are red **with no product change** — the product passes no `tone`; per-site arbitration is Sandy's |
+
+One gap remains inside a shipped component, worth naming rather than working
+around: **`ProgressBar` has no `warning` tone**. Nothing in this bar needs one
+today (the three statuses map onto default/success/error), but a status that did
+would keep the default rather than borrow a neighbouring family.
+
+---|---|---|---|---|
+| ring around the glyph | the bar's bulk-operations button | circular, `stroke-width: 2px` | **no** — no `aria-valuenow`, it spins while `runningCount > 0` | declared 32×32, centred over a 20×20 glyph in a 36×36 button. Its *rect* reads ~42px because an indeterminate ring rotates and `getBoundingClientRect` returns the rotated axis-aligned box — the drawn circle is 32 |
+| one bar per operation | the bulk-operations panel | linear, `border-radius: 12px` | **yes** — `aria-valuenow` = `processed/total` (35, 76, 100 in the captures), plus a `%` caption the consumer renders | 328×6, full panel width minus padding |
+
+Colours, measured in both themes: the running ring takes the brand colour at 50%
+alpha (`rgba(66, 202, 255, 0.5)` dark, `rgba(0, 21, 168, 0.5)` light). A linear
+bar pairs a solid fill with the same colour at 15% as its track, and switches
+family with status — brand while running, success green once complete.
+
+Both are MUI today (`CircularProgress`, `LinearProgress`). They are now detected
+by the shared `expectNoMuiControls` guard and carry an explicit **dated
+exemption** whose removal condition is this entry: the day a library `Progress`
+ships, deleting the exemption turns the guard red and forces the migration.
+
+**Suggested.** One component with a `variant` (`circular` | `linear`) and an
+optional `value`: omitted means indeterminate, present means determinate. Both
+usages in this bar need the same colour treatment (the running state uses the
+brand colour at 50% alpha today) and the linear one needs a caption slot or the
+consumer keeps rendering the `%` itself.
+
+---
+
+## 23. `Button` has no `active` prop, `IconButton` does
+
+**Severity.** Low — small asymmetry, guessable fix, silent when guessed wrong.
+
+**What happened.** "Ask Ariane" is a toggle: while the chat panel is open the
+button stays tinted. `IconButton` expresses this with `active`, which also
+sets `aria-pressed`. `Button` has no equivalent, so the product applies
+`bg-filigran-ia-secondary-transparency` — the class `IconButton` uses
+internally for that state — through `className`. It renders correctly and is
+undocumented; if the library retints its active state, this button silently
+stops matching.
+
+**Suggested.** Give `Button` the same `active` prop, with the same
+`aria-pressed` behaviour. Two sibling components in one bar should not express
+the same state two different ways.
+
+**Condition for removal (product side).** Replace the `className` in
+`AskArianeButton.tsx` with `active={isOpen}`.
+
+---
+
+## 24. Layered utilities lose to the host's unlayered CSS — silently
+
+**Severity.** High — silent visual defect, class present, no error, wrong pixels.
+
+**What happened.** Two controls in the bar carried the *identical* class list
+from `iconButtonVariants({ priority: 'tertiary' })`. Measured:
+
+| Element | Class list | Computed colour |
+|---|---|---|
+| `<button>` (account menu) | identical | `rgb(66, 202, 255)` — brand blue, correct |
+| `<a>` (triggers) | identical | `rgb(242, 242, 243)` — white, wrong |
+
+The cause is not specificity. The library ships its utilities inside a CSS
+cascade layer, and **any** unlayered rule beats a layered one regardless of
+specificity. MUI's `CssBaseline` injects an unlayered `body a { color: … }`, so
+on an anchor the library's `text-filigran-brand-primary` never applies. On a
+`<button>`, nothing unlayered competes, so it does.
+
+This is the worst failure shape there is: the class is present in the DOM, the
+stylesheet contains it, no tool reports anything, and the pixels are wrong. It
+was found by measuring two elements that should have matched — not by review.
+
+**Why every product will meet this.** Any host with a CSS reset or a component
+library that writes unlayered global rules — which is to say every product
+adopting this library into an existing app — overrides library styling for
+whichever elements those globals happen to target. Which elements, and in which
+product, is unknowable from the library side.
+
+**Suggested.** Say it in the adoption documentation, in the loudest terms:
+library classes are layered and lose to unlayered host CSS; audit the host's
+global element selectors (`a`, `button`, `input`) before adopting. Better,
+publish the layer name so products can order it explicitly with
+`@layer host, filigran;`. Best, ship the recipe.
+
+**Condition for removal (product side).** When the layer order is declared and
+`body a` no longer wins, delete the inline `color` in `TopBarIconLink.tsx` and
+`CtemCommandCenterButton.tsx`; the measured colours must stay equal.
+
+---
+
+## Step 5b — computed-style diff against the documentation site
+
+Run at pin `c0d6f07`, docs site at the same SHA, product on the same machine,
+one measurement function applied to both pages. Script kept at
+`fds-migration/scripts/compare-header-vs-docs.cjs`; re-run it at every pin bump.
+
+Every value the library owns is **identical** on both sides:
+
+| Property | Docs | Product |
+|---|---|---|
+| `height` | 68px | 68px |
+| `padding` | 16px | 16px |
+| `display` / `align-items` / `justify-content` | flex / center / space-between | flex / center / space-between |
+| `border-bottom-width` | 1px | 1px |
+| `backdrop-filter` | blur(4px) | blur(4px) |
+| `::before` `opacity` | 0.94 | 0.94 |
+| `::before` `inset` / `z-index` | 0px / -10 | 0px / -10 |
+| `background-color` | transparent | transparent |
+
+The five differences, each with a named cause — none is a defect:
+
+| Property | Docs | Product | Cause |
+|---|---|---|---|
+| `position` | `relative` | `fixed` | **By design.** The Header ships no positioning, only `relative` as a containing block; the doctrine is never sticky, always fixed to the top of the viewport. The product supplies the fixing. |
+| `z-index` | `auto` | `1100` | Set by the product, above content and below MUI's poppers at 1300. |
+| `min-height` | `auto` | `0px` | The product's MUI `CssBaseline` reset. Does not affect layout: `height` resolves to 68px on both sides. |
+| `font-size` | 16px | 14.4px | The product's MUI theme sets a 90% base font size product-wide; pre-existing and intentional, not Header-specific. |
+| `font-family` | `…, "IBM Plex Sans Fallback"` | `…, sans-serif` | `next/font` local fallback, an artifact of the documentation site only. Same first family on both sides. |
+
+**Verdict.** No host CSS bleed, no missing reset, no pin lag, no design delta.
+
+---
+
+## 25. `SearchField` has no clear control — the visible cross is the browser's
+
+**Status.** **Fixed upstream by library PR #100**, shipped in pin
+`c8a3289ec950289e92ee4353c4cfce2be2394f77`, and **verified in the product** —
+see "Adoption measured" at the bottom. **No product compensation existed**, so
+there is nothing to remove: the entry was deliberately filed without a local
+patch, since a product-side cross would have been exactly the hand-rolled
+control the scope rule forbids. Closing this entry is a measurement.
+
+**Severity.** Medium — visual inconsistency with the rest of the library, on
+the most exposed field of the product.
+
+**Reported by.** Design review of the Header pilot, 2026-08-10: *"the clear
+cross that appears when typing does not look like the library's crosses (Chip,
+Dialog)."*
+
+**What it actually is.** It is not a component at all. `SearchField` renders its
+input as `type="search"` and does not neutralise the user-agent's
+`::-webkit-search-cancel-button`, so Chromium paints its own cancel control
+inside the field. Measured in the product, before and after typing:
+
+| Probe | Before typing | After typing `adversar` |
+|---|---|---|
+| `button` elements inside `[role="search"]` | 0 | **0** |
+| `svg` elements inside `[role="search"]` | 1 (the magnifier) | 1 (the magnifier) |
+| Children of the wrapper | `svg`, `input` | `svg`, `input` |
+| Total nodes in the wrapper | 4 | **4** |
+| `input[type]` | `search` | `search` |
+| `getComputedStyle(input, '::-webkit-search-cancel-button').display` | — | `block` (UA control active) |
+
+The cross is plainly visible in the rendered field, yet **not one DOM node is
+added when it appears** — conclusive that it is a UA pseudo-element and not
+markup. It therefore cannot inherit any library styling, which is exactly why it
+does not match the crosses of `Chip` and `Dialog`: those are library-drawn, this
+one is drawn by the browser.
+
+**Not a product addition.** The product passes no `searchOption`, adds no clear
+control, and ships no `::-webkit-search-cancel-button` rule (grepped:
+`searchOption|search-cancel` has no hit in the top bar path). It passes only
+`aria-label`, `placeholder`, `fullWidth`, `value`, `onChange`, `onSubmit`,
+`onClear`. The behaviour is entirely the library's.
+
+**Second-order consequence.** The library's `onClear` is wired only to the
+Escape key. The UA cross clears the input natively and fires `input`/`change`,
+so a controlled consumer stays in sync by luck — but `onClear` never runs, so
+any consumer doing more than resetting the value (closing a result panel,
+re-running a query) silently misses it when the user clicks the cross rather
+than pressing Escape.
+
+**Consistency note.** The component's base already carries an explicit
+"UA-default defense" for fonts, borders, padding and the box model. The cancel
+button is the same class of problem, missed in the same place.
+
+**Suggested.** Neutralise the UA control
+(`[&::-webkit-search-cancel-button]:appearance-none`) and, when the field is
+non-empty, render a real clear control composed from the library's own
+`IconButton`, invoking `onClear`.
+
+**Removal condition.** `SearchField` composes `IconButton` for its clear
+control. **Met** by library PR #100.
+
+---
+
+### Adoption measured — pin `c8a3289`, in the product's top bar, 2026-08-10
+
+The removal condition, verbatim: *"`SearchField` composes `IconButton` for its
+clear control."* Measured in the running instance, same field, same browser:
+
+| Probe | Before (`c0d6f07`) | After (`c8a3289`) |
+|---|---|---|
+| `button` in `[role="search"]`, field empty | 0 | 0 |
+| `button` in `[role="search"]`, field filled | **0** | **1** |
+| Nodes in the wrapper, filled | **4** (unchanged from empty) | **9** |
+| The clear control | no DOM node — UA pseudo-element | `<button aria-label="Clear search" data-search-clear>` |
+| Crosses painted in the field | 1 (the browser's) | 1 (the library's) — no double cross |
+
+The decisive line is the node count: the cross used to appear without the
+wrapper gaining a single node. It now costs real markup, which is what a
+component looks like.
+
+**States now match the rest of the bar**, i.e. they are `IconButton`'s:
+
+| State | Clear cross | Other icon buttons in the bar |
+|---|---|---|
+| rest | `rgba(0, 0, 0, 0)`, `cursor: pointer` | identical |
+| hover | `color(srgb 0.258824 0.792157 1 / 0.1)` | identical |
+| keyboard focus | `rgb(7,13,24) 0 0 0 2px` + `rgb(66,202,255) 0 0 0 4px` | identical |
+
+**Behaviour, verified rather than assumed.** The product's field is controlled,
+and in controlled mode the library deliberately does not touch the DOM value —
+it only calls `onClear`. So the field emptying on click *is* the proof that
+`onClear` ran: measured `"adversar"` → `""`, cross gone, focus returned to the
+input. The product's handler is `onClear={() => setSearchValue('')}` and does
+nothing else — no panel to close, no query to re-run — so nothing is lost.
+Escape still clears (`"scenario"` → `""`), and is now vetoable by a consumer's
+own `onKeyDown`.
+
+**The second-order consequence is resolved too.** Under the old behaviour the
+UA cross cleared the DOM value and a controlled consumer stayed in sync only by
+luck, while `onClear` never ran. Both paths now go through the same `clear()`.

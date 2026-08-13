@@ -1,10 +1,15 @@
+import { Badge, IconButton, ProgressBar, Spinner, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AutoAwesomeMotionOutlined, CheckCircleOutlined, ErrorOutlined } from '@mui/icons-material';
-import { Badge, Box, CircularProgress, IconButton, LinearProgress, Popover, Tooltip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Popover } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
 import { type BulkOperation, seedBulkOperations, useBulkOperations } from '../../../utils/bulkOperations';
+
+/** The library Spinner's `xl` box — the tier added for this pattern — and half of it, which centres it. */
+const SPINNER_SIZE = 32;
+const SPINNER_CENTRING_OFFSET = `-${SPINNER_SIZE / 2}px`;
 
 /**
  * Permanent top bar entry for massive (bulk) operations: a badge with the number of running
@@ -70,48 +75,57 @@ const BulkOperationsIndicator: FunctionComponent = () => {
     }
   };
 
+  // The library's own axis (#118). No `warning` tone exists yet, so a status that
+  // wanted one would keep the default rather than borrow a neighbouring family.
+  const statusTone = (operation: BulkOperation) => {
+    switch (operation.bulk_operation_status) {
+      case 'COMPLETED':
+        return 'success' as const;
+      case 'FAILED':
+        return 'error' as const;
+      default:
+        return 'default' as const;
+    }
+  };
+
   return (
     <>
-      <Tooltip title={t('Massive operations')}>
-        <IconButton
-          aria-haspopup="true"
-          aria-label="bulk-operations-menu"
-          onClick={handleOpen}
-          sx={{
-            'width': 36,
-            'height': 36,
-            'borderRadius': 1,
-            // Blue like every other top bar icon (running state adds badge + spinner).
-            'color': theme.palette.primary.main,
-            'backgroundColor': anchorEl ? alpha(theme.palette.primary.main, 0.15) : 'transparent',
-            '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.15) },
-          }}
-        >
-          <Badge
-            badgeContent={runningCount}
-            color="primary"
-            overlap="circular"
-            sx={{
-              '& .MuiBadge-badge': {
-                fontSize: 10,
-                height: 16,
-                minWidth: 16,
-              },
-            }}
-          >
-            <AutoAwesomeMotionOutlined fontSize="medium" />
-          </Badge>
-          {runningCount > 0 && (
-            <CircularProgress
-              size={32}
-              thickness={2}
-              sx={{
-                position: 'absolute',
-                color: alpha(theme.palette.primary.main, 0.5),
-              }}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {/* The Badge wraps the BUTTON, not the glyph: it describes its child, and the glyph slot is aria-hidden. */}
+          <Badge content={runningCount} circularAnchor>
+            <IconButton
+              priority="tertiary"
+              aria-haspopup="true"
+              aria-label="bulk-operations-menu"
+              onClick={handleOpen}
+              active={Boolean(anchorEl)}
+              // The spinner overlays the glyph, and the library's icon slot is not a positioning context.
+              icon={(
+                <span style={{
+                  position: 'relative',
+                  display: 'inline-flex',
+                }}
+                >
+                  <AutoAwesomeMotionOutlined fontSize="medium" />
+                  {runningCount > 0 && (
+                    <Spinner
+                      size="xl"
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        marginTop: SPINNER_CENTRING_OFFSET,
+                        marginLeft: SPINNER_CENTRING_OFFSET,
+                      }}
+                    />
+                  )}
+                </span>
+              )}
             />
-          )}
-        </IconButton>
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>{t('Massive operations')}</TooltipContent>
       </Tooltip>
       <Popover
         open={Boolean(anchorEl)}
@@ -141,9 +155,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-            {t('Massive operations')}
-          </Typography>
+          <Text variant="content-base-bold">{t('Massive operations')}</Text>
         </Box>
         <Box sx={{
           maxHeight: 400,
@@ -166,9 +178,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                 color: theme.palette.text.secondary,
               }}
               />
-              <Typography variant="body2" color="textSecondary">
-                {t('No massive operation yet')}
-              </Typography>
+              <Text variant="content-base" className="text-default-secondary">{t('No massive operation yet')}</Text>
             </Box>
           )}
           {operations.map((operation) => {
@@ -214,37 +224,28 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                       }}
                       />
                     )}
-                    {operation.bulk_operation_status === 'RUNNING' && (
-                      <CircularProgress size={14} thickness={5} sx={{ color }} />
-                    )}
-                    <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
+                    {operation.bulk_operation_status === 'RUNNING' && <Spinner size="sm" />}
+                    <Text
+                      variant="content-base-medium"
+                      id={`bulk-op-title-${operation.bulk_operation_id}`}
+                      className="truncate"
+                    >
                       {operationTitle(operation)}
-                    </Typography>
+                    </Text>
                   </Box>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color,
-                      fontWeight: 600,
-                      flexShrink: 0,
-                    }}
+                  <Text
+                    variant="content-caption"
+                    className="shrink-0"
+                    style={{ color }}
                   >
                     {statusCaption(operation)}
-                  </Typography>
+                  </Text>
                 </Box>
-                <LinearProgress
-                  variant="determinate"
+                {/* Determinate: named by the operation title above, so the value is announced with it. */}
+                <ProgressBar
                   value={progressValue(operation)}
-                  sx={{
-                    'height': 6,
-                    'borderRadius': 3,
-                    'backgroundColor': alpha(color, 0.15),
-                    '& .MuiLinearProgress-bar': {
-                      borderRadius: 3,
-                      backgroundColor: color,
-                      transition: 'transform 0.4s ease',
-                    },
-                  }}
+                  tone={statusTone(operation)}
+                  aria-labelledby={`bulk-op-title-${operation.bulk_operation_id}`}
                 />
                 <Box sx={{
                   display: 'flex',
@@ -252,12 +253,12 @@ const BulkOperationsIndicator: FunctionComponent = () => {
                   justifyContent: 'space-between',
                 }}
                 >
-                  <Typography variant="caption" color="textSecondary">
+                  <Text variant="content-caption" className="text-default-secondary">
                     {`${operation.bulk_operation_processed} / ${operation.bulk_operation_total}`}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
+                  </Text>
+                  <Text variant="content-caption" className="text-default-secondary">
                     {nsdt(operation.bulk_operation_started_at)}
-                  </Typography>
+                  </Text>
                 </Box>
               </Box>
             );

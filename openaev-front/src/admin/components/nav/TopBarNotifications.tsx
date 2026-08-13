@@ -1,21 +1,20 @@
+import { Badge, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { NotificationsOutlined } from '@mui/icons-material';
-import { Badge, IconButton, Tooltip } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 
 import { getUnreadNotificationsCount } from '../../../actions/notifications/notification-actions';
 import { type NotificationHelper } from '../../../actions/notifications/notification-helper';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
-
-interface Props { iconButtonSx: (selected: boolean) => object }
+import TopBarIconLink from './TopBarIconLink';
 
 /**
  * Top bar bell: unread notifications badge, refreshed live through the SSE
  * stream (new notifications land in the redux `notifications` map via the
  * shared data loader, which retriggers the count fetch).
  */
-const TopBarNotifications = ({ iconButtonSx }: Props) => {
+const TopBarNotifications = () => {
   const { t } = useFormatter();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -27,17 +26,19 @@ const TopBarNotifications = ({ iconButtonSx }: Props) => {
   }, [notifications]);
 
   return (
-    <Tooltip title={t('Notifications')}>
-      <IconButton
-        aria-label="notifications"
-        component={Link}
-        to="/admin/profile/notifications"
-        sx={iconButtonSx(location.pathname.startsWith('/admin/profile/notifications'))}
-      >
-        <Badge color="secondary" variant="dot" invisible={unreadCount === 0}>
-          <NotificationsOutlined fontSize="medium" />
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {/* The Badge wraps the LINK, not the glyph: it describes its child, and the glyph slot is aria-hidden. */}
+        <Badge content={unreadCount} dot invisible={unreadCount === 0}>
+          <TopBarIconLink
+            aria-label="notifications"
+            to="/admin/profile/notifications"
+            active={location.pathname.startsWith('/admin/profile/notifications')}
+            icon={<NotificationsOutlined fontSize="medium" />}
+          />
         </Badge>
-      </IconButton>
+      </TooltipTrigger>
+      <TooltipContent>{t('Notifications')}</TooltipContent>
     </Tooltip>
   );
 };

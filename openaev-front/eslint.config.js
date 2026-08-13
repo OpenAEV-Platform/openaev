@@ -180,6 +180,11 @@ export default [
     plugins: { vitest },
     rules: {
       ...vitest.configs.recommended.rules,
+      // The design system assertions live in shared helpers, which the rule cannot see by itself.
+      'vitest/expect-expect': [
+        'error',
+        { assertFunctionNames: ['expect', 'expectLibrary*', 'expectNoMuiControls'] },
+      ],
       'import/no-extraneous-dependencies': [
         'error',
         {

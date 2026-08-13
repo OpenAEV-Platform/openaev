@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import CtemCommandCenterButton from '../../../../admin/components/ariane/CtemCommandCenterButton';
 import { type PlatformSettings, type User } from '../../../../utils/api-types';
 import { UserContext, type UserContextType } from '../../../../utils/hooks/useAuth';
+import { expectLibraryIconButton } from '../../../utils/designSystemAssertions';
 
 const theme = createTheme({ palette: { ai: { main: '#9575ff' } } });
 
@@ -47,6 +48,19 @@ describe('CtemCommandCenterButton', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  // Scope rule (designer, round 2): where the library ships a component, use it.
+  describe('Design system adoption', () => {
+    it('is styled by the library icon button, not by MUI', () => {
+      renderButton();
+      // This shortcut must stay an anchor (it opens XTM One in a new tab, and
+      // middle-click / "open in new tab" are part of its behaviour), and the
+      // library's IconButton renders a hard <button> with no `asChild`. The
+      // library's own `iconButtonVariants` is the supported way to carry the
+      // component's contract onto the element the behaviour requires.
+      expectLibraryIconButton(screen.getByLabelText(LABEL), 'CTEM Command Center');
+    });
   });
 
   describe('Visibility', () => {

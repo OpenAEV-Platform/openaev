@@ -1,5 +1,6 @@
-import { Button, SvgIcon, Tooltip } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Button, Chip, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
+import { SvgIcon } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { useContext, useState } from 'react';
 
@@ -8,7 +9,6 @@ import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import EEChip from '../common/entreprise_edition/EEChip';
 import FiligranAiCguDialog from './FiligranAiCguDialog';
 import { useChatbot } from './useChatbotHooks';
 import isXtmOneAvailable from './xtmOneAvailability';
@@ -54,15 +54,14 @@ const AskArianeButton = () => {
     }
   };
 
-  // AI gradient (aligned with OpenCTI's "Ask Ariane" tertiary gradient button):
-  // borderless, transparent background, gradient-painted label + icon, subtle
-  // AI-tinted hover. No outlined box.
-  const aiGradient = `linear-gradient(90deg, ${theme.palette.ai.light} 0%, ${theme.palette.ai.main} 100%)`;
-
+  // The library's `ia` variant at tertiary priority IS this button's design.
   const buttonContent = (
     <Button
-      variant="text"
+      variant="ia"
+      priority="tertiary"
       onClick={handleClick}
+      // FDS-WORKAROUND #23: open state via the class the library's active state uses — remove when `Button` gets `active` — see fds-migration/LIBRARY-FEEDBACK.md
+      className={isOpen ? 'bg-filigran-ia-secondary-transparency' : undefined}
       startIcon={(
         <SvgIcon
           component={LogoXtmOneIcon}
@@ -73,35 +72,26 @@ const AskArianeButton = () => {
           }}
         />
       )}
-      endIcon={!isEnterpriseEdition ? <span><EEChip /></span> : undefined}
-      sx={{
-        'height': 36,
-        'paddingInline': 1.5,
-        'borderRadius': 1,
-        'fontWeight': 600,
-        'whiteSpace': 'nowrap',
-        'backgroundColor': isOpen ? alpha(theme.palette.ai.main, 0.15) : 'transparent',
-        '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.15) },
-        // Gradient-painted label, matching OpenCTI.
-        '& .ariane-label': {
-          background: aiGradient,
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-        },
-        '& .MuiButton-startIcon': { marginRight: '6px' },
-      }}
+      // Decorative: the button owns the behaviour and the accessible name.
+      endIcon={!isEnterpriseEdition ? <span aria-hidden="true"><Chip label={t('EE')} severity="ee" /></span> : undefined}
     >
-      <span className="ariane-label">{t('Ask Ariane')}</span>
+      {t('Ask Ariane')}
     </Button>
   );
 
   // If CGU pending and user cannot manage, wrap with tooltip explaining
   if (isEnterpriseEdition && isCguPending && !canManage) {
     return (
-      <Tooltip title={t('Ask Ariane isn\'t activated yet. Please reach out to your administrator to enable this feature.')}>
-        <span>{buttonContent}</span>
-      </Tooltip>
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>{buttonContent}</span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t('Ask Ariane isn\'t activated yet. Please reach out to your administrator to enable this feature.')}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
