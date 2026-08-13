@@ -1,9 +1,12 @@
 package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -11,6 +14,8 @@ import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import java.time.Instant;
 import java.util.List;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -35,7 +40,19 @@ class ScopeSnapshotServiceTest {
   @Mock private AssetGroupService assetGroupService;
   @Mock private CollectorRepository collectorRepository;
 
+  @Mock private TenantScopedTransaction tenantTx;
   @InjectMocks private ScopeSnapshotService scopeSnapshotService;
+
+  @BeforeEach
+  void setUp() {
+    lenient()
+        .when(tenantTx.executeNew(any(), any(Supplier.class)))
+        .thenAnswer(
+            invocation -> {
+              Supplier<?> supplier = invocation.getArgument(1);
+              return supplier.get();
+            });
+  }
 
   // -- helpers --
 
