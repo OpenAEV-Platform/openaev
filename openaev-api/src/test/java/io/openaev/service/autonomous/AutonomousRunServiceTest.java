@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -123,6 +124,170 @@ class AutonomousRunServiceTest {
     assertThatThrownBy(() -> service.promoteToRealRun("run-1"))
         .isInstanceOf(ResponseStatusException.class);
   }
+
+  // region orchestrator status callback validation
+
+  /**
+   * Regression tests for the orchestrator status-callback transition matrix: a stale callback must
+   * never resurrect an operator-owned state (CREATED pre-handoff / post-restart, PAUSED) or cross
+   * the plan/live divide, and every rejected push is an idempotent no-op (never a save).
+   */
+  @Nested
+  @DisplayName("Orchestrator status callback validation")
+  class OrchestratorStatusValidation {
+
+    private AutonomousRun lockedRun(AutonomousRunStatus status, boolean planMode) {
+      AutonomousRun run = new AutonomousRun();
+      run.setId("run-1");
+      run.setSimulationId("sim-1");
+      run.setStatus(status);
+      run.setPlanMode(planMode);
+      when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+      // updateStatus reads through the row-locking lookup so its check-then-write serialises with
+      // the operator lifecycle writers.
+      when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
+      return run;
+    }
+
+    @Test
+    @DisplayName("A stale callback cannot resurrect an operator pause (PAUSED source is a no-op)")
+    void given_pausedRun_when_orchestratorPushesAnyStatus_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.PAUSED, false);
+
+      AutonomousRun result =
+          service.updateStatus("run-1", AutonomousRunStatus.RUNNING, null, null, null);
+
+      assertThat(result.getStatus()).isEqualTo(AutonomousRunStatus.PAUSED);
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PAUSED);
+      verify(runRepository, never()).save(any());
+      verifyNoInteractions(eventService);
+    }
+
+    @Test
+    @DisplayName("A stale callback cannot settle a paused run to a terminal state")
+    void given_pausedRun_when_orchestratorPushesCompleted_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.PAUSED, false);
+
+      service.updateStatus("run-1", AutonomousRunStatus.COMPLETED, null, null, null);
+
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PAUSED);
+      verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A stale callback cannot drive a not-yet-started (CREATED) run")
+    void given_createdRun_when_orchestratorPushesRunning_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.CREATED, false);
+
+      service.updateStatus("run-1", AutonomousRunStatus.RUNNING, null, null, null);
+
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
+      verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A live run cannot be flipped across the plan/live divide (PLANNED target)")
+    void given_liveRun_when_orchestratorPushesPlanned_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.RUNNING, false);
+
+      service.updateStatus("run-1", AutonomousRunStatus.PLANNED, null, null, null);
+
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.RUNNING);
+      verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A plan run cannot be driven to the execute-only RUNNING state")
+    void given_planRun_when_orchestratorPushesRunning_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.PLANNING, true);
+
+      service.updateStatus("run-1", AutonomousRunStatus.RUNNING, null, null, null);
+
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
+      verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A legitimate live-run push (RUNNING -> COMPLETED) is applied and narrated")
+    void given_liveRun_when_orchestratorPushesCompleted_then_applied() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.RUNNING, false);
+      when(runRepository.save(run)).thenReturn(run);
+
+      AutonomousRun result =
+          service.updateStatus("run-1", AutonomousRunStatus.COMPLETED, null, null, null);
+
+      assertThat(result.getStatus()).isEqualTo(AutonomousRunStatus.COMPLETED);
+      verify(runRepository).save(run);
+      verify(eventService)
+          .append(
+              eq("run-1"),
+              eq("sim-1"),
+              eq(AutonomousEventType.STATUS),
+              anyString(),
+              isNull(),
+              isNull());
+    }
+  }
+
+  // endregion
+
+  // region network scope-rule matching (dual-stack CIDR)
+
+  /**
+   * Direct tests of the network scope-rule matcher: dual-stack CIDR containment must work for IPv6
+   * (the original bug), never resolve a hostname through DNS, and never let a malformed rule (an
+   * out-of-range prefix) match everything.
+   */
+  @Nested
+  @DisplayName("Network scope-rule matching")
+  class NetworkScopeRuleMatching {
+
+    @Test
+    @DisplayName("An IPv4 host matches an IPv4 CIDR rule")
+    void given_ipv4Candidate_when_insideIpv4Cidr_then_matches() {
+      assertThat(service.networkValueMatches("10.0.0.0/24", "10.0.0.42")).isTrue();
+      assertThat(service.networkValueMatches("10.0.0.0/24", "10.0.1.42")).isFalse();
+    }
+
+    @Test
+    @DisplayName("An IPv6 host matches an IPv6 CIDR rule (the original silent fall-through)")
+    void given_ipv6Candidate_when_insideIpv6Cidr_then_matches() {
+      assertThat(service.networkValueMatches("2001:db8::/32", "2001:db8::1")).isTrue();
+      assertThat(service.networkValueMatches("2001:db8::/32", "2001:db9::1")).isFalse();
+    }
+
+    @Test
+    @DisplayName("Mismatched address families never match")
+    void given_familyMismatch_when_matching_then_false() {
+      assertThat(service.networkValueMatches("10.0.0.0/8", "2001:db8::1")).isFalse();
+      assertThat(service.networkValueMatches("2001:db8::/32", "10.0.0.1")).isFalse();
+    }
+
+    @Test
+    @DisplayName("A hostname candidate is never evaluated against a CIDR rule (no DNS lookup)")
+    void given_hostnameCandidate_when_ruleIsCidr_then_falseWithoutResolution() {
+      assertThat(service.networkValueMatches("10.0.0.0/8", "intranet.example.org")).isFalse();
+    }
+
+    @Test
+    @DisplayName("A malformed rule prefix (out of range) never matches anything")
+    void given_outOfRangePrefix_when_matching_then_false() {
+      assertThat(service.networkValueMatches("10.0.0.0/-1", "10.0.0.1")).isFalse();
+      assertThat(service.networkValueMatches("10.0.0.0/33", "10.0.0.1")).isFalse();
+      assertThat(service.networkValueMatches("2001:db8::/-1", "2001:db8::1")).isFalse();
+      assertThat(service.networkValueMatches("2001:db8::/129", "2001:db8::1")).isFalse();
+    }
+
+    @Test
+    @DisplayName("A non-CIDR rule still matches case-insensitively on the exact value")
+    void given_exactRule_when_candidateDiffersOnlyByCase_then_matches() {
+      assertThat(service.networkValueMatches("HOST.example.org", "host.example.org")).isTrue();
+      assertThat(service.networkValueMatches("10.0.0.1", "10.0.0.1")).isTrue();
+      assertThat(service.networkValueMatches("10.0.0.1", "10.0.0.2")).isFalse();
+    }
+  }
+
+  // endregion
 
   // region OpenAEV-owned timeout: deadline stamping, winddown nudges, hard stop
 

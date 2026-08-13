@@ -43,7 +43,10 @@ import org.springframework.web.server.ResponseStatusException;
  * single configured XTM One service token - one identity for every run, never the operator's - so a
  * resource check would break live orchestration for any run whose operator differs from the token
  * owner. They stay behind the Enterprise-Edition license + the {@code INJECT_CHAINING} preview
- * feature + tenant isolation on the {@code autonomous_*} tables.
+ * feature. Restricting them to the actual service identity (today any authenticated EE user can
+ * reach them) and activating tenant isolation on the {@code autonomous_*} tables are tracked as
+ * follow-up hardening in issue #7396 - both need infrastructure work (a callback service identity;
+ * the v2 tenant-table activation procedure) beyond this gate.
  */
 @org.springframework.stereotype.Component
 @RequiredArgsConstructor

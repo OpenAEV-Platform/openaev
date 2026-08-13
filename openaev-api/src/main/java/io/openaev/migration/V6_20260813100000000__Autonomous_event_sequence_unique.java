@@ -19,10 +19,14 @@ import org.springframework.stereotype.Component;
  * serialise (each succeeds with N and N+1) rather than one hitting the unique constraint; the index
  * is the backstop that makes a duplicate impossible even if that lock is ever bypassed.
  *
- * <p>Additive and idempotent: any pre-existing duplicate rows are collapsed first (keeping the
- * physically-first row of each group), then the old index is dropped and the unique index created
- * with {@code IF [NOT] EXISTS}, so re-running is a no-op. The {@code autonomous_events} table is a
- * new, preview-flag-gated, human-review-cadence store, so the brief index build lock is safe.
+ * <p>Additive and idempotent: any run holding duplicate sequences is deterministically resequenced
+ * first - every event row is KEPT (each duplicate narrates a distinct decision / audit entry, so
+ * deleting one would lose append-only timeline data) and the whole run timeline is renumbered 1..N
+ * in its existing order (sequence, then creation time, then event id as the tie-break). Then the
+ * old index is dropped and the unique index created with {@code IF [NOT] EXISTS}. On a clean table
+ * every sequence already equals its row number, so re-running is a no-op. The {@code
+ * autonomous_events} table is a new, preview-flag-gated, human-review-cadence store, so the brief
+ * index build lock is safe.
  */
 @Component
 public class V6_20260813100000000__Autonomous_event_sequence_unique extends BaseJavaMigration {
@@ -30,16 +34,28 @@ public class V6_20260813100000000__Autonomous_event_sequence_unique extends Base
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
-      // Collapse any pre-existing (run_id, sequence) duplicates so the unique index can be built.
-      // Keeps the physically-first row of each group (lowest ctid) and drops the rest; a no-op on a
-      // clean table.
+      // Resequence any run carrying (run_id, sequence) duplicates so the unique index can be
+      // built WITHOUT deleting timeline rows: each duplicate is a distinct decision/audit event,
+      // so all rows are kept and the run's timeline is renumbered 1..N in deterministic order
+      // (existing sequence, then creation time, then event id). A no-op on a clean table, where
+      // every sequence already equals its row number.
       statement.execute(
           """
-          DELETE FROM autonomous_events a
-                USING autonomous_events b
-           WHERE a.autonomous_event_run_id = b.autonomous_event_run_id
-             AND a.autonomous_event_sequence = b.autonomous_event_sequence
-             AND a.ctid > b.ctid;
+          WITH ranked AS (
+              SELECT autonomous_event_id,
+                     ROW_NUMBER() OVER (
+                         PARTITION BY autonomous_event_run_id
+                         ORDER BY autonomous_event_sequence,
+                                  autonomous_event_created_at,
+                                  autonomous_event_id
+                     ) AS new_sequence
+                FROM autonomous_events
+          )
+          UPDATE autonomous_events e
+             SET autonomous_event_sequence = r.new_sequence
+            FROM ranked r
+           WHERE e.autonomous_event_id = r.autonomous_event_id
+             AND e.autonomous_event_sequence <> r.new_sequence;
           """);
       // Replace the non-unique run/sequence index with a unique one: it enforces the per-run
       // sequence invariant AND still serves the run-scoped ordered + since-sequence reads.

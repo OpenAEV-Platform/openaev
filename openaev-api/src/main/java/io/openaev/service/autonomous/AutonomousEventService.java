@@ -71,11 +71,11 @@ public class AutonomousEventService {
       String content,
       String data) {
     // Serialise concurrent appenders to THIS run before the read-max-then-insert below: two
-    // decision
-    // cycles (or a cycle racing an operator directive) writing to the same run must not both
-    // compute
-    // the same next sequence. The transaction advisory lock makes both succeed as N and N+1; the
-    // UNIQUE (run_id, sequence) index is the backstop that makes a duplicate impossible regardless.
+    // decision cycles (or a cycle racing an operator directive) writing to the same run must not
+    // both compute the same next sequence. The transaction advisory lock makes both succeed as N
+    // and N+1; the UNIQUE (run_id, sequence) index is the backstop that makes a duplicate
+    // impossible regardless. Re-acquiring the same key inside one transaction (the terminal-once
+    // path locks before its existence check, then reaches this) is a cheap no-op.
     eventRepository.lockRunEventSequence(sequenceLockKey(runId));
     AutonomousEvent event = new AutonomousEvent();
     event.setRunId(runId);
@@ -122,6 +122,13 @@ public class AutonomousEventService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousEvent appendTerminalStatusOnce(
       String runId, String simulationId, String title, String content) {
+    // Take the per-run advisory lock BEFORE the existence check, not only inside doAppend: two
+    // racing settle paths could otherwise both observe "no terminal event yet", then serialise on
+    // the append lock and write two distinct terminal lines as N and N+1 - which the unique
+    // (run_id, sequence) index cannot prevent. Holding the lock across check + append makes the
+    // second transaction wait, then (READ COMMITTED) observe the first one's committed terminal
+    // event and drop its duplicate.
+    eventRepository.lockRunEventSequence(sequenceLockKey(runId));
     if (eventRepository.existsTerminalStatusEvent(runId, TERMINAL_STATUS_TITLES)) {
       return null;
     }

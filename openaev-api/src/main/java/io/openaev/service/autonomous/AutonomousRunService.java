@@ -495,12 +495,14 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Authorize BEFORE inspecting the scenario's workflow: an unauthorized caller must get the
+    // same 403 whether or not the scenario is chained, never a 400 that leaks its shape.
+    accessControl.assertCanManageScenario(scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
           "The scenario must define a chaining (attack path) workflow to run autonomously");
     }
-    accessControl.assertCanManageScenario(scenarioId);
     // Relaunching is first-class: a scenario whose previous autonomous run (or plan) has settled
     // can be launched again. The settled run row is superseded so the new run can bind (one run
     // per scenario); a still-active run is refused instead.
@@ -554,12 +556,14 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Authorize BEFORE inspecting the scenario's workflow: an unauthorized caller must get the
+    // same 403 whether or not the scenario is chained, never a 400 that leaks its shape.
+    accessControl.assertCanManageScenario(scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
           "The scenario must be a chained scenario to be planned by the orchestrator");
     }
-    accessControl.assertCanManageScenario(scenarioId);
     AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
     Scenario scenario = scenarioService.scenario(scenarioId);
     // Refine (follow-up) vs rebuild (from scratch): refine keeps the existing logic + history and
@@ -1730,14 +1734,27 @@ public class AutonomousRunService {
 
   /**
    * Whether the orchestrator status callback may move {@code run} to {@code target}. Encodes the
-   * transition matrix for the one status source that is not OpenAEV itself: CREATED (initial),
-   * PAUSED (operator) and CANCELED (OpenAEV-authoritative) are never orchestrator-driven, and the
-   * dry-run-only (PLANNING / PLANNED) versus execute-only (RUNNING) states may not be crossed
-   * against the run's mode. Terminal-source runs are already short-circuited before this is
-   * reached, so every remaining legitimate push (RUNNING/WAITING_INPUT/COMPLETED/FAILED for a live
-   * run; PLANNING/PLANNED/WAITING_INPUT/COMPLETED/FAILED for a plan run) is allowed.
+   * transition matrix for the one status source that is not OpenAEV itself, on both sides:
+   *
+   * <ul>
+   *   <li>SOURCE: a run sitting in an operator-owned state may not be driven at all. CREATED means
+   *       pre-handoff or just-restarted (only {@code start()} engages), PAUSED means the operator
+   *       suspended it (only {@code resume()} releases) - a callback observing either is stale and
+   *       must not resurrect or advance the run past the operator's intent.
+   *   <li>TARGET: CREATED (initial), PAUSED (operator) and CANCELED (OpenAEV-authoritative) are
+   *       never orchestrator-driven, and the dry-run-only (PLANNING / PLANNED) versus execute-only
+   *       (RUNNING) states may not be crossed against the run's mode.
+   * </ul>
+   *
+   * <p>Terminal-source runs are already short-circuited before this is reached, so every remaining
+   * legitimate push (RUNNING/WAITING_INPUT/COMPLETED/FAILED for a live run;
+   * PLANNING/PLANNED/WAITING_INPUT/COMPLETED/FAILED for a plan run) is allowed.
    */
   private boolean isOrchestratorStatusAllowed(AutonomousRun run, AutonomousRunStatus target) {
+    if (run.getStatus() == AutonomousRunStatus.CREATED
+        || run.getStatus() == AutonomousRunStatus.PAUSED) {
+      return false;
+    }
     if (target == AutonomousRunStatus.CREATED
         || target == AutonomousRunStatus.PAUSED
         || target == AutonomousRunStatus.CANCELED) {
@@ -1759,7 +1776,12 @@ public class AutonomousRunService {
   public AutonomousRun updateStatus(
       String runId, AutonomousRunStatus status, String lastError, String title, String content) {
     requireFeature();
-    AutonomousRun run = require(runId);
+    // Row-locked read: the terminal + transition validation below is a check-then-write on a row
+    // with no optimistic version, so it must serialise with the operator lifecycle writers
+    // (pause/resume take the same lock; cancel/reconcile/watchdog settle via row-locking
+    // conditional UPDATEs). Without the lock, a callback that read a pre-pause state could pass
+    // validation and overwrite a concurrently committed PAUSED or terminal transition.
+    AutonomousRun run = requireForUpdate(runId);
     // A terminal status is final: CANCELED (operator Stop / OpenAEV timeout hard-stop) and
     // COMPLETED / FAILED (settled orchestration) all tear the run down. A late status callback from
     // the orchestrator - a COMPLETED it emits after we already hard-stopped, the gap-1 completion
@@ -1774,13 +1796,13 @@ public class AutonomousRunService {
     }
     // Validate the transition instead of accepting any target. This callback is the ONE status
     // source that is not OpenAEV itself, so it must only drive the run through states the
-    // orchestrator actually owns: CREATED is the pre-handoff initial state, PAUSED is operator-only
-    // (pause/resume), CANCELED is OpenAEV-authoritative (operator Stop / timeout hard-stop, via
-    // cancel()); and the dry-run-only planning states (PLANNING/PLANNED) versus the execute-only
-    // RUNNING state may not be crossed against the run's mode. A callback naming a disallowed
-    // target
-    // is a stale or confused write - ignore it (idempotent no-op) so it can neither resurrect an
-    // operator state nor flip a run across the plan/live divide.
+    // orchestrator actually owns - on both sides. Source: a run parked in an operator-owned state
+    // (CREATED pre-handoff / post-restart, PAUSED by the operator) may not be driven at all - only
+    // start()/resume() release it. Target: CREATED, PAUSED and CANCELED (OpenAEV-authoritative,
+    // via cancel()) are never orchestrator-set, and the dry-run-only planning states
+    // (PLANNING/PLANNED) versus the execute-only RUNNING state may not be crossed against the
+    // run's mode. A disallowed push is a stale or confused write - ignore it (idempotent no-op) so
+    // it can neither resurrect an operator state nor flip a run across the plan/live divide.
     if (!isOrchestratorStatusAllowed(run, status)) {
       log.warn(
           "[Autonomous] Ignoring illegal orchestrator status transition {} -> {} for run {}",
@@ -3070,17 +3092,36 @@ public class AutonomousRunService {
   /**
    * Matches a scope rule value against a candidate: case-insensitive exact, or IP-in-CIDR for both
    * IPv4 and IPv6. Containment is delegated to {@link IpAddressUtils#isIpInSubnet} (the same helper
-   * the rest of the platform's scope resolution uses), which returns false when the address
-   * families differ or either side fails to parse - so an IPv6 host is now correctly matched
+   * the rest of the platform's scope resolution uses) - so an IPv6 host is now correctly matched
    * against an IPv6 CIDR rule instead of silently falling through as it did with the old IPv4-only
-   * check.
+   * check - but only after both sides are validated as literals:
+   *
+   * <ul>
+   *   <li>the candidate must be a literal IPv4/IPv6 address ({@link IpAddressUtils#isIpv4Address} /
+   *       {@link IpAddressUtils#isIpv6Address}, both DNS-safe). Discovered values can be hostnames,
+   *       and {@code isIpInSubnet} resolves names through {@code InetAddress.getByName}, so an
+   *       unguarded call would trigger DNS lookups and could match a hostname against a CIDR rule
+   *       through its resolved address;
+   *   <li>the rule must be a well-formed subnet with an in-range prefix ({@link
+   *       IpAddressUtils#isIpv4Subnet} / {@link IpAddressUtils#isIpv6Subnet}). {@code isIpInSubnet}
+   *       does not bound the prefix itself, and a malformed rule such as {@code 10.0.0.0/-1} would
+   *       otherwise match every address of its family - turning a typo into scope authorization.
+   * </ul>
+   *
+   * <p>Package-private for direct unit testing (same pattern as {@link #stampDeadline}).
    */
-  private boolean networkValueMatches(String ruleValue, String candidate) {
+  boolean networkValueMatches(String ruleValue, String candidate) {
     if (ruleValue.equalsIgnoreCase(candidate)) {
       return true;
     }
     if (ruleValue.contains("/")) {
-      return IpAddressUtils.isIpInSubnet(candidate, ruleValue);
+      boolean literalIpCandidate =
+          IpAddressUtils.isIpv4Address(candidate) || IpAddressUtils.isIpv6Address(candidate);
+      boolean wellFormedSubnet =
+          IpAddressUtils.isIpv4Subnet(ruleValue) || IpAddressUtils.isIpv6Subnet(ruleValue);
+      return literalIpCandidate
+          && wellFormedSubnet
+          && IpAddressUtils.isIpInSubnet(candidate, ruleValue);
     }
     return false;
   }

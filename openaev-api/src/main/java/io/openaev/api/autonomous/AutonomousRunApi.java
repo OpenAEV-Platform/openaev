@@ -62,9 +62,11 @@ import org.springframework.web.bind.annotation.RestController;
  * </ul>
  *
  * <p>The controller is deliberately thin: all lifecycle, callback, steering, and read logic lives
- * in {@link AutonomousRunService}. Tenant isolation is enforced by the statement inspector on the
- * {@code autonomous_*} tables; RBAC is skipped at the annotation level because the run's authority
- * derives from its bound simulation, checked in-service.
+ * in {@link AutonomousRunService}. RBAC is skipped at the annotation level because the run's
+ * authority derives from its bound simulation, checked in-service through {@code
+ * AutonomousRunAccessControl}. The {@code autonomous_*} tables are not yet onboarded to the tenant
+ * statement inspector; their activation (and a service-identity check on the orchestrator
+ * callbacks) is tracked in issue #7396.
  *
  * <p>Endpoints split into three audiences: the operator UI (create / start / pause / resume /
  * cancel / steer / read), the XTM One orchestrator callbacks (events / status / directive
