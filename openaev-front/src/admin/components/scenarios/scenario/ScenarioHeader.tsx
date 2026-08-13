@@ -81,6 +81,7 @@ import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/
 import { DEFAULT_TIMEOUT_HOURS } from '../../autonomous/useAutonomousRunConfig';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
@@ -313,8 +314,7 @@ const ScenarioHeader = ({
   // Grant-only users without any of the manage / launch / delete permissions get no overflow menu
   // at all instead of a popover full of disabled entries.
   const canDisplayScenarioActions = canManage || canLaunch || canDelete;
-  const isScopeMissing = isScenarioChaining
-    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+  const isScopeMissing = isScenarioChaining && isScopeLaunchBlocked(healthchecks);
 
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();

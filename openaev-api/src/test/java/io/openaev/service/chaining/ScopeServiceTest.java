@@ -5,6 +5,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.*;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
@@ -14,6 +16,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import io.openaev.utils.mapper.EndpointMapper;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +34,8 @@ class ScopeServiceTest {
   @Mock private AssetService assetService;
   @Mock private AssetGroupService assetGroupService;
   @Mock private WorkflowStateService workflowStateService;
+  @Mock private TeamRepository teamRepository;
+  @Mock private UserRepository userRepository;
   @Mock private EndpointService endpointService;
   @Mock private EndpointMapper endpointMapper;
   @Mock private AssetGroupMapper assetGroupMapper;
@@ -383,5 +388,74 @@ class ScopeServiceTest {
         scopeService.getScopeAssetGroupsByIds(WORKFLOW_ID, List.of("group-1", "group-9"));
 
     assertThat(result).containsExactly(allowedOutput);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Audience scope (teams and players consumed by tabletop injects)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("Valid teams - allowlisted teams minus denylisted teams are resolved")
+  void givenAllowAndDenyTeamRules_whenGettingValidTeams_thenDeniedTeamIsExcluded() {
+    Team kept = new Team();
+    kept.setId("team-1");
+
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(
+            List.of(
+                allowlistRule(ScopeRuleValueType.TEAM_ID, "team-1"),
+                allowlistRule(ScopeRuleValueType.TEAM_ID, "team-2"),
+                denylistRule(ScopeRuleValueType.TEAM_ID, "team-2")));
+    when(teamRepository.findAllById(List.of("team-1"))).thenReturn(List.of(kept));
+
+    List<Team> result = scopeService.getValidTeams(WORKFLOW_ID);
+
+    assertThat(result).containsExactly(kept);
+  }
+
+  @Test
+  @DisplayName("Valid players - allowlisted players minus denylisted players are resolved")
+  void givenAllowAndDenyPlayerRules_whenGettingValidPlayers_thenDeniedPlayerIsExcluded() {
+    User kept = new User();
+    kept.setId("player-1");
+
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(
+            List.of(
+                allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-1"),
+                allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-2"),
+                denylistRule(ScopeRuleValueType.PLAYER_ID, "player-2")));
+    when(userRepository.findAllById(List.of("player-1"))).thenReturn(List.of(kept));
+
+    List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
+
+    assertThat(result).containsExactly(kept);
+  }
+
+  @Test
+  @DisplayName("Valid players - no PLAYER rules means no user lookup at all")
+  void givenNoPlayerRules_whenGettingValidPlayers_thenReturnsEmptyWithoutLookup() {
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(List.of(allowlistRule(ScopeRuleValueType.TEAM_ID, "team-1")));
+
+    List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
+
+    assertThat(result).isEmpty();
+    verifyNoInteractions(userRepository);
+  }
+
+  @Test
+  @DisplayName("Denied player IDs - only denylisted PLAYER rules are returned")
+  void givenMixedRules_whenGettingDeniedPlayerIds_thenOnlyDenylistedPlayersAreReturned() {
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(
+            List.of(
+                allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-1"),
+                denylistRule(ScopeRuleValueType.PLAYER_ID, "player-2"),
+                denylistRule(ScopeRuleValueType.TEAM_ID, "team-1")));
+
+    Set<String> result = scopeService.getDeniedPlayerIds(WORKFLOW_ID);
+
+    assertThat(result).containsExactly("player-2");
   }
 }

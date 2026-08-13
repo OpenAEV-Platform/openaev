@@ -5792,7 +5792,15 @@ export interface HealthCheck {
    */
   creation_date: string;
   /** Detail of the check failure */
-  detail: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY" | "MANDATORY_CONTENT";
+  detail:
+    | "SERVICE_UNAVAILABLE"
+    | "NOT_READY"
+    | "EMPTY"
+    | "MANDATORY_CONTENT"
+    | "MISSING_TECHNICAL_TARGETS"
+    | "MISSING_AUDIENCE_TARGETS"
+    | "INEFFECTIVE_TECHNICAL_TARGETS"
+    | "INEFFECTIVE_AUDIENCE_TARGETS";
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */

@@ -33,6 +33,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.TagRuleService;
 import io.openaev.service.UserService;
+import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -130,6 +131,8 @@ class InjectServiceTest {
 
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
 
+  @Mock private StepTargetingService stepTargetingService;
+
   @Spy private InjectorContractContentUtils injectorContractContentUtils;
 
   @Mock private ApplicationEventPublisher eventPublisher;
@@ -150,7 +153,7 @@ class InjectServiceTest {
     ReflectionTestUtils.setField(
         injectService,
         "healthCheckUtils",
-        new HealthCheckUtils(new ExecutorUtils(assetAgentJobRepository)));
+        new HealthCheckUtils(new ExecutorUtils(assetAgentJobRepository), stepTargetingService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -159,7 +162,8 @@ class InjectServiceTest {
             payloadMapper,
             injectExpectationMapper,
             injectUtils,
-            new HealthCheckUtils(new ExecutorUtils(assetAgentJobRepository))));
+            new HealthCheckUtils(
+                new ExecutorUtils(assetAgentJobRepository), stepTargetingService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }

@@ -550,12 +550,12 @@ class StepServiceTest {
         // NOTE: this step is a payload step with no condition mapper that has already produced a
         // READY step for a previous asset in an earlier scheduling cycle (i.e. exactly the
         // combination that used to be permanently short-circuited by the removed
-        // "!hasConditionMapper && isStepAlreadyExecutedOnce && hasPayload" guard). These are
-        // stubbed leniently because the fixed createReadySteps no longer consults them at all —
-        // reverting the fix would make this test start invoking them (and start failing, since the
-        // old guard would then return an empty list instead of expanding the remaining assets).
+        // "!hasConditionMapper && isStepAlreadyExecutedOnce && hasPayload" guard, whose payload
+        // classification now lives in StepTargetingService). These are stubbed leniently because
+        // the fixed createReadySteps no longer consults them at all — reverting the fix would make
+        // this test start invoking them (and start failing, since the old guard would then return
+        // an empty list instead of expanding the remaining assets).
         lenient().when(conditionService.hasConditionMapper(persistedTemplate)).thenReturn(false);
-        lenient().when(injectExecutionStep.hasPayload(persistedTemplate)).thenReturn(true);
         lenient()
             .when(stepRepository.existsByStepTemplateIdAndWorkflowId(stepId, workflowId))
             .thenReturn(true);
