@@ -203,4 +203,33 @@ class TenantMembershipCacheManagerTest {
           .queryForList(TenantMembershipCacheManager.USER_TENANT_IDS_SQL, String.class, USER_ID);
     }
   }
+
+  @Nested
+  @DisplayName("evictForUser")
+  class EvictForUser {
+
+    @Test
+    @DisplayName("given_cached_membership_and_ids_should_call_backends_again_after_evictForUser")
+    void given_cached_membership_and_ids_should_call_backends_again_after_evictForUser() {
+      // Arrange
+      when(tenantRepository.existsByUserIdAndTenantId(USER_ID, TENANT_ID)).thenReturn(true);
+      when(jdbcTemplate.queryForList(
+              TenantMembershipCacheManager.USER_TENANT_IDS_SQL, String.class, USER_ID))
+          .thenReturn(List.of(TENANT_ID));
+
+      tenantMembershipCacheManager.existsByUserIdAndTenantId(USER_ID, TENANT_ID);
+      tenantMembershipCacheManager.findTenantIdsByUserId(USER_ID);
+
+      // Act - must bust both caches without relying on self-invocation of evict()
+      tenantMembershipCacheManager.evictForUser(USER_ID, List.of(TENANT_ID));
+
+      tenantMembershipCacheManager.existsByUserIdAndTenantId(USER_ID, TENANT_ID);
+      tenantMembershipCacheManager.findTenantIdsByUserId(USER_ID);
+
+      // Assert
+      verify(tenantRepository, times(2)).existsByUserIdAndTenantId(USER_ID, TENANT_ID);
+      verify(jdbcTemplate, times(2))
+          .queryForList(TenantMembershipCacheManager.USER_TENANT_IDS_SQL, String.class, USER_ID);
+    }
+  }
 }

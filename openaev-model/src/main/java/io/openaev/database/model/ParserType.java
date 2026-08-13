@@ -10,8 +10,10 @@ public enum ParserType {
     if (value == null) {
       return null;
     }
-    if ("REGEX".equalsIgnoreCase(value)) {
-      return REGEX;
+    for (ParserType type : values()) {
+      if (type.name().equalsIgnoreCase(value)) {
+        return type;
+      }
     }
     throw new IllegalArgumentException(
         "output_parser_type must be REGEX; finding types like credentials belong in"
