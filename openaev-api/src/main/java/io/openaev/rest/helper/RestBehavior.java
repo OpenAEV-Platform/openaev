@@ -102,7 +102,7 @@ public class RestBehavior {
     StringBuilder pathBuilder = new StringBuilder();
     for (var ref : ife.getPath()) {
       if (ref.getFieldName() != null) {
-        if (!pathBuilder.isEmpty()) {
+        if (pathBuilder.length() > 0) {
           pathBuilder.append('.');
         }
         pathBuilder.append(ref.getFieldName());
