@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * queried by content, and the read path is already served by idx_workflow_scope_rules_workflow_id).
  */
 @Component
-public class V6_20260809120000000__Add_workflow_scope_rule_snapshot extends BaseJavaMigration {
+public class V6_20260813170000000__Add_workflow_scope_rule_snapshot extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
