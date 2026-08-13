@@ -9,7 +9,6 @@ import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
@@ -20,20 +19,15 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.command.CommandArgumentBinder;
-import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,8 +44,6 @@ public class ExecutableInjectService {
   private final InjectStatusService injectStatusService;
   private final InjectExpectationService injectExpectationService;
   private final PayloadService payloadService;
-
-  @Resource protected ObjectMapper mapper;
 
   private static final Set<String> RESERVED_PLACEHOLDERS = Set.of("location", "payload_location");
   private static final Pattern argumentsRegex = Pattern.compile("#\\{([^#{}]+)}");
@@ -115,7 +107,7 @@ public class ExecutableInjectService {
       List<PayloadArgument> defaultPayloadArguments,
       List<ObjectNode> injectorContractContentFields,
       ObjectNode injectContent,
-      ResolutionMode mode) {
+      boolean enforceMandatory) {
 
     List<PayloadArgument> payloadArguments =
         defaultPayloadArguments != null ? defaultPayloadArguments : List.of();
@@ -124,52 +116,38 @@ public class ExecutableInjectService {
     ObjectNode safeInjectContent =
         injectContent != null ? injectContent : JsonNodeFactory.instance.objectNode();
 
-    Map<String, PayloadArgument> payloadArgumentByKey =
-        payloadArguments.stream()
-            .filter(arg -> arg.getKey() != null)
-            .collect(
-                Collectors.toMap(
-                    PayloadArgument::getKey, Function.identity(), (first, second) -> first));
-    Map<String, FieldPolicy> policiesByKey = buildFieldPolicies(contractFields);
     Set<String> argumentKeys = getArgumentsFromCommandLines(command);
-    Set<String> missingOptionalKeys = new HashSet<>();
 
     for (String argumentKey : argumentKeys) {
       if (RESERVED_PLACEHOLDERS.contains(argumentKey)) {
         continue;
       }
 
-      PayloadArgument defaultPayloadArgument = payloadArgumentByKey.get(argumentKey);
-      FieldPolicy policy =
-          policiesByKey.getOrDefault(
-              argumentKey,
-              new FieldPolicy(
-                  false,
-                  defaultPayloadArgument != null ? defaultPayloadArgument.getDefaultValue() : ""));
+      PayloadArgument defaultPayloadArgument = findPayloadArgument(argumentKey, payloadArguments);
+      boolean mandatory = isMandatoryField(argumentKey, contractFields);
+      String defaultValue =
+          resolveDefaultValue(argumentKey, defaultPayloadArgument, contractFields);
       ResolvedArgument resolvedArgument =
           resolveArgumentValue(
-              argumentKey, defaultPayloadArgument, policy, contractFields, safeInjectContent);
+              argumentKey,
+              defaultPayloadArgument,
+              defaultValue,
+              mandatory,
+              contractFields,
+              safeInjectContent);
 
       if (resolvedArgument.missing()) {
-        if (mode.enforceMandatory() && resolvedArgument.policy().mandatory()) {
+        if (enforceMandatory && resolvedArgument.mandatory()) {
           log.error(
               "[Inject execution] Missing mandatory input '{}' -> step run can not be created/executed",
               argumentKey);
           throw new IllegalStateException(
               "Missing mandatory input '%s' for inject execution".formatted(argumentKey));
         }
-        if (mode.pruneMissingOptionalFlags() && !resolvedArgument.policy().mandatory()) {
-          missingOptionalKeys.add(argumentKey);
-        }
       }
       binder.bind(argumentKey, resolvedArgument.value());
     }
-
-    String commandToRender = command;
-    if (mode.pruneMissingOptionalFlags() && !missingOptionalKeys.isEmpty()) {
-      commandToRender = pruneOptionalFlagSegments(command, missingOptionalKeys);
-    }
-    return binder.render(commandToRender);
+    return binder.render(command);
   }
 
   /**
@@ -193,18 +171,18 @@ public class ExecutableInjectService {
         defaultPayloadArguments,
         injectorContractContentFields,
         injectContent,
-        ResolutionMode.DISPLAY_PERMISSIVE);
+        false);
   }
 
   /** Resolves the effective value of a single argument, before any shell escaping. */
   private ResolvedArgument resolveArgumentValue(
       String argumentKey,
       PayloadArgument defaultPayloadArgument,
-      FieldPolicy policy,
+      String defaultValue,
+      boolean mandatory,
       List<ObjectNode> injectorContractContentFields,
       ObjectNode injectContent) {
     PrimitiveType type = defaultPayloadArgument != null ? defaultPayloadArgument.getType() : null;
-    String defaultValue = resolveDefaultValue(defaultPayloadArgument, policy);
     String value = "";
     boolean missing = true;
 
@@ -235,7 +213,7 @@ public class ExecutableInjectService {
         log.error("Payload argument target unexisting document", e);
       }
     }
-    return new ResolvedArgument(value, missing, policy);
+    return new ResolvedArgument(value, missing, mandatory);
   }
 
   public static String replaceCmdVariables(String cmd) {
@@ -277,12 +255,14 @@ public class ExecutableInjectService {
     return formattedCommand.toString();
   }
 
-  String renderCommandForExecution(
+  private String processAndEncodeCommand(
       String command,
       String executor,
       List<PayloadArgument> defaultPayloadArguments,
       ObjectNode injectContent,
-      List<ObjectNode> injectorContractContentFields) {
+      List<ObjectNode> injectorContractContentFields,
+      String obfuscator) {
+    OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
     String computedCommand = command;
     // cmd-specific rewrites are applied to the TEMPLATE only: running them after substitution would
     // let an argument value smuggle a %VAR% / newline through them.
@@ -298,26 +278,7 @@ public class ExecutableInjectService {
             defaultPayloadArguments,
             injectorContractContentFields,
             injectContent,
-            ResolutionMode.EXECUTION_STRICT);
-
-    return computedCommand;
-  }
-
-  private String processAndEncodeCommand(
-      String command,
-      String executor,
-      List<PayloadArgument> defaultPayloadArguments,
-      ObjectNode injectContent,
-      List<ObjectNode> injectorContractContentFields,
-      String obfuscator) {
-    OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
-    String computedCommand =
-        renderCommandForExecution(
-            command,
-            executor,
-            defaultPayloadArguments,
-            injectContent,
-            injectorContractContentFields);
+            true);
 
     computedCommand = obfuscationMap.executeObfuscation(obfuscator, computedCommand, executor);
 
@@ -498,74 +459,48 @@ public class ExecutableInjectService {
             dnsResolution.getArguments(),
             null,
             inject.getContent(),
-            ResolutionMode.DNS_LITERAL));
+            false));
     return dnsResolution;
   }
 
-  private String resolveDefaultValue(PayloadArgument defaultPayloadArgument, FieldPolicy policy) {
+  private PayloadArgument findPayloadArgument(
+      String argumentKey, List<PayloadArgument> payloadArguments) {
+    return payloadArguments.stream()
+        .filter(arg -> argumentKey.equals(arg.getKey()))
+        .findFirst()
+        .orElse(null);
+  }
+
+  private ObjectNode findFieldByKey(
+      String argumentKey, List<ObjectNode> injectorContractContentFields) {
+    return injectorContractContentFields.stream()
+        .filter(field -> field.has(CONTRACT_ELEMENT_CONTENT_KEY))
+        .filter(field -> argumentKey.equals(field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
+        .findFirst()
+        .orElse(null);
+  }
+
+  private boolean isMandatoryField(
+      String argumentKey, List<ObjectNode> injectorContractContentFields) {
+    ObjectNode field = findFieldByKey(argumentKey, injectorContractContentFields);
+    return field != null
+        && field.has(CONTRACT_ELEMENT_CONTENT_MANDATORY)
+        && field.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean(false);
+  }
+
+  private String resolveDefaultValue(
+      String argumentKey,
+      PayloadArgument defaultPayloadArgument,
+      List<ObjectNode> injectorContractContentFields) {
     if (defaultPayloadArgument != null && hasText(defaultPayloadArgument.getDefaultValue())) {
       return defaultPayloadArgument.getDefaultValue();
     }
-    return policy.defaultValue() != null
-        ? policy.defaultValue()
-        : defaultPayloadArgument != null ? defaultPayloadArgument.getDefaultValue() : "";
+    ObjectNode field = findFieldByKey(argumentKey, injectorContractContentFields);
+    if (field != null && field.has(DEFAULT_VALUE_FIELD)) {
+      return field.get(DEFAULT_VALUE_FIELD).asText("");
+    }
+    return defaultPayloadArgument != null ? defaultPayloadArgument.getDefaultValue() : "";
   }
 
-  private String pruneOptionalFlagSegments(String command, Set<String> missingOptionalKeys) {
-    String pruned = command;
-    for (String key : missingOptionalKeys) {
-      String placeholder = "#\\{" + Pattern.quote(key) + "\\}";
-      pruned = pruned.replaceAll("\\s+--[\\w-]+\\s+(?:\"|')?" + placeholder + "(?:\"|')?", "");
-      pruned = pruned.replaceAll("\\s+-[A-Za-z0-9]\\s+(?:\"|')?" + placeholder + "(?:\"|')?", "");
-      pruned = pruned.replaceAll("\\s+--[\\w-]+=((?:\"|')?)" + placeholder + "\\1", "");
-      pruned = pruned.replaceAll("\\s+-[A-Za-z0-9]=((?:\"|')?)" + placeholder + "\\1", "");
-    }
-    return pruned.replaceAll("\\s{2,}", " ").trim();
-  }
-
-  private Map<String, FieldPolicy> buildFieldPolicies(
-      List<ObjectNode> injectorContractContentFields) {
-    if (injectorContractContentFields == null || injectorContractContentFields.isEmpty()) {
-      return Collections.emptyMap();
-    }
-    return injectorContractContentFields.stream()
-        .filter(field -> field.has(CONTRACT_ELEMENT_CONTENT_KEY))
-        .collect(
-            Collectors.toMap(
-                field -> field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText(),
-                field ->
-                    new FieldPolicy(
-                        field.has(CONTRACT_ELEMENT_CONTENT_MANDATORY)
-                            && field.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean(false),
-                        field.has(DEFAULT_VALUE_FIELD)
-                            ? field.get(DEFAULT_VALUE_FIELD).asText("")
-                            : ""),
-                (first, second) -> first));
-  }
-
-  private record FieldPolicy(boolean mandatory, String defaultValue) {}
-
-  private record ResolvedArgument(String value, boolean missing, FieldPolicy policy) {}
-
-  private enum ResolutionMode {
-    EXECUTION_STRICT(true, true),
-    DISPLAY_PERMISSIVE(false, true),
-    DNS_LITERAL(false, false);
-
-    private final boolean enforceMandatory;
-    private final boolean pruneMissingOptionalFlags;
-
-    ResolutionMode(boolean enforceMandatory, boolean pruneMissingOptionalFlags) {
-      this.enforceMandatory = enforceMandatory;
-      this.pruneMissingOptionalFlags = pruneMissingOptionalFlags;
-    }
-
-    boolean enforceMandatory() {
-      return enforceMandatory;
-    }
-
-    boolean pruneMissingOptionalFlags() {
-      return pruneMissingOptionalFlags;
-    }
-  }
+  private record ResolvedArgument(String value, boolean missing, boolean mandatory) {}
 }

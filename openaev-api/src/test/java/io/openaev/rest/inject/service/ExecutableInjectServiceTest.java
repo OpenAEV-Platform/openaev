@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PrimitiveType;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,12 +36,12 @@ class ExecutableInjectServiceTest {
 
     // Assert
     assertThat(result)
-        .isEqualTo("cat #{payload_location}/linpeas.sh && cd #{location} && echo hello");
+        .isEqualTo("cat #{payload_location}/linpeas.sh && cd #{location} && echo hello ");
   }
 
   @Test
-  @DisplayName("Should prune optional flag segment when optional value is missing")
-  void given_optionalMissingArgument_should_pruneRelatedFlagSegment() {
+  @DisplayName("Should keep command structure when optional value is missing")
+  void given_optionalMissingArgument_should_keepFlagWithEmptyValue() {
     // Arrange
     ObjectNode injectContent = JsonNodeFactory.instance.objectNode();
     injectContent.put("IP", "10.10.10.10");
@@ -59,13 +61,24 @@ class ExecutableInjectServiceTest {
             injectContent);
 
     // Assert
-    assertThat(result).isEqualTo("nxc smb 10.10.10.10 --shares");
+    assertThat(result).isEqualTo("nxc smb 10.10.10.10 -u  --shares");
   }
 
   @Test
   @DisplayName("Should block execution when mandatory value is missing")
-  void given_mandatoryMissingArgument_should_blockExecution() {
+  void given_mandatoryMissingArgument_should_blockExecution() throws Exception {
     // Arrange
+    Method method =
+        ExecutableInjectService.class.getDeclaredMethod(
+            "processAndEncodeCommand",
+            String.class,
+            String.class,
+            List.class,
+            ObjectNode.class,
+            List.class,
+            String.class);
+    method.setAccessible(true);
+
     ObjectNode injectContent = JsonNodeFactory.instance.objectNode();
     ObjectNode usernameField = JsonNodeFactory.instance.objectNode();
     usernameField.put(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY, "username");
@@ -75,19 +88,22 @@ class ExecutableInjectServiceTest {
     // Act / Assert
     assertThatThrownBy(
             () ->
-                service.renderCommandForExecution(
+                method.invoke(
+                    service,
                     "nxc smb -u #{username}",
                     "sh",
                     List.of(payloadArgument("username", "")),
                     injectContent,
-                    List.of(usernameField)))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("Missing mandatory input 'username' for inject execution");
+                    List.of(usernameField),
+                    "plain-text"))
+        .isInstanceOf(InvocationTargetException.class)
+        .hasCauseInstanceOf(IllegalStateException.class)
+        .hasRootCauseMessage("Missing mandatory input 'username' for inject execution");
   }
 
   @Test
-  @DisplayName("Should keep positional placeholders when optional value is missing")
-  void given_optionalMissingPositional_should_notPrunePlaceholderOutsideFlags() {
+  @DisplayName("Should keep positional placeholder as empty value when optional input is missing")
+  void given_optionalMissingPositional_should_keepEmptyValue() {
     // Arrange
     ObjectNode injectContent = JsonNodeFactory.instance.objectNode();
     String command = "tool run #{mode}";
