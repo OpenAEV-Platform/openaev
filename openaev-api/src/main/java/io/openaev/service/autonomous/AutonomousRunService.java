@@ -227,6 +227,28 @@ public class AutonomousRunService {
     }
   }
 
+  /**
+   * Refuses an operator lifecycle/steering action (pause / resume / steer) against a run that has
+   * already ended. A terminated run's XTM One orchestration is torn down, so pausing or resuming it
+   * would resurrect a dead row - a lost update the read-path reconcile then re-settles on every
+   * poll (the "Run canceled" cadence {@link #assertRunAcceptsAuthoring} describes) - and a steering
+   * directive would queue against an orchestrator that no longer exists. The operator UI already
+   * hides these controls on a terminal run; this closes the race between the page load and the
+   * click. Mirrors the terminal-status no-op {@link #updateStatus} already applies on the
+   * orchestrator side.
+   */
+  private void assertRunNotTerminal(AutonomousRun run, String action) {
+    if (isTerminal(run.getStatus())) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "This autonomous run has ended ("
+              + run.getStatus()
+              + "); it can no longer be "
+              + action
+              + ".");
+    }
+  }
+
   // region lifecycle
 
   /**
@@ -940,6 +962,7 @@ public class AutonomousRunService {
   public AutonomousRun pause(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
+    assertRunNotTerminal(run, "paused");
     transitionSimulation(run, ExerciseStatus.PAUSED);
     run.setStatus(AutonomousRunStatus.PAUSED);
     AutonomousRun saved = runRepository.save(run);
@@ -956,8 +979,13 @@ public class AutonomousRunService {
   public AutonomousRun resume(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
+    assertRunNotTerminal(run, "resumed");
     transitionSimulation(run, ExerciseStatus.RUNNING);
-    run.setStatus(AutonomousRunStatus.RUNNING);
+    // Mirror start() / addDirective(): a plan-mode run returns to PLANNING (it is still authoring
+    // the scenario logic, and stampDeadline below leaves it deadline-free), a live run to RUNNING.
+    // Forcing RUNNING here flipped a resumed plan build into an "executing" run in the UI and moved
+    // it onto the live-run deadline path, breaking the dry-run.
+    run.setStatus(run.isPlanMode() ? AutonomousRunStatus.PLANNING : AutonomousRunStatus.RUNNING);
     run.setLastError(null);
     // Resuming grants a fresh time budget from now (and re-arms the winddown nudges): a run paused
     // for a while must not be hard-stopped the instant it comes back.
@@ -1755,6 +1783,7 @@ public class AutonomousRunService {
   public AutonomousDirective addDirective(String runId, String content) {
     requireFeature();
     AutonomousRun run = require(runId);
+    assertRunNotTerminal(run, "steered");
     AutonomousDirective directive = new AutonomousDirective();
     directive.setRunId(runId);
     directive.setContent(content);
