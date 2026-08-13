@@ -527,6 +527,7 @@ public class InjectorContractService implements DependenciesManager {
    * @throws ElementNotFoundException if not found
    * @throws IllegalArgumentException if the contract is neither custom nor payload-based
    */
+  @Transactional(rollbackFor = Exception.class)
   public void deleteInjectorContract(final String injectorContractId) {
     InjectorContract injectorContract =
         this.injectorContractRepository
@@ -543,6 +544,9 @@ public class InjectorContractService implements DependenciesManager {
     deleteInjectorContract(injectorContract);
   }
 
+  // Transactional so the contract delete and the chaining step sweep commit or roll back
+  // together (a sweep failure must not strand ghost steps behind an already-deleted contract).
+  @Transactional(rollbackFor = Exception.class)
   public void deleteInjectorContract(InjectorContract injectorContract) {
     // Same compensation as deleteInjectorContractById: the injects FK on injectors_contracts is ON
     // DELETE CASCADE, so the injects (and, one hop further, their expectations and findings) vanish
@@ -582,6 +586,7 @@ public class InjectorContractService implements DependenciesManager {
    *
    * @param injectorContractId the contract ID to delete
    */
+  @Transactional(rollbackFor = Exception.class)
   public void deleteInjectorContractById(String injectorContractId) {
     // The injects FK on injectors_contracts is ON DELETE CASCADE: collect the doomed inject ids
     // before the delete and de-index them explicitly (no JPA lifecycle fires for DB cascades).

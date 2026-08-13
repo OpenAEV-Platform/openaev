@@ -60,6 +60,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -585,6 +586,10 @@ public class PayloadService {
     return saved;
   }
 
+  // Transactional so the payload delete and the chaining step sweep commit or roll back together:
+  // without it the deleteById commits first and a sweep failure would leave the ghost steps this
+  // cleanup exists to prevent. Same pattern as InjectorService.deleteInjector.
+  @Transactional(rollbackFor = Exception.class)
   public void delete(String payloadId) {
     Payload payload =
         payloadRepository
