@@ -55,10 +55,10 @@ public class WorkflowScopeRuleOutput {
 
   @Schema(
       description =
-          "Display-name snapshot of the referenced asset / asset group, captured when the rule was"
-              + " created or updated. Lets a past simulation's scope stay readable after the"
-              + " referenced asset / group is deleted. Null for non-asset rules or when the id could"
-              + " not be resolved within the tenant.")
+          "Display-name snapshot of the referenced asset / asset group / team / player, captured"
+              + " when the rule was created or updated. Lets a past simulation's scope stay"
+              + " readable after the referenced entity is deleted. Null for MANUAL / CSV rules or"
+              + " when the id could not be resolved within the tenant.")
   @JsonProperty("workflow_scope_rule_value_label")
   private String ruleValueLabel;
 }

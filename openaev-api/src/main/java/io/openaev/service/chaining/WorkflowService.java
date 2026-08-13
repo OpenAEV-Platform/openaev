@@ -14,6 +14,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ScopeVariableRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -59,6 +61,8 @@ public class WorkflowService {
   private final ScopeVariableRepository scopeVariableRepository;
   private final AssetRepository assetRepository;
   private final AssetGroupRepository assetGroupRepository;
+  private final TeamRepository teamRepository;
+  private final UserRepository userRepository;
 
   private final ScopeMetricCollector scopeMetricCollector;
   private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -1074,7 +1078,7 @@ public class WorkflowService {
           scopeMetricCollector.recordEntryAdded(parts[0], parts[1], count);
         });
 
-    // KPI. Record Source Usage (CSV vs Manual only — ignore asset-based sources)
+    // KPI. Record Source Usage (CSV vs Manual only - ignore asset-based sources)
     uniqueSources.stream()
         .filter(
             source ->
@@ -1136,14 +1140,14 @@ public class WorkflowService {
   }
 
   /**
-   * Snapshots the display name of the asset / asset group referenced by an ASSET / ASSET_GROUP
-   * scope rule, so a past run's scope stays readable after the referenced inventory object is
-   * deleted.
+   * Snapshots the display name of the entity referenced by an ASSET / ASSET_GROUP / TEAM / PLAYER
+   * scope rule (asset / group name, team name, or player name-or-email), so a past run's scope
+   * stays readable after the referenced object is deleted.
    *
    * <p>The lookup is tenant-scoped on purpose: Hibernate's {@code tenantFilter} does not apply to
    * primary-key loads, so a plain {@code findById} on a user-supplied id could snapshot (and later
-   * expose) another tenant's asset name. Ids that do not resolve within the caller's tenant - or
-   * non-asset rules (MANUAL / CSV / TEAM / PLAYER) - stay {@code null}.
+   * expose) another tenant's name. Ids that do not resolve within the caller's tenant - or MANUAL /
+   * CSV rules - stay {@code null}.
    */
   private String resolveValueLabel(WorkflowScopeRuleInput input) {
     if (input.getRuleSource() == null || !hasText(input.getRuleValue())) {
@@ -1163,6 +1167,16 @@ public class WorkflowService {
           assetGroupRepository
               .findByIdAndTenantId(input.getRuleValue(), tenantId)
               .map(AssetGroup::getName)
+              .orElse(null);
+      case TEAM ->
+          teamRepository
+              .findByIdAndTenantId(input.getRuleValue(), tenantId)
+              .map(Team::getName)
+              .orElse(null);
+      case PLAYER ->
+          userRepository.findAllByIdInAndTenantId(List.of(input.getRuleValue()), tenantId).stream()
+              .findFirst()
+              .map(User::getNameOrEmail)
               .orElse(null);
       default -> null;
     };
@@ -1446,7 +1460,7 @@ public class WorkflowService {
 
   /**
    * Single END transition for a RUN workflow: sets the status and freezes the end scope snapshot
-   * exactly once (re-running the launch-time resolution). Idempotent — a run already ended is left
+   * exactly once (re-running the launch-time resolution). Idempotent - a run already ended is left
    * untouched so the frozen end photo is never overwritten. See ADR-006.
    *
    * @param workflowRun the RUN workflow reaching END/STOP
@@ -1855,12 +1869,12 @@ public class WorkflowService {
    * Re-arms an in-place-updated step so its corrected definition re-executes on the next {@link
    * #evaluateWorkflowProgress}. The data swap alone never re-runs an already-executed step: its
    * committed execution hashes still mark it fired, so the engine skips it. Clearing those hashes
-   * on the step's live RUN workflow(s) lets it ready again — this is what makes the autonomous
+   * on the step's live RUN workflow(s) lets it ready again - this is what makes the autonomous
    * "update a step, evaluate, re-run the corrected version" loop actually re-fire.
    *
    * <p>Simulation-scoped by construction: re-fire state lives only on RUN workflows, which exist
    * only on the simulation. A scenario-owned template (e.g. the autonomous scenario mirror twin,
-   * updated in lock-step) has no simulation and no RUN workflow, so this is a no-op for it —
+   * updated in lock-step) has no simulation and no RUN workflow, so this is a no-op for it -
    * exactly right, since the mirror never executes.
    */
   private void rearmStepForReExecution(Step stepTemplate) {

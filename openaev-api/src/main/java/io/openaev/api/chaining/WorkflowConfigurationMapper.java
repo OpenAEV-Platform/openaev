@@ -72,13 +72,28 @@ public class WorkflowConfigurationMapper {
         // The template-time label snapshot keeps its own meaning (deleted-asset fallback for
         // draft / scenario rules); the launch-time display label is snapshotStartLabel below.
         .ruleValueLabel(rule.getRuleValueLabel())
-        // null for draft / scenario / pre-ADR-006 rules (no launch snapshot) → front resolves live.
+        // null for draft / scenario / pre-ADR-006 rules (no launch snapshot); front resolves live.
         .status(scopeSnapshotService.computeStatus(rule))
-        .snapshotStartLabel(launch != null ? launch.getLabel() : null)
+        .snapshotStartLabel(displayLabel(rule, launch))
         .snapshotStartAssets(toAssetSnapshotOutputs(launch))
-        .snapshotEndLabel(end != null ? end.getLabel() : null)
+        .snapshotEndLabel(displayLabel(rule, end))
         .snapshotEndAssets(toAssetSnapshotOutputs(end))
         .build();
+  }
+
+  /**
+   * Frozen display label of a photo. An audience (TEAM / PLAYER) photo frozen before those sources
+   * were resolved to names carries the raw id as label - suppress it so the frontend falls back to
+   * live resolution instead of rendering a UUID chip.
+   */
+  private String displayLabel(WorkflowScopeRule rule, ScopeRuleSnapshot photo) {
+    if (photo == null) {
+      return null;
+    }
+    if (ScopeSnapshotService.isDegradedAudiencePhoto(rule, photo)) {
+      return null;
+    }
+    return photo.getLabel();
   }
 
   private List<AssetSnapshotOutput> toAssetSnapshotOutputs(ScopeRuleSnapshot snapshot) {

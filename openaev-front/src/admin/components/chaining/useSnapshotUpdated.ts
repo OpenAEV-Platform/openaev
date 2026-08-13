@@ -87,7 +87,8 @@ const useSnapshotUpdated = ({ workflowConfiguration, simulationId }: UseChaining
   // Frozen-first resolution: a drift message is about a launched simulation, so the frozen launch
   // label (workflow_scope_rule_snapshot_start_label) is the authoritative name; the template-time
   // label snapshot (workflow_scope_rule_value_label) and the live inventory are fallbacks so
-  // pre-snapshot rules stay readable.
+  // pre-snapshot rules stay readable. Team / player rules carry name labels in the same frozen
+  // fields, so the shared frozen-first chain covers them too.
   const resolveLabel = (rule: WorkflowScopeRuleOutput): string => {
     const value = rule.workflow_scope_rule_value ?? '';
     const frozenLabel = rule.workflow_scope_rule_snapshot_start_label ?? rule.workflow_scope_rule_value_label ?? undefined;
@@ -97,18 +98,34 @@ const useSnapshotUpdated = ({ workflowConfiguration, simulationId }: UseChaining
       case 'ASSET_GROUP':
         return frozenLabel ?? assetGroupsMap[value]?.asset_group_name ?? t('Deleted asset group');
       default:
-        return value || t('Loading...');
+        return frozenLabel ?? (value || t('Loading...'));
     }
   };
 
   // Reuse the exact status label ScopeRules appends to a chip (e.g. "Modified during execution",
   // "Deleted after execution") - it is already translated for every enum value - and fold it into a
-  // per-asset sentence, so the banner reads consistently with the chips it complements.
-  const messageFor = (rule: WorkflowScopeRuleOutput, name: string): string =>
-    t('The asset {name} has been {status}.', {
-      name,
-      status: t(rule.workflow_scope_rule_status ?? '').toLowerCase(),
-    });
+  // per-entry sentence typed by rule source (asset / team / person), so the banner reads
+  // consistently with the chips it complements.
+  const messageFor = (rule: WorkflowScopeRuleOutput, name: string): string => {
+    const status = t(rule.workflow_scope_rule_status ?? '').toLowerCase();
+    switch (rule.workflow_scope_rule_source) {
+      case 'TEAM':
+        return t('The team {name} has been {status}.', {
+          name,
+          status,
+        });
+      case 'PLAYER':
+        return t('The person {name} has been {status}.', {
+          name,
+          status,
+        });
+      default:
+        return t('The asset {name} has been {status}.', {
+          name,
+          status,
+        });
+    }
+  };
 
   return (effectiveConfiguration?.workflow_scope_rules ?? [])
     .filter(rule => rule.workflow_scope_rule_status != null && UPDATED_STATUSES.has(rule.workflow_scope_rule_status))
