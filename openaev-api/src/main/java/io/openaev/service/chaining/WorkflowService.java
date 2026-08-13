@@ -196,14 +196,7 @@ public class WorkflowService {
       workflowRepository.save(workflow);
     }
     if (change.scopeRulesChanged()) {
-      // The asset perimeter of an action is a copy of the workflow scope, so an action authored
-      // before (or between) scope edits must follow the new scope instead of keeping its stale
-      // snapshot. Flush first so the scope rules just written are visible to ScopeService, which
-      // re-reads them from the repository.
-      workflowRepository.flush();
-      List<String> scopedAssetIds =
-          scopeService.getValidAssets(workflow.getId()).stream().map(Asset::getId).toList();
-      stepService.syncScopeAssetsOnStepTemplates(workflow, scopedAssetIds);
+      realignTemplateActionTargets(workflow);
     }
     return workflow;
   }
@@ -264,7 +257,12 @@ public class WorkflowService {
     if (hasText(scenarioId)) {
       try {
         findWorkflowTemplateByScenarioId(scenarioId)
-            .ifPresent(w -> writeAllowlistRules(w, rules, replaceExisting));
+            .ifPresent(
+                w -> {
+                  if (writeAllowlistRules(w, rules, replaceExisting)) {
+                    realignTemplateActionTargets(w);
+                  }
+                });
       } catch (ChainingException e) {
         log.warn(
             "[Chaining] Could not write scope on scenario {} template workflow", scenarioId, e);
@@ -297,8 +295,11 @@ public class WorkflowService {
           if (current == null) rulesToRemove.add(rule);
         }
       }
-      template.getWorkflowScopeRules().removeAll(rulesToRemove);
-      workflowRepository.save(template);
+      if (!rulesToRemove.isEmpty()) {
+        template.getWorkflowScopeRules().removeAll(rulesToRemove);
+        workflowRepository.save(template);
+        realignTemplateActionTargets(template);
+      }
     }
   }
 
@@ -317,7 +318,13 @@ public class WorkflowService {
     }
     if (hasText(scenarioId)) {
       try {
-        findWorkflowTemplateByScenarioId(scenarioId).ifPresent(w -> appendScopeRules(w, rules));
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .ifPresent(
+                w -> {
+                  if (appendScopeRules(w, rules)) {
+                    realignTemplateActionTargets(w);
+                  }
+                });
       } catch (ChainingException e) {
         log.warn("[Chaining] Could not seed scope on scenario {} template workflow", scenarioId, e);
       }
@@ -327,7 +334,7 @@ public class WorkflowService {
     }
   }
 
-  private void appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
+  private boolean appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
     List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
     Set<String> existingKeys =
         existing.stream()
@@ -347,9 +354,10 @@ public class WorkflowService {
     if (changed) {
       workflowRepository.save(workflow);
     }
+    return changed;
   }
 
-  private void writeAllowlistRules(
+  private boolean writeAllowlistRules(
       Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs, boolean replaceExisting) {
     List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
     boolean changed = false;
@@ -371,6 +379,27 @@ public class WorkflowService {
     if (changed) {
       workflowRepository.save(workflow);
     }
+    return changed;
+  }
+
+  /**
+   * Re-aligns all asset-centric step templates with the workflow's current scope assets.
+   *
+   * <p>ScopeService resolves from persisted rules, so pending workflow updates must be flushed
+   * first.
+   */
+  private void realignTemplateActionTargets(Workflow workflow) {
+    if (workflow == null || !WorkflowStatus.TEMPLATE.equals(workflow.getStatus())) {
+      return;
+    }
+    workflowRepository.flush();
+    List<String> scopedAssetIds =
+        Optional.ofNullable(scopeService.getValidAssets(workflow.getId()))
+            .orElse(List.of())
+            .stream()
+            .map(Asset::getId)
+            .toList();
+    stepService.syncScopeAssetsOnStepTemplates(workflow, scopedAssetIds);
   }
 
   /**

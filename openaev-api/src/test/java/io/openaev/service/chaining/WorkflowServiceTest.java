@@ -843,6 +843,138 @@ class WorkflowServiceTest {
   }
 
   @Nested
+  @DisplayName("template scope writes should realign action targets")
+  class TemplateScopeRealignmentTests {
+
+    @Test
+    @DisplayName("writeAllowlistScope should realign scenario template when rules changed")
+    void writeAllowlistScope_should_realignScenarioTemplate_whenRulesChanged() {
+      // Arrange
+      Workflow template =
+          Workflow.builder().id("wf-template").status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowScopeRuleInput rule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .build();
+      Asset asset = new Asset();
+      asset.setId("asset-1");
+
+      when(workflowRepository.findByScenario_IdAndStatus("scenario-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets("wf-template")).thenReturn(List.of(asset));
+
+      // Act
+      workflowService.writeAllowlistScope("scenario-1", null, List.of(rule), false);
+
+      // Assert
+      verify(workflowRepository).flush();
+      verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-1"));
+    }
+
+    @Test
+    @DisplayName("writeScopeRules should realign scenario template when rules changed")
+    void writeScopeRules_should_realignScenarioTemplate_whenRulesChanged() {
+      // Arrange
+      Workflow template =
+          Workflow.builder().id("wf-template").status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowScopeRuleInput rule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET_GROUP)
+              .ruleValue("group-1")
+              .build();
+      Asset asset = new Asset();
+      asset.setId("asset-2");
+
+      when(workflowRepository.findByScenario_IdAndStatus("scenario-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets("wf-template")).thenReturn(List.of(asset));
+
+      // Act
+      workflowService.writeScopeRules("scenario-1", null, List.of(rule));
+
+      // Assert
+      verify(workflowRepository).flush();
+      verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-2"));
+    }
+
+    @Test
+    @DisplayName("writeScopeRules should not realign when nothing changed")
+    void writeScopeRules_should_notRealign_whenNoRuleChanged() {
+      // Arrange
+      Workflow template =
+          Workflow.builder().id("wf-template").status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowScopeRule existing =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .workflow(template)
+              .build();
+      template.getWorkflowScopeRules().add(existing);
+
+      WorkflowScopeRuleInput sameRule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .build();
+
+      when(workflowRepository.findByScenario_IdAndStatus("scenario-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+
+      // Act
+      workflowService.writeScopeRules("scenario-1", null, List.of(sameRule));
+
+      // Assert
+      verify(stepService, never()).syncScopeAssetsOnStepTemplates(any(), any());
+      verify(scopeService, never()).getValidAssets(any());
+      verify(workflowRepository, never()).flush();
+    }
+
+    @Test
+    @DisplayName("cleanScopeRulesSimulation should realign when ghost rules are removed")
+    void cleanScopeRulesSimulation_should_realign_whenGhostRulesRemoved() {
+      // Arrange
+      Workflow template =
+          Workflow.builder()
+              .id("wf-template")
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .simulation(new Exercise())
+              .build();
+      WorkflowScopeRule ghostRule =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-ghost")
+              .workflow(template)
+              .build();
+      template.getWorkflowScopeRules().add(ghostRule);
+
+      Asset asset = new Asset();
+      asset.setId("asset-1");
+
+      when(workflowRepository.findBySimulation_IdAndStatus("sim-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+      when(scopeSnapshotService.buildCurrentSnapshot(ghostRule)).thenReturn(null);
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets("wf-template")).thenReturn(List.of(asset));
+
+      // Act
+      workflowService.cleanScopeRulesSimulation("sim-1");
+
+      // Assert
+      verify(workflowRepository).flush();
+      verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-1"));
+    }
+  }
+
+  @Nested
   @DisplayName("scope rule value type detection")
   class ScopeRuleValueTypeTests {
 
