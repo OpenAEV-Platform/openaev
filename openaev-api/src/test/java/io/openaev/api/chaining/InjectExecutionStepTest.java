@@ -19,6 +19,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -65,6 +66,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private DocumentRepository documentRepository;
   @Autowired InjectExecutionStep injectExecutionStep;
   @Autowired AttackPathExecutionIngestionService attackPathExecutionIngestionService;
   ObjectMapper mapper = new ObjectMapper();
@@ -989,6 +991,15 @@ public class InjectExecutionStepTest extends IntegrationTest {
    * serialized inject and contract snapshot, with the given teams picked in the drawer.
    */
   private Step emailReadyStep(List<String> drawerTeamIds) throws Exception {
+    return emailReadyStep(drawerTeamIds, List.of());
+  }
+
+  /**
+   * Same as {@link #emailReadyStep(List)} with attachment documents picked in the drawer, so the
+   * step data carries {@code inject_documents} link objects serialized from the inject entity.
+   */
+  private Step emailReadyStep(List<String> drawerTeamIds, List<Document> drawerDocuments)
+      throws Exception {
     Injector emailInjector =
         injectorRepository.save(
             InjectorFixture.createInjector(
@@ -1008,6 +1019,10 @@ public class InjectExecutionStepTest extends IntegrationTest {
         drawerTeamIds.stream()
             .map(id -> "\"" + id + "\"")
             .collect(java.util.stream.Collectors.joining(","));
+    String documentsJson =
+        drawerDocuments.stream()
+            .map(d -> "{\"document_id\":\"" + d.getId() + "\",\"document_attached\":true}")
+            .collect(java.util.stream.Collectors.joining(","));
     String emailInputJson =
         """
         {"type":"inject","inject_title":"tabletop email","inject_description":"",
@@ -1015,9 +1030,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
          "inject_content":{"subject":"Subject","body":"Body"},
          "inject_depends_on":[],"inject_depends_duration":0,
          "inject_teams":[%s],"inject_assets":[],"inject_asset_groups":[],
-         "inject_documents":[],"inject_all_teams":false,"inject_tags":[],"inject_enabled":true}
+         "inject_documents":[%s],"inject_all_teams":false,"inject_tags":[],"inject_enabled":true}
         """
-            .formatted(emailContractSaved.getId(), emailInjector.getId(), teamsJson);
+            .formatted(emailContractSaved.getId(), emailInjector.getId(), teamsJson, documentsJson);
     InjectInput injectInput = mapper.readValue(emailInputJson, InjectInput.class);
     StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
@@ -1087,6 +1102,70 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertNotNull(inject);
     assertEquals(List.of(drawerTeam.getId()), inject.getTeams().stream().map(Team::getId).toList());
     verify(scopeService, never()).getValidTeams(any());
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep document attachments (inject_documents round-trip)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void given_emailStepWithAttachment_whenBuildingInject_thenDocumentLinkSurvivesRoundTrip()
+      throws Exception {
+    // Arrange: the step data serializes the inject entity, so inject_documents holds full link
+    // objects ({inject_id, document_id, document_attached, document_name}), not scalar ids.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of(), List.of(attachment));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the attachment round-trips and is re-parented onto the deserialized inject so the
+    // cascade persist in run() can derive the @MapsId composite key.
+    assertNotNull(inject);
+    assertEquals(1, inject.getDocuments().size());
+    InjectDocument link = inject.getDocuments().getFirst();
+    assertEquals(attachment.getId(), link.getDocument().getId());
+    assertTrue(link.isAttached());
+    assertSame(inject, link.getInject());
+  }
+
+  @Test
+  void given_stepDataWithScalarDocumentId_whenBuildingInject_thenDocumentIsResolved()
+      throws Exception {
+    // Arrange: defensive shape - a plain string document id instead of the link object.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of());
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.putArray("inject_documents").add(attachment.getId());
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the scalar form resolves too, with document_attached defaulting to true.
+    assertNotNull(inject);
+    assertEquals(1, inject.getDocuments().size());
+    assertEquals(attachment.getId(), inject.getDocuments().getFirst().getDocument().getId());
+    assertTrue(inject.getDocuments().getFirst().isAttached());
+  }
+
+  @Test
+  void given_stepDataWithDeletedDocument_whenBuildingInject_thenAttachmentIsDropped()
+      throws Exception {
+    // Arrange: the document is deleted between step authoring and execution.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of(), List.of(attachment));
+    documentRepository.delete(attachment);
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: a deleted attachment degrades to "no attachment" instead of failing the step.
+    assertNotNull(inject);
+    assertTrue(inject.getDocuments().isEmpty());
   }
 
   /**

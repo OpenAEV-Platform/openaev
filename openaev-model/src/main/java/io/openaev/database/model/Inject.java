@@ -352,7 +352,9 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("inject_documents")
   @JsonSerialize(using = MultiModelSerializer.class)
-  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
+  // Not MonoIdDeserializerHelper: InjectDocument has a composite id and is serialized above as a
+  // full object, so it needs a dedicated element deserializer to round-trip (chaining step data).
+  @JsonDeserialize(contentUsing = InjectDocumentDeserializer.class)
   private List<InjectDocument> documents = new ArrayList<>();
 
   // CascadeType.ALL is required here because communications are embedded

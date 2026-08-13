@@ -1086,6 +1086,16 @@ public class InjectExecutionStep implements ActionStep {
         inject.setDependsDuration(0L);
       }
 
+      // Re-parent the document links deserialized from the step data: the element deserializer
+      // resolves only the Document side (the owning inject does not exist mid-deserialization,
+      // and a deleted document yields a null element), while the @MapsId composite id needs both
+      // associations before run() cascade-persists this inject.
+      List<InjectDocument> injectDocuments = inject.getDocuments();
+      if (injectDocuments != null) {
+        injectDocuments.removeIf(Objects::isNull);
+        injectDocuments.forEach(injectDocument -> injectDocument.setInject(inject));
+      }
+
       ObjectMapper mapper = new ObjectMapper();
       JsonNode root = mapper.readTree(step.getData());
 
