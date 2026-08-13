@@ -72,7 +72,7 @@ public class WorkflowConfigurationMapper {
         // The template-time label snapshot keeps its own meaning (deleted-asset fallback for
         // draft / scenario rules); the launch-time display label is snapshotStartLabel below.
         .ruleValueLabel(rule.getRuleValueLabel())
-        // null for draft / scenario / pre-ADR-006 rules (no launch snapshot) -> front resolves live.
+        // null for draft / scenario / pre-ADR-006 rules (no launch snapshot); front resolves live.
         .status(scopeSnapshotService.computeStatus(rule))
         .snapshotStartLabel(displayLabel(rule, launch))
         .snapshotStartAssets(toAssetSnapshotOutputs(launch))
