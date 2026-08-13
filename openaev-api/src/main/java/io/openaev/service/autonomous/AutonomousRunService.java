@@ -2569,34 +2569,37 @@ public class AutonomousRunService {
 
   /**
    * Re-evaluates the run's live workflow so freshly authored steps ready and execute now. The
-   * orchestrator calls this after appending one or more steps in a decision cycle.
+   * orchestrator calls this after appending one or more steps in a decision cycle. Returns the
+   * reconciled run so the CALLBACK endpoint can answer with the fresh state directly: routing its
+   * response through the operator-gated {@link #get} would 403 a valid orchestrator callback, since
+   * the XTM One service identity is deliberately not required to hold the operator's
+   * simulation/scenario grant.
    */
   @Transactional(rollbackFor = Exception.class)
-  public void evaluateAttackPath(String runId) {
+  public AutonomousRun evaluateAttackPath(String runId) {
     requireFeature();
     AutonomousRun run = require(runId);
-    if (!hasText(run.getSimulationId())) {
-      return;
-    }
     // Belt-and-suspenders for dry-run: a plan run never starts a RUN workflow, so there is nothing
     // to ready here anyway, but guard explicitly so a stray evaluate call can never dispatch an
-    // inject while planning.
-    if (run.isPlanMode()) {
-      return;
-    }
-    // Re-evaluate the run's live workflow(s) so freshly authored step templates ready and execute
-    // now instead of waiting for an in-flight step. Done here (cross-bean to WorkflowService)
-    // rather
-    // than through a WorkflowService helper so we never self-invoke its @Transactional evaluator.
-    try {
-      for (Workflow runWorkflow :
-          workflowService.findWorkflowRunBySimulationId(run.getSimulationId())) {
-        workflowService.saveWorkflowRun(workflowService.evaluateWorkflowProgress(runWorkflow));
+    // inject while planning. An author-scenario run has no simulation, so nothing to evaluate
+    // either.
+    if (hasText(run.getSimulationId()) && !run.isPlanMode()) {
+      // Re-evaluate the run's live workflow(s) so freshly authored step templates ready and
+      // execute now instead of waiting for an in-flight step. Done here (cross-bean to
+      // WorkflowService) rather than through a WorkflowService helper so we never self-invoke its
+      // @Transactional evaluator.
+      try {
+        for (Workflow runWorkflow :
+            workflowService.findWorkflowRunBySimulationId(run.getSimulationId())) {
+          workflowService.saveWorkflowRun(workflowService.evaluateWorkflowProgress(runWorkflow));
+        }
+      } catch (ChainingException e) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Failed to evaluate the attack path: " + e.getMessage(), e);
       }
-    } catch (ChainingException e) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Failed to evaluate the attack path: " + e.getMessage(), e);
     }
+    // Same reconciled read the operator get() returns, without its RBAC gate (callback-safe).
+    return reconcileWithSimulation(run);
   }
 
   /**

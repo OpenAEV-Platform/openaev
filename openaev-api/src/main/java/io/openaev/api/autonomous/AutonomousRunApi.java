@@ -492,8 +492,9 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRun evaluateAttackPath(@PathVariable String runId) {
-    autonomousRunService.evaluateAttackPath(runId);
-    return autonomousRunService.get(runId);
+    // The service returns the reconciled run itself: this is an orchestrator CALLBACK, and reading
+    // back through the operator-gated get() would 403 a valid service-identity callback.
+    return autonomousRunService.evaluateAttackPath(runId);
   }
 
   @Operation(
