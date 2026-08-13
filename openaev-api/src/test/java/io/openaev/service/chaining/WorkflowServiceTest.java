@@ -46,6 +46,8 @@ class WorkflowServiceTest {
   @Mock private ScopeVariableRepository scopeVariableRepository;
   @Mock private io.openaev.database.repository.AssetRepository assetRepository;
   @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
+  @Mock private io.openaev.database.repository.TeamRepository teamRepository;
+  @Mock private io.openaev.database.repository.UserRepository userRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
   @Mock private ConditionService conditionService;
@@ -1160,6 +1162,8 @@ class WorkflowServiceTest {
               scopeVariableRepository,
               assetRepository,
               assetGroupRepository,
+              teamRepository,
+              userRepository,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1442,6 +1446,8 @@ class WorkflowServiceTest {
               scopeVariableRepository,
               assetRepository,
               assetGroupRepository,
+              teamRepository,
+              userRepository,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1630,6 +1636,8 @@ class WorkflowServiceTest {
               scopeVariableRepository,
               assetRepository,
               assetGroupRepository,
+              teamRepository,
+              userRepository,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1702,6 +1710,51 @@ class WorkflowServiceTest {
 
         assertEquals(1, result.getAllowlist().size());
         assertEquals("Crown jewels", result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should snapshot the tenant-scoped team name on a TEAM rule")
+    void given_teamRule_should_snapshotTeamName() {
+      Workflow workflow = buildTemplate();
+      Team team = new Team();
+      team.setId("team-1");
+      team.setName("It team");
+      when(teamRepository.findByIdAndTenantId("team-1", TENANT)).thenReturn(Optional.of(team));
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.TEAM, "team-1"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertEquals("It team", result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should snapshot the tenant-scoped player name-or-email on a PLAYER rule")
+    void given_playerRule_should_snapshotPlayerName() {
+      Workflow workflow = buildTemplate();
+      User user = new User();
+      user.setId("player-1");
+      user.setFirstname("John");
+      user.setLastname("Doe");
+      user.setEmail("john.doe@filigran.io");
+      when(userRepository.findAllByIdInAndTenantId(List.of("player-1"), TENANT))
+          .thenReturn(List.of(user));
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.PLAYER, "player-1"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertEquals("John Doe", result.getAllowlist().getFirst().getRuleValueLabel());
       }
     }
 
@@ -1853,6 +1906,8 @@ class WorkflowServiceTest {
               scopeVariableRepository,
               assetRepository,
               assetGroupRepository,
+              teamRepository,
+              userRepository,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);

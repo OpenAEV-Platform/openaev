@@ -4,16 +4,21 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +44,8 @@ class ScopeSnapshotServiceTest {
   @Mock private AssetService assetService;
   @Mock private AssetGroupService assetGroupService;
   @Mock private CollectorRepository collectorRepository;
+  @Mock private TeamRepository teamRepository;
+  @Mock private UserRepository userRepository;
 
   @Mock private TenantScopedTransaction tenantTx;
   @InjectMocks private ScopeSnapshotService scopeSnapshotService;
@@ -84,6 +91,50 @@ class ScopeSnapshotServiceTest {
         .ruleSource(ScopeRuleSource.ASSET)
         .valueType(ScopeRuleValueType.ASSET_ID)
         .ruleValue(assetId)
+        .snapshotStart(launch)
+        .snapshotEnd(end)
+        .build();
+  }
+
+  private static Team team(String id, String name) {
+    Team team = new Team();
+    team.setId(id);
+    team.setName(name);
+    return team;
+  }
+
+  private static User player(String id, String firstname, String lastname, String email) {
+    User user = new User();
+    user.setId(id);
+    user.setFirstname(firstname);
+    user.setLastname(lastname);
+    user.setEmail(email);
+    return user;
+  }
+
+  private static ScopeRuleSnapshot labelPhoto(String label) {
+    return ScopeRuleSnapshot.builder().label(label).build();
+  }
+
+  private static WorkflowScopeRule teamRule(
+      String teamId, ScopeRuleSnapshot launch, ScopeRuleSnapshot end) {
+    return WorkflowScopeRule.builder()
+        .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+        .ruleSource(ScopeRuleSource.TEAM)
+        .valueType(ScopeRuleValueType.TEAM_ID)
+        .ruleValue(teamId)
+        .snapshotStart(launch)
+        .snapshotEnd(end)
+        .build();
+  }
+
+  private static WorkflowScopeRule playerRule(
+      String userId, ScopeRuleSnapshot launch, ScopeRuleSnapshot end) {
+    return WorkflowScopeRule.builder()
+        .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+        .ruleSource(ScopeRuleSource.PLAYER)
+        .valueType(ScopeRuleValueType.PLAYER_ID)
+        .ruleValue(userId)
         .snapshotStart(launch)
         .snapshotEnd(end)
         .build();
@@ -223,6 +274,86 @@ class ScopeSnapshotServiceTest {
   }
 
   @Nested
+  @DisplayName("computeStatus - audience rules (team / player)")
+  class AudienceStatusTests {
+
+    @Test
+    @DisplayName("should resolve RESOLVED when the frozen team name still matches the live name")
+    void shouldResolveWhenTeamUnchanged() {
+      TenantContext.setCurrentTenant("tenant-1");
+      try {
+        when(teamRepository.findByIdAndTenantId("t1", "tenant-1"))
+            .thenReturn(Optional.of(team("t1", "It team")));
+        WorkflowScopeRule rule = teamRule("t1", labelPhoto("It team"), null);
+
+        assertEquals(ScopeRuleSnapshotStatus.RESOLVED, scopeSnapshotService.computeStatus(rule));
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+
+    @Test
+    @DisplayName("should flag MODIFIED_DURING_EXECUTION when the team was renamed while running")
+    void shouldFlagRenamedTeamWhileRunning() {
+      TenantContext.setCurrentTenant("tenant-1");
+      try {
+        when(teamRepository.findByIdAndTenantId("t1", "tenant-1"))
+            .thenReturn(Optional.of(team("t1", "Blue team")));
+        WorkflowScopeRule rule = teamRule("t1", labelPhoto("It team"), null);
+
+        assertEquals(
+            ScopeRuleSnapshotStatus.MODIFIED_DURING_EXECUTION,
+            scopeSnapshotService.computeStatus(rule));
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+
+    @Test
+    @DisplayName("should flag DELETED_DURING_EXECUTION when the team is gone while running")
+    void shouldFlagDeletedTeamWhileRunning() {
+      TenantContext.setCurrentTenant("tenant-1");
+      try {
+        when(teamRepository.findByIdAndTenantId("t1", "tenant-1")).thenReturn(Optional.empty());
+        WorkflowScopeRule rule = teamRule("t1", labelPhoto("It team"), null);
+
+        assertEquals(
+            ScopeRuleSnapshotStatus.DELETED_DURING_EXECUTION,
+            scopeSnapshotService.computeStatus(rule));
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+
+    @Test
+    @DisplayName("should resolve RESOLVED when the frozen player name still matches name-or-email")
+    void shouldResolveWhenPlayerUnchanged() {
+      TenantContext.setCurrentTenant("tenant-1");
+      try {
+        when(userRepository.findAllByIdInAndTenantId(List.of("p1"), "tenant-1"))
+            .thenReturn(List.of(player("p1", "John", "Doe", "john.doe@filigran.io")));
+        WorkflowScopeRule rule = playerRule("p1", labelPhoto("John Doe"), null);
+
+        assertEquals(ScopeRuleSnapshotStatus.RESOLVED, scopeSnapshotService.computeStatus(rule));
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "should return null for a degraded pre-resolution photo (raw-id label) instead of deriving a false rename")
+    void shouldIgnoreDegradedAudiencePhoto() {
+      // Photo frozen before TEAM / PLAYER resolution existed: label == raw id. Deriving a status
+      // would compare the id against the now-resolvable name and misread it as a mid-run rename.
+      WorkflowScopeRule rule = teamRule("t1", labelPhoto("t1"), null);
+
+      assertNull(scopeSnapshotService.computeStatus(rule));
+      verifyNoInteractions(teamRepository);
+    }
+  }
+
+  @Nested
   @DisplayName("computeStatus - security platform rules")
   class SecurityPlatformStatusTests {
 
@@ -348,6 +479,39 @@ class ScopeSnapshotServiceTest {
       assertEquals(
           ScopeRuleSnapshotStatus.DELETED_DURING_EXECUTION,
           scopeSnapshotService.computeStatus(rule));
+    }
+
+    @Test
+    @DisplayName("should freeze team and player photos with resolved names, never raw ids")
+    void shouldFreezeAudiencePhotosWithResolvedNames() {
+      TenantContext.setCurrentTenant("tenant-1");
+      try {
+        when(collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(anyString()))
+            .thenReturn(List.of());
+        when(teamRepository.findByIdAndTenantId("t1", "tenant-1"))
+            .thenReturn(Optional.of(team("t1", "It team")));
+        when(userRepository.findAllByIdInAndTenantId(List.of("p1"), "tenant-1"))
+            .thenReturn(List.of(player("p1", "John", "Doe", "john.doe@filigran.io")));
+        when(userRepository.findAllByIdInAndTenantId(List.of("p2"), "tenant-1"))
+            .thenReturn(List.of(player("p2", null, null, "jane@filigran.io")));
+
+        WorkflowScopeRule teamRule = teamRule("t1", null, null);
+        WorkflowScopeRule namedPlayer = playerRule("p1", null, null);
+        WorkflowScopeRule emailOnlyPlayer = playerRule("p2", null, null);
+        Workflow run = Workflow.builder().status(WorkflowStatus.RUN).build();
+        run.getWorkflowScopeRules().add(teamRule);
+        run.getWorkflowScopeRules().add(namedPlayer);
+        run.getWorkflowScopeRules().add(emailOnlyPlayer);
+
+        scopeSnapshotService.freezeLaunch(run, "tenant-1");
+
+        assertEquals("It team", teamRule.getSnapshotStart().getLabel());
+        assertEquals("John Doe", namedPlayer.getSnapshotStart().getLabel());
+        // A player without first / last name freezes the email, mirroring the frontend display.
+        assertEquals("jane@filigran.io", emailOnlyPlayer.getSnapshotStart().getLabel());
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
     }
 
     @Test

@@ -14,6 +14,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ScopeVariableRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -59,6 +61,8 @@ public class WorkflowService {
   private final ScopeVariableRepository scopeVariableRepository;
   private final AssetRepository assetRepository;
   private final AssetGroupRepository assetGroupRepository;
+  private final TeamRepository teamRepository;
+  private final UserRepository userRepository;
 
   private final ScopeMetricCollector scopeMetricCollector;
   private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -1163,6 +1167,16 @@ public class WorkflowService {
           assetGroupRepository
               .findByIdAndTenantId(input.getRuleValue(), tenantId)
               .map(AssetGroup::getName)
+              .orElse(null);
+      case TEAM ->
+          teamRepository
+              .findByIdAndTenantId(input.getRuleValue(), tenantId)
+              .map(Team::getName)
+              .orElse(null);
+      case PLAYER ->
+          userRepository.findAllByIdInAndTenantId(List.of(input.getRuleValue()), tenantId).stream()
+              .findFirst()
+              .map(User::getNameOrEmail)
               .orElse(null);
       default -> null;
     };
