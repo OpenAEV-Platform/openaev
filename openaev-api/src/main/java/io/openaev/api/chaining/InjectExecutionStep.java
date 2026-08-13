@@ -256,10 +256,10 @@ public class InjectExecutionStep implements ActionStep {
    *
    * <p>Individual players placed in the workflow scope are added as direct recipients (with the
    * "Direct execution" team label, like ad-hoc inject testing) when the step has no explicit
-   * audience configured in the drawer and no MAPPER condition feeding its audience: the drawer
-   * stays authoritative when the operator picked an audience there, and a mapper-fed audience (e.g.
-   * upstream findings mapped into the "recipients" field) must not be widened with the scope's
-   * players.
+   * audience configured in the drawer and no MAPPER condition feeding its audience (upstream
+   * findings mapped into the raw "recipients" field): the drawer stays authoritative when the
+   * operator picked an audience there, and a mapper-fed audience must not be widened with the
+   * scope's players.
    *
    * <p>Asset/IP-centric injects (nmap, payloads) have no teams and never consume scope players, so
    * this returns an empty list and their execution is unchanged. Findings mapped as raw recipients
@@ -1189,8 +1189,9 @@ public class InjectExecutionStep implements ActionStep {
         // with zero recipients. Scope teams become the inject's targeted teams (persisted, so
         // reporting shows them); scope players are resolved at run() time into direct recipients
         // by resolveAudienceRecipients, as they are not a team relation. Skipped when a MAPPER
-        // condition feeds the audience (teams or raw recipients) from upstream outputs: the
-        // mapped audience is authoritative and must not be widened with every scoped team.
+        // condition feeds the audience (raw recipients consumed by the email executor) from
+        // upstream outputs: the mapped audience is authoritative and must not be widened with
+        // every scoped team.
         List<Team> scopeTeams = scopeService.getValidTeams(step.getWorkflow().getId());
         if (!scopeTeams.isEmpty()) {
           inject.setTeams(new ArrayList<>(scopeTeams));

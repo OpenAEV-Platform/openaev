@@ -64,11 +64,14 @@ public class StepTargetingService {
           InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS);
 
   /**
-   * Inject content keys through which a MAPPER condition can feed an audience: the teams field of
-   * tabletop contracts or the raw {@code recipients} addresses of email-like contracts.
+   * Inject content keys through which a MAPPER condition can feed an audience at execution time:
+   * only the raw {@code recipients} addresses consumed by the email executor from the inject
+   * content. The {@code teams} content key is deliberately NOT here: runtime mapping only writes
+   * into {@code inject_content} and never populates the {@code Inject#teams} relation that
+   * recipient resolution reads, so a team-field mapper is not an audience source until such an
+   * execution path exists.
    */
-  private static final Set<String> AUDIENCE_TARGET_CONTENT_KEYS =
-      Set.of("recipients", InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TEAMS);
+  private static final Set<String> AUDIENCE_TARGET_CONTENT_KEYS = Set.of("recipients");
 
   private final InjectorContractService injectorContractService;
   private final ConditionService conditionService;
@@ -208,9 +211,10 @@ public class StepTargetingService {
   /**
    * Returns {@code true} when the step has at least one MAPPER condition that feeds actual
    * execution targets for its axis (technical: assets / asset groups / manual targets; audience:
-   * teams / raw recipients) from upstream step outputs. A mapper filling a non-targeting field
-   * (command argument, email subject or body, ...) is not a substitute for the workflow scope: the
-   * step still has no execution target of its own.
+   * raw recipients) from upstream step outputs. A mapper filling a non-targeting field (command
+   * argument, email subject or body, a team-typed field the runtime never resolves into {@code
+   * Inject#teams}, ...) is not a substitute for the workflow scope: the step still has no execution
+   * target of its own.
    *
    * <p>Conditions are looked up for the step itself and, when present, its template: batch mappers
    * are relinked to the READY step at expansion time while drawer-authored mappers stay on the
@@ -251,9 +255,16 @@ public class StepTargetingService {
 
   /**
    * Returns {@code true} when a mapper destination content key provides execution targets for the
-   * step's axis: either a well-known targeting key, or a contract field whose declared type is a
-   * targeting widget (asset / asset group / targeted-asset for technical steps, team for audience
-   * steps) in the contract snapshot baked into the step data.
+   * step's axis: a well-known targeting key, or - for technical steps - a contract field whose
+   * declared type is an asset-targeting widget (asset / asset group / targeted-asset) in the
+   * contract snapshot baked into the step data.
+   *
+   * <p>Team-typed contract fields are deliberately not target-feeding for the audience axis:
+   * runtime mapping ({@code InjectExecutionStep#updateContentWithInputs}) only writes into the
+   * inject content JSON and never resolves mapped team ids into the {@code Inject#teams} relation
+   * that {@code resolveAudienceRecipients} reads, so treating them as an audience source would
+   * suppress both the scope fallback and the missing-audience health check while the step executes
+   * with zero recipients.
    */
   private boolean isTargetFeedingKey(Step step, String contentKey, boolean assetCentric) {
     if (contentKey == null || contentKey.isBlank()) {
@@ -264,13 +275,11 @@ public class StepTargetingService {
     if (directKeys.contains(contentKey)) {
       return true;
     }
-    String fieldType = contractFieldTypeForKey(step, contentKey);
-    if (fieldType == null) {
+    if (!assetCentric) {
       return false;
     }
-    return assetCentric
-        ? ASSET_TARGET_FIELD_TYPES.contains(fieldType)
-        : InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE_TEAM.equals(fieldType);
+    String fieldType = contractFieldTypeForKey(step, contentKey);
+    return fieldType != null && ASSET_TARGET_FIELD_TYPES.contains(fieldType);
   }
 
   /**

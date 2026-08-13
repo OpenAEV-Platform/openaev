@@ -272,9 +272,12 @@ class StepTargetingServiceTest {
   }
 
   @Test
-  @DisplayName("target-feeding mappers - mapper into a team-typed contract field counts")
-  void givenMapperIntoTeamTypedField_whenCheckingAudienceAxis_thenTrue() {
-    // Custom field key resolved as team-typed through the contract snapshot.
+  @DisplayName("target-feeding mappers - mapper into a team-typed contract field does NOT count")
+  void givenMapperIntoTeamTypedField_whenCheckingAudienceAxis_thenFalse() {
+    // Custom field key resolved as team-typed through the contract snapshot. Runtime mapping only
+    // writes into inject_content and never populates the Inject#teams relation that recipient
+    // resolution reads, so a team-field mapper must not suppress the scope fallback or the
+    // missing-audience health check (the step would execute with zero recipients).
     String data =
         """
         {"inject_injector_contract":{"injector_contract_id":"contract-email",
@@ -286,7 +289,20 @@ class StepTargetingServiceTest {
     when(conditionService.findAllConditionsByStepIds(Set.of("step-5")))
         .thenReturn(Map.of("step-5", List.of(mapperTo("custom_audience"))));
 
-    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(step, false)).isTrue();
+    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(step, false)).isFalse();
+  }
+
+  @Test
+  @DisplayName("target-feeding mappers - mapper into the teams content key does NOT count")
+  void givenMapperIntoTeamsContentKey_whenCheckingAudienceAxis_thenFalse() {
+    // Same rationale as the team-typed field: nothing resolves a mapped "teams" content value
+    // into the Inject#teams relation at execution time.
+    Step step = stepWithData(EMAIL_STEP_DATA);
+    step.setId("step-7");
+    when(conditionService.findAllConditionsByStepIds(Set.of("step-7")))
+        .thenReturn(Map.of("step-7", List.of(mapperTo("teams"))));
+
+    assertThat(stepTargetingService.hasTargetFeedingMapperConditions(step, false)).isFalse();
   }
 
   @Test

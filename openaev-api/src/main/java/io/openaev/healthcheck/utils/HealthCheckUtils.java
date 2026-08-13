@@ -519,10 +519,11 @@ public class HealthCheckUtils {
    *       workflow makes them ineffective.
    * </ul>
    *
-   * <p>Only MAPPER conditions that feed actual execution targets (assets, manual targets, teams,
-   * raw recipients) count as a substitute for the scope; a mapper filling a command argument or an
-   * email subject leaves the step scope-dependent. Conditions are prefetched for all steps in one
-   * query to avoid an N+1 pattern during launch validation.
+   * <p>Only MAPPER conditions that feed actual execution targets (assets, manual targets, raw
+   * recipients) count as a substitute for the scope; a mapper filling a command argument, an email
+   * subject or a team-typed field (which runtime mapping never resolves into {@code Inject#teams})
+   * leaves the step scope-dependent. Conditions are prefetched for all steps in one query to avoid
+   * an N+1 pattern during launch validation.
    *
    * <p>The {@code MISSING_*} errors are suppressed while the scope is entirely empty ({@code EMPTY}
    * already gates the launch, stacking banners would be noise), and the {@code INEFFECTIVE_*}
