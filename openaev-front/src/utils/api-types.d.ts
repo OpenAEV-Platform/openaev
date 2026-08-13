@@ -5792,7 +5792,15 @@ export interface HealthCheck {
    */
   creation_date: string;
   /** Detail of the check failure */
-  detail: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY" | "MANDATORY_CONTENT";
+  detail:
+    | "SERVICE_UNAVAILABLE"
+    | "NOT_READY"
+    | "EMPTY"
+    | "MANDATORY_CONTENT"
+    | "MISSING_TECHNICAL_TARGETS"
+    | "MISSING_AUDIENCE_TARGETS"
+    | "INEFFECTIVE_TECHNICAL_TARGETS"
+    | "INEFFECTIVE_AUDIENCE_TARGETS";
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -7671,7 +7679,7 @@ export interface NotificationTriggerInput {
     | "THREAT_ARSENAL"
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
-    | "CREDENTIAL_ASSET"
+    | "CREDENTIAL"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -7774,7 +7782,7 @@ export interface NotificationTriggerOutput {
     | "THREAT_ARSENAL"
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
-    | "CREDENTIAL_ASSET"
+    | "CREDENTIAL"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -9393,6 +9401,9 @@ export interface PlatformRoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "ACCESS_CREDENTIALS"
+    | "MANAGE_CREDENTIALS"
+    | "DELETE_CREDENTIALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -10218,6 +10229,9 @@ export interface RoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "ACCESS_CREDENTIALS"
+    | "MANAGE_CREDENTIALS"
+    | "DELETE_CREDENTIALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -12321,6 +12335,9 @@ export interface User {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "ACCESS_CREDENTIALS"
+    | "MANAGE_CREDENTIALS"
+    | "DELETE_CREDENTIALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"

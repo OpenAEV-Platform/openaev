@@ -56,6 +56,7 @@ import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousOutcome from '../../autonomous/AutonomousOutcome';
 import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import EEChip from '../../common/entreprise_edition/EEChip';
+import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
@@ -117,8 +118,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
 
-  const isScopeMissing = isScenarioChaining
-    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+  const isScopeMissing = isScenarioChaining && isScopeLaunchBlocked(healthchecks);
 
   const agentsActive = useMemo(() => {
     const injectAssetIds: string[] = injects.flatMap((inject: Inject) => inject.inject_assets);

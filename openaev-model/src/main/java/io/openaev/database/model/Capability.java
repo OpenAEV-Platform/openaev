@@ -2,12 +2,7 @@ package io.openaev.database.model;
 
 import static java.util.Map.entry;
 
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -153,6 +148,20 @@ public enum Capability {
       pair(ResourceType.THREAT_ARSENAL, Action.CREATE),
       pair(ResourceType.THREAT_ARSENAL, Action.DUPLICATE)),
   DELETE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.DELETE)),
+
+  // Credentials -
+  ACCESS_CREDENTIALS(
+      null,
+      CapabilityGroup.CREDENTIALS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.CREDENTIAL, Action.READ),
+      pair(ResourceType.CREDENTIAL, Action.SEARCH)),
+  MANAGE_CREDENTIALS(
+      ACCESS_CREDENTIALS,
+      pair(ResourceType.CREDENTIAL, Action.WRITE),
+      pair(ResourceType.CREDENTIAL, Action.CREATE),
+      pair(ResourceType.CREDENTIAL, Action.DUPLICATE)),
+  DELETE_CREDENTIALS(MANAGE_CREDENTIALS, pair(ResourceType.CREDENTIAL, Action.DELETE)),
 
   // Dashboards
   ACCESS_DASHBOARDS(
@@ -639,5 +648,9 @@ public enum Capability {
           "Dropping out-of-scope capabilities {} not allowed for scope {}", dropped, requiredScope);
     }
     return valid;
+  }
+
+  public boolean isCredentialCapability() {
+    return this == ACCESS_CREDENTIALS || this == MANAGE_CREDENTIALS || this == DELETE_CREDENTIALS;
   }
 }

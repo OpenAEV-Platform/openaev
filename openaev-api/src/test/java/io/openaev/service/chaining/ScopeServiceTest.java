@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
@@ -14,6 +17,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import io.openaev.utils.mapper.EndpointMapper;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +35,8 @@ class ScopeServiceTest {
   @Mock private AssetService assetService;
   @Mock private AssetGroupService assetGroupService;
   @Mock private WorkflowStateService workflowStateService;
+  @Mock private TeamRepository teamRepository;
+  @Mock private UserRepository userRepository;
   @Mock private EndpointService endpointService;
   @Mock private EndpointMapper endpointMapper;
   @Mock private AssetGroupMapper assetGroupMapper;
@@ -82,7 +88,7 @@ class ScopeServiceTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("One asset in allowlist and no denylist rules — returns the asset")
+  @DisplayName("One asset in allowlist and no denylist rules - returns the asset")
   void givenOneAssetInAllowlist_whenNoDenylistRules_thenReturnsAsset() {
     Endpoint endpoint = endpointWithSeenIp("asset-1", "host-1", "10.0.0.1");
 
@@ -96,7 +102,7 @@ class ScopeServiceTest {
   }
 
   @Test
-  @DisplayName("No allowlist rules but several denylist values — returns empty list")
+  @DisplayName("No allowlist rules but several denylist values - returns empty list")
   void givenNoAllowlistRules_whenSeveralDenylistValues_thenReturnsEmpty() {
     when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
         .thenReturn(
@@ -110,7 +116,7 @@ class ScopeServiceTest {
   }
 
   @Test
-  @DisplayName("Asset in allowlist, several non-matching IPs in denylist — returns the asset")
+  @DisplayName("Asset in allowlist, several non-matching IPs in denylist - returns the asset")
   void givenOneAssetInAllowlist_whenDenylistIpsDoNotMatch_thenReturnsAsset() {
     Endpoint endpoint = endpointWithSeenIp("asset-1", "host-1", "10.0.0.1");
 
@@ -129,7 +135,7 @@ class ScopeServiceTest {
 
   @Test
   @DisplayName(
-      "Several assets in allowlist, denylist IP matches one asset's seenIp — that asset is filtered out")
+      "Several assets in allowlist, denylist IP matches one asset's seenIp - that asset is filtered out")
   void givenSeveralAssetsInAllowlist_whenDenylistIpMatchesSeenIp_thenMatchingAssetIsFilteredOut() {
     Endpoint targeted = endpointWithSeenIp("asset-1", "host-1", "10.0.0.1");
     Endpoint other1 = endpointWithSeenIp("asset-2", "host-2", "10.0.0.2");
@@ -153,7 +159,7 @@ class ScopeServiceTest {
 
   @Test
   @DisplayName(
-      "Several assets in allowlist, denylist IP matches one of an asset's IPs array — that asset is filtered out")
+      "Several assets in allowlist, denylist IP matches one of an asset's IPs array - that asset is filtered out")
   void
       givenSeveralAssetsInAllowlist_whenDenylistIpMatchesOneOfIpsArray_thenMatchingAssetIsFilteredOut() {
     Endpoint targeted = endpointWithIps("asset-1", "host-1", "10.0.0.1", "10.0.0.99");
@@ -178,7 +184,7 @@ class ScopeServiceTest {
 
   @Test
   @DisplayName(
-      "Several assets in allowlist, denylist subnet covers one asset's seenIp — that asset is filtered out")
+      "Several assets in allowlist, denylist subnet covers one asset's seenIp - that asset is filtered out")
   void
       givenSeveralAssetsInAllowlist_whenDenylistSubnetMatchesSeenIp_thenMatchingAssetIsFilteredOut() {
     Endpoint targeted = endpointWithSeenIp("asset-1", "host-1", "192.168.1.50");
@@ -203,7 +209,7 @@ class ScopeServiceTest {
 
   @Test
   @DisplayName(
-      "Several assets in allowlist, denylist subnet covers one of an asset's IPs array — that asset is filtered out")
+      "Several assets in allowlist, denylist subnet covers one of an asset's IPs array - that asset is filtered out")
   void
       givenSeveralAssetsInAllowlist_whenDenylistSubnetMatchesOneOfIpsArray_thenMatchingAssetIsFilteredOut() {
     Endpoint targeted = endpointWithIps("asset-1", "host-1", "10.0.0.5", "192.168.1.10");
@@ -383,5 +389,98 @@ class ScopeServiceTest {
         scopeService.getScopeAssetGroupsByIds(WORKFLOW_ID, List.of("group-1", "group-9"));
 
     assertThat(result).containsExactly(allowedOutput);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Audience scope (teams and players consumed by tabletop injects)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("Valid teams - allowlisted teams minus denylisted teams are resolved")
+  void givenAllowAndDenyTeamRules_whenGettingValidTeams_thenDeniedTeamIsExcluded() {
+    Team kept = new Team();
+    kept.setId("team-1");
+
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(
+            List.of(
+                allowlistRule(ScopeRuleValueType.TEAM_ID, "team-1"),
+                allowlistRule(ScopeRuleValueType.TEAM_ID, "team-2"),
+                denylistRule(ScopeRuleValueType.TEAM_ID, "team-2")));
+    when(teamRepository.findAllById(List.of("team-1"))).thenReturn(List.of(kept));
+
+    List<Team> result = scopeService.getValidTeams(WORKFLOW_ID);
+
+    assertThat(result).containsExactly(kept);
+  }
+
+  @Test
+  @DisplayName("Valid players - allowlisted players minus denylisted players are resolved")
+  void givenAllowAndDenyPlayerRules_whenGettingValidPlayers_thenDeniedPlayerIsExcluded() {
+    User kept = new User();
+    kept.setId("player-1");
+
+    TenantContext.setCurrentTenant("tenant-1");
+    try {
+      when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+          .thenReturn(
+              List.of(
+                  allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-1"),
+                  allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-2"),
+                  denylistRule(ScopeRuleValueType.PLAYER_ID, "player-2")));
+      when(userRepository.findAllByIdInAndTenantId(List.of("player-1"), "tenant-1"))
+          .thenReturn(List.of(kept));
+
+      List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
+
+      assertThat(result).containsExactly(kept);
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  @Test
+  @DisplayName("Valid players - lookup is tenant-scoped so out-of-tenant users never resolve")
+  void givenPlayerRuleOutsideTenant_whenGettingValidPlayers_thenUserIsNotResolved() {
+    TenantContext.setCurrentTenant("tenant-1");
+    try {
+      when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+          .thenReturn(List.of(allowlistRule(ScopeRuleValueType.PLAYER_ID, "ghost-player")));
+      when(userRepository.findAllByIdInAndTenantId(List.of("ghost-player"), "tenant-1"))
+          .thenReturn(List.of());
+
+      List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
+
+      assertThat(result).isEmpty();
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  @Test
+  @DisplayName("Valid players - no PLAYER rules means no user lookup at all")
+  void givenNoPlayerRules_whenGettingValidPlayers_thenReturnsEmptyWithoutLookup() {
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(List.of(allowlistRule(ScopeRuleValueType.TEAM_ID, "team-1")));
+
+    List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
+
+    assertThat(result).isEmpty();
+    verifyNoInteractions(userRepository);
+  }
+
+  @Test
+  @DisplayName("Denied player IDs - only denylisted PLAYER rules are returned")
+  void givenMixedRules_whenGettingDeniedPlayerIds_thenOnlyDenylistedPlayersAreReturned() {
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
+        .thenReturn(
+            List.of(
+                allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-1"),
+                denylistRule(ScopeRuleValueType.PLAYER_ID, "player-2"),
+                denylistRule(ScopeRuleValueType.TEAM_ID, "team-1")));
+
+    Set<String> result = scopeService.getDeniedPlayerIds(WORKFLOW_ID);
+
+    assertThat(result).containsExactly("player-2");
   }
 }

@@ -9,6 +9,7 @@ import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.database.repository.StepConditionRow;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.BadRequestException;
@@ -33,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
+  private static final String OPTIONAL_MISSING_SOURCE_KEY = "OPTIONAL_MISSING";
+
   private final WorkflowStateService workflowStateService;
 
   private final ConditionUtils conditionUtils;
@@ -560,6 +563,26 @@ public class ConditionService {
   @Transactional(readOnly = true)
   public List<Condition> findAllConditionsByStepId(String stepId) {
     return conditionRepository.findAllLinkedToStepId(stepId);
+  }
+
+  /**
+   * Batched variant of {@link #findAllConditionsByStepId(String)}: retrieves the conditions linked
+   * to any of the given steps in a single query and groups them by step id, so callers iterating
+   * over many steps (e.g. launch validation over a workflow's templates) avoid an N+1 pattern.
+   *
+   * @param stepIds step identifiers
+   * @return conditions grouped by step id; steps without conditions are absent from the map
+   */
+  @Transactional(readOnly = true)
+  public Map<String, List<Condition>> findAllConditionsByStepIds(Set<String> stepIds) {
+    if (stepIds == null || stepIds.isEmpty()) {
+      return Map.of();
+    }
+    return conditionRepository.findAllLinkedToStepIdIn(stepIds).stream()
+        .collect(
+            Collectors.groupingBy(
+                StepConditionRow::stepTemplateId,
+                Collectors.mapping(StepConditionRow::condition, Collectors.toList())));
   }
 
   // -- CONDITION EVALUATION --
@@ -1245,7 +1268,9 @@ public class ConditionService {
    */
   private Map<String, String> toComboMap(List<WorkflowStateEntries.Pair> pairs) {
     Map<String, String> combo = new TreeMap<>();
-    pairs.forEach(pair -> combo.put(pair.key(), pair.value()));
+    pairs.stream()
+        .filter(pair -> pair.value() != null)
+        .forEach(pair -> combo.put(pair.key(), pair.value()));
     return combo;
   }
 
@@ -1275,9 +1300,16 @@ public class ConditionService {
     List<WorkflowStateEntries.Pair> pairs = new ArrayList<>();
     Set<String> seenValues = new HashSet<>();
     for (String sourceKey : mapperContext.sourceKeys()) {
-      Set<String> values =
+      Set<String> values = new LinkedHashSet<>();
+      Set<String> directValues =
           resolveValuesByMappingType(
               sourceKey, mapperContext.mappingType(), localEntries, globalEntries);
+      if (directValues != null) {
+        values.addAll(directValues);
+      }
+      values.addAll(
+          resolveCorrelatedValuesByMappingType(
+              sourceKey, mapperContext.mappingType(), localEntries, globalEntries));
       if (values == null || values.isEmpty()) {
         continue;
       }
@@ -1301,7 +1333,34 @@ public class ConditionService {
               targetKey != null ? targetKey : "DEFINED_VALUE", definedValue));
     }
 
+    if (pairs.isEmpty()) {
+      String sourceKey =
+          mapperContext.sourceKeys().isEmpty()
+              ? OPTIONAL_MISSING_SOURCE_KEY
+              : mapperContext.sourceKeys().getFirst();
+      pairs.add(new WorkflowStateEntries.Pair(sourceKey, null));
+    }
+
     return pairs;
+  }
+
+  private Set<String> resolveCorrelatedValuesByMappingType(
+      String key,
+      MappingType mappingType,
+      WorkflowStateEntries localEntries,
+      WorkflowStateEntries globalEntries) {
+    WorkflowStateEntries sourceEntries =
+        mappingType == MappingType.GLOBAL ? globalEntries : localEntries;
+    if (sourceEntries.getCorrelated() == null || sourceEntries.getCorrelated().isEmpty()) {
+      return Set.of();
+    }
+    return sourceEntries.getCorrelated().stream()
+        .flatMap(tuple -> tuple.getValues().stream())
+        .filter(pair -> key.equals(pair.key()))
+        .map(WorkflowStateEntries.Pair::value)
+        .filter(Objects::nonNull)
+        .filter(value -> !value.isBlank())
+        .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
   /**

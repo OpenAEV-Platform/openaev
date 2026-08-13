@@ -670,6 +670,198 @@ class CredentialApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Capabilities")
+  class CredentialCapabilities {
+
+    private static final String UNKNOWN_CREDENTIAL_ID = "00000000-0000-0000-0000-000000000999";
+
+    @Test
+    @DisplayName("given_accessCredentials_should_allowSearch")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_CREDENTIALS})
+    void given_accessCredentials_should_allowSearch() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "credential-cap-search", Set.of(Capability.ACCESS_CREDENTIALS));
+
+      // Act
+      int responseStatus =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()) + "/search")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(new SearchPaginationInput()))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("given_manageCredentials_should_allowCreate")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_CREDENTIALS})
+    void given_manageCredentials_should_allowCreate() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "credential-cap-create", Set.of(Capability.MANAGE_CREDENTIALS));
+      CredentialInput input = validUsernamePasswordInput("credential-cap-create");
+
+      // Act
+      int responseStatus =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isNotEqualTo(403);
+      assertThat(responseStatus).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("given_manageCredentials_should_allowUpdate")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_CREDENTIALS})
+    void given_manageCredentials_should_allowUpdate() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "credential-cap-update", Set.of(Capability.MANAGE_CREDENTIALS));
+      CredentialInput input = validUsernamePasswordInput("credential-cap-update");
+
+      // Act
+      int responseStatus =
+          mvc.perform(
+                  put(tenantCredentialsUri(tenant.getId()) + "/" + UNKNOWN_CREDENTIAL_ID)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isNotEqualTo(403);
+    }
+
+    @Test
+    @DisplayName("given_accessCredentials_should_forbidUpdate")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_CREDENTIALS})
+    void given_accessCredentials_should_forbidUpdate() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "credential-cap-forbid-update", Set.of(Capability.ACCESS_CREDENTIALS));
+      CredentialInput input = validUsernamePasswordInput("credential-cap-forbid-update");
+
+      // Act & Assert
+      mvc.perform(
+              put(tenantCredentialsUri(tenant.getId()) + "/" + UNKNOWN_CREDENTIAL_ID)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("given_deleteCredentials_should_allowDelete")
+    @WithMockUser(withCapabilities = {Capability.DELETE_CREDENTIALS})
+    void given_deleteCredentials_should_allowDelete() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "credential-cap-delete", Set.of(Capability.DELETE_CREDENTIALS));
+
+      // Act
+      int responseStatus =
+          mvc.perform(
+                  delete(tenantCredentialsUri(tenant.getId()) + "/" + UNKNOWN_CREDENTIAL_ID)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isNotEqualTo(403);
+    }
+
+    @Test
+    @DisplayName("given_unrelatedCapability_should_forbidCredentialRead")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_unrelatedCapability_should_forbidCredentialRead() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "credential-cap-forbid-read", Set.of(Capability.MANAGE_ASSETS));
+
+      // Act & Assert
+      mvc.perform(
+              get(tenantCredentialsUri(tenant.getId()) + "/contracts")
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("given_unrelatedCapability_should_forbidCredentialWrite")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_unrelatedCapability_should_forbidCredentialWrite() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "credential-cap-forbid-write", Set.of(Capability.MANAGE_ASSETS));
+      CredentialInput input = validUsernamePasswordInput("credential-cap-forbid-write");
+
+      // Act & Assert
+      mvc.perform(
+              post(tenantCredentialsUri(tenant.getId()))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("given_unrelatedCapability_should_forbidCredentialDelete")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_unrelatedCapability_should_forbidCredentialDelete() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "credential-cap-forbid-delete", Set.of(Capability.MANAGE_ASSETS));
+
+      // Act & Assert
+      mvc.perform(
+              delete(tenantCredentialsUri(tenant.getId()) + "/" + UNKNOWN_CREDENTIAL_ID)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    private CredentialInput validUsernamePasswordInput(String name) {
+      return new CredentialInput(
+          name,
+          CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
+          CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD,
+          "credential-capability-test",
+          "user-" + name,
+          "pass-" + name,
+          null,
+          null,
+          List.of());
+    }
+  }
+
+  @Nested
   @DisplayName("Bulk delete credentials")
   class BulkDeleteCredentials {
 

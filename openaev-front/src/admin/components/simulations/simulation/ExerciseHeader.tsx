@@ -78,6 +78,7 @@ import useSimulationPermissions from '../../../../utils/permissions/useSimulatio
 import { truncate } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
@@ -368,8 +369,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openDateDialog, setOpenDateDialog] = useState(false);
 
-  const isScopeMissing = isSimulationChaining
-    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+  const isScopeMissing = isSimulationChaining && isScopeLaunchBlocked(healthchecks);
 
   useEffect(() => {
     searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
