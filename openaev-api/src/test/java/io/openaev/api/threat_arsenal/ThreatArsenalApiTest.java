@@ -26,6 +26,8 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
+import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -380,6 +382,101 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               jsonPath(
                   "$.message",
                   containsString("output_parser_mode must be STDOUT, STDERR, or READ_FILE")));
+    }
+
+    @Test
+    @DisplayName(
+        "Creating an action carrying a credentials output parser should succeed and persist the"
+            + " credentials finding element")
+    void given_credentialsOutputParser_should_createPayloadWithCredentialsFinding()
+        throws Exception {
+      // credentials is a valid ContractOutputType on the contract output element; the parser type
+      // stays REGEX. A well-formed request must succeed and yield a finding-flagged credentials
+      // element (the AI orchestrator forks crack actions this way).
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          ThreatArsenalInputFixture.createCommandLineActionWithCredentialsOutputParser(
+              List.of(domain.getId()));
+
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String payloadId = JsonPath.read(response, "$.action_payload.payload_id");
+      Payload payload = payloadRepository.findById(payloadId).orElse(null);
+      assertNotNull(payload);
+      assertEquals(1, payload.getOutputParsers().size());
+      OutputParser outputParser = payload.getOutputParsers().iterator().next();
+      assertEquals(ParserType.REGEX, outputParser.getType());
+      Set<ContractOutputElement> elements = outputParser.getContractOutputElements();
+      assertEquals(1, elements.size());
+      ContractOutputElement credentialsElement = elements.iterator().next();
+      assertEquals(ContractOutputType.Credentials, credentialsElement.getType());
+      assertTrue(
+          credentialsElement.isFinding(),
+          "the credentials contract output element must be flagged as a finding");
+    }
+
+    @Test
+    @DisplayName(
+        "Creating an action with a malformed output parser (blank contract output element rule)"
+            + " should return 400, not 500")
+    void given_outputParserWithBlankRule_should_returnBadRequest() throws Exception {
+      // Regression: a contract output element with no rule slipped past validation (nested
+      // output-parser inputs were not @Valid-cascaded) and reached StringUtils.isValidRegex(null),
+      // which threw a raw NullPointerException surfaced as a 500.
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+
+      ContractOutputElementInput malformedElement = new ContractOutputElementInput();
+      malformedElement.setFinding(true);
+      malformedElement.setName("creds");
+      malformedElement.setKey("creds");
+      malformedElement.setType(ContractOutputType.Credentials);
+      malformedElement.setRule(null);
+      OutputParserInput malformedParser = new OutputParserInput();
+      malformedParser.setMode(ParserMode.STDOUT);
+      malformedParser.setType(ParserType.REGEX);
+      malformedParser.setContractOutputElements(Set.of(malformedElement));
+
+      ThreatArsenalActionCreateInput input =
+          new ThreatArsenalActionCreateInput(
+              Command.COMMAND_TYPE,
+              "Command line payload with malformed parser",
+              Payload.PAYLOAD_SOURCE.MANUAL,
+              Payload.PAYLOAD_STATUS.VERIFIED,
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              "bash",
+              "echo hello",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              Collections.emptyList(),
+              Collections.emptyList(),
+              null,
+              Set.of(malformedParser),
+              List.of(domain.getId()));
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().is4xxClientError());
     }
 
     @Test

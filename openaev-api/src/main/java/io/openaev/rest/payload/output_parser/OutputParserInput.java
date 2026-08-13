@@ -5,6 +5,7 @@ import io.openaev.database.model.ParserMode;
 import io.openaev.database.model.ParserType;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashSet;
 import java.util.Set;
@@ -29,5 +30,6 @@ public class OutputParserInput {
   @JsonProperty("output_parser_contract_output_elements")
   @Schema(description = "List of Contract output elements")
   @NotNull
+  @Valid
   private Set<ContractOutputElementInput> contractOutputElements = new HashSet<>();
 }
