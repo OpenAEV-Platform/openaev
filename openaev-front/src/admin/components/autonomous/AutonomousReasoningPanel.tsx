@@ -378,6 +378,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // The question the operator just answered - suppressed immediately (optimistic) so the callout
   // does not linger and hog space while we wait for the status poll to flip the run to RUNNING.
   const [answeredQuestionId, setAnsweredQuestionId] = useState<string | null>(null);
+  // Guards against a double submit: Enter and a click (or two fast Enters) both fire
+  // handleComposerSubmit in the same tick, and each reads the same pre-clear `directive`, so without
+  // this the operator's answer is sent twice. Held until the request settles.
+  const sendingRef = useRef(false);
   const cursorRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // Whether the operator is at (or near) the bottom of the stream, sampled in the onScroll handler
@@ -461,9 +465,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // run at mount, so without re-syncing from the parent the panel would keep showing the torn-down
   // (terminal) run - and, because refreshRun only polls while active, never recover until a full
   // page reload. Re-sync whenever the parent's run or its underlying simulation changes.
+  //
+  // The status is a dependency too: lifecycle controls live in the hero, not here, so a hero-driven
+  // pause/resume changes only the parent's run. When the run is not active the panel does not poll,
+  // so a resume would otherwise never reach the panel - it would stay frozen as PAUSED with a live
+  // composer until a full remount. Keying on status makes a hero transition reflect immediately.
   useEffect(() => {
     setRun(initialRunRef.current);
-  }, [initialRun.autonomous_run_id, initialRun.autonomous_run_simulation_id]);
+  }, [initialRun.autonomous_run_id, initialRun.autonomous_run_simulation_id, initialRun.autonomous_run_status]);
 
   // Reset and reload ONLY when the run OR its underlying simulation actually changes: navigating
   // between simulations reuses the panel, and a restart swaps the simulation under the same run id
@@ -514,18 +523,6 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // once per new batch of events, not on every incidental re-render.
   const visibleEvents = useMemo(() => events.filter(e => !isHeartbeatEvent(e)), [events]);
 
-  // Keep the stream pinned to the latest decision as it grows - but only while the operator was
-  // already at (or near) the bottom before the new content rendered (see stickToBottomRef), so a
-  // new event never yanks them away from an older decision they scrolled up to read. Keyed on the
-  // VISIBLE feed length: filtered-out heartbeats do not change the rendered stream, so they should
-  // not re-trigger the pin at all.
-  useEffect(() => {
-    const node = scrollRef.current;
-    if (node && stickToBottomRef.current) {
-      node.scrollTop = node.scrollHeight;
-    }
-  }, [visibleEvents.length]);
-
   const isWaitingInput = status === 'WAITING_INPUT';
   // Newest-first lookups over the stream. findLast scans backwards without cloning, and the
   // results are memoised so the scans (and isHeartbeatEvent's JSON.parse) run once per new batch
@@ -551,9 +548,25 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     && !questionAnsweredInTimeline
     ? latestQuestion
     : undefined;
+  // Sanitize the LLM-authored labels at derivation (not render) time and DROP a choice whose label
+  // sanitizes to nothing: falling back to the raw text would leak the exact tool markup
+  // sanitizeEventText strips, and an unlabeled radio is unpickable anyway - the free-text composer
+  // remains as the answer path. The `value` (what is sent back to the orchestrator) stays raw.
   const questionChoices = (pendingQuestion ? parseQuestionChoices(pendingQuestion.autonomous_event_data) : [])
+    .map(choice => ({
+      ...choice,
+      label: sanitizeEventText(choice.label),
+    }))
+    .filter(choice => choice.label.length > 0)
     .slice(0, MAX_QUESTION_CHOICES);
   const hasChoices = questionChoices.length > 0;
+
+  // The pending question renders as a dedicated in-flow callout at the tail of the scrollable stream
+  // (with its one-click choices), so drop its plain timeline row from the feed to avoid showing it
+  // twice. Once answered it is no longer pending and reappears as a normal history row.
+  const streamEvents = pendingQuestion
+    ? visibleEvents.filter(event => event.autonomous_event_id !== pendingQuestion.autonomous_event_id)
+    : visibleEvents;
 
   let composerPlaceholder = t('Steer the AI live (e.g. focus on the finance subnet, avoid host X, try Kerberoasting)');
   if (hasChoices) {
@@ -565,24 +578,62 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     composerPlaceholder = t('Answer the AI (e.g. the web apps in scope are app-prod-01 and app-prod-02)');
   }
 
-  // Reset the choice selection whenever a new question arrives.
+  // Reset the composer + choice selection ONLY when a genuinely NEW question arrives. Keyed on the
+  // last question id seen (not on every pendingQuestion identity change): after a failed send the
+  // SAME question resurfaces (the optimistic dismissal is rolled back), and an unconditional reset
+  // would fire on that undefined -> same-id transition and wipe the restored answer text right
+  // after the catch put it back - stranding the operator exactly like the bug this PR fixes.
+  const lastQuestionIdRef = useRef<string | null>(null);
   useEffect(() => {
-    setSelectedChoice(null);
-    setDirective('');
+    const questionId = pendingQuestion?.autonomous_event_id ?? null;
+    if (questionId !== null && questionId !== lastQuestionIdRef.current) {
+      lastQuestionIdRef.current = questionId;
+      setSelectedChoice(null);
+      setDirective('');
+    }
   }, [pendingQuestion?.autonomous_event_id]);
+
+  // Keep the stream pinned to its tail as it grows - but only while the operator was already at (or
+  // near) the bottom before the new content rendered (see stickToBottomRef), so a new event never
+  // yanks them away from an older decision they scrolled up to read. Keyed on the VISIBLE feed
+  // length (filtered-out heartbeats do not change the rendered stream) AND on the pending-question
+  // identity, so the now in-flow question callout + one-click choices scroll into view the moment
+  // the run parks on the operator - even when the status flip and the QUESTION event land in
+  // different poll cycles.
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (node && stickToBottomRef.current) {
+      node.scrollTop = node.scrollHeight;
+    }
+  }, [visibleEvents.length, pendingQuestion?.autonomous_event_id]);
 
   const sendDirective = useCallback((content: string) => {
     const trimmed = content.trim();
-    if (trimmed.length === 0 || !isActive) {
+    if (trimmed.length === 0 || !isActive || sendingRef.current) {
       return;
     }
+    sendingRef.current = true;
+    const dismissedQuestionId = pendingQuestion?.autonomous_event_id ?? null;
     setDirective('');
     setSelectedChoice(null);
     // Optimistically dismiss the current question so its callout stops occupying space right away.
-    if (pendingQuestion) {
-      setAnsweredQuestionId(pendingQuestion.autonomous_event_id);
+    if (dismissedQuestionId) {
+      setAnsweredQuestionId(dismissedQuestionId);
     }
-    addAutonomousDirective(runId, trimmed).then(() => pollTimeline()).catch(() => {});
+    addAutonomousDirective(runId, trimmed)
+      .then(() => pollTimeline())
+      .catch(() => {
+        // The send failed (network / backend). Roll back the optimistic dismissal so the question
+        // re-surfaces, and restore the operator's text - otherwise the callout is gone for good and
+        // the run is stranded in WAITING_INPUT with no way to answer it. Restore ONLY while the
+        // composer is still empty: the field stays live during the in-flight request, so the
+        // operator may already be typing something new and the rollback must not clobber it.
+        setAnsweredQuestionId(current => (current === dismissedQuestionId ? null : current));
+        setDirective(current => (current.trim().length === 0 ? trimmed : current));
+      })
+      .finally(() => {
+        sendingRef.current = false;
+      });
   }, [isActive, pendingQuestion, runId, pollTimeline]);
 
   // One submit path for the always-visible composer + optional one-click choices: a typed answer
@@ -606,13 +657,19 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // (not a single frozen line): keep the tail of narration/decision/tool prose in chronological
   // order so each new cycle appends a line at the bottom and older ones scroll up under the fade
   // mask, mirroring the XTM One thinking window. Operators read its train of thought, not a spinner.
-  const thinkingLines = events
-    .filter(e => (['NARRATION', 'DECISION', 'TOOL_ACTION'] as const).includes(
-      e.autonomous_event_type as 'NARRATION' | 'DECISION' | 'TOOL_ACTION',
-    ))
-    .map(e => stripMarkdown(sanitizeEventText(e.autonomous_event_content ?? e.autonomous_event_title)))
-    .filter((line): line is string => Boolean(line))
-    .slice(-8);
+  // Memoised: the map runs the regex-heavy stripMarkdown over the tail of the stream, so it should
+  // recompute once per new batch of events - not on every keystroke in the composer (which re-renders
+  // this component through the `directive` state).
+  const thinkingLines = useMemo(
+    () => events
+      .filter(e => (['NARRATION', 'DECISION', 'TOOL_ACTION'] as const).includes(
+        e.autonomous_event_type as 'NARRATION' | 'DECISION' | 'TOOL_ACTION',
+      ))
+      .map(e => stripMarkdown(sanitizeEventText(e.autonomous_event_content ?? e.autonomous_event_title)))
+      .filter((line): line is string => Boolean(line))
+      .slice(-8),
+    [events],
+  );
 
   // Current orchestrator phase for the thinking window. Derived from status + the latest activity
   // event rather than the raw run status, so the caption narrates what the run is doing and animates
@@ -969,7 +1026,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 paddingBlock: 1,
               }}
               >
-                {visibleEvents.map((event) => {
+                {streamEvents.map((event) => {
                   const color = eventAccent(event, theme);
                   const eventTitle = sanitizeEventText(event.autonomous_event_title);
                   const eventContent = sanitizeEventText(event.autonomous_event_content);
@@ -1045,7 +1102,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     </Box>
                   );
                 })}
-                {isActive && (
+                {isActive && !pendingQuestion && (
                   <ThinkingBubble
                     phase={thinkingPhase}
                     theme={theme}
@@ -1053,40 +1110,90 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     activitySince={activitySince}
                   />
                 )}
+                {/* When the run parks on the operator, its question + one-click choices render HERE,
+                    inline at the tail of the scrollable stream (normal conversation flow) - not as a
+                    fixed band above the composer. On a short viewport a long question (e.g. a scope
+                    table) plus its choices would otherwise overflow a fixed region with no way to
+                    scroll to them; in-flow they scroll with the rest of the feed while the compact
+                    free-text composer stays pinned at the bottom as the "type your own answer" box. */}
+                {pendingQuestion && (
+                  <Box
+                    sx={{
+                      padding: theme.spacing(1.25, 1.5),
+                      borderRadius: 1.5,
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
+                      backgroundColor: alpha(theme.palette.warning.main, 0.08),
+                    }}
+                  >
+                    <Stack sx={{
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: 1,
+                    }}
+                    >
+                      <HelpOutline fontSize="small" color="warning" sx={{ marginTop: '2px' }} />
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="subtitle2" sx={{ margin: 0 }}>
+                          {sanitizeEventText(pendingQuestion.autonomous_event_title) || t('The AI needs your input to continue')}
+                        </Typography>
+                        {sanitizeEventText(pendingQuestion.autonomous_event_content) && (
+                          <Box sx={{ marginTop: 0.25 }}>
+                            <EventMarkdown content={sanitizeEventText(pendingQuestion.autonomous_event_content)} fontSize="0.8125rem" />
+                          </Box>
+                        )}
+                      </Box>
+                    </Stack>
+                    {/* One-click choices, only where the operator can actually answer (steering is
+                        hidden in observe-only mode - they answer from the parent scenario). */}
+                    {hasChoices && !readOnly && (
+                      <RadioGroup
+                        value={selectedChoice ?? ''}
+                        onChange={event => setSelectedChoice(event.target.value)}
+                        sx={{
+                          gap: 0.75,
+                          marginTop: 1,
+                        }}
+                      >
+                        {questionChoices.map((choice) => {
+                          const isSelected = selectedChoice === choice.id;
+                          return (
+                            <FormControlLabel
+                              key={choice.id}
+                              value={choice.id}
+                              control={(
+                                <Radio
+                                  size="small"
+                                  sx={{
+                                    'color': accent,
+                                    '&.Mui-checked': { color: accent },
+                                  }}
+                                />
+                              )}
+                              label={choice.label}
+                              sx={{
+                                'margin': 0,
+                                'alignItems': 'flex-start',
+                                'borderRadius': 1.5,
+                                'border': `1px solid ${isSelected ? accent : theme.palette.divider}`,
+                                'backgroundColor': isSelected ? alpha(accent, 0.08) : theme.palette.background.paper,
+                                'padding': theme.spacing(0.5, 1, 0.5, 0.5),
+                                'transition': theme.transitions.create(['border-color', 'background-color']),
+                                '&:hover': { borderColor: alpha(accent, 0.6) },
+                                '& .MuiFormControlLabel-label': {
+                                  fontSize: '0.8125rem',
+                                  paddingTop: '5px',
+                                },
+                              }}
+                            />
+                          );
+                        })}
+                      </RadioGroup>
+                    )}
+                  </Box>
+                )}
               </Stack>
             )}
       </Box>
-
-      {/* Question callout when the run is parked on the operator. Disappears the moment the
-          operator answers (optimistic), so it never lingers and hogs space below. */}
-      {pendingQuestion && (
-        <Box
-          sx={{
-            padding: theme.spacing(1.25, 2),
-            borderTop: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
-            backgroundColor: alpha(theme.palette.warning.main, 0.08),
-          }}
-        >
-          <Stack sx={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: 1,
-          }}
-          >
-            <HelpOutline fontSize="small" color="warning" sx={{ marginTop: '2px' }} />
-            <Box>
-              <Typography variant="subtitle2" sx={{ margin: 0 }}>
-                {pendingQuestion.autonomous_event_title ?? t('The AI needs your input to continue')}
-              </Typography>
-              {sanitizeEventText(pendingQuestion.autonomous_event_content) && (
-                <Box sx={{ marginTop: 0.25 }}>
-                  <EventMarkdown content={sanitizeEventText(pendingQuestion.autonomous_event_content)} fontSize="0.8125rem" />
-                </Box>
-              )}
-            </Box>
-          </Stack>
-        </Box>
-      )}
 
       {/* Steering box - chatbot-style, doubles as the answer field when waiting on input. On the
           observe-only (simulation) view it is replaced by a hint pointing to the parent scenario,
@@ -1108,55 +1215,13 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           borderTop: `1px solid ${theme.palette.divider}`,
         }}
         >
-          {hasChoices && (
-            <RadioGroup
-              value={selectedChoice ?? ''}
-              onChange={event => setSelectedChoice(event.target.value)}
-              sx={{ gap: 0.75 }}
-            >
-              {questionChoices.map((choice) => {
-                const isSelected = selectedChoice === choice.id;
-                return (
-                  <FormControlLabel
-                    key={choice.id}
-                    value={choice.id}
-                    control={(
-                      <Radio
-                        size="small"
-                        sx={{
-                          'color': accent,
-                          '&.Mui-checked': { color: accent },
-                        }}
-                      />
-                    )}
-                    label={choice.label}
-                    sx={{
-                      'margin': 0,
-                      'alignItems': 'flex-start',
-                      'borderRadius': 1.5,
-                      'border': `1px solid ${isSelected ? accent : theme.palette.divider}`,
-                      'backgroundColor': isSelected ? alpha(accent, 0.08) : 'transparent',
-                      'padding': theme.spacing(0.5, 1, 0.5, 0.5),
-                      'transition': theme.transitions.create(['border-color', 'background-color']),
-                      '&:hover': { borderColor: alpha(accent, 0.6) },
-                      '& .MuiFormControlLabel-label': {
-                        fontSize: '0.8125rem',
-                        paddingTop: '5px',
-                      },
-                    }}
-                  />
-                );
-              })}
-            </RadioGroup>
-          )}
-
-          {/* Always-present composer: the free-text answer field sits directly next to the send
-              button, so typing is a first-class action (not a hidden "custom answer" mode). A typed
-              answer wins over a selected choice; the button also sends the picked choice when the
-              field is empty. */}
+          {/* Always-present composer: the free-text answer field, pinned at the bottom like a chat
+              steering box. When the run parks on a question its one-click choices live in the
+              scrollable stream above; a typed answer here wins over a selected choice, and the send
+              button also submits the picked choice when the field is empty. */}
           <Box
             sx={{
-              'marginTop': hasChoices ? 1 : 0,
+              'marginTop': 0,
               'display': 'flex',
               'flexDirection': 'column',
               'borderRadius': 1,
@@ -1215,6 +1280,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 size="small"
                 onClick={handleComposerSubmit}
                 disabled={!canSubmitAnswer}
+                aria-label={t('Send')}
                 sx={{
                   'backgroundColor': accent,
                   'color': theme.palette.ai?.contrastText ?? theme.palette.primary.contrastText,
