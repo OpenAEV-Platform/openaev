@@ -5,6 +5,8 @@ import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
@@ -20,14 +22,15 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Builds the immutable execution-time photos of a workflow's scope rules (see ADR-006). Composes
  * the existing resolution services ({@link AssetService}, {@link AssetGroupService}, {@link
- * CollectorRepository}) — it is an orchestrator, not a new resolver.
+ * CollectorRepository}, {@link TeamRepository}, {@link UserRepository}) - it is an orchestrator,
+ * not a new resolver.
  *
  * <p>Two entry points, both operating on a RUN workflow's rules:
  *
  * <ul>
- *   <li>{@link #freezeLaunch(Workflow, String)} — sets the launch {@code snapshot} on each copied
+ *   <li>{@link #freezeLaunch(Workflow, String)} - sets the launch {@code snapshot} on each copied
  *       asset rule and appends one {@code SECURITY_PLATFORM} rule per connected tenant platform.
- *   <li>{@link #freezeEnd(Workflow)} — sets the {@code snapshotEnd} on every rule of a run reaching
+ *   <li>{@link #freezeEnd(Workflow)} - sets the {@code snapshotEnd} on every rule of a run reaching
  *       END/STOP, re-running the same resolution.
  * </ul>
  */
@@ -39,6 +42,8 @@ public class ScopeSnapshotService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final CollectorRepository collectorRepository;
+  private final TeamRepository teamRepository;
+  private final UserRepository userRepository;
   private final TenantScopedTransaction tenantTx;
 
   /**
@@ -94,17 +99,23 @@ public class ScopeSnapshotService {
   /**
    * Recomputes the change status of a rule from its two frozen snapshots and the current live state
    * (see ADR-006). Returns {@code null} for a rule without a launch snapshot (draft / scenario /
-   * pre-ADR-006) — the frontend then falls back to live resolution.
+   * pre-ADR-006) - the frontend then falls back to live resolution.
    *
    * <p>The signature is <b>composition- and agent-aware</b> for an asset / group (label + each
    * frozen asset's id, name, agent count and executor set), so an asset added / removed / renamed
-   * or an agent added / removed inside the scope flips the status — never a misleading "unchanged".
+   * or an agent added / removed inside the scope flips the status - never a misleading "unchanged".
    * Precedence: a during-execution change dominates an after-execution one; while the run is still
    * RUNNING (no end snapshot) the current state is the in-progress end reference.
    */
   public ScopeRuleSnapshotStatus computeStatus(WorkflowScopeRule rule) {
     ScopeRuleSnapshot launch = rule.getSnapshotStart();
     if (launch == null) {
+      return null;
+    }
+    // Audience photos frozen before TEAM / PLAYER resolution existed carry the raw id as label.
+    // Deriving a status from such a photo would misread the now-resolvable name as a mid-run
+    // rename (MODIFIED_DURING_EXECUTION); treat the rule as un-snapshotted instead.
+    if (isDegradedAudiencePhoto(rule, launch)) {
       return null;
     }
     ScopeRuleSnapshot end = rule.getSnapshotEnd();
@@ -114,6 +125,18 @@ public class ScopeSnapshotService {
     ScopeRuleSnapshot current = buildCurrentSnapshot(rule);
     return statusFrom(
         signature(launch), endSignature(end), current != null ? signature(current) : null, ended);
+  }
+
+  /**
+   * A launch photo whose label is the rule's raw id for an audience (TEAM / PLAYER) rule: frozen
+   * before those sources were resolved to names. Both the status derivation and the output mapper
+   * ignore such photos so the frontend falls back to live resolution.
+   */
+  public static boolean isDegradedAudiencePhoto(WorkflowScopeRule rule, ScopeRuleSnapshot photo) {
+    return (rule.getRuleSource() == ScopeRuleSource.TEAM
+            || rule.getRuleSource() == ScopeRuleSource.PLAYER)
+        && photo.getLabel() != null
+        && photo.getLabel().equals(rule.getRuleValue());
   }
 
   /**
@@ -153,10 +176,11 @@ public class ScopeSnapshotService {
   }
 
   /**
-   * Change signature of a rule. Security platform: id + type + updatedAt (reinstall → current null
-   * → DELETED; reconfiguration → later updatedAt → MODIFIED). Asset / group: label + the frozen
+   * Change signature of a rule. Security platform: id + type + updatedAt (reinstall -> current null
+   * -> DELETED; reconfiguration -> later updatedAt -> MODIFIED). Asset / group: label + the frozen
    * asset set (id, name, agent count, executor set) so a composition or agent change flips the
-   * status. MANUAL / CSV: the raw label.
+   * status. TEAM / PLAYER: the resolved name label (a rename flips the status, membership does
+   * not). MANUAL / CSV: the raw label.
    */
   private String signature(ScopeRuleSnapshot snapshot) {
     if (snapshot.getSecurityPlatform() != null) {
@@ -197,6 +221,11 @@ public class ScopeSnapshotService {
       case ASSET -> resolveAssetSnapshot(rule.getRuleValue());
       case ASSET_GROUP -> resolveAssetGroupSnapshot(rule.getRuleValue());
       case SECURITY_PLATFORM -> resolveSecurityPlatformSnapshot(rule.getRuleValue());
+      // Audience rules resolve to human-readable labels (team name / player name-or-email) so a
+      // launched simulation's scope never displays a raw id, and a rename / deletion mid-run is
+      // derivable exactly like an asset's.
+      case TEAM -> resolveTeamSnapshot(rule.getRuleValue());
+      case PLAYER -> resolvePlayerSnapshot(rule.getRuleValue());
       // MANUAL / CSV: the value is the label itself and can never be "deleted".
       case MANUAL, CSV -> ScopeRuleSnapshot.builder().label(rule.getRuleValue()).build();
       default -> ScopeRuleSnapshot.builder().label(rule.getRuleValue()).build();
@@ -244,7 +273,7 @@ public class ScopeSnapshotService {
           .assets(List.of(toAssetSnapshot(asset)))
           .build();
     } catch (ElementNotFoundException e) {
-      // Only a genuine "no longer exists" maps to null (→ DELETED). Any other error must surface.
+      // Only a genuine "no longer exists" maps to null (-> DELETED). Any other error must surface.
       return null;
     }
   }
@@ -263,6 +292,22 @@ public class ScopeSnapshotService {
     } catch (ElementNotFoundException e) {
       return null;
     }
+  }
+
+  private ScopeRuleSnapshot resolveTeamSnapshot(String teamId) {
+    return teamRepository
+        .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+        .map(team -> ScopeRuleSnapshot.builder().label(team.getName()).build())
+        .orElse(null);
+  }
+
+  private ScopeRuleSnapshot resolvePlayerSnapshot(String userId) {
+    return userRepository
+        .findAllByIdInAndTenantId(List.of(userId), TenantContext.getCurrentTenant())
+        .stream()
+        .findFirst()
+        .map(user -> ScopeRuleSnapshot.builder().label(user.getNameOrEmail()).build())
+        .orElse(null);
   }
 
   private ScopeRuleSnapshot resolveSecurityPlatformSnapshot(String securityPlatformId) {
@@ -318,7 +363,7 @@ public class ScopeSnapshotService {
   /**
    * One {@code SECURITY_PLATFORM} rule per connected tenant security platform (a collector with a
    * non-null security platform FK), each carrying its launch snapshot. {@code selectedMode} is left
-   * null (informative, not an allow/deny target — see ADR-006).
+   * null (informative, not an allow/deny target - see ADR-006).
    */
   private List<WorkflowScopeRule> buildSecurityPlatformRules(
       Workflow workflowRun, String tenantId) {
