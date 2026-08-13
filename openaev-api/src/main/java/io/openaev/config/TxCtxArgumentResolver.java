@@ -51,10 +51,14 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
       NativeWebRequest webRequest,
       WebDataBinderFactory binderFactory) {
     Set<String> selector = extractSelector(webRequest);
+    // Read only the ids via a light read-only projection. Argument resolution runs before the
+    // controller's transaction and, under open-in-view, the request-scoped session keeps the first
+    // connection it touches bound for the whole request - so this lookup used to be flagged as a
+    // HikariCP "apparent connection leak" and it pinned managed Tenant entities in that long-lived
+    // persistence context. See TenantService#findTenantIdsByUserId.
     Set<String> authorized =
-        tenantService.findTenantsByUserId(SessionHelper.currentUser().getId()).stream()
-            .map(Tenant::getId)
-            .collect(Collectors.toSet());
+        new LinkedHashSet<>(
+            tenantService.findTenantIdsByUserId(SessionHelper.currentUser().getId()));
     if (selector.isEmpty() && parameter.hasParameterAnnotation(RequireTenantSelector.class)) {
       selector = fallbackSelector(authorized);
     }

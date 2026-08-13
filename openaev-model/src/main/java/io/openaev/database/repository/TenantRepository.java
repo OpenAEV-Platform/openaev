@@ -38,6 +38,20 @@ public interface TenantRepository
       nativeQuery = true)
   List<Tenant> findTenantsByUserId(@Param("userId") String userId);
 
+  /**
+   * Returns just the ids of the tenants a given user has access to. Scalar projection used by
+   * {@code TxCtxArgumentResolver} during Spring MVC argument resolution, where only the ids are
+   * needed and materializing full {@link Tenant} entities into the request-scoped persistence
+   * context would pin them (and the connection) for the whole request.
+   */
+  @Query(
+      value =
+          "SELECT t.tenant_id FROM tenants t"
+              + " JOIN users_tenants ut ON ut.tenant_id = t.tenant_id"
+              + " WHERE ut.user_id = :userId AND t.tenant_deleted_at IS NULL",
+      nativeQuery = true)
+  List<String> findTenantIdsByUserId(@Param("userId") String userId);
+
   /** Counts active (non-soft-deleted) tenants. */
   long countByDeletedAtIsNull();
 

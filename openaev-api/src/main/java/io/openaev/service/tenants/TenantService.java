@@ -120,6 +120,26 @@ public class TenantService {
     return tenantRepository.findTenantsByUserId(userId);
   }
 
+  /**
+   * Returns just the ids of the tenants accessible by a given user, as a read-only scalar
+   * projection.
+   *
+   * <p>Called by {@code TxCtxArgumentResolver} during Spring MVC argument resolution. With {@code
+   * spring.jpa.open-in-view} enabled (the default this platform relies on for lazy serialization)
+   * the request-scoped session keeps the connection it first touches bound for the whole request,
+   * so on a slow request HikariCP's leak detector flagged the resolver's lookup - the first DB
+   * access - as an "apparent connection leak". Reading only the ids keeps this lookup a light
+   * read-only query and, unlike {@link #findTenantsByUserId}, does not materialise managed {@link
+   * Tenant} entities into that long-lived persistence context. Propagation stays the default
+   * (REQUIRED): in production no transaction is active during argument resolution, so this runs in
+   * its own short read-only transaction; joining an ambient one when present keeps read-your-writes
+   * visibility intact.
+   */
+  @Transactional(readOnly = true)
+  public List<String> findTenantIdsByUserId(@NotNull String userId) {
+    return tenantRepository.findTenantIdsByUserId(userId);
+  }
+
   @Transactional(readOnly = true)
   public List<String> findActiveTenantIds() {
     return tenantRepository.findAllIdsByDeletedAtIsNull();

@@ -7,6 +7,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.SecurityCoverageSendJob;
 import io.openaev.database.model.Tenant;
+import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.stix.SecurityCoverageService;
@@ -14,6 +15,7 @@ import io.openaev.stix.objects.Bundle;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,9 +44,12 @@ public class SecurityCoverageJob implements Job {
     List<SecurityCoverageSendJob> jobs =
         securityCoverageSendJobService.getPendingSecurityCoverageSendJobs();
     List<SecurityCoverageSendJob> successfulJobs = new ArrayList<>();
-    // Tenants without an active Security Coverage connector: skip their jobs upfront (before any
-    // bundle creation) and log a single concise warning per tenant instead of one ERROR with a
-    // full stack trace per pending simulation on every run (log flooding + useless DB load).
+    // Tenants without an active, registered Security Coverage connector: skip their jobs upfront
+    // (before any bundle creation) and log a single concise warning per tenant instead of one
+    // ERROR with a full stack trace per pending simulation on every run (log flooding + useless
+    // DB load). "Not registered yet" is the common transient case (OpenCTI unreachable or the
+    // connector token not authorized): pushing anyway would throw ConnectorError and land in the
+    // catch below, spamming ERROR every cycle - so it must be treated like a missing connector.
     Set<String> tenantsWithoutConnector = new HashSet<>();
     for (SecurityCoverageSendJob securityCoverageSendJob : jobs) {
       try {
@@ -56,7 +61,8 @@ public class SecurityCoverageJob implements Job {
         if (tenantsWithoutConnector.contains(tenantId)) {
           continue;
         }
-        if (openCTIConnectorService.getConnectorBase(tenantId).isEmpty()) {
+        Optional<ConnectorBase> connector = openCTIConnectorService.getConnectorBase(tenantId);
+        if (connector.isEmpty() || !connector.get().isRegistered()) {
           tenantsWithoutConnector.add(tenantId);
           continue;
         }
@@ -93,7 +99,7 @@ public class SecurityCoverageJob implements Job {
     }
     if (!tenantsWithoutConnector.isEmpty()) {
       log.warn(
-          "Security coverage bundles not sent: no active Security Coverage connector for tenant(s) {}. Jobs stay pending until a connector is configured.",
+          "Security coverage bundles not sent: no active/registered Security Coverage connector for tenant(s) {}. Jobs stay pending until a connector is configured and registered with OpenCTI.",
           tenantsWithoutConnector);
     }
     if (!successfulJobs.isEmpty()) {

@@ -10,7 +10,10 @@ import io.openaev.stix.objects.Bundle;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +27,16 @@ public class OpenCTIConnectorService {
   private final XtmConfig xtmConfig;
   private final OpenAEVConfig openAEVConfig;
   private final OpenCTIService openCTIService;
+
+  /**
+   * When a connector cannot register/ping (OpenCTI unreachable or its token not yet authorized),
+   * the register-ping job runs every cycle and used to log a full ERROR stack each time. This is an
+   * expected, self-healing transient condition, so we log one concise WARN per connector and then
+   * stay silent for this backoff window until it recovers (a success resets the throttle).
+   */
+  private static final Duration REGISTER_FAILURE_WARN_BACKOFF = Duration.ofMinutes(30);
+
+  private final Map<String, Instant> lastRegisterFailureWarnAt = new ConcurrentHashMap<>();
 
   /** Creates one {@link SecurityCoverageConnector} per tenant entry in the config map. */
   @PostConstruct
@@ -91,10 +104,48 @@ public class OpenCTIConnectorService {
         } else {
           openCTIService.pingConnector(c);
         }
+        // Recovered (or never failed): reset the throttle so the next real failure warns at once.
+        lastRegisterFailureWarnAt.remove(c.getId());
       } catch (Exception e) {
-        log.error("Error at OpenCTI connector registration or ping", e);
+        logRegisterOrPingFailureThrottled(c, e);
       }
     }
+  }
+
+  /**
+   * Logs a connector register/ping failure at most once per {@link #REGISTER_FAILURE_WARN_BACKOFF}
+   * per connector: a concise WARN (message only) instead of a full ERROR stack every cycle. The
+   * full stack stays available at DEBUG for troubleshooting, and genuine, non-transient failures
+   * still surface (one WARN per backoff window) rather than being hidden entirely.
+   */
+  private void logRegisterOrPingFailureThrottled(ConnectorBase connector, Exception e) {
+    Instant now = Instant.now();
+    Instant lastWarn = lastRegisterFailureWarnAt.get(connector.getId());
+    boolean withinBackoff =
+        lastWarn != null
+            && Duration.between(lastWarn, now).compareTo(REGISTER_FAILURE_WARN_BACKOFF) < 0;
+    if (withinBackoff) {
+      log.debug("OpenCTI connector {} still failing to register or ping", connector.getName(), e);
+      return;
+    }
+    lastRegisterFailureWarnAt.put(connector.getId(), now);
+    log.warn(
+        "OpenCTI connector {} (tenant {}) could not register or ping: {}. This is expected while"
+            + " OpenCTI is unreachable or its token is not yet authorized; retrying every cycle,"
+            + " next warning in at most {} min.",
+        connector.getName(),
+        connector.getTenantId(),
+        conciseReason(e),
+        REGISTER_FAILURE_WARN_BACKOFF.toMinutes());
+  }
+
+  /** First non-blank line of the failure message, or the exception type when it carries none. */
+  private static String conciseReason(Throwable e) {
+    String message = e.getMessage();
+    if (message == null || message.isBlank()) {
+      return e.getClass().getSimpleName();
+    }
+    return message.strip().lines().findFirst().orElse(message.strip());
   }
 
   public void pushSecurityCoverageStixBundle(Bundle bundle, final String tenantId)

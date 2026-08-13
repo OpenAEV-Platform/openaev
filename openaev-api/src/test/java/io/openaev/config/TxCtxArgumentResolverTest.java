@@ -9,7 +9,6 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exception.TenantSelectorRequiredException;
 import io.openaev.service.tenants.TenantService;
-import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,8 +57,7 @@ class TxCtxArgumentResolverTest {
   }
 
   private void authorizeTenants(String... tenantIds) {
-    List<Tenant> tenants = Arrays.stream(tenantIds).map(Tenant::new).toList();
-    when(tenantService.findTenantsByUserId(USER_ID)).thenReturn(tenants);
+    when(tenantService.findTenantIdsByUserId(USER_ID)).thenReturn(List.of(tenantIds));
   }
 
   private void requireSelector() {
