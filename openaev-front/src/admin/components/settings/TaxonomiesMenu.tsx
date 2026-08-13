@@ -4,23 +4,22 @@ import { type FunctionComponent, memo, useContext } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/RightMenu';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { canAccessTags, canAccessTenantSettings } from '../nav/config/settings.config';
 
 const TaxonomiesMenuComponent: FunctionComponent = () => {
   const ability = useContext(AbilityContext);
-  const canAccessTenantSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
-  const canAccessTags
-    = ability.can(ACTIONS.ACCESS, SUBJECTS.TAGS);
+  const hasTenantSettingsAccess = canAccessTenantSettings(ability);
+  const hasTagsAccess = canAccessTags(ability);
 
   const entries: RightMenuEntry[] = [
-    ...(canAccessTags
+    ...(hasTagsAccess
       ? [{
           path: '/admin/settings/taxonomies/tags',
           icon: () => (<StyleOutlined />),
           label: 'Tags',
         }]
       : []),
-    ...(canAccessTenantSettings
+    ...(hasTenantSettingsAccess
       ? [{
           path: '/admin/settings/taxonomies/attack_patterns',
           icon: () => (<LockPattern />),

@@ -187,7 +187,14 @@ class AuditLoggerRoleTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_SETTINGS,
+          Capability.ACCESS_ASSESSMENT,
+          Capability.ACCESS_TAGS,
+          Capability.MANAGE_TAGS,
+          Capability.DELETE_TAGS
+        })
     @DisplayName("Given role capability assignment, should audit tags capabilities update")
     void given_roleCapabilityAssignment_should_logTagsCapabilitiesInAuditLog() throws Exception {
       // -- ARRANGE --
@@ -196,7 +203,7 @@ class AuditLoggerRoleTest extends IntegrationTest {
           RoleInput.builder()
               .name(roleName)
               .description("role for tags capability audit test")
-              .capabilities(Set.of(Capability.ACCESS_ASSESSMENT))
+              .capabilities(Set.of(Capability.ACCESS_TAGS))
               .build();
 
       String createResponse =

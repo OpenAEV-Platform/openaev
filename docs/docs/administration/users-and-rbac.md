@@ -112,7 +112,7 @@ Below is a full list of capabilities in OpenAEV:
 | &nbsp;&nbsp;`Manage tenant settings` | Create, update, and configure tenant-level settings. Requires *Access tenant settings*.                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant settings` | Permanently delete tenant-level settings. Requires *Manage tenant settings*.                                                              |
 | **Tags** |                                                                                                                                           |
-| `Access tags` | Read-only access to tags used to organize and classify tenant resources.                                                                  |
+| `Access tags` | Read-only access to the tags page.                                                                                                        |
 | &nbsp;&nbsp;`Manage tags` | Create, update, and configure tags. Requires *Access tags*.                                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete tags` | Permanently delete tags. Requires *Manage tags*.                                                                                          |
 | **Platform settings** |                                                                                                                                           |
