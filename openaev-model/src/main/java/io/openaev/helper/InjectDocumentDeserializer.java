@@ -32,12 +32,13 @@ import java.io.IOException;
  *   <li>a plain string, treated as the document id.
  * </ul>
  *
- * <p>The {@link Document} side is resolved against the injected {@link EntityManager}; a document
- * that no longer exists yields {@code null} so a deleted attachment degrades to "no attachment"
- * instead of failing the step. Without an EntityManager a stub carrying only the id is returned.
- * The owning {@link io.openaev.database.model.Inject} cannot be known mid-deserialization, so the
- * {@code inject} side is left null - consumers must re-parent the link (and prune {@code null}
- * elements) before persisting.
+ * <p>The {@link Document} side is resolved against the injected {@link EntityManager} through a
+ * JPQL query, so Hibernate's {@code tenantFilter} applies when enabled; a document that no longer
+ * exists - or belongs to another tenant - yields {@code null} so the attachment degrades to "no
+ * attachment" instead of failing the step. Without an EntityManager a stub carrying only the id is
+ * returned. The owning {@link io.openaev.database.model.Inject} cannot be known
+ * mid-deserialization, so the {@code inject} side is left null - consumers must re-parent the link
+ * (and prune {@code null} elements) before persisting.
  */
 public class InjectDocumentDeserializer extends JsonDeserializer<InjectDocument> {
 
@@ -69,7 +70,15 @@ public class InjectDocumentDeserializer extends JsonDeserializer<InjectDocument>
 
     Document document;
     if (em != null) {
-      document = em.find(Document.class, documentId);
+      // A JPQL query - unlike EntityManager#find by primary key - goes through Hibernate's
+      // enabled filters, so Document's tenantFilter applies and a stale or crafted step
+      // referencing another tenant's document id degrades like a deleted document.
+      document =
+          em.createQuery("select d from Document d where d.id = :id", Document.class)
+              .setParameter("id", documentId)
+              .getResultStream()
+              .findFirst()
+              .orElse(null);
       if (document == null) {
         return null;
       }
