@@ -120,9 +120,9 @@ public class ConditionUtils {
   }
 
   /**
-   * Checks whether a value matches any same-key-type leaf condition in the condition tree,
-   * ignoring AND/OR logical grouping. This is used for propagation (deciding which values are
-   * relevant to an event), not for full evaluation (deciding if the event is fully satisfied).
+   * Checks whether a value matches any same-key-type leaf condition in the condition tree, ignoring
+   * AND/OR logical grouping. This is used for propagation (deciding which values are relevant to an
+   * event), not for full evaluation (deciding if the event is fully satisfied).
    *
    * <p>A leaf is only checked when it targets {@code keyTypeName}: e.g. a "host is not null" leaf
    * must never be satisfied by a port value, or unrelated values leak into the event's pool.
