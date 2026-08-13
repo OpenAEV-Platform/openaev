@@ -76,8 +76,10 @@ public class InjectorFixture {
       throw new RuntimeException("Failed to initialize injector: " + injectorType, e);
     }
 
-    return injectorRepository
-        .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
+    return injectorRepository.findAll().stream()
+        .filter(i -> injectorType.equals(i.getType()))
+        .filter(i -> TenantContext.getCurrentTenant().equals(i.getTenantId()))
+        .findFirst()
         .orElseThrow(
             () ->
                 new IllegalStateException(
@@ -87,8 +89,10 @@ public class InjectorFixture {
   private Injector getWellKnownInjector(
       String injectorType, BuiltinIntegrationFactory factory, boolean isPayload) {
     Injector injector =
-        injectorRepository
-            .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
+        injectorRepository.findAll().stream()
+            .filter(i -> injectorType.equals(i.getType()))
+            .filter(i -> TenantContext.getCurrentTenant().equals(i.getTenantId()))
+            .findFirst()
             .orElseGet(() -> initializeBuiltInInjector(factory, injectorType));
     // ensure the injector is marked for payloads
     // some tests not running in a transaction may flip this

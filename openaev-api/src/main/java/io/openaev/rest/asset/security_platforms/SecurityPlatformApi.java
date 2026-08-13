@@ -160,9 +160,11 @@ public class SecurityPlatformApi {
       return;
     }
     injectorRepository
-        .findByTypeAndTenantId(externalReference, securityPlatform.getTenant().getId())
+        .findBySecurityPlatformExternalReferenceByTenantId(
+            externalReference, securityPlatform.getTenant().getId())
+        .stream()
         .filter(injector -> injector.getSecurityPlatform() == null)
-        .ifPresent(
+        .forEach(
             injector -> {
               injector.setSecurityPlatform(securityPlatform);
               injectorRepository.save(injector);

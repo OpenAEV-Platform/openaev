@@ -213,13 +213,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   /**
-   * Find injector by its type
-   *
-   * @param injectorType injector type to search for
-   * @return an Optional containing the injector if found, empty otherwise
+   * Checks whether at least one injector of the given type exists for the current tenant. Multiple
+   * injector instances of the same type are supported since V4_77 (Connector Manager).
    */
-  public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
-    return injectorRepository.findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant());
+  public boolean injectorTypeExists(@NotBlank final String injectorType) {
+    return injectorRepository.existsByTypeAndTenantId(
+        injectorType, TenantContext.getCurrentTenant());
   }
 
   /**
