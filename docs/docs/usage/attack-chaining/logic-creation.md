@@ -38,17 +38,10 @@ satisfied, it triggers the Action(s) it is linked to. Nothing runs until its ups
 ### Add an Action
 
 1. Click **Add component**, then choose **Action** ("Execute an injector contract with configured parameters").
-2. Select a Threat Arsenal action from the list (filterable by injector, platform, domain, tags, or by the output
-   type it produces).
-3. Configure the Action:
-      - Set its **title**.
-      - Fill in its arguments. Arguments are pre-filled with injector contract defaults, which remain active unless you
-        change them. You can also **link** arguments to scope Variables or to outputs from previous Actions, reading
-        from either **global** state (shared across the run) or **local** state (the current branch). When available,
-        Variables take priority over outputs. Defined values are always preserved and executed in every possible
-        combination alongside the selected Variables or outputs.
-      - Configure its Expectations if the action supports them.
-4. Save. The Action appears as a node on the canvas.
+2. Select a Threat Arsenal action from the catalog, configure its arguments (optionally linking any of them to a
+   scope Variable or to another Action's output), and save — see [Action Selection](action-selection.md) for the
+   full walkthrough, including how to filter the catalog and how local vs. global linking works.
+3. The Action appears as a node on the canvas.
 
 ### Add an Event
 
@@ -83,34 +76,10 @@ satisfied, it triggers the Action(s) it is linked to. Nothing runs until its ups
     check whether a specific keyword or value shows up anywhere in an Action's output, even if that output isn't
     exposed as a dedicated field.
 
-### Local and global Variables
+!!! note
 
-Beyond the [scope Variables](scope-definition.md#variables) you define upfront, any Action argument can be linked to
-data produced by other Actions' outputs during the run, instead of a static value. Local and global scope Variables
-are populated from both sources — the scope Variables you defined and the outputs Actions produce as they execute.
-When an argument has both a defined form value and linked sources, the defined value is always included with the
-linked values in the generated execution combinations.
-When linking an argument, toggle **Limit to Local Scope** to choose where that data is read from:
-
-- **Global scope** (toggle off, the default): the value is read from the run's shared pool of outputs, accumulated
-  across the *entire* chained run so far — any Action anywhere upstream can feed it, regardless of which branch
-  produced it.
-- **Local scope** (toggle on): the value is read only from the *current branch* of the graph — the Action(s) that
-  directly precede this one along the path that led to it. Use this when the same field name can be produced by
-  several different Actions on different branches, and you need the value from *this* branch specifically, not
-  whichever branch happened to run last.
-
-For example, imagine two independent Actions, **Action A** (`NetExec SMB - User Listing`) and
-**Action B** (`NetExec SMB - User Listing`), Action A into the same downstream **Action C**
-(`NetExec SMB - Password Spray`) that authenticates against the domain controller using the harvested `username`
-field:
-
-- If Action C links its `username` argument with the toggle **off** (global scope), it reads whatever `username` was
-  most recently written to the shared pool — which could come from either A or B, so Action C might try to
-  authenticate with a username enumerated from the wrong endpoint.
-- If Action C links it with the toggle **on** (local scope) and is only connected downstream of Action A, it reads
-  the `username` produced specifically by Action A on that branch, guaranteeing consistency between the endpoint it
-  targets and the credential it uses.
+    Linking an Action's argument to a scope Variable or to another Action's output — and choosing whether that
+    link reads from global or local scope — is covered in [Action Selection](action-selection.md#local-and-global-variables).
 
 ### Validate your graph
 

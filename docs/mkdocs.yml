@@ -172,6 +172,7 @@ nav:
     - Attack Chaining:
       - Overview: usage/attack-chaining/overview.md
       - Scope Definition: usage/attack-chaining/scope-definition.md
+      - Action Selection: usage/attack-chaining/action-selection.md
       - Logic Creation: usage/attack-chaining/logic-creation.md
       - Attack Path Map: usage/attack-chaining/attack-path-map.md
     - Autonomous Attack Chaining (AI Penetration Testing):
