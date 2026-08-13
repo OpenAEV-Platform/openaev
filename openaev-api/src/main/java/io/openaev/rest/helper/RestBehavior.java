@@ -354,6 +354,19 @@ public class RestBehavior {
         new ErrorMessage("TENANT_FILTERING_REFUSED"), HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
+  // -- 503 SERVICE_UNAVAILABLE --
+
+  @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+  @ExceptionHandler(TenantConnectorNotReadyException.class)
+  public ResponseEntity<ErrorMessage> handleTenantConnectorNotReadyException(
+      TenantConnectorNotReadyException ex) {
+    // Agents and connectors poll: a retryable status keeps them from treating a tenant still being
+    // provisioned as a permanent failure.
+    log.warn("Tenant connector not ready: {}", ex.getMessage());
+    return new ResponseEntity<>(
+        new ErrorMessage("TENANT_CONNECTOR_NOT_READY"), HttpStatus.SERVICE_UNAVAILABLE);
+  }
+
   // -- 404 NOT_FOUND --
 
   @ResponseStatus(HttpStatus.NOT_FOUND)

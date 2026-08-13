@@ -16,6 +16,12 @@ public interface ExecutorRepository extends CrudRepository<Executor, ConnectorCo
   @Query("SELECT e FROM Executor e WHERE e.id = :id")
   Optional<Executor> findByExecutorId(@Param("id") @NotNull String id);
 
+  // executor_id alone is not unique (composite PK with tenant_id): pin the tenant when the caller
+  // knows it, so the Optional cannot blow up on several tenants owning the same built-in executor.
+  @Query("SELECT e FROM Executor e WHERE e.id = :id AND e.tenantId = :tenantId")
+  Optional<Executor> findByExecutorIdAndTenantId(
+      @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
+
   Optional<Executor> findByType(@NotNull String type);
 
   @Modifying

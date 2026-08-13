@@ -1,5 +1,6 @@
 package io.openaev.service.endpoint;
 
+import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,12 +17,14 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.TenantConnectorNotReadyException;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetAgentJobFixture;
+import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.mapper.EndpointMapper;
 import java.util.Collections;
 import java.util.List;
@@ -320,6 +323,29 @@ class EndpointServiceTest {
       // -------- Assert --------
       assertThat(result).hasSize(1);
       verify(endpointRepository).findByHostnameAndAtleastOneIp("host-explicit", ips, "tenant-z");
+    }
+  }
+
+  @Nested
+  @DisplayName("Register")
+  class RegisterEndpoint {
+
+    @Test
+    @DisplayName("Registration is refused as retryable when the tenant has no OpenAEV executor")
+    void given_tenantWithoutOpenAEVExecutor_should_throwTenantConnectorNotReady() {
+      // -------- Prepare --------
+      when(executorRepository.findByExecutorIdAndTenantId(
+              OPENAEV_EXECUTOR_ID, "tenant-without-executor"))
+          .thenReturn(Optional.empty());
+      EndpointRegisterInput input = EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+
+      // -------- Act / Assert --------
+      // Used to NPE into a 500 that agents retried forever without a usable reason.
+      assertThrows(
+          TenantConnectorNotReadyException.class,
+          () -> endpointService.register(input, "tenant-without-executor"));
+      verify(executorRepository)
+          .findByExecutorIdAndTenantId(OPENAEV_EXECUTOR_ID, "tenant-without-executor");
     }
   }
 

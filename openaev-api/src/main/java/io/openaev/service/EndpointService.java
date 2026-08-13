@@ -33,6 +33,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.TenantConnectorNotReadyException;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
@@ -524,7 +525,7 @@ public class EndpointService implements AuditLoggedService {
   @Transactional
   public Endpoint register(final EndpointRegisterInput input, @NotNull final String tenantId)
       throws IOException {
-    AgentRegisterInput agentInput = toAgentEndpoint(input);
+    AgentRegisterInput agentInput = toAgentEndpoint(input, tenantId);
     Agent agent;
     // Check if agents exist (because we can find X openaev agent on an endpoint)
     List<Agent> existingAgents =
@@ -849,9 +850,19 @@ public class EndpointService implements AuditLoggedService {
     agent.setTenant(new Tenant(input.getExecutor().getTenantId()));
   }
 
-  private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {
+  private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input, String tenantId) {
     AgentRegisterInput agentInput = new AgentRegisterInput();
-    agentInput.setExecutor(executorRepository.findByExecutorId(OPENAEV_EXECUTOR_ID).orElse(null));
+    // Pinned to the tenant instead of relying on the ambient filter: executor_id is shared by every
+    // tenant, and a null executor used to surface as an NPE (500) on every registration path.
+    agentInput.setExecutor(
+        executorRepository
+            .findByExecutorIdAndTenantId(OPENAEV_EXECUTOR_ID, tenantId)
+            .orElseThrow(
+                () ->
+                    new TenantConnectorNotReadyException(
+                        "The OpenAEV Agent executor is not registered for tenant "
+                            + tenantId
+                            + ", the agent cannot be attached to an endpoint")));
     agentInput.setLastSeen(Instant.now());
     agentInput.setExternalReference(input.getExternalReference());
     agentInput.setIps(input.getIps());
