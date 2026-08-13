@@ -1737,10 +1737,12 @@ public class AutonomousRunService {
    * transition matrix for the one status source that is not OpenAEV itself, on both sides:
    *
    * <ul>
-   *   <li>SOURCE: a run sitting in an operator-owned state may not be driven at all. CREATED means
-   *       pre-handoff or just-restarted (only {@code start()} engages), PAUSED means the operator
-   *       suspended it (only {@code resume()} releases) - a callback observing either is stale and
-   *       must not resurrect or advance the run past the operator's intent.
+   *   <li>SOURCE: a run sitting in an operator-owned or settled state may not be driven at all.
+   *       CREATED means pre-handoff or just-restarted (only {@code start()} engages), PAUSED means
+   *       the operator suspended it (only {@code resume()} releases), and PLANNED means the plan
+   *       design settled - only the operator transitions away from it (promote / refine reset to
+   *       CREATED and re-engage, supersede) and a late callback must not reopen or overwrite a
+   *       promotable plan. A callback observing any of these is stale.
    *   <li>TARGET: CREATED (initial), PAUSED (operator) and CANCELED (OpenAEV-authoritative) are
    *       never orchestrator-driven, and the dry-run-only (PLANNING / PLANNED) versus execute-only
    *       (RUNNING) states may not be crossed against the run's mode.
@@ -1748,11 +1750,12 @@ public class AutonomousRunService {
    *
    * <p>Terminal-source runs are already short-circuited before this is reached, so every remaining
    * legitimate push (RUNNING/WAITING_INPUT/COMPLETED/FAILED for a live run;
-   * PLANNING/PLANNED/WAITING_INPUT/COMPLETED/FAILED for a plan run) is allowed.
+   * PLANNING/PLANNED/WAITING_INPUT/COMPLETED/FAILED for a plan run still designing) is allowed.
    */
   private boolean isOrchestratorStatusAllowed(AutonomousRun run, AutonomousRunStatus target) {
     if (run.getStatus() == AutonomousRunStatus.CREATED
-        || run.getStatus() == AutonomousRunStatus.PAUSED) {
+        || run.getStatus() == AutonomousRunStatus.PAUSED
+        || run.getStatus() == AutonomousRunStatus.PLANNED) {
       return false;
     }
     if (target == AutonomousRunStatus.CREATED
@@ -1796,13 +1799,15 @@ public class AutonomousRunService {
     }
     // Validate the transition instead of accepting any target. This callback is the ONE status
     // source that is not OpenAEV itself, so it must only drive the run through states the
-    // orchestrator actually owns - on both sides. Source: a run parked in an operator-owned state
-    // (CREATED pre-handoff / post-restart, PAUSED by the operator) may not be driven at all - only
-    // start()/resume() release it. Target: CREATED, PAUSED and CANCELED (OpenAEV-authoritative,
-    // via cancel()) are never orchestrator-set, and the dry-run-only planning states
-    // (PLANNING/PLANNED) versus the execute-only RUNNING state may not be crossed against the
-    // run's mode. A disallowed push is a stale or confused write - ignore it (idempotent no-op) so
-    // it can neither resurrect an operator state nor flip a run across the plan/live divide.
+    // orchestrator actually owns - on both sides. Source: a run parked in an operator-owned or
+    // settled state (CREATED pre-handoff / post-restart, PAUSED by the operator, PLANNED once the
+    // plan design settled) may not be driven at all - only start()/resume()/promote()/refine
+    // release it. Target: CREATED, PAUSED and CANCELED (OpenAEV-authoritative, via cancel()) are
+    // never orchestrator-set, and the dry-run-only planning states (PLANNING/PLANNED) versus the
+    // execute-only RUNNING state may not be crossed against the run's mode. A disallowed push is a
+    // stale or confused write - ignore it (idempotent no-op) so it can neither resurrect an
+    // operator state, reopen or overwrite a promotable plan, nor flip a run across the plan/live
+    // divide.
     if (!isOrchestratorStatusAllowed(run, status)) {
       log.warn(
           "[Autonomous] Ignoring illegal orchestrator status transition {} -> {} for run {}",

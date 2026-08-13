@@ -186,6 +186,19 @@ class AutonomousRunServiceTest {
     }
 
     @Test
+    @DisplayName("A settled plan (PLANNED) cannot be reopened or overwritten by a late callback")
+    void given_plannedPlanRun_when_orchestratorPushesAnyStatus_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.PLANNED, true);
+
+      service.updateStatus("run-1", AutonomousRunStatus.PLANNING, null, null, null);
+      service.updateStatus("run-1", AutonomousRunStatus.FAILED, null, null, null);
+
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNED);
+      verify(runRepository, never()).save(any());
+      verifyNoInteractions(eventService);
+    }
+
+    @Test
     @DisplayName("A live run cannot be flipped across the plan/live divide (PLANNED target)")
     void given_liveRun_when_orchestratorPushesPlanned_then_noOp() {
       AutonomousRun run = lockedRun(AutonomousRunStatus.RUNNING, false);

@@ -24,9 +24,14 @@ import org.springframework.stereotype.Component;
  * deleting one would lose append-only timeline data) and the whole run timeline is renumbered 1..N
  * in its existing order (sequence, then creation time, then event id as the tie-break). Then the
  * old index is dropped and the unique index created with {@code IF [NOT] EXISTS}. On a clean table
- * every sequence already equals its row number, so re-running is a no-op. The {@code
+ * every sequence already equals its row number, so re-running is a no-op.
+ *
+ * <p>The whole pass runs behind a {@code SHARE ROW EXCLUSIVE} table lock held for the migration's
+ * single transaction: during a rolling deployment an old application node (without the per-run
+ * advisory lock) could otherwise insert a fresh duplicate between the resequencing and the index
+ * build and fail it. Writers queue behind the lock, reads stay unblocked; the {@code
  * autonomous_events} table is a new, preview-flag-gated, human-review-cadence store, so the brief
- * index build lock is safe.
+ * write stall is safe.
  */
 @Component
 public class V6_20260813100000000__Autonomous_event_sequence_unique extends BaseJavaMigration {
@@ -34,6 +39,14 @@ public class V6_20260813100000000__Autonomous_event_sequence_unique extends Base
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
+      // Shield the repair + enforcement from live writers: during a rolling deployment an OLD
+      // application node (without the per-run advisory lock) can still append while this runs, so
+      // an insert landing between the resequencing CTE and the index build could re-introduce a
+      // duplicate and fail the unique-index creation. SHARE ROW EXCLUSIVE conflicts with every
+      // INSERT/UPDATE/DELETE (writers queue behind the migration) while still allowing reads, and
+      // Flyway runs this migration in a single transaction, so the lock spans both statements and
+      // makes repair + enforcement atomic with respect to concurrent appenders.
+      statement.execute("LOCK TABLE autonomous_events IN SHARE ROW EXCLUSIVE MODE;");
       // Resequence any run carrying (run_id, sequence) duplicates so the unique index can be
       // built WITHOUT deleting timeline rows: each duplicate is a distinct decision/audit event,
       // so all rows are kept and the run's timeline is renumbered 1..N in deterministic order
