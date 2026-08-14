@@ -67,10 +67,9 @@ When linking an argument, toggle **Limit to Local Scope** to choose where that d
 - **Global scope** (toggle off, the default): the value is read from the run's shared pool of outputs, accumulated
   across the *entire* chained run so far — any Action anywhere upstream can feed it, regardless of which branch
   produced it.
-- **Local scope** (toggle on): the value is read only from the *current branch* of the graph — the Action(s) that
-  directly precede this one along the path that led to it. Use this when the same field name can be produced by
-  several different Actions on different branches, and you need the value from *this* branch specifically, not
-  whichever branch happened to run last.
+- **Local scope** (toggle on): the value is read only from the *current branch* and comes from what downstream
+  **Event** conditions kept on that branch. In simple terms: this Action uses the variable value filtered by the
+  downstream events.
 
 !!! note
 
