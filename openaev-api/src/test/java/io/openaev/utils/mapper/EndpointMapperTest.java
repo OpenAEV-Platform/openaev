@@ -71,8 +71,8 @@ class EndpointMapperTest {
   }
 
   @Nested
-  @DisplayName("Tunnel pseudo-interfaces")
-  class TunnelPseudoInterfaces {
+  @DisplayName("Non-Ethernet interface addresses")
+  class NonEthernetInterfaceAddresses {
 
     @Test
     @DisplayName("Drops the 8-byte Teredo MAC address")
@@ -104,6 +104,22 @@ class EndpointMapperTest {
           .isEmpty();
       assertThat(EndpointMapper.setMacAddresses(new String[] {"AA:00:00:00:00:00:00:11"}))
           .isEmpty();
+    }
+
+    @Test
+    @DisplayName("Drops the 4-byte address of a Linux tunnel interface")
+    void given_aFourByteTunnelAddress_should_dropIt() {
+      // sit0 / tunl0 expose their IPv4 endpoint as hardware address, all zeroes when unconfigured,
+      // so every host reporting such an interface would share this value.
+      assertThat(EndpointMapper.setMacAddresses(new String[] {"00:00:00:00"})).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Drops the empty address of an interface with no hardware address")
+    void given_anInterfaceWithoutHardwareAddress_should_dropIt() {
+      // ARPHRD_NONE interfaces (tun, ppp) declare a zero-length hardware address, which interface
+      // enumeration renders as an empty string rather than omitting it.
+      assertThat(EndpointMapper.setMacAddresses(new String[] {""})).isEmpty();
     }
 
     @Test
