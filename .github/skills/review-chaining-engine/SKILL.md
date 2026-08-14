@@ -100,7 +100,7 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 1. Add the method in the relevant `*Api.java` file.
 2. Add `@AccessControl` with appropriate `Action` and `ResourceType`.
 3. Add `@Transactional(rollbackFor = Exception.class)` for writes.
-4.Create input/output DTOs in `io.openaev.api.chaining.dto`.
+4. Create input/output DTOs in `io.openaev.api.chaining.dto`.
 5. Add static mapper methods (not MapStruct annotations).
 6. Implement service logic in `io.openaev.service.chaining`.
 7. Write integration test following existing patterns (`StepApiTest`, `ConditionApiTest`, `WorkflowApiTest`).
@@ -109,7 +109,7 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 
 ## Key Invariants (Never Break)
 
-- ✅ Feature flag checked on every endpoint
+- ✅ Endpoint access is enforced via `@AccessControl` (including EE validation where required)
 - ✅ Conditions evaluated before step execution
 - ✅ Global state updated before local state propagation
 - ✅ Step status follows TEMPLATE → READY → RUN → END

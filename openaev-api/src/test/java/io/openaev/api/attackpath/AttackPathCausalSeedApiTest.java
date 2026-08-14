@@ -17,9 +17,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The causal seed entrypoint: admin-only and gated behind the ATTACK_PATH feature, it creates a
- * simulation, writes a causal chain under it, and returns its id; the seeded graph is then readable
- * through the graph endpoint for that simulation.
+ * The causal seed entrypoint is admin-only: it creates a simulation, writes a causal chain under
+ * it, and returns its id; the seeded graph is then readable through the graph endpoint for that
+ * simulation.
  */
 @Transactional
 @WithMockUser(isAdmin = true)

@@ -25,7 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-/** The POC graph endpoint returns the {@code AttackPathDTO} when the POC preview feature is on. */
+/** Integration tests for Attack Path API endpoints exposed without preview-feature gating. */
 @Transactional
 @WithMockUser(isAdmin = true)
 class AttackPathApiTest extends IntegrationTest {
