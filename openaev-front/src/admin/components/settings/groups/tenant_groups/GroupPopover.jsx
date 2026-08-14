@@ -9,7 +9,7 @@ import { deleteGroup, fetchGroup, updateGroupInformation, updateGroupRoles, upda
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import inject18n from '../../../../../components/i18n';
-import { Can } from '../../../../../utils/permissions/permissionsContext';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import GroupManageGrants from './grants/GroupManageGrants.tsx';
 import GroupForm from './GroupForm';
@@ -17,6 +17,8 @@ import GroupManageRoles from './GroupManageRoles';
 import GroupManageUsers from './GroupManageUsers';
 
 class GroupPopoverComponent extends Component {
+  static contextType = AbilityContext;
+
   constructor(props) {
     super(props);
     this.state = {
@@ -143,6 +145,9 @@ class GroupPopoverComponent extends Component {
 
   render() {
     const { t, group } = this.props;
+    // Reading the group is enough to open the menu; the actions inside are greyed out instead.
+    const canManage = this.context.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
+    const canDelete = this.context.can(ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
     const initialValues = R.pick(
       [
         'group_name',
@@ -154,35 +159,33 @@ class GroupPopoverComponent extends Component {
     return (
       <>
 
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <IconButton
-            color="primary"
-            onClick={this.handlePopoverOpen.bind(this)}
-            aria-haspopup="true"
-            size="small"
-            sx={{ borderRadius: 1 }}
-          >
-            <MoreVert fontSize="small" />
-          </IconButton>
-        </Can>
+        <IconButton
+          color="primary"
+          onClick={this.handlePopoverOpen.bind(this)}
+          aria-haspopup="true"
+          size="small"
+          sx={{ borderRadius: 1 }}
+        >
+          <MoreVert fontSize="small" />
+        </IconButton>
         <Menu
           anchorEl={this.state.anchorEl}
           open={Boolean(this.state.anchorEl)}
           onClose={this.handlePopoverClose.bind(this)}
         >
-          <MenuItem onClick={this.handleOpenEdit.bind(this)}>
+          <MenuItem onClick={this.handleOpenEdit.bind(this)} disabled={!canManage}>
             {t('Update')}
           </MenuItem>
-          <MenuItem onClick={this.handleOpenUsers.bind(this)}>
+          <MenuItem onClick={this.handleOpenUsers.bind(this)} disabled={!canManage}>
             {t('Manage users')}
           </MenuItem>
-          <MenuItem onClick={this.handleOpenGrants.bind(this)}>
+          <MenuItem onClick={this.handleOpenGrants.bind(this)} disabled={!canManage}>
             {t('Manage grants')}
           </MenuItem>
-          <MenuItem onClick={this.handleOpenRoles.bind(this)}>
+          <MenuItem onClick={this.handleOpenRoles.bind(this)} disabled={!canManage}>
             {t('Manage roles')}
           </MenuItem>
-          <MenuItem onClick={this.handleOpenDelete.bind(this)}>
+          <MenuItem onClick={this.handleOpenDelete.bind(this)} disabled={!canDelete}>
             {t('Delete')}
           </MenuItem>
         </Menu>

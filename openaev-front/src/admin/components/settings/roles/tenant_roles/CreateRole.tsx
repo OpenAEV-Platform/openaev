@@ -9,9 +9,13 @@ import { type RoleOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import RoleForm, { type RoleCreateInput } from './RoleForm';
 
-interface CreateRoleProps { onCreate?: (result: RoleOutput) => void }
+interface CreateRoleProps {
+  onCreate?: (result: RoleOutput) => void;
+  disabled?: boolean;
+  disabledMessage?: string;
+}
 
-const CreateRole = ({ onCreate }: CreateRoleProps) => {
+const CreateRole = ({ onCreate, disabled, disabledMessage }: CreateRoleProps) => {
   // Standard hooks
   const [open, setOpen] = useState(false);
   const { t } = useFormatter();
@@ -30,7 +34,7 @@ const CreateRole = ({ onCreate }: CreateRoleProps) => {
 
   return (
     <>
-      <ButtonCreate onClick={() => setOpen(true)} />
+      <ButtonCreate onClick={() => setOpen(true)} disabled={disabled} disabledMessage={disabledMessage} />
       <Drawer
         open={open}
         handleClose={() => setOpen(false)}
