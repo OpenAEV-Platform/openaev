@@ -125,4 +125,79 @@ class FindingMapperTest extends IntegrationTest {
       assertNull(output.getSource());
     }
   }
+
+  @Nested
+  @DisplayName("finding_asset_groups in AggregatedFindingOutput")
+  class AssetGroupsInAggregatedOutput {
+
+    @Autowired private io.openaev.utils.fixtures.composers.AssetGroupComposer assetGroupComposer;
+    @Autowired private io.openaev.utils.fixtures.composers.EndpointComposer endpointComposer;
+    @Autowired private io.openaev.database.repository.EndpointRepository endpointRepository;
+
+    @BeforeEach
+    void setUp() {
+      assetGroupComposer.reset();
+      endpointComposer.reset();
+    }
+
+    @Test
+    @DisplayName(
+        "should populate finding_asset_groups from the related assets' asset groups (regression:"
+            + " previously always empty)")
+    void given_relatedAssetsWithAssetGroups_should_populateAssetGroups() {
+      // Arrange
+      Inject inject = getDefaultInject();
+      injectComposer.forInject(inject).persist();
+      Finding finding = createDefaultTextFindingWithRandomValue();
+      finding.setInject(inject);
+      findingComposer.forFinding(finding).persist();
+
+      io.openaev.database.model.Endpoint endpoint =
+          io.openaev.utils.fixtures.EndpointFixture.createEndpoint();
+      io.openaev.database.model.AssetGroup assetGroup =
+          io.openaev.utils.fixtures.AssetGroupFixture.createDefaultAssetGroup("Prod servers");
+      assetGroupComposer
+          .forAssetGroup(assetGroup)
+          .withAsset(endpointComposer.forEndpoint(endpoint))
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+      // Re-fetch: the in-memory `endpoint` reference is now detached after clear() and would
+      // still show an empty assetGroups collection (populated only from the inverse/mappedBy
+      // side, never refreshed on the same Java instance) - a fresh managed instance is required
+      // to see the join written by the AssetGroup side.
+      io.openaev.database.model.Endpoint managedEndpoint =
+          endpointRepository.findById(endpoint.getId()).orElseThrow();
+
+      // Act
+      AggregatedFindingOutput output =
+          findingMapper.toAggregatedFindingOutput(finding, List.of(managedEndpoint));
+
+      // Assert
+      assertEquals(1, output.getAssetGroups().size());
+      assertEquals(assetGroup.getId(), output.getAssetGroups().iterator().next().getId());
+    }
+
+    @Test
+    @DisplayName("should leave finding_asset_groups empty when related assets have no group")
+    void given_relatedAssetsWithoutAssetGroups_should_returnEmptySet() {
+      // Arrange
+      Inject inject = getDefaultInject();
+      injectComposer.forInject(inject).persist();
+      Finding finding = createDefaultTextFindingWithRandomValue();
+      finding.setInject(inject);
+      findingComposer.forFinding(finding).persist();
+
+      io.openaev.database.model.Endpoint endpoint =
+          io.openaev.utils.fixtures.EndpointFixture.createEndpoint();
+      endpointComposer.forEndpoint(endpoint).persist();
+
+      // Act
+      AggregatedFindingOutput output =
+          findingMapper.toAggregatedFindingOutput(finding, List.of(endpoint));
+
+      // Assert
+      assertEquals(0, output.getAssetGroups().size());
+    }
+  }
 }

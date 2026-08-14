@@ -54,6 +54,15 @@ public class FindingMapper {
             relatedAssets.stream()
                 .map(endpointMapper::toEndpointSimple)
                 .collect(Collectors.toSet()))
+        // Derived from the same relatedAssets used above (not finding.getAssetGroups(), which
+        // only reflects the single underlying finding's own inject) so the aggregated view shows
+        // every asset group across all assets sharing this (type, value) pair.
+        .assetGroups(
+            relatedAssets.stream()
+                .flatMap(asset -> asset.getAssetGroups().stream())
+                .distinct()
+                .map(assetGroupMapper::toAssetGroupSimple)
+                .collect(Collectors.toSet()))
         .source(
             Optional.ofNullable(finding.getInject())
                 .map(Inject::getInjector)
