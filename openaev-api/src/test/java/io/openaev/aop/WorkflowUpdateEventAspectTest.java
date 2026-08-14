@@ -48,9 +48,6 @@ class WorkflowUpdateEventAspectTest {
   @Nested
   class InvalidAnnotationConfiguration {
 
-    @BeforeEach
-    void setUp() {}
-
     @Test
     void shouldThrow_whenBothInjectIdAndExpectationIdsAreSet() {
       // -------- Prepare --------
