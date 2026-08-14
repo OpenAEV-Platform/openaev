@@ -80,17 +80,17 @@ When linking an argument, toggle **Limit to Local Scope** to choose where that d
     not null` only confirms the field's presence and does not, by itself, hand a specific value down to the local
     pool.
 
-For example, imagine two independent Actions, **Action A** (`NetExec SMB - User Listing`) and
-**Action B** (`NetExec SMB - User Listing`), Action A into the same downstream **Action C**
-(`NetExec SMB - Password Spray`) that authenticates against the domain controller using the harvested `username`
-field:
+For example, imagine a Scenario whose scope defines a Variable `Port` = `80`. Downstream, an **Event** triggers
+only when `Port equals 445` AND `Host is not null`, and it is connected to an **Action** whose arguments use both
+the `Port` and `Host` fields:
 
-- If Action C links its `username` argument with the toggle **off** (global scope), it reads whatever `username` was
-  most recently written to the shared pool — which could come from either A or B, so Action C might try to
-  authenticate with a username enumerated from the wrong endpoint.
-- If Action C links it with the toggle **on** (local scope) and is only connected downstream of Action A, it reads
-  the `username` produced specifically by Action A on that branch, guaranteeing consistency between the endpoint it
-  targets and the credential it uses.
+- If the Action links its `Port` argument with the toggle **on** (local scope), it can only read `445` — the value
+  that actually satisfied the Event's condition on that branch. The scope Variable (`80`) and any other port
+  number produced by unrelated Actions elsewhere in the graph are not part of this branch's local pool.
+- If the Action links its `Port` argument with the toggle **off** (global scope), it reads from the entire shared
+  pool instead: alongside `445`, this also includes the scope Variable `80` and any other port number any other
+  Action anywhere in the run has produced, generating extra execution combinations that a straight local-scope
+  link would not.
 
 ## What's next?
 
