@@ -21,7 +21,9 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.service.ImportEntry;
 import io.openaev.utils.constants.Constants;
+import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -30,11 +32,13 @@ import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotNull;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.zip.ZipEntry;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,6 +71,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Autowired private WorkflowRepository workflowRepository;
   @Autowired private StepRepository stepRepository;
   @Autowired private ConditionRepository conditionRepository;
+  @Autowired private DocumentRepository documentRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
@@ -1141,6 +1146,105 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // WITH the fix, the persisted step_data deserializes without crashing at run time.
     assertDoesNotThrow(() -> deserializeStepDataAsRun(storedData.toString()));
+  }
+
+  // ---------------------------------------------------------------------------
+  // step_data inject_documents id rewriting (imported attachments)
+  //
+  // Documents are recreated with a NEW UUID on the target instance and the source -> target
+  // mapping is recorded in baseIds by the document import. Without a rewrite, an imported
+  // chaining step keeps the stale SOURCE document id in its inject_documents step_data: the
+  // run-time lookup in InjectExecutionStep.getInjectFromDataStep() (tenant-filtered) then misses
+  // it and a VALID attachment is silently dropped.
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void given_stepDataWithDocumentAttachment_when_importing_should_rewriteDocumentIdsViaBaseIds()
+      throws Exception {
+    // -- Arrange --
+    // The export bundles the attachment file and the same target already exists on the TARGET
+    // instance, so the document import maps the SOURCE document id onto the existing document
+    // (updateExistingDocument path) without re-uploading. A second document exists on the target
+    // tenant only (not part of the export): its id must be kept as-is. A third id resolves to
+    // nothing and must be dropped.
+    String target = "v1-import-attachment-" + UUID.randomUUID() + ".jpg";
+    Document existingDocument = DocumentFixture.getDocumentJpeg();
+    existingDocument.setTarget(target);
+    existingDocument = documentRepository.save(existingDocument);
+
+    Document tenantOnlyDocument = documentRepository.save(DocumentFixture.getDocumentJpeg());
+
+    String sourceDocumentId = UUID.randomUUID().toString();
+    String unknownDocumentId = UUID.randomUUID().toString();
+
+    ObjectMapper om = new ObjectMapper();
+    String scenarioName = "wf document attachment " + UUID.randomUUID();
+    ObjectNode importData =
+        buildScenarioWorkflowWithStepTags(
+            om, scenarioName, om.createArrayNode(), om.createArrayNode(), om.createArrayNode());
+
+    ObjectNode documentNode = om.createObjectNode();
+    documentNode.put("document_id", sourceDocumentId);
+    documentNode.put("document_target", target);
+    documentNode.put("document_name", "attachment.jpg");
+    documentNode.put("document_description", "");
+    documentNode.set("document_tags", om.createArrayNode());
+    ArrayNode documents = om.createArrayNode();
+    documents.add(documentNode);
+    importData.set("scenario_documents", documents);
+
+    ObjectNode stepData =
+        (ObjectNode)
+            importData.get("scenario_workflow").get("workflow_steps").get(0).get("step_data");
+    ArrayNode injectDocuments = om.createArrayNode();
+    // Full link-object shape, as MultiModelSerializer writes it into step_data.
+    ObjectNode importedLink = om.createObjectNode();
+    importedLink.put("inject_id", UUID.randomUUID().toString());
+    importedLink.put("document_id", sourceDocumentId);
+    importedLink.put("document_attached", true);
+    importedLink.put("document_name", "attachment.jpg");
+    injectDocuments.add(importedLink);
+    ObjectNode unknownLink = om.createObjectNode();
+    unknownLink.put("document_id", unknownDocumentId);
+    unknownLink.put("document_attached", true);
+    injectDocuments.add(unknownLink);
+    // Scalar defensive shape referencing a document already on the target tenant.
+    injectDocuments.add(tenantOnlyDocument.getId());
+    stepData.set("inject_documents", injectDocuments);
+
+    Map<String, ImportEntry> docReferences =
+        Map.of(
+            target,
+            new ImportEntry(
+                new ZipEntry(target), new ByteArrayInputStream(new byte[] {1, 2, 3}), 3));
+
+    // -- Act --
+    this.importer.importData(
+        importData, docReferences, null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    JsonNode storedData = readStoredStepData(scenarioName, om);
+    JsonNode storedDocuments = storedData.get("inject_documents");
+    assertNotNull(storedDocuments);
+    assertEquals(2, storedDocuments.size(), "resolvable links kept, unresolvable link dropped");
+    JsonNode rewrittenLink = storedDocuments.get(0);
+    assertEquals(
+        existingDocument.getId(),
+        rewrittenLink.get("document_id").asText(),
+        "the SOURCE document id must be rewritten to the resolved TARGET document id");
+    assertTrue(rewrittenLink.get("document_attached").asBoolean());
+    assertEquals(
+        tenantOnlyDocument.getId(),
+        storedDocuments.get(1).asText(),
+        "an id already present on the target tenant is kept (scalar shape preserved)");
+
+    // Run-time deserialization carries the rewritten attachment references.
+    Inject runInject = deserializeStepDataAsRun(storedData.toString());
+    assertEquals(
+        List.of(existingDocument.getId(), tenantOnlyDocument.getId()),
+        runInject.getDocuments().stream().map(link -> link.getDocument().getId()).toList());
   }
 
   @Test

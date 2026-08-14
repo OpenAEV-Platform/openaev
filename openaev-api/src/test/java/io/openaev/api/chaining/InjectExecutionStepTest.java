@@ -18,11 +18,14 @@ import com.google.gson.JsonPrimitive;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.rest.exception.ChainingException;
@@ -38,8 +41,11 @@ import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.ConditionUtils;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.helpers.InjectTestHelper;
+import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,10 +71,14 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private DocumentRepository documentRepository;
   @Autowired InjectExecutionStep injectExecutionStep;
   @Autowired AttackPathExecutionIngestionService attackPathExecutionIngestionService;
   ObjectMapper mapper = new ObjectMapper();
   @Autowired private InjectTestHelper injectTestHelper;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private EntityManager entityManager;
   String injectInputJson;
   InjectorContract injectorContractSaved;
   Asset savedAsset;
@@ -989,6 +999,15 @@ public class InjectExecutionStepTest extends IntegrationTest {
    * serialized inject and contract snapshot, with the given teams picked in the drawer.
    */
   private Step emailReadyStep(List<String> drawerTeamIds) throws Exception {
+    return emailReadyStep(drawerTeamIds, List.of());
+  }
+
+  /**
+   * Same as {@link #emailReadyStep(List)} with attachment documents picked in the drawer, so the
+   * step data carries {@code inject_documents} link objects serialized from the inject entity.
+   */
+  private Step emailReadyStep(List<String> drawerTeamIds, List<Document> drawerDocuments)
+      throws Exception {
     Injector emailInjector =
         injectorRepository.save(
             InjectorFixture.createInjector(
@@ -1008,6 +1027,10 @@ public class InjectExecutionStepTest extends IntegrationTest {
         drawerTeamIds.stream()
             .map(id -> "\"" + id + "\"")
             .collect(java.util.stream.Collectors.joining(","));
+    String documentsJson =
+        drawerDocuments.stream()
+            .map(d -> "{\"document_id\":\"" + d.getId() + "\",\"document_attached\":true}")
+            .collect(java.util.stream.Collectors.joining(","));
     String emailInputJson =
         """
         {"type":"inject","inject_title":"tabletop email","inject_description":"",
@@ -1015,9 +1038,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
          "inject_content":{"subject":"Subject","body":"Body"},
          "inject_depends_on":[],"inject_depends_duration":0,
          "inject_teams":[%s],"inject_assets":[],"inject_asset_groups":[],
-         "inject_documents":[],"inject_all_teams":false,"inject_tags":[],"inject_enabled":true}
+         "inject_documents":[%s],"inject_all_teams":false,"inject_tags":[],"inject_enabled":true}
         """
-            .formatted(emailContractSaved.getId(), emailInjector.getId(), teamsJson);
+            .formatted(emailContractSaved.getId(), emailInjector.getId(), teamsJson, documentsJson);
     InjectInput injectInput = mapper.readValue(emailInputJson, InjectInput.class);
     StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
@@ -1087,6 +1110,109 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertNotNull(inject);
     assertEquals(List.of(drawerTeam.getId()), inject.getTeams().stream().map(Team::getId).toList());
     verify(scopeService, never()).getValidTeams(any());
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep document attachments (inject_documents round-trip)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void given_emailStepWithAttachment_whenBuildingInject_thenDocumentLinkSurvivesRoundTrip()
+      throws Exception {
+    // Arrange: the step data serializes the inject entity, so inject_documents holds full link
+    // objects ({inject_id, document_id, document_attached, document_name}), not scalar ids.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of(), List.of(attachment));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the attachment round-trips and is re-parented onto the deserialized inject so the
+    // cascade persist in run() can derive the @MapsId composite key.
+    assertNotNull(inject);
+    assertEquals(1, inject.getDocuments().size());
+    InjectDocument link = inject.getDocuments().getFirst();
+    assertEquals(attachment.getId(), link.getDocument().getId());
+    assertTrue(link.isAttached());
+    assertSame(inject, link.getInject());
+  }
+
+  @Test
+  void given_stepDataWithScalarDocumentId_whenBuildingInject_thenDocumentIsResolved()
+      throws Exception {
+    // Arrange: defensive shape - a plain string document id instead of the link object.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of());
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.putArray("inject_documents").add(attachment.getId());
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the scalar form resolves too, with document_attached defaulting to true.
+    assertNotNull(inject);
+    assertEquals(1, inject.getDocuments().size());
+    assertEquals(attachment.getId(), inject.getDocuments().getFirst().getDocument().getId());
+    assertTrue(inject.getDocuments().getFirst().isAttached());
+  }
+
+  @Test
+  void given_stepDataWithDeletedDocument_whenBuildingInject_thenAttachmentIsDropped()
+      throws Exception {
+    // Arrange: the document is deleted between step authoring and execution.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of(), List.of(attachment));
+    documentRepository.delete(attachment);
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: a deleted attachment degrades to "no attachment" instead of failing the step.
+    assertNotNull(inject);
+    assertTrue(inject.getDocuments().isEmpty());
+  }
+
+  @Test
+  void given_stepDataWithForeignTenantDocument_whenBuildingInject_thenAttachmentIsDropped()
+      throws Exception {
+    // Arrange: the step is authored under the current tenant, but its data references a document
+    // persisted under ANOTHER tenant (stale or crafted step id). The document resolution goes
+    // through a JPQL query precisely so Hibernate's tenantFilter applies; this test pins that
+    // guarantee - a future primary-key lookup (filters never apply to those) or a disabled filter
+    // would resolve the foreign document and fail here.
+    Step readyStep = emailReadyStep(List.of());
+    String currentTenantId = TenantContext.getCurrentTenant();
+    // A bare tenant row is enough here (no provisioning side effects): the document only needs a
+    // foreign tenant to be stamped with, and the run-path lookup only reads documents.
+    Tenant foreignTenant =
+        tenantRepository.save(TenantFixture.getTenant("inject-doc-isolation-" + UUID.randomUUID()));
+    Document foreignDocument;
+    tenantIsolationTestHelper.switchToTenant(foreignTenant.getId(), entityManager);
+    try {
+      foreignDocument = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    } finally {
+      tenantIsolationTestHelper.switchToTenant(currentTenantId, entityManager);
+    }
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    ObjectNode link = mapper.createObjectNode();
+    link.put("document_id", foreignDocument.getId());
+    link.put("document_attached", true);
+    data.putArray("inject_documents").add(link);
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act: deserialize through the real scoped run path (the helper re-enabled the tenantFilter
+    // for the current tenant on this session, as the transaction aspect does for the queue run).
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the foreign-tenant attachment degrades exactly like a deleted one - dropped, with
+    // the step still executable - instead of leaking another tenant's document.
+    assertNotNull(inject);
+    assertTrue(inject.getDocuments().isEmpty());
   }
 
   /**

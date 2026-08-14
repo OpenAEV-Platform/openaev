@@ -50,6 +50,7 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -1084,6 +1085,40 @@ public class InjectExecutionStep implements ActionStep {
       // that may not be present in the serialized step data but has a @NotNull constraint.
       if (inject.getDependsDuration() == null) {
         inject.setDependsDuration(0L);
+      }
+
+      // Resolve and re-parent the document links deserialized from the step data. The element
+      // deserializer only produces id-carrying stubs (a query inside it would cost one database
+      // round trip per attachment), so all referenced documents are resolved here through a
+      // single JPQL query: unlike a primary-key find, the query goes through Hibernate's enabled
+      // filters, so tenantFilter applies and a stale or crafted step referencing a deleted or
+      // foreign-tenant document degrades to "no attachment" instead of failing the step.
+      // Surviving links are re-parented because the @MapsId composite id needs both associations
+      // before run() cascade-persists this inject.
+      List<InjectDocument> injectDocuments = inject.getDocuments();
+      if (injectDocuments != null && !injectDocuments.isEmpty()) {
+        injectDocuments.removeIf(Objects::isNull);
+        Set<String> documentIds =
+            injectDocuments.stream()
+                .map(link -> link.getDocument() == null ? null : link.getDocument().getId())
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, Document> resolvedDocuments =
+            documentIds.isEmpty()
+                ? Map.of()
+                : em.createQuery("select d from Document d where d.id in :ids", Document.class)
+                    .setParameter("ids", documentIds)
+                    .getResultStream()
+                    .collect(Collectors.toMap(Document::getId, document -> document));
+        injectDocuments.removeIf(
+            link ->
+                link.getDocument() == null
+                    || !resolvedDocuments.containsKey(link.getDocument().getId()));
+        injectDocuments.forEach(
+            link -> {
+              link.setDocument(resolvedDocuments.get(link.getDocument().getId()));
+              link.setInject(inject);
+            });
       }
 
       ObjectMapper mapper = new ObjectMapper();
