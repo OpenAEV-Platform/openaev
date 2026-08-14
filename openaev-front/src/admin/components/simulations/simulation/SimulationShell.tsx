@@ -73,7 +73,7 @@ const SimulationShell: FunctionComponent<{
         ['/scope', t('Scope')],
         ['/logic', t('Logic')],
         ['/execution', t('Execution')],
-        ...(hasWorkflow ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
+        ['/attack-path', t('Attack Path')],
         ['/findings', t('Findings')],
         ['/statistics', t('Statistics')],
       ];
