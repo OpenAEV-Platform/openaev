@@ -45,7 +45,8 @@ class AutonomousEventServiceTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     AutonomousEvent saved =
-        eventService.append("run-1", null, AutonomousEventType.STATUS, "title", "content", null);
+        eventService.append(
+            "run-1", "tenant-1", null, AutonomousEventType.STATUS, "title", "content", null);
 
     assertThat(saved.getSequence()).isEqualTo(5L);
     InOrder inOrder = inOrder(eventRepository);
@@ -62,7 +63,8 @@ class AutonomousEventServiceTest {
         .thenReturn(true);
 
     AutonomousEvent result =
-        eventService.appendTerminalStatusOnce("run-1", "sim-1", "Run canceled", "content");
+        eventService.appendTerminalStatusOnce(
+            "run-1", "tenant-1", "sim-1", "Run canceled", "content");
 
     assertThat(result).isNull();
     InOrder inOrder = inOrder(eventRepository);

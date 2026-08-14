@@ -46,9 +46,8 @@ import org.springframework.web.server.ResponseStatusException;
  * resource check would break live orchestration for any run whose operator differs from the token
  * owner. They stay behind the Enterprise-Edition license + the {@code INJECT_CHAINING} preview
  * feature. Restricting them to the actual service identity (today any authenticated EE user can
- * reach them) and activating tenant isolation on the {@code autonomous_*} tables are tracked as
- * follow-up hardening in issue #7396 - both need infrastructure work (a callback service identity;
- * the v2 tenant-table activation procedure) beyond this gate.
+ * reach them) is tracked separately from tenant isolation. The {@code autonomous_runs}, {@code
+ * autonomous_events} and {@code autonomous_directives} tables are tenant-active (multi-tenancy v2).
  */
 @org.springframework.stereotype.Component
 @RequiredArgsConstructor

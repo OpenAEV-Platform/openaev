@@ -1,6 +1,6 @@
 package io.openaev.service.autonomous;
 
-import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.autonomous.AutonomousEvent;
 import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
@@ -21,6 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
  * handles (it is the same shape as the chaining engine's replay bump); autonomous decisions land at
  * a human-review cadence, not the per-replay flood the version service warns against, so publishing
  * here is safe and is exactly how the live view animates without a second SSE channel.
+ *
+ * <p>The tenant travels EXPLICITLY through every append ({@code autonomous_events} is
+ * tenant-active, so the row must be attributed at creation): callers pass the parent run's tenant,
+ * and the same id drives the attack-path nudge. The previous {@code TenantContext} thread-local
+ * defaulted to the default tenant on the orchestrator's non-prefixed callback route, which would
+ * have both mis-attributed rows and nudged the wrong tenant's SSE channel.
  */
 @Service
 @RequiredArgsConstructor
@@ -50,12 +56,13 @@ public class AutonomousEventService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousEvent append(
       String runId,
+      String tenantId,
       String simulationId,
       AutonomousEventType type,
       String title,
       String content,
       String data) {
-    return doAppend(runId, simulationId, type, title, content, data);
+    return doAppend(runId, tenantId, simulationId, type, title, content, data);
   }
 
   /**
@@ -65,6 +72,7 @@ public class AutonomousEventService {
    */
   private AutonomousEvent doAppend(
       String runId,
+      String tenantId,
       String simulationId,
       AutonomousEventType type,
       String title,
@@ -78,6 +86,7 @@ public class AutonomousEventService {
     // path locks before its existence check, then reaches this) is a cheap no-op.
     eventRepository.lockRunEventSequence(sequenceLockKey(runId));
     AutonomousEvent event = new AutonomousEvent();
+    event.setTenant(new Tenant(tenantId));
     event.setRunId(runId);
     event.setSequence(eventRepository.findMaxSequence(runId) + 1);
     event.setType(type);
@@ -86,10 +95,10 @@ public class AutonomousEventService {
     event.setData(data);
     AutonomousEvent saved = eventRepository.save(event);
 
-    // Nudge the attack-path SSE so the live view refreshes graph + timeline together.
+    // Nudge the attack-path SSE so the live view refreshes graph + timeline together, under the
+    // run's own tenant (the caller-supplied id, never a thread-local default).
     if (simulationId != null && !simulationId.isBlank()) {
       try {
-        String tenantId = TenantContext.getCurrentTenant();
         long version = attackPathVersionService.bump(simulationId, tenantId);
         attackPathVersionService.publishChanged(simulationId, tenantId, version);
       } catch (Exception e) {
@@ -121,7 +130,7 @@ public class AutonomousEventService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousEvent appendTerminalStatusOnce(
-      String runId, String simulationId, String title, String content) {
+      String runId, String tenantId, String simulationId, String title, String content) {
     // Take the per-run advisory lock BEFORE the existence check, not only inside doAppend: two
     // racing settle paths could otherwise both observe "no terminal event yet", then serialise on
     // the append lock and write two distinct terminal lines as N and N+1 - which the unique
@@ -132,7 +141,8 @@ public class AutonomousEventService {
     if (eventRepository.existsTerminalStatusEvent(runId, TERMINAL_STATUS_TITLES)) {
       return null;
     }
-    return doAppend(runId, simulationId, AutonomousEventType.STATUS, title, content, null);
+    return doAppend(
+        runId, tenantId, simulationId, AutonomousEventType.STATUS, title, content, null);
   }
 
   @Transactional(readOnly = true)
