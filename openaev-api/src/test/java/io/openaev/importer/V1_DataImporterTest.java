@@ -1721,15 +1721,19 @@ class V1_DataImporterTest extends IntegrationTest {
       given_stepDataContractAttackPatternAsFullObject_when_importing_should_normalizeAndNotCrashAtRun()
           throws Exception {
     // -- Arrange --
-    // Reproduces the original bug: injector_contract_attack_patterns carries FULL OBJECTS (as the
-    // export writes them). Left as-is they crash the run-time deserialization with a NPE in
-    // Base.collectIds via InjectorContract.setAttackPatterns.
+    // injector_contract_attack_patterns carries FULL OBJECTS (as the export writes them). The
+    // importer still normalizes them to resolved TARGET scalar ids (asserted below) so a
+    // cross-instance source id is remapped rather than left dangling.
     String externalId = "T1055-" + UUID.randomUUID();
     String sourceId = UUID.randomUUID().toString();
     ObjectMapper om = new ObjectMapper();
 
-    // Sanity check: WITHOUT the fix, a full-object attack pattern crashes the run-time
-    // deserialization (MonoIdDeserializerHelper -> null element -> NPE on getId()).
+    // Post-#7414 a full-object element no longer crashes run-time deserialization: the
+    // MonoIdDeserializerHelper now consumes the object and extracts its scalar id
+    // (attack_pattern_id)
+    // instead of leaving a null element that NPE'd in Base.collectIds via
+    // InjectorContract.setAttackPatterns. The raw full-object therefore deserializes cleanly to an
+    // id-only reference - the importer normalization below is what still matters for a foreign id.
     ObjectNode rawUnsanitized = om.createObjectNode();
     rawUnsanitized.put("inject_title", "raw");
     ObjectNode rawContract = om.createObjectNode();
@@ -1738,11 +1742,9 @@ class V1_DataImporterTest extends IntegrationTest {
         "injector_contract_attack_patterns",
         attackPatternObjectArray(om, sourceId, externalId, "Process Injection"));
     rawUnsanitized.set("inject_injector_contract", rawContract);
-    Exception bug =
-        assertThrows(Exception.class, () -> deserializeStepDataAsRun(rawUnsanitized.toString()));
-    assertTrue(
-        hasCause(bug, NullPointerException.class),
-        "A full-object attack pattern must trigger a NullPointerException at run-time deserialization");
+    assertDoesNotThrow(
+        () -> deserializeStepDataAsRun(rawUnsanitized.toString()),
+        "post-#7414 a full-object attack pattern is consumed to an id-only reference, not a NPE");
 
     String scenarioName = "wf ap object " + UUID.randomUUID();
     ObjectNode importData =
