@@ -53,7 +53,7 @@ public class ManualInjectorIntegrationFactory extends BuiltinIntegrationFactory 
   }
 
   @Override
-  protected void runMigrations(String tenantId) throws Exception {
+  protected void runMigrations() throws Exception {
     // noop
   }
 

@@ -294,54 +294,6 @@ public abstract class AbstractConnectorService<
   }
 
   /**
-   * Tenant-scoped variant of {@link #getConnectorRelationsId(String)}.
-   *
-   * <p>Tenant safety: {@code connector_instances}/{@code connector_instance_configurations} are now
-   * on v2 isolation (activated #6408). This variant still passes {@code tenantId} explicitly to the
-   * lookup on purpose, not as a leftover v1 workaround: this method is also called with a specific
-   * connector's OWN tenant while iterating a broader ambient scope (see {@code
-   * CalderaSettingsService#getCalderaSettings}, which loops over {@code executors()} and resolves
-   * each executor's tenant independently) - the automatic inspector scoping alone would not narrow
-   * to that one tenant in that case.
-   *
-   * @param connectorId the connector identifier
-   * @param tenantId the requesting tenant, resolved by the caller from the request's single-tenant
-   *     scope, or from the specific connector when iterating a broader scope
-   * @return connector instance ID and catalog connector ID if available, null values if not found
-   * @throws ElementNotFoundException if the connector is not visible in the requesting tenant's
-   *     scope (wrong tenant, or the id does not exist at all)
-   */
-  public ConnectorIds getConnectorRelationsId(String connectorId, String tenantId) {
-    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
-        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
-            this.connectorType.getIdKeyName(), connectorId, tenantId);
-    T connector = getConnectorById(connectorId);
-    if (relatedIds != null) {
-      boolean registered = connector != null;
-      return catalogConnectorMapper.toConnectorIds(
-          relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId(), registered);
-    }
-
-    if (connector == null) {
-      // Not visible in the requesting tenant's scope (wrong tenant, or the id does not exist at
-      // all): 404, so the API does not leak whether the id exists in another tenant. The frontend
-      // (ConnectorLayout) relies on this 404 to notify and redirect.
-      throw new ElementNotFoundException("Connector not found with id: " + connectorId);
-    }
-
-    // Connector already deployed without catalog, we will try to search matching catalog comparing
-    // connectorType and catalogSlug
-    CatalogConnector catalogConnector =
-        catalogConnectorService.findBySlug(connector.getType()).orElse(null);
-    if (catalogConnector != null) {
-      return catalogConnectorMapper.toConnectorIds(catalogConnector.getId(), null, true);
-    }
-
-    // If nothing match this connector is manually deployed
-    return catalogConnectorMapper.toConnectorIds(null, null, true);
-  }
-
-  /**
    * Rejects the deletion of a connector that is still running (OpenCTI parity: a started connector
    * can never be deleted, it must be stopped first).
    *

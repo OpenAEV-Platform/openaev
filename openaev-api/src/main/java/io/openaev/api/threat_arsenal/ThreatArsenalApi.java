@@ -6,9 +6,6 @@ import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
 import io.openaev.api.threat_arsenal.dto.*;
-import io.openaev.config.RequireTenantSelector;
-import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ChainingTypeRegistry;
 import io.openaev.database.model.PrimitiveType;
@@ -46,7 +43,6 @@ public class ThreatArsenalApi {
 
   private final ThreatArsenalService threatArsenalService;
   private final PreviewFeatureService previewFeatureService;
-  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- READ --
 
@@ -188,8 +184,7 @@ public class ThreatArsenalApi {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalAction createAction(
-      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody ThreatArsenalActionCreateInput input) {
-    writeScopeResolver.tenantForWrite(ctx, null);
+      @Valid @RequestBody ThreatArsenalActionCreateInput input) {
     return threatArsenalService.create(input);
   }
 
@@ -200,10 +195,8 @@ public class ThreatArsenalApi {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalAction updateAction(
-      @RequireTenantSelector TxCtx ctx,
       @NotBlank @PathVariable final String actionId,
       @Valid @RequestBody ThreatArsenalActionUpdateInput input) {
-    writeScopeResolver.tenantForWrite(ctx, null);
     return threatArsenalService.update(actionId, input);
   }
 
@@ -216,9 +209,7 @@ public class ThreatArsenalApi {
       resourceId = "#actionId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.THREAT_ARSENAL)
-  public ThreatArsenalAction duplicateAction(
-      @RequireTenantSelector TxCtx ctx, @NotBlank @PathVariable final String actionId) {
-    writeScopeResolver.tenantForWrite(ctx, null);
+  public ThreatArsenalAction duplicateAction(@NotBlank @PathVariable final String actionId) {
     return threatArsenalService.duplicate(actionId);
   }
 

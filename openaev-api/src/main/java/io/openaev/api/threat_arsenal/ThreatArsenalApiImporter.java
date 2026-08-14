@@ -2,9 +2,6 @@ package io.openaev.api.threat_arsenal;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
-import io.openaev.config.RequireTenantSelector;
-import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
@@ -27,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class ThreatArsenalApiImporter {
 
   private final ThreatArsenalImportService threatArsenalImportService;
-  private final TenantWriteScopeResolver writeScopeResolver;
 
   /**
    * Imports a threat arsenal action from a JSON:API document. Accepts both injector contract
@@ -50,10 +46,8 @@ public class ThreatArsenalApiImporter {
       produces = MediaType.APPLICATION_JSON_VALUE)
   @Transactional(rollbackFor = Exception.class)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
-  public ThreatArsenalAction importJson(
-      @RequireTenantSelector TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
+  public ThreatArsenalAction importJson(@RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return threatArsenalImportService.importThreatArsenalAction(file, tenantId);
+    return threatArsenalImportService.importThreatArsenalAction(file);
   }
 }

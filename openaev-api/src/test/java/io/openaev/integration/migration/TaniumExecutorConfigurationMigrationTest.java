@@ -6,7 +6,6 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
-import io.openaev.database.model.Tenant;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -65,7 +64,7 @@ public class TaniumExecutorConfigurationMigrationTest {
                   TaniumExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      taniumExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      taniumExecutorConfigurationMigration.migrate();
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -89,7 +88,7 @@ public class TaniumExecutorConfigurationMigrationTest {
                   TaniumExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      taniumExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      taniumExecutorConfigurationMigration.migrate();
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -158,7 +157,7 @@ public class TaniumExecutorConfigurationMigrationTest {
                   TaniumExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      taniumExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      taniumExecutorConfigurationMigration.migrate();
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(

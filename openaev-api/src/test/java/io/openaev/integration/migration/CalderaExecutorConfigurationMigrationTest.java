@@ -9,7 +9,6 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
-import io.openaev.database.model.Tenant;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegrationFactory;
 import io.openaev.rest.exception.UnencryptableElementException;
@@ -66,7 +65,7 @@ public class CalderaExecutorConfigurationMigrationTest {
                   CalderaExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      calderaExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      calderaExecutorConfigurationMigration.migrate();
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -90,7 +89,7 @@ public class CalderaExecutorConfigurationMigrationTest {
                   CalderaExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      calderaExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      calderaExecutorConfigurationMigration.migrate();
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -142,8 +141,7 @@ public class CalderaExecutorConfigurationMigrationTest {
           new CalderaExecutorConfigurationMigration(
               beanConfig, catalogConnectorService, connectorInstanceService, encryptionFactory);
 
-      assertThatThrownBy(
-              () -> mockedCalderaExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID))
+      assertThatThrownBy(mockedCalderaExecutorConfigurationMigration::migrate)
           .isInstanceOf(UnencryptableElementException.class);
     }
   }
@@ -177,7 +175,7 @@ public class CalderaExecutorConfigurationMigrationTest {
                   CalderaExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      calderaExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      calderaExecutorConfigurationMigration.migrate();
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(

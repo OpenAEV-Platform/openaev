@@ -1,6 +1,6 @@
 import { capitalize } from '@mui/material';
 import { useCallback, useContext, useState } from 'react';
-import { Outlet, useNavigate, useParams } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 
 import { fetchConnector, isXtmComposerIsReachable } from '../../../../actions/catalog/catalog-actions';
 import type { CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
@@ -19,7 +19,6 @@ import type {
   ConnectorIds,
   ConnectorInstanceOutput,
 } from '../../../../utils/api-types';
-import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';
@@ -34,7 +33,6 @@ export type ConnectorContextLayoutType = {
 
 const ConnectorLayout = () => {
   const params = useParams();
-  const navigate = useNavigate();
   const { connectorType, apiRequest, routes, normalizeSingle } = useContext(ConnectorContext);
   const connectorId = params[`${connectorType}Id`];
 
@@ -90,19 +88,7 @@ const ConnectorLayout = () => {
         }
         Promise.all(promises).finally(() => setLoading(false));
       }
-    }).catch((error) => {
-      setLoading(false);
-      // The related-ids lookup returns 404 both when the connector genuinely
-      // does not exist and when it belongs to another tenant
-      if (error?.status === 404) {
-        MESSAGING$.notifyError(t('This item does not exist or you are not allowed to view it.'));
-        navigate(routes.list);
-      }
-    });
-    // Deps are intentionally narrow: this callback is registered as an SSE reload listener by
-    // useDataLoader, so its identity must only change when the fetched data actually changes.
-    // t (new closure every render) and navigate (changes on navigation) would re-register and
-    // refetch on every render; both behave correctly when captured once for this layout's lifetime.
+    }).catch(() => setLoading(false));
   }, [connectorId, apiRequest, dispatch]);
 
   useDataLoader(() => {

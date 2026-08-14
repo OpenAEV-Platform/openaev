@@ -6,7 +6,6 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
-import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -21,7 +20,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ConnectorInstanceServiceTest {
 
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
-  @Mock private AgentRepository agentRepository;
 
   @InjectMocks private ConnectorInstanceService connectorInstanceService;
 

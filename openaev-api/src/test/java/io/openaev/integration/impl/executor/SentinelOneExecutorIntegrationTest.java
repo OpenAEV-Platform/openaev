@@ -112,7 +112,7 @@ public class SentinelOneExecutorIntegrationTest {
   public void factoryIsInitialisedCorrectlyAndCreatesCatalogObject() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -126,7 +126,7 @@ public class SentinelOneExecutorIntegrationTest {
   public void whenFactorySyncWithStoppedInstance_integrationIsOfStatusStopped() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
@@ -153,7 +153,7 @@ public class SentinelOneExecutorIntegrationTest {
       throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
@@ -183,7 +183,7 @@ public class SentinelOneExecutorIntegrationTest {
       throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
@@ -212,7 +212,7 @@ public class SentinelOneExecutorIntegrationTest {
   public void whenInstanceIsSpawn_encryptionServiceIsNull() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
     AssertionsForClassTypes.assertThat(
@@ -225,7 +225,7 @@ public class SentinelOneExecutorIntegrationTest {
       "When spawning an integration with a null configuration builder, should throw ExecutorException")
   public void whenSpawnWithNullConfigBuilder_should_throwExecutorException() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
@@ -261,7 +261,7 @@ public class SentinelOneExecutorIntegrationTest {
       throws Exception {
     // Arrange
     IntegrationFactory integrationFactory = getFactory();
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     ConnectorInstancePersisted instance =
@@ -288,7 +288,7 @@ public class SentinelOneExecutorIntegrationTest {
   public void whenStartedAndStoppingRequested_initialise_should_stopIntegration() throws Exception {
     // Arrange — start the integration first
     IntegrationFactory integrationFactory = getFactory();
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     ConnectorInstancePersisted instance =

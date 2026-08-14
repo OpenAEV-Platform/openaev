@@ -83,8 +83,8 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations(String tenantId) throws Exception {
-    calderaExecutorConfigurationMigration.migrate(tenantId);
+  protected void runMigrations() throws Exception {
+    calderaExecutorConfigurationMigration.migrate();
   }
 
   private String getLogoFilename() {

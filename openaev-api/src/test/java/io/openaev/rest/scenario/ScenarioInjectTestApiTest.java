@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.TenantRepository;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
@@ -58,7 +57,6 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private ObjectMapper mapper;
   @Autowired private JavaMailSender mailSender;
-  @Autowired private TenantRepository tenantRepository;
 
   private ScenarioComposer.Composer scenarioWrapper;
   private InjectComposer.Composer inject1Wrapper, inject2Wrapper;
@@ -69,14 +67,6 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
     emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
     Mockito.reset(mailSender);
-    // Fixtures here are created under the ambient default tenant, and SimulationInjectTestApi's
-    // testInject/bulkTestInject now carry a TxCtx scoped read (v2 isolation on injectors). The
-    // mock user from @WithMockUser has capabilities but no explicit tenant membership row, so
-    // without this grant the resolved scope is empty (TxCtx.missing()) and conflicts with the
-    // default tenant scope already set on this transaction.
-    if (testUserHolder.isSet()) {
-      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
-    }
   }
 
   @Nested

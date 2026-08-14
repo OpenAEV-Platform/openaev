@@ -5,9 +5,6 @@ import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.config.RequireTenantSelector;
-import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
@@ -42,14 +39,11 @@ public class InjectorContractApi extends RestBehavior {
   private static final String TENANT_INJECTOR_CONTRACT_URL = TENANT_PREFIX + "/injector_contracts";
 
   private final InjectorContractService injectorContractService;
-  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx is unused directly: TenantScopeTransactionAspect reads it to scope the transaction, which
-  // the eager injectorLinks -> injector fetch behind this contract read needs (#7026-class gap).
-  public Iterable<RawInjectorsContracts> injectContracts(TxCtx ctx) {
+  public Iterable<RawInjectorsContracts> injectContracts() {
     return injectorContractService.getAllRawInjectContracts();
   }
 
@@ -77,10 +71,8 @@ public class InjectorContractApi extends RestBehavior {
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the tuple query's explicit injector join (ctx.injectorJoin() in
-  // InjectorContractService#mapFull), which resolves against the activated injectors table.
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
-      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
@@ -161,8 +153,7 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
-  public InjectorContract injectorContract(TxCtx ctx, @PathVariable String injectorContractId) {
+  public InjectorContract injectorContract(@PathVariable String injectorContractId) {
     return injectorContractService.injectorContract(injectorContractId);
   }
 
@@ -176,8 +167,7 @@ public class InjectorContractApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR_CONTRACT)
   public InjectorContract createInjectorContract(
-      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody InjectorContractAddInput input) {
-    writeScopeResolver.tenantForWrite(ctx, null);
+      @Valid @RequestBody InjectorContractAddInput input) {
     return injectorContractService.createNewInjectorContract(input);
   }
 
@@ -197,9 +187,7 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
   public InjectorContract updateInjectorContract(
-      TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateInput input) {
     return injectorContractService.updateInjectorContract(injectorContractId, input);
@@ -221,9 +209,7 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
   public InjectorContract updateInjectorContractMapping(
-      TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateMappingInput input) {
     return injectorContractService.updateInjectorContractTTPDomainsAndTags(
@@ -246,8 +232,7 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
-  public void deleteInjectorContract(TxCtx ctx, @PathVariable String injectorContractId) {
+  public void deleteInjectorContract(@PathVariable String injectorContractId) {
     this.injectorContractService.deleteInjectorContract(injectorContractId);
   }
 }

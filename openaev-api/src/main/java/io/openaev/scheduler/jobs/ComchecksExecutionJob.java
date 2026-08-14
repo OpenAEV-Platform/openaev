@@ -11,13 +11,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
@@ -48,7 +45,6 @@ public class ComchecksExecutionJob implements Job {
   private final ComcheckStatusRepository comcheckStatusRepository;
 
   private final InjectorContractRepository injectorContractRepository;
-  private final InjectorRepository injectorRepository;
   private final ExecutionContextService executionContextService;
 
   private final ManagerFactory managerFactory;
@@ -57,22 +53,12 @@ public class ComchecksExecutionJob implements Job {
 
   private final TransactionTemplate transactionTemplate;
 
-  private final TenantScopedTransaction tenantTx;
-
-  private Inject buildComcheckEmail(Comcheck comCheck, String tenantId) {
-    // injectors is v2-active: the email injector is a fail-closed association here (the raw
-    // transaction carries no tenant scope). Stamp this comcheck's tenant, then resolve the injector
-    // explicitly by (contract, tenant). The tenant-scoped query re-runs under the stamp, unlike the
-    // L1-cached findById(EMAIL_DEFAULT) whose eager injector would stay pinned to the first tenant.
-    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+  private Inject buildComcheckEmail(Comcheck comCheck) {
     Inject emailInject = new Inject();
     InjectorContract contract =
         injectorContractRepository.findById(EmailContract.EMAIL_DEFAULT).orElseThrow();
     emailInject.setInjectorContract(contract);
-    emailInject.setInjector(
-        injectorRepository
-            .findFirstByContractsCompositeIdIdAndTenantId(contract.getId(), tenantId)
-            .orElseThrow());
+    emailInject.setInjector(contract.getFirstInjector());
     emailInject.setExercise(comCheck.getExercise());
     ObjectNode content = mapper.createObjectNode();
     content.set("subject", mapper.convertValue(comCheck.getSubject(), JsonNode.class));
@@ -166,7 +152,7 @@ public class ComchecksExecutionJob implements Job {
                             return injectContext;
                           })
                       .toList();
-              Inject emailInject = buildComcheckEmail(comCheck, exercise.getTenant().getId());
+              Inject emailInject = buildComcheckEmail(comCheck);
               return new ComcheckSendTask(
                   new ExecutableInject(false, true, emailInject, userInjectContexts),
                   comcheckStatuses,

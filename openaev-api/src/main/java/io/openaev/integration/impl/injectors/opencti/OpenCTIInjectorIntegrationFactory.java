@@ -75,8 +75,8 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations(String tenantId) throws Exception {
-    openctiInjectorConfigurationMigration.migrate(tenantId);
+  protected void runMigrations() throws Exception {
+    openctiInjectorConfigurationMigration.migrate();
   }
 
   private String getLogoFilename() {

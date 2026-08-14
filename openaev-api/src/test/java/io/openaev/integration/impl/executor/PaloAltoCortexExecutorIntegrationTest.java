@@ -12,7 +12,6 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceInMemory;
 import io.openaev.database.model.ConnectorInstancePersisted;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -115,7 +114,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   public void factoryIsInitialisedCorrectlyAndCreatesCatalogObject() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -130,7 +129,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
       throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -143,7 +142,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   public void whenInstanceIsSpawn_encryptionServiceIsNull() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
     AssertionsForClassTypes.assertThat(
@@ -156,7 +155,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
       "When spawning an integration with a null configuration builder, should throw ExecutorException")
   public void whenSpawnWithNullConfigBuilder_should_throwExecutorException() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     ConnectorInstancePersisted instance = createInstanceForCatalog(connectors.getFirst());
@@ -190,7 +189,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
       throws Exception {
     // Arrange
     IntegrationFactory integrationFactory = getFactory();
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     ConnectorInstancePersisted instance = createInstanceForCatalog(connectors.getFirst());
@@ -216,7 +215,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   public void whenStartedAndStoppingRequested_initialise_should_stopIntegration() throws Exception {
     // Arrange — start the integration first
     IntegrationFactory integrationFactory = getFactory();
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     ConnectorInstancePersisted instance = createInstanceForCatalog(connectors.getFirst());

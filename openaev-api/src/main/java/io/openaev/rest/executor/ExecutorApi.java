@@ -132,14 +132,8 @@ public class ExecutorApi extends RestBehavior {
       resourceType = ResourceType.ASSET)
   @Operation(summary = "Retrieve executor related ids")
   @Transactional
-  // connector_instances/connector_instance_configurations are now on v2 isolation (activated
-  // #6408). The lookup below still needs a single-tenant selector: it is a native query
-  // (bypasses the Hibernate @Filter either way) and this executor's tenant is resolved explicitly,
-  // see AbstractConnectorService#getConnectorRelationsId.
-  public ConnectorIds getExecutorRelatedIds(
-      @RequireTenantSelector TxCtx ctx, @PathVariable String executorId) {
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return executorService.getExecutorRelationsId(executorId, tenantId);
+  public ConnectorIds getExecutorRelatedIds(TxCtx ctx, @PathVariable String executorId) {
+    return executorService.getExecutorRelationsId(executorId);
   }
 
   private Executor applyExecutorUpdate(

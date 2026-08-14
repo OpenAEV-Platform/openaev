@@ -1,8 +1,6 @@
 package io.openaev.processor;
 
 import io.openaev.context.TenantContext;
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
@@ -19,7 +17,6 @@ import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Processes all {@link RuntimeMigration} and {@link DataPack} instances for each active tenant at
@@ -36,17 +33,12 @@ public class MigrationProcessor implements DependenciesManager {
   private final List<DataPack> packs;
   private final List<RuntimeMigration> migrations;
   private final TenantRepository tenantRepository;
-  private final TenantScopedTransaction tenantTx;
 
   public MigrationProcessor(
-      List<DataPack> packs,
-      List<RuntimeMigration> migrations,
-      TenantRepository tenantRepository,
-      TenantScopedTransaction tenantTx) {
+      List<DataPack> packs, List<RuntimeMigration> migrations, TenantRepository tenantRepository) {
     this.packs = packs != null ? packs : Collections.emptyList();
     this.migrations = migrations != null ? migrations : Collections.emptyList();
     this.tenantRepository = tenantRepository;
-    this.tenantTx = tenantTx;
   }
 
   @PostConstruct
@@ -55,8 +47,6 @@ public class MigrationProcessor implements DependenciesManager {
     init(tenantRepository.findAllByDeletedAtIsNull());
   }
 
-  // TODO: API v2 https://github.com/OpenAEV-Platform/openaev/issues/7012 - here we address only
-  // part of the proposed refactor
   private void init(List<Tenant> tenants) {
     // Merge migrations and datapacks into a single chronologically-ordered list.
     // Both follow the V{YYYYMMDD}_Description naming convention, so sorting by
@@ -67,33 +57,12 @@ public class MigrationProcessor implements DependenciesManager {
             .toList();
     for (Tenant tenant : tenants) {
       TenantContext.setCurrentTenant(tenant.getId());
-      TxCtx ctx = TxCtx.forTenant(tenant.getId());
-      long processed;
-      if (TransactionSynchronizationManager.isActualTransactionActive()) {
-        // Onboarding: TenantService.create()'s transaction is already active and holds the new,
-        // uncommitted Tenant row. Join it (setScopeOnCurrentTransaction) and run every
-        // processable inline, never executeNew() — see
-        // TenantScopedTransaction#setScopeOnCurrentTransaction's javadoc for why REQUIRES_NEW
-        // breaks FK-constrained writes here.
-        tenantTx.setScopeOnCurrentTransaction(ctx);
-        processed =
-            allProcessables.stream()
-                .filter(
-                    processable ->
-                        MigrationProcessingResult.PROCESSED.equals(processable.process(tenant)))
-                .count();
-      } else {
-        // Startup: no ambient transaction. Each processable gets its own independent transaction
-        // via execute(): a later failure does not undo earlier commits, and already-processed
-        // pairs are skipped on the next restart via DataPackService idempotency tracking.
-        processed =
-            allProcessables.stream()
-                .filter(
-                    processable ->
-                        MigrationProcessingResult.PROCESSED.equals(
-                            tenantTx.execute(ctx, () -> processable.process(tenant))))
-                .count();
-      }
+      long processed =
+          allProcessables.stream()
+              .filter(
+                  processable ->
+                      MigrationProcessingResult.PROCESSED.equals(processable.process(tenant)))
+              .count();
       log.info("Tenant {}: processed {} migrations/datapacks.", tenant.getId(), processed);
     }
   }

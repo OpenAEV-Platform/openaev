@@ -103,7 +103,7 @@ public class CalderaExecutorIntegrationTest {
   public void factoryIsInitialisedCorrectlyAndCreatesCatalogObject() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -117,7 +117,7 @@ public class CalderaExecutorIntegrationTest {
   public void whenFactorySyncWithStoppedInstance_integrationIsOfStatusStopped() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
@@ -144,7 +144,7 @@ public class CalderaExecutorIntegrationTest {
       throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
@@ -174,7 +174,7 @@ public class CalderaExecutorIntegrationTest {
       throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
@@ -203,7 +203,7 @@ public class CalderaExecutorIntegrationTest {
   public void whenInstanceIsSpawn_encryptionServiceIsNull() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
     assertThat(FieldUtils.computeAllFieldValues(integration).get("encryptionService")).isNull();
@@ -214,7 +214,7 @@ public class CalderaExecutorIntegrationTest {
       "When spawning an integration with a null configuration builder, should throw ExecutorException")
   public void whenSpawnWithNullConfigBuilder_should_throwExecutorException() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
@@ -248,7 +248,7 @@ public class CalderaExecutorIntegrationTest {
       throws Exception {
     // Arrange
     IntegrationFactory integrationFactory = getFactory();
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     ConnectorInstancePersisted instance =
@@ -276,7 +276,7 @@ public class CalderaExecutorIntegrationTest {
       throws Exception {
     // Arrange — attempt to start but it fails
     IntegrationFactory integrationFactory = getFactory();
-    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    integrationFactory.initialise();
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     ConnectorInstancePersisted instance =

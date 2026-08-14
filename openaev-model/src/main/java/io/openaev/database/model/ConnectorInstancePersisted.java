@@ -13,25 +13,17 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
-/**
- * Fully on tenant isolation v2: reads are scoped by {@code TenantStatementInspector} through the
- * request's {@code TxCtx} (or, for platform-level XTM Composer callbacks, an explicit {@code
- * TxCtx.allTenants()} set on the joined transaction); writes are explicitly attributed via {@code
- * ConfigurationMigration#migrate}'s {@code setTenant(...)} or the create-endpoint's write-scope
- * resolver. The v1 {@code @Filter} must NOT come back: it would AND its own thread-local predicate
- * with v2's scope and silently return nothing. {@link TenantBaseListener} stays as an inert
- * fallback (it only sets {@code tenant} when still {@code null}); every write path here sets it
- * explicitly first, so the listener never fires in practice.
- */
 @Getter
 @Setter
 @Entity(name = "ConnectorInstance")
 @Table(name = "connector_instances")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class ConnectorInstancePersisted extends ConnectorInstance implements TenantBase {
   @Id
   @Column(name = "connector_instance_id")

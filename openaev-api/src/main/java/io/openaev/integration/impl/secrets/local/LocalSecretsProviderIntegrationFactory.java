@@ -55,7 +55,7 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
   }
 
   @Override
-  protected void runMigrations(String tenantId) throws Exception {
+  protected void runMigrations() throws Exception {
     // noop
   }
 

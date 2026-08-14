@@ -5,8 +5,6 @@ import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.TenantContext;
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.injectors.channel.ChannelContract;
@@ -47,7 +45,6 @@ public class ScenarioToExerciseService {
   private final TenantSettingsService tenantSettingsService;
   private final CustomDashboardService customDashboardService;
   private final ActionMetricCollector actionMetricCollector;
-  private final TenantScopedTransaction tenantTx;
   @Resource protected ObjectMapper mapper;
 
   @Transactional(rollbackFor = Exception.class)
@@ -222,13 +219,6 @@ public class ScenarioToExerciseService {
         });
 
     // Injects
-    // Injector is a lazy @ManyToOne on the v2-active `injectors` table: without a tenant scope on
-    // this transaction the inspector fail-closes and getInjector() returns null, so the copied
-    // exercise inject would lose its injector. Stamp the scenario's own tenant before the copy so
-    // the lazy load resolves. The scope is derived from the scenario aggregate, not the ambient
-    // TenantContext: toExercise runs from a cron, HTTP and autonomous callers, and the scenario is
-    // the authoritative owner of the injects being copied.
-    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(scenario.getTenant().getId()));
     List<Inject> scenarioInjects = scenario.getInjects();
     Map<String, Inject> mapExerciseInjectsByScenarioInject = new HashMap<>();
     scenarioInjects.forEach(

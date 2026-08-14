@@ -200,27 +200,6 @@ class TenantStatementInspectorTest {
     assertTrue(out.contains("jsonb_array_elements"), out);
   }
 
-  @Test
-  @DisplayName(
-      "the connector instance configuration lookup is accepted with connector_instances active")
-  void connectorInstanceConfigurationLookupPassesWithConnectorInstancesActive() throws Exception {
-    // connector_instances activation (this table's go-live) pulls
-    // findInstanceAndCatalogIdsByKeyValue into rewriting: it JOINs connector_instances, a plain
-    // two-table JOIN with a jsonb_exists predicate - an already-covered shape, but pin the real
-    // production SQL so a future refusal (e.g. #7007-style) surfaces in CI, not production. This
-    // query backs the executors/injectors/collectors "related-ids" endpoints.
-    String sql =
-        io.openaev.database.repository.ConnectorInstanceConfigurationRepository.class
-            .getMethod("findInstanceAndCatalogIdsByKeyValue", String.class, String.class)
-            .getAnnotation(org.springframework.data.jpa.repository.Query.class)
-            .value();
-    TenantStatementInspector connectorInstancesActive =
-        new TenantStatementInspector(new TenantTables(Set.of("connector_instances"), Set.of()));
-    String out = connectorInstancesActive.inspect(sql).replaceAll("\\s+", " ").trim();
-    assertTrue(out.contains("can_access_tenant(instance.tenant_id)"), out);
-    assertTrue(out.contains("jsonb_exists"), out);
-  }
-
   // --- Single table --------------------------------------------------------
 
   @Test

@@ -56,7 +56,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,7 +63,6 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.tenant.active-tables=connector_instances")
 @DisplayName("Connector Instance API Integration Tests")
 public class ConnectorInstanceApiTest extends IntegrationTest {
 
@@ -1127,11 +1125,6 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         .containsExactlyInAnyOrderElementsOf(List.of("log 3"));
   }
 
-  // The test classpath's application.properties ships an empty
-  // openaev.tenant.active-tables, so IntegrationTest-based API tests never exercise the v2
-  // inspector's rewrite by default. Activate connector_instances explicitly here so the
-  // Tenant Isolation nested tests' cross-tenant assertions actually go through
-  // TenantStatementInspector instead of silently passing on an unscoped read.
   @Nested
   @DisplayName("Tenant Isolation")
   @WithMockUser
