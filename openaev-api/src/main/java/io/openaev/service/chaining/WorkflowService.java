@@ -49,7 +49,6 @@ public class WorkflowService {
   private final ConditionService conditionService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
-  private final SimulationRateLimitService simulationRateLimitService;
   private final ScopeSnapshotService scopeSnapshotService;
   private final ScopeService scopeService;
 
@@ -1251,10 +1250,6 @@ public class WorkflowService {
     Workflow newWorkflowTemplateScenario =
         copyWorkflowTemplateToSimulation(oldWorkflowTemplateSimulation, simulationTo);
     return workflowRepository.save(newWorkflowTemplateScenario);
-  }
-
-  public void isPreviewFeatureChainingEnable() throws ChainingException {
-    // Chaining is always available.
   }
 
   /**

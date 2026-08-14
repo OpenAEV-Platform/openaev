@@ -205,8 +205,6 @@ public class ExerciseService {
   public Exercise createSimulationChaining(@NotNull final Exercise simulation)
       throws ChainingException {
 
-    workflowService.isPreviewFeatureChainingEnable();
-
     Exercise savedSimulation = createExercise(simulation);
     workflowService.creationWorkflow(savedSimulation);
 
