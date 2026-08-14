@@ -433,6 +433,7 @@
   "AttackPatterns": "攻撃パターン",
   "Attribute mapping configuration": "属性マッピング設定",
   "Audio": "音声",
+  "Audit logging is inactive: an Enterprise Edition license is required to enable this feature.": "監査ログ機能は無効になっています。この機能を有効にするには、Enterprise Edition のライセンスが必要です。",
   "Auth method": "認証方法",
   "Auth Method": "認証方法",
   "Authenticate with a personal XTM One API key passed as a bearer token. Your endpoint, connection status and ready-to-copy client configuration are available in your XTM One profile.": "個人のXTM One APIキーをベアラートークンとして認証します。エンドポイント、接続状態、コピーしてすぐ使えるクライアント設定はXTM Oneのプロフィールで確認できます。",
