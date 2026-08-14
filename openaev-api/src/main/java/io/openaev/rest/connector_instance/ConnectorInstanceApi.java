@@ -53,9 +53,13 @@ public class ConnectorInstanceApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully created connector instance")
       })
+  // The migration flow (input carries an existing collector/injector/executor ID) validates that
+  // ID against a composite-PK table (collectors, injectors, executors). Without a TxCtx argument
+  // here, TenantScopeTransactionAspect never sets app.current_tenants for this transaction, so
+  // can_access_tenant fails closed and that lookup reports the id "not visible in the current
+  // tenant" even when it legitimately belongs to the caller's tenant.
   public ConnectorInstancePersisted createConnectorInstance(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody CreateConnectorInstanceInput input) {
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     // --- /!\ --- SECURITY START : Encrypt sensitive values before any LOGGING or processing
     ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap =
         this.orchestrationService.getCatalogConnectorWithConfigurationsMap(
@@ -65,9 +69,15 @@ public class ConnectorInstanceApi extends RestBehavior {
             catalogConnectorWithConfigMap, input);
     // --- /!\ --- SECURITY END
 
+    // Derive the write tenant from the same resolved scope used for the migration ID lookup
+    // above, instead of TenantContext (path-only, defaults to DEFAULT_TENANT_UUID off the tenant
+    // path): keeps the v2 inspector scope and the tenant the row is actually created under in
+    // sync, and turns an ambiguous/missing scope into a 400 instead of misattributed data.
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
+
     // only instance managed by XTM Composer can be created through this API
     return orchestrationService.createConnectorInstance(
-        catalogConnectorWithConfigMap, safeInput, tenantId);
+        catalogConnectorWithConfigMap, safeInput, writeTenant);
   }
 
   @GetMapping(
@@ -85,7 +95,7 @@ public class ConnectorInstanceApi extends RestBehavior {
             description = "Successfully retrieved connector instance")
       })
   public ConnectorInstanceOutput getConnectorInstance(
-      @RequireTenantSelector TxCtx ctx, @PathVariable @NotBlank final String connectorInstanceId) {
+      @PathVariable @NotBlank final String connectorInstanceId) {
     return connectorInstanceService.connectorInstanceOutputById(connectorInstanceId);
   }
 
@@ -106,7 +116,7 @@ public class ConnectorInstanceApi extends RestBehavior {
                   @ArraySchema(
                       schema = @Schema(implementation = ConnectorInstanceConfiguration.class))))
   public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfiguration(
-      @RequireTenantSelector TxCtx ctx, @PathVariable @NotBlank final String connectorInstanceId) {
+      @PathVariable @NotBlank final String connectorInstanceId) {
     return connectorInstanceService.getConnectorInstanceConfigurationsNoSecrets(
         connectorInstanceId);
   }
@@ -128,7 +138,6 @@ public class ConnectorInstanceApi extends RestBehavior {
                   @ArraySchema(
                       schema = @Schema(implementation = ConnectorInstanceConfiguration.class))))
   public List<ConnectorInstanceConfiguration> updateConnectorInstanceConfigurations(
-      @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody CreateConnectorInstanceInput input) {
     // --- /!\ --- SECURITY START : Encrypt sensitive values before any LOGGING or processing
@@ -158,7 +167,6 @@ public class ConnectorInstanceApi extends RestBehavior {
               mediaType = "application/json",
               schema = @Schema(implementation = PageConnectorInstanceLog.class)))
   public Page<ConnectorInstanceLog> searchConnectorInstanceLogs(
-      @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank final String connectorInstanceId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return connectorInstanceLogService.searchLogsByConnectorInstanceId(
@@ -180,7 +188,6 @@ public class ConnectorInstanceApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Successfully updated requested status")
       })
   public ConnectorInstancePersisted updateRequestedStatus(
-      @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody UpdateConnectorInstanceRequestedStatus input) {
     return orchestrationService.updateRequestedStatus(

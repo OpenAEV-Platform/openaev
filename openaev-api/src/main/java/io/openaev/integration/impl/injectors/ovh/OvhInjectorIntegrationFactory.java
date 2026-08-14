@@ -71,8 +71,8 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations(String tenantId) throws Exception {
-    ovhInjectorConfigurationMigration.migrate(tenantId);
+  protected void runMigrations() throws Exception {
+    ovhInjectorConfigurationMigration.migrate();
   }
 
   private String getLogoFilename() {

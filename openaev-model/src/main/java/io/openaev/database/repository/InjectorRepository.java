@@ -16,18 +16,7 @@ import org.springframework.stereotype.Repository;
 public interface InjectorRepository
     extends JpaRepository<Injector, ConnectorCompositeId>, JpaSpecificationExecutor<Injector> {
 
-  @Query("SELECT i FROM Injector i WHERE i.id = :id")
-  Optional<Injector> findByInjectorId(@Param("id") @NotNull String id);
-
-  @Deprecated(forRemoval = false)
-  @Query("SELECT i FROM Injector i WHERE i.id = :id AND i.tenantId = :tenantId")
-  Optional<Injector> findByIdAndTenantId(
-      @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
-
-  @Deprecated(forRemoval = false)
-  @Query("SELECT i FROM Injector i WHERE i.type = :type AND i.tenantId = :tenantId")
-  Optional<Injector> findByTypeAndTenantId(
-      @Param("type") @NotNull String type, @Param("tenantId") @NotNull String tenantId);
+  Optional<Injector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   boolean existsByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
@@ -49,26 +38,31 @@ public interface InjectorRepository
 
   @Query(
       "SELECT l.injector FROM InjectorInjectorContract l "
-          + "WHERE l.injectorContractId = :contractId "
+          + "WHERE l.injectorContractId = :contractId AND l.tenantId = :tenantId "
           + "ORDER BY l.injectorId")
-  List<Injector> findInjectorsLinkedToContract(@Param("contractId") String contractId);
+  List<Injector> findInjectorsLinkedToContract(
+      @Param("contractId") String contractId, @Param("tenantId") String tenantId);
 
+  /**
+   * Resolves an injector linked to the given contract within the tenant. Kept under its original
+   * name for callers; the association is now expressed over the {@link
+   * io.openaev.database.model.InjectorInjectorContract} join entity, since {@code
+   * Injector.contracts} is derived from the join table rather than a mapped collection.
+   */
   default Optional<Injector> findFirstByContractsCompositeIdIdAndTenantId(
       String contractId, String tenantId) {
-    return findInjectorsLinkedToContract(contractId).stream()
+    return findInjectorsLinkedToContract(contractId, tenantId).stream()
         .filter(injector -> injector != null)
-        .filter(injector -> tenantId.equals(injector.getTenantId()))
         .findFirst();
   }
 
-  List<Injector> findAllByPayloads(@NotNull Boolean payloads);
-
-  @Query("SELECT i FROM Injector i WHERE i.id IN :ids")
-  List<Injector> findAllByInjectorIdIn(@Param("ids") List<String> ids);
+  List<Injector> findAllByPayloadsAndTenantId(@NotNull Boolean payloads, @NotNull String tenantId);
 
   @Modifying
-  @Query("DELETE FROM Injector i WHERE i.id = :id")
-  void deleteByInjectorId(@Param("id") String id);
+  @Query(
+      nativeQuery = true,
+      value = "DELETE FROM injectors WHERE injector_id = :id AND tenant_id = :tenantId")
+  void deleteByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
 
   /**
    * Idempotently links an injector contract to this injector in the join table. ON CONFLICT DO

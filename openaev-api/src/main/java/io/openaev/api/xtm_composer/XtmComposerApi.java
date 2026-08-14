@@ -36,11 +36,6 @@ public class XtmComposerApi extends RestBehavior {
   private final XtmComposerService xtmComposerService;
   private final ConnectorOrchestrationService orchestrationService;
 
-  // Tenant URI needed for RBAC only, NOT because the underlying data is tenant-scoped.
-  // Without the tenant path here, a user whose only CATALOG-capable group lives on a
-  // non-default tenant would resolve zero capabilities and get a 403, even though registration
-  // itself is not scoped to any tenant (issue #6485).
-  // TODO v2: #7248
   @PostMapping(value = {XTMCOMPOSER_URI + "/register", TENANT_XTMCOMPOSER_URI + "/register"})
   @Operation(
       summary = "Register XtmComposer",
@@ -52,7 +47,6 @@ public class XtmComposerApi extends RestBehavior {
     return this.xtmComposerService.register(input);
   }
 
-  // TODO v2: #7248.
   @PutMapping(
       value = {
         XTMCOMPOSER_URI + "/{xtmComposerId}/refresh-connectivity",
@@ -68,10 +62,6 @@ public class XtmComposerApi extends RestBehavior {
     return xtmComposerService.refreshConnectivity(xtmComposerId, Instant.now());
   }
 
-  // The ONLY XtmComposerApi endpoint actually called from the frontend
-  // (isXtmComposerIsReachable() in catalog-actions.ts, used by Integrations/CatalogLayout/
-  // ConnectorLayout to gate deploy/migrate/update buttons). It is NOT tenant-scoped data
-  // TODO v2: #7248.
   @GetMapping(value = {XTMCOMPOSER_URI + "/reachable", TENANT_XTMCOMPOSER_URI + "/reachable"})
   @Operation(
       summary = "Check if XtmComposer is reachable and registered in OpenAEV",
@@ -85,8 +75,6 @@ public class XtmComposerApi extends RestBehavior {
     return this.xtmComposerService.isXtmComposerReachable();
   }
 
-  // Deliberately NOT tenant-scoped, one composer instance manages connector instances across
-  // every tenant.
   @GetMapping(
       value = {
         XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances",

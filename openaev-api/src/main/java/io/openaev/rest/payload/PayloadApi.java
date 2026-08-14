@@ -71,11 +71,7 @@ public class PayloadApi extends RestBehavior {
   @PostMapping({PAYLOAD_URI, TENANT_PAYLOAD_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
-  public PayloadOutput createPayload(
-      // unused directly: signals the transaction aspect so the read of the v2-scoped
-      // `injectors` table inside PayloadService#synchroniseInjectorContractBasedOnPayload
-      // (via InjectorRepository#findAllByPayloads) resolves the caller's tenant scope.
-      TxCtx ctx, @Valid @RequestBody PayloadCreateInput input) {
+  public PayloadOutput createPayload(@Valid @RequestBody PayloadCreateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(input);
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
@@ -88,8 +84,6 @@ public class PayloadApi extends RestBehavior {
       resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
   public PayloadOutput updatePayload(
-      // unused directly: same reason as createPayload.
-      TxCtx ctx,
       @NotBlank @PathVariable final String payloadId,
       @Valid @RequestBody PayloadUpdateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
@@ -106,9 +100,7 @@ public class PayloadApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
-  public PayloadOutput duplicatePayload(
-      // unused directly: same reason as createPayload.
-      TxCtx ctx, @NotBlank @PathVariable final String payloadId) {
+  public PayloadOutput duplicatePayload(@NotBlank @PathVariable final String payloadId) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadService.duplicate(payloadId);
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);

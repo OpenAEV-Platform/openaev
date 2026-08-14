@@ -6,7 +6,6 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
-import io.openaev.database.model.Tenant;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -64,7 +63,7 @@ public class ConfigurationMigrationTest {
   public void whenCatalogConnectorDoesNotExist_migrationFails() throws Exception {
     ConfigurationMigration migration = new TestConfigurationMigration(true);
 
-    assertThatThrownBy(() -> migration.migrate(Tenant.DEFAULT_TENANT_UUID))
+    assertThatThrownBy(migration::migrate)
         .hasMessageContaining(
             "Configuration found for %s but no related connector in catalog"
                 .formatted(TestConfigurationMigration.FACTORY_CLASSNAME));
@@ -85,7 +84,7 @@ public class ConfigurationMigrationTest {
               .get();
       ConfigurationMigration migration = new TestConfigurationMigration(true);
 
-      migration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      migration.migrate();
 
       List<ConnectorInstance> instances =
           connectorInstanceService.findAllByCatalogConnector(connector).stream()
@@ -100,9 +99,6 @@ public class ConfigurationMigrationTest {
           .isEqualTo(TestConfigurationMigration.FACTORY_CLASSNAME);
       assertThat(singleInstance.getSource())
           .isEqualTo(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
-      // Explicit write attribution (Phase 5b): stamped with the migrate() tenant argument, not
-      // relying on the v1 TenantBaseListener/TenantContext fallback.
-      assertThat(singleInstance.getTenant().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
       assertThat(connector.isPropertiesMigrated()).isTrue();
     }
 
@@ -118,7 +114,7 @@ public class ConfigurationMigrationTest {
               .get();
       ConfigurationMigration migration = new TestConfigurationMigration(false);
 
-      migration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      migration.migrate();
 
       assertThat(connectorInstanceService.findAllByCatalogConnector(connector)).isEmpty();
       assertThat(connector.isPropertiesMigrated()).isTrue();
@@ -139,7 +135,7 @@ public class ConfigurationMigrationTest {
               .get();
       ConfigurationMigration migration = new TestConfigurationMigration(true);
 
-      migration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      migration.migrate();
 
       List<ConnectorInstance> instances =
           connectorInstanceService.findAllByCatalogConnector(connector).stream()
@@ -170,7 +166,7 @@ public class ConfigurationMigrationTest {
               .get();
       ConfigurationMigration migration = new TestConfigurationMigration(true);
 
-      migration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      migration.migrate();
       List<ConnectorInstancePersisted> instances =
           connectorInstanceService.findAllByCatalogConnector(connector);
       assertThat(instances.size()).isEqualTo(1);
@@ -182,7 +178,7 @@ public class ConfigurationMigrationTest {
       entityManager.clear();
 
       // Next startup runs the migration again: it must not re-seed.
-      migration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      migration.migrate();
 
       CatalogConnector reloadedConnector =
           catalogConnectorService

@@ -49,7 +49,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  protected void runMigrations(String tenantId) throws Exception {
+  protected void runMigrations() throws Exception {
     // noop
   }
 

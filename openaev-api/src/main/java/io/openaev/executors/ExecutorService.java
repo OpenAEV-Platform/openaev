@@ -6,6 +6,7 @@ import static io.openaev.service.FileService.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Executor;
+import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
@@ -21,6 +22,8 @@ import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
@@ -33,8 +36,10 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   public static final String EXT_PNG = ".png";
   @Resource protected ObjectMapper mapper;
+  @PersistenceContext private EntityManager entityManager;
 
   private final ExecutorRepository executorRepository;
+  private final AgentRepository agentRepository;
   private final ExecutionTraceRepository executionTraceRepository;
 
   private final FileService fileService;
@@ -46,6 +51,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   @Autowired
   public ExecutorService(
       ExecutorRepository executorRepository,
+      AgentRepository agentRepository,
       ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
       ExecutionTraceRepository executionTraceRepository,
       FileService fileService,
@@ -62,6 +68,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
         catalogConnectorMapper);
     this.fileService = fileService;
     this.executorRepository = executorRepository;
+    this.agentRepository = agentRepository;
     this.executionTraceRepository = executionTraceRepository;
     this.executorMapper = executorMapper;
     this.endpointService = endpointService;
@@ -124,12 +131,10 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    * Retrieves IDs of resources associated with an executor.
    *
    * @param executorId executor identifier.
-   * @param tenantId the requesting tenant, resolved by the caller from the request's single-tenant
-   *     scope
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
-  public ConnectorIds getExecutorRelationsId(String executorId, String tenantId) {
-    return getConnectorRelationsId(executorId, tenantId);
+  public ConnectorIds getExecutorRelationsId(String executorId) {
+    return getConnectorRelationsId(executorId);
   }
 
   /**

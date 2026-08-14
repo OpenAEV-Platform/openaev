@@ -250,8 +250,7 @@ public class V20260420_Migrate_rabbitmq_queues extends RuntimeMigration {
    * Builds a map that resolves both injector IDs and injector types to the canonical injector ID.
    *
    * <p>This allows matching legacy queues whether they used the injector ID or the injector type as
-   * suffix. ID mappings take priority (added first). Runs inside the tenant-scoped transaction
-   * opened by MigrationProcessor — no scope of its own needed here.
+   * suffix. ID mappings take priority (added first).
    */
   private Map<String, String> buildInjectorIdAndTypeMap() {
     Map<String, String> map = new HashMap<>();

@@ -72,13 +72,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public InjectResultOverviewOutput findAtomicTesting(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read. InjectResultOverviewOutput serializes Inject#getType(), which
-      // resolves the inject's injector through the contract's (eager) injector link on the
-      // v2-scoped injectors table. Without the scope the read fails closed and inject_type comes
-      // back null, which changes how the frontend renders the atomic-testing result panel.
-      TxCtx ctx, @PathVariable String injectId) {
+  public InjectResultOverviewOutput findAtomicTesting(@PathVariable String injectId) {
     return atomicTestingService.findById(injectId);
   }
 
@@ -89,10 +83,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public StatusPayloadOutput findAtomicTestingPayload(
-      // Signals the transaction aspect to set the tenant scope: resolving the payload output reads
-      // the inject's injector contract / injector on the v2-scoped injectors table.
-      TxCtx ctx, @PathVariable String injectId) {
+  public StatusPayloadOutput findAtomicTestingPayload(@PathVariable String injectId) {
     return atomicTestingService.findPayloadOutputByInjectId(injectId);
   }
 
@@ -100,10 +91,7 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput createAtomicTesting(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this write (createOrUpdate resolves the Injector via
-      // InjectUtils#resolveInjector, which reads the v2-scoped injectors table).
-      TxCtx ctx, @Valid @RequestBody AtomicTestingInput input) {
+      @Valid @RequestBody AtomicTestingInput input) {
     return this.atomicTestingService.createOrUpdate(input, null);
   }
 
@@ -114,10 +102,6 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTesting(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this write (createOrUpdate resolves the Injector via
-      // InjectUtils#resolveInjector, which reads the v2-scoped injectors table).
-      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingInput input) {
     return atomicTestingService.createOrUpdate(input, injectId);
@@ -154,10 +138,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.ATOMIC_TESTING)
   public InjectResultOverviewOutput duplicateAtomicTesting(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read (duplicate reads Inject#getInjector(), a lazy association on
-      // the v2-scoped injectors table).
-      TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
+      @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.duplicate(atomicTestingId);
   }
 
@@ -235,9 +216,6 @@ public class AtomicTestingApi extends RestBehavior {
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (the Enterprise executor gate reads each targeted agent's executor).
   public InjectResultOverviewOutput relaunchAtomicTesting(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read (relaunch duplicates the inject, reading Inject#getInjector(),
-      // a lazy association on the v2-scoped injectors table).
       TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.relaunch(atomicTestingId);
   }
@@ -372,11 +350,7 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
   public void atomicTestingImport(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read/write (the import reads InjectorContract#getFirstInjector()).
-      // The handler does not use it directly.
-      TxCtx ctx, @RequestPart("file") MultipartFile file, HttpServletResponse response)
-      throws Exception {
+      @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }

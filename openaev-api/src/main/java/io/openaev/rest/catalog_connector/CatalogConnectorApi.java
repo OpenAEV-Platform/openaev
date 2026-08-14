@@ -3,7 +3,6 @@ package io.openaev.rest.catalog_connector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ResourceType;
@@ -39,10 +38,7 @@ public class CatalogConnectorApi extends RestBehavior {
   @GetMapping({CATALOG_CONNECTOR_URI, TENANT_CATALOG_CONNECTOR_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
-  // TxCtx is resolved from the request and applied by the transaction aspect; it scopes the
-  // instance_deployed_count computation (which reads connector_instances) to the caller's
-  // tenants. The handler does not use it directly.
-  public List<CatalogConnectorOutput> getCatalogConnectors(TxCtx ctx) {
+  public List<CatalogConnectorOutput> getCatalogConnectors() {
     return this.catalogConnectorService.getCatalogConnectors();
   }
 
@@ -55,10 +51,7 @@ public class CatalogConnectorApi extends RestBehavior {
       resourceId = "#catalogConnectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)
-  // TxCtx is resolved from the request and applied by the transaction aspect; it scopes the
-  // instance_deployed_count computation (which reads connector_instances) to the caller's
-  // tenants. The handler does not use it directly.
-  public CatalogConnectorOutput getConnector(TxCtx ctx, @PathVariable String catalogConnectorId) {
+  public CatalogConnectorOutput getConnector(@PathVariable String catalogConnectorId) {
     return this.catalogConnectorService.catalogConnectorOutput(catalogConnectorId);
   }
 

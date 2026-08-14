@@ -3,6 +3,7 @@ package io.openaev.service.threat_arsenal;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.payload.PayloadImportService;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorRepository;
@@ -35,16 +36,15 @@ public class ThreatArsenalImportService {
   private final ObjectMapper objectMapper;
   private final InjectorRepository injectorRepository;
 
-  public ThreatArsenalAction importThreatArsenalAction(
-      @NotNull MultipartFile file, @NotNull String tenantId) throws Exception {
+  public ThreatArsenalAction importThreatArsenalAction(@NotNull MultipartFile file)
+      throws Exception {
     if (isInjectorContractExport(file)) {
-      return importFromInjectorContract(file, tenantId);
+      return importFromInjectorContract(file);
     }
     return importFromPayload(file);
   }
 
-  private ThreatArsenalAction importFromInjectorContract(MultipartFile file, String tenantId)
-      throws Exception {
+  private ThreatArsenalAction importFromInjectorContract(MultipartFile file) throws Exception {
     ZipJsonService.ImportOutput<InjectorContract> response =
         injectorContractZipJsonApi.handleImport(
             file,
@@ -52,7 +52,7 @@ public class ThreatArsenalImportService {
             null,
             contract -> {
               contract.setId(UUID.randomUUID().toString());
-              contract.setTenant(new Tenant(tenantId));
+              contract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
               if (contract.getLabels() != null) {
                 Map<String, String> updatedLabels = new HashMap<>(contract.getLabels());
                 updatedLabels.replaceAll((key, value) -> value + " (Import)");
@@ -67,7 +67,9 @@ public class ThreatArsenalImportService {
               // disabled). Re-link payload-based contracts to the payload-supporting
               // injectors, as synchroniseInjectorContractBasedOnPayload does on creation.
               if (contract.getPayload() != null) {
-                contract.addInjectors(injectorRepository.findAllByPayloads(true));
+                contract.addInjectors(
+                    injectorRepository.findAllByPayloadsAndTenantId(
+                        true, TenantContext.getCurrentTenant()));
               }
               InjectorContractMigrationUtils.migratePredefinedExpectations(contract);
               return contract;

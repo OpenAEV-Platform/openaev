@@ -72,7 +72,7 @@ public class PhishingInjectorIntegrationFactory extends BuiltinIntegrationFactor
   }
 
   @Override
-  protected void runMigrations(String tenantId) throws Exception {
+  protected void runMigrations() throws Exception {
     // noop
   }
 

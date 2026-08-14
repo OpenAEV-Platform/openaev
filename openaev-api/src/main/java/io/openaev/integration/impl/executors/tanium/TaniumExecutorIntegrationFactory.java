@@ -91,8 +91,8 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations(String tenantId) throws Exception {
-    taniumExecutorConfigurationMigration.migrate(tenantId);
+  protected void runMigrations() throws Exception {
+    taniumExecutorConfigurationMigration.migrate();
   }
 
   private String getLogoFilename() {

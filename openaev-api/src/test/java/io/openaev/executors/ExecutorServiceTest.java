@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Executor;
+import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
@@ -15,6 +16,7 @@ import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
+import jakarta.persistence.EntityManager;
 import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,11 +24,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ExecutorServiceTest {
 
   @Mock private ExecutorRepository executorRepository;
+  @Mock private AgentRepository agentRepository;
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private FileService fileService;
@@ -35,11 +39,15 @@ class ExecutorServiceTest {
   @Mock private ExecutorMapper executorMapper;
   @Mock private CatalogConnectorMapper catalogConnectorMapper;
   @Mock private EndpointService endpointService;
+  @Mock private EntityManager entityManager;
   @InjectMocks private ExecutorService executorService;
 
   @BeforeEach
   void setUp() {
     TenantContext.setCurrentTenant("tenant-001");
+    // entityManager is a @PersistenceContext field, not a constructor param: Mockito's
+    // constructor-based @InjectMocks strategy never touches it, so it must be wired manually.
+    ReflectionTestUtils.setField(executorService, "entityManager", entityManager);
   }
 
   @AfterEach

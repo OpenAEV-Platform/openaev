@@ -66,7 +66,7 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
   }
 
   @Override
-  protected void runMigrations(String tenantId) throws Exception {
+  protected void runMigrations() throws Exception {
     // noop
   }
 

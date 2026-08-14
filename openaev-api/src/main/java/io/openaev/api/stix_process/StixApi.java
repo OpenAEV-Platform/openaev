@@ -5,7 +5,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
@@ -63,7 +62,7 @@ public class StixApi extends RestBehavior {
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
-  public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent, TxCtx ctx)
+  public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent)
       throws ParsingException, ConnectorError, IOException {
     String tenantId = TenantContext.getCurrentTenant();
     try {

@@ -36,13 +36,10 @@ public interface ConnectorInstanceConfigurationRepository
       @Param("key") String key, @Param("value") String value);
 
   /**
-   * Tenant-scoped variant of {@link #findInstanceAndCatalogIdsByKeyValue}. {@code
-   * connector_instances} is now on v2 isolation (activated #6408), so the plain variant is
-   * automatically scoped to the caller's {@code TxCtx} by the inspector - but this variant still
-   * carries {@code tenantId} explicitly on purpose, not as a leftover v1 workaround: some callers
-   * (e.g. {@code CalderaSettingsService} iterating executors across a possibly wider ambient scope,
-   * then resolving each executor's OWN tenant) need one specific tenant's row regardless of what
-   * the ambient scope covers. Keep this variant for those callers; do not remove {@code tenantId}.
+   * Tenant-scoped variant of {@link #findInstanceAndCatalogIdsByKeyValue}. Native queries bypass
+   * the Hibernate tenant {@code @Filter}, so destructive callers (connector deletion resolving the
+   * owning instance) must carry the tenant predicate explicitly - otherwise a crafted or colliding
+   * configuration value could resolve an instance of another tenant.
    */
   @Query(
       value =
