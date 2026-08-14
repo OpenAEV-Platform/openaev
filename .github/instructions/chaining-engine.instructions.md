@@ -48,8 +48,7 @@ applyTo: |
 The **Chaining Engine** enables automated, conditional execution of steps within a simulation workflow.
 It orchestrates inject sequences based on events, conditions, outputs, and time constraints.
 
-Chaining is enabled by default. Bean loading still goes through `InjectChainingCondition` (Spring `@Conditional`),
-but it no longer depends on a preview feature flag.
+Bean loading still goes through `InjectChainingCondition` (Spring `@Conditional`).
 
 The execution flow is driven by a **Step Queue + Delay Queue + Job + Pool** architecture using RabbitMQ.
 
@@ -375,7 +374,6 @@ openaev-front/src/components/common/chaining/
 
 ### Architecture
 
-- Chaining is always on. Do not add preview-feature gating checks around chaining endpoints.
 - `InjectChainingCondition` is a Spring `@Conditional` — it controls chaining bean loading.
 - `ActionStep` is the strategy interface. Currently only `InjectExecutionStep` implements it. To add a new action type, implement `ActionStep` and register in `StepService.factoryAction()`.
 
