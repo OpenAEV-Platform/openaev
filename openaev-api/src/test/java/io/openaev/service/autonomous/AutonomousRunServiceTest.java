@@ -86,7 +86,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("evaluateAttackPath is a no-op in plan mode (never touches the run workflow)")
   void evaluateAttackPathIsNoOpInPlanMode() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = new AutonomousRun();
     run.setPlanMode(true);
     run.setStatus(AutonomousRunStatus.PLANNING);
@@ -102,7 +101,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("promoteToRealRun refuses a run that is not a dry-run")
   void promoteRejectsNonPlanRun() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = new AutonomousRun();
     run.setPlanMode(false);
     run.setStatus(AutonomousRunStatus.RUNNING);
@@ -115,7 +113,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("promoteToRealRun refuses a plan that is still being designed (PLANNING)")
   void promoteRejectsUnsettledPlan() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = new AutonomousRun();
     run.setPlanMode(true);
     run.setStatus(AutonomousRunStatus.PLANNING);
@@ -142,7 +139,6 @@ class AutonomousRunServiceTest {
       run.setSimulationId("sim-1");
       run.setStatus(status);
       run.setPlanMode(planMode);
-      when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
       // updateStatus reads through the row-locking lookup so its check-then-write serialises with
       // the operator lifecycle writers.
       when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
@@ -465,7 +461,6 @@ class AutonomousRunServiceTest {
 
   /** Stubs the collaborators the restart teardown + re-provisioning path touches. */
   private void stubRestartCollaborators() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     Scenario scenario = new Scenario();
     when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
     Exercise freshSimulation = new Exercise();
@@ -575,7 +570,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("DUPLICATE copies the scenario as manual and leaves the AI run fully intact")
   void convertToManualDuplicateLeavesRunUntouched() throws Exception {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = convertibleRun(AutonomousRunStatus.RUNNING);
     when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
     Scenario duplicate = new Scenario();
@@ -596,7 +590,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("DUPLICATE surfaces a copy failure as a 400 without leaking the internal cause")
   void convertToManualDuplicateWrapsChainingFailure() throws Exception {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = convertibleRun(AutonomousRunStatus.PLANNED);
     when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
     Scenario duplicate = new Scenario();
@@ -620,7 +613,6 @@ class AutonomousRunServiceTest {
   @DisplayName(
       "IN_PLACE on a live run halts the orchestrator, cancels the simulation, clears the AI run")
   void convertToManualInPlaceOnLiveRun() throws Exception {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = convertibleRun(AutonomousRunStatus.RUNNING);
     when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
     Scenario scenario = new Scenario();
@@ -648,7 +640,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("IN_PLACE on a settled run leaves the simulation state untouched")
   void convertToManualInPlaceOnSettledRunDoesNotTransitionSimulation() throws Exception {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = convertibleRun(AutonomousRunStatus.COMPLETED);
     when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
     Scenario scenario = new Scenario();
@@ -667,7 +658,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("convertToManual 409s when the run has no scenario to convert")
   void convertToManualRejectsRunWithoutScenario() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = new AutonomousRun();
     run.setId("run-1");
     run.setStatus(AutonomousRunStatus.RUNNING);
@@ -689,7 +679,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("launchFromScenario refuses a scenario that has no chaining (attack path) workflow")
   void launchFromScenarioRejectsNonChainedScenario() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     // A time-based (non-chained) scenario has no authored attack path to seed, so it cannot be
     // launched in autonomous mode - the entry point must 400 before creating any run.
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(false);
@@ -705,7 +694,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("planScenario refuses a scenario that is not chained (nothing to author onto)")
   void planScenarioRejectsNonChainedScenario() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(false);
 
     assertThatThrownBy(() -> service.planScenario("scenario-1", null))
@@ -721,7 +709,6 @@ class AutonomousRunServiceTest {
       "planScenario authors onto the scenario template: plan-mode run with NO simulation, and the"
           + " orchestrator is engaged in author-scenario mode (scenario id, null simulation)")
   void planScenarioAuthorsOntoScenarioWithoutSimulation() throws Exception {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
@@ -789,7 +776,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("planScenario refuses to rebuild while the scenario's previous run is still active")
   void planScenarioRefusesWhileActiveRun() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     // A prior plan run is still being designed (active): rebuilding would orphan it, so the entry
     // point must 409 before wiping anything or engaging the orchestrator.
@@ -811,7 +797,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("planScenario supersedes a settled prior run before rebuilding the plan")
   void planScenarioSupersedesSettledPriorRun() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
@@ -861,7 +846,6 @@ class AutonomousRunServiceTest {
       "planScenario refine keeps the authored logic (no wipe) and REUSES the prior AI-built plan"
           + " run so its decision timeline (history) is preserved and reopened")
   void given_settledAiPlanRun_should_reusePriorRunAndKeepLogicOnRefine() throws Exception {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
@@ -936,7 +920,6 @@ class AutonomousRunServiceTest {
       "planScenario refine with no prior run keeps the (manually authored) logic and starts a fresh"
           + " plan run without wiping the steps")
   void given_manualScenarioWithoutPriorRun_should_keepLogicOnRefine() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
@@ -978,7 +961,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("planScenario refine refuses while the scenario's previous run is still active")
   void given_activePriorRun_should_refuseRefine() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
@@ -1008,7 +990,6 @@ class AutonomousRunServiceTest {
           + " existing scope is preserved (a rebuild would seed it verbatim)")
   void given_refineWithoutSuppliedScope_should_preserveExistingScenarioScope() {
     // Arrange
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
@@ -1050,7 +1031,6 @@ class AutonomousRunServiceTest {
           + " perimeter (operator intent wins over preservation)")
   void given_refineWithExplicitScope_should_overwriteScenarioScope() {
     // Arrange
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
@@ -1101,7 +1081,6 @@ class AutonomousRunServiceTest {
       "supersedeSettledRunOnManualLaunch tears down a settled plan run (and its throwaway"
           + " simulation) so a normal launch reverts the scenario to its non-AI overview")
   void supersedeSettledRunOnManualLaunchTearsDownSettledPlanRun() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     // A settled dry-run left an AI plan outcome on the scenario. Launching a normal simulation
     // makes it stale, so the run row + its plan-mode substrate simulation are removed.
     AutonomousRun prior = new AutonomousRun();
@@ -1125,7 +1104,6 @@ class AutonomousRunServiceTest {
       "supersedeSettledRunOnManualLaunch unbinds a finished LIVE run but keeps its simulation as"
           + " history")
   void supersedeSettledRunOnManualLaunchKeepsFinishedLiveSimulation() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     // A completed LIVE run: the run row is removed so the scenario reverts to the normal overview,
     // but its real simulation stays as a plain chained simulation (relaunch never destroys
     // results).
@@ -1147,7 +1125,6 @@ class AutonomousRunServiceTest {
       "deleteForScenario tears down a finished LIVE run's coordination but KEEPS its simulation as"
           + " history (no legacy scenario<->simulation cascade delete)")
   void deleteForScenarioKeepsFinishedLiveSimulation() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     // Deleting a scenario must never destroy a real simulation: a completed LIVE run's simulation
     // is history and is left for the scenario delete to detach (scenarios_exercises
     // SET_REFERENCE_NULL), exactly like a manual chained simulation.
@@ -1173,7 +1150,6 @@ class AutonomousRunServiceTest {
       "deleteForScenario deletes only a plan-mode substrate simulation (a throwaway with no"
           + " results) with the run")
   void deleteForScenarioDeletesPlanSubstrate() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = new AutonomousRun();
     run.setId("run-1");
     run.setScenarioId("scenario-1");
@@ -1194,7 +1170,6 @@ class AutonomousRunServiceTest {
       names = {"CREATED", "PLANNING", "RUNNING", "PAUSED", "WAITING_INPUT"})
   @DisplayName("deleteForScenario refuses (409) while the run is still active and touches nothing")
   void deleteForScenarioRefusesActiveRun(AutonomousRunStatus activeStatus) {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun run = new AutonomousRun();
     run.setId("run-1");
     run.setScenarioId("scenario-1");
@@ -1216,7 +1191,6 @@ class AutonomousRunServiceTest {
       "supersedeSettledRunOnManualLaunch never tears down a still-active run (defensive no-op, no"
           + " 409)")
   void supersedeSettledRunOnManualLaunchLeavesActiveRunUntouched() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     AutonomousRun prior = new AutonomousRun();
     prior.setId("prior-run");
     prior.setPlanMode(false);
@@ -1233,7 +1207,6 @@ class AutonomousRunServiceTest {
   @Test
   @DisplayName("supersedeSettledRunOnManualLaunch is a no-op when the scenario carries no run")
   void supersedeSettledRunOnManualLaunchNoOpWhenNoRun() {
-    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
 
     service.supersedeSettledRunOnManualLaunch("scenario-1");

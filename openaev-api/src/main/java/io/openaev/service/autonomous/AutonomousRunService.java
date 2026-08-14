@@ -103,8 +103,7 @@ import org.springframework.web.server.ResponseStatusException;
  *
  * <p>The orchestrator streams its progress back through {@link #recordEvent} / {@link
  * #updateStatus} and reads operator steering through {@link #consumePendingDirectives}, so a run
- * can be followed and re-steered without ever stopping it. Every mutation is gated behind {@link
- * PreviewFeatureService#isAutonomousAttackPathEnabled()}.
+ * can be followed and re-steered without ever stopping it.
  */
 @Service
 @RequiredArgsConstructor
@@ -192,12 +191,6 @@ public class AutonomousRunService {
   // name),
   // so every operator-facing read/mutation gates in-service through this component.
   private final AutonomousRunAccessControl accessControl;
-
-  private void requireFeature() {
-    if (!previewFeatureService.isAutonomousAttackPathEnabled()) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-    }
-  }
 
   private AutonomousRun require(String runId) {
     return runRepository
@@ -301,7 +294,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun create(AutonomousRunCreateInput input) {
-    requireFeature();
     // A caller-provided scenario must be one the operator can launch; a bare (auto-provisioned) run
     // only needs the launch-assessment capability floor.
     if (input != null && hasText(input.getScenarioId())) {
@@ -319,7 +311,6 @@ public class AutonomousRunService {
    * active transaction.
    */
   private AutonomousRun doCreate(AutonomousRunCreateInput input) {
-    requireFeature();
     String objective = resolveObjective(input);
 
     Scenario scenario;
@@ -504,7 +495,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun launchFromScenario(String scenarioId, AutonomousRunCreateInput input) {
-    requireFeature();
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
@@ -565,7 +555,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun planScenario(String scenarioId, AutonomousRunCreateInput input) {
-    requireFeature();
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
@@ -809,7 +798,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun start(String runId) {
-    requireFeature();
     accessControl.assertCanManage(require(runId));
     return doStart(runId);
   }
@@ -822,7 +810,6 @@ public class AutonomousRunService {
    * that transaction commits.
    */
   private AutonomousRun doStart(String runId) {
-    requireFeature();
     AutonomousRun run = require(runId);
     if (run.getStatus() != AutonomousRunStatus.CREATED
         && run.getStatus() != AutonomousRunStatus.PAUSED) {
@@ -1016,7 +1003,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun pause(String runId) {
-    requireFeature();
     AutonomousRun run = requireForUpdate(runId);
     accessControl.assertCanManage(run);
     assertRunNotTerminal(run, "paused");
@@ -1034,7 +1020,6 @@ public class AutonomousRunService {
   /** Resumes a paused run and its chained simulation, re-engaging the XTM One orchestrator. */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun resume(String runId) {
-    requireFeature();
     AutonomousRun run = requireForUpdate(runId);
     accessControl.assertCanManage(run);
     assertRunNotTerminal(run, "resumed");
@@ -1071,7 +1056,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun cancel(String runId) {
-    requireFeature();
     AutonomousRun run = require(runId);
     accessControl.assertCanManage(run);
     if (run.getStatus() == AutonomousRunStatus.CANCELED) {
@@ -1297,7 +1281,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun restart(String runId) {
-    requireFeature();
     // Row-locked read: the reset purges the decision timeline (deleteByRun takes the per-run event
     // advisory lock) and rewrites the run row, so it must hold the run ROW lock FIRST - the same
     // row -> advisory acquisition order as the settle paths (conditional row-locking UPDATE, then
@@ -1384,7 +1367,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun promoteToRealRun(String runId) {
-    requireFeature();
     // Row-locked read, like restart(): the promotion purges the decision timeline (deleteByRun
     // takes the per-run event advisory lock) and rewrites the run row, so the run ROW lock comes
     // first (row -> advisory, the settle paths' order). The plan-settled gate below also becomes
@@ -1480,7 +1462,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public Scenario convertToManual(String runId, ConvertToManualMode mode) {
-    requireFeature();
     AutonomousRun run = require(runId);
     accessControl.assertCanManage(run);
     String scenarioId = run.getScenarioId();
@@ -1559,9 +1540,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteForScenario(String scenarioId) {
-    if (!previewFeatureService.isAutonomousAttackPathEnabled()) {
-      return;
-    }
     AutonomousRun run = runRepository.findByScenarioId(scenarioId).orElse(null);
     if (run == null) {
       return;
@@ -1596,9 +1574,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteForScenarioForce(String scenarioId) {
-    if (!previewFeatureService.isAutonomousAttackPathEnabled()) {
-      return;
-    }
     AutonomousRun run = runRepository.findByScenarioId(scenarioId).orElse(null);
     if (run == null) {
       return;
@@ -1720,7 +1695,7 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void supersedeSettledRunOnManualLaunch(String scenarioId) {
-    if (!previewFeatureService.isAutonomousAttackPathEnabled() || !hasText(scenarioId)) {
+    if (!hasText(scenarioId)) {
       return;
     }
     supersedePriorRun(scenarioId, "scenario relaunched as a normal simulation", false);
@@ -1734,7 +1709,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousEvent recordEvent(
       String runId, AutonomousEventType type, String title, String content, String data) {
-    requireFeature();
     AutonomousRun run = require(runId);
     // A proof of exploitation is only valid when it is backed by at least one finding: the
     // orchestrator must pass the substantiating finding(s) in the event's structured data as a
@@ -1813,7 +1787,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun updateStatus(
       String runId, AutonomousRunStatus status, String lastError, String title, String content) {
-    requireFeature();
     // Row-locked read: the terminal + transition validation below is a check-then-write on a row
     // with no optimistic version, so it must serialise with the operator lifecycle writers
     // (pause/resume take the same lock; cancel/reconcile/watchdog settle via row-locking
@@ -1897,7 +1870,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public List<AutonomousDirective> consumePendingDirectives(String runId) {
-    requireFeature();
     require(runId);
     List<AutonomousDirective> pending =
         directiveRepository.findByRunIdAndStatusOrderByCreatedAtAsc(
@@ -1928,7 +1900,6 @@ public class AutonomousRunService {
   /** Queues a real-time operator steering directive for the next decision cycle. */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousDirective addDirective(String runId, String content) {
-    requireFeature();
     AutonomousRun run = requireForUpdate(runId);
     accessControl.assertCanManage(run);
     assertRunNotTerminal(run, "steered");
@@ -2011,7 +1982,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public List<Workflow> applyLiveConfiguration(String runId, WorkflowConfigurationInput input) {
-    requireFeature();
     AutonomousRun run = require(runId);
     accessControl.assertCanManage(run);
     List<Workflow> updated =
@@ -2037,7 +2007,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun setRunScope(String runId, List<AutonomousScopeTarget> targets) {
-    requireFeature();
     AutonomousRun run = require(runId);
     assertRunAcceptsAuthoring(run);
     List<AutonomousScopeTarget> scope = targets != null ? new ArrayList<>(targets) : List.of();
@@ -2078,7 +2047,6 @@ public class AutonomousRunService {
    */
   @Transactional(readOnly = true)
   public AutonomousScopeView getRunScopeView(String runId) {
-    requireFeature();
     AutonomousRun run = require(runId);
     List<WorkflowScopeRule> rules = readScopeRules(run);
     Map<String, String> names = resolveScopeNames(rules);
@@ -2236,7 +2204,6 @@ public class AutonomousRunService {
       InjectInput injectInput,
       String parentStepTemplateId,
       AutonomousStepTrigger trigger) {
-    requireFeature();
     AutonomousRun run = require(runId);
     assertRunAcceptsAuthoring(run);
     List<ConditionCreateInput> triggerConditions = toTriggerConditions(trigger);
@@ -2487,7 +2454,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public String updateAttackPathStep(String runId, String stepTemplateId, InjectInput injectInput) {
-    requireFeature();
     AutonomousRun run = require(runId);
     assertRunAcceptsAuthoring(run);
     // Author-scenario mode: the step id IS a scenario step template id; update it in place on the
@@ -2617,7 +2583,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun evaluateAttackPath(String runId) {
-    requireFeature();
     AutonomousRun run = require(runId);
     // Belt-and-suspenders for dry-run: a plan run never starts a RUN workflow, so there is nothing
     // to ready here anyway, but guard explicitly so a stray evaluate call can never dispatch an
@@ -2650,7 +2615,6 @@ public class AutonomousRunService {
    */
   @Transactional(readOnly = true)
   public List<AutonomousAttackPathStepState> attackPathState(String runId) {
-    requireFeature();
     AutonomousRun run = require(runId);
     // Author-scenario mode: read the steps authored onto the scenario workflow (no simulation).
     if (!hasText(run.getSimulationId())) {
@@ -2838,7 +2802,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousPromotedAssetResult promoteFindingToAsset(
       String runId, String findingId, String actingAgentId) {
-    requireFeature();
     AutonomousRun run = require(runId);
     Finding finding =
         findingRepository
@@ -2911,7 +2874,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousTargetTeamResult ensureTargetTeam(
       String runId, List<String> playerIds, String name, String teamId, String actingAgentId) {
-    requireFeature();
     AutonomousRun run = require(runId);
     String simulationId = run.getSimulationId();
     if (!hasText(simulationId)) {
@@ -3177,7 +3139,6 @@ public class AutonomousRunService {
   // simulation died out-of-band settles itself instead of dangling active forever.
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun get(String runId) {
-    requireFeature();
     AutonomousRun run = require(runId);
     accessControl.assertCanRead(run);
     return reconcileWithSimulation(run);
@@ -3185,7 +3146,6 @@ public class AutonomousRunService {
 
   @Transactional(readOnly = true)
   public List<AutonomousRun> list() {
-    requireFeature();
     // Filter the tenant-wide list to runs the caller can READ: without this, every run's objective
     // and status leaked to any Enterprise-Edition user regardless of their simulation/scenario
     // access.
@@ -3200,7 +3160,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun getBySimulation(String simulationId) {
-    requireFeature();
     AutonomousRun run =
         runRepository
             .findBySimulationId(simulationId)
@@ -3221,7 +3180,6 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun getByScenario(String scenarioId) {
-    requireFeature();
     AutonomousRun run =
         runRepository
             .findByScenarioId(scenarioId)
@@ -3240,7 +3198,6 @@ public class AutonomousRunService {
    */
   @Transactional(readOnly = true)
   public AutonomousRunCreateInput getScenarioAutonomousConfig(String scenarioId) {
-    requireFeature();
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
@@ -3262,7 +3219,6 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRunCreateInput saveScenarioAutonomousConfig(
       String scenarioId, AutonomousRunCreateInput input) {
-    requireFeature();
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
@@ -3289,7 +3245,6 @@ public class AutonomousRunService {
 
   @Transactional(readOnly = true)
   public List<AutonomousEvent> timeline(String runId, long sinceSequence) {
-    requireFeature();
     accessControl.assertCanRead(require(runId));
     return sinceSequence > 0
         ? eventService.timelineSince(runId, sinceSequence)
@@ -3298,14 +3253,12 @@ public class AutonomousRunService {
 
   @Transactional(readOnly = true)
   public List<AutonomousDirective> directives(String runId) {
-    requireFeature();
     accessControl.assertCanRead(require(runId));
     return directiveRepository.findByRunIdOrderByCreatedAtAsc(runId);
   }
 
   @Transactional(readOnly = true)
   public List<AutonomousObjectiveTemplate> objectiveTemplates() {
-    requireFeature();
     return templateService.listForCurrentTenant();
   }
 
@@ -3316,21 +3269,18 @@ public class AutonomousRunService {
    */
   @Transactional(readOnly = true)
   public List<ChatbotAgentOutput> availableAdditionalAgents() {
-    requireFeature();
     return xtmOneClient.listAdditionalAttackAgents();
   }
 
   /** The tenant's default additional agents (ids) attached to every new autonomous run. */
   @Transactional(readOnly = true)
   public List<String> defaultAdditionalAgentIds() {
-    requireFeature();
     return readDefaultAdditionalAgentIds();
   }
 
   /** Persists the tenant's default additional agents (ids). */
   @Transactional(rollbackFor = Exception.class)
   public List<String> updateDefaultAdditionalAgentIds(List<String> agentIds) {
-    requireFeature();
     accessControl.assertAdmin();
     List<String> cleaned = new ArrayList<>();
     if (agentIds != null) {
@@ -3398,14 +3348,12 @@ public class AutonomousRunService {
   /** The tenant's default per-agent discovery modes (agent id -> mode name). */
   @Transactional(readOnly = true)
   public Map<String, String> defaultAdditionalAgentModes() {
-    requireFeature();
     return readDefaultAdditionalAgentModes();
   }
 
   /** Persists the tenant's default per-agent discovery modes (canonicalized to valid modes). */
   @Transactional(rollbackFor = Exception.class)
   public Map<String, String> updateDefaultAdditionalAgentModes(Map<String, String> agentModes) {
-    requireFeature();
     accessControl.assertAdmin();
     Map<String, String> cleaned = normalizeAgentModes(agentModes, null);
     String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key();

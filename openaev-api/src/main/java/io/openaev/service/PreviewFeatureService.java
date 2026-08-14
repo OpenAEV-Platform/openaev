@@ -21,8 +21,4 @@ public class PreviewFeatureService {
             .orElse(List.of());
     return enabledFeatures.contains(FEATURE_FLAG_ALL) || enabledFeatures.contains(feature);
   }
-
-  public boolean isAutonomousAttackPathEnabled() {
-    return true;
-  }
 }
