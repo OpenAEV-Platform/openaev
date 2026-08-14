@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.enabled-dev-features=")
 class AttackPathCausalSeedApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
