@@ -55,10 +55,12 @@ arguments it runs with. Action Selection is the step where you:
 ## Local and Global Variables
 
 Beyond the [scope Variables](scope-definition.md#variables) you define upfront, any Action argument can be linked to
-data produced by other Actions' outputs during the run, instead of a static value. Local and global scope Variables
-are populated from both sources — the scope Variables you defined and the outputs Actions produce as they execute.
-When an argument has both a defined form value and linked sources, the defined value is always included with the
-linked values in the generated execution combinations.
+one or more **output types** (for example `Port`, `Username`, `CVE`) instead of a static value — not to another
+Action directly. Linking an argument to a type means: "use whichever value(s) of this type are currently available
+in the run's state," regardless of which Action(s) produced them. Local and global scope Variables are populated
+from both sources — the scope Variables you defined and the outputs Actions produce as they execute. When an
+argument has both a defined form value and linked type(s), the defined value is always included with the linked
+values in the generated execution combinations.
 
 When linking an argument, toggle **Limit to Local Scope** to choose where that data is read from:
 
