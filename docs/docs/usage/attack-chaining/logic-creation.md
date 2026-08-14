@@ -9,7 +9,7 @@ The Logic graph is made of two building blocks, laid out on a visual canvas:
 
 - **Action**: executes a Threat Arsenal action with the parameters you configure. Represented as a square
   node.
-- **Event**: a set of conditions or conditions groups, combined with AND/OR, evaluated against the data produced by Actions or Variables. When its
+- **Event**: a set of conditions or condition groups, combined with AND/OR, evaluated against the data produced by Actions or Variables. When its
   conditions are satisfied, it triggers the Actions connected to it.
 
 The chain is formed only in one direction: an Event triggers the Action(s) it is linked to. There is no link the
