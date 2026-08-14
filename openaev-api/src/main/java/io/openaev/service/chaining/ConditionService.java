@@ -646,7 +646,8 @@ public class ConditionService {
       return List.of(new ExecutionBatch(input, new ArrayList<>(), null));
     }
 
-    return prepareInputsForStepExecution(nextStepTemplateToExecute, workflowRun, mapperConditions);
+    return prepareInputsForStepExecution(
+        nextStepTemplateToExecute, workflowRun, mapperConditions, filterConditions);
   }
 
   /**
@@ -1038,6 +1039,14 @@ public class ConditionService {
    */
   public List<ConditionService.ExecutionBatch> prepareInputsForStepExecution(
       Step stepTemplate, Workflow workflowRun, List<Condition> mappers) {
+    return prepareInputsForStepExecution(stepTemplate, workflowRun, mappers, List.of());
+  }
+
+  public List<ConditionService.ExecutionBatch> prepareInputsForStepExecution(
+      Step stepTemplate,
+      Workflow workflowRun,
+      List<Condition> mappers,
+      List<Condition> filterConditions) {
 
     // No mappers means a default execution batch
     if (mappers.isEmpty()) {
@@ -1049,7 +1058,8 @@ public class ConditionService {
 
     // Prepare Inputs
     MapperInputPreparation preparation =
-        prepareMapperInputs(mappers, context.localEntries(), context.globalEntries());
+        prepareMapperInputs(
+            mappers, context.localEntries(), context.globalEntries(), filterConditions);
 
     // Invalid dynamic mapper definitions cannot produce executable combinations.
     if (preparation.hasMissingDynamicValues()) {
@@ -1061,7 +1071,7 @@ public class ConditionService {
     // that actually proceed (i.e. are not rate-limited) via commitHashes().
     List<ExecutionBatch> batches =
         buildExecutionBatches(
-            mappers, context.localEntries(), context.globalEntries(), preparation);
+            mappers, context.localEntries(), context.globalEntries(), preparation, filterConditions);
 
     return batches;
   }
@@ -1147,7 +1157,8 @@ public class ConditionService {
   private MapperInputPreparation prepareMapperInputs(
       List<Condition> mappers,
       WorkflowStateEntries localEntries,
-      WorkflowStateEntries globalEntries) {
+      WorkflowStateEntries globalEntries,
+      List<Condition> filterConditions) {
     List<List<WorkflowStateEntries.Pair>> allPairsList = new ArrayList<>();
     List<DynamicMapperContext> dynamicMappers = new ArrayList<>();
     Map<String, String> defaultValues = new HashMap<>();
@@ -1174,7 +1185,7 @@ public class ConditionService {
       DynamicMapperContext mapperContext =
           new DynamicMapperContext(mapper, sourceKeys, mapper.getMappingType());
       List<WorkflowStateEntries.Pair> pairs =
-          resolveMapperPairs(mapperContext, localEntries, globalEntries);
+          resolveMapperPairs(mapperContext, localEntries, globalEntries, filterConditions);
       if (!pairs.isEmpty()) {
         allPairsList.add(pairs);
       }
@@ -1199,12 +1210,14 @@ public class ConditionService {
       List<Condition> mappers,
       WorkflowStateEntries localEntries,
       WorkflowStateEntries globalEntries,
-      MapperInputPreparation preparation) {
+      MapperInputPreparation preparation,
+      List<Condition> filterConditions) {
 
     List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
     Set<String> pendingHashes = new HashSet<>();
-    // Step 1: correlated-first (useful only with >= 2 dynamic mappers)
-    if (preparation.dynamicMappers().size() >= 2) {
+    // Step 1: correlated-first (useful only with >= 2 dynamic mappers of same source pool)
+    if (preparation.dynamicMappers().size() >= 2
+        && hasSingleDynamicMappingType(preparation.dynamicMappers())) {
       WorkflowStateEntries correlatedPool =
           preparation.hasAnyLocal() ? localEntries : globalEntries;
       Set<String> candidateKeys =
@@ -1229,7 +1242,8 @@ public class ConditionService {
           }
 
           List<WorkflowStateEntries.Pair> fallbackPairs =
-              resolveMapperPairs(mapperContext, localEntries, globalEntries);
+              resolveMapperPairs(
+                  mapperContext, localEntries, globalEntries, filterConditions);
           if (fallbackPairs.isEmpty()) {
             skipTuple = true;
             break;
@@ -1296,7 +1310,8 @@ public class ConditionService {
   private List<WorkflowStateEntries.Pair> resolveMapperPairs(
       DynamicMapperContext mapperContext,
       WorkflowStateEntries localEntries,
-      WorkflowStateEntries globalEntries) {
+      WorkflowStateEntries globalEntries,
+      List<Condition> filterConditions) {
     List<WorkflowStateEntries.Pair> pairs = new ArrayList<>();
     Set<String> seenValues = new HashSet<>();
     for (String sourceKey : mapperContext.sourceKeys()) {
@@ -1314,7 +1329,8 @@ public class ConditionService {
         continue;
       }
       for (String value : values) {
-        if (seenValues.add(value)) {
+        if (isMapperValueAllowedByFilters(sourceKey, value, filterConditions)
+            && seenValues.add(value)) {
           pairs.add(new WorkflowStateEntries.Pair(sourceKey, value));
         }
       }
@@ -1342,6 +1358,38 @@ public class ConditionService {
     }
 
     return pairs;
+  }
+
+  private boolean hasSingleDynamicMappingType(List<DynamicMapperContext> dynamicMappers) {
+    return dynamicMappers.stream().map(DynamicMapperContext::mappingType).distinct().count() == 1;
+  }
+
+  private boolean isMapperValueAllowedByFilters(
+      String sourceKey, String value, List<Condition> filterConditions) {
+    if (value == null || filterConditions == null || filterConditions.isEmpty()) {
+      return true;
+    }
+    List<Condition> keyScopedFilters =
+        filterConditions.stream().filter(filter -> hasLeafForKey(filter, sourceKey)).toList();
+    if (keyScopedFilters.isEmpty()) {
+      return true;
+    }
+    return keyScopedFilters.stream()
+        .allMatch(filter -> conditionUtils.matchesAnyLeafCondition(value, filter));
+  }
+
+  private boolean hasLeafForKey(Condition condition, String key) {
+    if (condition == null || condition.getType() == null) {
+      return false;
+    }
+    if (condition.getType() == ConditionType.AND || condition.getType() == ConditionType.OR) {
+      return condition.getConditionChildren() != null
+          && condition.getConditionChildren().stream().anyMatch(child -> hasLeafForKey(child, key));
+    }
+    if (condition.getKeyTypes() != null && !condition.getKeyTypes().isEmpty()) {
+      return condition.getKeyTypes().stream().anyMatch(primitiveType -> primitiveType.name().equals(key));
+    }
+    return key.equals(condition.getKey());
   }
 
   private Set<String> resolveCorrelatedValuesByMappingType(

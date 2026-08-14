@@ -229,7 +229,8 @@ public class ConditionServiceTest {
               new ConditionService.ExecutionBatch("{\"IPv4\":\"10.10.10.10\"}", List.of(), null));
       doReturn(expected)
           .when(conditionService)
-          .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
+          .prepareInputsForStepExecution(
+              stepTemplate, workflowRun, List.of(mapperTemplate), List.of());
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> result =
@@ -238,7 +239,54 @@ public class ConditionServiceTest {
       // -------- Assert --------
       assertEquals(expected, result);
       verify(conditionService)
-          .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
+          .prepareInputsForStepExecution(
+              stepTemplate, workflowRun, List.of(mapperTemplate), List.of());
+    }
+
+    @Test
+    void givenFilterAndMapper_shouldOnlyBuildBatchesWithFilterMatchingValues()
+        throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition eqFilter = new Condition();
+      eqFilter.setType(ConditionType.EQ);
+      eqFilter.setKeyTypes(List.of(PrimitiveType.IPv4));
+      eqFilter.setValue("10.0.0.1");
+
+      Condition mapper = new Condition();
+      mapper.setType(ConditionType.MAPPER);
+      mapper.setMappingType(MappingType.GLOBAL);
+      mapper.setKeyTypes(List.of(PrimitiveType.IPv4));
+
+      doReturn(List.of(eqFilter, mapper)).when(conditionService).findAllConditionsByStepId(stepId);
+
+      WorkflowState globalState = new WorkflowState();
+      globalState.setEntries(
+          "{\"inputs\":[{\"key\":\"IPv4\",\"values\":[\"10.0.0.1\",\"192.168.0.1\"]}],\"correlated\":[],\"hashExecution\":[],\"executionKeys\":[]}");
+      WorkflowState localState = new WorkflowState();
+      localState.setEntries(
+          "{\"inputs\":[],\"correlated\":[],\"hashExecution\":[],\"executionKeys\":[]}");
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertEquals(1, result.size());
+      JsonObject json = JsonParser.parseString(result.getFirst().inputString()).getAsJsonObject();
+      assertEquals("10.0.0.1", json.get("IPv4").getAsString());
     }
   }
 
@@ -1200,6 +1248,30 @@ public class ConditionServiceTest {
       return "{\"inputs\":[],\"correlated\":[],\"hashExecution\":[],\"executionKeys\":[]}";
     }
 
+    private String buildHostPortStateEntriesJson(Set<String> hosts, Set<String> ports) {
+      StringBuilder hostsJson = new StringBuilder("[");
+      boolean firstHost = true;
+      for (String host : hosts) {
+        if (!firstHost) hostsJson.append(",");
+        hostsJson.append("\"").append(host).append("\"");
+        firstHost = false;
+      }
+      hostsJson.append("]");
+      StringBuilder portsJson = new StringBuilder("[");
+      boolean firstPort = true;
+      for (String port : ports) {
+        if (!firstPort) portsJson.append(",");
+        portsJson.append("\"").append(port).append("\"");
+        firstPort = false;
+      }
+      portsJson.append("]");
+      return "{\"inputs\":[{\"key\":\"Host\",\"values\":"
+          + hostsJson
+          + "},{\"key\":\"Port\",\"values\":"
+          + portsJson
+          + "}],\"correlated\":[],\"hashExecution\":[],\"executionKeys\":[]}";
+    }
+
     @Test
     void given_eqFilterMatchingGlobalState_should_returnDirectBatch() throws ChainingException {
       // -------- Arrange --------
@@ -1456,6 +1528,184 @@ public class ConditionServiceTest {
       assertEquals(1, result.size());
       assertEquals("{\"in\":1}", result.getFirst().inputString());
       assertTrue(result.getFirst().usedMappers().isEmpty());
+    }
+
+    @Test
+    void given_andFilterOnHostAndPort_withMapper_should_onlyProduceLocalhost445()
+        throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition hostEq = new Condition();
+      hostEq.setType(ConditionType.EQ);
+      hostEq.setKeyTypes(List.of(PrimitiveType.Host));
+      hostEq.setValue("localhost");
+
+      Condition portEq = new Condition();
+      portEq.setType(ConditionType.EQ);
+      portEq.setKeyTypes(List.of(PrimitiveType.Port));
+      portEq.setValue("445");
+
+      Condition andRoot = new Condition();
+      andRoot.setType(ConditionType.AND);
+      andRoot.setConditionChildren(List.of(hostEq, portEq));
+
+      Condition hostMapper = new Condition();
+      hostMapper.setType(ConditionType.MAPPER);
+      hostMapper.setMappingType(MappingType.LOCAL);
+      hostMapper.setKeyTypes(List.of(PrimitiveType.Host));
+
+      Condition portMapper = new Condition();
+      portMapper.setType(ConditionType.MAPPER);
+      portMapper.setMappingType(MappingType.LOCAL);
+      portMapper.setKeyTypes(List.of(PrimitiveType.Port));
+
+      doReturn(List.of(andRoot, hostMapper, portMapper))
+          .when(conditionService)
+          .findAllConditionsByStepId(stepId);
+
+      WorkflowState globalState = buildWorkflowState(buildEmptyStateEntriesJson());
+      WorkflowState localState =
+          buildWorkflowState(
+              buildHostPortStateEntriesJson(Set.of("localhost", "mycomputer"), Set.of("445")));
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertEquals(1, result.size());
+      JsonObject input = JsonParser.parseString(result.getFirst().inputString()).getAsJsonObject();
+      assertEquals("localhost", input.get("Host").getAsString());
+      assertEquals("445", input.get("Port").getAsString());
+    }
+    @Test
+    void given_andFilterOnHostLocalAndPortGlobal_withMapper_should_onlyProduceLocalhost445()
+        throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition hostEq = new Condition();
+      hostEq.setType(ConditionType.EQ);
+      hostEq.setKeyTypes(List.of(PrimitiveType.Host));
+      hostEq.setValue("localhost");
+
+      Condition portEq = new Condition();
+      portEq.setType(ConditionType.EQ);
+      portEq.setKeyTypes(List.of(PrimitiveType.Port));
+      portEq.setValue("445");
+
+      Condition andRoot = new Condition();
+      andRoot.setType(ConditionType.AND);
+      andRoot.setConditionChildren(List.of(hostEq, portEq));
+
+      Condition hostMapper = new Condition();
+      hostMapper.setType(ConditionType.MAPPER);
+      hostMapper.setMappingType(MappingType.LOCAL);
+      hostMapper.setKeyTypes(List.of(PrimitiveType.Host));
+
+      Condition portMapper = new Condition();
+      portMapper.setType(ConditionType.MAPPER);
+      portMapper.setMappingType(MappingType.GLOBAL);
+      portMapper.setKeyTypes(List.of(PrimitiveType.Port));
+
+      doReturn(List.of(andRoot, hostMapper, portMapper))
+          .when(conditionService)
+          .findAllConditionsByStepId(stepId);
+
+      WorkflowState globalState = buildWorkflowState(buildHostPortStateEntriesJson(Set.of(), Set.of("445")));
+      WorkflowState localState =
+          buildWorkflowState(
+              buildHostPortStateEntriesJson(Set.of("localhost", "mycomputer"), Set.of("445")));
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertEquals(1, result.size());
+      JsonObject input = JsonParser.parseString(result.getFirst().inputString()).getAsJsonObject();
+      assertEquals("localhost", input.get("Host").getAsString());
+      assertEquals("445", input.get("Port").getAsString());
+    }
+
+    @Test
+    void given_andFilterOnHostAndPort_withoutLocalhost_should_returnEmpty() throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition hostEq = new Condition();
+      hostEq.setType(ConditionType.EQ);
+      hostEq.setKeyTypes(List.of(PrimitiveType.Host));
+      hostEq.setValue("localhost");
+
+      Condition portEq = new Condition();
+      portEq.setType(ConditionType.EQ);
+      portEq.setKeyTypes(List.of(PrimitiveType.Port));
+      portEq.setValue("445");
+
+      Condition andRoot = new Condition();
+      andRoot.setType(ConditionType.AND);
+      andRoot.setConditionChildren(List.of(hostEq, portEq));
+
+      Condition hostMapper = new Condition();
+      hostMapper.setType(ConditionType.MAPPER);
+      hostMapper.setMappingType(MappingType.LOCAL);
+      hostMapper.setKeyTypes(List.of(PrimitiveType.Host));
+
+      Condition portMapper = new Condition();
+      portMapper.setType(ConditionType.MAPPER);
+      portMapper.setMappingType(MappingType.LOCAL);
+      portMapper.setKeyTypes(List.of(PrimitiveType.Port));
+
+      doReturn(List.of(andRoot, hostMapper, portMapper))
+          .when(conditionService)
+          .findAllConditionsByStepId(stepId);
+
+      WorkflowState globalState = buildWorkflowState(buildEmptyStateEntriesJson());
+      WorkflowState localState =
+          buildWorkflowState(buildHostPortStateEntriesJson(Set.of("mycomputer"), Set.of("445")));
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
     }
   }
 
