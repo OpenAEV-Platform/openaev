@@ -170,8 +170,8 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(chainingSimulation, normalSimulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(workflowService.isSimulationChaining(chainingSimulationId)).thenReturn(true);
-      when(workflowService.isSimulationChaining(normalSimulationId)).thenReturn(false);
+      when(workflowService.existsBySimulationId(chainingSimulationId)).thenReturn(true);
+      when(workflowService.existsBySimulationId(normalSimulationId)).thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
 
       // Act
@@ -202,7 +202,7 @@ class InjectsExecutionJobUnitTest {
       injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
-      verify(workflowService, times(2)).isSimulationChaining(anyString());
+      verify(workflowService, times(2)).existsBySimulationId(anyString());
       verify(exerciseRepository).saveAll(simulationCaptor.capture());
       assertEquals(2, simulationCaptor.getValue().size());
     }
@@ -324,8 +324,8 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation1, simulation2));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(workflowService.isSimulationChaining(simulationId1)).thenReturn(true);
-      when(workflowService.isSimulationChaining(simulationId2)).thenReturn(true);
+      when(workflowService.existsBySimulationId(simulationId1)).thenReturn(true);
+      when(workflowService.existsBySimulationId(simulationId2)).thenReturn(true);
       when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
 
       // Act
