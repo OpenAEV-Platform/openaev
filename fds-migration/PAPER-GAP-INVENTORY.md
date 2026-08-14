@@ -464,4 +464,32 @@ conversion de `SectionBlock` reproduit donc le cumul existant à l'identique.
 
 Les 2 usages qui passent déjà `disablePadding`
 (`GeneralVulnerabilityInfoTab.tsx:114`, `Validations.jsx:155`) sont déjà en
-option A. Rien n'est touché tant que la décision n'est pas prise.
+option A.
+
+#### Décision : **option A**, mais **par usage** — pas en défaut du composant
+
+Option A est retenue. Le recensement du contenu réel des 61 usages montre
+qu'elle ne peut pas être appliquée comme défaut de `SectionBlock` : la planche
+ne montrait qu'un panneau hébergeant une liste, et ils sont 23 sur 61.
+
+| ce que le `SectionBlock` héberge | usages | option A ? |
+|---|---|---|
+| une `List`/`Table` directe | 3 | ✅ oui |
+| un composant de liste (`AgentList`, `FindingList`, `ExpectationList`, `InjectResultList`, …) qui rend lui-même `List`+`ListItem` | 18 | ✅ oui, **à vérifier site par site** (ils rendent aussi une barre `PaginationComponentV2` au-dessus de la liste, qui passerait bord à bord elle aussi) |
+| déjà `disablePadding` | 2 | ✅ déjà fait |
+| **contenu libre** (formulaire, aperçu, `Box`, texte, puces) | **30** | ❌ **non** — l'enfant n'a aucune gouttière, le panneau tomberait à **0px** de padding |
+| **graphe / chart** | **8** | ❌ **non** — le chart toucherait la bordure |
+
+Soit **23 usages en option A** et **38 qui restent à 16px**.
+
+La deuxième rangée de la planche montre ce que donne option A appliquée à un
+panneau sans liste : le libellé et le champ collés à la bordure, le graphe à
+fleur de cadre. C'est le mode d'échec, et il concerne la majorité des usages.
+
+Formulée par usage, la décision rejoint exactement la règle générale de §6 :
+le padding de l'enfant (ici la gouttière de ligne) porte un sens **quand il y
+a une ligne** — sinon il n'y a rien à ne pas doubler.
+
+**Toujours hors de cette vague** : la conversion reproduit l'existant à
+l'identique, et l'application d'option A aux 23 usages est un changement de
+densité qui se fait dans son propre commit, isolable et réversible.

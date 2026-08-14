@@ -469,3 +469,27 @@ in filigran-design-system).
   surface background, title/action, conformity-template change) is not merged
   yet. Nothing starts product-side before the pin bump.
 - The bench was restarted only to produce the E3 board, then stopped again.
+
+### 2026-08-14 (late) — Paper pilot: option A retained for SectionBlock, scoped per usage
+- Branch: fds/paper-pilot (PR #7427, open). **Still zero product source files touched.**
+- Changed: `fds-migration/PAPER-GAP-INVENTORY.md` (§6.3), this log.
+- Option A (`disablePadding`: Paper 0 + 16px row gutters, dividers edge to edge)
+  is the retained answer for E3 — but the board it was decided on showed a
+  SectionBlock hosting a list, and only 23 of the 61 usages do.
+- Content census of all 61 usages: 3 host a direct List/Table, 18 host a list
+  COMPONENT that renders List+ListItem itself (AgentList, FindingList,
+  ExpectationList, InjectResultList, …), 2 already pass disablePadding — those
+  23 take option A. The other 38 (30 free content: forms, previews, Box, text,
+  chips; 8 charts) have no gutter-bearing child at all and would drop to 0px
+  padding, i.e. content glued to the panel border. Captured as a second row on
+  `planche-e3-densite-{dark,light}.png`.
+- Consequence recorded: option A applies PER USAGE, never as the component
+  default. Formulated that way it is just §6's general rule — the child's
+  padding carries meaning when there IS a row, and there is nothing not to
+  double when there isn't.
+- Caveat for the 18 component-borne ones: they also render a
+  PaginationComponentV2 toolbar above the list, which would go edge to edge
+  too — to be checked visually site by site at conversion, not assumed.
+- Still out of this wave: the conversion reproduces the existing cumulation;
+  applying option A to the 23 usages is a density change that gets its own
+  isolable, revertable commit.
