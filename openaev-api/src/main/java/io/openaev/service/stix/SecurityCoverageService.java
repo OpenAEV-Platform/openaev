@@ -9,6 +9,7 @@ import static io.openaev.utils.constants.StixConstants.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
@@ -738,13 +739,14 @@ public class SecurityCoverageService {
         hostnames ->
             simulation.getInjects().stream()
                 .filter(
-                    inject ->
-                        inject.getContent().has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
-                            && hostnames.contains(
-                                (inject
-                                    .getContent()
-                                    .get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
-                                    .textValue())))
+                    inject -> {
+                      // injects created without content cannot match a DNS resolution hostname
+                      ObjectNode content = inject.getContent();
+                      return content != null
+                          && content.has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
+                          && hostnames.contains(
+                              content.get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY).textValue());
+                    })
                 .toList(),
         inject ->
             Optional.ofNullable(inject)

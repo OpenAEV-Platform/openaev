@@ -6,7 +6,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
 import io.openaev.database.repository.RoleRepository;
-import io.openaev.service.RoleService;
+import io.openaev.service.TenantRoleService;
+import io.openaev.utils.mockUser.WithMockUser;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -24,11 +25,14 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Add phishing/reporting capabilities to default roles migration tests")
 @Transactional
+// Roles are created through TenantRoleService#createRole, which now enforces that the current
+// user holds the capabilities it hands out: run as admin to short-circuit that check.
+@WithMockUser(isAdmin = true)
 public class V20260811_Add_phishing_reporting_capabilities_to_default_rolesTest
     extends IntegrationTest {
 
   @Autowired private V20260811_Add_phishing_reporting_capabilities_to_default_roles migration;
-  @Autowired private RoleService roleService;
+  @Autowired private TenantRoleService roleService;
   @Autowired private RoleRepository roleRepository;
 
   /** The Observer capability set the buggy preset generated (roots only — no parents to add). */

@@ -120,6 +120,6 @@ public class PlatformRoleApi {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
   public void delete(@PathVariable String platformRoleId) {
-    platformRoleService.deletePlatformRole(platformRoleId);
+    platformRoleService.delete(platformRoleId);
   }
 }

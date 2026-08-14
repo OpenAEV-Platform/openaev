@@ -90,17 +90,37 @@ are two ways to get one:
 
 - **Author it manually**: create a Scenario, add Injects, and link them into an attack-path workflow with inject
   chaining - the classic hand-authored path.
-- **Plan it with AI**: on a chained Scenario, use **Plan with AI**. The orchestrator designs the attack path -
+- **Build it with AI**: on a chained Scenario, use the **AI builder**. The orchestrator designs the attack path -
   scoping the perimeter and authoring the steps (recon, exploitation, lateral movement, objective) - and writes them
   **directly onto the Scenario's workflow template**. Nothing is executed and no Simulation is created; you get a
   reusable Scenario you can review, edit, and launch whenever you like.
 
 !!! note
 
-    **Plan with AI** is design-time only: the orchestrator authors the Scenario's workflow but executes nothing and
-    creates no Simulation. It runs as a short planning session (which you may see in the autonomous runs list) whose
-    only lasting output is the reusable Scenario. Execution is a separate, explicit step (see below), so you can plan
+    The AI builder is design-time only: the orchestrator authors the Scenario's workflow but executes nothing and
+    creates no Simulation. It runs as a short building session (which you may see in the autonomous runs list) whose
+    only lasting output is the reusable Scenario. Execution is a separate, explicit step (see below), so you can build
     once and launch many times.
+
+### Refine vs rebuild
+
+The first time you build a Scenario with AI, there is nothing to preserve, so the builder simply authors the logic
+from scratch. Once the Scenario already has a logic map - whether the AI built it or you authored it by hand - the
+builder asks **how** it should build:
+
+| Mode | What it does | When to use |
+|---|---|---|
+| **Refine the existing logic** (default) | Keeps the current attack path and continues from it: the orchestrator reads the existing steps, keeps them, and adds, adjusts, or removes only what your instruction calls for. An AI-built Scenario also reopens its full reasoning history, so the decision timeline carries on where it left off. | Iterating on a path that is mostly right - fixing gaps, tightening the kill chain, applying a follow-up instruction. |
+| **Rebuild from scratch** | Discards the current attack path and re-authors it from the objective, agents, and scope. Everything in the current logic map is wiped and a prior AI-built run is superseded. | Starting over when the existing path is wrong or no longer relevant. |
+
+Refine is the default precisely because it is non-destructive. Rebuild from scratch is a **destructive** action: the
+existing logic map is wiped and cannot be recovered.
+
+!!! warning
+
+    **Rebuild from scratch wipes the current logic map.** The authored steps and event/trigger conditions are
+    discarded before the orchestrator re-authors the path, and a prior AI-built run is superseded. Choose **Refine
+    the existing logic** (the default) whenever you want to keep what is already there.
 
 ## Launch modes: normal vs autonomous
 
@@ -126,6 +146,22 @@ Scenario you can:
 
 - **Launch a simulation (normal mode)** to replay the same path yourself, or
 - **Launch in autonomous mode** again to let the orchestrator drive a fresh run from the same authored steps.
+
+## Clear an AI outcome
+
+A settled AI run (a built plan, or a finished autonomous run) keeps a durable, read-only outcome on the Scenario
+overview: the AI mission, the decision timeline, the capability gaps, and - for a run that executed - the proof of
+exploitation. **Clear AI outcome** drops that outcome and returns the Scenario to the normal manual overview, so you
+can edit and relaunch it like any hand-authored chained Scenario. The authored attack path (the logic map) is kept
+and stays editable, and a run's underlying Simulation is preserved; only the AI outcome (timeline and capability
+gaps, plus the proof of exploitation for an executed run) is removed. The action is available to operators who can
+manage the Scenario.
+
+!!! danger
+
+    **Clearing an AI outcome cannot be undone.** The decision timeline and capability gaps (and the proof of
+    exploitation for an executed run) are removed for good. The authored logic map and the run Simulation are kept,
+    but there is no way back to the AI outcome view for that run.
 
 ### Objectives and scope modes
 

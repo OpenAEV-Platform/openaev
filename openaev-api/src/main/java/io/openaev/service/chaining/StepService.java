@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StepService {
 
   private final InjectExecutionStep injectExecutionStep;
+  private final StepTargetingService stepTargetingService;
 
   private final InjectService injectService;
   private final ConditionService conditionService;
@@ -713,6 +714,67 @@ public class StepService {
    */
   public List<Step> findAllStepTemplateByWorkflow(String idWorkflow) {
     return this.stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(idWorkflow);
+  }
+
+  /**
+   * Re-aligns the asset perimeter baked into every asset-centric INJECT_EXECUTION step template of
+   * a workflow with the workflow scope.
+   *
+   * <p>Actions do not own their asset targets: in the chaining logic map the asset perimeter is
+   * defined once by the workflow scope and merely <i>copied</i> into {@code
+   * step.data.inject_assets} when the action is configured.
+   *
+   * @param workflow the workflow whose step templates must be realigned
+   * @param scopedAssetIds the current in-scope asset IDs (denylist already applied)
+   * @return the number of step templates actually rewritten
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public int syncScopeAssetsOnStepTemplates(Workflow workflow, List<String> scopedAssetIds) {
+    List<Step> updated = new ArrayList<>();
+    for (Step template : findAllStepTemplateByWorkflow(workflow.getId())) {
+      if (!StepActionClass.INJECT_EXECUTION.equals(template.getStepAction())
+          || template.getData() == null
+          || !stepTargetingService.isAssetCentric(template)) {
+        continue;
+      }
+      String newData = withScopeAssets(template, scopedAssetIds);
+      if (newData != null) {
+        template.setData(newData);
+        updated.add(template);
+      }
+    }
+    if (!updated.isEmpty()) {
+      saveSteps(updated);
+      log.debug(
+          "[Chaining] Realigned {} step template(s) of workflow {} on the {} in-scope asset(s)",
+          updated.size(),
+          workflow.getId(),
+          scopedAssetIds.size());
+    }
+    return updated.size();
+  }
+
+  /**
+   * Returns the step data with {@code inject_assets} replaced by the given asset IDs, or {@code
+   * null} when the data is already up to date (or cannot be parsed) so the caller skips the write.
+   */
+  private String withScopeAssets(Step template, List<String> scopedAssetIds) {
+    try {
+      JsonObject dataObject = JsonParser.parseString(template.getData()).getAsJsonObject();
+      JsonArray assets = new JsonArray();
+      scopedAssetIds.forEach(assets::add);
+      if (assets.equals(dataObject.get("inject_assets"))) {
+        return null;
+      }
+      dataObject.add("inject_assets", assets);
+      return dataObject.toString();
+    } catch (Exception e) {
+      log.warn(
+          "[Chaining] Failed to realign scope assets on step template {}: {}",
+          template.getId(),
+          e.getMessage());
+      return null;
+    }
   }
 
   /**

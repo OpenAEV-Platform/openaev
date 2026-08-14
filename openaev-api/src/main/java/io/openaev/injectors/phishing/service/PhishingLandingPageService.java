@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.custom_domain.CustomDomainService;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.CustomDomain;
 import io.openaev.database.model.CustomDomain.CustomDomainStatus;
 import io.openaev.database.model.Endpoint;
@@ -41,6 +42,7 @@ import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.ContractDef;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractSelect;
+import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.injectors.phishing.PhishingContract;
 import io.openaev.injectors.phishing.form.PhishingLandingPageBulkProcessingInput;
 import io.openaev.model.inject.form.Expectation;
@@ -50,6 +52,7 @@ import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -108,6 +111,7 @@ public class PhishingLandingPageService {
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final InjectIndexCleanupService injectIndexCleanupService;
+  private final ChainingStepCleanupService chainingStepCleanupService;
   private final AttackPatternRepository attackPatternRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final PhishingContract phishingContract;
@@ -326,9 +330,9 @@ public class PhishingLandingPageService {
   public InjectorContract synchroniseInjectorContract(
       @NotNull final PhishingLandingPage landingPage) {
     String tenantId = resolveTenantId(landingPage);
-    Injector injector =
-        injectorRepository.findByTypeAndTenantId(PhishingContract.TYPE, tenantId).orElse(null);
-    if (injector == null) {
+    List<Injector> injectors =
+        injectorRepository.findByPhishingContractTypeByTenantId(PhishingContract.TYPE, tenantId);
+    if (injectors.isEmpty()) {
       log.warn("Phishing injector not registered for tenant {}, skipping contract sync", tenantId);
       return null;
     }
@@ -343,7 +347,7 @@ public class PhishingLandingPageService {
                   return created;
                 });
 
-    Contract contract = buildContract(landingPage, injector, tenantId);
+    Contract contract = buildContract(landingPage);
 
     // Prefix so Threat Arsenal search / category browsing makes the phishing origin obvious.
     Map<String, String> labels =
@@ -353,7 +357,7 @@ public class PhishingLandingPageService {
             "fr",
             "Hameconnage : " + landingPage.getName());
     injectorContract.setLabels(labels);
-    injectorContract.addInjector(injector);
+    injectors.forEach(injectorContract::addInjector);
 
     // The Threat Arsenal and the atomic-testing picker read these entity columns, NOT the
     // serialized
@@ -410,6 +414,11 @@ public class PhishingLandingPageService {
           injectIndexCleanupService.injectIdsByContractIds(List.of(landingPage.getId()), tenantId);
       injectorContractRepository.deleteById(contractId);
       injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+      // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
+      // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject
+      // de-index. The sweep is tenant-scoped to never touch another tenant's logic maps.
+      chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+          List.of(landingPage.getId()), tenantId);
     }
   }
 
@@ -419,8 +428,7 @@ public class PhishingLandingPageService {
         : TenantContext.getCurrentTenant();
   }
 
-  private Contract buildContract(
-      final PhishingLandingPage landingPage, final Injector injector, final String tenantId) {
+  private Contract buildContract(final PhishingLandingPage landingPage) {
     ContractConfig contractConfig = phishingContract.getConfig();
 
     // Email template chooser populated from the tenant's reusable templates.
@@ -470,7 +478,32 @@ public class PhishingLandingPageService {
     // static built-in contract; the entity-level attackPatterns are resolved from these ids in
     // synchroniseInjectorContract (and the kill chain phases are derived from them).
     PHISHING_ATTACK_PATTERN_EXTERNAL_IDS.forEach(contract::addAttackPattern);
+
+    // A capture-enabled landing page turns submitted data into a Credentials finding
+    // (PhishingTrackingService.captureCredentials). Phishing is a native, payload-less injector, so
+    // this contract "outputs" declaration is the only place that finding type is machine-readable:
+    // it feeds InjectorContract.getProviding() (Threat Arsenal "Outputs" section, findings-based
+    // chaining, the injector_contract_providing filter). A page that does not capture declares no
+    // output, matching what is actually produced.
+    if (landingPage.isCaptureSubmittedData()) {
+      contract.addOutput(buildCredentialsOutput());
+    }
     return contract;
+  }
+
+  /**
+   * The single {@code Credentials} finding a credential-capture phishing page produces, shaped like
+   * a payload output element ({@code isFindingCompatible}) so the Threat Arsenal drawer renders it
+   * exactly like a scanner's parsed output.
+   */
+  private InjectorContractContentOutputElement buildCredentialsOutput() {
+    InjectorContractContentOutputElement credentials = new InjectorContractContentOutputElement();
+    credentials.setType(ContractOutputType.Credentials);
+    credentials.setField(PhishingTrackingService.CREDENTIALS_FIELD);
+    credentials.setLabels(new String[] {"Credentials"});
+    credentials.setMultiple(false);
+    credentials.setFindingCompatible(true);
+    return credentials;
   }
 
   /**

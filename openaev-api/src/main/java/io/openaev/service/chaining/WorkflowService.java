@@ -14,6 +14,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ScopeVariableRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -51,12 +53,16 @@ public class WorkflowService {
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
   private final SimulationRateLimitService simulationRateLimitService;
+  private final ScopeSnapshotService scopeSnapshotService;
+  private final ScopeService scopeService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
   private final AssetRepository assetRepository;
   private final AssetGroupRepository assetGroupRepository;
+  private final TeamRepository teamRepository;
+  private final UserRepository userRepository;
 
   private final ScopeMetricCollector scopeMetricCollector;
   private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -103,10 +109,30 @@ public class WorkflowService {
    */
   @Transactional(readOnly = true)
   public Workflow getWorkflowConfiguration(@NotBlank String workflowId) {
-    Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
-    Hibernate.initialize(workflow.getWorkflowScopeRules());
-    Hibernate.initialize(workflow.getWorkflowScopeVariables());
-    return workflow;
+    Workflow template = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+    // A launched simulation is read from its RUN, which carries the frozen snapshots; draft
+    // simulations and scenarios keep reading the (live-resolved) template. See ADR-006.
+    Workflow source = resolveConfigurationSource(template);
+    Hibernate.initialize(source.getWorkflowScopeRules());
+    Hibernate.initialize(source.getWorkflowScopeVariables());
+    return source;
+  }
+
+  /**
+   * Returns the workflow whose scope rules should be displayed: the RUN (frozen snapshots) for a
+   * launched simulation, otherwise the TEMPLATE (draft simulation or scenario, resolved live).
+   */
+  private Workflow resolveConfigurationSource(Workflow template) {
+    Exercise simulation = template.getSimulation();
+    if (simulation == null || ExerciseStatus.SCHEDULED.equals(simulation.getStatus())) {
+      return template;
+    }
+    // Latest RUN: a simulation may own several RUN rows across reset/relaunch cycles. See ADR-006.
+    return workflowRepository
+        .findFirstBySimulation_IdAndStatusInOrderByWorkflowCreatedAtDesc(
+            simulation.getId(),
+            List.of(WorkflowStatus.RUN, WorkflowStatus.END, WorkflowStatus.STOP))
+        .orElse(template);
   }
 
   // -- WRITE --
@@ -167,11 +193,14 @@ public class WorkflowService {
       @NotBlank String workflowId, WorkflowConfigurationInput input) {
     Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     WorkflowEditability.assertLogicMapEditable(workflow);
-    boolean changed = applyConfigurationInput(input, workflow);
-    if (changed) {
+    ConfigurationChange change = applyConfigurationInput(input, workflow);
+    if (change.changed()) {
       boolean workflowExecutedNotEmpty = !workflow.getWorkflowsExecuted().isEmpty();
       workflow.setEdited(workflowExecutedNotEmpty);
       workflowRepository.save(workflow);
+    }
+    if (change.scopeRulesChanged()) {
+      realignTemplateActionTargets(workflow);
     }
     return workflow;
   }
@@ -195,7 +224,7 @@ public class WorkflowService {
       @NotBlank String simulationId, WorkflowConfigurationInput input) {
     List<Workflow> runs = findWorkflowRunBySimulationId(simulationId);
     for (Workflow run : runs) {
-      if (applyConfigurationInput(input, run)) {
+      if (applyConfigurationInput(input, run).changed()) {
         workflowRepository.save(run);
       }
     }
@@ -232,7 +261,12 @@ public class WorkflowService {
     if (hasText(scenarioId)) {
       try {
         findWorkflowTemplateByScenarioId(scenarioId)
-            .ifPresent(w -> writeAllowlistRules(w, rules, replaceExisting));
+            .ifPresent(
+                w -> {
+                  if (writeAllowlistRules(w, rules, replaceExisting)) {
+                    realignTemplateActionTargets(w);
+                  }
+                });
       } catch (ChainingException e) {
         log.warn(
             "[Chaining] Could not write scope on scenario {} template workflow", scenarioId, e);
@@ -241,6 +275,35 @@ public class WorkflowService {
     if (hasText(simulationId)) {
       findWorkflowRunBySimulationId(simulationId)
           .forEach(w -> writeAllowlistRules(w, rules, replaceExisting));
+    }
+  }
+
+  /**
+   * Removes ghost ASSET / ASSET_GROUP rules (referencing a deleted entity) from a simulation's
+   * TEMPLATE workflow, so a reset simulation does not relaunch with unresolvable scope entries.
+   * Only allow/deny rules are considered; the referenced entity is probed with the same current
+   * resolution used by the snapshot diff (null = no longer exists).
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void cleanScopeRulesSimulation(@NotBlank String simulationId) {
+    Workflow template =
+        workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
+    if (template != null) {
+
+      List<WorkflowScopeRule> rulesToRemove = new ArrayList<>();
+      for (WorkflowScopeRule rule : template.getWorkflowScopeRules()) {
+        if (rule.getSelectedMode() != null
+            && (ScopeRuleSource.ASSET.equals(rule.getRuleSource())
+                || ScopeRuleSource.ASSET_GROUP.equals(rule.getRuleSource()))) {
+          ScopeRuleSnapshot current = scopeSnapshotService.buildCurrentSnapshot(rule);
+          if (current == null) rulesToRemove.add(rule);
+        }
+      }
+      if (!rulesToRemove.isEmpty()) {
+        template.getWorkflowScopeRules().removeAll(rulesToRemove);
+        workflowRepository.save(template);
+        realignTemplateActionTargets(template);
+      }
     }
   }
 
@@ -259,7 +322,13 @@ public class WorkflowService {
     }
     if (hasText(scenarioId)) {
       try {
-        findWorkflowTemplateByScenarioId(scenarioId).ifPresent(w -> appendScopeRules(w, rules));
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .ifPresent(
+                w -> {
+                  if (appendScopeRules(w, rules)) {
+                    realignTemplateActionTargets(w);
+                  }
+                });
       } catch (ChainingException e) {
         log.warn("[Chaining] Could not seed scope on scenario {} template workflow", scenarioId, e);
       }
@@ -269,7 +338,7 @@ public class WorkflowService {
     }
   }
 
-  private void appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
+  private boolean appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
     List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
     Set<String> existingKeys =
         existing.stream()
@@ -289,9 +358,10 @@ public class WorkflowService {
     if (changed) {
       workflowRepository.save(workflow);
     }
+    return changed;
   }
 
-  private void writeAllowlistRules(
+  private boolean writeAllowlistRules(
       Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs, boolean replaceExisting) {
     List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
     boolean changed = false;
@@ -313,6 +383,27 @@ public class WorkflowService {
     if (changed) {
       workflowRepository.save(workflow);
     }
+    return changed;
+  }
+
+  /**
+   * Re-aligns all asset-centric step templates with the workflow's current scope assets.
+   *
+   * <p>ScopeService resolves from persisted rules, so pending workflow updates must be flushed
+   * first.
+   */
+  private void realignTemplateActionTargets(Workflow workflow) {
+    if (workflow == null || !WorkflowStatus.TEMPLATE.equals(workflow.getStatus())) {
+      return;
+    }
+    workflowRepository.flush();
+    List<String> scopedAssetIds =
+        Optional.ofNullable(scopeService.getValidAssets(workflow.getId()))
+            .orElse(List.of())
+            .stream()
+            .map(Asset::getId)
+            .toList();
+    stepService.syncScopeAssetsOnStepTemplates(workflow, scopedAssetIds);
   }
 
   /**
@@ -391,6 +482,11 @@ public class WorkflowService {
             .build();
     copyScopeRules(workflowTemplateFrom, workflowRunTo);
     copyScopeVariables(workflowTemplateFrom, workflowRunTo);
+    // Freeze the launch snapshot only on the RUN copy (never on TEMPLATE copies). See ADR-006.
+    Exercise simulation = workflowTemplateFrom.getSimulation();
+    if (simulation != null && simulation.getTenant() != null) {
+      scopeSnapshotService.freezeLaunch(workflowRunTo, simulation.getTenant().getId());
+    }
     return workflowRunTo;
   }
 
@@ -814,10 +910,10 @@ public class WorkflowService {
   // -- Configuration Update --
 
   /**
-   * Copies all fields from {@code input} onto {@code workflow} and returns {@code true} when at
-   * least one value changed.
+   * Copies all fields from {@code input} onto {@code workflow} and reports what actually changed.
    */
-  private boolean applyConfigurationInput(WorkflowConfigurationInput input, Workflow workflow) {
+  private ConfigurationChange applyConfigurationInput(
+      WorkflowConfigurationInput input, Workflow workflow) {
     boolean changed = false;
     boolean rateLimitChanged = false;
     boolean timeoutChanged = false;
@@ -867,8 +963,14 @@ public class WorkflowService {
           attempts, seconds, !input.isRateLimitEnabled());
     }
 
-    return rulesChanged || variablesChanged || changed;
+    return new ConfigurationChange(rulesChanged || variablesChanged || changed, rulesChanged);
   }
+
+  /**
+   * Outcome of a configuration update: whether anything changed at all, and whether the scope rules
+   * specifically changed (which requires realigning the step templates' asset perimeter).
+   */
+  private record ConfigurationChange(boolean changed, boolean scopeRulesChanged) {}
 
   /**
    * Reconciles the workflow's scope-rule collection against the provided inputs: removes rules not
@@ -882,12 +984,20 @@ public class WorkflowService {
     if (CollectionUtils.isEmpty(ruleInputs) && CollectionUtils.isEmpty(existing)) {
       return false;
     }
+    // SECURITY_PLATFORM rows are engine-written snapshot rows (frozen at launch, see ADR-006),
+    // never a legitimate configuration input, so the reconciliation below must neither remove nor
+    // create nor mutate them: a live-steering update (updateRunWorkflowConfiguration) or an
+    // emptied scope would otherwise silently destroy the frozen security-platform photos of a RUN
+    // workflow, and a crafted input could mint or overwrite protected rows.
     if (CollectionUtils.isEmpty(ruleInputs)) {
-      existing.clear();
-      return true;
+      return existing.removeIf(r -> r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM);
     }
 
-    List<WorkflowScopeRuleInput> deduplicated = deduplicateRules(ruleInputs);
+    List<WorkflowScopeRuleInput> deduplicated =
+        deduplicateRules(
+            ruleInputs.stream()
+                .filter(r -> r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM)
+                .toList());
 
     Set<String> inputIds =
         deduplicated.stream()
@@ -898,7 +1008,11 @@ public class WorkflowService {
     Map<String, WorkflowScopeRule> existingById =
         existing.stream().collect(Collectors.toMap(WorkflowScopeRule::getId, r -> r));
 
-    boolean changed = existing.removeIf(r -> !inputIds.contains(r.getId()));
+    boolean changed =
+        existing.removeIf(
+            r ->
+                r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
+                    && !inputIds.contains(r.getId()));
 
     // Build new rules from inputs without an ID
     List<WorkflowScopeRule> newRules =
@@ -914,13 +1028,16 @@ public class WorkflowService {
       trackScopeMetrics(workflow, newRules);
     }
 
-    // Update existing rules that have changed
+    // Update existing rules that have changed (never an engine-written SECURITY_PLATFORM row,
+    // even when an input smuggles its id).
     Set<String> processedIds = new HashSet<>();
     for (WorkflowScopeRuleInput ruleInput : deduplicated) {
       String ruleId = ruleInput.getId();
       if (ruleId != null && processedIds.add(ruleId)) {
         WorkflowScopeRule existingRule = existingById.get(ruleId);
-        if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
+        if (existingRule != null
+            && existingRule.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
+            && hasRuleChanged(existingRule, ruleInput)) {
           updateScopeRule(existingRule, ruleInput);
           changed = true;
         }
@@ -961,7 +1078,7 @@ public class WorkflowService {
           scopeMetricCollector.recordEntryAdded(parts[0], parts[1], count);
         });
 
-    // KPI. Record Source Usage (CSV vs Manual only — ignore asset-based sources)
+    // KPI. Record Source Usage (CSV vs Manual only - ignore asset-based sources)
     uniqueSources.stream()
         .filter(
             source ->
@@ -1023,14 +1140,14 @@ public class WorkflowService {
   }
 
   /**
-   * Snapshots the display name of the asset / asset group referenced by an ASSET / ASSET_GROUP
-   * scope rule, so a past run's scope stays readable after the referenced inventory object is
-   * deleted.
+   * Snapshots the display name of the entity referenced by an ASSET / ASSET_GROUP / TEAM / PLAYER
+   * scope rule (asset / group name, team name, or player name-or-email), so a past run's scope
+   * stays readable after the referenced object is deleted.
    *
    * <p>The lookup is tenant-scoped on purpose: Hibernate's {@code tenantFilter} does not apply to
    * primary-key loads, so a plain {@code findById} on a user-supplied id could snapshot (and later
-   * expose) another tenant's asset name. Ids that do not resolve within the caller's tenant - or
-   * non-asset rules (MANUAL / CSV / TEAM / PLAYER) - stay {@code null}.
+   * expose) another tenant's name. Ids that do not resolve within the caller's tenant - or MANUAL /
+   * CSV rules - stay {@code null}.
    */
   private String resolveValueLabel(WorkflowScopeRuleInput input) {
     if (input.getRuleSource() == null || !hasText(input.getRuleValue())) {
@@ -1051,6 +1168,16 @@ public class WorkflowService {
               .findByIdAndTenantId(input.getRuleValue(), tenantId)
               .map(AssetGroup::getName)
               .orElse(null);
+      case TEAM ->
+          teamRepository
+              .findByIdAndTenantId(input.getRuleValue(), tenantId)
+              .map(Team::getName)
+              .orElse(null);
+      case PLAYER ->
+          userRepository.findAllByIdInAndTenantId(List.of(input.getRuleValue()), tenantId).stream()
+              .findFirst()
+              .map(User::getNameOrEmail)
+              .orElse(null);
       default -> null;
     };
   }
@@ -1062,6 +1189,9 @@ public class WorkflowService {
         case ASSET_GROUP -> ScopeRuleValueType.ASSET_GROUP_ID;
         case TEAM -> ScopeRuleValueType.TEAM_ID;
         case PLAYER -> ScopeRuleValueType.PLAYER_ID;
+        // Engine-written rows only (rejected from configuration inputs by applyScopeRules); the
+        // explicit mapping keeps internal writers from ever mislabeling one as IP / domain.
+        case SECURITY_PLATFORM -> ScopeRuleValueType.SECURITY_PLATFORM_ID;
         default -> resolveValueTypeFromString(input.getRuleValue());
       };
     }
@@ -1313,7 +1443,9 @@ public class WorkflowService {
    * @return list of expired workflows
    */
   public List<Workflow> findAllExpiredRunWorkflows() {
-    return workflowRepository.findAllExpiredRunWorkflows();
+    List<String> workflowIds = workflowRepository.findAllExpiredRunWorkflowIds();
+    if (workflowIds.isEmpty()) return Collections.emptyList();
+    return workflowRepository.findAllByIdWithScopeRules(workflowIds);
   }
 
   /**
@@ -1322,8 +1454,23 @@ public class WorkflowService {
    * @param workflowRun the running workflow to end
    */
   public void endWorkflow(Workflow workflowRun) {
-    workflowRun.setStatus(WorkflowStatus.END);
+    markWorkflowEnded(workflowRun);
     workflowRepository.save(workflowRun);
+  }
+
+  /**
+   * Single END transition for a RUN workflow: sets the status and freezes the end scope snapshot
+   * exactly once (re-running the launch-time resolution). Idempotent - a run already ended is left
+   * untouched so the frozen end photo is never overwritten. See ADR-006.
+   *
+   * @param workflowRun the RUN workflow reaching END/STOP
+   */
+  private void markWorkflowEnded(Workflow workflowRun) {
+    if (WorkflowStatus.END.equals(workflowRun.getStatus())) {
+      return;
+    }
+    workflowRun.setStatus(WorkflowStatus.END);
+    scopeSnapshotService.freezeEnd(workflowRun);
   }
 
   /**
@@ -1378,7 +1525,7 @@ public class WorkflowService {
           "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
           workflowRun.getId());
-      workflowRun.setStatus(WorkflowStatus.END);
+      markWorkflowEnded(workflowRun);
       return workflowRun;
     }
 
@@ -1401,7 +1548,7 @@ public class WorkflowService {
     if (!hasActiveSteps
         && !workflowRun.isKeepAlive()
         && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
-      workflowRun.setStatus(WorkflowStatus.END);
+      markWorkflowEnded(workflowRun);
     }
 
     return workflowRun;
@@ -1448,6 +1595,10 @@ public class WorkflowService {
       boolean dirty = false;
       if (workflow.getStatus() == WorkflowStatus.END) {
         workflow.setStatus(WorkflowStatus.RUN);
+        // The launch evaluation provisionally ended this empty run and froze its end scope
+        // snapshot; reopening it must clear that photo or the live autonomous run would
+        // misclassify every later drift as after-execution. See ADR-006.
+        scopeSnapshotService.clearEnd(workflow);
         dirty = true;
       }
       if (!workflow.isKeepAlive() || workflow.isTimeoutEnabled()) {
@@ -1718,12 +1869,12 @@ public class WorkflowService {
    * Re-arms an in-place-updated step so its corrected definition re-executes on the next {@link
    * #evaluateWorkflowProgress}. The data swap alone never re-runs an already-executed step: its
    * committed execution hashes still mark it fired, so the engine skips it. Clearing those hashes
-   * on the step's live RUN workflow(s) lets it ready again — this is what makes the autonomous
+   * on the step's live RUN workflow(s) lets it ready again - this is what makes the autonomous
    * "update a step, evaluate, re-run the corrected version" loop actually re-fire.
    *
    * <p>Simulation-scoped by construction: re-fire state lives only on RUN workflows, which exist
    * only on the simulation. A scenario-owned template (e.g. the autonomous scenario mirror twin,
-   * updated in lock-step) has no simulation and no RUN workflow, so this is a no-op for it —
+   * updated in lock-step) has no simulation and no RUN workflow, so this is a no-op for it -
    * exactly right, since the mirror never executes.
    */
   private void rearmStepForReExecution(Step stepTemplate) {

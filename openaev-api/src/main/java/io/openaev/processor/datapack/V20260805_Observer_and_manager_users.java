@@ -5,7 +5,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.DataPackService;
-import io.openaev.service.RoleService;
+import io.openaev.service.TenantRoleService;
 import io.openaev.service.UserService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -44,7 +44,7 @@ public class V20260805_Observer_and_manager_users extends DataPack {
   private final UserService userService;
   private final UserRepository userRepository;
   private final GroupRepository groupRepository;
-  private final RoleService roleService;
+  private final TenantRoleService tenantRoleService;
   @PersistenceContext private EntityManager entityManager;
 
   public V20260805_Observer_and_manager_users(
@@ -52,12 +52,12 @@ public class V20260805_Observer_and_manager_users extends DataPack {
       UserService userService,
       UserRepository userRepository,
       GroupRepository groupRepository,
-      RoleService roleService) {
+      TenantRoleService tenantRoleService) {
     super(dataPackService);
     this.userService = userService;
     this.userRepository = userRepository;
     this.groupRepository = groupRepository;
-    this.roleService = roleService;
+    this.tenantRoleService = tenantRoleService;
   }
 
   @Override
@@ -100,7 +100,8 @@ public class V20260805_Observer_and_manager_users extends DataPack {
   }
 
   private Role createRoleIfMissing(String roleName, Set<Capability> capabilities) {
-    return roleService.createRole(roleName, roleName, capabilities);
+    return tenantRoleService.createRoleInternal(
+        UUID.randomUUID().toString(), roleName, roleName, capabilities, null);
   }
 
   private void createUserInGroup(

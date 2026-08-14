@@ -39,7 +39,7 @@ group.setUsers(
     referenceResolver.resolve(userIds, User.class, userRepo::countByIdIn));
 
 // ❌ Bad — N queries (1 SELECT per ID)
-roleIds.stream().map(roleService::findById).toList();
+roleIds.stream().map(tenantRoleService::findById).toList();
 ```
 
 Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(Set<String>)` method.

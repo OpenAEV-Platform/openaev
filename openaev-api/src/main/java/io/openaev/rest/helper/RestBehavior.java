@@ -39,6 +39,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 @RestControllerAdvice
@@ -61,6 +63,7 @@ public class RestBehavior {
   // -- 400 BAD_REQUEST --
 
   private static final int MAX_REJECTED_VALUE_LENGTH = 100;
+  private static final int MAX_UNREADABLE_DETAIL_LENGTH = 300;
 
   // Bound the caller-supplied rejected value echoed back in the 400 body / logs
   private static String abbreviateRejectedValue(Object value) {
@@ -74,29 +77,63 @@ public class RestBehavior {
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<ErrorMessage> handleHttpMessageNotReadable(
       HttpMessageNotReadableException ex) {
-    String detail;
-    if (ex.getCause() instanceof InvalidFormatException ife) {
-      // Render array indices attached to their parent segment: filters[0].operator
-      StringBuilder pathBuilder = new StringBuilder();
-      for (var ref : ife.getPath()) {
-        if (ref.getFieldName() != null) {
-          if (!pathBuilder.isEmpty()) {
-            pathBuilder.append('.');
-          }
-          pathBuilder.append(ref.getFieldName());
-        } else {
-          pathBuilder.append('[').append(ref.getIndex()).append(']');
-        }
-      }
-      String path = pathBuilder.toString();
-      detail =
-          "Invalid value '%s' for field '%s'"
-              .formatted(abbreviateRejectedValue(ife.getValue()), path);
-    } else {
-      detail = "Malformed or unreadable request body";
-    }
+    String detail = unreadableBodyDetail(ex);
     log.warn("HttpMessageNotReadableException: {}", detail, ex);
     return new ResponseEntity<>(new ErrorMessage(detail), HttpStatus.BAD_REQUEST);
+  }
+
+  private static String unreadableBodyDetail(HttpMessageNotReadableException ex) {
+    InvalidFormatException ife = findDeepestCause(ex, InvalidFormatException.class);
+    if (ife != null) {
+      return invalidFormatDetail(ife);
+    }
+    // @JsonCreator methods throw IllegalArgumentException; Jackson wraps that in
+    // ValueInstantiationException / JsonMappingException. Surface the creator message so clients
+    // get an actionable 400 instead of the generic "Malformed or unreadable request body".
+    IllegalArgumentException iae = findDeepestCause(ex, IllegalArgumentException.class);
+    if (iae != null && iae.getMessage() != null && !iae.getMessage().isBlank()) {
+      return abbreviateMessage(iae.getMessage());
+    }
+    return "Malformed or unreadable request body";
+  }
+
+  private static String invalidFormatDetail(InvalidFormatException ife) {
+    // Render array indices attached to their parent segment: filters[0].operator
+    StringBuilder pathBuilder = new StringBuilder();
+    for (var ref : ife.getPath()) {
+      if (ref.getFieldName() != null) {
+        if (pathBuilder.length() > 0) {
+          pathBuilder.append('.');
+        }
+        pathBuilder.append(ref.getFieldName());
+      } else {
+        pathBuilder.append('[').append(ref.getIndex()).append(']');
+      }
+    }
+    return "Invalid value '%s' for field '%s'"
+        .formatted(abbreviateRejectedValue(ife.getValue()), pathBuilder.toString());
+  }
+
+  private static String abbreviateMessage(String message) {
+    return message.length() <= MAX_UNREADABLE_DETAIL_LENGTH
+        ? message
+        : message.substring(0, MAX_UNREADABLE_DETAIL_LENGTH) + "...";
+  }
+
+  // Returns the deepest matching cause: outer wrappers (Spring, Jackson) restate the original
+  // message with framework noise, so the root cause carries the actionable text. The
+  // identity-based visited set guards against cyclic cause chains.
+  private static <T extends Throwable> T findDeepestCause(Throwable throwable, Class<T> type) {
+    T deepest = null;
+    Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+    Throwable current = throwable;
+    while (current != null && visited.add(current)) {
+      if (type.isInstance(current)) {
+        deepest = type.cast(current);
+      }
+      current = current.getCause();
+    }
+    return deepest;
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -206,6 +243,20 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
+  // A translatable code in "message" and the offending keys in
+  // errors.children.message.errors, which the client already knows how to read.
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(PrivilegeGrantException.class)
+  public ValidationErrorBag handlePrivilegeGrantException(PrivilegeGrantException ex) {
+    ValidationErrorBag bag = new ValidationErrorBag(HttpStatus.BAD_REQUEST.value(), ex.getCode());
+    ValidationContent content = new ValidationContent();
+    content.setErrors(ex.getDetails());
+    ValidationError errors = new ValidationError();
+    errors.setChildren(Map.of("message", content));
+    bag.setErrors(errors);
+    return bag;
+  }
+
   // Without this handler the class-level @ResponseStatus lets Spring produce the default /error
   // body, whose "message" field is empty unless server.error.include-message=always - the frontend
   // then shows a generic "Bad request" instead of the actual reason.
@@ -216,6 +267,20 @@ public class RestBehavior {
     // Client error thrown all over the codebase: DEBUG (with the stack) keeps prod logs
     // actionable while still supporting troubleshooting.
     log.debug("BadRequestException: {}", ex.getMessage(), ex);
+    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  }
+
+  // A chaining lifecycle operation refused by product decision (e.g. pausing a chained
+  // simulation): a client error, not a platform failure, so it must carry its business message
+  // with a 400 instead of the 500 the checked ChainingException produced. ChainingException itself
+  // is deliberately NOT mapped here: it also carries internal chaining engine failures, which must
+  // keep surfacing as 500.
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(ChainingOperationNotSupportedException.class)
+  public ResponseEntity<ErrorMessage> handleChainingOperationNotSupportedException(
+      ChainingOperationNotSupportedException ex) {
+    ErrorMessage message = new ErrorMessage(ex.getMessage());
+    log.debug("ChainingOperationNotSupportedException: {}", ex.getMessage(), ex);
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
@@ -295,6 +360,12 @@ public class RestBehavior {
       })
   public ResponseEntity<ErrorMessage> handleTenantAccessDeniedException(
       TenantAccessDeniedException ex) {
+    log.warn(
+        "TENANT_ACCESS_DENIED: {} (user={}, {} {})",
+        ex.getMessage(),
+        currentUser().getId(),
+        requestMethod(),
+        requestUri());
     return new ResponseEntity<>(new ErrorMessage("TENANT_ACCESS_DENIED"), HttpStatus.FORBIDDEN);
   }
 
@@ -466,5 +537,23 @@ public class RestBehavior {
     } catch (IllegalArgumentException e) {
       throw new InputValidationException("id", "The ID is not a valid UUID: " + id);
     }
+  }
+
+  // -- UTILS --
+
+  /** Current request method, or {@code ?} when called outside a servlet request. */
+  private static String requestMethod() {
+    return RequestContextHolder.getRequestAttributes()
+            instanceof ServletRequestAttributes attributes
+        ? attributes.getRequest().getMethod()
+        : "?";
+  }
+
+  /** Current request URI, or {@code ?} when called outside a servlet request. */
+  private static String requestUri() {
+    return RequestContextHolder.getRequestAttributes()
+            instanceof ServletRequestAttributes attributes
+        ? attributes.getRequest().getRequestURI()
+        : "?";
   }
 }

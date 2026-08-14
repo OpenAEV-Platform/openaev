@@ -10,6 +10,7 @@ import io.openaev.database.repository.TeamRepository;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -75,6 +76,21 @@ public class ExerciseTeamUserService {
    * @param teamIds the ids of the teams targeted by a chained/authored step
    */
   public void enableTargetedTeamMembers(String simulationId, List<String> teamIds) {
+    enableTargetedTeamMembers(simulationId, teamIds, Set.of());
+  }
+
+  /**
+   * Same as {@link #enableTargetedTeamMembers(String, List)} but never enables the given user ids.
+   * A player denylisted in a chaining workflow scope must not join the simulation audience at all:
+   * filtering them from the inject's recipients is not enough, because the {@code
+   * exercise_teams_users} link created here persists beyond the inject.
+   *
+   * @param simulationId the simulation whose audience must carry the targeted teams' players
+   * @param teamIds the ids of the teams targeted by a chained/authored step
+   * @param excludedUserIds user ids that must never be enabled (e.g. scope-denylisted players)
+   */
+  public void enableTargetedTeamMembers(
+      String simulationId, List<String> teamIds, Set<String> excludedUserIds) {
     if (teamIds == null || teamIds.isEmpty() || !StringUtils.hasText(simulationId)) {
       return;
     }
@@ -82,12 +98,14 @@ public class ExerciseTeamUserService {
     if (simulation == null) {
       return;
     }
+    Set<String> excluded = excludedUserIds != null ? excludedUserIds : Set.of();
     for (String teamId : teamIds.stream().filter(StringUtils::hasText).distinct().toList()) {
       Team team = teamRepository.findById(teamId).orElse(null);
       if (team == null) {
         continue;
       }
-      List<User> members = team.getUsers().stream().distinct().toList();
+      List<User> members =
+          team.getUsers().stream().distinct().filter(m -> !excluded.contains(m.getId())).toList();
       if (members.isEmpty()) {
         continue;
       }

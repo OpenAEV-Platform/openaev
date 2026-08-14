@@ -27,7 +27,7 @@ import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.rest.exception.BadRequestException;
-import io.openaev.service.RoleService;
+import io.openaev.service.TenantRoleService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -61,7 +61,7 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private VulnerabilityRepository vulnerabilityRepository;
   @Autowired private CweRepository cweRepository;
-  @Autowired private RoleService roleService;
+  @Autowired private TenantRoleService tenantRoleService;
   @Autowired private GroupRepository groupRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
@@ -114,7 +114,7 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(cweRepository.findAll())
         .filteredOn(cwe -> created.getId().equals(cwe.getTenant().getId()))
         .hasSize(7);
-    List<Role> roles = roleService.findAll(created.getId());
+    List<Role> roles = tenantRoleService.findAll(created.getId());
     assertThat(roles).extracting(Role::getName).contains("Admin", "Manager", "Observer");
     assertThat(roles).hasSizeGreaterThanOrEqualTo(3);
     List<Group> groups = groupRepository.findAllByTenantId(created.getId());
@@ -164,8 +164,10 @@ class TenantServiceTest extends IntegrationTest {
     // would return every tenant's row unfiltered: assert by explicit tenant attribution instead,
     // using the tenant-scoped repository method kept for exactly this purpose.
     Injector emailInjector =
-        injectorRepository
-            .findByTypeAndTenantId(EmailContract.TYPE, created.getId())
+        injectorRepository.findAll().stream()
+            .filter(i -> EmailContract.TYPE.equals(i.getType()))
+            .filter(i -> created.getId().equals(i.getTenantId()))
+            .findFirst()
             .orElseThrow(
                 () -> new AssertionError("the email injector was not provisioned for the tenant"));
     assertThat(emailInjector.getContracts())
@@ -178,8 +180,10 @@ class TenantServiceTest extends IntegrationTest {
     entityManager.clear();
     TenantContext.setCurrentTenant(DEFAULT_TENANT_UUID);
     Injector defaultEmailInjector =
-        injectorRepository
-            .findByTypeAndTenantId(EmailContract.TYPE, DEFAULT_TENANT_UUID)
+        injectorRepository.findAll().stream()
+            .filter(i -> EmailContract.TYPE.equals(i.getType()))
+            .filter(i -> DEFAULT_TENANT_UUID.equals(i.getTenantId()))
+            .findFirst()
             .orElseThrow(() -> new AssertionError("the default tenant lost its email injector"));
     assertThat(defaultEmailInjector.getContracts())
         .as("the default tenant's link must be untouched by the new-tenant copy")
@@ -349,7 +353,7 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(cweRepository.findAll())
         .filteredOn(cwe -> tenantExpired.getId().equals(cwe.getTenant().getId()))
         .isEmpty();
-    assertThat(roleService.findAll(tenantExpired.getId())).isEmpty();
+    assertThat(tenantRoleService.findAll(tenantExpired.getId())).isEmpty();
     assertThat(groupRepository.findAllByTenantId(tenantExpired.getId())).isEmpty();
   }
 

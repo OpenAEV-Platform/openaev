@@ -8,6 +8,7 @@ import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.ScopeRuleValueType;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,8 +54,11 @@ public class WorkflowScopeRuleCascadeListener {
     }
 
     try {
+      // Only TEMPLATE rules: RUN rules carry the immutable execution snapshots and must survive
+      // the referenced entity's deletion so the DELETED_* statuses can be derived (ADR-006).
       int removed =
-          workflowScopeRuleRepository.deleteByRuleValueAndValueType(instance.getId(), valueType);
+          workflowScopeRuleRepository.deleteByRuleValueAndValueTypeAndWorkflowStatus(
+              instance.getId(), valueType, WorkflowStatus.TEMPLATE);
       if (removed > 0) {
         log.debug(
             "Removed {} workflow scope rule(s) referencing deleted {} {}",

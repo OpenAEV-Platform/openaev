@@ -13,9 +13,10 @@ import {
   Switch,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, type ReactNode, useMemo, useState } from 'react';
 
 import { type AdditionalAgent, AUTONOMOUS_DISCOVERY_MODES, type AutonomousDiscoveryMode, ORCHESTRATOR_DEFAULT_DISCOVERY_MODE, SPECIALIST_DEFAULT_DISCOVERY_MODE } from '../../../actions/autonomous/autonomous-types';
 import colorStyles from '../../../components/Color';
@@ -99,6 +100,11 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
   const [keyword, setKeyword] = useState('');
   const [sortBy, setSortBy] = useState('agent_name');
   const [sortAsc, setSortAsc] = useState(true);
+
+  // The fixed-width, single-line column layout below needs real horizontal room (four columns plus a
+  // Select and the settings side-menu). Below `md` it collapses to a stacked card per agent where the
+  // name/description wrap and the toggle stays reachable, instead of truncating everything to nothing.
+  const isSmall = useMediaQuery(theme.breakpoints.down('md'));
 
   const showModes = !!onModeChange;
 
@@ -216,43 +222,24 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
         agent_built_in: { width: '20%' },
       };
 
+  // Column definitions drive ONLY the wide-screen sortable header row and column widths; the row body
+  // (both layouts) is rendered by renderRow so there is a single source of truth for cell content.
   const headers: Header[] = useMemo(() => {
     const base: Header[] = [
       {
         field: 'agent_name',
         label: 'Name',
         isSortable: true,
-        value: (agent: AdditionalAgent) => (
-          <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
-            {agentName(agent)}
-          </Typography>
-        ),
       },
       {
         field: 'agent_description',
         label: 'Description',
         isSortable: false,
-        value: (agent: AdditionalAgent) => (
-          <Typography variant="caption" color="text.secondary" noWrap title={agent.description ?? undefined}>
-            {agent.description ?? '-'}
-          </Typography>
-        ),
       },
       {
         field: 'agent_built_in',
         label: 'Built-in',
         isSortable: true,
-        value: (agent: AdditionalAgent) => (agent.slug === builtinSlug
-          ? (
-              <Chip
-                style={{
-                  ...chipInList,
-                  ...colorStyles.grey,
-                }}
-                label={t('Built-in')}
-              />
-            )
-          : undefined),
       },
     ];
     if (showModes) {
@@ -260,21 +247,10 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
         field: 'agent_mode',
         label: 'Discovery mode',
         isSortable: true,
-        value: (agent: AdditionalAgent) => {
-          const enabled = enabledIds.includes(agent.id);
-          if (!enabled) {
-            return (
-              <Typography variant="caption" color="text.disabled">
-                -
-              </Typography>
-            );
-          }
-          return renderModeSelect(agent.id);
-        },
       });
     }
     return base;
-  }, [showModes, enabledIds, modes, disabled, builtinSlug, theme]);
+  }, [showModes]);
 
   const filtered = useMemo(() => {
     const needle = keyword.trim().toLowerCase();
@@ -312,6 +288,106 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
       return sortAsc ? cmp : -cmp;
     });
   }, [filtered, sortBy, sortAsc, modes, builtinSlug]);
+
+  const nameNode = (name: string) => (
+    <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap={!isSmall}>
+      {name}
+    </Typography>
+  );
+  const descriptionNode = (description?: string | null) => (
+    <Typography
+      variant="caption"
+      color="text.secondary"
+      noWrap={!isSmall}
+      title={!isSmall ? (description ?? undefined) : undefined}
+      sx={isSmall ? { whiteSpace: 'normal' } : undefined}
+    >
+      {description ?? '-'}
+    </Typography>
+  );
+
+  // One row model shared by the orchestrator, every agent and both layouts, so the wide table and the
+  // small-screen stack can never drift and the toggle is always rendered as the ListItem's action.
+  interface RowData {
+    key: string;
+    name: string;
+    description?: string | null;
+    iconColor: string;
+    chip: ReactNode;
+    modeNode: ReactNode;
+    trailing: ReactNode;
+  }
+
+  interface RowCell {
+    field: string;
+    node: ReactNode;
+  }
+
+  const renderRow = (row: RowData) => {
+    const cells: RowCell[] = [
+      {
+        field: 'agent_name',
+        node: nameNode(row.name),
+      },
+      {
+        field: 'agent_description',
+        node: descriptionNode(row.description),
+      },
+      {
+        field: 'agent_built_in',
+        node: row.chip,
+      },
+    ];
+    if (showModes) {
+      cells.push({
+        field: 'agent_mode',
+        node: row.modeNode,
+      });
+    }
+    const content = isSmall
+      ? (
+          <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ minWidth: 0 }}>
+              {nameNode(row.name)}
+              {row.chip}
+            </Stack>
+            {/* No placeholder dash on the stacked card - a dangling "-" line is just noise there
+                (the "-" only exists to keep the wide table's description column visually filled). */}
+            {row.description ? descriptionNode(row.description) : null}
+            {showModes && row.modeNode ? <div>{row.modeNode}</div> : null}
+          </Stack>
+        )
+      : (
+          <div style={bodyItemsStyles.bodyItems}>
+            {cells.map(cell => (
+              <div
+                key={cell.field}
+                style={{
+                  ...bodyItemsStyles.bodyItem,
+                  ...inlineStyles[cell.field],
+                }}
+              >
+                {cell.node}
+              </div>
+            ))}
+          </div>
+        );
+    return (
+      <ListItem
+        key={row.key}
+        divider
+        alignItems={isSmall ? 'flex-start' : 'center'}
+        secondaryAction={row.trailing}
+      >
+        <ListItemIcon sx={isSmall ? { marginTop: 0.5 } : undefined}>
+          <SmartToyOutlined fontSize="small" sx={{ color: row.iconColor }} />
+        </ListItemIcon>
+        {/* disableTypography: the content is a Stack/div tree with its own Typography elements, so
+            the default span wrapper would produce invalid HTML (block elements inside a span). */}
+        <ListItemText disableTypography primary={content} />
+      </ListItem>
+    );
+  };
 
   // Shared header row so the loading skeleton and the loaded list line up column-for-column.
   const headerRow = (
@@ -367,7 +443,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
       {loading
         ? (
             <List>
-              {headerRow}
+              {!isSmall && headerRow}
               {['s1', 's2', 's3'].map(key => (
                 <ListItem
                   key={key}
@@ -378,21 +454,24 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                     <Skeleton variant="circular" width={20} height={20} />
                   </ListItemIcon>
                   <ListItemText
-                    primary={(
-                      <div style={bodyItemsStyles.bodyItems}>
-                        {headers.map(header => (
-                          <div
-                            key={header.field}
-                            style={{
-                              ...bodyItemsStyles.bodyItem,
-                              ...inlineStyles[header.field],
-                            }}
-                          >
-                            <Skeleton variant="text" width="80%" />
+                    disableTypography
+                    primary={isSmall
+                      ? <Skeleton variant="text" width="70%" />
+                      : (
+                          <div style={bodyItemsStyles.bodyItems}>
+                            {headers.map(header => (
+                              <div
+                                key={header.field}
+                                style={{
+                                  ...bodyItemsStyles.bodyItem,
+                                  ...inlineStyles[header.field],
+                                }}
+                              >
+                                <Skeleton variant="text" width="80%" />
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        )}
                   />
                 </ListItem>
               ))}
@@ -400,113 +479,72 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
           )
         : (
             <List>
-              {headerRow}
+              {!isSmall && headerRow}
 
-              {orchestrator && (
-                <ListItem
-                  divider
-                  secondaryAction={(
-                    <Tooltip title={t('The orchestrator is always active - it plans and drives the attack and cannot be disabled.')}>
-                      <span>
-                        <Switch edge="end" size="small" checked disabled inputProps={{ 'aria-label': orchestrator.name }} />
-                      </span>
-                    </Tooltip>
-                  )}
-                >
-                  <ListItemIcon>
-                    <SmartToyOutlined fontSize="small" sx={{ color: theme.palette.ai.main }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={(
-                      <div style={bodyItemsStyles.bodyItems}>
-                        <div style={{
-                          ...bodyItemsStyles.bodyItem,
-                          ...inlineStyles.agent_name,
-                        }}
-                        >
-                          <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
-                            {orchestrator.name}
-                          </Typography>
-                        </div>
-                        <div style={{
-                          ...bodyItemsStyles.bodyItem,
-                          ...inlineStyles.agent_description,
-                        }}
-                        >
-                          <Typography variant="caption" color="text.secondary" noWrap title={orchestrator.description}>
-                            {orchestrator.description ?? '-'}
-                          </Typography>
-                        </div>
-                        <div style={{
-                          ...bodyItemsStyles.bodyItem,
-                          ...inlineStyles.agent_built_in,
-                        }}
-                        >
-                          <Chip
-                            style={{
-                              ...chipInList,
-                              ...colorStyles.purple,
-                            }}
-                            label={t('Orchestrator')}
-                          />
-                        </div>
-                        {showModes && (
-                          <div style={{
-                            ...bodyItemsStyles.bodyItem,
-                            ...inlineStyles.agent_mode,
-                          }}
-                          >
-                            {renderModeSelect(orchestrator.id)}
-                          </div>
-                        )}
-                      </div>
-                    )}
+              {orchestrator && renderRow({
+                key: orchestrator.id,
+                name: orchestrator.name,
+                description: orchestrator.description,
+                iconColor: theme.palette.ai.main,
+                chip: (
+                  <Chip
+                    style={{
+                      ...chipInList,
+                      ...colorStyles.purple,
+                    }}
+                    label={t('Orchestrator')}
                   />
-                </ListItem>
-              )}
+                ),
+                modeNode: showModes ? renderModeSelect(orchestrator.id) : null,
+                trailing: (
+                  <Tooltip title={t('The orchestrator is always active - it plans and drives the attack and cannot be disabled.')}>
+                    <span>
+                      <Switch edge="end" size="small" checked disabled inputProps={{ 'aria-label': orchestrator.name }} />
+                    </span>
+                  </Tooltip>
+                ),
+              })}
 
               {sorted.map((agent) => {
                 const enabled = enabledIds.includes(agent.id);
-                return (
-                  <ListItem
-                    key={agent.id}
-                    divider
-                    secondaryAction={(
-                      <Switch
-                        edge="end"
-                        size="small"
-                        checked={enabled}
-                        disabled={disabled}
-                        onChange={event => onToggle(agent.id, event.target.checked)}
-                        inputProps={{ 'aria-label': agentName(agent) }}
-                      />
-                    )}
-                  >
-                    <ListItemIcon>
-                      <SmartToyOutlined
-                        fontSize="small"
-                        sx={{ color: enabled ? theme.palette.ai.main : theme.palette.text.disabled }}
-                      />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={(
-                        <div style={bodyItemsStyles.bodyItems}>
-                          {headers.map(header => (
-                            <div
-                              key={header.field}
-                              style={{
-                                ...bodyItemsStyles.bodyItem,
-                                ...inlineStyles[header.field],
-                              }}
-                            >
-                              {header.value?.(agent)}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                let modeNode: ReactNode = null;
+                if (showModes) {
+                  modeNode = enabled
+                    ? renderModeSelect(agent.id)
+                    : (
+                        <Typography variant="caption" color="text.disabled">
+                          -
+                        </Typography>
+                      );
+                }
+                return renderRow({
+                  key: agent.id,
+                  name: agentName(agent),
+                  description: agent.description,
+                  iconColor: enabled ? theme.palette.ai.main : theme.palette.text.disabled,
+                  chip: agent.slug === builtinSlug
+                    ? (
+                        <Chip
+                          style={{
+                            ...chipInList,
+                            ...colorStyles.grey,
+                          }}
+                          label={t('Built-in')}
+                        />
+                      )
+                    : null,
+                  modeNode,
+                  trailing: (
+                    <Switch
+                      edge="end"
+                      size="small"
+                      checked={enabled}
+                      disabled={disabled}
+                      onChange={event => onToggle(agent.id, event.target.checked)}
+                      inputProps={{ 'aria-label': agentName(agent) }}
                     />
-                  </ListItem>
-                );
+                  ),
+                });
               })}
 
               {sorted.length === 0 && keyword.trim() && (

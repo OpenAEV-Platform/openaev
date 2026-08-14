@@ -378,6 +378,68 @@ class LogServiceTest {
     }
 
     @Test
+    @DisplayName(
+        "given_credentialInputOutput_should_keepAllowedCredentialMetadata_and_redactCredentialSecrets")
+    void
+        given_credentialInputOutput_should_keepAllowedCredentialMetadata_and_redactCredentialSecrets() {
+      // Arrange
+      ObjectNode input = objectMapper.createObjectNode();
+      input.put("credential_id", "cred-1");
+      input.put("credential_name", "AD - Tier 0");
+      input.put("credential_type", "IDENTITY");
+      input.put("credential_description", "Domain admin account");
+      input.put("credential_auth_method", "USERNAME_PASSWORD");
+      input.put("credential_username", "administrator");
+      input.put("credential_password", "super-secret");
+
+      ObjectNode output = objectMapper.createObjectNode();
+      output.put("credential_id", "cred-1");
+      output.put("credential_name", "AD - Tier 0");
+      output.put("credential_type", "IDENTITY");
+      output.put("credential_description", "Domain admin account");
+      output.put("credential_auth_method", "USERNAME_PASSWORD");
+      output.put("credential_hash", "sensitive-hash-value");
+
+      // Act
+      logService.logRequestEvent(
+          "update",
+          "success",
+          ResourceType.CREDENTIAL,
+          "cred-1",
+          input,
+          output,
+          null,
+          null,
+          Level.WARNING,
+          "uuid-r-credential-1");
+
+      // Assert
+      @SuppressWarnings("unchecked")
+      Map<String, Object> loggedInput =
+          (Map<String, Object>) captureEvent().getContextData().get("input");
+      @SuppressWarnings("unchecked")
+      Map<String, Object> loggedOutput =
+          (Map<String, Object>) captureEvent().getContextData().get("output");
+
+      assertThat(loggedInput)
+          .containsEntry("credential_id", "cred-1")
+          .containsEntry("credential_name", "AD - Tier 0")
+          .containsEntry("credential_type", "IDENTITY")
+          .containsEntry("credential_description", "Domain admin account")
+          .containsEntry("credential_auth_method", "USERNAME_PASSWORD")
+          .containsEntry("credential_username", REDACTED)
+          .containsEntry("credential_password", REDACTED);
+
+      assertThat(loggedOutput)
+          .containsEntry("credential_id", "cred-1")
+          .containsEntry("credential_name", "AD - Tier 0")
+          .containsEntry("credential_type", "IDENTITY")
+          .containsEntry("credential_description", "Domain admin account")
+          .containsEntry("credential_auth_method", "USERNAME_PASSWORD")
+          .containsEntry("credential_hash", REDACTED);
+    }
+
+    @Test
     @DisplayName("given_entityDiffsWithTokenField_should_hashValue")
     void given_entityDiffsWithTokenField_should_hashValue() {
       // Arrange – token fields are hashed, not blanket-redacted

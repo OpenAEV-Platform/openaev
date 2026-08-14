@@ -3,6 +3,7 @@ package io.openaev.service.autonomous;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -16,15 +17,19 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.ConvertToManualMode;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.ScopeRuleSelectedMode;
+import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
+import io.openaev.database.model.autonomous.AutonomousScopeTarget;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -39,10 +44,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -70,6 +77,9 @@ class AutonomousRunServiceTest {
   @Mock private ScenarioToExerciseService scenarioToExerciseService;
   @Mock private XtmOneClient xtmOneClient;
   @Mock private OpenAEVConfig openAEVConfig;
+  // Lenient by default (void asserts are no-ops): these unit tests exercise lifecycle logic, not
+  // authorization. The deny paths are covered by AutonomousRunAccessControlTest.
+  @Mock private AutonomousRunAccessControl accessControl;
 
   @InjectMocks private AutonomousRunService service;
 
@@ -96,7 +106,7 @@ class AutonomousRunServiceTest {
     AutonomousRun run = new AutonomousRun();
     run.setPlanMode(false);
     run.setStatus(AutonomousRunStatus.RUNNING);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
 
     assertThatThrownBy(() -> service.promoteToRealRun("run-1"))
         .isInstanceOf(ResponseStatusException.class);
@@ -109,11 +119,188 @@ class AutonomousRunServiceTest {
     AutonomousRun run = new AutonomousRun();
     run.setPlanMode(true);
     run.setStatus(AutonomousRunStatus.PLANNING);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
 
     assertThatThrownBy(() -> service.promoteToRealRun("run-1"))
         .isInstanceOf(ResponseStatusException.class);
   }
+
+  // region orchestrator status callback validation
+
+  /**
+   * Regression tests for the orchestrator status-callback transition matrix: a stale callback must
+   * never resurrect an operator-owned state (CREATED pre-handoff / post-restart, PAUSED) or cross
+   * the plan/live divide, and every rejected push is an idempotent no-op (never a save).
+   */
+  @Nested
+  @DisplayName("Orchestrator status callback validation")
+  class OrchestratorStatusValidation {
+
+    private AutonomousRun lockedRun(AutonomousRunStatus status, boolean planMode) {
+      AutonomousRun run = new AutonomousRun();
+      run.setId("run-1");
+      run.setSimulationId("sim-1");
+      run.setStatus(status);
+      run.setPlanMode(planMode);
+      when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+      // updateStatus reads through the row-locking lookup so its check-then-write serialises with
+      // the operator lifecycle writers.
+      when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
+      return run;
+    }
+
+    @Test
+    @DisplayName("A stale callback cannot resurrect an operator pause (PAUSED source is a no-op)")
+    void given_pausedRun_when_orchestratorPushesAnyStatus_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.PAUSED, false);
+
+      AutonomousRun result =
+          service.updateStatus("run-1", AutonomousRunStatus.RUNNING, null, null, null);
+
+      assertThat(result.getStatus()).isEqualTo(AutonomousRunStatus.PAUSED);
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PAUSED);
+      verify(runRepository, never()).save(any());
+      verifyNoInteractions(eventService);
+    }
+
+    @Test
+    @DisplayName("A stale callback cannot settle a paused run to a terminal state")
+    void given_pausedRun_when_orchestratorPushesCompleted_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.PAUSED, false);
+
+      service.updateStatus("run-1", AutonomousRunStatus.COMPLETED, null, null, null);
+
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PAUSED);
+      verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A stale callback cannot drive a not-yet-started (CREATED) run")
+    void given_createdRun_when_orchestratorPushesRunning_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.CREATED, false);
+
+      service.updateStatus("run-1", AutonomousRunStatus.RUNNING, null, null, null);
+
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
+      verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A settled plan (PLANNED) cannot be reopened or overwritten by a late callback")
+    void given_plannedPlanRun_when_orchestratorPushesAnyStatus_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.PLANNED, true);
+
+      service.updateStatus("run-1", AutonomousRunStatus.PLANNING, null, null, null);
+      service.updateStatus("run-1", AutonomousRunStatus.FAILED, null, null, null);
+
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNED);
+      verify(runRepository, never()).save(any());
+      verifyNoInteractions(eventService);
+    }
+
+    @Test
+    @DisplayName("A live run cannot be flipped across the plan/live divide (PLANNED target)")
+    void given_liveRun_when_orchestratorPushesPlanned_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.RUNNING, false);
+
+      service.updateStatus("run-1", AutonomousRunStatus.PLANNED, null, null, null);
+
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.RUNNING);
+      verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A plan run cannot be driven to the execute-only RUNNING state")
+    void given_planRun_when_orchestratorPushesRunning_then_noOp() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.PLANNING, true);
+
+      service.updateStatus("run-1", AutonomousRunStatus.RUNNING, null, null, null);
+
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
+      verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("A legitimate live-run push (RUNNING -> COMPLETED) is applied and narrated")
+    void given_liveRun_when_orchestratorPushesCompleted_then_applied() {
+      AutonomousRun run = lockedRun(AutonomousRunStatus.RUNNING, false);
+      when(runRepository.save(run)).thenReturn(run);
+
+      AutonomousRun result =
+          service.updateStatus("run-1", AutonomousRunStatus.COMPLETED, null, null, null);
+
+      assertThat(result.getStatus()).isEqualTo(AutonomousRunStatus.COMPLETED);
+      verify(runRepository).save(run);
+      verify(eventService)
+          .append(
+              eq("run-1"),
+              eq("sim-1"),
+              eq(AutonomousEventType.STATUS),
+              anyString(),
+              isNull(),
+              isNull());
+    }
+  }
+
+  // endregion
+
+  // region network scope-rule matching (dual-stack CIDR)
+
+  /**
+   * Direct tests of the network scope-rule matcher: dual-stack CIDR containment must work for IPv6
+   * (the original bug), never resolve a hostname through DNS, and never let a malformed rule (an
+   * out-of-range prefix) match everything.
+   */
+  @Nested
+  @DisplayName("Network scope-rule matching")
+  class NetworkScopeRuleMatching {
+
+    @Test
+    @DisplayName("An IPv4 host matches an IPv4 CIDR rule")
+    void given_ipv4Candidate_when_insideIpv4Cidr_then_matches() {
+      assertThat(service.networkValueMatches("10.0.0.0/24", "10.0.0.42")).isTrue();
+      assertThat(service.networkValueMatches("10.0.0.0/24", "10.0.1.42")).isFalse();
+    }
+
+    @Test
+    @DisplayName("An IPv6 host matches an IPv6 CIDR rule (the original silent fall-through)")
+    void given_ipv6Candidate_when_insideIpv6Cidr_then_matches() {
+      assertThat(service.networkValueMatches("2001:db8::/32", "2001:db8::1")).isTrue();
+      assertThat(service.networkValueMatches("2001:db8::/32", "2001:db9::1")).isFalse();
+    }
+
+    @Test
+    @DisplayName("Mismatched address families never match")
+    void given_familyMismatch_when_matching_then_false() {
+      assertThat(service.networkValueMatches("10.0.0.0/8", "2001:db8::1")).isFalse();
+      assertThat(service.networkValueMatches("2001:db8::/32", "10.0.0.1")).isFalse();
+    }
+
+    @Test
+    @DisplayName("A hostname candidate is never evaluated against a CIDR rule (no DNS lookup)")
+    void given_hostnameCandidate_when_ruleIsCidr_then_falseWithoutResolution() {
+      assertThat(service.networkValueMatches("10.0.0.0/8", "intranet.example.org")).isFalse();
+    }
+
+    @Test
+    @DisplayName("A malformed rule prefix (out of range) never matches anything")
+    void given_outOfRangePrefix_when_matching_then_false() {
+      assertThat(service.networkValueMatches("10.0.0.0/-1", "10.0.0.1")).isFalse();
+      assertThat(service.networkValueMatches("10.0.0.0/33", "10.0.0.1")).isFalse();
+      assertThat(service.networkValueMatches("2001:db8::/-1", "2001:db8::1")).isFalse();
+      assertThat(service.networkValueMatches("2001:db8::/129", "2001:db8::1")).isFalse();
+    }
+
+    @Test
+    @DisplayName("A non-CIDR rule still matches case-insensitively on the exact value")
+    void given_exactRule_when_candidateDiffersOnlyByCase_then_matches() {
+      assertThat(service.networkValueMatches("HOST.example.org", "host.example.org")).isTrue();
+      assertThat(service.networkValueMatches("10.0.0.1", "10.0.0.1")).isTrue();
+      assertThat(service.networkValueMatches("10.0.0.1", "10.0.0.2")).isFalse();
+    }
+  }
+
+  // endregion
 
   // region OpenAEV-owned timeout: deadline stamping, winddown nudges, hard stop
 
@@ -299,7 +486,7 @@ class AutonomousRunServiceTest {
     run.setStartedAt(Instant.now().minusSeconds(600));
     run.setDeadlineAt(Instant.now().minusSeconds(5));
     run.setWinddownPhase("WINDDOWN_1M");
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
     AutonomousRun restarted = service.restart("run-1");
@@ -330,7 +517,7 @@ class AutonomousRunServiceTest {
   @DisplayName("restart from WAITING_INPUT no longer 409s: the parked run is reset like any other")
   void restartFromWaitingInputIsAllowed() throws Exception {
     AutonomousRun run = restartableRun(AutonomousRunStatus.WAITING_INPUT);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
     AutonomousRun restarted = service.restart("run-1");
@@ -346,7 +533,7 @@ class AutonomousRunServiceTest {
   @DisplayName("restart from a settled status keeps working exactly as before")
   void restartFromSettledStatusStillWorks() throws Exception {
     AutonomousRun run = restartableRun(AutonomousRunStatus.COMPLETED);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
     AutonomousRun restarted = service.restart("run-1");
@@ -362,7 +549,7 @@ class AutonomousRunServiceTest {
   void restartOfPlanModeReprovisionsTemplateOnly() throws Exception {
     AutonomousRun run = restartableRun(AutonomousRunStatus.PLANNED);
     run.setPlanMode(true);
-    when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
     AutonomousRun restarted = service.restart("run-1");
@@ -667,6 +854,246 @@ class AutonomousRunServiceTest {
     verify(exerciseService, never()).deleteById(anyString());
     verify(workflowService).deleteAllScenarioSteps("scenario-1");
     assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
+  }
+
+  @Test
+  @DisplayName(
+      "planScenario refine keeps the authored logic (no wipe) and REUSES the prior AI-built plan"
+          + " run so its decision timeline (history) is preserved and reopened")
+  void given_settledAiPlanRun_should_reusePriorRunAndKeepLogicOnRefine() throws Exception {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+
+    // The scenario was previously built by the AI: a settled PLAN-mode run (PLANNED, no simulation)
+    // owns it. Refine must reuse THIS row so its timeline survives, never a fresh one.
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(true);
+    prior.setStatus(AutonomousRunStatus.PLANNED);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(runRepository.findById("prior-run")).thenReturn(Optional.of(prior));
+
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setRefine(true);
+    input.setObjective("Add a phishing entry vector");
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+
+    AutonomousRun run = service.planScenario("scenario-1", input);
+
+    // Refine NEVER wipes the logic map and NEVER supersedes/deletes the prior run - the whole point
+    // is to keep the existing steps AND the prior run's decision timeline (full history).
+    verify(workflowService, never()).deleteAllScenarioSteps(anyString());
+    verify(runRepository, never()).delete(any());
+    verify(xtmOneClient, never()).cancelAutonomousRun(anyString(), anyString(), anyBoolean());
+    // The prior row is reused (same id) and re-engaged: settled -> CREATED -> PLANNING.
+    assertThat(run.getId()).isEqualTo("prior-run");
+    assertThat(run.isPlanMode()).isTrue();
+    assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
+    // The operator's instruction becomes a refinement objective that tells the orchestrator to keep
+    // and extend the current logic, never to rebuild it.
+    assertThat(run.getObjective())
+        .contains("Do NOT rebuild it from scratch")
+        .contains("Add a phishing entry vector");
+    // A "Refinement requested" event is appended (the run's existing timeline is preserved, not
+    // reset), and the orchestrator is engaged in author-scenario mode against the reused run.
+    verify(eventService)
+        .append(
+            eq("prior-run"),
+            isNull(),
+            eq(AutonomousEventType.STATUS),
+            eq("Refinement requested"),
+            anyString(),
+            isNull());
+    verify(xtmOneClient)
+        .startAutonomousRun(
+            any(),
+            anyString(),
+            eq("prior-run"),
+            isNull(),
+            eq("scenario-1"),
+            eq(true),
+            any(),
+            any(),
+            anyList(),
+            any(),
+            eq(true),
+            any(),
+            any(),
+            anyList(),
+            anyMap());
+  }
+
+  @Test
+  @DisplayName(
+      "planScenario refine with no prior run keeps the (manually authored) logic and starts a fresh"
+          + " plan run without wiping the steps")
+  void given_manualScenarioWithoutPriorRun_should_keepLogicOnRefine() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    // A manually authored chained scenario: it has steps but no autonomous run.
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
+
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun r = invocation.getArgument(0);
+              if (r.getId() == null) {
+                r.setId("plan-run-refine");
+              }
+              savedHolder[0] = r;
+              return r;
+            });
+    when(runRepository.findById("plan-run-refine"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setRefine(true);
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+
+    AutonomousRun run = service.planScenario("scenario-1", input);
+
+    // Refine keeps the authored steps in place (no wipe), even when there is no prior run.
+    verify(workflowService, never()).deleteAllScenarioSteps(anyString());
+    assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
+    // With no operator instruction, the objective is the review-and-improve refinement default.
+    assertThat(run.getObjective())
+        .contains("Do NOT rebuild it from scratch")
+        .contains("fill obvious gaps");
+  }
+
+  @Test
+  @DisplayName("planScenario refine refuses while the scenario's previous run is still active")
+  void given_activePriorRun_should_refuseRefine() {
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    AutonomousRun prior = new AutonomousRun();
+    prior.setId("prior-run");
+    prior.setPlanMode(true);
+    prior.setStatus(AutonomousRunStatus.PLANNING);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
+
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setRefine(true);
+
+    assertThatThrownBy(() -> service.planScenario("scenario-1", input))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+    verify(workflowService, never()).deleteAllScenarioSteps(anyString());
+    verify(runRepository, never()).save(any());
+    verifyNoInteractions(xtmOneClient);
+  }
+
+  @Test
+  @DisplayName(
+      "planScenario refine with NO scope supplied never writes scope rules, so the scenario's"
+          + " existing scope is preserved (a rebuild would seed it verbatim)")
+  void given_refineWithoutSuppliedScope_should_preserveExistingScenarioScope() {
+    // Arrange
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
+
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun r = invocation.getArgument(0);
+              if (r.getId() == null) {
+                r.setId("plan-run-refine");
+              }
+              savedHolder[0] = r;
+              return r;
+            });
+    when(runRepository.findById("plan-run-refine"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+
+    // The drawer left scope untouched: no mixed scope list, no scope rules.
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setRefine(true);
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+
+    // Act
+    service.planScenario("scenario-1", input);
+
+    // Assert - refine must never silently wipe/reset the scenario's existing scope: with nothing
+    // supplied, the workflow scope is not touched at all.
+    verify(workflowService, never()).writeScopeRules(anyString(), any(), anyList());
+  }
+
+  @Test
+  @DisplayName(
+      "planScenario refine WITH an explicit scope overwrites the scenario scope with the supplied"
+          + " perimeter (operator intent wins over preservation)")
+  void given_refineWithExplicitScope_should_overwriteScenarioScope() {
+    // Arrange
+    when(previewFeatureService.isAutonomousAttackPathEnabled()).thenReturn(true);
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
+
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun r = invocation.getArgument(0);
+              if (r.getId() == null) {
+                r.setId("plan-run-refine");
+              }
+              savedHolder[0] = r;
+              return r;
+            });
+    when(runRepository.findById("plan-run-refine"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+
+    // The operator explicitly picked a perimeter in the drawer.
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setRefine(true);
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+    input.setScope(List.of(new AutonomousScopeTarget("ASSETS_GROUPS", "asset-group-1")));
+
+    // Act
+    service.planScenario("scenario-1", input);
+
+    // Assert - an explicitly supplied scope IS written onto the scenario workflow (null simulation:
+    // plan mode has none), as an ALLOWLIST rule carrying the picked asset group.
+    ArgumentCaptor<List<WorkflowScopeRuleInput>> rulesCaptor = ArgumentCaptor.forClass(List.class);
+    verify(workflowService).writeScopeRules(eq("scenario-1"), isNull(), rulesCaptor.capture());
+    assertThat(rulesCaptor.getValue())
+        .singleElement()
+        .satisfies(
+            rule -> {
+              assertThat(rule.getSelectedMode()).isEqualTo(ScopeRuleSelectedMode.ALLOWLIST);
+              assertThat(rule.getRuleSource()).isEqualTo(ScopeRuleSource.ASSET_GROUP);
+              assertThat(rule.getRuleValue()).isEqualTo("asset-group-1");
+            });
   }
 
   @Test

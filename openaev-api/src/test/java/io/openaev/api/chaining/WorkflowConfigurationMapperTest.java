@@ -1,11 +1,12 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.WorkflowConfigurationMapper.toOutput;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleOutput;
 import io.openaev.database.model.*;
+import io.openaev.service.chaining.ScopeSnapshotService;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -15,8 +16,16 @@ import org.junit.jupiter.api.Test;
 @DisplayName("WorkflowConfigurationMapper")
 class WorkflowConfigurationMapperTest {
 
+  // Status computation is covered separately; here a mock returns null (draft / no snapshot).
+  private final WorkflowConfigurationMapper mapper =
+      new WorkflowConfigurationMapper(mock(ScopeSnapshotService.class));
+
+  private WorkflowConfigurationOutput toOutput(Workflow workflow) {
+    return mapper.toOutput(workflow);
+  }
+
   @Nested
-  @DisplayName("toOutput — inline configuration fields")
+  @DisplayName("toOutput - inline configuration fields")
   class InlineConfigurationFieldsTests {
 
     @Test
@@ -61,7 +70,7 @@ class WorkflowConfigurationMapperTest {
   }
 
   @Nested
-  @DisplayName("toOutput — scope rules")
+  @DisplayName("toOutput - scope rules")
   class ScopeRuleOutputTests {
 
     @Test
@@ -124,7 +133,78 @@ class WorkflowConfigurationMapperTest {
   }
 
   @Nested
-  @DisplayName("toOutput — scope variables")
+  @DisplayName("toOutput - audience snapshot labels")
+  class AudienceSnapshotLabelTests {
+
+    @Test
+    @DisplayName("should emit the frozen team name as the launch snapshot label")
+    void shouldEmitResolvedAudienceLabel() {
+      // Arrange
+      WorkflowScopeRule rule =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.TEAM)
+              .ruleValue("team-id-1")
+              .snapshotStart(ScopeRuleSnapshot.builder().label("It team").build())
+              .build();
+      Workflow workflow =
+          Workflow.builder().workflowScopeRules(new ArrayList<>(List.of(rule))).build();
+
+      // Act
+      WorkflowScopeRuleOutput output = toOutput(workflow).getWorkflowScopeRules().getFirst();
+
+      // Assert
+      assertEquals("It team", output.getSnapshotStartLabel());
+    }
+
+    @Test
+    @DisplayName(
+        "should suppress a degraded audience label (raw id frozen pre-resolution) so the frontend resolves live")
+    void shouldSuppressDegradedAudienceLabel() {
+      // Arrange: photo frozen before TEAM / PLAYER resolution existed - label == raw id. Emitting
+      // it would render a UUID chip on the simulation scope tab.
+      WorkflowScopeRule rule =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.TEAM)
+              .ruleValue("team-id-1")
+              .snapshotStart(ScopeRuleSnapshot.builder().label("team-id-1").build())
+              .build();
+      Workflow workflow =
+          Workflow.builder().workflowScopeRules(new ArrayList<>(List.of(rule))).build();
+
+      // Act
+      WorkflowScopeRuleOutput output = toOutput(workflow).getWorkflowScopeRules().getFirst();
+
+      // Assert
+      assertNull(output.getSnapshotStartLabel());
+      assertEquals("team-id-1", output.getRuleValue());
+    }
+
+    @Test
+    @DisplayName("should keep emitting a MANUAL label even though it equals the rule value")
+    void shouldKeepManualLabelEqualToValue() {
+      // MANUAL / CSV labels equal the value by design - only audience rules are suppressed.
+      WorkflowScopeRule rule =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.MANUAL)
+              .ruleValue("10.0.0.1")
+              .snapshotStart(ScopeRuleSnapshot.builder().label("10.0.0.1").build())
+              .build();
+      Workflow workflow =
+          Workflow.builder().workflowScopeRules(new ArrayList<>(List.of(rule))).build();
+
+      // Act
+      WorkflowScopeRuleOutput output = toOutput(workflow).getWorkflowScopeRules().getFirst();
+
+      // Assert
+      assertEquals("10.0.0.1", output.getSnapshotStartLabel());
+    }
+  }
+
+  @Nested
+  @DisplayName("toOutput - scope variables")
   class ScopeVariableOutputTests {
 
     @Test

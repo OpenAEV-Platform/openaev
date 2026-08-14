@@ -53,6 +53,15 @@ public class WorkflowConfigurationOutput {
   @JsonProperty("workflow_scope_rules")
   private List<WorkflowScopeRuleOutput> workflowScopeRules;
 
+  // -- Security platforms --
+
+  @Schema(
+      description =
+          "Connected security platforms frozen at launch (launched simulation only; empty for "
+              + "draft / scenario, where the frontend resolves the tenant's platforms live).")
+  @JsonProperty("workflow_security_platforms")
+  private List<SecurityPlatformSnapshotOutput> securityPlatforms;
+
   // -- Scope variables --
 
   @Schema(description = "Custom variables available for template substitution in this workflow.")

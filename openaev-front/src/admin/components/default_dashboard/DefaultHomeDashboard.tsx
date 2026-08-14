@@ -56,6 +56,9 @@ const DefaultHomeDashboard = () => {
   // phishing), so - like the command center's human node - the gauge is mounted
   // only when there is data in range, never as a sample-only card. Probe the same
   // config the gauge queries; default hidden so an empty range never flashes it.
+  // The gauge occupies a RESERVED 4th slot (see defaultHomeWidgets GAUGE_WIDTH):
+  // the three core gauges never move whether or not it is present, so it can arrive
+  // late (after this probe resolves) without reflowing them onto a second row.
   const [humanResponsePresent, setHumanResponsePresent] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -231,7 +234,14 @@ const DefaultHomeDashboard = () => {
           </IconButton>
         </Tooltip>
       </div>
-      <CustomDashboardReactLayout readOnly />
+      {/*
+        Remount the grid when the gauge count changes. react-grid-layout keeps the
+        internal layout of already-mounted children and ignores width changes, so
+        flipping 3 gauges (w=4) <-> 4 gauges (w=3) in place would leave the core
+        gauges at their old width and strand Human Response on a second row. A fresh
+        mount re-reads every gauge's width, so each state fills the row evenly.
+      */}
+      <CustomDashboardReactLayout key={`default-grid-hr-${humanResponsePresent}`} readOnly />
     </CustomDashboardContext.Provider>
   );
 };

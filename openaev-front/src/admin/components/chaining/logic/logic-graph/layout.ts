@@ -280,10 +280,11 @@ export const buildLogicGraphLayout = ({
   for (const id of Object.keys(eventMetas)) kindById[id] = 'trigger';
   const nodeIds = Object.keys(kindById);
 
-  const rawEdges = [
-    ...buildInferredEdges(eventMetas, outputProviders),
-    ...buildRealEdges(actionMetas, eventMetas),
-  ].filter(e => kindById[e.source] && kindById[e.target]);
+  const realEdges = buildRealEdges(actionMetas, eventMetas)
+    .filter(e => kindById[e.source] && kindById[e.target]);
+  const inferredEdges = buildInferredEdges(eventMetas, outputProviders)
+    .filter(e => kindById[e.source] && kindById[e.target]);
+  const rawEdges = [...inferredEdges, ...realEdges];
 
   // Drop feedback loops entirely (both from layering and rendering): a downstream action that emits
   // a finding its own gating trigger listens on would otherwise draw a backward dashed stub hooking
@@ -297,14 +298,11 @@ export const buildLogicGraphLayout = ({
   // proximate cause, kills the crossing lines, and tightens the layout.
   const provisionalLayer = computeLayers(nodeIds, acyclicEdges);
   const inferredByTrigger = new Map<string, RawEdge[]>();
-  const nonInferred: RawEdge[] = [];
   for (const edge of acyclicEdges) {
     if (edge.kind === 'inferred') {
       const list = inferredByTrigger.get(edge.target) ?? [];
       list.push(edge);
       inferredByTrigger.set(edge.target, list);
-    } else {
-      nonInferred.push(edge);
     }
   }
   const prunedInferred: RawEdge[] = [];
@@ -314,6 +312,9 @@ export const buildLogicGraphLayout = ({
       if (provisionalLayer[edge.source] === closestLayer) prunedInferred.push(edge);
     }
   }
+  // Real trigger->action links must always be rendered, even when cycle breaking drops some edges
+  // from the layering graph (which is computed on inferred+real mixed edges).
+  const nonInferred = realEdges;
   const graphEdges = [...prunedInferred, ...nonInferred];
 
   // Dependency depth. It no longer picks a node's COLUMN (the tactic does, see below) — it only

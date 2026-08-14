@@ -24,12 +24,28 @@ public interface InjectorRepository
   Optional<Injector> findByIdAndTenantId(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
-  Optional<Injector> findByType(@NotNull String type);
-
   @Deprecated(forRemoval = false)
   @Query("SELECT i FROM Injector i WHERE i.type = :type AND i.tenantId = :tenantId")
   Optional<Injector> findByTypeAndTenantId(
       @Param("type") @NotNull String type, @Param("tenantId") @NotNull String tenantId);
+
+  boolean existsByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
+
+  @Query(
+      "SELECT i FROM Injector i "
+          + "WHERE i.type = :externalReference AND i.tenantId = :tenantId "
+          + "ORDER BY i.id")
+  List<Injector> findBySecurityPlatformExternalReferenceByTenantId(
+      @Param("externalReference") @NotNull String externalReference,
+      @Param("tenantId") @NotNull String tenantId);
+
+  @Query(
+      "SELECT i FROM Injector i "
+          + "WHERE i.type = :contractType AND i.tenantId = :tenantId "
+          + "ORDER BY i.id")
+  List<Injector> findByPhishingContractTypeByTenantId(
+      @Param("contractType") @NotNull String contractType,
+      @Param("tenantId") @NotNull String tenantId);
 
   @Query(
       "SELECT l.injector FROM InjectorInjectorContract l "

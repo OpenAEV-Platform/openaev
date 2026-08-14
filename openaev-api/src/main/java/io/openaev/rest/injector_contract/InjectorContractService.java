@@ -8,6 +8,7 @@ import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.JpaUtils.*;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
 import co.elastic.clients.util.TriConsumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -19,6 +20,7 @@ import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.SessionHelper;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawContractTenant;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -48,6 +50,7 @@ import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -108,6 +111,7 @@ public class InjectorContractService implements DependenciesManager {
   private final OrganizationService organizationService;
   private final InjectIndexCleanupService injectIndexCleanupService;
   private final StepRepository stepRepository;
+  private final ChainingStepCleanupService chainingStepCleanupService;
 
   private final List<String> listDefaultInjectorContract =
       List.of(
@@ -505,11 +509,16 @@ public class InjectorContractService implements DependenciesManager {
 
   public InjectorContract updateInjectorContractTTPDomainsAndTags(
       InjectorContract injectorContract, InjectorContractUpdateMappingInput input) {
+    // Callers converting threat arsenal action inputs can carry null id collections
+    // (the action DTO fields are nullable); treat an absent collection as "no associations"
+    // instead of failing on new HashSet<>(null) / findAllById(null).
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
-            new HashSet<>(input.getAttackPatternsIds())));
-    injectorContract.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    injectorContract.setDomains(iterableToSet(domainService.findAllById(input.getDomainIds())));
+            new HashSet<>(emptyIfNull(input.getAttackPatternsIds()))));
+    injectorContract.setTags(
+        iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
+    injectorContract.setDomains(
+        iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
@@ -526,6 +535,7 @@ public class InjectorContractService implements DependenciesManager {
    * @throws ElementNotFoundException if not found
    * @throws IllegalArgumentException if the contract is neither custom nor payload-based
    */
+  @Transactional(rollbackFor = Exception.class)
   public void deleteInjectorContract(final String injectorContractId) {
     InjectorContract injectorContract =
         this.injectorContractRepository
@@ -542,6 +552,11 @@ public class InjectorContractService implements DependenciesManager {
     deleteInjectorContract(injectorContract);
   }
 
+  // Deliberately NOT annotated @Transactional: this overload is only reached through the
+  // transactional deleteInjectorContract(String) entry point, and annotating it would create a
+  // proxy-bypassing intra-class call (TenantBackgroundTransactionArchTest
+  // no_transactional_self_invocation). The entry point's transaction makes the contract delete
+  // and the chaining step sweep commit or roll back together.
   public void deleteInjectorContract(InjectorContract injectorContract) {
     // Same compensation as deleteInjectorContractById: the injects FK on injectors_contracts is ON
     // DELETE CASCADE, so the injects (and, one hop further, their expectations and findings) vanish
@@ -558,6 +573,12 @@ public class InjectorContractService implements DependenciesManager {
             List.of(injectorContract.getId()), tenantId);
     this.injectorContractRepository.delete(injectorContract);
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
+    // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
+    // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
+    // sweep would wipe other tenants' authored logic-map nodes.
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        List.of(injectorContract.getId()), tenantId);
   }
 
   /**
@@ -571,19 +592,50 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Returns the injector contract ids backed by the given payload, grouped by tenant - the service
+   * pass-through for {@code InjectorContractRepository#findContractTenantPairsByPayloadId} so
+   * consumers outside this service (the payload-delete path) never touch the repository directly.
+   *
+   * <p>The result deliberately spans all tenants so the payload-delete path sweeps exactly what the
+   * database cascade removes, each tenant with its own tenant-scoped call. Today {@code
+   * unique_injector_contract_payload} guarantees a payload backs at most one contract
+   * platform-wide, so the map holds at most one entry - the grouped shape simply keeps the delete
+   * path correct if that 1:1 constraint is ever relaxed.
+   *
+   * @param payloadId the payload whose contract ids are resolved
+   * @return contract ids grouped by tenant id, empty when the payload backs no contract
+   */
+  @Transactional(readOnly = true)
+  public Map<String, List<String>> findContractIdsByPayloadIdPerTenant(String payloadId) {
+    return this.injectorContractRepository.findContractTenantPairsByPayloadId(payloadId).stream()
+        .collect(
+            Collectors.groupingBy(
+                RawContractTenant::getTenant_id,
+                Collectors.mapping(
+                    RawContractTenant::getInjector_contract_id, Collectors.toList())));
+  }
+
+  /**
    * Deletes an injector contract by its ID using a direct DELETE query (no entity loading).
    *
    * @param injectorContractId the contract ID to delete
    */
+  @Transactional(rollbackFor = Exception.class)
   public void deleteInjectorContractById(String injectorContractId) {
     // The injects FK on injectors_contracts is ON DELETE CASCADE: collect the doomed inject ids
     // before the delete and de-index them explicitly (no JPA lifecycle fires for DB cascades).
+    String tenantId = TenantContext.getCurrentTenant();
     List<String> cascadeDeletedInjectIds =
-        injectIndexCleanupService.injectIdsByContractIds(
-            List.of(injectorContractId), TenantContext.getCurrentTenant());
+        injectIndexCleanupService.injectIdsByContractIds(List.of(injectorContractId), tenantId);
     this.injectorContractRepository.deleteById(
-        new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()));
+        new InjectorContractId(injectorContractId, tenantId));
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
+    // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
+    // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
+    // sweep would wipe other tenants' authored logic-map nodes.
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        List.of(injectorContractId), tenantId);
   }
 
   /**
@@ -826,14 +878,22 @@ public class InjectorContractService implements DependenciesManager {
     return map;
   }
 
+  /**
+   * Common GROUP BY for the tuple projections: one group (hence one row) per contract. Only the
+   * selected scalar keys are grouped; the injector join is deliberately excluded because it is
+   * either aggregated in the projection (least(type), array_agg(id/name)) or added explicitly by
+   * the selector ({@code selectForInjectorContractThreatArsenalContent} groups by the selected
+   * injector type and name). Grouping by the unselected injector id would split a contract linked
+   * to several injectors into one identical projected row per link, making page content disagree
+   * with the distinct count.
+   */
   private List<Expression<?>> getCommonGroupBy(
       @NotNull final Root<InjectorContract> injectorContractRoot,
       @NotNull InjectorContractQueryContext ctx) {
     return Arrays.asList(
         injectorContractRoot.get("compositeId"),
         ctx.payloadJoin().get("id"),
-        ctx.payloadCollectorTypeJoin().get("id"),
-        ctx.injectorJoin().get("id"));
+        ctx.payloadCollectorTypeJoin().get("id"));
   }
 
   /**

@@ -31,6 +31,7 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.executors.Executor;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -66,6 +67,8 @@ import org.springframework.cache.CacheManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * End-to-end wiring contract: driving the real {@code InjectExecutionStep.run(step)} drives the
@@ -125,6 +128,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   private JdbcTemplate jdbc;
   private Tenant tenant;
@@ -409,7 +413,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
     InjectInput injectInput = new ObjectMapper().readValue(injectInputJson, InjectInput.class);
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
-    Step stepTemplate = injectExecutionStep.create(stepInput, workflowTemplate).orElseThrow();
+    Step stepTemplate = createTemplateInTransaction(stepInput, workflowTemplate);
     Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
     return injectExecutionStep
         .ready(stepTemplate, "{\"input\":\"do defined\"}", workflowRun)
@@ -436,7 +440,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
     InjectInput injectInput = new ObjectMapper().readValue(injectInputJson, InjectInput.class);
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
-    Step template = injectExecutionStep.create(stepInput, workflowRun).orElseThrow();
+    Step template = createTemplateInTransaction(stepInput, workflowRun);
     template.setWorkflow(workflowRun);
     template.setLimitExecution(0);
     template = stepRepository.save(template);
@@ -448,6 +452,25 @@ class AttackPathRunWiringTest extends IntegrationTest {
     ready.setWorkflow(workflowRun);
     ready.setLimitExecution(0);
     return stepRepository.save(ready);
+  }
+
+  // Authoring (InjectExecutionStep.create -> stepData) now verifies the injector contract exists
+  // under a pessimistic share lock (#7418), which requires an active transaction - production
+  // always
+  // calls create() from a @Transactional StepService method. This IT is deliberately NOT
+  // @Transactional (see the class javadoc), so wrap just the authoring call in a transaction, the
+  // same way production does; the returned template is transient and persisted afterwards.
+  private Step createTemplateInTransaction(
+      StepsCreateInput.StepInput stepInput, Workflow workflow) {
+    return new TransactionTemplate(transactionManager)
+        .execute(
+            status -> {
+              try {
+                return injectExecutionStep.create(stepInput, workflow).orElseThrow();
+              } catch (ChainingException e) {
+                throw new IllegalStateException(e);
+              }
+            });
   }
 
   private void setAttackPathFeature(boolean enabled) {

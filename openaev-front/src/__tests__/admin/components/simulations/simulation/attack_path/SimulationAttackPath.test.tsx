@@ -62,6 +62,11 @@ vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/c
   },
 }));
 
+// The scope-drift hook reads the Redux store (workflow configuration + inventory) through
+// useAppDispatch/useHelper; these tests render without a store Provider, and the drift banner is
+// not what they exercise, so the hook is stubbed to "no drift".
+vi.mock('../../../../../../admin/components/chaining/useSnapshotUpdated', () => ({ default: () => [] }));
+
 vi.mock('react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof ReactRouter>();
   return {

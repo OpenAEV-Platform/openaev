@@ -6,16 +6,22 @@ import static io.openaev.utils.fixtures.TeamFixture.getDefaultTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseTeamUser;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ExerciseTeamUserRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.utilstest.RabbitMQTestListener;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
@@ -31,6 +37,8 @@ import org.springframework.test.context.TestExecutionListeners;
 class ExerciseTeamUserServiceTest extends IntegrationTest {
 
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
+  @Mock private ExerciseRepository exerciseRepository;
+  @Mock private TeamRepository teamRepository;
 
   @InjectMocks private ExerciseTeamUserService exerciseTeamUserService;
 
@@ -79,5 +87,28 @@ class ExerciseTeamUserServiceTest extends IntegrationTest {
     captured.forEach(etu -> assertEquals(targetExercise, etu.getExercise()));
     assertEquals(user1, captured.get(0).getUser());
     assertEquals(user2, captured.get(1).getUser());
+  }
+
+  @Test
+  void given_excludedUser_should_notEnableThemOnTheSimulation() {
+    // -- ARRANGE --
+    Exercise simulation = createDefaultCrisisExercise();
+    Team team = getDefaultTeam();
+    User kept = getUser("Kept", "User", "kept@test.invalid");
+    kept.setId("user-kept");
+    User denied = getUser("Denied", "User", "denied@test.invalid");
+    denied.setId("user-denied");
+    team.setUsers(new ArrayList<>(List.of(kept, denied)));
+
+    when(exerciseRepository.findById("sim-1")).thenReturn(Optional.of(simulation));
+    when(teamRepository.findById("team-1")).thenReturn(Optional.of(team));
+
+    // -- ACT --
+    exerciseTeamUserService.enableTargetedTeamMembers(
+        "sim-1", List.of("team-1"), Set.of("user-denied"));
+
+    // -- ASSERT: only the kept member gains an exercise_teams_users link --
+    verify(exerciseTeamUserRepository).save(teamUserCaptor.capture());
+    assertEquals(kept, teamUserCaptor.getValue().getUser());
   }
 }

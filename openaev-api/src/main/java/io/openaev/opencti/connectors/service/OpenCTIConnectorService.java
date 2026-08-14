@@ -10,7 +10,10 @@ import io.openaev.stix.objects.Bundle;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,10 +23,14 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Slf4j
 public class OpenCTIConnectorService {
+  private static final Duration REGISTER_OR_PING_BACKOFF = Duration.ofMinutes(5);
+
   @Getter private List<ConnectorBase> connectors = Collections.emptyList();
   private final XtmConfig xtmConfig;
   private final OpenAEVConfig openAEVConfig;
   private final OpenCTIService openCTIService;
+  private final ConcurrentHashMap<String, Instant> registerOrPingBackoffUntil =
+      new ConcurrentHashMap<>();
 
   /** Creates one {@link SecurityCoverageConnector} per tenant entry in the config map. */
   @PostConstruct
@@ -85,16 +92,42 @@ public class OpenCTIConnectorService {
     }
 
     for (ConnectorBase c : enabledConnectors) {
+      String backoffKey = registerOrPingBackoffKey(c);
+      Instant backoffUntil = registerOrPingBackoffUntil.get(backoffKey);
+      if (backoffUntil != null && Instant.now().isBefore(backoffUntil)) {
+        continue;
+      }
       try {
         if (!c.isRegistered()) {
           openCTIService.registerConnector(c);
         } else {
           openCTIService.pingConnector(c);
         }
+        registerOrPingBackoffUntil.remove(backoffKey);
       } catch (Exception e) {
-        log.error("Error at OpenCTI connector registration or ping", e);
+        registerOrPingBackoffUntil.put(backoffKey, Instant.now().plus(REGISTER_OR_PING_BACKOFF));
+        logRegisterOrPingFailure(c, e);
       }
     }
+  }
+
+  private static String registerOrPingBackoffKey(ConnectorBase connector) {
+    return connector.getTenantId() + "/" + connector.getId();
+  }
+
+  private void logRegisterOrPingFailure(ConnectorBase connector, Exception e) {
+    String detail =
+        e.getMessage() != null && !e.getMessage().isBlank() ? e.getMessage() : e.toString();
+    log.warn(
+        "OpenCTI connector registration or ping failed for tenant {} / connector {} (retry in 5"
+            + " minutes): {}",
+        connector.getTenantId(),
+        connector.getId(),
+        detail);
+  }
+
+  void clearRegisterBackoff() {
+    registerOrPingBackoffUntil.clear();
   }
 
   public void pushSecurityCoverageStixBundle(Bundle bundle, final String tenantId)
@@ -103,7 +136,8 @@ public class OpenCTIConnectorService {
 
     if (connector.isEmpty()) {
       throw new ConnectorError(
-          "No instance of Security Coverage connector is currently active to send security coverage bundles for tenant id: "
+          "No instance of Security Coverage connector is currently active to send security coverage"
+              + " bundles for tenant id: "
               + tenantId);
     }
 

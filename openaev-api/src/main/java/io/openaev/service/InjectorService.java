@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -22,6 +23,7 @@ import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.service.connectors.PlatformConnectors;
@@ -70,6 +72,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   private final InjectIndexCleanupService injectIndexCleanupService;
 
+  private final ChainingStepCleanupService chainingStepCleanupService;
+
   @Autowired
   public InjectorService(
       InjectorRepository injectorRepository,
@@ -86,7 +90,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       CatalogConnectorMapper catalogConnectorMapper,
       RabbitmqService rabbitmqService,
       EntityManager entityManager,
-      InjectIndexCleanupService injectIndexCleanupService) {
+      InjectIndexCleanupService injectIndexCleanupService,
+      ChainingStepCleanupService chainingStepCleanupService) {
     super(
         ConnectorType.INJECTOR,
         connectorInstanceConfigurationRepository,
@@ -104,6 +109,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     this.rabbitmqService = rabbitmqService;
     this.entityManager = entityManager;
     this.injectIndexCleanupService = injectIndexCleanupService;
+    this.chainingStepCleanupService = chainingStepCleanupService;
   }
 
   @Override
@@ -174,6 +180,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       injectorRepository.deleteByInjectorId(injectorId);
     }
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    // Chaining steps reference contracts only through a JSON snapshot in step_data (no FK to
+    // cascade on): sweep the orphaned step templates of this tenant explicitly, mirroring the
+    // inject de-index above.
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        orphanedContractIds, tenantId);
   }
 
   public Injector injector(String id) {
@@ -206,13 +217,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   /**
-   * Find injector by its type
-   *
-   * @param injectorType injector type to search for
-   * @return an Optional containing the injector if found, empty otherwise
+   * Checks whether at least one injector of the given type exists for the current tenant. Multiple
+   * injector instances of the same type are supported since V4_77 (Connector Manager).
    */
-  public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
-    return injectorRepository.findByType(injectorType);
+  public boolean injectorTypeExists(@NotBlank final String injectorType) {
+    return injectorRepository.existsByTypeAndTenantId(
+        injectorType, TenantContext.getCurrentTenant());
   }
 
   /**
@@ -365,6 +375,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDeletes.toArray(new String[0]), injector.getTenantId());
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    // Contracts retired from the external catalog also leave chaining step templates behind (the
+    // step -> contract link is only a JSON snapshot in step_data): sweep them for this tenant.
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        toDeletes, injector.getTenantId());
     // Unlink deleted contracts via the join entity
     injector.getContracts().stream()
         .filter(c -> toDeletes.contains(c.getId()))
@@ -595,6 +609,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDelete.toArray(new String[0]), injector.getTenantId());
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    // Built-in contracts retired from the static catalog also leave chaining step templates
+    // behind (the step -> contract link is only a JSON snapshot in step_data): sweep them for
+    // this tenant.
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        toDelete, injector.getTenantId());
     toCreate = fromIterable(injectorContractRepository.saveAll(toCreate));
 
     // Link new contracts to the injector via idempotent native INSERT (ON CONFLICT DO NOTHING).
