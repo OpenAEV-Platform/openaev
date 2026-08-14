@@ -32,7 +32,6 @@ instructions: |
   - Service layer: `io.openaev.service.chaining` (StepService, ConditionService, WorkflowService, WorkflowStateService, QueueChainingService, ScopeService, StepEventService, StepDelayQueueService, WorkflowTimeoutService)
   - AOP: `io.openaev.aop` (WorkflowUpdateEvent, WorkflowUpdateEventAspect)
   - Scheduler: `io.openaev.scheduler.jobs` (QueueChainingJob, WorkflowTimeoutJob)
-  - Feature gate: `io.openaev.service.InjectChainingCondition`
   - Utilities: `io.openaev.utils.ConditionUtils`
   - Model: `io.openaev.database.model` (Step, Workflow, Condition, ConditionStep, WorkflowState, StepDelayQueue, WorkflowScopeRule, ScopeVariable)
   - Repositories: `io.openaev.database.repository` (StepRepository, WorkflowRepository, ConditionRepository, WorkflowStateRepository, StepDelayQueueRepository, WorkflowScopeRuleRepository, ScopeVariableRepository)

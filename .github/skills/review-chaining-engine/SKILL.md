@@ -23,56 +23,53 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 
 ## Review Checklist
 
-### 1. Feature Gate
-- [ ] New beans use `@Conditional(InjectChainingCondition.class)` if needed
-
-### 2. Step Lifecycle Integrity
+### 1. Step Lifecycle Integrity
 - [ ] Status transitions follow: `TEMPLATE` → `READY` → `RUN` → `END`
 - [ ] TEMPLATE steps are never executed directly — always cloned to READY
 - [ ] Before execution, `workflowService.isWorkflowEnded()` is checked
 - [ ] Active steps are identified by `StepStatus.READY` or `StepStatus.RUN`
 
-### 3. Workflow Lifecycle
+### 2. Workflow Lifecycle
 - [ ] Workflow status transitions: `TEMPLATE` → `RUN` → `END`/`STOP`
 - [ ] Timeout handling doesn't leave orphaned READY/RUN steps
 - [ ] Duplication correctly copies templates and conditions
 
-### 4. Queue & Scheduling
+### 3. Queue & Scheduling
 - [ ] All queue publishing goes through `QueueChainingService`
 - [ ] No direct RabbitMQ calls from services
 - [ ] Time delays use `StepDelayQueueService`, never `Thread.sleep()`
 - [ ] Quartz jobs handle concurrent execution correctly (`@DisallowConcurrentExecution`)
 
-### 5. State Management
+### 4. State Management
 - [ ] Global state updated via `WorkflowStateService.syncState()` BEFORE propagation
 - [ ] Local state propagation uses `propagateToLocalStates()`
 - [ ] State entries are properly serialized/deserialized (Gson)
 
-### 6. Conditions
+### 5. Conditions
 - [ ] Conditions evaluated BEFORE step execution
 - [ ] Tree structure maintained: root (AND/OR) + leaf conditions
 - [ ] `DEPEND_ON` conditions use `ConditionFactory.dependOn()`
 - [ ] `MAPPER` conditions properly resolve from LOCAL or GLOBAL pool
 - [ ] Conditions linked to steps via `ConditionStep` entity
 
-### 7. External Update Bridge (AOP)
+### 6. External Update Bridge (AOP)
 - [ ] Methods that mutate inject status are annotated with `@WorkflowUpdateEvent`
 - [ ] SpEL expressions correctly extract inject/expectation IDs
 - [ ] Exactly one of `injectId`, `injectIds`, or `expectationIds` is specified per annotation
 
-### 8. Scope
+### 7. Scope
 - [ ] Allowlist rules are applied first, then denylist exclusions
 - [ ] Both individual assets and asset groups are handled
 - [ ] IP address matching uses `IpAddressUtils`
 
-### 9. API Layer
+### 8. API Layer
 - [ ] All endpoints have `@AccessControl` with correct `Action` and `ResourceType`
 - [ ] DTOs are returned (never entities)
 - [ ] Static mapper methods used (not MapStruct annotation processing)
 - [ ] `@Transactional(rollbackFor = Exception.class)` on write operations
 - [ ] Proper HTTP status codes (201 for creation, 204 for deletion)
 
-### 10. Error Handling
+### 9. Error Handling
 - [ ] `ChainingException` used for chaining-specific errors
 - [ ] No swallowed exceptions in queue consumers (at minimum logged)
 

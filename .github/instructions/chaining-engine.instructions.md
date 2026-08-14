@@ -4,7 +4,6 @@ applyTo: |
   openaev-api/src/main/java/io/openaev/service/chaining/**,
   openaev-api/src/main/java/io/openaev/scheduler/jobs/QueueChainingJob.java,
   openaev-api/src/main/java/io/openaev/scheduler/jobs/WorkflowTimeoutJob.java,
-  openaev-api/src/main/java/io/openaev/service/InjectChainingCondition.java,
   openaev-api/src/main/java/io/openaev/aop/WorkflowUpdateEvent.java,
   openaev-api/src/main/java/io/openaev/aop/WorkflowUpdateEventAspect.java,
   openaev-api/src/main/java/io/openaev/utils/ConditionUtils.java,
@@ -47,8 +46,6 @@ applyTo: |
 
 The **Chaining Engine** enables automated, conditional execution of steps within a simulation workflow.
 It orchestrates inject sequences based on events, conditions, outputs, and time constraints.
-
-Bean loading still goes through `InjectChainingCondition` (Spring `@Conditional`).
 
 The execution flow is driven by a **Step Queue + Delay Queue + Job + Pool** architecture using RabbitMQ.
 
@@ -275,9 +272,6 @@ io.openaev.scheduler.jobs/
   ├── QueueChainingJob.java           ← Quartz job: polls StepDelayQueue for time-delayed steps
   └── WorkflowTimeoutJob.java         ← Quartz job: expires timed-out workflow runs
 
-io.openaev.service/
-  └── InjectChainingCondition.java    ← Spring @Conditional: enables chaining beans
-
 io.openaev.utils/
   └── ConditionUtils.java             ← Condition evaluation logic (shared between services)
 
@@ -374,7 +368,6 @@ openaev-front/src/components/common/chaining/
 
 ### Architecture
 
-- `InjectChainingCondition` is a Spring `@Conditional` — it controls chaining bean loading.
 - `ActionStep` is the strategy interface. Currently only `InjectExecutionStep` implements it. To add a new action type, implement `ActionStep` and register in `StepService.factoryAction()`.
 
 ### Mappers & DTOs
@@ -469,7 +462,6 @@ All endpoints use `@AccessControl` with appropriate `Action` and `ResourceType`.
 ## Related Cross-Cutting Files
 
 - `WorkflowUpdateEventAspect.java` — AOP bridge from inject lifecycle to chaining engine
-- `InjectChainingCondition.java` — Spring `@Conditional` for bean loading
 - `PreviewFeatureService.java` — Runtime feature flag service
 - `PlatformTriggers.java` / `PlatformJobDefinitions.java` — Quartz job registration
 - `ConditionUtils.java` — Shared condition evaluation logic
