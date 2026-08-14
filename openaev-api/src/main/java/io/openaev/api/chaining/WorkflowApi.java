@@ -65,7 +65,6 @@ public class WorkflowApi extends RestBehavior {
   @LogExecutionTime
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       TxCtx ctx, @PathVariable @NotBlank final String workflowId) {
-    checkWorkflowFeatureEnabled();
     return workflowConfigurationMapper.toOutput(
         workflowService.getWorkflowConfiguration(workflowId));
   }
@@ -86,7 +85,6 @@ public class WorkflowApi extends RestBehavior {
       isEnterpriseEdition = true)
   @LogExecutionTime
   public List<ScopeAssetOutput> getValidAssets(@PathVariable @NotBlank final String workflowId) {
-    checkWorkflowFeatureEnabled();
     return scopeService.getValidAssets(workflowId).stream()
         .map(ScopeAssetMapper::toOutput)
         .toList();
@@ -108,7 +106,6 @@ public class WorkflowApi extends RestBehavior {
       isEnterpriseEdition = true)
   @LogExecutionTime
   public List<ScopeTeamOutput> getValidTeams(@PathVariable @NotBlank final String workflowId) {
-    checkWorkflowFeatureEnabled();
     return scopeService.getValidTeams(workflowId).stream().map(ScopeTeamMapper::toOutput).toList();
   }
 
@@ -133,7 +130,6 @@ public class WorkflowApi extends RestBehavior {
   // executors table (each endpoint's agents eager-load their executor).
   public List<EndpointOutput> getScopeEndpoints(
       TxCtx ctx, @PathVariable @NotBlank final String workflowId) {
-    checkWorkflowFeatureEnabled();
     return scopeService.getScopeEndpoints(workflowId);
   }
 
@@ -158,7 +154,6 @@ public class WorkflowApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String workflowId,
       @RequestBody @Valid @NotNull final List<String> endpointIds) {
-    checkWorkflowFeatureEnabled();
     return scopeService.getScopeEndpointsByIds(workflowId, endpointIds);
   }
 
@@ -179,7 +174,6 @@ public class WorkflowApi extends RestBehavior {
   @LogExecutionTime
   public List<AssetGroupOutput> getScopeAssetGroups(
       @PathVariable @NotBlank final String workflowId) {
-    checkWorkflowFeatureEnabled();
     return scopeService.getScopeAssetGroups(workflowId);
   }
 
@@ -201,7 +195,6 @@ public class WorkflowApi extends RestBehavior {
   public List<AssetGroupOutput> findScopeAssetGroups(
       @PathVariable @NotBlank final String workflowId,
       @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
-    checkWorkflowFeatureEnabled();
     return scopeService.getScopeAssetGroupsByIds(workflowId, assetGroupIds);
   }
 
@@ -228,7 +221,6 @@ public class WorkflowApi extends RestBehavior {
   public WorkflowInjectorContractOutput getWorkflowInjectorContract(
       @PathVariable @NotBlank final String workflowId,
       @PathVariable @NotBlank final String injectorContractId) {
-    checkWorkflowFeatureEnabled();
     return WorkflowInjectorContractOutput.fromInjectorContract(
         injectorContractService.injectorContractForWorkflow(injectorContractId, workflowId));
   }
@@ -251,14 +243,7 @@ public class WorkflowApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {
-    checkWorkflowFeatureEnabled();
     return workflowConfigurationMapper.toOutput(
         workflowService.updateWorkflowConfiguration(workflowId, input));
-  }
-
-  // -- Helpers --
-
-  private void checkWorkflowFeatureEnabled() {
-    // Chaining is always available.
   }
 }
