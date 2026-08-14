@@ -104,6 +104,49 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.executor.ExecutorApi#updateExecutor",
           "io.openaev.rest.executor.ExecutorApi#deleteExecutor",
           "io.openaev.rest.executor.ExecutorApi#registerExecutor",
+          // injectors: all read/write endpoints wired with TxCtx
+          "io.openaev.rest.injector.InjectorApi#injectors",
+          "io.openaev.rest.injector.InjectorApi#injectorInjectTypes",
+          "io.openaev.rest.injector.InjectorApi#updateInjector",
+          "io.openaev.rest.injector.InjectorApi#injector",
+          "io.openaev.rest.injector.InjectorApi#getInjectorRelatedIds",
+          "io.openaev.rest.injector.InjectorApi#deleteInjector",
+          "io.openaev.rest.injector.InjectorApi#registerInjector",
+          "io.openaev.rest.injector.InjectorApi#optionsByName",
+          "io.openaev.rest.injector.InjectorApi#optionsById",
+          // injector reads through connector-instance and injector-contract paths
+          "io.openaev.rest.connector_instance.ConnectorInstanceApi#createConnectorInstance",
+          // injector_contracts: eager injectorLinks -> injector fetch on every load, found by the
+          // Phase 3b association scan (#7026-class gap: reads were missed when only the create
+          // endpoint had been wired)
+          "io.openaev.rest.injector_contract.InjectorContractApi#injectContracts",
+          "io.openaev.rest.injector_contract.InjectorContractApi#injectorContracts",
+          "io.openaev.rest.injector_contract.InjectorContractApi#injectorContract",
+          "io.openaev.rest.injector_contract.InjectorContractApi#createInjectorContract",
+          "io.openaev.rest.injector_contract.InjectorContractApi#updateInjectorContract",
+          "io.openaev.rest.injector_contract.InjectorContractApi#updateInjectorContractMapping",
+          "io.openaev.rest.injector_contract.InjectorContractApi#deleteInjectorContract",
+          // Phase 3b association scan on `injectors`: real HTTP entrypoints reading
+          // Inject#getInjector() / InjectorContract#getFirstInjector() / #getInjectors() without
+          // any TxCtx at all (#7026-class gap, confirmed by tracing each caller back to its
+          // controller method)
+          "io.openaev.rest.atomic_testing.AtomicTestingApi#atomicTestingImport",
+          // atomic-testing: create/update resolve the Injector via InjectUtils#resolveInjector;
+          // duplicate/relaunch read Inject#getInjector(), a lazy association, both on the
+          // v2-scoped injectors table (found manually testing the create-atomic-testing flow,
+          // #7026-class gap - the original activation only wired atomicTestingImport and
+          // collectorsFromAtomicTesting for this controller)
+          "io.openaev.rest.atomic_testing.AtomicTestingApi#createAtomicTesting",
+          "io.openaev.rest.atomic_testing.AtomicTestingApi#updateAtomicTesting",
+          "io.openaev.rest.atomic_testing.AtomicTestingApi#duplicateAtomicTesting",
+          "io.openaev.rest.inject_test_status.ScenarioInjectTestApi#testInject",
+          "io.openaev.rest.inject_test_status.ScenarioInjectTestApi#bulkTestInject",
+          "io.openaev.rest.inject_test_status.SimulationInjectTestApi#testInject",
+          "io.openaev.rest.inject_test_status.SimulationInjectTestApi#bulkTestInject",
+          "io.openaev.rest.scenario.ScenarioImportApi#injectsImport",
+          "io.openaev.rest.exercise.ExerciseImportApi#injectsImport",
+          "io.openaev.rest.mapper.MapperApi#testImportXLSFile",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApiImporter#importJson",
           "io.openaev.rest.asset.endpoint.EndpointApi#upsertEndpoint",
           "io.openaev.rest.asset.endpoint.EndpointApi#createEndpoint",
           "io.openaev.rest.asset.endpoint.EndpointApi#upsertAgentLessEndpoint",
@@ -121,6 +164,21 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.asset.endpoint.EndpointApi#searchInjectsForAsset",
           "io.openaev.rest.asset.endpoint.EndpointApi#deleteAsset",
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#deleteConnectorInstance",
+          // connector_instances (v2 activation): all 7 endpoints wired with TxCtx (reads,
+          // create/delete, requested-status and configurations writes, log search)
+          "io.openaev.rest.connector_instance.ConnectorInstanceApi#getConnectorInstance",
+          "io.openaev.rest.connector_instance.ConnectorInstanceApi#getConnectorInstanceConfiguration",
+          "io.openaev.rest.connector_instance.ConnectorInstanceApi#updateConnectorInstanceConfigurations",
+          "io.openaev.rest.connector_instance.ConnectorInstanceApi#searchConnectorInstanceLogs",
+          "io.openaev.rest.connector_instance.ConnectorInstanceApi#updateRequestedStatus",
+          // connector_instances (v2 activation, Phase 3b two-hop finding): CatalogConnectorApi
+          // reads connector_instances indirectly (CatalogConnectorService ->
+          // ConnectorInstanceService#connectorInstances/#findAllByCatalogConnectorId) to compute
+          // instance_deployed_count per catalog connector; the repository-name grep alone missed
+          // this two-hop caller since it goes through CatalogConnectorService, not
+          // ConnectorInstanceRepository directly
+          "io.openaev.rest.catalog_connector.CatalogConnectorApi#getCatalogConnectors",
+          "io.openaev.rest.catalog_connector.CatalogConnectorApi#getConnector",
           // executors (v2, gap sweep #7059 parity pass): scenario/exercise raw-endpoint reads and
           // EE-executor-gate paths (throwIfScenarioNotLaunchable / throwIfExerciseNotLaunchable /
           // throwIfInjectNotLaunchable -> detectEEExecutors -> agent.getExecutor()), plus the agent
@@ -149,6 +207,23 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // directly
           "io.openaev.rest.payload.PayloadApi#upsertPayload",
           "io.openaev.rest.payload.PayloadApi#collectorsFromPayload",
+          // payload: create/update/duplicate all resynchronize the injector contract against the
+          // tenant's payload-supporting injectors via
+          // PayloadService#synchroniseInjectorContractBasedOnPayload (found alongside the
+          // ThreatArsenalApi gap below - same shared service, same missing scope)
+          "io.openaev.rest.payload.PayloadApi#createPayload",
+          "io.openaev.rest.payload.PayloadApi#updatePayload",
+          "io.openaev.rest.payload.PayloadApi#duplicatePayload",
+          // threat arsenal: create/update/duplicate go through PayloadCreationService/
+          // PayloadUpdateService into the same synchroniseInjectorContractBasedOnPayload path
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#createAction",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#updateAction",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#duplicateAction",
+          // stix: security-coverage processing creates DNS-resolution/drop-file payloads via
+          // PayloadService#getDynamicDnsResolutionPayload / getFileDropPayloadByDocument, which
+          // lazily create the payload's injector contract through the same
+          // synchroniseInjectorContractBasedOnPayload path as the two entries above
+          "io.openaev.api.stix_process.StixApi#processBundle",
           // atomic-testing: collectorsFromAtomicTesting reads collectors via CollectorService
           "io.openaev.rest.atomic_testing.AtomicTestingApi#collectorsFromAtomicTesting",
           // inject: updateInject calls injectService.runChecks -> securityPlatformCollectors

@@ -277,6 +277,13 @@ public class InjectorContractService implements DependenciesManager {
     // during registration (InjectorService.registerBuiltinInjector).
     injectorContract.addInjector(injector);
 
+    // A contract lives in its injector's tenant. Stamp it explicitly instead of relying on
+    // TenantBaseListener's TenantContext fallback: injectors is on v2 isolation, so the injector
+    // lookup above follows the request's TxCtx while TenantContext is only populated from the
+    // tenant path - a header-selected tenant would otherwise link tenant A's injector to a
+    // contract stamped on the default tenant.
+    injectorContract.setTenant(new Tenant(injector.getTenantId()));
+
     // Authorship is a function of the creation's provenance (machine sync vs interactive),
     // never of which credentials happened to authenticate the HTTP call.
     if (isMachineProvenance(injectorContract, injector)) {

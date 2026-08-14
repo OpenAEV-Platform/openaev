@@ -38,7 +38,8 @@ public class CalderaSettingsService {
         .map(
             executor -> {
               // Get the connector ids to get the instance
-              ConnectorIds connectorIds = executorService.getExecutorRelationsId(executor.getId());
+              ConnectorIds connectorIds =
+                  executorService.getExecutorRelationsId(executor.getId(), executor.getTenantId());
 
               // Getting the instance
               ConnectorInstance connectorInstance =

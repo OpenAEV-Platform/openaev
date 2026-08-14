@@ -11,6 +11,7 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -81,7 +82,7 @@ public class OpenAEVExecutorIntegrationTest {
   public void factoryIsInitialisedCorrectlyAndDoesNotCreateACatalogEntry() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise();
+    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -93,7 +94,7 @@ public class OpenAEVExecutorIntegrationTest {
   public void whenTheFactoryIsInitialised_itReportsAStaticAutostartInstance() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise();
+    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
     List<ConnectorInstance> instances = integrationFactory.findRelatedInstances("test-tenant");
 
@@ -113,7 +114,7 @@ public class OpenAEVExecutorIntegrationTest {
   public void whenFactorySyncWithAutostartInstance_integrationIsOfStatusStarted() throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise();
+    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
     List<Integration> syncedIntegrations =
         integrationFactory.sync(integrationFactory.findRelatedInstances("test-tenant"));
@@ -133,7 +134,7 @@ public class OpenAEVExecutorIntegrationTest {
       throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise();
+    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
     List<Integration> syncedIntegrations =
         integrationFactory.sync(integrationFactory.findRelatedInstances("test-tenant"));
@@ -158,7 +159,7 @@ public class OpenAEVExecutorIntegrationTest {
       throws Exception {
     IntegrationFactory integrationFactory = getFactory();
 
-    integrationFactory.initialise();
+    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
     List<ConnectorInstance> instances = integrationFactory.findRelatedInstances("test-tenant");
 

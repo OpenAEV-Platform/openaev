@@ -33,6 +33,7 @@ import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -83,6 +84,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private GrantComposer grantComposer;
 
   @Autowired private UserTestHelper userTestHelper;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   @BeforeEach
   public void setup() {
@@ -349,6 +351,17 @@ public class InjectorContractApiTest extends IntegrationTest {
     class WhenInjectorContractDoesNotAlreadyExists {
 
       private final String injectorContractInternalId = UUID.randomUUID().toString();
+      private String tenantId;
+
+      @BeforeEach
+      void grantCurrentUserATenant() {
+        // Grant capabilities on the ambient default tenant rather than creating a new one: tenant
+        // creation also runs the onboarding chain (built-in injector/connector registration),
+        // which would seed a second row for the well-known injector ID this test relies on being
+        // unique.
+        tenantId = Tenant.DEFAULT_TENANT_UUID;
+        tenantHelper.grantCapabilitiesInTenant(tenantId, Set.of(Capability.MANAGE_TENANT_SETTINGS));
+      }
 
       @Test
       @DisplayName("Without attack patterns, creating contract succeeds")
@@ -363,10 +376,10 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .map(InjectorContractDomainDTO::fromDomain)
                 .collect(Collectors.toSet()));
         input.setContent("{\"fields\":[]}");
-
         String response =
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
+                        .header("X-Tenant-Ids", tenantId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(input))
                         .with(csrf()))
@@ -419,6 +432,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         mvc.perform(
                 post(INJECTOR_CONTRACT_URL)
+                    .header("X-Tenant-Ids", tenantId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(mapper.writeValueAsString(input))
                     .with(csrf()))
@@ -442,6 +456,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         mvc.perform(
                 post(INJECTOR_CONTRACT_URL)
+                    .header("X-Tenant-Ids", tenantId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(mapper.writeValueAsString(input))
                     .with(csrf()))
@@ -475,6 +490,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         String response =
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
+                        .header("X-Tenant-Ids", tenantId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(input))
                         .with(csrf()))
@@ -544,6 +560,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         String response =
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
+                        .header("X-Tenant-Ids", tenantId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(input))
                         .with(csrf()))
@@ -613,6 +630,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         String response =
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
+                        .header("X-Tenant-Ids", tenantId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(input))
                         .with(csrf()))
@@ -685,6 +703,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         String response =
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
+                        .header("X-Tenant-Ids", tenantId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(input))
                         .with(csrf()))
@@ -983,6 +1002,18 @@ public class InjectorContractApiTest extends IntegrationTest {
     @DisplayName("When injector contract does not already exists")
     class WhenInjectorContractDoesNotAlreadyExists {
 
+      private String tenantId;
+
+      @BeforeEach
+      void grantCurrentUserATenant() {
+        // Grant capabilities on the ambient default tenant rather than creating a new one: tenant
+        // creation also runs the onboarding chain (built-in injector/connector registration),
+        // which would seed a second row for the well-known injector ID this test relies on being
+        // unique.
+        tenantId = Tenant.DEFAULT_TENANT_UUID;
+        tenantHelper.grantCapabilitiesInTenant(tenantId, Set.of(Capability.MANAGE_TENANT_SETTINGS));
+      }
+
       @Test
       @DisplayName("Creating contract succeeds from injector payload type")
       void createContractSucceedsFromInjectorPayloadType() throws Exception {
@@ -1002,6 +1033,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         String response =
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
+                        .header("X-Tenant-Ids", tenantId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(input))
                         .with(csrf()))
@@ -1054,6 +1086,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         String response =
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
+                        .header("X-Tenant-Ids", tenantId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(input))
                         .with(csrf()))

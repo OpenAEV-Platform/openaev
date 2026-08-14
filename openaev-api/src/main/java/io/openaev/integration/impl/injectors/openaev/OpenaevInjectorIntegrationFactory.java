@@ -64,7 +64,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  protected void runMigrations() throws Exception {
+  protected void runMigrations(String tenantId) throws Exception {
     // noop
   }
 
