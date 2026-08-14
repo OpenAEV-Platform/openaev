@@ -308,3 +308,105 @@ d'entre elles, par le client final.
 
 Ce qui manque est listé ici et repris en entrées numérotées dans
 `LIBRARY-FEEDBACK.md` (#26 à #30) — rien n'a été compensé côté produit.
+
+---
+
+## 4. Arbitrages Sandy — 2026-08-14
+
+Rendus après lecture de l'inventaire ci-dessus. Ils **modifient le périmètre**
+de la vague et ajoutent une règle de conversion.
+
+| # | Arbitrage |
+|---|---|
+| **G1** padding | On **attend la prop côté lib** (PR lib en cours). Pas de vague non-ISO. **+ règle nouvelle** : quand le Paper porte le padding, le padding interne des enfants est **retiré** — pas de doublement. Traitement au cas par cas, voir §5. |
+| **G2** bordure | La lib **mesure d'abord l'écart au nœud Figma**, Sandy tranche ensuite. **Rien à bricoler côté produit.** |
+| **G3** fond / thème client | **Point le plus important.** Le fond du Paper doit suivre le thème hôte, **comme la Navbar et le Header**. Demandé à la lib dans la même PR. **On ne migre PAS** en acceptant la perte pour les tenants personnalisés. |
+| **G4** `DetailHero` | **Hors de cette vague.** Deux pertes (dégradé d'accent + fond transparent), et le fond transparent tombe sous l'exclusion « conteneurs semi-transparents = temps 2 ». Listé, non converti. |
+| **G5** gate | La modification du template `check-fds-conformity` part **côté lib** (c'est là qu'il vit), pas en script produit séparé. |
+| **G6** périmètre | On part sur le **mesuré** : 127 usages / 42 fichiers pour les 4 balises. |
+| **G7** cartes MUI | Aucune dans ce périmètre — la règle « Paper dans le composant parent » est **gardée pour une vague suivante**. |
+
+### Périmètre après arbitrage
+
+`DetailHero` sortant, la vague porte sur **13 surfaces** :
+
+- **10** dans `admin/components/lessons` (L1 → L10) ;
+- **3** balises dans `EntityDetailCommon.tsx` — `Section`, `InformationGrid`,
+  `SectionBlock` — qui pilotent **106 usages dans 33 fichiers** (mesuré).
+
+`DetailHero` (E4) reste sur MUI : 21 usages, 21 fichiers, non convertis, motif
+ci-dessus.
+
+---
+
+## 5. Paddings enfants — les sites concernés par la règle « pas de doublement »
+
+Relevé au DOM sur les composants réels (padding calculé des enfants directs, et
+de la première ligne interne qui en porte un). Trois familles, et elles
+n'appellent pas la même décision.
+
+### 5.1 — Le padding vit dans l'enfant, le Paper est à 0 (**6 sites, à traiter**)
+
+Si le Paper prend un padding non nul, celui de l'enfant doit partir.
+
+| site | padding Paper | padding enfant mesuré | ce qu'il porte |
+|---|---|---|---|
+| **L1** `LessonsObjectives.jsx:26` | 0 | `MuiListItem` **8px 16px** | gouttières MUI des lignes |
+| **L3** `simulations/LessonsCategories.jsx:140` | 0 | `MuiListItem` **8px 16px** | idem |
+| **L4** `simulations/LessonsCategories.jsx:203` | 0 | `MuiListItem` **8px 16px** | idem |
+| **L6** `scenarios/LessonsCategories.jsx:115` | 0 | `MuiListItem` **8px 16px** | idem |
+| **L9** `simulations/Lessons.tsx:355` | 0 | `LessonsPlaceholder` **32px** (4 côtés) | marge propre du vide |
+| **L10** `scenarios/Lessons.tsx:217` | 0 | `LessonsPlaceholder` **32px** (4 côtés) | idem |
+
+Point de décision, à montrer avant de trancher :
+
+- **L1/L3/L4/L6** — les 16px horizontaux des `ListItem` sont la marge visuelle
+  du panneau, mais les lignes portent **des séparateurs pleine largeur**.
+  Retirer les gouttières et donner le padding au Paper **rentre aussi les
+  séparateurs** : le motif « séparateur bord à bord » disparaît. Ce n'est pas
+  un simple transfert de padding, c'est un changement de motif. En migration
+  ISO stricte, ces 4 sites gardent Paper `padding=0` et l'enfant intact —
+  rien à retirer.
+- **L9/L10** — cas franc : le placeholder porte 32px, aucun séparateur, aucun
+  effet de bord. Si le Paper prend 24px, les 32px de `LessonsPlaceholder`
+  doivent tomber (sinon 56px). **Attention** : `LessonsPlaceholder` est un
+  composant partagé — le retrait doit se faire **au site d'appel**, pas dans le
+  composant, sous peine de casser ses autres consommateurs.
+
+### 5.2 — Doublement **déjà présent** dans le produit (**1 site**)
+
+| site | padding Paper | padding enfant | cumul horizontal réel |
+|---|---|---|---|
+| **E3** `SectionBlock` (`EntityDetailCommon.tsx:188`) | 16px | `MuiListItem` **8px 16px** | **32px** |
+
+C'est le seul endroit du périmètre où le padding du conteneur et celui des
+lignes s'additionnent déjà aujourd'hui, avant toute migration. Deux des 61
+usages de `SectionBlock` passent `disablePadding` pour l'éviter
+(`GeneralVulnerabilityInfoTab.tsx:114`, `Validations.jsx:155`) — les autres
+cumulent. À arbitrer séparément : c'est une correction de densité existante,
+pas un effet de la migration, et la corriger **ne serait pas ISO**.
+
+### 5.3 — Padding enfant **intrinsèque**, à ne PAS retirer (**4 sites**)
+
+| site | padding Paper | padding enfant | pourquoi il reste |
+|---|---|---|---|
+| **L5** `simulations/LessonsCategories.jsx:306` | 16px | puces **4px 8px** | padding interne d'une puce, pas d'un conteneur — le retirer écrase la puce |
+| **L7** `scenarios/LessonsCategories.jsx:189` | 16px | puces **4px 8px** | idem |
+| **L8** `simulations/Lessons.tsx:152` | 16px | `HeroStat` **4px 32px 4px 4px** | le 32px à droite est la gouttière du séparateur `HeroStats`, structurelle |
+| **E4** `DetailHero` | 16px | `HeroStat` **4px** | hors vague (§4) |
+
+### 5.4 — Rien à faire (**3 sites**)
+
+**L2** (graphe ApexCharts : marges internes en SVG, aucun padding DOM à
+retirer — mais rien ne compense non plus si le Paper reste à 0), **E1**
+`Section` et **E2** `InformationGrid` (enfants `Field` sans aucun padding ;
+pour E2 l'espacement vient des `gap` de la grille, pas d'un padding).
+
+### Récapitulatif
+
+| famille | sites | action à la conversion |
+|---|---|---|
+| padding dans l'enfant, Paper à 0 | 6 (L1, L3, L4, L6, L9, L10) | **décision requise** — 4 sites à séparateurs pleine largeur (motif en jeu), 2 sites francs |
+| doublement déjà présent | 1 (E3) | **arbitrage séparé** — corriger ne serait pas ISO |
+| padding intrinsèque | 4 (L5, L7, L8, E4) | **ne rien retirer** |
+| rien à faire | 3 (L2, E1, E2) | — |

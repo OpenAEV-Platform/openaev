@@ -416,3 +416,32 @@ in filigran-design-system).
   2. `migration-state.json` was deliberately NOT touched: with zero migrated
      zones, arming `forbiddenPatterns` on files that still render MUI would
      report green about a migration that has not happened.
+
+### 2026-08-14 (later) — Paper pilot: Sandy's arbitrations recorded, still no conversion
+- Branch: fds/paper-pilot (PR #7427, open, targeting design-system/current)
+- Changed: `fds-migration/PAPER-GAP-INVENTORY.md` (§4 arbitrations, §5 child-padding
+  census), this log. **Still zero product source files touched.**
+- Arbitrations: G1 wait for the library `padding` prop (a library PR is out) —
+  no non-iso wave, plus a new conversion rule: when the Paper carries the
+  padding, the children's own padding is REMOVED, case by case. G2 the library
+  measures the gap against the Figma node first. G3 the surface background must
+  follow the host theme like Navbar/Header — asked in the same library PR, and
+  we do NOT migrate while custom-theme tenants would lose their colour. G4
+  DetailHero leaves this wave (accent gradient + transparent fill; the
+  transparency falls under the "semi-transparent = phase 2" exclusion). G5 the
+  conformity-template change goes to the library repo. G6 measured scope wins.
+  G7 the MUI-card rule waits for a later wave.
+- Scope after arbitration: **13 surfaces** — 10 in admin/components/lessons, 3
+  tags in EntityDetailCommon (Section, InformationGrid, SectionBlock) driving
+  **106 usages in 33 files** (measured). DetailHero: 21 usages / 21 files, not
+  converted.
+- Child-padding census (measured at the DOM, §5): 6 sites where the padding
+  currently lives in the child (4 of them behind full-bleed dividers — moving
+  the padding to the Paper would change the pattern, not just the density),
+  1 site where the doubling already exists today (SectionBlock: 16px + 16px
+  gutters = 32px horizontal, only 2 of its 61 usages pass disablePadding),
+  4 sites whose child padding is intrinsic and must NOT be removed, 3 with
+  nothing to do.
+- Friction / process feedback: none new. The measurement bench was stopped at
+  the end of this session; it lives outside the repo tree and will be restarted
+  at the library bump.
