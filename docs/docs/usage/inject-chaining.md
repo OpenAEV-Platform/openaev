@@ -118,6 +118,6 @@ Your red team built a set of credential-dumping Injects in a lab Scenario:
 
 ## Go further
 
-- Build complete attack chains with [Scenarios](scenario.md).
-- Import Injects from threat intelligence using [Scenario generation from OpenCTI](scenario/security-coverage.md).
-- Understand [Inject statuses](inject-status.md) to interpret execution results.
+- Build complete attack chains with [Scenarios](build/scenario/scenario.md).
+- Import Injects from threat intelligence using [Scenario generation from OpenCTI](build/scenario/security-coverage.md).
+- Understand [Inject statuses](evaluate/injects/inject-status.md) to interpret execution results.
