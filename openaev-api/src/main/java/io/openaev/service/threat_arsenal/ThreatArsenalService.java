@@ -312,9 +312,9 @@ public class ThreatArsenalService {
    * Duplicates an existing threat arsenal action.
    *
    * <p>Delegates the duplication to the payload service and maps the result back to a {@link
-   * ThreatArsenalAction}. Native injector contracts (no payload) cannot be duplicated: they must
-   * be reused by id. Returning 404 here used to look like a missing id and sent agents hunting for
-   * a different contract or inventing a weaker original Command.
+   * ThreatArsenalAction}. Native injector contracts (no payload) cannot be duplicated: they must be
+   * reused by id. Returning 404 here used to look like a missing id and sent agents hunting for a
+   * different contract or inventing a weaker original Command.
    *
    * @param actionId the ID of the action to duplicate
    * @return the newly created threat arsenal action copy
