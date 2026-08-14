@@ -445,3 +445,27 @@ in filigran-design-system).
 - Friction / process feedback: none new. The measurement bench was stopped at
   the end of this session; it lives outside the repo tree and will be restarted
   at the library bump.
+
+### 2026-08-14 (end of day) — Paper pilot: conversion arbitrations recorded, waiting on the library
+- Branch: fds/paper-pilot (PR #7427, open). **Still zero product source files touched.**
+- Changed: `fds-migration/PAPER-GAP-INVENTORY.md` (§6), this log.
+- General rule confirmed: when the Paper carries the padding, the children's
+  padding is removed — EXCEPT where that padding carries meaning (full-bleed
+  divider, structural gutter).
+- To apply at the bump, not to re-arbitrate:
+  - L1/L3/L4/L6 → `padding={0}`, ListItem gutters untouched. Strict iso: the
+    dividers must keep touching the edges.
+  - L9/L10 → padding moves to the Paper, and LessonsPlaceholder's 32px is
+    removed **at the call site**. The shared component itself is not modified.
+  - E3 SectionBlock → the 32px cumulated padding is NOT corrected in this wave.
+    Separate density decision, to be taken cold; the conversion reproduces the
+    existing cumulation as-is. Three-state board captured
+    (`planche-e3-densite-{dark,light}.png`, kept outside the tree): current
+    (Paper 16 + gutters 16 = 32px), option A `disablePadding` (0 + 16 = 16px,
+    dividers edge to edge), option B gutters removed (16 + 0 = 16px, dividers
+    indented). The 2 usages already passing `disablePadding` are already on
+    option A.
+- Blocked on: the library phase-0 PR (padding prop, host-theme contract for the
+  surface background, title/action, conformity-template change) is not merged
+  yet. Nothing starts product-side before the pin bump.
+- The bench was restarted only to produce the E3 board, then stopped again.

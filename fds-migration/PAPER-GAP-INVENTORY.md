@@ -410,3 +410,58 @@ pour E2 l'espacement vient des `gap` de la grille, pas d'un padding).
 | doublement déjà présent | 1 (E3) | **arbitrage séparé** — corriger ne serait pas ISO |
 | padding intrinsèque | 4 (L5, L7, L8, E4) | **ne rien retirer** |
 | rien à faire | 3 (L2, E1, E2) | — |
+
+---
+
+## 6. Arbitrages de conversion — à appliquer au bump
+
+Pris après le recensement §5. **À appliquer tels quels** quand la PR lib phase 0
+sera mergée et le pin bumpé — pas à ré-arbitrer.
+
+### Règle générale
+
+> Quand le Paper porte le padding, le padding des children est **retiré** —
+> **sauf quand ce padding porte un sens** : séparateur pleine largeur,
+> gouttière structurelle.
+
+### 6.1 — L1 / L3 / L4 / L6 : ISO strict, on ne transfère rien
+
+`padding=0` sur le Paper. Les gouttières `MuiListItem` (8px 16px) **restent**.
+Motif : **les séparateurs doivent continuer à toucher les bords** — c'est le cas
+« ce padding porte un sens » de la règle générale.
+
+| site | Paper après conversion | enfant |
+|---|---|---|
+| L1 `LessonsObjectives.jsx:26` | `padding={0}` | inchangé |
+| L3 `simulations/LessonsCategories.jsx:140` | `padding={0}` | inchangé |
+| L4 `simulations/LessonsCategories.jsx:203` | `padding={0}` | inchangé |
+| L6 `scenarios/LessonsCategories.jsx:115` | `padding={0}` | inchangé |
+
+### 6.2 — L9 / L10 : transfert au Paper, retrait AU SITE D'APPEL
+
+Le padding passe sur le Paper ; les **32px de `LessonsPlaceholder` sont
+retirés au site d'appel**. `LessonsPlaceholder` est un composant partagé —
+**il n'est pas modifié**, sous peine d'emporter ses autres consommateurs.
+
+| site | Paper après conversion | enfant |
+|---|---|---|
+| L9 `simulations/Lessons.tsx:355` | padding porté par le Paper | 32px retirés **au site d'appel** |
+| L10 `scenarios/Lessons.tsx:217` | padding porté par le Paper | idem |
+
+### 6.3 — E3 `SectionBlock` : les 32px cumulés ne sont PAS corrigés ici
+
+Décision de densité **séparée**, à prendre à froid — hors de cette vague. La
+conversion de `SectionBlock` reproduit donc le cumul existant à l'identique.
+
+État mesuré et les deux corrections possibles, capturées en planche
+(`planche-e3-densite-{dark,light}.png`, transmise hors dépôt) :
+
+| état | Paper | gouttières de ligne | cumul horizontal | effet sur les séparateurs |
+|---|---|---|---|---|
+| **Actuel** — 59 des 61 usages | 16px | 16px | **32px** | rentrés de 32px |
+| **Option A** — `disablePadding` | 0 | 16px | 16px | **bord à bord** |
+| **Option B** — gouttières retirées | 16px | 0 | 16px | rentrés de 16px |
+
+Les 2 usages qui passent déjà `disablePadding`
+(`GeneralVulnerabilityInfoTab.tsx:114`, `Validations.jsx:155`) sont déjà en
+option A. Rien n'est touché tant que la décision n'est pas prise.
