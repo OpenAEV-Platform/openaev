@@ -40,7 +40,6 @@ public class ThreatArsenalApi {
   public static final String TENANT_THREAT_ARSENAL_URL = TENANT_PREFIX + "/threat_arsenals";
 
   private final ThreatArsenalService threatArsenalService;
-  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- READ --
 
