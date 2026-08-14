@@ -407,7 +407,7 @@ public enum Capability {
 
   ACCESS_TENANT_USERS_GROUPS_AND_ROLES(
       null,
-      CapabilityGroup.TENANT_USERS_GROUPS_AND_ROLES,
+      CapabilityGroup.SECURITY,
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.USER_GROUP, Action.READ),
       pair(ResourceType.USER_GROUP, Action.SEARCH),
@@ -432,7 +432,7 @@ public enum Capability {
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(
       null,
-      CapabilityGroup.PLATFORM_USERS_GROUPS_AND_ROLES,
+      CapabilityGroup.SECURITY,
       EnumSet.of(CapabilityScope.PLATFORM),
       pair(ResourceType.PLATFORM_GROUP, Action.READ),
       pair(ResourceType.PLATFORM_GROUP, Action.SEARCH),

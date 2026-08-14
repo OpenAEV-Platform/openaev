@@ -76,7 +76,7 @@ class CapabilityTreeBuilderTest {
 
     // -- ASSERT --
     assertThat(tree).anyMatch(n -> TENANTS.name().equals(n.value()));
-    assertThat(tree).anyMatch(n -> PLATFORM_USERS_GROUPS_AND_ROLES.name().equals(n.value()));
+    assertThat(tree).anyMatch(n -> SECURITY.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> ASSESSMENT.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> THREAT_ARSENALS.name().equals(n.value()));
   }
@@ -90,8 +90,8 @@ class CapabilityTreeBuilderTest {
     assertThat(tree).anyMatch(n -> ASSESSMENT.name().equals(n.value()));
     assertThat(tree).anyMatch(n -> TARGETS.name().equals(n.value()));
     assertThat(tree).anyMatch(n -> TENANT_SETTINGS.name().equals(n.value()));
+    assertThat(tree).anyMatch(n -> SECURITY.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> TENANTS.name().equals(n.value()));
-    assertThat(tree).noneMatch(n -> PLATFORM_USERS_GROUPS_AND_ROLES.name().equals(n.value()));
   }
 
   @Test
@@ -131,17 +131,14 @@ class CapabilityTreeBuilderTest {
   }
 
   @Test
-  @DisplayName("Tenant tree nests the users, groups and roles triad under its own category")
+  @DisplayName("Tenant tree nests the users, groups and roles triad under the Security category")
   void should_build_correct_hierarchy_for_tenant_users_groups_and_roles() {
     // -- ACT --
     List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT);
 
     // -- ASSERT --
     CapabilityOutput category =
-        tree.stream()
-            .filter(n -> TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()))
-            .findFirst()
-            .orElseThrow();
+        tree.stream().filter(n -> SECURITY.name().equals(n.value())).findFirst().orElseThrow();
     assertThat(category.checkable()).isFalse();
     assertThat(category.scopes()).containsExactly(TENANT.name());
 
@@ -163,9 +160,9 @@ class CapabilityTreeBuilderTest {
         .anyMatch(
             n -> DELETE_TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()) && n.checkable());
 
-    // Tenant-scoped only: it must not leak into the platform tree.
-    assertThat(CapabilityTreeBuilder.buildTree(PLATFORM))
-        .noneMatch(n -> TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()));
+    // Tenant-scoped only: the shared Security category must not carry it into the platform tree.
+    assertThat(flattenValues(CapabilityTreeBuilder.buildTree(PLATFORM)))
+        .doesNotContain(ACCESS_TENANT_USERS_GROUPS_AND_ROLES.name());
   }
 
   @Test
