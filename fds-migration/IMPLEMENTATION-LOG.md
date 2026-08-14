@@ -371,3 +371,48 @@ in filigran-design-system).
   makes `bridge-freshness` meaningful; its branch ref (`sandyghs-miniature-enigma`
   @ `8ab126d`) is untouched.
 - Friction / process feedback: see the two points above.
+
+---
+
+### 2026-08-14 — Paper pilot: gate + gap inventory, STOP before any conversion
+- Branch: fds/paper-pilot (from `design-system/current` @ `dd7589963`)
+- Changed: `fds-migration/PAPER-GAP-INVENTORY.md` (new),
+  `fds-migration/LIBRARY-FEEDBACK.md` (entries 26-30 appended),
+  this log. **No product source file was touched — nothing was converted.**
+- Library pin unchanged: `35a476849ba72d48cacae2568643f0b5638bc468`.
+- Step 0 gate, measured on the INSTALLED build (`dist/`), rendered and read
+  back through computed styles, never from types/meta/changelog:
+  - `padding` prop (0/8/16/24/32): **absent**. It leaks to the DOM as an
+    attribute; padding stays 24px in every case.
+  - elevations 0-3: **present**, four genuinely distinct surfaces in both
+    modes (dark `#070d18`/`#0d172b`/`#13213e`/`#1f3965`, light
+    `#f2f2f3`/`#ffffff`/`#f4f4f6`/`#e4e5e7`).
+  - `title` / `action`: **absent**, and they fall through to native HTML
+    attributes (`title` becomes a browser tooltip on the whole panel).
+  - Gate therefore RED — the wave stopped there, nothing was worked around
+    product-side.
+- Gap inventory over the 14 real sites (10 in `admin/components/lessons`,
+  4 `Paper` tags in `EntityDetailCommon.tsx` driving 127 usages in 42 files):
+  four blocking gaps (padding 24px imposed on sites that render 0 or 16;
+  border effectively invisible in light mode at 1.03:1; surface background
+  ignores a customer-configured `paper_color`; `DetailHero`'s accent gradient
+  and transparent fill have no equivalent) and one non-blocking
+  (`title`/`action`, whose absence the arbitrated mapping already covers).
+  Radius, shadow, states, density: **no gap** — verified, not assumed.
+- Measurement bench (real product components in the real MUI theme, three
+  themes including a customer-configured one, plus the before/after boards)
+  was built and run **outside the repo tree**; nothing of it is committed.
+- Friction / process feedback:
+  1. `check-fds-conformity.mjs` is a GENERATED template copied from the
+     library repo, and its state file only expresses `generatedBridgeFiles` /
+     `wiredFiles` / `forbiddenPatterns`. Declaring a *component motif* ("this
+     zone must render the library Paper") and a guard on hardcoded padding
+     re-appearing on a library Paper needs a new check, i.e. a change to the
+     upstream template — it cannot be done product-side without hand-editing
+     a generated file. Left undone and raised rather than improvised; a
+     regex-only approximation through `forbiddenPatterns` was considered and
+     rejected (JSX spans lines, and a padding class three lines below a
+     `<Paper` tag is not reliably expressible as one regex).
+  2. `migration-state.json` was deliberately NOT touched: with zero migrated
+     zones, arming `forbiddenPatterns` on files that still render MUI would
+     report green about a migration that has not happened.

@@ -1433,3 +1433,171 @@ own `onKeyDown`.
 **The second-order consequence is resolved too.** Under the old behaviour the
 UA cross cleared the DOM value and a controlled consumer stayed in sync only by
 luck, while `onClear` never ran. Both paths now go through the same `clear()`.
+
+---
+
+Raised during: the **Paper pilot** (first container-surface wave in OpenAEV —
+`admin/components/lessons` + `components/common/detail/EntityDetailCommon.tsx`),
+library pin `35a476849ba72d48cacae2568643f0b5638bc468`. Every number below is
+measured on the **installed build** (`dist/`) and on the product's own
+components mounted in the real MUI theme — not read from types, meta or
+changelog. See `fds-migration/PAPER-GAP-INVENTORY.md` for the site-by-site
+inventory these entries summarise. Entries 26-29 blocked the wave: no
+conversion was made.
+
+## 26. `Paper` has no `padding` prop, and 24px is nobody's value
+
+**Needed.** An iso-density migration: each converted surface keeps the exact
+padding it renders today. Across the 14 sites of this wave that means **0px on
+9 sites and 16px on 5** — measured, not estimated.
+
+**Today.** `Paper` hardcodes `p-6` (24px) in its `cva()` base. There is no
+`padding` prop. Passing one is not a type error at the call site of a
+polymorphic component: `<Paper padding={16}>` renders
+`class="… p-6 …" padding="16"` — the value **leaks to the DOM as an
+attribute** and changes nothing. Measured padding stays 24px in every case.
+
+**Consequence.** Not a single site of the wave is at 24px, so a mechanical swap
+changes the density of 100% of them. Worse, the 7 zero-padding surfaces host
+full-bleed content — `List`s with edge-to-edge dividers, one full-width
+ApexCharts area chart. At 24px those dividers detach from the edges: it is a
+different visual pattern, not a slightly roomier one.
+
+**The documented escape hatch does not close the gap.** `Paper.meta.ts` points
+at `className` ("e.g. override the default p-6"). Measured against the shipped
+stylesheet, `p-0` (0px), `p-2` (8px), `p-3` (12px), `p-4` (16px) and `p-6`
+(24px) exist — but **`p-8` resolves to `0px`: the class is simply not in
+`dist/index.css`**, so 32px is unreachable even in hardcoded form. And a
+consumer with no Tailwind build of its own (see [#13]) cannot invent one.
+Beyond that, re-adding a hardcoded padding class on a library Paper is exactly
+what this migration's conformity guard is meant to redden — it is a
+compensation, not a capability.
+
+**Ask.** The `padding` prop on the 0 / 8 / 16 / 24 / 32 scale, 24 staying the
+default. That scale covers every value measured in this product plus the 32
+that no class can express today.
+
+---
+
+## 27. `Paper`'s border is invisible in light mode
+
+**Needed.** The border is what delimits a panel in this product: all 14 sites
+render MUI's `variant="outlined"`, i.e. they draw one on purpose. (Worth noting
+for cross-product readers: unlike OpenCTI's panels, which render borderless,
+OpenAEV's do render a border — the gap here is the colour, not the presence.)
+
+**Today.** `Paper` draws
+`border-[color:color-mix(in_srgb,var(--border-elevation-subtle)_10%,transparent)]`
+— always on, not disableable. Measured composites and border-vs-surface
+contrast:
+
+| mode | product (MUI outlined) | Paper | product ratio | Paper ratio |
+|---|---|---|---|---|
+| dark | `rgba(255,255,255,0.12)` → `#2a3344` | `rgba(43,79,141,0.1)` → `#101d35` | **1.41:1** | **1.06:1** |
+| light | `rgba(0,0,0,0.12)` → `#e0e0e0` | `rgba(228,229,231,0.1)` → `#fcfcfd` | **1.32:1** | **1.03:1** |
+
+**Consequence.** In light mode the border is effectively **not there** — 1.03:1
+against its own surface. On the before/after board, converted panels float as
+white blocks on the light-grey page with no outline at all. In dark mode the
+outline survives but at half the contrast, and shifts from neutral grey to a
+dark blue.
+
+This is not a WCAG finding — the surfaces are non-interactive and the library
+documents its border as decorative and non-gating, which is a defensible
+arbitration. It is a *rendering* gap: what the library treats as decoration is,
+in this product, the panel's only delimiter.
+
+**Ask.** Either a border colour that stays perceptible in light mode, or a
+supported way to opt out of it. The product cannot neutralise it: `border-*`
+utilities are not in the shipped stylesheet either ([#13] again).
+
+---
+
+## 28. `Paper` ignores a customer-configured surface colour
+
+**Needed.** This product's theme is customer-configurable per tenant
+(`platform_dark_theme` / `platform_light_theme`, editable from the admin UI).
+`background.paper` is one of those fields. A migrated panel must keep following
+it, exactly as the top bar had to keep following `background_color` in [#17].
+
+**Today.** `Paper` paints `bg-elevation-default`, resolved from the library's
+own token family. Measured with a customer theme
+(`paper_color: #3b2450`) passed through `themeDark()` the same way
+`AppThemeProvider` does it:
+
+| | measured background |
+|---|---|
+| product (MUI Paper) | `rgb(59,36,80)` = `#3b2450` — the customer's colour |
+| library `Paper` | `rgb(13,23,43)` = `#0d172b` — the Filigran default |
+
+**Consequence.** On any install with a custom paper colour, every converted
+panel reverts to Filigran's default, right next to unconverted panels still
+wearing the customer's. Contrast between the two surfaces: **1.32:1** — clearly
+two different colours side by side, per tenant, silently.
+
+**Why it stayed invisible until now.** On the *default* themes the two are
+byte-identical (`#0d172b` dark, `#ffffff` light): the token bridge already
+aligned `background.paper` onto `--bg-elevation-default-layer-1`. The gap only
+appears once a customer theme exists — which is why this was measured against
+one rather than assumed from the default.
+
+**Ask.** This is [#17]'s "Generalisation" paragraph coming true on a second
+component, so the answer should be the token-level one that entry already
+asked for, not a Paper-specific patch: a first-class, documented hook by which
+a consumer supplies a surface colour (`--fds-paper-background`, or a documented
+guarantee that the background token may be re-declared per element).
+
+---
+
+## 29. A gradient-backed surface has no expressible equivalent
+
+**Needed.** `DetailHero` — the hero header of **every** entity detail page in
+this product (21 screens, 21 files) — is a surface with two properties the
+library's `Paper` cannot reproduce:
+
+1. an accent gradient following the theme's primary colour, therefore the
+   customer's: `linear-gradient(135deg, alpha(primary,0.08), transparent 60%)`
+   — measured `rgba(66,202,255,0.08)` dark, `rgba(0,21,168,0.08)` light,
+   `rgba(255,138,61,0.08)` on a customer theme;
+2. **a transparent background**: the `sx` `background` shorthand zeroes the
+   paper fill (measured `rgba(0,0,0,0)`), so the page's own two-stop gradient
+   shows through the hero.
+
+**Today.** `Paper` paints an opaque `bg-elevation-default` and exposes no
+gradient or transparency affordance; `bg-gradient-*` utilities are not in the
+shipped stylesheet, so the product cannot supply one by class either.
+
+**Consequence.** A mechanical swap loses both at once — the accent *and* the
+see-through. Even a Paper that grew a gradient prop would still need the
+opt-out on its own fill, so the two are worth answering together.
+
+**Ask.** Not necessarily a gradient prop. The question to settle is whether a
+`Paper` can ever be transparent / consumer-painted at all, or whether a hero
+surface is simply a different component. Either answer unblocks this site; no
+answer means it stays on MUI while everything around it moves.
+
+---
+
+## 30. `title` and `action` silently become HTML attributes
+
+**Not a blocker** — the wave's arbitration already says the product keeps its
+own header above the surface when the library has no slot for it. Recorded
+because of the failure mode, not the missing feature.
+
+**Today.** `Paper` has no `title` / `action` props. Being polymorphic, it
+spreads unknown props onto the rendered element. Measured:
+
+- `<Paper title="Section">` → `title="Section"` on the `<div>`, i.e. a **browser
+  tooltip on the entire panel**. No error, no warning, no type complaint, and a
+  plausible-looking render.
+- `<Paper action={<button/>}>` → `action="[object Object]"` on a `<div>`, an
+  invalid attribute (React does warn on this one).
+
+**Consequence.** `title` is the dangerous half: an agent migrating a titled
+panel will reach for it by name, get no feedback of any kind, and ship a panel
+that shows a tooltip instead of a heading. 106 of this wave's 127 usages are
+titled panels, so the temptation is not hypothetical.
+
+**Ask.** Either the props, or a line in `Paper.meta.ts` / the docs stating that
+`title` is not a slot and lands on the native attribute. The cheap half of this
+(the documentation line) is worth doing even if the props never come.
