@@ -1,5 +1,6 @@
 package io.openaev.service.stix;
 
+import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -1054,6 +1055,105 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           .isEqualTo(new Timestamp(sroStartTime));
       assertThat(sro.hasProperty(RelationshipObject.Properties.STOP_TIME.toString())).isFalse();
     }
+  }
+
+  @Test
+  @DisplayName(
+      "When a simulation inject has no content, DNS indicator coverage is still computed without failing")
+  public void given_simulationWithContentlessInject_should_computeDnsIndicatorCoverage()
+      throws ParsingException, JsonProcessingException {
+    String hostname = "malicious.example.com";
+    String indicatorStixRef = "indicator--%s".formatted(UUID.randomUUID());
+    SecurityPlatformComposer.Composer securityPlatformWrapper =
+        securityPlatformComposer
+            .forSecurityPlatform(
+                SecurityPlatformFixture.createDefault(
+                    "Bad EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()))
+            .persist();
+
+    // an inject resolving the hostname carried by the indicator
+    InjectComposer.Composer dnsInjectWrapper =
+        injectComposer
+            .forInject(
+                InjectFixture.createInjectWithPayloadArg(
+                    Map.of(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, hostname)))
+            .withInjectorContract(
+                injectorContractComposer
+                    .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                    .withInjector(injectorFixture.getWellKnownOaevImplantInjector()))
+            .withExpectation(
+                injectExpectationComposer
+                    .forExpectation(
+                        InjectExpectationFixture.createExpectationWithTypeAndStatus(
+                            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                            BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                    .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())));
+
+    // an inject without an injector contract keeps a null content once persisted
+    InjectComposer.Composer contentlessInjectWrapper =
+        injectComposer.forInject(InjectFixture.getDefaultInject());
+
+    SecurityCoverageComposer.Composer securityCoverageWrapper =
+        securityCoverageComposer.forSecurityCoverage(
+            SecurityCoverageFixture.createDefaultSecurityCoverage());
+    securityCoverageWrapper
+        .get()
+        .setIndicatorsRefs(
+            new HashSet<>(
+                Set.of(
+                    new StixRefToExternalRef(
+                        indicatorStixRef, new ArrayList<>(List.of(hostname))))));
+
+    ExerciseComposer.Composer exerciseWrapper =
+        exerciseComposer
+            .forExercise(ExerciseFixture.createDefaultExercise())
+            .withSecurityCoverage(securityCoverageWrapper)
+            .withInject(dnsInjectWrapper)
+            .withInject(contentlessInjectWrapper);
+    exerciseWrapper.get().setStart(Instant.parse("2024-09-23T14:09:43Z"));
+    exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
+
+    injectExpectationComposer.generatedItems.forEach(
+        exp ->
+            exp.setResults(
+                List.of(
+                    InjectExpectationResult.builder()
+                        .score(100.0)
+                        .sourceId(securityPlatformWrapper.get().getId())
+                        .sourceName("Unit Tests")
+                        .sourceType("manual")
+                        .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                        .sourceAssetId(UUID.randomUUID().toString())
+                        .build())));
+
+    scenarioComposer
+        .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+        .withSimulation(exerciseWrapper)
+        .persist();
+    entityManager.flush();
+    entityManager.refresh(exerciseWrapper.get());
+
+    // intermediate assert: the simulation really does carry a content-less inject
+    assertThat(contentlessInjectWrapper.get().getContent()).isNull();
+
+    Optional<SecurityCoverageSendJob> job =
+        securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
+            exerciseWrapper.get());
+    assertThat(job).isNotEmpty();
+
+    // act
+    Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
+
+    // assert the indicator is reported as covered by the DNS inject
+    List<RelationshipObject> indicatorSros =
+        bundle.findRelationshipsByTargetRef(new Identifier(indicatorStixRef));
+    assertThat(indicatorSros).hasSize(1);
+
+    RelationshipObject indicatorSro = indicatorSros.getFirst();
+    assertThat(indicatorSro.getProperty(ExtendedProperties.COVERED.toString()))
+        .isEqualTo(new io.openaev.stix.types.Boolean(true));
+    assertThatJson(indicatorSro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+        .isEqualTo(predictCoverageFromInjects(List.of(dnsInjectWrapper.get())).toStix(mapper));
   }
 
   private List<DomainObject> getExpectedPlatformIdentities() {
