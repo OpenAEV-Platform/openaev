@@ -48,7 +48,7 @@ define (allowed targets, timeout, rate limit).
 2. On the type selection step, pick **Chained scenario** (or **Chained simulation**) instead of the default
    **Time-based** option.
 
-Once created, the Scenario/Simulation opens with dedicated tabs
+Once created, the Scenario/Simulation opens with dedicated tabs.
 
 ### 2. Define the scope
 
