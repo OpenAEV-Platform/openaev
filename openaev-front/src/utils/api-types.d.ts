@@ -5427,6 +5427,14 @@ export interface Finding {
   listened?: boolean;
 }
 
+export interface FindingArchiveSettingsInput {
+  finding_archive_days: number;
+}
+
+export interface FindingArchiveSettingsOutput {
+  finding_archive_days?: number;
+}
+
 export interface FindingCommentInput {
   /**
    * @minLength 0

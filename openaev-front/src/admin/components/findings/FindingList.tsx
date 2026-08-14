@@ -1,8 +1,11 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
-import { Binoculars } from 'mdi-material-ui';
-import { type CSSProperties, useState } from 'react';
+import { Box, Button, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Popover, TextField, Tooltip, Typography } from '@mui/material';
+import { Binoculars, Cog } from 'mdi-material-ui';
+import { type CSSProperties, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
+import { fetchFindingArchiveDays, updateFindingArchiveDays } from '../../../actions/findings/finding-actions';
+import { type UserHelper } from '../../../actions/helper';
+import ExportButton from '../../../components/common/ExportButton';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -14,10 +17,13 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
+import { useHelper } from '../../../store';
 import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
 import FindingTriageControl from './FindingTriageControl';
 import getFindingTypeLabel from './FindingTypeLabel';
+
+const DEFAULT_ARCHIVE_DAYS = 30;
 
 interface Props {
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
@@ -45,6 +51,35 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const [loading, setLoading] = useState<boolean>(true);
+
+  const { user } = useHelper((helper: UserHelper) => ({ user: helper.getMe() }));
+
+  // Archive settings: a finding is considered archived (frontend-computed, no persisted status)
+  // once it hasn't been re-detected for more than this many days. Configurable per-tenant, only
+  // shown/editable to admins, from the settings menu on the non-compact (full page) list.
+  const [archiveDays, setArchiveDays] = useState<number>(DEFAULT_ARCHIVE_DAYS);
+  const [archiveDaysDraft, setArchiveDaysDraft] = useState<string>(String(DEFAULT_ARCHIVE_DAYS));
+  const [settingsAnchorEl, setSettingsAnchorEl] = useState<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!compact) {
+      fetchFindingArchiveDays().then((res: { data: { finding_archive_days?: number } }) => {
+        const days = res.data.finding_archive_days ?? DEFAULT_ARCHIVE_DAYS;
+        setArchiveDays(days);
+        setArchiveDaysDraft(String(days));
+      });
+    }
+  }, [compact]);
+
+  const saveArchiveDays = () => {
+    const days = parseInt(archiveDaysDraft, 10);
+    if (!Number.isNaN(days) && days > 0) {
+      updateFindingArchiveDays({ finding_archive_days: days }).then(() => {
+        setArchiveDays(days);
+        setSettingsAnchorEl(null);
+      });
+    }
+  };
 
   const availableFilterNames = [
     'finding_type',
@@ -203,26 +238,32 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         const isNew = Math.abs(
           new Date(finding.finding_updated_at).getTime() - new Date(finding.finding_created_at).getTime(),
         ) < 1000;
-        if (!isNew) {
+        // Archived: derived purely from timestamps (no persisted status), same computed-at-render
+        // pattern as "New" above — a finding not re-detected for more than `archiveDays` is stale.
+        const daysSinceLastSeen = (Date.now() - new Date(finding.finding_updated_at).getTime()) / (1000 * 60 * 60 * 24);
+        const isArchived = !isNew && daysSinceLastSeen > archiveDays;
+        if (!isNew && !isArchived) {
           return <>{nsdt(finding.finding_updated_at)}</>;
         }
+        const label = isNew ? t('New') : t('Archived');
+        const color = isNew ? 'info.main' : 'text.secondary';
         return (
           <Box sx={{ display: 'inline-block' }}>
             <Typography
               variant="caption"
               sx={{
                 display: 'block',
-                color: 'info.main',
+                color,
                 fontWeight: 700,
                 letterSpacing: 1,
                 lineHeight: 1.4,
               }}
             >
-              {t('New').toUpperCase()}
+              {label.toUpperCase()}
             </Typography>
             <Box sx={{
               border: '1px solid',
-              borderColor: 'info.main',
+              borderColor: color,
               borderRadius: 1,
               px: 1,
               py: 0.25,
@@ -278,6 +319,70 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     }),
   );
 
+  // Export current page as CSV, and (admin-only) let the tenant configure the archive-days
+  // threshold used by the "Archived" badge above. Hidden in compact mode (embedded drawers).
+  const exportProps = {
+    exportType: 'FINDING',
+    exportKeys: visibleHeaders.map(h => h.field),
+    exportData: findings,
+    exportFileName: `${t('Findings')}.csv`,
+  };
+  const topBarButtons = compact
+    ? null
+    : (
+        <Box display="flex" gap={1} alignItems="center">
+          <ExportButton totalElements={total} exportProps={exportProps} />
+          {user?.user_admin && (
+            <>
+              <Tooltip title={t('Finding settings')}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<Cog fontSize="small" />}
+                  onClick={e => setSettingsAnchorEl(e.currentTarget)}
+                >
+                  {t('Settings')}
+                </Button>
+              </Tooltip>
+              <Popover
+                open={Boolean(settingsAnchorEl)}
+                anchorEl={settingsAnchorEl}
+                onClose={() => setSettingsAnchorEl(null)}
+                anchorOrigin={{
+                  vertical: 'bottom',
+                  horizontal: 'right',
+                }}
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+              >
+                <Box sx={{
+                  p: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 1,
+                  minWidth: 260,
+                }}
+                >
+                  <Typography variant="subtitle2">{t('Archive findings after (days)')}</Typography>
+                  <TextField
+                    type="number"
+                    size="small"
+                    value={archiveDaysDraft}
+                    onChange={e => setArchiveDaysDraft(e.target.value)}
+                    slotProps={{ htmlInput: { min: 1 } }}
+                  />
+                  <Button variant="contained" size="small" onClick={saveArchiveDays}>
+                    {t('Save')}
+                  </Button>
+                </Box>
+              </Popover>
+            </>
+          )}
+        </Box>
+      );
+
   return (
     <>
       <PaginationComponentV2
@@ -291,6 +396,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         searchEnable={!compact}
         disableFilters={compact}
         disablePagination={compact}
+        topBarButtons={topBarButtons}
       />
       <List>
         <ListItem

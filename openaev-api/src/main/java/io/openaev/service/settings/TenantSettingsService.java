@@ -2,6 +2,7 @@ package io.openaev.service.settings;
 
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
+import static io.openaev.database.model.TenantSettingKeys.FINDING_ARCHIVE_DAYS;
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
 import static io.openaev.database.model.TenantSettingKeys.TENANT_HOME_DASHBOARD;
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SCENARIO_DASHBOARD;
@@ -80,6 +81,15 @@ public class TenantSettingsService {
     return (value == null || value.isBlank()) ? Optional.empty() : Optional.of(value);
   }
 
+  /**
+   * Number of days of inactivity after which a finding is considered archived on the Finding
+   * page, for the given tenant.
+   */
+  @Transactional(readOnly = true)
+  public int findFindingArchiveDays(@NotBlank String tenantId) {
+    return Integer.parseInt(resolveSettingValue(tenantId, FINDING_ARCHIVE_DAYS));
+  }
+
   // endregion
 
   // region -- UPDATE --
@@ -124,6 +134,11 @@ public class TenantSettingsService {
         input.getLoginAsideGradientEnd());
     upsertThemeKey(
         tenant, themeType, Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE, input.getLoginAsideImage());
+  }
+
+  /** Update the finding archive-days threshold for the given tenant. */
+  public void updateFindingArchiveDays(@NotBlank String tenantId, int archiveDays) {
+    upsert(new Tenant(tenantId), FINDING_ARCHIVE_DAYS.key(), String.valueOf(archiveDays));
   }
 
   /** Clear a tenant setting value if it matches the given value. */
