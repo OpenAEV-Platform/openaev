@@ -32,6 +32,9 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
   @NotNull
   Optional<Tag> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  // TODO v2: once tags get v2 activated
+  // https://github.com/OpenAEV-Platform/openaev/issues/6424, the SQL rewriter will scope findByName
+  // automatically - remove this tenant-scoped variant and switch callers to findByName
   @NotNull
   Optional<Tag> findByNameAndTenantId(@NotNull String name, @NotNull String tenantId);
 
