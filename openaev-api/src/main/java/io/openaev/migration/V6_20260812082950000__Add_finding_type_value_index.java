@@ -6,8 +6,8 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * Adds a supporting index for the findings list's "distinct per (type, value)" deduplication
- * query (see {@code FindingSpecification#distinctTypeValueWithFilter}), which groups by {@code
+ * Adds a supporting index for the findings list's "distinct per (type, value)" deduplication query
+ * (see {@code FindingSpecification#distinctTypeValueWithFilter}), which groups by {@code
  * (finding_type, finding_value)} and, within each group, picks the row with the greatest {@code
  * finding_updated_at} via a correlated subquery.
  *

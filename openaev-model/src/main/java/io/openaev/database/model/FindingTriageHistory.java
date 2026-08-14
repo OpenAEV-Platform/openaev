@@ -12,8 +12,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -32,15 +32,15 @@ import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 /**
- * One append-only row PER transition (including reverts) of a {@link Finding}'s triage status.
- * Rows are never updated or overwritten - {@link FindingTriage} always holds the current status.
+ * One append-only row PER transition (including reverts) of a {@link Finding}'s triage status. Rows
+ * are never updated or overwritten - {@link FindingTriage} always holds the current status.
  *
  * <p>{@code finding} is a direct FK to {@code Finding} (not to {@code FindingTriage}), per explicit
  * product spec, so history survives independently of the current-status row's lifecycle.
  *
  * <p>{@code actor} is nullable: a {@code null} actor represents an automatic system-triggered
- * transition (re-detection auto-reset to UNTRIAGED). No exact precedent for a "System actor"
- * exists elsewhere in this codebase; the output DTO renders this as "System" when null - this is a
+ * transition (re-detection auto-reset to UNTRIAGED). No exact precedent for a "System actor" exists
+ * elsewhere in this codebase; the output DTO renders this as "System" when null - this is a
  * deliberate, disclosed design choice for this feature, not copied from an existing pattern.
  */
 @Data
