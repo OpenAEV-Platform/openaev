@@ -194,22 +194,29 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       // A finding whose first and last occurrence coincide has never been re-detected by a
       // subsequent scan/run: surface it as "New" so a first-time-only detection is visually
       // distinguishable from one that is still recurring (part of the finding lifecycle - see
-      // finding_created_at "First seen" above). The two timestamps are set from the same instant
-      // by Hibernate on insert (@CreationTimestamp/@UpdateTimestamp), so a strict equality check
-      // is reliable here - no tolerance window needed.
-      value: (finding: AggregatedFindingOutput) => (
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-        }}
-        >
-          {nsdt(finding.finding_updated_at)}
-          {finding.finding_created_at === finding.finding_updated_at && (
-            <Chip size="small" color="info" variant="outlined" label={t('New')} sx={{ borderRadius: 1 }} />
-          )}
-        </Box>
-      ),
+      // finding_created_at "First seen" above). @CreationTimestamp/@UpdateTimestamp each call
+      // Instant.now() independently at flush time, so real Hibernate-persisted rows can differ
+      // by a few microseconds/milliseconds even on first insert - a strict string equality check
+      // (reliable only for hand-seeded rows sharing one literal timestamp) misses these. A small
+      // tolerance window makes the check robust for real-world data too.
+      value: (finding: AggregatedFindingOutput) => {
+        const isNew = Math.abs(
+          new Date(finding.finding_updated_at).getTime() - new Date(finding.finding_created_at).getTime(),
+        ) < 1000;
+        return (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+          >
+            {nsdt(finding.finding_updated_at)}
+            {isNew && (
+              <Chip size="small" color="info" variant="outlined" label={t('New')} sx={{ borderRadius: 1 }} />
+            )}
+          </Box>
+        );
+      },
     },
     {
       field: 'finding_triage_status',
