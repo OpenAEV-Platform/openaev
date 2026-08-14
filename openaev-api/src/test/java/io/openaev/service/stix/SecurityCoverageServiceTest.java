@@ -1060,7 +1060,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Test
   @DisplayName(
       "When a simulation inject has no content, DNS indicator coverage is still computed without failing")
-  public void whenSimulationInjectHasNoContent_dnsIndicatorCoverageIsStillComputed()
+  public void given_simulationWithContentlessInject_should_computeDnsIndicatorCoverage()
       throws ParsingException, JsonProcessingException {
     String hostname = "malicious.example.com";
     String indicatorStixRef = "indicator--%s".formatted(UUID.randomUUID());
