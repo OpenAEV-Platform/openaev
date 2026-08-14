@@ -77,8 +77,10 @@ class ImportMapperActivationConfigTest {
   }
 
   @Test
-  @DisplayName("openaev.tenant.active-tables in application.properties contains autonomous_runs")
-  void prodConfigActivatesAutonomousRuns() throws Exception {
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains autonomous_runs,"
+          + " autonomous_events and autonomous_directives")
+  void prodConfigActivatesAutonomousTables() throws Exception {
     Properties props = new Properties();
     try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
       props.load(in);

@@ -1013,33 +1013,42 @@ public class AutonomousRunService {
    */
   private void persistSessionHandle(
       String runId, String tenantId, String sessionId, String agentSlug, String error) {
-    // Post-commit: the start/launch transaction (and its GUC) is already gone. Open a scoped
-    // background transaction so the inspector lets the session-handle UPDATE through.
-    tenantTx.execute(
-        TxCtx.forTenant(tenantId),
-        () -> {
-          runRepository
-              .findById(runId)
-              .ifPresent(
-                  run -> {
-                    boolean changed = false;
-                    if (sessionId != null) {
-                      run.setXtmSessionId(sessionId);
-                      changed = true;
-                    }
-                    if (agentSlug != null) {
-                      run.setXtmAgentSlug(agentSlug);
-                      changed = true;
-                    }
-                    if (error != null) {
-                      run.setLastError(error);
-                      changed = true;
-                    }
-                    if (changed) {
-                      runRepository.save(run);
-                    }
-                  });
-        });
+    Runnable work =
+        () ->
+            runRepository
+                .findById(runId)
+                .ifPresent(
+                    run -> {
+                      boolean changed = false;
+                      if (sessionId != null) {
+                        run.setXtmSessionId(sessionId);
+                        changed = true;
+                      }
+                      if (agentSlug != null) {
+                        run.setXtmAgentSlug(agentSlug);
+                        changed = true;
+                      }
+                      if (error != null) {
+                        run.setLastError(error);
+                        changed = true;
+                      }
+                      if (changed) {
+                        runRepository.save(run);
+                      }
+                    });
+    // The start/launch transaction (and its GUC) is already committed, so this write needs its own
+    // scoped transaction for the inspector to let the session-handle UPDATE through. Inside the
+    // afterCommit callback the committed transaction's resources are STILL bound to the thread
+    // (Spring only clears them after the callbacks have run), so execute()'s top-level guard would
+    // refuse and a REQUIRED join would silently write into the already-committed zombie: a NEW
+    // transaction (Spring's documented rule for transactional work in afterCommit) is the only
+    // correct shape there. The no-synchronization fallback path runs outside any transaction and
+    // opens a plain top-level scope instead.
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      tenantTx.executeNew(TxCtx.forTenant(tenantId), work);
+    } else {
+      tenantTx.execute(TxCtx.forTenant(tenantId), work);
+    }
   }
 
   /**
