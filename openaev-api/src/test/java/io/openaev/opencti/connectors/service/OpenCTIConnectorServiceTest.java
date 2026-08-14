@@ -48,6 +48,7 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
   @BeforeEach
   public void setup() {
     reset(mockOpenCTIClient);
+    openCTIConnectorService.clearRegisterBackoff();
   }
 
   @Nested
@@ -69,6 +70,25 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
       openCTIConnectorService.registerOrPingAllConnectors();
 
       assertThat(connector.isRegistered()).isFalse();
+    }
+
+    @Test
+    @DisplayName("When API return is error, a second immediate register is skipped (backoff)")
+    public void whenApiReturnIsError_secondImmediateRegisterIsSkipped() throws IOException {
+      ConnectorBase connector = getInstanceOfSecurityCoverageConnector().get();
+      connector.setRegistered(false);
+
+      Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
+      when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
+          .thenReturn(jwksSchemaResponse);
+      when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
+          .thenReturn(ResponseFixture.getErrorResponse());
+
+      openCTIConnectorService.registerOrPingAllConnectors();
+      openCTIConnectorService.registerOrPingAllConnectors();
+
+      assertThat(connector.isRegistered()).isFalse();
+      verify(mockOpenCTIClient, times(1)).execute(any(), any(), any(RegisterConnector.class));
     }
 
     @Test

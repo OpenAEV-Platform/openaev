@@ -26,6 +26,8 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
+import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -336,7 +338,145 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       Payload payload = payloadRepository.findById(payloadId).orElse(null);
       assertNotNull(payload);
       assertEquals(1, payload.getOutputParsers().size());
-      ;
+    }
+
+    @Test
+    @DisplayName("Creating an action with output_parser_type=credentials should return 400 not 500")
+    void given_outputParserTypeCredentials_should_returnBadRequest() throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          ThreatArsenalInputFixture.createCommandLineActionWithOutputParser(
+              List.of(domain.getId()));
+      String json =
+          asJsonString(input)
+              .replace(
+                  "\"output_parser_type\":\"REGEX\"", "\"output_parser_type\":\"credentials\"");
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(json)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message", containsString("output_parser_type must be REGEX")));
+    }
+
+    @Test
+    @DisplayName("Creating an action with an unknown output_parser_mode should return 400 not 500")
+    void given_unknownOutputParserMode_should_returnBadRequest() throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          ThreatArsenalInputFixture.createCommandLineActionWithOutputParser(
+              List.of(domain.getId()));
+      String json =
+          asJsonString(input)
+              .replace("\"output_parser_mode\":\"STDOUT\"", "\"output_parser_mode\":\"pipe\"");
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(json)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest())
+          .andExpect(
+              jsonPath(
+                  "$.message",
+                  containsString("output_parser_mode must be STDOUT, STDERR, or READ_FILE")));
+    }
+
+    @Test
+    @DisplayName(
+        "Creating an action carrying a credentials output parser should succeed and persist the"
+            + " credentials finding element")
+    void given_credentialsOutputParser_should_createPayloadWithCredentialsFinding()
+        throws Exception {
+      // credentials is a valid ContractOutputType on the contract output element; the parser type
+      // stays REGEX. A well-formed request must succeed and yield a finding-flagged credentials
+      // element (the AI orchestrator forks crack actions this way).
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          ThreatArsenalInputFixture.createCommandLineActionWithCredentialsOutputParser(
+              List.of(domain.getId()));
+
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String payloadId = JsonPath.read(response, "$.action_payload.payload_id");
+      Payload payload = payloadRepository.findById(payloadId).orElse(null);
+      assertNotNull(payload);
+      assertEquals(1, payload.getOutputParsers().size());
+      OutputParser outputParser = payload.getOutputParsers().iterator().next();
+      assertEquals(ParserType.REGEX, outputParser.getType());
+      Set<ContractOutputElement> elements = outputParser.getContractOutputElements();
+      assertEquals(1, elements.size());
+      ContractOutputElement credentialsElement = elements.iterator().next();
+      assertEquals(ContractOutputType.Credentials, credentialsElement.getType());
+      assertTrue(
+          credentialsElement.isFinding(),
+          "the credentials contract output element must be flagged as a finding");
+    }
+
+    @Test
+    @DisplayName(
+        "Creating an action with a malformed output parser (blank contract output element rule)"
+            + " should return 400, not 500")
+    void given_outputParserWithBlankRule_should_returnBadRequest() throws Exception {
+      // Regression: a contract output element with no rule slipped past validation (nested
+      // output-parser inputs were not @Valid-cascaded) and reached StringUtils.isValidRegex(null),
+      // which threw a raw NullPointerException surfaced as a 500.
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+
+      ContractOutputElementInput malformedElement = new ContractOutputElementInput();
+      malformedElement.setFinding(true);
+      malformedElement.setName("creds");
+      malformedElement.setKey("creds");
+      malformedElement.setType(ContractOutputType.Credentials);
+      malformedElement.setRule(null);
+      OutputParserInput malformedParser = new OutputParserInput();
+      malformedParser.setMode(ParserMode.STDOUT);
+      malformedParser.setType(ParserType.REGEX);
+      malformedParser.setContractOutputElements(Set.of(malformedElement));
+
+      ThreatArsenalActionCreateInput input =
+          new ThreatArsenalActionCreateInput(
+              Command.COMMAND_TYPE,
+              "Command line payload with malformed parser",
+              Payload.PAYLOAD_SOURCE.MANUAL,
+              Payload.PAYLOAD_STATUS.VERIFIED,
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              "bash",
+              "echo hello",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              Collections.emptyList(),
+              Collections.emptyList(),
+              null,
+              Set.of(malformedParser),
+              List.of(domain.getId()));
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().is4xxClientError());
     }
 
     @Test
@@ -613,7 +753,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given action_domains not_eq with AND and two values should return no result for search and domain counts")
+        "given action_domains not_eq with AND and two values should return no result for search and"
+            + " domain counts")
     void given_actionDomainsNotEqAndWithTwoValues_should_returnNoResultForSearchAndDomainCounts()
         throws Exception {
       // Arrange
@@ -665,7 +806,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given action_domains not_eq with AND and one value should keep contracts from other domains")
+        "given action_domains not_eq with AND and one value should keep contracts from other"
+            + " domains")
     void given_actionDomainsNotEqAndWithOneValue_should_keepOtherDomains() throws Exception {
       // Arrange
       SearchPaginationInput input =
@@ -848,7 +990,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given a providing (findings) filter the search must not fail with a SELECT DISTINCT / ORDER BY SQL error")
+        "given a providing (findings) filter the search must not fail with a SELECT DISTINCT /"
+            + " ORDER BY SQL error")
     void given_providingFilter_should_returnOkAndNotFailWithDistinctOrderBy() throws Exception {
       // A providing filter (injector_contract_providing) forces query.distinct(true).
       // Combined with the default composite-id sort, whose ORDER BY expands to
@@ -1095,7 +1238,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Searching non-tabletop threat arsenal with domain filter should return only matching non-tabletop contracts")
+        "Searching non-tabletop threat arsenal with domain filter should return only matching"
+            + " non-tabletop contracts")
     void given_nonTabletopSearchWithDomainFilter_should_returnFilteredResults() throws Exception {
       // Arrange
       SearchPaginationInput input =
@@ -1131,7 +1275,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Searching non-tabletop threat arsenal with tag filter should return only matching non-tabletop contracts")
+        "Searching non-tabletop threat arsenal with tag filter should return only matching"
+            + " non-tabletop contracts")
     void given_nonTabletopSearchWithTagFilter_should_returnFilteredResults() throws Exception {
       // Arrange
       SearchPaginationInput input =
@@ -1770,12 +1915,14 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               content()
                   .string(
                       containsString(
-                          "Only payload-based threat arsenal items can provide security platforms for action remediation.")));
+                          "Only payload-based threat arsenal items can provide security platforms"
+                              + " for action remediation.")));
     }
 
     @Test
     @DisplayName(
-        "Getting security platforms for a payload-based action should return the associated security platforms")
+        "Getting security platforms for a payload-based action should return the associated"
+            + " security platforms")
     void given_payloadContract_should_returnSecurityPlatformsForActionRemediation()
         throws Exception {
       // Arrange
