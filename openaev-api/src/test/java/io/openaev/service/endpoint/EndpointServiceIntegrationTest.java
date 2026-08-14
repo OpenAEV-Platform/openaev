@@ -484,6 +484,36 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
         assertThat(endpoint.getMacAddresses()).containsExactly("00abadc0ffe1");
       }
+
+      @Test
+      @DisplayName(
+          "A host reporting no usable MAC still registers and is identified on re-register")
+      void given_aHostWithOnlyPseudoInterfaceMacs_should_stillRegisterAndBeIdentified()
+          throws Exception {
+        // Discarding every reported address is safe: the mandatory external reference is the
+        // primary matcher, MAC overlap only being the fallback.
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput host = EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+        host.setAgentVersion(DEFAULT_ENDPOINT_AGENT_VERSION);
+        host.setExternalReference(UUID.randomUUID().toString());
+        host.setName("host-without-ethernet");
+        host.setHostname("host-without-ethernet");
+        host.setMacAddresses(new String[] {TEREDO_MAC});
+
+        entityManager.flush();
+        entityManager.clear();
+
+        String firstAssetId = register(host);
+        String secondAssetId = register(host);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(secondAssetId).isEqualTo(firstAssetId);
+
+        Endpoint endpoint = endpointRepository.findById(firstAssetId).orElseThrow();
+        assertThat(endpoint.getMacAddresses()).isEmpty();
+        assertThat(endpoint.getAgents()).hasSize(1);
+      }
     }
 
     @Nested

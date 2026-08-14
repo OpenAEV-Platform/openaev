@@ -211,12 +211,13 @@ public class EndpointMapper {
    * <p>Converts to lowercase, removes formatting characters, and filters out known invalid MAC
    * addresses.
    *
-   * <p>The blacklist is matched as a substring, not by equality. A normalized Ethernet MAC is 12
-   * characters, exactly the width of every blacklisted pattern, so for real MACs a substring hit is
-   * equivalent to equality. A longer value carrying one of those patterns is a tunnel
-   * pseudo-interface address (Teredo reports the 8-byte {@code 00:00:00:00:00:00:00:E0}), which is
-   * identical on every Windows host and would otherwise merge unrelated assets: MAC overlap is what
-   * identifies an endpoint at agent registration.
+   * <p>Only canonical 6-byte Ethernet addresses are kept. Interface enumeration reports an address
+   * of whatever length the adapter declares, and tunnel pseudo-interfaces (Teredo reports the
+   * 8-byte {@code 00:00:00:00:00:00:00:E0}) carry the same value on every Windows host. Since MAC
+   * overlap is what identifies an endpoint at agent registration, keeping those would merge
+   * unrelated assets. Discarding a non-Ethernet address costs nothing: the external reference is
+   * mandatory on every registration and is the primary matcher, MAC overlap only being the
+   * fallback.
    *
    * @param macAddresses the MAC addresses to sanitize
    * @return sanitized array of MAC addresses
@@ -227,7 +228,8 @@ public class EndpointMapper {
     } else {
       return Arrays.stream(macAddresses)
           .map(macAddress -> macAddress.toLowerCase().replaceAll(REGEX_MAC_ADDRESS, ""))
-          .filter(macAddress -> BAD_MAC_ADDRESS.stream().noneMatch(macAddress::contains))
+          .filter(macAddress -> macAddress.length() == MAC_ADDRESS_LENGTH)
+          .filter(macAddress -> !BAD_MAC_ADDRESS.contains(macAddress))
           .distinct()
           .toArray(String[]::new);
     }

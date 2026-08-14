@@ -96,12 +96,22 @@ class EndpointMapperTest {
     }
 
     @Test
-    @DisplayName("Keeps a long MAC that carries no blacklisted pattern")
-    void given_anEightByteMacWithoutABlacklistedPattern_should_keepIt() {
-      // Documents the limit of substring matching: a long address is only dropped when it embeds a
-      // blacklisted pattern, not because of its length.
+    @DisplayName("Drops any address that is not a 6-byte Ethernet MAC")
+    void given_anEightByteMac_should_dropIt() {
+      // Length is the rule, not the byte pattern: a pseudo-interface address is dropped whether or
+      // not it happens to embed a blacklisted value.
       assertThat(EndpointMapper.setMacAddresses(new String[] {"AA:BB:CC:DD:EE:FF:00:11"}))
-          .containsExactly("aabbccddeeff0011");
+          .isEmpty();
+      assertThat(EndpointMapper.setMacAddresses(new String[] {"AA:00:00:00:00:00:00:11"}))
+          .isEmpty();
+    }
+
+    @Test
+    @DisplayName("Drops a value that normalizes to something shorter than a MAC")
+    void given_aMalformedValue_should_dropIt() {
+      // Stripping separators turns arbitrary input into a plausible looking key, which would then
+      // be used as an identity fallback.
+      assertThat(EndpointMapper.setMacAddresses(new String[] {"not-a-mac"})).isEmpty();
     }
   }
 }
