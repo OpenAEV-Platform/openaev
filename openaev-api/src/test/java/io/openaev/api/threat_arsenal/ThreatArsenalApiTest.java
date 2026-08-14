@@ -1721,8 +1721,9 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Duplicating a non-payload injector contract should fail with NOT FOUND")
-    void given_nonPayloadContract_should_returnNotFound() throws Exception {
+    @DisplayName(
+        "Duplicating a non-payload injector contract should fail with BAD REQUEST, not NOT FOUND")
+    void given_nonPayloadContract_should_returnBadRequestExplainingReuse() throws Exception {
       // Arrange
       InjectorContract nonPayloadContract =
           injectorContractComposer
@@ -1732,12 +1733,18 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      // Act & Assert
+      // Act & Assert - 404 used to look like a missing id; agents then invented
+      // weaker original Commands instead of reusing the native injector as-is.
+      // BadRequestException renders as an ErrorMessage payload, so pin the
+      // assertions on its "message" field rather than on the raw body.
       mvc.perform(
               post(THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/duplicate")
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON))
-          .andExpect(status().isNotFound());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message", containsString("native injector")))
+          .andExpect(jsonPath("$.message", containsString("cannot be duplicated")))
+          .andExpect(jsonPath("$.message", containsString("injector contract id")));
     }
 
     @Test
