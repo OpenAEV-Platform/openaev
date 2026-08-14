@@ -383,38 +383,40 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
       }
     }
 
+    /** Reported by every Windows host, so it must never take part in endpoint identification. */
+    private static final String TEREDO_MAC = "00:00:00:00:00:00:00:E0";
+
+    /**
+     * Registration payload of a Windows host: one physical NIC plus the Teredo pseudo-interface.
+     */
+    private EndpointRegisterInput hostInput(String hostname, String physicalMac) {
+      EndpointRegisterInput input = EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+      input.setAgentVersion(DEFAULT_ENDPOINT_AGENT_VERSION);
+      input.setExternalReference(UUID.randomUUID().toString());
+      input.setName(hostname);
+      input.setHostname(hostname);
+      input.setMacAddresses(new String[] {physicalMac, TEREDO_MAC});
+      return input;
+    }
+
+    private String register(EndpointRegisterInput input) throws Exception {
+      String response =
+          mockMvc
+              .perform(
+                  post(tenantRegisterUri())
+                      .content(mapper.writeValueAsString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.asset_id");
+    }
+
     @Nested
     @DisplayName("Tunnel pseudo-interface MAC addresses")
     class TunnelPseudoInterfaceMacAddresses {
-
-      /** Reported by every Windows host, so it must never take part in endpoint identification. */
-      private static final String TEREDO_MAC = "00:00:00:00:00:00:00:E0";
-
-      private EndpointRegisterInput hostInput(String hostname, String physicalMac) {
-        EndpointRegisterInput input =
-            EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
-        input.setAgentVersion(DEFAULT_ENDPOINT_AGENT_VERSION);
-        input.setExternalReference(UUID.randomUUID().toString());
-        input.setName(hostname);
-        input.setHostname(hostname);
-        input.setMacAddresses(new String[] {physicalMac, TEREDO_MAC});
-        return input;
-      }
-
-      private String register(EndpointRegisterInput input) throws Exception {
-        String response =
-            mockMvc
-                .perform(
-                    post(tenantRegisterUri())
-                        .content(mapper.writeValueAsString(input))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-        return JsonPath.read(response, "$.asset_id");
-      }
 
       @Test
       @DisplayName("Two hosts sharing only a Teredo MAC register as two distinct endpoints")
@@ -480,6 +482,34 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
         Endpoint endpoint = endpointRepository.findById(assetId).orElseThrow();
 
+        assertThat(endpoint.getMacAddresses()).containsExactly("00abadc0ffe1");
+      }
+    }
+
+    @Nested
+    @DisplayName("Repeated registration")
+    class RepeatedRegistration {
+
+      @Test
+      @DisplayName("A host re-registering stays on the same endpoint with a single agent")
+      void given_aHostRegisteringTwice_should_keepOneEndpointAndOneAgent() throws Exception {
+        // The agent re-sends the full registration payload on every heartbeat, so the nominal path
+        // is a repeated registration, not a one-shot install.
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput host = hostInput("host-one", "00:ab:ad:c0:ff:e1");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        String firstAssetId = register(host);
+        String secondAssetId = register(host);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(secondAssetId).isEqualTo(firstAssetId);
+
+        Endpoint endpoint = endpointRepository.findById(firstAssetId).orElseThrow();
+        assertThat(endpoint.getAgents()).hasSize(1);
         assertThat(endpoint.getMacAddresses()).containsExactly("00abadc0ffe1");
       }
     }
