@@ -54,10 +54,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @EnabledIfEnvironmentVariable(named = "ATTACKPATH_BENCHMARK", matches = "true")
 @WithMockUser(isAdmin = true)
 @TestPropertySource(
-    properties = {
-      "openaev.enabled-dev-features=",
-      "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
-    })
+    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @DisplayName("attack path Phase A create: write latency")
 class AttackPathCreateBenchmark extends IntegrationTest {
 

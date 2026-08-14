@@ -30,10 +30,7 @@ import org.springframework.test.context.TestPropertySource;
  * {@code @Transactional} (the inserts are asserted after they commit).
  */
 @TestPropertySource(
-    properties = {
-      "openaev.enabled-dev-features=",
-      "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
-    })
+    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path: the batched snapshot inserts are idempotent")
 class AttackPathFindingWriterTest extends IntegrationTest {
