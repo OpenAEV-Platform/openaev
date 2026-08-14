@@ -15,7 +15,6 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
@@ -48,11 +47,9 @@ class WorkflowServiceTest {
   @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
   @Mock private io.openaev.database.repository.TeamRepository teamRepository;
   @Mock private io.openaev.database.repository.UserRepository userRepository;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
   @Mock private ConditionService conditionService;
   @Mock private StepDelayQueueService stepDelayQueueService;
-  @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private ScopeSnapshotService scopeSnapshotService;
   @Mock private ScopeService scopeService;
   @Mock private WorkflowStateService workflowStateService;
@@ -1151,10 +1148,8 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               conditionService,
-              previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
-              simulationRateLimitService,
               scopeSnapshotService,
               scopeService,
               workflowRepository,
@@ -1435,10 +1430,8 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               conditionService,
-              previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
-              simulationRateLimitService,
               scopeSnapshotService,
               scopeService,
               workflowRepository,
@@ -1625,10 +1618,8 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               conditionService,
-              previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
-              simulationRateLimitService,
               scopeSnapshotService,
               scopeService,
               workflowRepository,
@@ -1895,10 +1886,8 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               conditionService,
-              previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
-              simulationRateLimitService,
               scopeSnapshotService,
               scopeService,
               workflowRepository,

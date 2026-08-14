@@ -53,7 +53,6 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
@@ -149,7 +148,6 @@ public class ExerciseService {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
 
   private final WorkflowService workflowService;
-  private final PreviewFeatureService previewFeatureService;
 
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
@@ -206,8 +204,6 @@ public class ExerciseService {
   @Transactional(rollbackFor = Exception.class)
   public Exercise createSimulationChaining(@NotNull final Exercise simulation)
       throws ChainingException {
-
-    workflowService.isPreviewFeatureChainingEnable();
 
     Exercise savedSimulation = createExercise(simulation);
     workflowService.creationWorkflow(savedSimulation);
@@ -664,8 +660,7 @@ public class ExerciseService {
     boolean isCloseState =
         ExerciseStatus.CANCELED.equals(exercise.getStatus())
             || ExerciseStatus.FINISHED.equals(exercise.getStatus());
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-        && workflowService.isSimulationChaining(exercise.getId())) {
+    if (workflowService.isSimulationChaining(exercise.getId())) {
       if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
           && ExerciseStatus.RUNNING.equals(status)) {
         workflowService.startWorkflowBySimulationId(exercise.getId());
@@ -724,8 +719,7 @@ public class ExerciseService {
               }
             }
           });
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())) {
+      if (workflowService.isSimulationChaining(exercise.getId())) {
         // DELETE workflow states
         workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
         // DELETE injects
@@ -770,8 +764,7 @@ public class ExerciseService {
       // queue-based and has no pause semantics. Autonomous (AI-driven) runs need first-class
       // steering though, so the block is lifted for them: the orchestrator relies on being able
       // to pause and resume the underlying chained simulation.
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())
+      if (workflowService.isSimulationChaining(exercise.getId())
           && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
         throw new ChainingOperationNotSupportedException(
             "Pausing a chained simulation is not allowed yet, please contact support");
@@ -782,38 +775,37 @@ public class ExerciseService {
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-        // End WORKFLOW + STEP + delete workflow states
-        List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
-        if (!run.isEmpty()) {
-          List<Step> stepsToUpdate = new ArrayList<>();
-          run.forEach(
-              workflow -> {
-                // Single END transition (also freezes the end scope snapshot once - ADR-006):
-                // never set the status directly, or the canceled run keeps drifting "during
-                // execution" forever.
-                workflowService.endWorkflow(workflow);
-                List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
-                steps.forEach(step -> step.setStatus(StepStatus.END));
-                stepsToUpdate.addAll(steps);
-              });
-          stepService.saveSteps(stepsToUpdate);
-          workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
-          // Stopping is not resetting: it ends the run and keeps its record. A manual chained
-          // simulation used to drop ALL its injects here, which emptied the Execution screen while
-          // the attack path (whose rows are only cleared on reset) still showed the same run - the
-          // simulation looked half-erased. Clearing the executed record is the explicit Reset
-          // action's job (RUNNING/FINISHED -> SCHEDULED above), not a side effect of stopping.
-          //
-          // An autonomous (AI-driven) run additionally drops the injects the orchestrator had
-          // queued but never started: they are where the duplicate-inject storms pile up, and a
-          // never-started inject is not part of the deliverable.
-          if (autonomousRunRepository.existsBySimulationId(exercise.getId())) {
-            this.injectRepository.deleteAll(
-                this.injectRepository.findByExerciseId(exerciseId).stream()
-                    .filter(Inject::isNotExecuted)
-                    .toList());
-          }
+      // End WORKFLOW + STEP + delete workflow states
+      List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
+      if (!run.isEmpty()) {
+        List<Step> stepsToUpdate = new ArrayList<>();
+        run.forEach(
+            workflow -> {
+              // Single END transition (also freezes the end scope snapshot once - ADR-006):
+              // never set the status directly, or the canceled run keeps drifting "during
+              // execution" forever.
+              workflowService.endWorkflow(workflow);
+              List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
+              steps.forEach(step -> step.setStatus(StepStatus.END));
+              stepsToUpdate.addAll(steps);
+            });
+        stepService.saveSteps(stepsToUpdate);
+
+        workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
+        // Stopping is not resetting: it ends the run and keeps its record. A manual chained
+        // simulation used to drop ALL its injects here, which emptied the Execution screen while
+        // the attack path (whose rows are only cleared on reset) still showed the same run - the
+        // simulation looked half-erased. Clearing the executed record is the explicit Reset
+        // action's job (RUNNING/FINISHED -> SCHEDULED above), not a side effect of stopping.
+        //
+        // An autonomous (AI-driven) run additionally drops the injects the orchestrator had
+        // queued but never started: they are where the duplicate-inject storms pile up, and a
+        // never-started inject is not part of the deliverable.
+        if (autonomousRunRepository.existsBySimulationId(exercise.getId())) {
+          this.injectRepository.deleteAll(
+              this.injectRepository.findByExerciseId(exerciseId).stream()
+                  .filter(Inject::isNotExecuted)
+                  .toList());
         }
       }
     }

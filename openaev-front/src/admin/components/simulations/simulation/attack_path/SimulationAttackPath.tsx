@@ -206,7 +206,7 @@ const findingValuesMatch = (type: string, a: string, b: string): boolean => {
 };
 
 /**
- * Attack-path tab (issue 6647), gated by the ATTACK_PATH preview feature. Renders the simulation as a
+ * Attack-path tab (issue 6647). Renders the simulation as a
  * clustered graph: each injector fans out to an aggregate endpoint dot (+N) and one cluster per
  * finding type (with counts), all derived from the collapsed graph — no extra reads. An injector can
  * be expanded into its real endpoints, and the five summary cards open a right drawer (backend

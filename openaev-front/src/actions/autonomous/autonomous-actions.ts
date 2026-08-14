@@ -13,8 +13,8 @@ import type {
   CapabilityReport,
 } from './autonomous-types';
 
-// Autonomous (AI-driven) attack-path run client, gated by the INJECT_CHAINING preview feature
-// (autonomy is a launch mode of chained scenarios, so it shares the chaining flag). The tenant
+// Autonomous (AI-driven) attack-path run client. Autonomy is a launch mode of chained scenarios.
+// The tenant
 // prefix is added centrally by Action.buildUri, so these use the plain /api
 // paths. Reads pass defaultNotifyErrorBehavior=false so polling failures don't spam toasts; the
 // mutating calls keep the default error toast.

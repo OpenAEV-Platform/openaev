@@ -1,10 +1,9 @@
 # Attack path
 
-!!! warning "Proof of concept, feature-flagged"
+!!! warning "Proof of concept"
 
-    The attack-path execution store is a proof of concept (issue 6647). It is off by default and gated
-    behind the `ATTACK_PATH` preview feature, so its tab and endpoints do not exist unless the flag
-    is on. The design rationale and the options weighed are in
+    The attack-path execution store is a proof of concept (issue 6647). The design rationale and the
+    options weighed are in
     `adr/ADR-003-attack-path-execution-store-on-postgresql.md` at the repository root; this guide is the
     hands-on companion for developers building on the POC.
 
@@ -312,14 +311,7 @@ flowchart LR
 
 ## 8. Enable, seed, explore
 
-### Enable the feature
-
-Add `ATTACK_PATH` to the enabled preview features (or `*` for all), for example in your dev
-configuration (`application-dev.properties`):
-
-```properties
-openaev.enabled-dev-features=ATTACK_PATH
-```
+### Start the feature
 
 Start the backend and the front (`cd openaev-front && yarn start`, the dev server runs on port 3001 and
 proxies `/api` to the backend on 8080). The tab appears on every simulation page.

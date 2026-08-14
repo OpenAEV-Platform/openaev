@@ -75,7 +75,7 @@ Inject chaining orchestrates conditional, automated execution of injects within 
 
 !!! note
 
-    Inject chaining is currently gated behind the `INJECT_CHAINING` preview feature flag in addition to the Enterprise Edition license.
+    Inject chaining requires an active Enterprise Edition license.
 
 ## Remediations in CVEs
 

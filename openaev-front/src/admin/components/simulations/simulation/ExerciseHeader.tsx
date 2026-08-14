@@ -76,7 +76,6 @@ import { AbilityContext } from '../../../../utils/permissions/permissionsContext
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
@@ -352,9 +351,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   });
   const hasChallenges = challenges.length > 0;
 
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
-  const isSimulationChaining = isChainingFeatureEnabled && !!exerciseWorkflowId;
+  const isSimulationChaining = !!exerciseWorkflowId;
 
   const { workflowConfiguration } = useHelper(
     (helper: WorkflowConfigurationHelper) => ({

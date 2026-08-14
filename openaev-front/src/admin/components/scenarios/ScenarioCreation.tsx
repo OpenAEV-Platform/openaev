@@ -15,17 +15,14 @@ import { type PlatformSettings, type Scenario, type ScenarioInput } from '../../
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { isFeatureEnabled } from '../../../utils/utils';
 import EngineTypeSelection, { type EngineType } from '../common/EngineTypeSelection';
 import EEChip from '../common/entreprise_edition/EEChip';
-import ScenarioForm from './ScenarioForm';
 import ScenarioFormChaining from './ScenarioFormChaining';
 
 const ScenarioCreation: FunctionComponent = () => {
   // Standard hooks
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const [open, setOpen] = useState(false);
-  const [engineType, setEngineType] = useState<EngineType>(isChainingFeatureEnabled ? null : 'time-based');
+  const [engineType, setEngineType] = useState<EngineType>(null);
   // Post-creation intent set by the two companion entries. "Generate with AI" (chained) marks the
   // new scenario to auto-open the AI builder drawer (?openAiBuilder); "Scenario assistant"
   // (time-based) marks it to open the guided assistant (?openScenarioAssistant). Both are simple
@@ -49,8 +46,7 @@ const ScenarioCreation: FunctionComponent = () => {
   // is on and XTM One is connected (and agentic AI is not disabled) - the same gate the entity-level
   // Autonomous attack action uses. EE is enforced when the operator actually toggles it on.
   const aiReady
-    = isChainingFeatureEnabled
-      && authSettings.platform_xtm_one_configured === true
+    = authSettings.platform_xtm_one_configured === true
       && authSettings.filigran_chatbot_ai_cgu_status !== 'disabled';
 
   // A plain card selection is a manual build - clear both companion intents so re-picking a card
@@ -142,18 +138,6 @@ const ScenarioCreation: FunctionComponent = () => {
     scenario_mails_reply_to: [settings.default_reply_to ?? ''],
   };
   const renderDrawerContent = (): ReactElement => {
-    // if feature flag is disabled we just display the old form
-    if (!isChainingFeatureEnabled) {
-      return (
-        <ScenarioForm
-          onSubmit={onSubmit}
-          initialValues={initialValues}
-          handleClose={handleClose}
-          isCreation
-        />
-      );
-    }
-
     // "Generate with AI" entry, tied to the Chained engine: a toggle that marks the new scenario to
     // auto-open the AI builder drawer after creation. Offered only when XTM One is connected (EE is
     // enforced on toggle-on via toggleAiBuilderMode). Selected state highlights the card.

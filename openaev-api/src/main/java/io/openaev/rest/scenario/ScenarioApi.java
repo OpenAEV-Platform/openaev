@@ -39,7 +39,6 @@ import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.*;
 import io.openaev.rest.scenario.response.ScenarioOutput;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.autonomous.AutonomousRunService;
@@ -93,7 +92,6 @@ public class ScenarioApi extends RestBehavior {
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
   private final StepService stepService;
-  private final PreviewFeatureService previewFeatureService;
   private final ExpectationsDriftService expectationsDriftService;
   private final AutonomousRunService autonomousRunService;
   private final EnterpriseEditionService enterpriseEditionService;
@@ -125,10 +123,8 @@ public class ScenarioApi extends RestBehavior {
     }
     Scenario savedScenario = this.scenarioService.createScenario(scenario);
 
-    // If the chaining feature flag is enabled and the engine is "chaining", create and link a
-    // workflow to the scenario
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-        && Boolean.TRUE.equals(input.getIsChaining())) {
+    // If the engine is chaining, create and link a workflow to the scenario.
+    if (Boolean.TRUE.equals(input.getIsChaining())) {
       // Chaining is an Enterprise Edition feature: reject the creation of a chaining scenario
       // when the enterprise license is inactive
       if (enterpriseEditionService.isEnterpriseLicenseInactive(
@@ -646,8 +642,7 @@ public class ScenarioApi extends RestBehavior {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
 
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-        && workflowService.isScenarioChaining(scenarioId)) {
+    if (workflowService.isScenarioChaining(scenarioId)) {
       // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
       // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
       // plan or run outcome is no longer the latest activity). No-op when the scenario carries no

@@ -8,7 +8,6 @@ import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 import EEChip from '../common/entreprise_edition/EEChip';
 
 /**
@@ -19,12 +18,9 @@ const CustomizationMenuComponent: FunctionComponent = () => {
   const { settings } = useAuth();
   const ability = useContext(AbilityContext);
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
-  // The autonomous-attack customization is driven by XTM One (the AI brain); show it only when the
-  // chaining feature is on (autonomy is a launch mode of chained scenarios, no dedicated flag) and
-  // XTM One is connected, matching the launch entry point's own gate.
-  const autonomousReady
-    = isFeatureEnabled('INJECT_CHAINING')
-      && settings.platform_xtm_one_configured === true;
+  // The autonomous-attack customization is driven by XTM One (the AI brain); show it only when XTM
+  // One is connected, matching the launch entry point's own gate.
+  const autonomousReady = settings.platform_xtm_one_configured === true;
 
   const entries: RightMenuEntry[] = [
     {

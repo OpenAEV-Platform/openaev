@@ -90,4 +90,7 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
 
   @Query("SELECT w FROM Workflow w LEFT JOIN FETCH w.workflowScopeRules WHERE w.id IN :ids")
   List<Workflow> findAllByIdWithScopeRules(@Param("ids") List<String> ids);
+
+  @Query("SELECT count(1) > 0 FROM Workflow w WHERE w.simulation.id = :simulationId")
+  boolean existsBySimulationId(@Param("simulationId") String simulationId);
 }

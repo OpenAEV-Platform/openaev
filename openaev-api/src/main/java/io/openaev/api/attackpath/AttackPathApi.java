@@ -7,8 +7,6 @@ import io.openaev.config.SessionHelper;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.AttackPathCausalSeedService;
 import io.openaev.service.attackpath.AttackPathDeltaService;
@@ -43,10 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Attack-path endpoints (issue 6647). Gated behind the {@code ATTACK_PATH} preview feature: every
- * endpoint checks {@link PreviewFeatureService#isFeatureEnabled} and returns 404 unless the feature
- * is turned on ({@code openaev.enabled-dev-features}), the same way the platform's other preview
- * features gate their code.
+ * Attack-path endpoints (issue 6647).
  *
  * <p>Tenant isolation is enforced by the statement inspector, not by hand: each read declares a
  * {@link TxCtx} parameter, so the transaction aspect writes the request's tenant scope (from the
@@ -69,15 +64,7 @@ public class AttackPathApi extends RestBehavior {
   private final AttackPathVersionService versionService;
   private final AttackPathSeedService seedService;
   private final AttackPathCausalSeedService causalSeedService;
-  private final PreviewFeatureService previewFeatureService;
   private final AttackPathAccessControl attackPathAccessControl;
-
-  /** Runtime feature gate: return 404 unless the {@code ATTACK_PATH} preview feature is enabled. */
-  private void requireAttackPathFeature() {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-    }
-  }
 
   /**
    * The single tenant the seed writes under. Seeding is a one-tenant operation, so a scope that
@@ -112,7 +99,6 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathDTO graph(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam(required = false) String mode) {
-    requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
     long graphVersion =
         versionService.current(simulationId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx)).orElse(0L);
@@ -123,10 +109,10 @@ public class AttackPathApi extends RestBehavior {
    * What changed in the simulation's attack path since the client's version (#6647, spec 002), so a
    * running run can be followed without re-downloading the whole graph every few seconds.
    *
-   * <p>Same guards as {@link #graph}, evaluated on every poll: the feature gate, {@code
-   * assertCanReadSimulation}, and the {@link TxCtx} that scopes the reads to the caller's tenant.
-   * Because authorization is per request, a permission lost between two polls takes effect on the
-   * next one — there is no long-lived channel to carry a stale decision.
+   * <p>Same guards as {@link #graph}, evaluated on every poll: {@code assertCanReadSimulation}, and
+   * the {@link TxCtx} that scopes the reads to the caller's tenant. Because authorization is per
+   * request, a permission lost between two polls takes effect on the next one — there is no
+   * long-lived channel to carry a stale decision.
    *
    * <p>{@code since} is the version the client already holds ({@code graphVersion} of the snapshot
    * it loaded); 0 means "I have just loaded a snapshot with no version". A negative cursor is
@@ -138,7 +124,6 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathDeltaDTO graphDelta(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam @Min(0) long since) {
-    requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
     return deltaService.buildDelta(simulationId, since, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx));
   }
@@ -155,7 +140,6 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public List<AttackPathSimSummaryRow> simulations(
       TxCtx ctx, @RequestParam(required = false) String scenarioId) {
-    requireAttackPathFeature();
     return attackPathAccessControl.retainReadable(graphService.listSimulations(scenarioId));
   }
 
@@ -168,7 +152,6 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathExpandDTO expandEndpointFindings(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
-    requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
     return graphService.expandEndpoint(simulationId, ref);
   }
@@ -188,7 +171,6 @@ public class AttackPathApi extends RestBehavior {
       @RequestParam String ref,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "50") int size) {
-    requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
     int safePage = Math.max(page, 0);
     int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
@@ -211,7 +193,6 @@ public class AttackPathApi extends RestBehavior {
       @RequestParam String category,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "50") int size) {
-    requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
     int safePage = Math.max(page, 0);
     int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
@@ -234,7 +215,6 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathExecutionDetailDTO executionDetail(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam("ref") String executionId) {
-    requireAttackPathFeature();
     attackPathAccessControl.assertCanReadSimulation(simulationId);
     AttackPathExecutionDetailDTO detail = graphService.executionDetail(simulationId, executionId);
     if (detail == null) {
@@ -256,7 +236,6 @@ public class AttackPathApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public AttackPathSeedResultDTO seed(@RequestBody(required = false) AttackPathSeedInput input) {
-    requireAttackPathFeature();
     if (!SessionHelper.currentUser().isAdmin()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
     }
@@ -271,8 +250,8 @@ public class AttackPathApi extends RestBehavior {
    * {@code scenario=intrusion} is a deep host-to-host targeted intrusion that reads left to right,
    * and {@code scenario=ransomware} is a deep-and-wide kill chain (phishing to DCSync to
    * domain-wide impact) whose workstation tier and impacted fleet are both sized by {@code
-   * footholds}. Admin-only and only reachable when the feature flag is on, like {@link #seed}.
-   * Returns the id of the created simulation, whose Attack path tab renders the seeded graph.
+   * footholds}. Admin-only, like {@link #seed}. Returns the id of the created simulation, whose
+   * Attack path tab renders the seeded graph.
    *
    * <p>With {@code scenario=ransomware&live=step} the simulation is created empty and its kill
    * chain is landed one stage at a time by {@link #replayNextStage}, so an open view shows it build
@@ -288,7 +267,6 @@ public class AttackPathApi extends RestBehavior {
       @RequestParam(required = false, defaultValue = "realistic") String scenario,
       @RequestParam(required = false, defaultValue = "20") int footholds,
       @RequestParam(required = false, defaultValue = "") String live) {
-    requireAttackPathFeature();
     if (!SessionHelper.currentUser().isAdmin()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
     }
@@ -311,9 +289,9 @@ public class AttackPathApi extends RestBehavior {
 
   /**
    * Play the next stage of a live ransomware replay onto the simulation created with {@code
-   * live=step}, and report which stage ran and whether the replay is complete. Admin-only and
-   * feature-gated like {@link #seedCausal}. Call it repeatedly, or on a timer, to watch the kill
-   * chain build up stage by stage in the Attack path tab.
+   * live=step}, and report which stage ran and whether the replay is complete. Admin-only like
+   * {@link #seedCausal}. Call it repeatedly, or on a timer, to watch the kill chain build up stage
+   * by stage in the Attack path tab.
    *
    * <p>TODO(#6647): a development data generator; remove before production.
    */
@@ -324,7 +302,6 @@ public class AttackPathApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String simulationId,
       @RequestParam(required = false, defaultValue = "20") int footholds) {
-    requireAttackPathFeature();
     if (!SessionHelper.currentUser().isAdmin()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
     }
