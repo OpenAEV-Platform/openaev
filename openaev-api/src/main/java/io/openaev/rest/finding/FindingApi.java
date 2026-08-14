@@ -7,11 +7,14 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.finding.form.FindingArchiveSettingsInput;
+import io.openaev.rest.finding.form.FindingArchiveSettingsOutput;
 import io.openaev.rest.finding.form.FindingInput;
 import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.mapper.FindingMapper;
+import io.openaev.service.settings.TenantSettingsService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,7 @@ public class FindingApi extends RestBehavior {
 
   private final FindingService findingService;
   private final FindingMapper findingMapper;
+  private final TenantSettingsService tenantSettingsService;
 
   // -- CRUD --
 
@@ -109,5 +113,28 @@ public class FindingApi extends RestBehavior {
   public ResponseEntity<Void> deleteFinding(TxCtx ctx, @PathVariable @NotNull final String id) {
     this.findingService.deleteFinding(id);
     return ResponseEntity.noContent().build();
+  }
+
+  // -- ARCHIVE SETTINGS --
+  // A finding is considered "archived" (frontend-computed, no persisted status) once it hasn't
+  // been re-detected for more than this many days. Configurable per-tenant from the Finding page.
+
+  @GetMapping(TENANT_FINDING_URI + "/settings/archive-days")
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
+  @Transactional(readOnly = true)
+  public FindingArchiveSettingsOutput findArchiveDays(@PathVariable String tenantId) {
+    return new FindingArchiveSettingsOutput(
+        this.tenantSettingsService.findFindingArchiveDays(tenantId));
+  }
+
+  @PutMapping(TENANT_FINDING_URI + "/settings/archive-days")
+  @Transactional
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
+  public FindingArchiveSettingsOutput updateArchiveDays(
+      @PathVariable String tenantId,
+      @RequestBody @Valid @NotNull final FindingArchiveSettingsInput input) {
+    this.tenantSettingsService.updateFindingArchiveDays(tenantId, input.getArchiveDays());
+    return new FindingArchiveSettingsOutput(
+        this.tenantSettingsService.findFindingArchiveDays(tenantId));
   }
 }

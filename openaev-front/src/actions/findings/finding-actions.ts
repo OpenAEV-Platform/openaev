@@ -1,7 +1,17 @@
-import { simpleCall, simplePostCall } from '../../utils/Action';
-import { type SearchPaginationInput } from '../../utils/api-types';
+import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
+import { type FindingArchiveSettingsInput, type SearchPaginationInput } from '../../utils/api-types';
 
 const FINDING_URI = '/api/findings';
+
+// -- ARCHIVE SETTINGS --
+
+export const fetchFindingArchiveDays = () => {
+  return simpleCall(`${FINDING_URI}/settings/archive-days`);
+};
+
+export const updateFindingArchiveDays = (data: FindingArchiveSettingsInput) => {
+  return simplePutCall(`${FINDING_URI}/settings/archive-days`, data);
+};
 
 export const fetchFinding = (findingId: string) => {
   return simpleCall(`${FINDING_URI}/${findingId}`);
