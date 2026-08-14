@@ -18,11 +18,8 @@ import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.context.TenantContext;
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
@@ -105,13 +102,11 @@ public class InjectExecutionStep implements ActionStep {
   private final ExecutionContextService executionContextService;
 
   private final InjectorContractRepository injectorContractRepository;
-  private final InjectorRepository injectorRepository;
 
   private final StructuredOutputUtils structuredOutputUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final ConditionUtils conditionUtils;
   private final InjectUtils injectUtils;
-  private final TenantScopedTransaction tenantTx;
 
   private final Executor executor;
 
@@ -1210,23 +1205,20 @@ public class InjectExecutionStep implements ActionStep {
       } else {
 
         String injectorId = injectorNode.asText();
-        // injectors is v2-active: the injector reference deserialized from step data resolves
-        // through the statement inspector. Without a tenant scope on this chaining transaction it
-        // fail-closes to null and the step NPEs, then re-queues forever. Stamp the contract's
-        // tenant and resolve the injector with a fresh scoped query - not the deserialized
-        // association, which @NotFound(IGNORE) may already have eager-resolved to null before here.
-        String tenantId = injectorContract.getTenant().getId();
-        tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
-        Injector injector =
-            injectorRepository
-                .findByIdAndTenantId(injectorId, tenantId)
-                .orElseThrow(
-                    () ->
-                        new ChainingException(
-                            "Injector not found for injectorId "
-                                + injectorId
-                                + " and step (READY) ID "
-                                + step.getId()));
+        // injectors is v2-active and run() is already tenant-scoped by StepEventService. Resolve
+        // the injector explicitly by (id, tenant) through InjectUtils rather than the deserialized
+        // association, whose composite join relies on the step data's tenant_id and returns null
+        // when it is absent (then setInjector/NPE re-queues the step forever).
+        Injector injector;
+        try {
+          injector = injectUtils.resolveInjector(injectorId, injectorContract);
+        } catch (Exception e) {
+          throw new ChainingException(
+              "Injector not found for injectorId "
+                  + injectorId
+                  + " and step (READY) ID "
+                  + step.getId());
+        }
         inject.setInjector(injector);
       }
 
