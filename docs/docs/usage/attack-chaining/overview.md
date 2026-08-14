@@ -94,12 +94,6 @@ Once you can build a chained Logic graph by hand, you can go one step further wi
 you give an AI orchestrator an objective in plain language and it plans, executes, and adapts a full attack path on
 its own, live, against your authorized environment.
 
-## Example Scenario
-
-The fastest way to see Attack Chaining in action is to use the chained Simulation included in the OpenAEV starter
-pack: import it, launch it, and follow along on its **Logic** and **Attack path** tabs to build your first chained
-Simulation.
-
 ## What's next?
 
 - [Scope Definition](scope-definition.md): allow/deny lists, Variables, timeout, and rate limit.
