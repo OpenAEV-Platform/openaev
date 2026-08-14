@@ -25,6 +25,7 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
@@ -650,6 +651,16 @@ public class InjectExecutionStep implements ActionStep {
           "Data step of new step (TEMPLATE) do not contain injector contract");
     }
 
+    // #7418: verify the referenced injector contract still exists in this tenant BEFORE baking it
+    // into the step snapshot, under a pessimistic share lock so authoring serializes with the
+    // contract-delete transaction (there is no FK from step_data to the contract for a database
+    // cascade to protect this). Resolve the id straight from the step data (InjectInput carries the
+    // scalar inject_injector_contract) - the same id run() bakes and resolves - so authoring and
+    // execution can never drift. A missing contract is an invalid client-provided reference, so it
+    // is rejected as a 400 (BadRequestException), matching the threat-arsenal 400-not-404
+    // precedent.
+    assertInjectorContractExists(data.getInjectorContract());
+
     if ((simulation == null && scenario == null) || (simulation != null && scenario != null)) {
       throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
     }
@@ -723,6 +734,31 @@ public class InjectExecutionStep implements ActionStep {
       return om.writeValueAsString(inject);
     } catch (JsonProcessingException e) {
       throw new ChainingException("New step (TEMPLATE): Error processing Inject to JSON", e);
+    }
+  }
+
+  /**
+   * Rejects authoring a chaining step against an injector contract that no longer exists in the
+   * current tenant (#7418). The existence check takes a pessimistic share lock ({@code FOR SHARE})
+   * so it serializes with the contract-delete transaction: if the delete committed first the lookup
+   * finds nothing and we reject; if authoring locks the row first, the delete - and its #7413
+   * chaining-step sweep - waits for this transaction to commit and then sees the new step. The lock
+   * only serializes when the row exists, which is exactly the window that mattered.
+   *
+   * @param injectorContractId the injector contract id referenced by the step data
+   * @throws BadRequestException if no such contract exists in the current tenant (400, not 404: an
+   *     invalid client-provided reference, per the threat-arsenal precedent)
+   */
+  private void assertInjectorContractExists(String injectorContractId) {
+    boolean exists =
+        injectorContractRepository
+            .lockContractIdForAuthoring(injectorContractId, TenantContext.getCurrentTenant())
+            .isPresent();
+    if (!exists) {
+      throw new BadRequestException(
+          "Injector contract not found: "
+              + injectorContractId
+              + ". It may have been deleted; refresh and rebuild the step.");
     }
   }
 

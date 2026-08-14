@@ -28,6 +28,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
@@ -1213,6 +1214,125 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // the step still executable - instead of leaking another tenant's document.
     assertNotNull(inject);
     assertTrue(inject.getDocuments().isEmpty());
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep mono-id collections (inject_communications /
+  // inject_expectations round-trip) - #7414
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void
+      given_stepDataWithObjectShapedCommunicationsAndExpectations_whenBuildingInject_thenNoDesyncAndTrailingFieldBinds()
+          throws Exception {
+    // Arrange: MultiModelSerializer writes inject_communications and inject_expectations as FULL
+    // objects (each starting with its id property), yet both are read back through the scalar-only
+    // MonoIdDeserializerHelper. Before #7414 the object was not consumed, so the collection
+    // deserializer misread the object's first field name as the next element's id and desynced the
+    // whole stream - corrupting every field that came after the collections. Craft that exact
+    // shape and put a scalar field (inject_title) AFTER both collections: the trailing field is the
+    // observable desync symptom.
+    Step readyStep = emailReadyStep(List.of());
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.remove("inject_communications");
+    data.remove("inject_expectations");
+    data.remove("inject_title");
+    data.putArray("inject_communications")
+        .addObject()
+        .put("communication_id", "comm-1")
+        .put("communication_subject", "Subject")
+        .put("communication_from", "from@openaev.io")
+        .put("communication_to", "to@openaev.io");
+    data.putArray("inject_expectations")
+        .addObject()
+        .put("inject_expectation_id", "exp-1")
+        .put("inject_expectation_name", "Prevention")
+        .put("inject_expectation_type", "PREVENTION");
+    // Trailing field, placed AFTER both object-shaped collections on purpose.
+    data.put("inject_title", "desync sentinel title");
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: no desync - the elements resolve by their id and the field AFTER the collections
+    // still binds to its own value instead of being consumed by the misaligned array parsing.
+    assertNotNull(inject);
+    assertEquals("desync sentinel title", inject.getTitle());
+    assertEquals(1, inject.getCommunications().size());
+    assertEquals("comm-1", inject.getCommunications().getFirst().getId());
+    assertEquals(1, inject.getExpectations().size());
+    assertEquals("exp-1", inject.getExpectations().getFirst().getId());
+  }
+
+  @Test
+  void
+      given_stepDataWithScalarCommunicationAndExpectationIds_whenBuildingInject_thenElementsResolve()
+          throws Exception {
+    // Arrange: the defensive scalar shape (a plain string id per element) must keep working exactly
+    // as before - the scalar path in the deserializer is unchanged by #7414.
+    Step readyStep = emailReadyStep(List.of());
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.remove("inject_communications");
+    data.remove("inject_expectations");
+    data.putArray("inject_communications").add("comm-scalar");
+    data.putArray("inject_expectations").add("exp-scalar");
+    // Trailing field, to prove the scalar path leaves the stream aligned too.
+    data.remove("inject_title");
+    data.put("inject_title", "scalar sentinel title");
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert
+    assertNotNull(inject);
+    assertEquals("scalar sentinel title", inject.getTitle());
+    assertEquals(1, inject.getCommunications().size());
+    assertEquals("comm-scalar", inject.getCommunications().getFirst().getId());
+    assertEquals(1, inject.getExpectations().size());
+    assertEquals("exp-scalar", inject.getExpectations().getFirst().getId());
+  }
+
+  // ---------------------------------------------------------------------------
+  // create - injector contract existence validation at authoring time (#7418)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void create_shouldRejectWith400_whenInjectorContractDoesNotExist() throws Exception {
+    // #7418: a stale client (or one racing the contract-delete tx) can reference an injector
+    // contract that no longer exists. Authoring must reject it (BadRequestException -> 400) instead
+    // of baking it into an un-runnable ghost step; the existence check is real (repository) so the
+    // mocked injectorContractService return value is irrelevant here.
+    String missingContractId = "missing-" + UUID.randomUUID();
+    InjectInput injectInput =
+        mapper.readValue(
+            injectInputJson.replace(injectorContractSaved.getId(), missingContractId),
+            InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    BadRequestException ex =
+        assertThrows(
+            BadRequestException.class, () -> injectExecutionStep.create(step, workflowTemplate));
+    assertTrue(ex.getMessage().contains(missingContractId));
+  }
+
+  @Test
+  void create_shouldSucceed_whenInjectorContractExists() throws Exception {
+    // #7418: the happy path - the referenced contract exists in the tenant, so authoring proceeds.
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    Optional<Step> created = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(created.isPresent());
   }
 
   /**

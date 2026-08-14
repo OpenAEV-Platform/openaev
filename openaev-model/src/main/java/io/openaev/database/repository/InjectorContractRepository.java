@@ -5,12 +5,14 @@ import io.openaev.database.model.attackpath.projection.AttackPathInjectorPattern
 import io.openaev.database.raw.RawContractTenant;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.raw.RawPayloadRelatedIds;
+import jakarta.persistence.LockModeType;
 import jakarta.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -116,6 +118,36 @@ public interface InjectorContractRepository
   @Query(
       "SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
   boolean existsByContractIdAndTenant(
+      @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
+
+  /**
+   * Existence check taken under a pessimistic share lock ({@code SELECT ... FOR SHARE} on
+   * Postgres), used at chaining step authoring time to serialize with the contract-delete
+   * transaction (#7418).
+   *
+   * <p>A chaining step references its injector contract only through the JSON snapshot in {@code
+   * step_data} - there is no foreign key for a database cascade to act on - so nothing otherwise
+   * stops a stale (or racing) client from authoring a step against a contract that is being
+   * deleted, recreating the ghost-step state that {@code ChainingStepCleanupService} (#7413)
+   * sweeps. FOR SHARE makes the two transactions serialize: if the delete committed first the row
+   * is gone and authoring is rejected; if authoring takes the lock first, the delete (and its #7413
+   * sweep) waits for authoring to commit and then sees the newly created step.
+   *
+   * <p>Deliberately a scalar id projection, not an entity select: {@link InjectorContract} eagerly
+   * loads several collections, and a {@code SELECT ic ... FOR SHARE} would outer-join them and fail
+   * on Postgres ("FOR SHARE cannot be applied to the nullable side of an outer join"). Projecting a
+   * single column keeps the locking query on the {@code injectors_contracts} row alone. Tenant-
+   * scoped JPQL (so Hibernate's {@code tenantFilter} also applies) because the default contracts
+   * share their ids across every tenant.
+   *
+   * @param id the injector contract id referenced by the step being authored
+   * @param tenantId the current tenant
+   * @return the contract id if it exists in the tenant, empty otherwise
+   */
+  @Lock(LockModeType.PESSIMISTIC_READ)
+  @Query(
+      "SELECT ic.compositeId.id FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
+  Optional<String> lockContractIdForAuthoring(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
   /**

@@ -18,6 +18,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
@@ -34,6 +35,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -288,6 +290,64 @@ class StepServiceIntegrationTest extends IntegrationTest {
     Condition survivingRoot = conditionRepository.findById(rootId).orElse(null);
     assertNotNull(survivingRoot, "the preserved event survives");
     assertEquals(1, survivingRoot.getConditionChildren().size(), "and keeps its child");
+  }
+
+  @Test
+  void createStepTemplate_shouldReject_whenInjectorContractDoesNotExist()
+      throws JsonProcessingException {
+    // #7418: authoring a template step whose baked data references a contract that no longer exists
+    // in the tenant is rejected with a 400 (BadRequestException), never persisted as a ghost step.
+    // The existence check hits the real repository, so the mocked injectorContractService return
+    // value does not mask the missing row.
+    String missingContractId = "missing-" + UUID.randomUUID();
+    InjectInput injectInput =
+        mapper.readValue(
+            injectInputJson.replace(injectorContractSaved.getId(), missingContractId),
+            InjectInput.class);
+    Workflow workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .persist()
+            .get();
+    StepsCreateInput.StepInput input = buildInvalidInput();
+    input.setDataStep(injectInput);
+
+    long countBefore = stepRepository.count();
+    BadRequestException ex =
+        assertThrows(
+            BadRequestException.class, () -> spyStepService.createStepTemplate(workflow, input));
+    assertTrue(ex.getMessage().contains(missingContractId));
+    assertEquals(countBefore, stepRepository.count(), "no ghost step persisted");
+  }
+
+  @Test
+  void createInjectStepTemplateIdempotent_shouldReject_whenInjectorContractDoesNotExist()
+      throws JsonProcessingException {
+    // #7418: the autonomous author path (idempotent) must reject a deleted contract too, so a stale
+    // orchestrator cannot recreate the ghost-step state fixed by #7413.
+    String missingContractId = "missing-" + UUID.randomUUID();
+    InjectInput injectInput =
+        mapper.readValue(
+            injectInputJson.replace(injectorContractSaved.getId(), missingContractId),
+            InjectInput.class);
+    Workflow workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .persist()
+            .get();
+    StepsCreateInput.StepInput input = new StepsCreateInput.StepInput();
+    input.setStepAction(StepActionClass.INJECT_EXECUTION);
+    input.setDataStep(injectInput);
+
+    long countBefore = stepRepository.count();
+    BadRequestException ex =
+        assertThrows(
+            BadRequestException.class,
+            () -> spyStepService.createInjectStepTemplateIdempotent(workflow, input, null));
+    assertTrue(ex.getMessage().contains(missingContractId));
+    assertEquals(countBefore, stepRepository.count(), "no ghost step persisted");
   }
 
   private StepsCreateInput.StepInput buildInvalidInputCondition() {
