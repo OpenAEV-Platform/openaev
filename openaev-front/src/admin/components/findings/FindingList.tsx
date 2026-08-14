@@ -1,4 +1,4 @@
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
 import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
@@ -203,17 +203,34 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         const isNew = Math.abs(
           new Date(finding.finding_updated_at).getTime() - new Date(finding.finding_created_at).getTime(),
         ) < 1000;
+        if (!isNew) {
+          return <>{nsdt(finding.finding_updated_at)}</>;
+        }
         return (
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-          }}
-          >
-            {nsdt(finding.finding_updated_at)}
-            {isNew && (
-              <Chip size="small" color="info" variant="outlined" label={t('New')} sx={{ borderRadius: 1 }} />
-            )}
+          <Box sx={{ display: 'inline-block' }}>
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                color: 'info.main',
+                fontWeight: 700,
+                letterSpacing: 1,
+                lineHeight: 1.4,
+              }}
+            >
+              {t('New').toUpperCase()}
+            </Typography>
+            <Box sx={{
+              border: '1px solid',
+              borderColor: 'info.main',
+              borderRadius: 1,
+              px: 1,
+              py: 0.25,
+              display: 'inline-block',
+            }}
+            >
+              {nsdt(finding.finding_updated_at)}
+            </Box>
           </Box>
         );
       },
