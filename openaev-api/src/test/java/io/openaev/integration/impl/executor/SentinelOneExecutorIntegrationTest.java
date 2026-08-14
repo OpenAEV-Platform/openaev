@@ -78,6 +78,7 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private EncryptionFactory encryptionFactory;
   @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  @Autowired private PreviewFeatureService previewFeatureService;
   @Autowired private OpenAEVConfig openAEVConfig;
 
   @Autowired

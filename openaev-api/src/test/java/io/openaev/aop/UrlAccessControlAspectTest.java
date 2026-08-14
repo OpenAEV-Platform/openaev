@@ -10,6 +10,7 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
+import io.openaev.service.PreviewFeatureService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
@@ -38,6 +39,7 @@ import org.springframework.web.server.ResponseStatusException;
 class UrlAccessControlAspectTest {
 
   @Mock private UrlAccessTokenService urlAccessTokenService;
+  @Mock private PreviewFeatureService previewFeatureService;
   @InjectMocks private UrlAccessControlAspect aspect;
 
   @AfterEach

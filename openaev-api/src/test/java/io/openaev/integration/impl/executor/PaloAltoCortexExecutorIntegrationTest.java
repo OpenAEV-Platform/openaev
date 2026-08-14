@@ -61,6 +61,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  @Autowired private PreviewFeatureService previewFeatureService;
   @Autowired private EncryptionFactory encryptionFactory;
   @Autowired private OpenAEVConfig openAEVConfig;
 
