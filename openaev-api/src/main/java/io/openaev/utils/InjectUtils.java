@@ -65,8 +65,11 @@ public class InjectUtils {
   public Injector resolveInjector(
       @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
     if (StringUtils.isNotBlank(injectorId)) {
+      // injectors has a composite PK (injector_id, tenant_id) and built-in ids repeat across
+      // tenants, so resolve by id AND tenant. TenantContext is the current tenant for this
+      // v1-scoped call site, consistent with the contract fallback below.
       return injectorRepository
-          .findByInjectorId(injectorId)
+          .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
           .orElseThrow(
               () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
     }
