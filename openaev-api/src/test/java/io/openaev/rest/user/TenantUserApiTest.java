@@ -17,6 +17,7 @@ import io.openaev.api.users.dto.UserInput;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.UUID;
@@ -47,7 +48,7 @@ public class TenantUserApiTest extends IntegrationTest {
         "capability-" + UUID.randomUUID() + "@filigran.io",
         "Capability",
         "Test",
-        null,
+        UserFixture.RAW_PASSWORD,
         null,
         null,
         null,
