@@ -664,6 +664,10 @@ public class WorkflowService {
     return !workflows.isEmpty();
   }
 
+  public boolean existsBySimulationId(String simulationId) {
+    return this.workflowRepository.existsBySimulationId(simulationId);
+  }
+
   /**
    * Checks if a scenario has workflow chaining enabled.
    *

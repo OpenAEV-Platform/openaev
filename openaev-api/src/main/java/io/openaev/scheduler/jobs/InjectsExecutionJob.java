@@ -140,7 +140,7 @@ public class InjectsExecutionJob implements Job {
     // Filter out the simulations using the new chaining engine.
     mustBeFinishedSimulations =
         mustBeFinishedSimulations.stream()
-            .filter(simulation -> !workflowService.isSimulationChaining(simulation.getId()))
+            .filter(simulation -> !workflowService.existsBySimulationId(simulation.getId()))
             .toList();
     List<Exercise> exercisesToFinish = new ArrayList<>(mustBeFinishedSimulations);
     exercisesToFinish.forEach(
