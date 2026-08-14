@@ -63,10 +63,12 @@ class ChainingApiUnitTest {
     }
 
     @Test
-    void shouldThrowWhenFeatureDisabled() throws ChainingException {
+    void shouldThrowWhenWorkflowTemplateMissing() throws ChainingException {
       assertThrows(ChainingException.class, () -> chainingApi.duplicateExercise("simulation-id"));
 
-      verifyNoInteractions(exerciseService, stepService);
+      verify(exerciseService).getDuplicateExercise("simulation-id");
+      verify(workflowService).findWorkflowTemplateBySimulationId("simulation-id");
+      verifyNoInteractions(stepService);
     }
 
     @Test
@@ -105,12 +107,14 @@ class ChainingApiUnitTest {
     }
 
     @Test
-    void shouldThrowWhenFeatureDisabled() throws ChainingException {
+    void shouldThrowWhenWorkflowTemplateMissing() throws ChainingException {
 
       assertThrows(
           ChainingException.class, () -> chainingApi.duplicateScenarioChaining("scenario-id"));
 
-      verifyNoInteractions(scenarioService, stepService);
+      verify(scenarioService).getDuplicateScenario("scenario-id");
+      verify(workflowService).findWorkflowTemplateByScenarioId("scenario-id");
+      verifyNoInteractions(stepService);
     }
 
     @Test
