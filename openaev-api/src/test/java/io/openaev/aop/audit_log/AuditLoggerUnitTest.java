@@ -13,7 +13,6 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ShutdownService;
-import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
