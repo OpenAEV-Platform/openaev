@@ -412,9 +412,6 @@ class WorkflowUpdateEventAspectTest {
   @Nested
   class UnsentEventsCacheAndRetry {
 
-    @BeforeEach
-    void setUp() {}
-
     private void setupInjectIdJoinPoint(String injectIdValue) {
       when(annotation.injectId()).thenReturn("#injectId");
       when(annotation.expectationIds()).thenReturn("");
@@ -575,9 +572,6 @@ class WorkflowUpdateEventAspectTest {
    * ============================================================ */
   @Nested
   class SpELExpressionEvaluation {
-
-    @BeforeEach
-    void setUp() {}
 
     @Test
     void shouldEvaluateNestedSpELExpression_forInjectId() throws IOException {
