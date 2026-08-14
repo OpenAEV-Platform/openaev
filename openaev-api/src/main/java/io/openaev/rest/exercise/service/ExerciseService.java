@@ -784,9 +784,9 @@ public class ExerciseService {
         run.forEach(
             workflow -> {
               // Single END transition (also freezes the end scope snapshot once - ADR-006):
-                // never set the status directly, or the canceled run keeps drifting "during
-                // execution" forever.
-                workflowService.endWorkflow(workflow);
+              // never set the status directly, or the canceled run keeps drifting "during
+              // execution" forever.
+              workflowService.endWorkflow(workflow);
               List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
               steps.forEach(step -> step.setStatus(StepStatus.END));
               stepsToUpdate.addAll(steps);

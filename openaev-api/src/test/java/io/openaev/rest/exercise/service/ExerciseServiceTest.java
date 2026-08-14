@@ -140,7 +140,6 @@ class ExerciseServiceTest extends IntegrationTest {
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
-            previewFeatureService,
             pauseExerciseService,
             fileService,
             stepService,
