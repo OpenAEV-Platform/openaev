@@ -922,21 +922,6 @@ export interface AssetOutput {
   is_static?: boolean;
 }
 
-/** Frozen asset composing a launched simulation's scope rule (display only). */
-export interface AssetSnapshotOutput {
-  /**
-   * Frozen number of agents on the asset.
-   * @format int32
-   */
-  asset_snapshot_agents_count?: number;
-  /** Frozen distinct executor types of the asset's agents. */
-  asset_snapshot_executors?: string[];
-  /** Frozen asset id. */
-  asset_snapshot_id?: string;
-  /** Frozen asset name. */
-  asset_snapshot_name?: string;
-}
-
 export interface AtomicInjectorContractOutput {
   convertedContent?: object;
   /** @minLength 1 */
@@ -1607,8 +1592,6 @@ export interface AutonomousRunCreateInput {
   objective_template_key?: string;
   /** Build mode: when true the orchestrator only authors the scenario's logic (scope, steps, decisions) and executes nothing. The operator can review the built logic and later launch the scenario (in normal or autonomous mode). Defaults to false (immediate live autonomous run). */
   plan_mode?: boolean;
-  /** Refine mode (plan / build only): when true the orchestrator refines the scenario's EXISTING authored logic instead of rebuilding it from scratch. The authored steps and event/trigger conditions are kept, and a prior AI-built (plan) run is reused so its decision timeline (full history) is preserved and reopened. When false (default) a build is a rebuild: the logic map is wiped and any prior run superseded so the orchestrator designs the path fresh. Ignored outside build/plan mode. */
-  refine?: boolean;
   /** Advanced/optional: seed from an existing chaining scenario instead of auto-provisioning. Leave empty for a fully autonomous run. */
   scenario_id?: string;
   /** Optional mixed scope: a list of targetable entities (assets, asset groups, teams, persons) the run is restricted to. Leave empty to let the AI resolve the scope. */
@@ -5792,15 +5775,7 @@ export interface HealthCheck {
    */
   creation_date: string;
   /** Detail of the check failure */
-  detail:
-    | "SERVICE_UNAVAILABLE"
-    | "NOT_READY"
-    | "EMPTY"
-    | "MANDATORY_CONTENT"
-    | "MISSING_TECHNICAL_TARGETS"
-    | "MISSING_AUDIENCE_TARGETS"
-    | "INEFFECTIVE_TECHNICAL_TARGETS"
-    | "INEFFECTIVE_AUDIENCE_TARGETS";
+  detail: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY" | "MANDATORY_CONTENT";
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -7679,7 +7654,7 @@ export interface NotificationTriggerInput {
     | "THREAT_ARSENAL"
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
-    | "CREDENTIAL"
+    | "CREDENTIAL_ASSET"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -7782,7 +7757,7 @@ export interface NotificationTriggerOutput {
     | "THREAT_ARSENAL"
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
-    | "CREDENTIAL"
+    | "CREDENTIAL_ASSET"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -9401,9 +9376,6 @@ export interface PlatformRoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
-    | "ACCESS_CREDENTIALS"
-    | "MANAGE_CREDENTIALS"
-    | "DELETE_CREDENTIALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -9437,6 +9409,9 @@ export interface PlatformRoleInput {
     | "MANAGE_TENANTS"
     | "DELETE_TENANTS"
     | "ACCESS_TENANT_SETTINGS"
+    | "ACCESS_TAGS"
+    | "MANAGE_TAGS"
+    | "DELETE_TAGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -10229,9 +10204,6 @@ export interface RoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
-    | "ACCESS_CREDENTIALS"
-    | "MANAGE_CREDENTIALS"
-    | "DELETE_CREDENTIALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -10265,6 +10237,9 @@ export interface RoleInput {
     | "MANAGE_TENANTS"
     | "DELETE_TENANTS"
     | "ACCESS_TENANT_SETTINGS"
+    | "ACCESS_TAGS"
+    | "MANAGE_TAGS"
+    | "DELETE_TAGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -11028,28 +11003,6 @@ export interface SecurityPlatformSimpleOutput {
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
     | "VULNERABILITY_SCANNER";
-}
-
-/** Connected security platform of a launched simulation, shown as its current effective frozen photo (end snapshot once the run is over, launch snapshot while running) plus its computed change status. */
-export interface SecurityPlatformSnapshotOutput {
-  /** Frozen security-platform id (a new id signals a reinstall). */
-  security_platform_snapshot_id?: string;
-  /** Frozen security-platform name. */
-  security_platform_snapshot_name?: string;
-  /** Computed change status of this platform vs the frozen snapshots. */
-  security_platform_snapshot_status?:
-    | "RESOLVED"
-    | "MODIFIED_DURING_EXECUTION"
-    | "DELETED_DURING_EXECUTION"
-    | "MODIFIED_AFTER_EXECUTION"
-    | "DELETED_AFTER_EXECUTION";
-  /** Security-platform type (e.g. EDR / SIEM). */
-  security_platform_snapshot_type?: string;
-  /**
-   * Frozen last-modified date (a later value signals a reconfiguration).
-   * @format date-time
-   */
-  security_platform_snapshot_updated_at?: string;
 }
 
 export interface SecurityPlatformUpsertInput {
@@ -12335,9 +12288,6 @@ export interface User {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
-    | "ACCESS_CREDENTIALS"
-    | "MANAGE_CREDENTIALS"
-    | "DELETE_CREDENTIALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -12371,6 +12321,9 @@ export interface User {
     | "MANAGE_TENANTS"
     | "DELETE_TENANTS"
     | "ACCESS_TENANT_SETTINGS"
+    | "ACCESS_TAGS"
+    | "MANAGE_TAGS"
+    | "DELETE_TAGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -12961,8 +12914,6 @@ export interface WorkflowConfigurationOutput {
   workflow_scope_rules?: WorkflowScopeRuleOutput[];
   /** Custom variables available for template substitution in this workflow. */
   workflow_scope_variables?: ScopeVariableOutput[];
-  /** Connected security platforms frozen at launch (launched simulation only; empty for draft / scenario, where the frontend resolves the tenant's platforms live). */
-  workflow_security_platforms?: SecurityPlatformSnapshotOutput[];
 }
 
 /** Injector contract referenced by a workflow step, exposed for the logic screen. Only the fields needed to render the action form are returned. */
@@ -12989,8 +12940,7 @@ export interface WorkflowScopeRule {
     | "TEAM"
     | "PLAYER"
     | "MANUAL"
-    | "CSV"
-    | "SECURITY_PLATFORM";
+    | "CSV";
   /** @format date-time */
   workflow_scope_rule_updated_at?: string;
   workflow_scope_rule_value?: string;
@@ -13002,8 +12952,7 @@ export interface WorkflowScopeRule {
     | "ASSET_ID"
     | "ASSET_GROUP_ID"
     | "TEAM_ID"
-    | "PLAYER_ID"
-    | "SECURITY_PLATFORM_ID";
+    | "PLAYER_ID";
 }
 
 /** Input for a scope rule used in workflow configuration. */
@@ -13019,8 +12968,7 @@ export interface WorkflowScopeRuleInput {
     | "TEAM"
     | "PLAYER"
     | "MANUAL"
-    | "CSV"
-    | "SECURITY_PLATFORM";
+    | "CSV";
   /**
    * Selected rule value
    * @minLength 1
@@ -13034,14 +12982,6 @@ export interface WorkflowScopeRuleOutput {
   workflow_scope_rule_id?: string;
   /** Selected list mode where the rule is applied. */
   workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
-  /** Frozen composition at end of run (empty while still running). */
-  workflow_scope_rule_snapshot_end_assets?: AssetSnapshotOutput[];
-  /** Frozen label at end of run (null while the simulation is still running). */
-  workflow_scope_rule_snapshot_end_label?: string;
-  /** Frozen composition at launch, with agents (asset / group rules). */
-  workflow_scope_rule_snapshot_start_assets?: AssetSnapshotOutput[];
-  /** Frozen label at launch (for display when the target was deleted). */
-  workflow_scope_rule_snapshot_start_label?: string;
   /** Source of the selected item */
   workflow_scope_rule_source?:
     | "ASSET"
@@ -13049,18 +12989,10 @@ export interface WorkflowScopeRuleOutput {
     | "TEAM"
     | "PLAYER"
     | "MANUAL"
-    | "CSV"
-    | "SECURITY_PLATFORM";
-  /** Change status vs the frozen snapshots (launched simulation only; null for draft / scenario, where the frontend resolves live). */
-  workflow_scope_rule_status?:
-    | "RESOLVED"
-    | "MODIFIED_DURING_EXECUTION"
-    | "DELETED_DURING_EXECUTION"
-    | "MODIFIED_AFTER_EXECUTION"
-    | "DELETED_AFTER_EXECUTION";
+    | "CSV";
   /** Selected item value */
   workflow_scope_rule_value?: string;
-  /** Display-name snapshot of the referenced asset / asset group / team / player, captured when the rule was created or updated. Lets a past simulation's scope stay readable after the referenced entity is deleted. Null for MANUAL / CSV rules or when the id could not be resolved within the tenant. */
+  /** Display-name snapshot of the referenced asset / asset group, captured when the rule was created or updated. Lets a past simulation's scope stay readable after the referenced asset / group is deleted. Null for non-asset rules or when the id could not be resolved within the tenant. */
   workflow_scope_rule_value_label?: string;
 }
 
