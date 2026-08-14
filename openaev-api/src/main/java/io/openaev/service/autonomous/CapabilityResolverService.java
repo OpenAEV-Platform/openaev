@@ -18,7 +18,6 @@ import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.helper.AgentHelper;
-import io.openaev.service.PreviewFeatureService;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,7 +59,6 @@ public class CapabilityResolverService {
   private final CatalogConnectorRepository catalogConnectorRepository;
   private final InjectorRepository injectorRepository;
   private final AgentRepository agentRepository;
-  private final PreviewFeatureService previewFeatureService;
 
   /**
    * External injectors must heartbeat (they bump {@code updatedAt} on registration/ping); we treat

@@ -4,7 +4,6 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
-import io.openaev.service.PreviewFeatureService;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +38,6 @@ public class AutonomousTimeoutService {
   private final AutonomousRunRepository runRepository;
   private final AutonomousRunService autonomousRunService;
   private final TenantScopedTransaction tenantTx;
-  private final PreviewFeatureService previewFeatureService;
 
   /** Sweeps every tenant's live runs and enforces the deadline policy on those that are due. */
   public void sweep() {

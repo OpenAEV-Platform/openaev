@@ -56,7 +56,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Autowired private TeamService teamService;
   @Autowired private TagRuleService tagRuleService;
   @Autowired private DocumentService documentService;
@@ -147,7 +146,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
-            previewFeatureService,
             pauseExerciseService,
             fileService,
             stepService,

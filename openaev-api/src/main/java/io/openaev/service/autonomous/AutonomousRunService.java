@@ -64,7 +64,6 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.EndpointService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
@@ -168,7 +167,6 @@ public class AutonomousRunService {
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final WorkflowService workflowService;
   private final ExerciseService exerciseService;
-  private final PreviewFeatureService previewFeatureService;
   private final XtmOneClient xtmOneClient;
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;

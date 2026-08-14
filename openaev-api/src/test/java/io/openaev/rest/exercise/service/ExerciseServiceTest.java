@@ -85,7 +85,6 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private WorkflowService workflowService;
   @Mock private GrantService grantService;
   @Mock private ExerciseTeamUserService exerciseTeamUserService;

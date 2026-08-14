@@ -13,7 +13,6 @@ import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.PlatformSettingsService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
@@ -34,7 +33,6 @@ class ChainingApiUnitTest {
   @Mock private CustomDashboardService customDashboardService;
   @Mock private PlatformSettingsService platformSettingsService;
   @Mock private ScenarioService scenarioService;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private WorkflowService workflowService;
   @Mock private StepService stepService;
   @Mock private TagRepository tagRepository;
@@ -53,7 +51,6 @@ class ChainingApiUnitTest {
       Workflow sourceWorkflow = new Workflow();
       Workflow duplicatedWorkflow = new Workflow();
 
-      doNothing().when(workflowService).isPreviewFeatureChainingEnable();
       when(exerciseService.getDuplicateExercise(simulationId)).thenReturn(simulation);
       when(workflowService.findWorkflowTemplateBySimulationId(simulation.getId()))
           .thenReturn(Optional.of(sourceWorkflow));
@@ -67,7 +64,6 @@ class ChainingApiUnitTest {
 
     @Test
     void shouldThrowWhenFeatureDisabled() throws ChainingException {
-      doThrow(new ChainingException("")).when(workflowService).isPreviewFeatureChainingEnable();
       assertThrows(ChainingException.class, () -> chainingApi.duplicateExercise("simulation-id"));
 
       verifyNoInteractions(exerciseService, stepService);
@@ -78,7 +74,6 @@ class ChainingApiUnitTest {
       String simulationId = "simulation-id";
       Exercise simulation = new Exercise();
       simulation.setId("simulation-dup-id");
-      doNothing().when(workflowService).isPreviewFeatureChainingEnable();
       when(exerciseService.getDuplicateExercise(simulationId)).thenReturn(simulation);
 
       assertThrows(ChainingException.class, () -> chainingApi.duplicateExercise(simulationId));
@@ -99,7 +94,6 @@ class ChainingApiUnitTest {
       Workflow sourceWorkflow = new Workflow();
       Workflow duplicatedWorkflow = new Workflow();
 
-      doNothing().when(workflowService).isPreviewFeatureChainingEnable();
       when(scenarioService.getDuplicateScenario(scenarioId)).thenReturn(scenario);
       when(workflowService.findWorkflowTemplateByScenarioId(scenarioId))
           .thenReturn(Optional.of(sourceWorkflow));
@@ -112,7 +106,6 @@ class ChainingApiUnitTest {
 
     @Test
     void shouldThrowWhenFeatureDisabled() throws ChainingException {
-      doThrow(new ChainingException("")).when(workflowService).isPreviewFeatureChainingEnable();
 
       assertThrows(
           ChainingException.class, () -> chainingApi.duplicateScenarioChaining("scenario-id"));
@@ -124,7 +117,6 @@ class ChainingApiUnitTest {
     void shouldThrowWhenWorkflowTemplateNotFound() throws ChainingException {
       String scenarioId = "scenario-id";
       Scenario scenario = new Scenario();
-      doNothing().when(workflowService).isPreviewFeatureChainingEnable();
       when(scenarioService.getDuplicateScenario(scenarioId)).thenReturn(scenario);
       when(workflowService.findWorkflowTemplateByScenarioId(scenarioId))
           .thenReturn(Optional.empty());

@@ -34,7 +34,6 @@ import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
@@ -72,7 +71,6 @@ class AutonomousRunServiceTest {
   @Mock private AutonomousEventService eventService;
   @Mock private WorkflowService workflowService;
   @Mock private ExerciseService exerciseService;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private ScenarioService scenarioService;
   @Mock private ScenarioToExerciseService scenarioToExerciseService;
   @Mock private XtmOneClient xtmOneClient;
