@@ -6,7 +6,7 @@
  * fields. Wiring: fds-migration/TOKEN-MAPPING.md.
  *
  * Source: @filigran/design-system packages/filigran-design-system/src/tokens/theme.css
- * Theme.css content hash: sha256:fca99ad4456bb95b0461a639ab737a278479a10dae51078ec1139b6b0560f146
+ * Theme.css content hash: sha256:4a38c3cce69e1805e81eb0349e38336eebbb35ca598aa22866acac8c43662b95
  * Regenerate (from the filigran-design-system repo, not here):
  *   pnpm generate:mui-bridge --product openaev --write-to-product
  *
@@ -18,7 +18,7 @@
 
 export const FDS_META = {
   product: "openaev",
-  themeCssHash: "sha256:fca99ad4456bb95b0461a639ab737a278479a10dae51078ec1139b6b0560f146",
+  themeCssHash: "sha256:4a38c3cce69e1805e81eb0349e38336eebbb35ca598aa22866acac8c43662b95",
   generator: "@filigran/design-system scripts/generate-mui-bridge.ts",
 } as const;
 

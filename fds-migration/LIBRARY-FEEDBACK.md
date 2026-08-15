@@ -1751,3 +1751,60 @@ design, and that is exactly why they were missed here.
 a product can already do this. What would make it mechanical is a machine-
 readable rename map in the release — old name → new name — so a consumer can
 grep for the old names rather than having to notice their absence.
+
+
+---
+
+## 34. A product reset can silently disarm a library focus indicator
+
+**Found by accident, worth more than the accident.** When this pilot's bench was
+corrected to load the app's COMPLETE stylesheet stack (it had been loading 2 of
+the 5 sheets `index.tsx` imports), exactly one measured value moved across the
+navbar's ten states:
+
+```
+outline:  3px none   →   0px none
+```
+
+The cause is one rule in this product's own global CSS
+(`src/static/css/index.css`, line 5):
+
+```css
+:focus { outline: 0; }
+```
+
+It wins over the library sheet, and it applies to **every** focusable element in
+the app.
+
+**Why nothing broke.** #123 had just replaced the navbar's focus ring with an
+**inset border**. A border is not an outline, so the product rule cannot touch
+it. The focus indicator survives — by construction, not by luck.
+
+**Why it matters anyway.** The previous shape — `focus-visible:ring-2` — is
+`outline`-based in Tailwind, and the library's own accessibility contract
+mandates exactly that pattern for every interactive component:
+
+> `focus-visible:outline-none focus-visible:ring-2 ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-focus`
+
+So **every other library component this product adopts is one `:focus { outline: 0 }`
+away from having no visible focus indicator at all** — a WCAG 2.4.7 failure that
+is invisible in the library's own test suite, invisible in the docs site, and
+invisible in any bench that does not load the host's global CSS. Nothing in the
+library or in the product would report it; only a measurement in the host's real
+cascade shows it.
+
+**Two asks, and the first is cheap:**
+
+1. **Document the host prerequisite.** The consumer section already lists what a
+   host must do (theme class, fonts, no preflight). Add this: a host must not
+   neutralise `outline` globally, or must exempt the library's focus pattern —
+   and say which rule shape the library relies on, so a host can check.
+2. **Consider the sturdier indicator.** #123's inset border is immune to the
+   most common reset in the wild. If that is a deliberate robustness property
+   and not only a Figma alignment, it is worth stating as such — and worth
+   asking whether the ring-based pattern should move the same way for the other
+   components.
+
+**Product-side note for OpenAEV:** the rule is old, broad, and not this
+migration's to remove. Flagged here rather than deleted, because deleting it
+changes focus rendering across the entire application — a decision, not a fix.

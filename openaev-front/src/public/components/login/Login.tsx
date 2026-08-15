@@ -115,12 +115,17 @@ const Login = () => {
         {consentOk && (
           <>
             {isLocal && !reset && (
+              // The login panel is an elevation-1 surface, like every other
+              // panel in the app. `background.secondary` resolved to
+              // `--bg-elevation-highlight-layer-0` (#13213e), which is
+              // layer 2's value — measured on the running page. Dropping the
+              // override leaves MUI's own `background.paper`, i.e. layer 1
+              // (#0d172b), and it keeps following a customer's `paper_color`.
               <Paper
                 elevation={0}
                 sx={{
                   padding: 3,
                   borderRadius: 1,
-                  backgroundColor: 'background.secondary',
                   display: 'flex',
                   flexDirection: 'column',
                 }}

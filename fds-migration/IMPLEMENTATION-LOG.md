@@ -580,3 +580,42 @@ in filigran-design-system).
   against the INSTALLED `dist/index.css` at the next bump, OpenCTI included.
 - Non-regressions after this round: typecheck clean, eslint clean, conformity
   19 checks / 0 issue.
+
+### 2026-08-15 (night) — re-bump to #124, login surface fixed to layer 1
+- Branch: fds/paper-pilot (PR #7427, open).
+- Library pin: `2e77492` → **`0472f45548c69032ccfa768c5434367d3ac749c6`** (#124,
+  drops the navbar hover left accent). Cold install, pin proven from the
+  lockfile resolution.
+- **The hover bar survived the first re-measure — and it was NOT the pin.** The
+  installed `dist/index.js` no longer contains any `hover:border-l-*` class, so
+  the fix was there; the bench was still serving the previous module out of
+  Vite's dependency cache (`node_modules/.vite`, 63 MB). Deleting the package
+  and reinstalling is not enough: **the dep-optimizer cache has to be purged
+  too**, otherwise a bump verifies the old code while the lockfile proves the
+  new pin. Worth remembering at every future bump.
+- After the purge: hover left border is `rgba(0, 0, 0, 0)` on BOTH levels in
+  BOTH themes, and `selected` keeps its brand accent (`rgb(66,202,255)` dark,
+  `rgb(0,21,168)` light) — the accent was removed from hover only, as intended.
+- Bridge regenerated (theme.css lost 15 lines). Diff is the content hash alone:
+  no token key added or removed, and the §10 procedure (grep `var(--token)` and
+  literal utility classes against the INSTALLED sheet) came back clean this
+  time — first bump where it was run deliberately rather than after the fact.
+- **Login page**: `Login.tsx:118` painted the form panel with
+  `background.secondary`, which resolves to `--bg-elevation-highlight-layer-0`
+  = `#13213e`, i.e. layer 2's value. Override dropped; the panel now takes
+  MUI's `background.paper` = layer 1 (`#0d172b`), measured on the running app
+  (the login page is public, so no authentication was needed). The page's two
+  other panels (consent, reset) are already `variant="outlined"` = layer 1;
+  `LoginLayout`'s background and aside are not Papers. One surface was at
+  fault, not several. Not a Paper migration — a colour correction on a MUI
+  surface, so the gate's Paper motif does not cover it.
+- Feedback #34 opened: `:focus { outline: 0 }` in this product's global CSS
+  wins over the library sheet and would have disarmed the OLD ring-based focus
+  indicator. #123's inset border is immune to it, so nothing broke — but every
+  other library component adopting the mandated `focus-visible:ring-2` pattern
+  is one such reset away from a WCAG 2.4.7 failure that no gate would report.
+- The customer-theme border trade-off is now recorded as an ACCEPTED phase-1
+  compromise in PAPER-GAP-INVENTORY §9, with the note that a dedicated theme
+  entry lifts it if the need is confirmed.
+- Non-regressions: typecheck clean, eslint clean, vitest 43/650, conformity
+  19 checks / 0 issue.

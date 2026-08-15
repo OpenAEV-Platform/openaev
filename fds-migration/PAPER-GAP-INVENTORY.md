@@ -603,10 +603,14 @@ sa propre surface** :
 | après | `rgba(59,36,80,0.4)` — la couleur du client | `#3b2450` | **`#3b2450`**, soit exactement la surface |
 
 Le panneau ne perd pas sa lisibilité — il se détache encore du fond de page
-(`#2b1a3d` contre `#3b2450`) — mais il n'a plus de contour propre. C'est le
-compromis du temps 1 : plus aucune couleur étrangère à la charte du client, au
-prix du contour. Si c'est le contour qui compte, c'est précisément là qu'une
-entrée de thème dédiée (non créée ici, décision Sandy) prendra son sens.
+(`#2b1a3d` contre `#3b2450`) — mais il n'a plus de contour propre.
+
+**Statut : compromis ASSUMÉ du temps 1** (arbitrage Sandy, 2026-08-15). Plus
+aucune couleur étrangère à la charte du client, au prix du contour. Ce n'est ni
+un défaut ni une dette cachée : c'est le choix explicite de cette étape, mesuré
+et montré avant d'être retenu. **Une entrée de thème dédiée le lèvera si le
+besoin se confirme** — elle n'est délibérément pas créée maintenant, pour ne pas
+inventer une surface de configuration avant que le besoin soit avéré.
 
 ---
 
@@ -642,3 +646,44 @@ présents dans le `dist/index.css` **installé** — la feuille livrée, pas le
 `theme.css` source. Ces deux formes vivent dans des fichiers de composants
 ordinaires, hors des `wiredFiles` par construction : c'est exactement pour ça
 qu'elles ont été manquées ici. Repris en LIBRARY-FEEDBACK #33.
+
+
+---
+
+## 11. Page de login — la surface du formulaire était à la mauvaise couche
+
+Signalé par Sandy sur le rendu réel, vérifié dans l'app tournante (la page de
+login est publique : mesurée sans authentification, sur `localhost:3001`).
+
+| | fond mesuré | couche |
+|---|---|---|
+| avant | `rgb(19,33,62)` = `#13213e` | **layer 2** |
+| après | `rgb(13,23,43)` = `#0d172b` | **layer 1** ✅ |
+
+**Cause.** `Login.tsx:118` posait `backgroundColor: 'background.secondary'`, et
+`palette.background.secondary` résout sur `--bg-elevation-highlight-layer-0`,
+dont la valeur est exactement celle de layer 2. Le panneau se retrouvait donc
+deux crans au-dessus de la page au lieu d'un.
+
+**Correction.** L'override est retiré : le `Paper` reprend le
+`background.paper` de MUI, c'est-à-dire layer 1 — et il continue de suivre le
+`paper_color` d'un thème client, ce que `background.secondary` faisait déjà par
+sa branche ternaire.
+
+**Les autres surfaces de la page, vérifiées une par une** (la question était
+« y en a-t-il d'autres dans le même cas ? ») :
+
+| surface | état |
+|---|---|
+| `Login.tsx:80` — panneau du message de consentement | `variant="outlined"` → `background.paper` = **layer 1**, déjà correct |
+| `Reset.jsx:54` — panneau de réinitialisation | `variant="outlined"` → **layer 1**, déjà correct |
+| `LoginLayout.tsx` — fond de page et aside | `background.default` = layer 0 et l'image/dégradé de l'aside : ce ne sont pas des `Paper`, hors sujet |
+
+**Une seule surface était donc en cause.** Les deux autres panneaux ne sont pas
+rendus dans cette configuration (pas de message de consentement, pas d'écran de
+reset), mais leur code est lu et correct.
+
+Note de portée : cette page n'est pas dans le périmètre de la vague Paper, et
+elle n'est pas migrée vers le `Paper` de la lib — c'est une correction de
+couleur d'une surface MUI, pas une conversion. Le motif Paper du gate ne la
+couvre donc pas.
