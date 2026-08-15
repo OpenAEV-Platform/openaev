@@ -23,6 +23,12 @@ import org.springframework.stereotype.Component;
  * connection ({@link JdbcTemplate} via {@code DataSourceUtils}); when a transaction is already
  * bound to the thread (integration tests) it joins it and sees the seeded run, and in production it
  * reads the already-committed run row.
+ *
+ * <p>This is the read-only scope-bootstrap exception of the tenant-activation runbook: the
+ * exemption stays legitimate only while the class emits nothing but this single-row,
+ * primary-key-addressed SELECT of the run's own {@code tenant_id}. {@code
+ * AutonomousRunTenantLocatorTest} pins the class list and the exact statement on every build, the
+ * same enforcement pattern as the insert-only seed exemption ({@code AttackPathSeedServiceTest}).
  */
 @Component
 @RequiredArgsConstructor
@@ -32,8 +38,17 @@ import org.springframework.stereotype.Component;
             + " service-identity scope for the orchestrator callback endpoints, BEFORE the"
             + " transaction (and thus the scope) is opened. This read is what SETS the scope, so it"
             + " cannot be tenant-scoped itself; it must bypass the inspector. It reads only the run's"
-            + " immutable tenant_id by primary key and never any other row.")
+            + " immutable tenant_id by primary key and never any other row or column; the exemption"
+            + " is pinned read-only by AutonomousRunTenantLocatorTest.")
 public class AutonomousRunTenantLocator {
+
+  /**
+   * The one statement this class may ever emit: a single-row read of the run's own tenant
+   * attribution, addressed by primary key, projecting nothing else. Pinned verbatim by {@code
+   * AutonomousRunTenantLocatorTest} so any widening fails the build.
+   */
+  static final String SELECT_RUN_TENANT =
+      "SELECT tenant_id FROM autonomous_runs WHERE autonomous_run_id = ?";
 
   private final JdbcTemplate jdbcTemplate;
 
@@ -45,12 +60,7 @@ public class AutonomousRunTenantLocator {
     if (runId == null || runId.isBlank()) {
       return Optional.empty();
     }
-    return jdbcTemplate
-        .query(
-            "SELECT tenant_id FROM autonomous_runs WHERE autonomous_run_id = ?",
-            (rs, rowNum) -> rs.getString(1),
-            runId)
-        .stream()
+    return jdbcTemplate.query(SELECT_RUN_TENANT, (rs, rowNum) -> rs.getString(1), runId).stream()
         .findFirst()
         .filter(tenant -> tenant != null && !tenant.isBlank());
   }
