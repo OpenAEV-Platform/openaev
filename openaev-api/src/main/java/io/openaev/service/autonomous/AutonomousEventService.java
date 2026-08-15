@@ -5,6 +5,7 @@ import io.openaev.database.model.autonomous.AutonomousEvent;
 import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +45,7 @@ public class AutonomousEventService {
    * + re-settled run can never spam a second identical one.
    */
   public static final Set<String> TERMINAL_STATUS_TITLES =
-      Set.of("Run canceled", "Run completed", "Run timed out", "Run failed");
+      Set.of("Run canceled", "Run completed", "Run timed out", "Run failed", "Run stalled");
 
   /**
    * High 32 bits of the per-run advisory-lock key, namespacing autonomous event-sequence locks so
@@ -154,6 +155,18 @@ public class AutonomousEventService {
   public List<AutonomousEvent> timelineSince(String runId, long sinceSequence) {
     return eventRepository.findByRunIdAndSequenceGreaterThanOrderBySequenceAsc(
         runId, sinceSequence);
+  }
+
+  /**
+   * Instant of the run's newest timeline entry, or {@code null} when it has none yet. This is the
+   * run's liveness clock for the idle/stall watchdog ({@link
+   * AutonomousRunService#enforceLiveness}): every active decision cycle appends events (including a
+   * ~45s "still working" heartbeat), so a newest-event age far past that cadence means the
+   * orchestrator has gone silent.
+   */
+  @Transactional(readOnly = true)
+  public Instant lastActivityAt(String runId) {
+    return eventRepository.findMaxCreatedAt(runId);
   }
 
   /**

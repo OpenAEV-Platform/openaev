@@ -35,6 +35,8 @@ import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.model.autonomous.AutonomousScopeTarget;
+import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -79,6 +81,8 @@ class AutonomousRunServiceTest {
   @Mock private AutonomousEventService eventService;
   @Mock private WorkflowService workflowService;
   @Mock private ExerciseService exerciseService;
+  @Mock private InjectRepository injectRepository;
+  @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private ScenarioService scenarioService;
   @Mock private ScenarioToExerciseService scenarioToExerciseService;
   @Mock private XtmOneClient xtmOneClient;
@@ -565,6 +569,156 @@ class AutonomousRunServiceTest {
     service.enforceDeadline("run-1", "tenant-1");
 
     verifyNoInteractions(eventService, exerciseService, directiveRepository);
+  }
+
+  // endregion
+
+  // region OpenAEV-owned liveness: short idle/stall watchdog (independent of the 24h deadline)
+
+  /**
+   * Tests for the stall watchdog {@link AutonomousRunService#enforceLiveness}. A live run that stops
+   * posting timeline heartbeats for {@link AutonomousRunService#STALL_IDLE_SECONDS} is settled to
+   * FAILED and narrated "Run stalled" - UNLESS the chained simulation still has work in flight (an
+   * executing inject or an open expectation), which is a genuine {@code await_finding} park and must
+   * be left alone. The flip is claimed exactly once, like the deadline hard stop.
+   */
+  private AutonomousRun stallableRun() {
+    AutonomousRun run = new AutonomousRun();
+    run.setId("run-1");
+    run.setSimulationId("sim-1");
+    run.setStatus(AutonomousRunStatus.RUNNING);
+    run.setPlanMode(false);
+    // A real start instant well outside the idle window so the fallback clock never masks the test.
+    run.setStartedAt(Instant.now().minusSeconds(3600));
+    Tenant tenant = new Tenant();
+    tenant.setId("tenant-1");
+    run.setTenant(tenant);
+    return run;
+  }
+
+  @Test
+  @DisplayName("enforceLiveness settles a silent run with nothing in flight to FAILED (Run stalled)")
+  void enforceLivenessSettlesSilentRun() throws Exception {
+    AutonomousRun run = stallableRun();
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(20 * 60));
+    when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(0L);
+    when(injectExpectationRepository.countOpenByExerciseId("sim-1")).thenReturn(0L);
+    when(runRepository.settleTerminalStatusIfRunning(
+            eq("run-1"), eq("tenant-1"), eq(AutonomousRunStatus.FAILED), any(Instant.class)))
+        .thenReturn(1);
+
+    service.enforceLiveness("run-1", "tenant-1");
+
+    // Torn down like an operator Stop, and the end is narrated once with the distinct stall title.
+    verify(exerciseService).changeExerciseStatus(ExerciseStatus.CANCELED, "sim-1");
+    verify(eventService)
+        .appendTerminalStatusOnce(eq("run-1"), eq("sim-1"), eq("Run stalled"), anyString());
+  }
+
+  @Test
+  @DisplayName("enforceLiveness exempts a silent run with an inject still in flight (await_finding)")
+  void enforceLivenessExemptsInFlightInject() {
+    AutonomousRun run = stallableRun();
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(20 * 60));
+    // A step is still executing: the orchestrator is legitimately awaiting its result.
+    when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(1L);
+
+    service.enforceLiveness("run-1", "tenant-1");
+
+    verify(runRepository, never())
+        .settleTerminalStatusIfRunning(anyString(), anyString(), any(), any(Instant.class));
+    verifyNoInteractions(exerciseService);
+  }
+
+  @Test
+  @DisplayName("enforceLiveness exempts a silent run with an open expectation (no inject in flight)")
+  void enforceLivenessExemptsOpenExpectation() {
+    AutonomousRun run = stallableRun();
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(20 * 60));
+    when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(0L);
+    // e.g. a phishing lure whose inject already EXECUTED but whose click/detection is still awaited.
+    when(injectExpectationRepository.countOpenByExerciseId("sim-1")).thenReturn(3L);
+
+    service.enforceLiveness("run-1", "tenant-1");
+
+    verify(runRepository, never())
+        .settleTerminalStatusIfRunning(anyString(), anyString(), any(), any(Instant.class));
+    verifyNoInteractions(exerciseService);
+  }
+
+  @Test
+  @DisplayName("enforceLiveness leaves a run active within the idle window untouched")
+  void enforceLivenessIgnoresRecentlyActiveRun() {
+    AutonomousRun run = stallableRun();
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    // Heartbeat two minutes ago - well inside the idle window; nothing else is even consulted.
+    when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(2 * 60));
+
+    service.enforceLiveness("run-1", "tenant-1");
+
+    verifyNoInteractions(injectRepository, injectExpectationRepository, exerciseService);
+    verify(runRepository, never())
+        .settleTerminalStatusIfRunning(anyString(), anyString(), any(), any(Instant.class));
+  }
+
+  @Test
+  @DisplayName("enforceLiveness re-asserts RUNNING: a run parked for input since the sweep is spared")
+  void enforceLivenessSkipsNonRunningRun() {
+    AutonomousRun run = stallableRun();
+    run.setStatus(AutonomousRunStatus.WAITING_INPUT);
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+
+    service.enforceLiveness("run-1", "tenant-1");
+
+    // A WAITING_INPUT park is an open-ended operator wait; the watchdog must not even read its clock.
+    verifyNoInteractions(eventService, injectRepository, injectExpectationRepository, exerciseService);
+    verify(runRepository, never())
+        .settleTerminalStatusIfRunning(anyString(), anyString(), any(), any(Instant.class));
+  }
+
+  @Test
+  @DisplayName("enforceLiveness stalls a run the worker never picked up (no timeline, stale start)")
+  void enforceLivenessStallsNeverPickedUpRun() {
+    AutonomousRun run = stallableRun();
+    // No decision timeline yet and the live window opened 20 minutes ago: the orchestrator never
+    // started. The fallback clock (startedAt) drives the stall decision.
+    run.setStartedAt(Instant.now().minusSeconds(20 * 60));
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(eventService.lastActivityAt("run-1")).thenReturn(null);
+    when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(0L);
+    when(injectExpectationRepository.countOpenByExerciseId("sim-1")).thenReturn(0L);
+    when(runRepository.settleTerminalStatusIfRunning(
+            eq("run-1"), eq("tenant-1"), eq(AutonomousRunStatus.FAILED), any(Instant.class)))
+        .thenReturn(1);
+
+    service.enforceLiveness("run-1", "tenant-1");
+
+    verify(eventService)
+        .appendTerminalStatusOnce(eq("run-1"), eq("sim-1"), eq("Run stalled"), anyString());
+  }
+
+  @Test
+  @DisplayName("the stall flip is claimed once: a lost race with a concurrent transition stays silent")
+  void enforceLivenessStallClaimedOnce() throws Exception {
+    AutonomousRun run = stallableRun();
+    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(20 * 60));
+    when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(0L);
+    when(injectExpectationRepository.countOpenByExerciseId("sim-1")).thenReturn(0L);
+    // Someone else settled / paused / parked the run between the idle read and this flip: the
+    // RUNNING-guarded UPDATE matches no row, so nothing is narrated or torn down.
+    when(runRepository.settleTerminalStatusIfRunning(
+            eq("run-1"), eq("tenant-1"), eq(AutonomousRunStatus.FAILED), any(Instant.class)))
+        .thenReturn(0);
+
+    service.enforceLiveness("run-1", "tenant-1");
+
+    verify(exerciseService, never()).changeExerciseStatus(any(), anyString());
+    verify(eventService, never())
+        .appendTerminalStatusOnce(anyString(), anyString(), anyString(), anyString());
   }
 
   // endregion
