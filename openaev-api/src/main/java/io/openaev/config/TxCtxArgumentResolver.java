@@ -28,16 +28,23 @@ import org.springframework.web.servlet.HandlerMapping;
  * addressed), otherwise from the {@code X-Tenant-Ids} header (one or more comma-separated ids),
  * otherwise empty (which resolves to the caller's full allowed set). The resolved {@code TxCtx} is
  * the value the transaction aspect writes into the tenant scope.
+ *
+ * <p>A {@link RunTenantScope}-annotated parameter is the one exception to "the caller decides": it
+ * is a service-identity callback whose scope is derived from the parent autonomous run named by the
+ * {@code {runId}} path variable, independent of the caller's selector or memberships (see the
+ * annotation for why).
  */
 @Component
 @RequiredArgsConstructor
 public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
 
   static final String TENANT_ID_PATH_VARIABLE = "tenantId";
+  static final String RUN_ID_PATH_VARIABLE = "runId";
   static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
 
   private final TenantScopeResolver scopeResolver;
   private final TenantMembershipCacheManager membershipCache;
+  private final AutonomousRunTenantLocator runTenantLocator;
 
   @Override
   public boolean supportsParameter(MethodParameter parameter) {
@@ -50,6 +57,9 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
       ModelAndViewContainer mavContainer,
       NativeWebRequest webRequest,
       WebDataBinderFactory binderFactory) {
+    if (parameter.hasParameterAnnotation(RunTenantScope.class)) {
+      return runTenantScope(webRequest);
+    }
     Set<String> selector = extractSelector(webRequest);
     Set<String> authorized =
         new LinkedHashSet<>(
@@ -58,6 +68,24 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
       selector = fallbackSelector(authorized);
     }
     return scopeResolver.resolve(selector, authorized);
+  }
+
+  /**
+   * Service-identity scope for an orchestrator callback: the run's own tenant, read scope-free by
+   * its {@code {runId}} path variable, never the caller's memberships. An absent or unknown run
+   * yields {@link TxCtx#missing()} (fail-closed), which the callback then surfaces as a 404 through
+   * its own run lookup. Deliberately does NOT vary the response by {@code X-Tenant-Ids}: the scope
+   * depends only on the run id already in the path, so the header is ignored here.
+   */
+  private TxCtx runTenantScope(NativeWebRequest webRequest) {
+    String runId = pathVariable(webRequest, RUN_ID_PATH_VARIABLE);
+    if (runId == null || runId.isBlank()) {
+      return TxCtx.missing();
+    }
+    return runTenantLocator
+        .findRunTenant(runId.trim())
+        .map(TxCtx::forTenant)
+        .orElse(TxCtx.missing());
   }
 
   /**
@@ -108,12 +136,16 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
     }
   }
 
-  @SuppressWarnings("unchecked")
   private String pathTenant(NativeWebRequest webRequest) {
+    return pathVariable(webRequest, TENANT_ID_PATH_VARIABLE);
+  }
+
+  @SuppressWarnings("unchecked")
+  private String pathVariable(NativeWebRequest webRequest, String key) {
     Map<String, String> pathVariables =
         (Map<String, String>)
             webRequest.getAttribute(
                 HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
-    return pathVariables == null ? null : pathVariables.get(TENANT_ID_PATH_VARIABLE);
+    return pathVariables == null ? null : pathVariables.get(key);
   }
 }

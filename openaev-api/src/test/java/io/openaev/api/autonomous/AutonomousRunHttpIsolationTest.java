@@ -33,12 +33,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * End-to-end proof that, with the {@code autonomous_*} tables activated, the tenant scope set from
- * the request isolates the autonomous-run endpoints: the owner tenant sees its run, timeline and
- * directives, a different tenant gets a 404 (the run row itself is invisible, so nothing hangs off
- * it), and a scope-less repository read is fail-closed. This exercises the whole chain (the {@code
- * TxCtx} binding, the transaction aspect, the {@code can_access_tenant} rewrite, and the JPA
- * reads), so it proves the isolation claim rather than the mere presence of a guard - the HTTP
- * complement to the inspector's own SQL-layer tests, mirroring {@code AttackPathHttpIsolationTest}.
+ * the request isolates the OPERATOR-facing autonomous-run endpoints: the owner tenant sees its run,
+ * timeline and directives, a different tenant gets a 404 (the run row itself is invisible, so
+ * nothing hangs off it), and a scope-less repository read is fail-closed. This exercises the whole
+ * chain (the {@code TxCtx} binding, the transaction aspect, the {@code can_access_tenant} rewrite,
+ * and the JPA reads), so it proves the isolation claim rather than the mere presence of a guard -
+ * the HTTP complement to the inspector's own SQL-layer tests, mirroring {@code
+ * AttackPathHttpIsolationTest}.
+ *
+ * <p>The orchestrator CALLBACK endpoints are the deliberate exception, and the second half of this
+ * suite pins their SERVICE-IDENTITY contract: they are scoped from the parent run (the {@link
+ * io.openaev.config.RunTenantScope} argument), so a caller whose scope does NOT pin the run's
+ * tenant still records the run's events, drives its status and consumes its directives - every
+ * write stamped with the run's own tenant. XTM One reaches them with a per-user JWT that carries no
+ * tenant claim, so this is what keeps a long run authoring and settling itself once the caller's
+ * scope no longer pins the run's tenant. Operator isolation is proven unchanged alongside it.
  *
  * <p>Both scope routes are covered, because the orchestrator's callbacks ride the legacy
  * non-prefixed mapping: the tenant-prefixed path (operator UI) and the plain path where the scope
@@ -257,11 +266,11 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("POST event under a multi-tenant scope lands on the parent run's tenant")
   void recordEventUnderMultiTenantScopeStampsParentRunTenant() throws Exception {
-    // A broad scope is a legitimate request state on the plain route (a service identity or an
-    // administrator can hold several memberships, X-Tenant-Ids is multi-value by design).
-    // Parent-derived writes need no single-tenant scope: the run row, resolved under that scope,
-    // pins the attribution. The append must succeed and land on the run's own tenant - never on
-    // another selected tenant, never as a refusal. Only a create without a tenant selector is
+    // A broad, multi-value X-Tenant-Ids header is a legitimate request state on the plain route (a
+    // service identity or an administrator can hold several memberships). The callback derives its
+    // scope from the run itself (@RunTenantScope), so the multi-value selector is simply ignored:
+    // the append must succeed and land on the run's own tenant - never on another selected tenant,
+    // never as a refusal. Only a create (an operator write) without a single-tenant selector is
     // ambiguous under a broad scope (createOutsideValidWriteScopeIsRefusedAndWritesNothing).
     String response =
         mvc.perform(
@@ -310,20 +319,83 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("POST event under another tenant's scope is refused and writes nothing")
-  void recordEventOutsideParentTenantIsRefusedAndWritesNothing() throws Exception {
-    // The parent run is invisible outside its tenant, so the write dies on the run lookup: a
-    // foreign scope can never append into another tenant's timeline (fail-closed write).
+  @DisplayName(
+      "POST event from a caller scope that excludes the run's tenant still records it, stamped from"
+          + " the parent run (service-identity callback)")
+  void recordEventFromForeignCallerScopeStampsParentRunTenant() throws Exception {
+    // The regression fix: an orchestrator callback is a SERVICE-IDENTITY operation whose tenant is
+    // the parent run's, not the caller's. XTM One rides the non-prefixed route with a per-user JWT
+    // that pins no tenant, so a callback must be able to write the run's own timeline even when the
+    // caller's scope does not include the run's tenant. Here the caller deliberately selects ONLY
+    // tenantB (which does NOT own the run), yet the event is recorded and stamped with the parent
+    // run's tenant (tenantA) - read at the raw column. Before the @RunTenantScope hardening this
+    // exact append 404'd on the tenant-filtered run lookup.
+    String response =
+        mvc.perform(
+                post(PLAIN + "/{runId}/events", runId)
+                    .with(csrf())
+                    .header("X-Tenant-Ids", tenantB)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"type\": \"DECISION\", \"title\": \"service-identity append\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.autonomous_event_id").exists())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String createdEventId = JsonPath.read(response, "$.autonomous_event_id");
+
+    assertThat(rawTenantId("autonomous_events", "autonomous_event_id", createdEventId))
+        .isEqualTo(tenantA);
+    // The seeded event plus the one recorded through the foreign-scope callback.
+    assertThat(rawCount("autonomous_events", "autonomous_event_run_id", runId)).isEqualTo(2L);
+  }
+
+  @Test
+  @DisplayName(
+      "POST status from a caller scope that excludes the run's tenant still drives the run"
+          + " (service-identity callback)")
+  void updateStatusFromForeignCallerScopeDrivesParentRun() throws Exception {
+    // The orchestrator settles / parks the run through this callback with the same per-user,
+    // no-tenant JWT. A live run under tenantA is driven to WAITING_INPUT by a caller selecting only
+    // tenantB; the transition lands on the run itself (raw status column), proving the write is
+    // scoped from the run rather than refused for being outside the caller's scope.
+    String activeRunId = seedActiveRun(tenantA);
     mvc.perform(
-            post(PLAIN + "/{runId}/events", runId)
+            post(PLAIN + "/{runId}/status", activeRunId)
                 .with(csrf())
                 .header("X-Tenant-Ids", tenantB)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"type\": \"DECISION\", \"title\": \"cross-tenant append\"}"))
-        .andExpect(status().isNotFound());
+                .content("{\"status\": \"WAITING_INPUT\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.autonomous_run_status").value("WAITING_INPUT"));
 
-    // Only the seeded event remains: nothing was written for the refused append.
-    assertThat(rawCount("autonomous_events", "autonomous_event_run_id", runId)).isEqualTo(1L);
+    assertThat(
+            rawColumn("autonomous_runs", "autonomous_run_status", "autonomous_run_id", activeRunId))
+        .isEqualTo("WAITING_INPUT");
+  }
+
+  @Test
+  @DisplayName(
+      "POST directives/consume from a caller scope that excludes the run's tenant reads and clears"
+          + " the run's directives (service-identity callback)")
+  void consumeDirectivesFromForeignCallerScopeReadsParentRun() throws Exception {
+    // The orchestrator consumes operator steering at the start of each cycle with the same
+    // no-tenant JWT. A caller selecting only tenantB still receives the run's seeded directive and
+    // marks it consumed (its raw status flips under the run's own tenant).
+    mvc.perform(
+            post(PLAIN + "/{runId}/directives/consume", runId)
+                .with(csrf())
+                .header("X-Tenant-Ids", tenantB))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].autonomous_directive_id").value(directiveId));
+
+    assertThat(
+            rawColumn(
+                "autonomous_directives",
+                "autonomous_directive_status",
+                "autonomous_directive_id",
+                directiveId))
+        .isEqualTo("CONSUMED");
   }
 
   @Test
@@ -463,6 +535,12 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
   // read over plain JDBC on the test's own connection (sees uncommitted rows, no inspector
   // rewrite). Null when the row does not exist, so a missing row fails the equality loudly.
   private String rawTenantId(String table, String idColumn, String id) {
+    return rawColumn(table, "tenant_id", idColumn, id);
+  }
+
+  // Ground truth for any string column of a row the API just wrote, over plain JDBC on the test's
+  // own connection (sees uncommitted rows, no inspector rewrite). Null when the row does not exist.
+  private String rawColumn(String table, String valueColumn, String idColumn, String id) {
     entityManager.flush();
     return entityManager
         .unwrap(Session.class)
@@ -470,7 +548,7 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
             connection -> {
               try (PreparedStatement statement =
                   connection.prepareStatement(
-                      "SELECT tenant_id FROM " + table + " WHERE " + idColumn + " = ?")) {
+                      "SELECT " + valueColumn + " FROM " + table + " WHERE " + idColumn + " = ?")) {
                 statement.setString(1, id);
                 try (ResultSet rows = statement.executeQuery()) {
                   return rows.next() ? rows.getString(1) : null;

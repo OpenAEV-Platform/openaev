@@ -2,6 +2,7 @@ package io.openaev.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -10,6 +11,8 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exception.TenantSelectorRequiredException;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +24,8 @@ import org.springframework.core.MethodParameter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.servlet.HandlerMapping;
 
 /**
  * Unit coverage for the no-selector fallback on selector-requiring endpoints. A selector is never
@@ -36,6 +41,7 @@ class TxCtxArgumentResolverTest {
   private static final String USER_ID = "user-id";
 
   @Mock private TenantMembershipCacheManager membershipCache;
+  @Mock private AutonomousRunTenantLocator runTenantLocator;
   @Mock private MethodParameter parameter;
   @Mock private NativeWebRequest webRequest;
 
@@ -43,11 +49,14 @@ class TxCtxArgumentResolverTest {
 
   @BeforeEach
   void setUp() {
-    resolver = new TxCtxArgumentResolver(new TenantScopeResolver(), membershipCache);
+    resolver =
+        new TxCtxArgumentResolver(new TenantScopeResolver(), membershipCache, runTenantLocator);
     OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
-    when(principal.getId()).thenReturn(USER_ID);
+    // lenient: the run-tenant-scope path returns before it ever resolves the current user, so these
+    // are unused by those cases (and MockitoExtension strict stubbing would otherwise flag them).
+    lenient().when(principal.getId()).thenReturn(USER_ID);
     Authentication authentication = mock(Authentication.class);
-    when(authentication.getPrincipal()).thenReturn(principal);
+    lenient().when(authentication.getPrincipal()).thenReturn(principal);
     SecurityContextHolder.getContext().setAuthentication(authentication);
   }
 
@@ -61,7 +70,10 @@ class TxCtxArgumentResolverTest {
   }
 
   private void requireSelector() {
-    when(parameter.hasParameterAnnotation(RequireTenantSelector.class)).thenReturn(true);
+    // lenient: the resolver now checks @RunTenantScope first, so hasParameterAnnotation is also
+    // invoked with RunTenantScope.class - which must not trip strict stubbing's PotentialStubbing
+    // guard on this RequireTenantSelector stub.
+    lenient().when(parameter.hasParameterAnnotation(RequireTenantSelector.class)).thenReturn(true);
   }
 
   private TxCtx resolve() {
@@ -101,5 +113,38 @@ class TxCtxArgumentResolverTest {
     authorizeTenants("tenant-1", "tenant-2");
 
     assertThat(resolve().toGuc()).isEqualTo("tenant-1,tenant-2");
+  }
+
+  private void runTenantScoped() {
+    when(parameter.hasParameterAnnotation(RunTenantScope.class)).thenReturn(true);
+  }
+
+  private void pathRunId(String runId) {
+    when(webRequest.getAttribute(
+            HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST))
+        .thenReturn(Map.of("runId", runId));
+  }
+
+  @Test
+  @DisplayName("a run-tenant-scoped callback derives the run's own tenant, ignoring the caller")
+  void runTenantScopeDerivesTheParentRunTenant() {
+    // The caller is a member of two OTHER tenants and selected none of the run's; the scope must
+    // still come from the run, so the callback acts on the run's tenant regardless of the caller.
+    runTenantScoped();
+    pathRunId("run-1");
+    when(runTenantLocator.findRunTenant("run-1")).thenReturn(Optional.of("run-owner-tenant"));
+
+    assertThat(resolve().toGuc()).isEqualTo("run-owner-tenant");
+  }
+
+  @Test
+  @DisplayName("a run-tenant-scoped callback for an unknown run is fail-closed (missing scope)")
+  void runTenantScopeUnknownRunIsFailClosed() {
+    runTenantScoped();
+    pathRunId("ghost-run");
+    when(runTenantLocator.findRunTenant("ghost-run")).thenReturn(Optional.empty());
+
+    // Missing scope denies every row, so the callback's own run lookup then reports a 404.
+    assertThat(resolve()).isInstanceOf(TxCtx.Missing.class);
   }
 }
