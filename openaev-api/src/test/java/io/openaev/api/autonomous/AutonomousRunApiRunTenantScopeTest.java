@@ -12,9 +12,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
  * Pins WHICH {@link AutonomousRunApi} handlers derive their tenant scope from the parent run
@@ -71,6 +70,16 @@ class AutonomousRunApiRunTenantScopeTest {
           "directives",
           "addDirective",
           "updateConfiguration");
+
+  @Test
+  @DisplayName("handler names stay unique, so the name-keyed classification cannot collapse")
+  void handlerNamesStayUnique() {
+    // The two pinned sets are keyed by method name. An overload sharing a pinned name could
+    // otherwise ride its sibling's classification, so overloads are rejected outright: a new
+    // variant of a handler must get its own name and its own explicit classification.
+    List<String> names = handlers().stream().map(Method::getName).toList();
+    assertThat(names).doesNotHaveDuplicates();
+  }
 
   @Test
   @DisplayName("every TxCtx handler is explicitly classified, and the classification is exact")
@@ -140,10 +149,14 @@ class AutonomousRunApiRunTenantScopeTest {
         .toList();
   }
 
+  /**
+   * Every request-mapped method, whatever the verb: {@code @RequestMapping} is the meta-annotation
+   * behind {@code @GetMapping}, {@code @PostMapping}, {@code @PutMapping}, {@code @DeleteMapping}
+   * and {@code @PatchMapping}, so a callback added with a verb this controller does not use yet
+   * still lands in the classification instead of bypassing the pin.
+   */
   private static boolean isHandler(Method method) {
-    return method.isAnnotationPresent(GetMapping.class)
-        || method.isAnnotationPresent(PostMapping.class)
-        || method.isAnnotationPresent(PutMapping.class);
+    return AnnotatedElementUtils.hasAnnotation(method, RequestMapping.class);
   }
 
   private static boolean hasTxCtxParameter(Method method) {
@@ -155,23 +168,14 @@ class AutonomousRunApiRunTenantScopeTest {
         .anyMatch(parameter -> parameter.isAnnotationPresent(RunTenantScope.class));
   }
 
+  /** The merged mapping path, alias-resolved so it works for every verb annotation. */
   private static String mappingPath(Method method) {
-    GetMapping get = method.getAnnotation(GetMapping.class);
-    if (get != null) {
-      return first(get.value());
+    RequestMapping mapping =
+        AnnotatedElementUtils.findMergedAnnotation(method, RequestMapping.class);
+    if (mapping == null) {
+      return "";
     }
-    PostMapping post = method.getAnnotation(PostMapping.class);
-    if (post != null) {
-      return first(post.value());
-    }
-    PutMapping put = method.getAnnotation(PutMapping.class);
-    if (put != null) {
-      return first(put.value());
-    }
-    return "";
-  }
-
-  private static String first(String[] values) {
-    return values.length == 0 ? "" : values[0];
+    String[] paths = mapping.path();
+    return paths.length == 0 ? "" : paths[0];
   }
 }

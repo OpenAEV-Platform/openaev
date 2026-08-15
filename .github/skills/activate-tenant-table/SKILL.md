@@ -655,7 +655,7 @@ inefficiency). The two forms behave very differently once the table is active:
   covered shape or postpone the activation; never bypass the inspector.
 - **Raw JDBC** (`JdbcTemplate`, `NamedParameterJdbcOperations`, a direct
   `Connection`/`Statement`) BYPASSES Hibernate entirely, so the inspector never
-  sees it: a silent cross-tenant read and an unattributed write.   This is already
+  sees it: a silent cross-tenant read and an unattributed write. This is already
   guarded by `TenantNonOrmAccessArchTest`
   (`no_raw_jdbc_outside_the_allowlist`), which fails the build on any new raw
   JDBC in production code outside the audited `@AllowRawJdbc` allowlist (which
