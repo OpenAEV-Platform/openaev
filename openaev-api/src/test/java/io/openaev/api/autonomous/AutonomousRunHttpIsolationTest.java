@@ -15,6 +15,7 @@ import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.security.token.XtmJwksExtractor;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
@@ -29,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -42,15 +44,20 @@ import org.springframework.transaction.annotation.Transactional;
  * AttackPathHttpIsolationTest}.
  *
  * <p>The orchestrator CALLBACK endpoints are the deliberate exception, and the second half of this
- * suite pins their SERVICE-IDENTITY contract: on the legacy non-prefixed route they are scoped from
- * the parent run (the {@link io.openaev.config.RunTenantScope} argument), so a caller whose scope
- * does NOT pin the run's tenant still records the run's events, drives its status and consumes its
- * directives - every write stamped with the run's own tenant. XTM One reaches them with a per-user
- * JWT that carries no tenant claim, so this is what keeps a long run authoring and settling itself
- * once the caller's scope no longer pins the run's tenant. The derivation is route-scoped: the same
- * handlers on the TENANT-PREFIXED route stay caller-authorized (the URL names the tenant, rights
- * are the boundary), which this suite pins too. Operator isolation is proven unchanged alongside
- * it.
+ * suite pins their SERVICE-IDENTITY contract: on the legacy non-prefixed route, and ONLY for the
+ * VERIFIED XTM One cross-platform service identity (the server-side marker {@link
+ * XtmJwksExtractor#CROSS_PLATFORM_ATTRIBUTE} stamped after full JWT validation - the harness
+ * authenticates through {@code @WithMockUser}, so the tests stamp the validated marker directly),
+ * they are scoped from the parent run (the {@link io.openaev.config.RunTenantScope} argument), so a
+ * service caller whose scope does NOT pin the run's tenant still records the run's events, drives
+ * its status and consumes its directives - every write stamped with the run's own tenant. XTM One
+ * reaches them with a per-user JWT that carries no tenant claim, so this is what keeps a long run
+ * authoring and settling itself once the caller's scope no longer pins the run's tenant. A caller
+ * WITHOUT the verified marker keeps caller-authorized resolution on the same handlers - the
+ * cross-tenant IDOR case proves a normal EE user cannot reach a foreign tenant's run through a
+ * callback even knowing its id. The derivation is also route-scoped: the same handlers on the
+ * TENANT-PREFIXED route stay caller-authorized (the URL names the tenant, rights are the boundary),
+ * which this suite pins too. Operator isolation is proven unchanged alongside it.
  *
  * <p>Both scope routes are covered, because the orchestrator's callbacks ride the legacy
  * non-prefixed mapping: the tenant-prefixed path (operator UI) and the plain path where the scope
@@ -105,6 +112,17 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
     runId = seedRun(tenantA);
     eventId = seedEvent(tenantA, runId);
     directiveId = seedDirective(tenantA, runId);
+  }
+
+  // The orchestrator's own request shape: in production the callback bearer is an XTM One
+  // cross-platform JWT that XtmJwksExtractor fully validates (trusted issuer + JWKS signature +
+  // expected audience) before stamping this server-side marker, and TxCtxArgumentResolver grants
+  // run-authoritative scope on exactly that attribute. The MockMvc harness authenticates through
+  // @WithMockUser rather than the token filter, so the tests stamp the validated marker directly -
+  // a request attribute is server-side only and can never be supplied by a real client.
+  private static MockHttpServletRequestBuilder asVerifiedServiceIdentity(
+      MockHttpServletRequestBuilder request) {
+    return request.requestAttr(XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE, Boolean.TRUE);
   }
 
   @Test
@@ -220,10 +238,11 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
   void recordEventViaCallbackRouteStampsParentRunTenant() throws Exception {
     // The exact callback write AutonomousEventService#doAppend serves: the tenant must come from
     // the parent run, never from a thread-local default (the orchestrator rides the non-prefixed
-    // route, where the legacy TenantContext default would misattribute the row).
+    // route as the verified service identity, where the legacy TenantContext default would
+    // misattribute the row).
     String response =
         mvc.perform(
-                post(PLAIN + "/{runId}/events", runId)
+                asVerifiedServiceIdentity(post(PLAIN + "/{runId}/events", runId))
                     .with(csrf())
                     .header("X-Tenant-Ids", tenantA)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -270,14 +289,15 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
   @DisplayName("POST event under a multi-tenant scope lands on the parent run's tenant")
   void recordEventUnderMultiTenantScopeStampsParentRunTenant() throws Exception {
     // A broad, multi-value X-Tenant-Ids header is a legitimate request state on the plain route (a
-    // service identity or an administrator can hold several memberships). The callback derives its
-    // scope from the run itself (@RunTenantScope), so the multi-value selector is simply ignored:
-    // the append must succeed and land on the run's own tenant - never on another selected tenant,
-    // never as a refusal. Only a create (an operator write) without a single-tenant selector is
-    // ambiguous under a broad scope (createOutsideValidWriteScopeIsRefusedAndWritesNothing).
+    // service identity or an administrator can hold several memberships). The verified service
+    // callback derives its scope from the run itself (@RunTenantScope), so the multi-value selector
+    // is simply ignored: the append must succeed and land on the run's own tenant - never on
+    // another selected tenant, never as a refusal. Only a create (an operator write) without a
+    // single-tenant selector is ambiguous under a broad scope
+    // (createOutsideValidWriteScopeIsRefusedAndWritesNothing).
     String response =
         mvc.perform(
-                post(PLAIN + "/{runId}/events", runId)
+                asVerifiedServiceIdentity(post(PLAIN + "/{runId}/events", runId))
                     .with(csrf())
                     .header("X-Tenant-Ids", tenantA + "," + tenantB)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -328,14 +348,15 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
   void recordEventFromForeignCallerScopeStampsParentRunTenant() throws Exception {
     // The regression fix: an orchestrator callback is a SERVICE-IDENTITY operation whose tenant is
     // the parent run's, not the caller's. XTM One rides the non-prefixed route with a per-user JWT
-    // that pins no tenant, so a callback must be able to write the run's own timeline even when the
-    // caller's scope does not include the run's tenant. Here the caller deliberately selects ONLY
-    // tenantB (which does NOT own the run), yet the event is recorded and stamped with the parent
-    // run's tenant (tenantA) - read at the raw column. Before the @RunTenantScope hardening this
-    // exact append 404'd on the tenant-filtered run lookup.
+    // that pins no tenant (validated as the cross-platform service identity), so a callback must be
+    // able to write the run's own timeline even when the caller's scope does not include the run's
+    // tenant. Here the verified service caller deliberately selects ONLY tenantB (which does NOT
+    // own the run), yet the event is recorded and stamped with the parent run's tenant (tenantA) -
+    // read at the raw column. Before the @RunTenantScope hardening this exact append 404'd on the
+    // tenant-filtered run lookup.
     String response =
         mvc.perform(
-                post(PLAIN + "/{runId}/events", runId)
+                asVerifiedServiceIdentity(post(PLAIN + "/{runId}/events", runId))
                     .with(csrf())
                     .header("X-Tenant-Ids", tenantB)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -359,12 +380,13 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
           + " (service-identity callback)")
   void updateStatusFromForeignCallerScopeDrivesParentRun() throws Exception {
     // The orchestrator settles / parks the run through this callback with the same per-user,
-    // no-tenant JWT. A live run under tenantA is driven to WAITING_INPUT by a caller selecting only
-    // tenantB; the transition lands on the run itself (raw status column), proving the write is
-    // scoped from the run rather than refused for being outside the caller's scope.
+    // no-tenant JWT (validated as the cross-platform service identity). A live run under tenantA is
+    // driven to WAITING_INPUT by a verified service caller selecting only tenantB; the transition
+    // lands on the run itself (raw status column), proving the write is scoped from the run rather
+    // than refused for being outside the caller's scope.
     String activeRunId = seedActiveRun(tenantA);
     mvc.perform(
-            post(PLAIN + "/{runId}/status", activeRunId)
+            asVerifiedServiceIdentity(post(PLAIN + "/{runId}/status", activeRunId))
                 .with(csrf())
                 .header("X-Tenant-Ids", tenantB)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -383,10 +405,11 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
           + " the run's directives (service-identity callback)")
   void consumeDirectivesFromForeignCallerScopeReadsParentRun() throws Exception {
     // The orchestrator consumes operator steering at the start of each cycle with the same
-    // no-tenant JWT. A caller selecting only tenantB still receives the run's seeded directive and
-    // marks it consumed (its raw status flips under the run's own tenant).
+    // no-tenant JWT (validated as the cross-platform service identity). A verified service caller
+    // selecting only tenantB still receives the run's seeded directive and marks it consumed (its
+    // raw status flips under the run's own tenant).
     mvc.perform(
-            post(PLAIN + "/{runId}/directives/consume", runId)
+            asVerifiedServiceIdentity(post(PLAIN + "/{runId}/directives/consume", runId))
                 .with(csrf())
                 .header("X-Tenant-Ids", tenantB))
         .andExpect(status().isOk())
@@ -399,6 +422,37 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
                 "autonomous_directive_id",
                 directiveId))
         .isEqualTo("CONSUMED");
+  }
+
+  @Test
+  @DisplayName(
+      "POST event WITHOUT the verified service identity, on a run outside the caller's tenants, is"
+          + " refused (404) and writes nothing - the cross-tenant IDOR is closed")
+  void recordEventWithoutServiceIdentityOutsideCallerTenantsIsClosed() throws Exception {
+    // The IDOR the service-identity gate closes: a NORMAL authenticated EE user (no validated
+    // cross-platform marker on the request) who learned a run id must not reach a run in a tenant
+    // they are not a member of through the callback endpoints. Without the marker the
+    // @RunTenantScope handler resolves the caller's own memberships exactly like any plain
+    // endpoint; the foreign run row stays invisible under that scope, the append dies on the run
+    // lookup (404), and nothing is written. Before the gate this exact request appended to the
+    // foreign tenant's timeline.
+    String foreignTenant = tenantHelper.createTenant("auto-iso-foreign").getId();
+    // Tenant creation auto-attaches the creating user (TenantUserService dependency manager);
+    // detach it so the tenant is genuinely foreign to the caller.
+    String userId = testUserHolder.get().getId();
+    tenantRepository.removeUserFromTenant(userId, foreignTenant);
+    tenantMembershipCacheManager.evict(userId, foreignTenant);
+    String foreignRunId = seedRun(foreignTenant);
+
+    mvc.perform(
+            post(PLAIN + "/{runId}/events", foreignRunId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"type\": \"DECISION\", \"title\": \"cross-tenant idor probe\"}"))
+        .andExpect(status().isNotFound());
+
+    assertThat(rawCount("autonomous_events", "autonomous_event_run_id", foreignRunId))
+        .isEqualTo(0L);
   }
 
   @Test

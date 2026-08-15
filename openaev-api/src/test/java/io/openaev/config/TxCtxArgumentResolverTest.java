@@ -12,6 +12,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exception.TenantAccessDeniedException;
 import io.openaev.rest.exception.TenantSelectorRequiredException;
+import io.openaev.security.token.XtmJwksExtractor;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
@@ -121,6 +122,21 @@ class TxCtxArgumentResolverTest {
     when(parameter.hasParameterAnnotation(RunTenantScope.class)).thenReturn(true);
   }
 
+  /**
+   * Marks the request as the VERIFIED XTM One cross-platform service identity - the server-side
+   * attribute {@link XtmJwksExtractor} stamps after fully validating the cross-platform JWT.
+   * Without it a run-tenant-scoped callback falls back to caller-authorized resolution.
+   */
+  private void crossPlatformCaller() {
+    // lenient: on the tenant-prefixed route the marker is never consulted (the route check wins
+    // first), so the same helper also proves the prefixed route ignores the service identity.
+    lenient()
+        .when(
+            webRequest.getAttribute(
+                XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST))
+        .thenReturn(Boolean.TRUE);
+  }
+
   private void pathRunId(String runId) {
     pathVariables(Map.of("runId", runId));
   }
@@ -132,11 +148,15 @@ class TxCtxArgumentResolverTest {
   }
 
   @Test
-  @DisplayName("a run-tenant-scoped callback derives the run's own tenant, ignoring the caller")
+  @DisplayName(
+      "a run-tenant-scoped callback from the verified service identity derives the run's own"
+          + " tenant, ignoring the caller")
   void runTenantScopeDerivesTheParentRunTenant() {
-    // The caller is a member of two OTHER tenants and selected none of the run's; the scope must
-    // still come from the run, so the callback acts on the run's tenant regardless of the caller.
+    // The verified orchestrator is a member of two OTHER tenants and selected none of the run's;
+    // the scope must still come from the run, so the callback acts on the run's tenant regardless
+    // of the caller's memberships.
     runTenantScoped();
+    crossPlatformCaller();
     pathRunId("run-1");
     when(runTenantLocator.findRunTenant("run-1")).thenReturn(Optional.of("run-owner-tenant"));
 
@@ -147,6 +167,7 @@ class TxCtxArgumentResolverTest {
   @DisplayName("a run-tenant-scoped callback for an unknown run is fail-closed (missing scope)")
   void runTenantScopeUnknownRunIsFailClosed() {
     runTenantScoped();
+    crossPlatformCaller();
     pathRunId("ghost-run");
     when(runTenantLocator.findRunTenant("ghost-run")).thenReturn(Optional.empty());
 
@@ -161,9 +182,27 @@ class TxCtxArgumentResolverTest {
     // variable differently: the derivation cannot identify the run, so it must deny everything
     // (the safe direction) rather than fall back to any caller-derived scope.
     runTenantScoped();
+    crossPlatformCaller();
     pathVariables(Map.of());
 
     assertThat(resolve()).isInstanceOf(TxCtx.Missing.class);
+    verifyNoInteractions(runTenantLocator);
+  }
+
+  @Test
+  @DisplayName(
+      "a run-tenant-scoped callback without the verified service identity is" + " caller-scoped")
+  void runTenantScopeWithoutServiceIdentityFallsBackToCallerScope() {
+    // The IDOR gate: @RunTenantScope means "derive from the run" only for the verified XTM One
+    // cross-platform caller (the marker XtmJwksExtractor stamps after full JWT validation). Any
+    // other authenticated caller resolves exactly like on a plain endpoint - its own memberships -
+    // and the run's tenant is never even looked up, so a known run id gives an ordinary
+    // Enterprise-Edition user no cross-tenant reach.
+    runTenantScoped();
+    pathRunId("run-1");
+    authorizeTenants("tenant-1", "tenant-2");
+
+    assertThat(resolve().toGuc()).isEqualTo("tenant-1,tenant-2");
     verifyNoInteractions(runTenantLocator);
   }
 
@@ -189,8 +228,10 @@ class TxCtxArgumentResolverTest {
   void runTenantScopeOnTenantPrefixedRouteRefusesForeignTenant() {
     // The annotated handler must not become a caller-independent door on the prefixed route: a
     // caller addressing a tenant it is not a member of is refused exactly like on any other
-    // prefixed endpoint, whatever tenant the run named by {runId} belongs to.
+    // prefixed endpoint, whatever tenant the run named by {runId} belongs to - even for the
+    // verified service identity (the route check wins before the marker is ever consulted).
     runTenantScoped();
+    crossPlatformCaller();
     pathVariables(Map.of("tenantId", "tenant-3", "runId", "run-1"));
     authorizeTenants("tenant-1", "tenant-2");
 

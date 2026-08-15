@@ -63,10 +63,12 @@ import org.springframework.web.bind.annotation.RestController;
  * a {@code TxCtx} so the transaction aspect sets the request scope. Operator handlers resolve that
  * scope from the caller's memberships / {@code X-Tenant-Ids}; the orchestrator CALLBACK handlers
  * mark their {@code TxCtx} with {@link io.openaev.config.RunTenantScope} so, on the legacy
- * non-prefixed route only, the scope is derived from the parent run's own tenant (a
- * service-identity operation, independent of the caller's memberships) - otherwise that legacy
- * callback, whose per-user JWT carries no tenant claim, would fail to write the run's own timeline
- * once the caller's scope does not pin the run's tenant. On the tenant-prefixed route the same
+ * non-prefixed route and for the VERIFIED XTM One cross-platform service identity only (the bearer
+ * {@code io.openaev.security.token.XtmJwksExtractor} fully validated), the scope is derived from
+ * the parent run's own tenant - otherwise that legacy callback, whose per-user JWT carries no
+ * tenant claim, would fail to write the run's own timeline once the caller's scope does not pin the
+ * run's tenant. A non-service caller on the same handlers keeps the standard caller-authorized
+ * resolution (no cross-tenant reach from a known run id), and on the tenant-prefixed route the
  * handlers stay caller-authorized like every other prefixed endpoint.
  *
  * <p>Endpoints split into three audiences: the operator UI (create / start / pause / resume /

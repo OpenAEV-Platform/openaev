@@ -26,6 +26,14 @@ import java.lang.annotation.Target;
  * io.openaev.context.TxCtx#missing()} (fail-closed), which the service then reports as a 404
  * through its own run lookup.
  *
+ * <p>Run-authoritative scope is granted ONLY to the verified XTM One cross-platform SERVICE
+ * identity: the request must carry the server-side marker ({@link
+ * io.openaev.security.token.XtmJwksExtractor#CROSS_PLATFORM_ATTRIBUTE}) that {@link
+ * io.openaev.security.token.XtmJwksExtractor} stamps after fully validating the cross-platform JWT
+ * (trusted issuer, JWKS signature, expected audience). Every other authenticated caller keeps the
+ * standard caller-authorized resolution on these handlers, so the annotation never lets a normal
+ * Enterprise-Edition user turn a known run id into cross-tenant reach.
+ *
  * <p>The derivation applies ONLY on the legacy non-prefixed route (the one the orchestrator
  * actually calls). On the tenant-prefixed operator route the handler keeps the standard
  * caller-authorized resolution - the {@code {tenantId}} the URL names stays the boundary - so the
@@ -36,9 +44,8 @@ import java.lang.annotation.Target;
  * start-pause-resume-cancel-restart / queue-directive / configuration): those stay tenant-isolated
  * against the caller's scope exactly as multi-tenancy v2 made them. This annotation only restores
  * the run-authoritative posture the callbacks had before the {@code autonomous_*} tables became
- * tenant-active, without weakening operator isolation. The EE-license gate and the run's existence
- * remain the callback's guardrails; restricting the callbacks to the actual service identity is a
- * separate hardening tracked apart from tenant correctness.
+ * tenant-active, without weakening operator isolation: the service-identity gate above means a
+ * non-orchestrator caller on an annotated handler is scoped exactly like on any other endpoint.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)

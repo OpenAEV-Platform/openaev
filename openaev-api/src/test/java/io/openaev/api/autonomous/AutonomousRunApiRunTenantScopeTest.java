@@ -18,14 +18,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 /**
  * Pins WHICH {@link AutonomousRunApi} handlers derive their tenant scope from the parent run
  * ({@link RunTenantScope}) and which stay caller-scoped. The annotation trades the caller's tenant
- * boundary for the run's own on the legacy callback route, so its placement is a security decision,
- * not plumbing: adding it to an operator endpoint would let any authenticated EE caller act on
- * another tenant's run through that endpoint, and dropping it from a callback would break live
- * orchestration again (#7450). {@code TenantScopedEntrypointsTxCtxArchTest} already forces every
- * handler reaching the tenant-active {@code autonomous_*} tables to carry a {@code TxCtx}; this
- * test forces the NEXT decision - every {@code TxCtx} handler on this controller must be explicitly
- * classified as an orchestrator callback (run-scoped) or an operator endpoint (caller-scoped), so a
- * twelfth callback added later fails here instead of silently defaulting to a scope nobody chose.
+ * boundary for the run's own on the legacy callback route (and only for the verified XTM One
+ * cross-platform service identity), so its placement is a security decision, not plumbing: adding
+ * it to an operator endpoint would hand the service identity cross-tenant reach through that
+ * endpoint, and dropping it from a callback would break live orchestration again (#7450). {@code
+ * TenantScopedEntrypointsTxCtxArchTest} already forces every handler reaching the tenant-active
+ * {@code autonomous_*} tables to carry a {@code TxCtx}; this test forces the NEXT decision - every
+ * {@code TxCtx} handler on this controller must be explicitly classified as an orchestrator
+ * callback (run-scoped) or an operator endpoint (caller-scoped), so a twelfth callback added later
+ * fails here instead of silently defaulting to a scope nobody chose.
  *
  * <p>Each run-scoped handler must also name its run through the {@code {runId}} path variable: the
  * resolver derives the scope from exactly that variable and fails closed (404) when it is absent,
@@ -99,9 +100,9 @@ class AutonomousRunApiRunTenantScopeTest {
 
     assertThat(runScoped)
         .as(
-            "handlers deriving their scope from the parent run - adding one widens what any"
-                + " authenticated EE caller can do to another tenant's run, removing one breaks"
-                + " orchestration; classify the change deliberately here")
+            "handlers deriving their scope from the parent run - adding one widens what the"
+                + " verified XTM One service identity can do to another tenant's run, removing one"
+                + " breaks orchestration; classify the change deliberately here")
         .containsExactlyInAnyOrderElementsOf(RUN_SCOPED_CALLBACKS);
     assertThat(callerScoped)
         .as(
