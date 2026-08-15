@@ -2,6 +2,7 @@ package io.openaev.api.autonomous;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -179,6 +180,7 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
     String response =
         mvc.perform(
                 post(SCOPED, tenantA)
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"objective\": \"Own the file server\", \"plan_mode\": true}"))
             .andExpect(status().isOk())
@@ -206,6 +208,7 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
     String response =
         mvc.perform(
                 post(PLAIN + "/{runId}/events", runId)
+                    .with(csrf())
                     .header("X-Tenant-Ids", tenantA)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"type\": \"DECISION\", \"title\": \"Pivot to the DC\"}"))
@@ -229,6 +232,7 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
     String response =
         mvc.perform(
                 post(SCOPED + "/{runId}/directives", tenantA, activeRunId)
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"content\": \"Focus on lateral movement\"}"))
             .andExpect(status().isOk())
@@ -253,6 +257,7 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
     // foreign scope can never append into another tenant's timeline (fail-closed write).
     mvc.perform(
             post(PLAIN + "/{runId}/events", runId)
+                .with(csrf())
                 .header("X-Tenant-Ids", tenantB)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"type\": \"DECISION\", \"title\": \"cross-tenant append\"}"))
@@ -272,6 +277,7 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
     // whose multi-tenant scope cannot pin the row to one tenant either.
     mvc.perform(
             post(PLAIN)
+                .with(csrf())
                 .header("X-Tenant-Ids", tenantA + "," + tenantB)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"objective\": \"ambiguous-scope-objective\", \"plan_mode\": true}"))
