@@ -44,10 +44,10 @@ import org.springframework.web.server.ResponseStatusException;
  * authoring / scope) are deliberately NOT gated here. They are authenticated with the tenant's
  * single configured XTM One service token - one identity for every run, never the operator's - so a
  * resource check would break live orchestration for any run whose operator differs from the token
- * owner. They stay behind the Enterprise-Edition license + the {@code INJECT_CHAINING} preview
- * feature. Restricting them to the actual service identity (today any authenticated EE user can
- * reach them) is tracked separately from tenant isolation. The {@code autonomous_runs}, {@code
- * autonomous_events} and {@code autonomous_directives} tables are tenant-active (multi-tenancy v2).
+ * owner. They stay behind the Enterprise-Edition license. Restricting them to the actual service
+ * identity (today any authenticated EE user can reach them) is tracked separately from tenant
+ * isolation. The {@code autonomous_runs}, {@code autonomous_events} and {@code
+ * autonomous_directives} tables are tenant-active (multi-tenancy v2).
  */
 @org.springframework.stereotype.Component
 @RequiredArgsConstructor
