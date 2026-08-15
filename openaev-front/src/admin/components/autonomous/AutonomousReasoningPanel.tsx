@@ -696,19 +696,22 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   );
   const lastActivityType = lastActivityEvent?.autonomous_event_type;
 
-  // A fresh heartbeat is positive proof the orchestrator is grinding a cycle RIGHT NOW (they only
-  // fire while the agent chat is running). It is the signal that turns an in-progress delegation
-  // from a static "Waiting for X" into a live, pulsing "Consulting X" - the reported "the right
-  // panel never shows it is actually working" symptom. Filtered out of the feed everywhere else,
-  // here it is read only for its timestamp.
-  const lastHeartbeatAt = useMemo(
-    () => events.findLast(isHeartbeatEvent)?.autonomous_event_created_at,
+  // A fresh pulse - a ~45s heartbeat OR a per-iteration live-activity NARRATION - is positive proof
+  // the orchestrator is grinding a cycle RIGHT NOW (both only fire while the agent chat is running).
+  // It is the signal that turns an in-progress delegation from a static "Waiting for X" into a live,
+  // pulsing "Consulting X" - the reported "the right panel never shows it is actually working"
+  // symptom. Either kind counts: a specialist consult streams live-activity lines even across the
+  // stretches where no heartbeat has landed yet, so keying off heartbeats alone would drop back to a
+  // static wait mid-burst. Filtered out of the feed everywhere else, here they are read only for
+  // their timestamp (HEARTBEAT_FRESH_MS is the shared freshness window).
+  const lastPulseAt = useMemo(
+    () => events.findLast(e => isHeartbeatEvent(e) || isLiveActivityEvent(e))?.autonomous_event_created_at,
     [events],
   );
-  const heartbeatFresh = lastHeartbeatAt
-    ? Date.now() - new Date(lastHeartbeatAt).getTime() < HEARTBEAT_FRESH_MS
+  const pulseFresh = lastPulseAt
+    ? Date.now() - new Date(lastPulseAt).getTime() < HEARTBEAT_FRESH_MS
     : false;
-  const workingByHeartbeat = isActive && !isWaitingInput && heartbeatFresh;
+  const workingByPulse = isActive && !isWaitingInput && pulseFresh;
 
   // The live "working for Nm Ns" clock should measure the current move, not the 45s heartbeat
   // cadence nor the per-iteration live pulse. Anchor it to the newest NON-PULSE event - the newest
@@ -905,11 +908,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         const delegationColor = theme.palette.ai?.main ?? accent;
         if (delegationInfo?.waiting) {
           // A specialist consult can run for minutes with no orchestrator-side event. While
-          // heartbeats keep arriving the sub-agent is demonstrably working, so render a live,
-          // pulsing "Consulting X" with the elapsed clock instead of a static "Waiting for X" that
-          // reads as a stalled cockpit. Only once the heartbeats stop (a genuine stall) does it
-          // settle back to the calm static wait.
-          if (workingByHeartbeat) {
+          // heartbeats OR live-activity pulses keep arriving the sub-agent is demonstrably working,
+          // so render a live, pulsing "Consulting X" with the elapsed clock instead of a static
+          // "Waiting for X" that reads as a stalled cockpit. This must honour the live pulse too:
+          // once a parked STATUS un-parks via a fresh pulse (see pulsingNow) the run can be grinding
+          // a consult with only live-activity lines, and keying off heartbeats alone would hide
+          // them behind a static wait. Only once BOTH stop (a genuine stall) does it settle back to
+          // the calm static wait.
+          if (workingByPulse) {
             return {
               key: 'delegating-working',
               label: who ? `${t('Consulting')} ${who}` : t('Consulting a specialist agent'),
