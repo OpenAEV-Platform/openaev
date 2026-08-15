@@ -684,8 +684,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // as it moves (deciding -> acting -> analyzing ...). Crucially, once the operator answers we flip
   // to "Processing your answer" immediately -- the backend status stays WAITING_INPUT until the next
   // 3s poll, so keying off status alone would freeze on "Waiting for your input".
+  // Deliberately excludes the per-iteration live-activity NARRATIONs: those keep the thinking
+  // window's BODY advancing (see thinkingLines), but the phase CAPTION and its elapsed clock must
+  // stay anchored to the run's real decisions / tool-actions / delegations. Otherwise a lightweight
+  // pulse would override the specific "Consulting <agent>" / "Running the next action" captions with
+  // the generic NARRATION one ("Analyzing the results") and reset the "working for Ns" clock every
+  // few seconds throughout the long pre-decision iteration burst.
   const lastActivityEvent = useMemo(
-    () => events.findLast(e => isActivityType(e.autonomous_event_type)),
+    () => events.findLast(e => isActivityType(e.autonomous_event_type) && !isLiveActivityEvent(e)),
     [events],
   );
   const lastActivityType = lastActivityEvent?.autonomous_event_type;
@@ -705,10 +711,25 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   const workingByHeartbeat = isActive && !isWaitingInput && heartbeatFresh;
 
   // The live "working for Nm Ns" clock should measure the current move, not the 45s heartbeat
-  // cadence: anchor it to the newest REAL activity event (e.g. the delegation start) so a long
-  // consult reads "Consulting X - 3m 20s" instead of resetting every heartbeat.
-  const activitySince = lastActivityEvent?.autonomous_event_created_at
-    ?? (events.length > 0 ? events[events.length - 1].autonomous_event_created_at : undefined);
+  // cadence nor the per-iteration live pulse. Anchor it to the newest NON-PULSE event - the newest
+  // event that is neither a live-activity pulse nor a heartbeat. That is a real decision / tool
+  // action / delegation when one exists, and otherwise the run's own bookkeeping (typically the
+  // "engaged" STATUS that opens a cycle).
+  //
+  // This deliberately does NOT prefer the last real ACTIVITY: on a resume the timeline is retained
+  // and a fresh "engaged" STATUS is appended after the pre-pause activity, so anchoring to the last
+  // activity would measure from before the pause (including the whole paused interval). The newest
+  // non-pulse event is always at least as recent as the last real activity, so it advances
+  // continuously through the data-starved opening burst (when only pulses arrive) instead of
+  // resetting on every pulse, yet still snaps to the current engagement after a resume. Only if the
+  // stream is somehow ALL pulses do we fall back to the oldest event (run start), which still
+  // advances rather than resetting.
+  const lastNonPulseEvent = useMemo(
+    () => events.findLast(e => !isLiveActivityEvent(e) && !isHeartbeatEvent(e)),
+    [events],
+  );
+  const activitySince = lastNonPulseEvent?.autonomous_event_created_at
+    ?? (events.length > 0 ? events[0].autonomous_event_created_at : undefined);
 
   // The latest agent-delegation event drives the "delegating to / waiting for <agent>" caption. A
   // 'start' phase with no following 'result' reads as waiting (static), mirroring the parked model.
@@ -738,42 +759,59 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       };
     }
   })();
-  // A STATUS event is the orchestrator's end-of-cycle "settled state" marker (e.g. "Phishing lure
-  // in flight - awaiting human interaction"): the run stays RUNNING but is now PARKED, idle until a
-  // human-timescale event or the next cycle. So when the newest event is a STATUS, the orchestrator
-  // is NOT computing - the thinking window must stop pulsing and settle into a calm wait. As soon
-  // as the next cycle emits an activity event, the newest event is no longer a STATUS and the
-  // window animates again.
+  // The raw newest event in the stream. Used ONLY for the staleness backstop below (how long since
+  // ANYTHING arrived, pulses included) - the phase detection deliberately keys off the newest
+  // non-pulse event instead (see next comment). A STATUS event is the orchestrator's end-of-cycle
+  // "settled state" marker (e.g. "Phishing lure in flight - awaiting human interaction"): the run
+  // stays RUNNING but is now PARKED, idle until a human-timescale event or the next cycle, so a
+  // newest non-pulse STATUS reads as a calm wait while an activity event animates the window.
   const newestEvent = events.length > 0 ? events[events.length - 1] : undefined;
+  // Phase detection keys off the newest NON-PULSE event (`lastNonPulseEvent` above), not the raw
+  // newest one. Live-activity pulses and heartbeats are liveness signals, not state transitions:
+  // while a cycle grinds the stream keeps ticking pulses, so reading the raw newest event would
+  // (a) mistake a live NARRATION pulse for resumed real activity (NARRATION is an activity type)
+  // and (b) never match the STATUS engaged/parked checks - so on a resume (timeline retained, a
+  // fresh "engaged" STATUS appended after the pre-pause activity) the caption would drop back to a
+  // STALE pre-pause phase. Reading the newest non-pulse event keeps the caption on the real current
+  // phase (e.g. "Getting to work" through the opening burst) until a new real activity lands. The
+  // staleness backstop below still keys off the RAW newest event, so pulses keep the cockpit fresh
+  // and it never falsely settles to "No updates for N min" mid-burst.
+  //
   // A STATUS stamped `{"phase":"engaged"}` (start / restart-then-start / resume) means the
   // orchestrator has JUST engaged and is actively working - it can churn for minutes (building
   // arsenal, resolving contracts) before its first DECISION lands. That is the opposite of a park,
   // so it must NOT read as the calm "Awaiting the next event": the cockpit looked frozen for that
   // whole window even though a burst of work had already begun the instant the operator clicked.
   const engagedOnStatus = (() => {
-    if (newestEvent?.autonomous_event_type !== 'STATUS' || !newestEvent.autonomous_event_data) {
+    if (lastNonPulseEvent?.autonomous_event_type !== 'STATUS' || !lastNonPulseEvent.autonomous_event_data) {
       return false;
     }
     try {
-      return (JSON.parse(newestEvent.autonomous_event_data) as { phase?: string }).phase === 'engaged';
+      return (JSON.parse(lastNonPulseEvent.autonomous_event_data) as { phase?: string }).phase === 'engaged';
     } catch {
       return false;
     }
   })();
-  // A heartbeat STATUS means the orchestrator is actively grinding a long cycle - the opposite of a
-  // park. It must NOT read as the calm "Awaiting the next event"; instead we fall through to the
-  // switch below so the caption keeps animating over the last real activity.
-  const heartbeatOnStatus = isHeartbeatEvent(newestEvent);
-  // Parked only when the newest STATUS is a genuine end-of-cycle wait (NOT an engagement marker and
-  // NOT a still-working heartbeat).
-  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS'
-    && !engagedOnStatus && !heartbeatOnStatus;
+  // A raw newest pulse (live-activity or heartbeat) is positive proof the orchestrator is grinding a
+  // cycle RIGHT NOW, so the run cannot be parked - even when the newest NON-pulse event is still the
+  // previous cycle's end-of-cycle STATUS. A later cycle can stream heartbeat / live-activity pulses
+  // before its first real event; because those are excluded from lastNonPulseEvent, without this
+  // guard the stale parked STATUS would stay the newest non-pulse event and freeze the cockpit again
+  // during the opening burst (the exact regression this PR fixes elsewhere).
+  const pulsingNow = isLiveActivityEvent(newestEvent) || isHeartbeatEvent(newestEvent);
+  // Parked only when the newest non-pulse event is a genuine end-of-cycle STATUS wait (NOT an
+  // engagement marker) and no fresh pulse proves the run is still grinding. The caption and elapsed
+  // clock still key off the non-pulse event; this flag only decides active-vs-parked.
+  const parkedOnStatus = lastNonPulseEvent?.autonomous_event_type === 'STATUS'
+    && !engagedOnStatus
+    && !pulsingNow;
   // Has the orchestrator RESUMED since the operator answered? The backend run status stays
   // WAITING_INPUT until a later 3s poll flips it, so it lies about "still waiting" for a while. The
-  // truthful signal is a fresh activity event: once the newest event is a DECISION / TOOL_ACTION /
-  // ... the AI is demonstrably working again, so the caption must narrate THAT instead of freezing
-  // on "Processing your answer" (the exact "it says processing while it is already executing" bug).
-  const newestIsActivity = isActivityType(newestEvent?.autonomous_event_type);
+  // truthful signal is a fresh activity event: once the newest non-pulse event is a DECISION /
+  // TOOL_ACTION / ... the AI is demonstrably working again, so the caption must narrate THAT instead
+  // of freezing on "Processing your answer" (the exact "it says processing while it is already
+  // executing" bug). Keys off the non-pulse event so a live pulse is never mistaken for resumed work.
+  const newestIsActivity = isActivityType(lastNonPulseEvent?.autonomous_event_type);
   // How long since the newest event? A stale timeline means the orchestrator is not actively
   // working, whatever the last event type was - used below to stop an active caption pulsing over a
   // frozen cockpit.
