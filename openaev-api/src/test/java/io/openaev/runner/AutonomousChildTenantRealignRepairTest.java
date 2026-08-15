@@ -1,7 +1,6 @@
-package io.openaev.migration;
+package io.openaev.runner;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 
 import io.openaev.IntegrationTest;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -9,8 +8,6 @@ import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.UUID;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,28 +16,29 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Verifies the tenant repair for autonomous child rows: an event or directive stamped with a
- * different tenant than its parent run (the {@code TenantBaseListener} thread-local default on the
- * orchestrator's callback route did exactly that, and a not-yet-upgraded node still does during a
- * rolling deployment) is realigned to the run's tenant, already-aligned rows and their sequences
- * are left untouched, orphaned children without a parent run are skipped, and re-running the
- * migration is a no-op - the load-bearing property, since the repeatable migration re-applies on
- * every startup by design ({@code RealignAutonomousChildTenantAttributionContractTest} pins the
- * re-run contract itself).
+ * Verifies the per-boot tenant repair for autonomous child rows: an event or directive stamped with
+ * a different tenant than its parent run (the {@code TenantBaseListener} thread-local default on
+ * the orchestrator's callback route did exactly that, and a not-yet-upgraded node still does during
+ * a rolling deployment) is realigned to the run's tenant, already-aligned rows and their sequences
+ * are left untouched, orphaned children without a parent run are skipped, and re-running the repair
+ * is a no-op - the load-bearing property, since {@code AutonomousChildTenantRealignRepair}
+ * re-executes on every startup by design.
  *
  * <p>All seeding and ground-truth reads go over native SQL / raw JDBC on the test's own connection,
- * mirroring {@code AutonomousRunHttpIsolationTest}: the migration is plain SQL, so the test must
- * observe raw columns rather than inspector-scoped JPA reads.
+ * mirroring {@code AutonomousRunHttpIsolationTest}: the repair is plain SQL, so the test must
+ * observe raw columns rather than inspector-scoped JPA reads. The repair itself is driven through
+ * {@code realign(Connection)} on the test transaction's connection, so it sees the uncommitted
+ * seeds and rolls back with them.
  *
- * <p>{@code @Transactional} so the seeded rows and migration side effects roll back with the test
+ * <p>{@code @Transactional} so the seeded rows and repair side effects roll back with the test
  * transaction.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("Realign autonomous child tenant attribution migration")
-class RealignAutonomousChildTenantAttributionMigrationTest extends IntegrationTest {
+@DisplayName("Realign autonomous child tenant attribution startup repair")
+class AutonomousChildTenantRealignRepairTest extends IntegrationTest {
 
-  @Autowired private R__Realign_autonomous_child_tenant_attribution migration;
+  @Autowired private AutonomousChildTenantRealignRepair repair;
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
@@ -64,7 +62,7 @@ class RealignAutonomousChildTenantAttributionMigrationTest extends IntegrationTe
     String alignedEventId = seedEvent(runTenant, runId, 8);
     String strayDirectiveId = seedDirective(strayTenant, runId);
 
-    runMigration();
+    assertThat(runRepair()).isEqualTo(2);
 
     assertThat(rawColumn("autonomous_events", "tenant_id", "autonomous_event_id", strayEventId))
         .isEqualTo(runTenant);
@@ -89,43 +87,34 @@ class RealignAutonomousChildTenantAttributionMigrationTest extends IntegrationTe
   void orphaned_children_are_left_untouched() {
     String orphanEventId = seedEvent(strayTenant, UUID.randomUUID().toString(), 1);
 
-    runMigration();
+    assertThat(runRepair()).isZero();
 
     assertThat(rawColumn("autonomous_events", "tenant_id", "autonomous_event_id", orphanEventId))
         .isEqualTo(strayTenant);
   }
 
   @Test
-  @DisplayName("Re-running the migration is a no-op (idempotent)")
-  void migration_is_idempotent() {
+  @DisplayName("Re-running the repair is a no-op (idempotent, safe to run every boot)")
+  void repair_is_idempotent() {
     String strayEventId = seedEvent(strayTenant, runId, 1);
 
-    runMigration();
-    assertThatCode(this::runMigration).doesNotThrowAnyException();
+    assertThat(runRepair()).isEqualTo(1);
+    assertThat(runRepair()).isZero();
 
     assertThat(rawColumn("autonomous_events", "tenant_id", "autonomous_event_id", strayEventId))
         .isEqualTo(runTenant);
   }
 
-  private void runMigration() {
+  // Drives the repair on the test transaction's own connection (sees the uncommitted seeds, rolls
+  // back with the test), returning how many rows it repaired.
+  private int runRepair() {
     entityManager.flush();
-    entityManager
+    return entityManager
         .unwrap(Session.class)
-        .doWork(
+        .doReturningWork(
             connection -> {
               try {
-                migration.migrate(
-                    new Context() {
-                      @Override
-                      public Configuration getConfiguration() {
-                        return null;
-                      }
-
-                      @Override
-                      public java.sql.Connection getConnection() {
-                        return connection;
-                      }
-                    });
+                return repair.realign(connection);
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
