@@ -32,6 +32,7 @@ import {
   eventTypeLabel,
   isHeartbeatEvent,
   isLiveActivityEvent,
+  resolveLiveCaption,
   resolveLiveLabel,
   sanitizeEventText,
   type ThinkingPhase,
@@ -327,7 +328,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // The operator-facing decision feed excludes heartbeats (freshness pings, not decisions) AND
   // live-activity NARRATIONs (the per-iteration "what it is doing right now" lines the worker
   // streams). Both keep the cockpit alive without being decisions: heartbeats drive the freshness
-  // clock, live-activity lines flow into `thinkingLines` below (the scrolling thinking window) - so
+  // clock, live-activity lines flow into `thinkingSteps` below (the scrolling thinking window) - so
   // neither should ever appear as a row in the operator decision feed, or a long silent burst would
   // fill the timeline with "Working"/activity noise. The freshness/caption logic below still keys
   // off the raw `events` (including both) so the cockpit stays animated. Memoised: the predicates
@@ -480,9 +481,6 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // stripMarkdown runs over the tail of the stream, so it should recompute once per new batch of
   // events - not on every keystroke in the composer (which re-renders this component via `directive`).
   const thinkingSteps = useMemo(() => collapseThinkingSteps(events), [events]);
-  // The caption the orchestrator is narrating RIGHT NOW - the last (live) collapsed step. Drives the
-  // bold-label anchoring below so a generic phase label yields to what is actually happening live.
-  const liveCaption = thinkingSteps.length > 0 ? thinkingSteps[thinkingSteps.length - 1].text : null;
 
   // Current orchestrator phase for the thinking window. Derived from status + the latest activity
   // event rather than the raw run status, so the caption narrates what the run is doing and animates
@@ -490,7 +488,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // to "Processing your answer" immediately -- the backend status stays WAITING_INPUT until the next
   // 3s poll, so keying off status alone would freeze on "Waiting for your input".
   // Deliberately excludes the per-iteration live-activity NARRATIONs: those keep the thinking
-  // window's BODY advancing (see thinkingLines), but the phase CAPTION and its elapsed clock must
+  // window's BODY advancing (see thinkingSteps / collapseThinkingSteps), but the phase CAPTION and its elapsed clock must
   // stay anchored to the run's real decisions / tool-actions / delegations. Otherwise a lightweight
   // pulse would override the specific "Consulting <agent>" / "Running the next action" captions with
   // the generic NARRATION one ("Analyzing the results") and reset the "working for Ns" clock every
@@ -535,6 +533,18 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   );
   const activitySince = lastNonPulseEvent?.autonomous_event_created_at
     ?? (events.length > 0 ? events[0].autonomous_event_created_at : undefined);
+
+  // The caption the orchestrator is narrating RIGHT NOW - the last collapsed step, but ONLY while it
+  // is genuinely current. On a resume the retained timeline gets a fresh "engaged" STATUS appended
+  // after the pre-pause reasoning, leaving the last thinking step as stale history; anchoring the
+  // bold label or a live per-caption timer to it would resurrect a pre-pause caption and let its
+  // clock span the whole paused interval (regressing #7449's resume-safe behavior). resolveLiveCaption
+  // compares the last step's newest sequence against the newest non-pulse event, so a stale step
+  // yields no live caption (the label keeps "Getting to work" and the bubble renders it as dimmed
+  // history) while a fresh live pulse (newer than the boundary) stays live. Drives the bold-label
+  // anchoring below and the bubble's live-step treatment via lastStepLive.
+  const liveCaption = resolveLiveCaption(thinkingSteps, lastNonPulseEvent?.autonomous_event_sequence);
+  const lastStepLive = liveCaption !== null;
 
   // The latest agent-delegation event drives the "delegating to / waiting for <agent>" caption. A
   // 'start' phase with no following 'result' reads as waiting (static), mirroring the parked model.
@@ -1033,6 +1043,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     theme={theme}
                     steps={thinkingSteps}
                     activitySince={activitySince}
+                    lastStepLive={lastStepLive}
                   />
                 )}
                 {/* Run-level notice: a terminal-failure/cancel error, or a client-side stall. It

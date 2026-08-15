@@ -5,7 +5,9 @@ import {
   collapseThinkingSteps,
   isHeartbeatEvent,
   isLiveActivityEvent,
+  resolveLiveCaption,
   resolveLiveLabel,
+  type ThinkingStep,
 } from '../../../../admin/components/autonomous/autonomousEventVisuals';
 
 // Minimal AutonomousEvent factory: the classification predicates only read `type` + `data`, but the
@@ -216,7 +218,21 @@ describe('collapseThinkingSteps', () => {
       text: 'Deciding the next move',
       count: 1,
       since: null,
+      sequence: titleOnly.autonomous_event_sequence,
     }]);
+  });
+
+  it('advances `sequence` to the NEWEST folded event so staleness is measured from the latest occurrence', () => {
+    // The per-step `sequence` drives resolveLiveCaption: it must track the LAST folded event, not
+    // the first, so a caption that is still recurring stays newer than an older cycle boundary.
+    const first = makeStreamEvent('NARRATION', 'Searching arsenal for contracts');
+    const second = makeStreamEvent('NARRATION', 'Searching arsenal for contracts');
+    const third = makeStreamEvent('NARRATION', 'Searching arsenal for contracts');
+    const steps = collapseThinkingSteps([first, second, third]);
+    expect(steps).toHaveLength(1);
+    // Newest folded event's sequence (not the first), while `since` stays anchored to the first.
+    expect(steps[0].sequence).toBe(third.autonomous_event_sequence);
+    expect(steps[0].since).toBe(null);
   });
 
   it('keeps at most `limit` steps, always retaining the live (last) one', () => {
@@ -253,5 +269,44 @@ describe('resolveLiveLabel', () => {
       .toBe('Getting to work');
     expect(resolveLiveLabel('engaging', true, 'Getting to work', null)).toBe('Getting to work');
     expect(resolveLiveLabel('engaging', true, 'Getting to work', '')).toBe('Getting to work');
+  });
+});
+
+describe('resolveLiveCaption', () => {
+  const step = (text: string, sequence: number): ThinkingStep => ({
+    text,
+    count: 1,
+    since: null,
+    sequence,
+  });
+
+  it('returns the last step caption while it is at least as new as the newest non-pulse event', () => {
+    const steps = [step('Searching arsenal for contracts', 10), step('Authoring the attack path', 14)];
+    // The live step (seq 14) is the newest non-pulse event (14): current -> live caption.
+    expect(resolveLiveCaption(steps, 14)).toBe('Authoring the attack path');
+    // A fresh live pulse (step seq 15) newer than the newest non-pulse boundary (14) is still live.
+    expect(resolveLiveCaption([step('Mapping the perimeter', 15)], 14)).toBe('Mapping the perimeter');
+  });
+
+  it('returns null when a newer non-pulse boundary has superseded the last step (resume regression guard)', () => {
+    // The exact resume case: the last thinking step is pre-pause (seq 13); on resume the backend
+    // appends a fresh "engaged" STATUS (a non-pulse event, seq 14) that never becomes a step. The
+    // last step is now stale history, so it must NOT be exposed as the live caption - otherwise the
+    // bold label would resurrect the pre-pause caption and the per-caption timer would span the
+    // paused interval, regressing the resume-safe behavior #7449 established.
+    const steps = [step('Searching arsenal for contracts', 13)];
+    expect(resolveLiveCaption(steps, 14)).toBeNull();
+  });
+
+  it('treats the last step as live when there is no non-pulse boundary at all', () => {
+    // All-pulse stream (only live-activity narrations / heartbeats): nothing can supersede the step.
+    const steps = [step('Searching arsenal for contracts', 5)];
+    expect(resolveLiveCaption(steps, null)).toBe('Searching arsenal for contracts');
+    expect(resolveLiveCaption(steps, undefined)).toBe('Searching arsenal for contracts');
+  });
+
+  it('returns null when there are no steps', () => {
+    expect(resolveLiveCaption([], 10)).toBeNull();
+    expect(resolveLiveCaption([], null)).toBeNull();
   });
 });

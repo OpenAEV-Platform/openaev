@@ -164,8 +164,8 @@ export const isHeartbeatEvent = (event: AutonomousEvent | undefined): boolean =>
 // A live-activity NARRATION is a per-iteration "what the orchestrator is doing right now" line the
 // XTM One worker streams to the timeline WHILE a decision cycle runs (flagged {"live": true} in its
 // data). Unlike a genuine recorded NARRATION/DECISION, it is NOT an operator-facing decision: it
-// exists ONLY to keep the cockpit's dimmed "thinking" window scrolling (it flows into thinkingLines)
-// across the many iterations where the LLM narrates nothing. Every surface that renders the operator
+// exists ONLY to keep the cockpit's dimmed "thinking" window scrolling (it flows into the collapsed
+// thinking steps) across the many iterations where the LLM narrates nothing. Every surface that renders the operator
 // decision feed (the reasoning-panel rows AND the overview decision timeline/count) filters it out so
 // it never shows as a decision row/node - only as streaming text in the thinking window. Single
 // source of truth so the two surfaces can never drift, mirroring isHeartbeatEvent (same substring
@@ -245,6 +245,11 @@ export interface ThinkingStep {
    *  live step can tick a monotonic per-caption elapsed clock. null when the source event carried no
    *  parseable timestamp. */
   since: number | null;
+  /** Sequence of the NEWEST source event folded into this step. The panel compares the LAST step's
+   *  sequence against the newest non-pulse event to decide whether that step is still the live
+   *  caption or stale history left behind by a new cycle boundary (e.g. an "engaged" STATUS the
+   *  backend appends to the retained timeline on a resume) - see {@link resolveLiveCaption}. */
+  sequence: number;
 }
 
 // Current phase of the thinking window (label + colour + whether the orchestrator is actively
@@ -285,17 +290,50 @@ export const collapseThinkingSteps = (
     const last = steps[steps.length - 1];
     if (last && last.text === text) {
       // Same caption as the current live step: fold it in and KEEP the first timestamp so the
-      // per-caption clock measures the whole burst (never resets while the caption holds).
+      // per-caption clock measures the whole burst (never resets while the caption holds), but
+      // ADVANCE the sequence to the newest folded event so staleness stays measured from the most
+      // recent occurrence of the caption.
       last.count += 1;
+      last.sequence = event.autonomous_event_sequence;
     } else {
       steps.push({
         text,
         count: 1,
         since,
+        sequence: event.autonomous_event_sequence,
       });
     }
   }
   return steps.slice(-limit);
+};
+
+// Resolve the caption the orchestrator is narrating RIGHT NOW from the collapsed steps - but ONLY
+// while the last step is genuinely current. On a resume the timeline is RETAINED and the backend
+// appends a fresh "engaged" STATUS after the pre-pause reasoning; that STATUS is not a thinking-
+// stream type, so it never becomes a step and the LAST collapsed step is stale pre-pause history.
+// Left unchecked, that stale caption would (a) hijack the bold label away from "Getting to work"
+// and (b) drive a live per-caption timer that spans the whole paused interval - the exact resume-
+// safe behavior #7449 established and this window must preserve.
+//
+// The test is a sequence comparison, which is robust to the pulse stream: the last step's `sequence`
+// is its NEWEST folded event, so a fresh live-activity pulse (newer than the engaged STATUS) is
+// correctly still live, while a pre-boundary stale step (older than the newest non-pulse event) is
+// not. `newestNonPulseSequence` is the sequence of the newest event that is neither a live-activity
+// pulse nor a heartbeat (the panel already derives that event for the elapsed clock). null/undefined
+// means the stream is all pulses with no boundary to supersede the step, so the last step stands.
+// Returns the live caption text, or null when the last step is stale or there are no steps.
+export const resolveLiveCaption = (
+  steps: ThinkingStep[],
+  newestNonPulseSequence: number | null | undefined,
+): string | null => {
+  const last = steps[steps.length - 1];
+  if (!last) {
+    return null;
+  }
+  if (newestNonPulseSequence == null) {
+    return last.text;
+  }
+  return last.sequence >= newestNonPulseSequence ? last.text : null;
 };
 
 // Phase keys whose label is a GENERIC placeholder ("Getting to work", "Analyzing the results",

@@ -38,11 +38,18 @@ const ThinkingBubble: FunctionComponent<{
    *  silent stretch (e.g. the orchestrator grinding through tool retries with no new narration) from
    *  a frozen caption into a visibly advancing counter. */
   activitySince?: string | number | null;
+  /** Whether the LAST step is genuinely the live caption (default true). The panel sets this false
+   *  when a newer non-pulse boundary (e.g. an "engaged" STATUS the backend appends to the retained
+   *  timeline on a resume) has superseded the last thinking step: it is then stale history, so it
+   *  must render dimmed with NO shimmer and NO per-caption timer, otherwise its clock would span the
+   *  whole paused interval. When false no step is treated as live. */
+  lastStepLive?: boolean;
 }> = ({
   phase,
   theme,
   steps,
   activitySince,
+  lastStepLive = true,
 }) => {
   const accent = phase.color;
   const active = phase.active;
@@ -64,7 +71,12 @@ const ThinkingBubble: FunctionComponent<{
   // A parked/waiting phase never streams the live thought echo (there is no live thought - the run
   // is idle), and its dots do not pulse.
   const showLatest = active && steps.length > 0;
-  // Keep the window pinned to the bottom as the reasoning grows, so it visibly "defiles" like the
+  // Which step (if any) is the LIVE one - the only line that shimmers and carries the per-caption
+  // timer. Normally the last step, but the panel demotes it via lastStepLive=false when a newer
+  // boundary has superseded it (a resume leaves the last thinking step as stale history); then no
+  // step is live and every line renders as calm, dimmed history.
+  const liveIndex = lastStepLive ? steps.length - 1 : -1;
+  // Keep the window pinned to the bottom as the reasoning grows, so it visibly scrolls like the
   // XTM One thinking window: each new step is appended at the bottom and older steps scroll up out
   // of view under the fade mask. Keyed on the step SIGNATURE (text + count), not on `now`, so a
   // per-second timer tick never forces a scroll - only a genuinely new/updated step does.
@@ -187,24 +199,29 @@ const ThinkingBubble: FunctionComponent<{
           }}
         >
           {steps.map((step, index) => {
-            const isLast = index === steps.length - 1;
-            // The live (last) step keeps moving even on a static caption: a per-caption elapsed clock
-            // that ticks up from the caption-run start, plus the repeat count. Older steps are
+            const isLive = index === liveIndex;
+            // The live step keeps moving even on a static caption: a per-caption elapsed clock that
+            // ticks up from the caption-run start, plus the repeat count. Older (and stale) steps are
             // finalized history - dimmed, static, no timer.
-            const liveElapsed = isLast && active && step.since != null ? formatElapsed(now - step.since) : null;
+            const liveElapsed = isLive && active && step.since != null ? formatElapsed(now - step.since) : null;
             return (
+              // Stable key from the step identity (first-event timestamp + caption), NOT the array
+              // index: the 8-step window drops the oldest entry as the stream grows, which shifts
+              // every index and would remount all rows (resetting timers/animations). since + text are
+              // fixed for a step's lifetime (they do not change as duplicates fold in), so only a
+              // genuinely new step mounts.
               <Typography
-                key={`${index}-${step.text.slice(0, 24)}`}
+                key={`${step.since ?? 'na'}-${step.text.slice(0, 24)}`}
                 data-testid="autonomous-thinking-step"
                 variant="caption"
                 sx={{
                   display: 'block',
                   fontStyle: 'italic',
                   lineHeight: 1.5,
-                  color: alpha(theme.palette.text.secondary, isLast ? 0.95 : 0.5),
+                  color: alpha(theme.palette.text.secondary, isLive ? 0.95 : 0.5),
                   whiteSpace: 'pre-wrap',
-                  // Only the newest line shimmers - the "live" thought; older lines settle, dimmed.
-                  animation: isLast ? 'aevThinkingShimmer 2.4s ease-in-out infinite' : undefined,
+                  // Only the live line shimmers - the "live" thought; older lines settle, dimmed.
+                  animation: isLive ? 'aevThinkingShimmer 2.4s ease-in-out infinite' : undefined,
                 }}
               >
                 {step.text}

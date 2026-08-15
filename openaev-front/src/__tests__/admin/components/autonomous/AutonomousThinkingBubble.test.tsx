@@ -13,10 +13,17 @@ const renderBubble = (
   phase: ThinkingPhase,
   steps: ThinkingStep[],
   activitySince?: string | number | null,
+  lastStepLive = true,
 ): void => {
   render(
     <ThemeProvider theme={theme}>
-      <ThinkingBubble phase={phase} theme={theme} steps={steps} activitySince={activitySince} />
+      <ThinkingBubble
+        phase={phase}
+        theme={theme}
+        steps={steps}
+        activitySince={activitySince}
+        lastStepLive={lastStepLive}
+      />
     </ThemeProvider>,
   );
 };
@@ -51,6 +58,7 @@ describe('ThinkingBubble', () => {
         text: 'Searching arsenal for contracts',
         count: 12,
         since: base - 5000,
+        sequence: 12,
       },
     ];
     renderBubble(workingPhase('Searching arsenal for contracts'), steps, base);
@@ -86,6 +94,7 @@ describe('ThinkingBubble', () => {
         text: 'Searching arsenal for contracts',
         count: 1,
         since: base,
+        sequence: 1,
       }],
       base,
     );
@@ -101,11 +110,13 @@ describe('ThinkingBubble', () => {
         text: 'Searching arsenal for contracts',
         count: 4,
         since: base - 20000,
+        sequence: 4,
       },
       {
         text: 'Authoring the attack path',
         count: 1,
         since: base - 3000,
+        sequence: 5,
       },
     ];
     renderBubble(workingPhase('Authoring the attack path'), steps, base);
@@ -143,11 +154,41 @@ describe('ThinkingBubble', () => {
         text: 'Searching arsenal for contracts',
         count: 3,
         since: base - 5000,
+        sequence: 3,
       }],
       base,
     );
     // An idle phase renders the calm caption but streams no step lines and no ticking timer.
     expect(screen.queryAllByTestId('autonomous-thinking-step')).toHaveLength(0);
     expect(screen.getByText('Awaiting the next event')).toBeDefined();
+  });
+
+  it('demotes the last step to dimmed history (no timer, no motion) when it is not live (resume boundary)', () => {
+    // The resume regression: the panel passes lastStepLive=false when a newer non-pulse boundary (a
+    // fresh "engaged" STATUS on the retained timeline) has superseded the last thinking step. Even
+    // though the phase is active, the stale step must NOT tick a per-caption timer that would span
+    // the paused interval - it renders as calm history with only its repeat count.
+    const base = Date.now();
+    const steps: ThinkingStep[] = [
+      {
+        text: 'Searching arsenal for contracts',
+        count: 6,
+        since: base - 600000,
+        sequence: 6,
+      },
+    ];
+    renderBubble(workingPhase('Getting to work'), steps, base, false);
+
+    const line = screen.getByTestId('autonomous-thinking-step');
+    expect(line.textContent).toContain('Searching arsenal for contracts');
+    // Repeat count is still shown (it is real history), but NO per-caption timer (would be "10m 00s").
+    expect(line.textContent).toContain(REPEAT(6));
+    expect(line.textContent).not.toMatch(/\d+m\s|\d+s/);
+
+    // Ticking the clock must not start a timer on the stale line - it stays frozen history.
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(screen.getByTestId('autonomous-thinking-step').textContent).not.toMatch(/\d+m\s|\d+s/);
   });
 });
