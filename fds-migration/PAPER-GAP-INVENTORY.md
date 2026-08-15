@@ -513,9 +513,14 @@ prouvé par la résolution du lockfile, pas par le `package.json`).
 | bordure | ✅ | token propre par couche. Light, sur les panneaux convertis : composite `rgb(223,223,226)` sur blanc, **1,33:1** — là où MUI mesurait 1,32:1. L'invisibilité à 1,03:1 a disparu. |
 | élévations 0-3 | ✅ | inchangées, quatre surfaces distinctes. |
 
-Un comportement relevé au passage, non bloquant : une valeur **hors échelle**
-(`padding={12}`) ne rend **aucune** classe de padding — la surface tombe à 0px
-sans erreur. TypeScript la refuse ; un appelant JS ou une valeur dynamique, non.
+Un comportement relevé au passage : une valeur **hors échelle**
+(`padding={12}`) ne rend **aucune** classe de padding — la surface tombe à 0px,
+sans erreur ni avertissement. TypeScript la refuse, mais **4 des 7 fichiers
+convertis par cette vague sont des `.jsx`** et le tsconfig du produit a
+`allowJs` sans `checkJs` : ces sites-là n'ont aucune vérification de props. La
+garde `no-hardcoded-padding` ne l'attrape pas non plus — elle vise le padding
+re-déclaré en `className`/`sx`, pas une valeur de prop hors échelle. Remonté en
+LIBRARY-FEEDBACK #32.
 
 ---
 

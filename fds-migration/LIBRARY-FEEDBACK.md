@@ -1666,3 +1666,40 @@ guard checks the enclosing component of, or simply a documented
 `guards`-per-file granularity so the third option above is the *supported*
 answer rather than a workaround a product invented. The middle option
 (dodging the regex) is the one worth making impossible.
+
+---
+
+## 32. An off-scale `padding` renders 0px, and half this wave's call sites are untyped
+
+**Measured on the installed build at `2e77492`**: `<Paper padding={12}>` — a
+value outside the 0/8/16/24/32 scale — renders **no padding class at all**:
+
+```
+<div class="box-border bg-elevation-default … border-elevation-subtle-soft layer-1">X</div>
+```
+
+No `p-*`, so the surface computes to **0px**, silently. Not 24 (the default),
+not the nearest step, not a warning: zero.
+
+**Why this is not just a typing footnote.** TypeScript rejects `padding={12}`,
+so in a `.tsx` call site the trap is closed at compile time. But **4 of the 7
+files this wave converted are `.jsx`** (`LessonsObjectives.jsx`,
+`CrysisIntensity.jsx`, and both `LessonsCategories.jsx`), and this product's
+tsconfig sets `allowJs` **without** `checkJs` — so those files get no prop
+checking whatsoever. The same is true of any product with legacy JSX, which is
+most of them at this stage of the migration. A dynamic value
+(`padding={someTheme.spacing}`) escapes the types even in `.tsx`.
+
+**The conformity guard does not catch it either**, and correctly so:
+`no-hardcoded-padding` looks for padding re-declared through `className`/`sx`/
+`style`, which is a different mistake. An off-scale *prop value* passes every
+gate and renders a panel with no padding.
+
+**Ask.** Make the runtime say something. The library already has the precedent
+and the rule for exactly this shape — AGENTS.md, "Prop contract violations —
+dev-only warning, never throw": a `console.warn` behind
+`process.env.NODE_ENV !== "production"`, naming the component, the offending
+prop and the effective fallback. Falling back to the default 24 rather than 0
+would also be defensible, but the warning matters more than the fallback: 0px
+is at least visible, whereas a silent 24 on a site that asked for 12 would just
+move the problem. Whichever is chosen, it belongs in `Paper.meta.ts` too.
