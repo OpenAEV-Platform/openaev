@@ -62,6 +62,35 @@ class AutonomousRunTenantLocatorTest {
   }
 
   @Test
+  @DisplayName("the literal scan counts every Java literal form, so no statement can hide")
+  void theLiteralScanCountsEveryJavaLiteralForm() {
+    // The pin above is only as strong as this scanner, so the scanner is pinned too: a statement
+    // in a text block, one led by a CTE, and one led by whitespace must all be counted, while a
+    // prose literal mentioning the run must not be.
+    String sneakySource =
+        """
+        class Sneaky {
+          static final String ONE_LINE = "SELECT a FROM b WHERE id = ?";
+          static final String TEXT_BLOCK =
+              \"""
+              UPDATE autonomous_runs SET tenant_id = 'x' WHERE autonomous_run_id = ?
+              \""";
+          static final String CTE = "WITH last AS (SELECT 1) DELETE FROM autonomous_events";
+          static final String PADDED = "  Truncate autonomous_directives";
+          static final String PROSE = "reads only the run's immutable tenant id";
+        }
+        """;
+
+    assertThat(sqlLiterals(sneakySource))
+        .as("both literal forms are counted, in any lead-in, and prose is not")
+        .containsExactlyInAnyOrder(
+            "SELECT a FROM b WHERE id = ?",
+            "UPDATE autonomous_runs SET tenant_id = 'x' WHERE autonomous_run_id = ?",
+            "WITH last AS (SELECT 1) DELETE FROM autonomous_events",
+            "Truncate autonomous_directives");
+  }
+
+  @Test
   @DisplayName("a known run resolves to its own tenant")
   void aKnownRunResolvesToItsOwnTenant() {
     AutonomousRunTenantLocator locator = new AutonomousRunTenantLocator(jdbcTemplate);
@@ -140,20 +169,50 @@ class AutonomousRunTenantLocatorTest {
     }
   }
 
-  /** The full SQL string literals the source declares, recognised by their leading verb. */
+  /** Matches a SQL verb appearing as a standalone word anywhere inside a literal. */
+  private static final Pattern SQL_VERB =
+      Pattern.compile(
+          "\\b(?:INSERT|SELECT|UPDATE|DELETE|TRUNCATE|MERGE)\\b", Pattern.CASE_INSENSITIVE);
+
+  /**
+   * Every string literal the source declares, in BOTH Java literal forms (one-line and text block),
+   * that carries a SQL verb anywhere in its content. Anchoring on a verb right after the opening
+   * quote would miss a text block (its opening delimiter is always followed by a line terminator,
+   * never by the verb) and any statement led by whitespace or a CTE, so a second statement could
+   * hide from the pin; containing-verb matching over every literal form keeps the exact-statement
+   * claim honest. {@link #theLiteralScanCountsEveryJavaLiteralForm()} pins this scanner itself.
+   */
   private static List<String> sqlLiterals(String source) {
-    Matcher matcher =
-        Pattern.compile(
-                "\"((?:INSERT|SELECT|UPDATE|DELETE|TRUNCATE|MERGE)\\b[^\"]*)\"",
-                Pattern.CASE_INSENSITIVE)
-            .matcher(source);
+    // A unicode-escaped delimiter (\u0022) is the one remaining way to hide a literal from a
+    // raw-text scan, and the locator has no legitimate use for unicode escapes at all.
+    assertThat(source)
+        .as("unicode escapes could hide a literal from this scan")
+        .doesNotContain("\\u");
     List<String> found = new ArrayList<>();
-    while (matcher.find()) {
-      found.add(matcher.group(1));
+    // Text blocks are consumed first and excised, so their bodies (which may contain quote
+    // characters) can never derail the one-line pass over the remainder.
+    Matcher textBlocks = Pattern.compile("\"\"\"(.*?)\"\"\"", Pattern.DOTALL).matcher(source);
+    StringBuilder remainder = new StringBuilder();
+    int copiedUpTo = 0;
+    while (textBlocks.find()) {
+      collectWhenSql(found, textBlocks.group(1));
+      remainder.append(source, copiedUpTo, textBlocks.start());
+      copiedUpTo = textBlocks.end();
+    }
+    remainder.append(source, copiedUpTo, source.length());
+    Matcher oneLiners = Pattern.compile("\"([^\"\\n]*)\"").matcher(remainder);
+    while (oneLiners.find()) {
+      collectWhenSql(found, oneLiners.group(1));
     }
     assertThat(found)
         .as("the scan must find the locator's statement, or it proves nothing")
         .isNotEmpty();
     return found;
+  }
+
+  private static void collectWhenSql(List<String> found, String literal) {
+    if (SQL_VERB.matcher(literal).find()) {
+      found.add(literal.strip());
+    }
   }
 }
