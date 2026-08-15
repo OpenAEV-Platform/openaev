@@ -134,6 +134,30 @@ export const isHeartbeatEvent = (event: AutonomousEvent | undefined): boolean =>
   }
 };
 
+// A live-activity NARRATION is a per-iteration "what the orchestrator is doing right now" line the
+// XTM One worker streams to the timeline WHILE a decision cycle runs (flagged {"live": true} in its
+// data). Unlike a genuine recorded NARRATION/DECISION, it is NOT an operator-facing decision: it
+// exists ONLY to keep the cockpit's dimmed "thinking" window scrolling (it flows into thinkingLines)
+// across the many iterations where the LLM narrates nothing. Every surface that renders the operator
+// decision feed (the reasoning-panel rows AND the overview decision timeline/count) filters it out so
+// it never shows as a decision row/node - only as streaming text in the thinking window. Single
+// source of truth so the two surfaces can never drift, mirroring isHeartbeatEvent.
+export const isLiveActivityEvent = (event: AutonomousEvent | undefined): boolean => {
+  if (!event || event.autonomous_event_type !== 'NARRATION' || !event.autonomous_event_data) {
+    return false;
+  }
+  // Cheap substring pre-check before the JSON.parse: this runs for every event on every render of
+  // the feed, and the vast majority of NARRATION payloads never mention "live" at all.
+  if (!event.autonomous_event_data.includes('"live"')) {
+    return false;
+  }
+  try {
+    return (JSON.parse(event.autonomous_event_data) as { live?: boolean }).live === true;
+  } catch {
+    return false;
+  }
+};
+
 // Defensive display-time cleanup: the orchestrator (an LLM) occasionally leaks its own tool-call
 // framing into an event's title/content - operator prose followed by literal </content>, <invoke ...>,
 // <parameter ...> markup of the next calls. XTM One now strips this at the source, but runs recorded

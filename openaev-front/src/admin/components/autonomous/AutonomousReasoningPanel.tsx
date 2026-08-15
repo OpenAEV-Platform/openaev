@@ -25,7 +25,7 @@ import { useFormatter } from '../../../components/i18n';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useChatbot, useChatbotContentMargin } from '../ariane/useChatbotHooks';
-import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, isHeartbeatEvent, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
+import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, isHeartbeatEvent, isLiveActivityEvent, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
 import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 
 // An "active" run is one the orchestrator is currently driving, so the panel keeps polling the
@@ -518,12 +518,18 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     return () => clearInterval(interval);
   }, [isActive, refreshRun, pollTimeline]);
 
-  // The operator-facing decision feed excludes heartbeats (they are freshness pings, not
-  // decisions), so a long silent burst does not fill the timeline with "Working" rows. The
-  // freshness/caption logic below still keys off the raw `events` (including heartbeats) so the
-  // cockpit stays animated. Memoised: the predicate JSON-parses STATUS payloads, so it should run
-  // once per new batch of events, not on every incidental re-render.
-  const visibleEvents = useMemo(() => events.filter(e => !isHeartbeatEvent(e)), [events]);
+  // The operator-facing decision feed excludes heartbeats (freshness pings, not decisions) AND
+  // live-activity NARRATIONs (the per-iteration "what it is doing right now" lines the worker
+  // streams). Both keep the cockpit alive without being decisions: heartbeats drive the freshness
+  // clock, live-activity lines flow into `thinkingLines` below (the scrolling thinking window) - so
+  // neither should ever appear as a row in the operator decision feed, or a long silent burst would
+  // fill the timeline with "Working"/activity noise. The freshness/caption logic below still keys
+  // off the raw `events` (including both) so the cockpit stays animated. Memoised: the predicates
+  // JSON-parse the payloads, so they should run once per new batch of events, not on every render.
+  const visibleEvents = useMemo(
+    () => events.filter(e => !isHeartbeatEvent(e) && !isLiveActivityEvent(e)),
+    [events],
+  );
 
   const isWaitingInput = status === 'WAITING_INPUT';
   // Newest-first lookups over the stream. findLast scans backwards without cloning, and the

@@ -9,7 +9,7 @@ import { type AutonomousEvent, type AutonomousRun, type AutonomousRunStatus } fr
 import { HeroStat, HeroStats, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
 import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
-import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, isHeartbeatEvent, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
+import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, isHeartbeatEvent, isLiveActivityEvent, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
 import AutonomousOutcomeDialog, { type OutcomeKind } from './AutonomousOutcomeDialog';
 
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['PLANNING', 'RUNNING', 'WAITING_INPUT'];
@@ -303,11 +303,16 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
 
   const proofEvents = useMemo(() => events.filter(e => e.autonomous_event_type === 'PROOF'), [events]);
   const capabilityGaps = useMemo(() => events.filter(e => e.autonomous_event_type === 'GAP'), [events]);
-  // Heartbeats are ~45s freshness pings the orchestrator emits while a cycle runs, not decisions.
-  // They must never appear as "Working" nodes on the decision timeline nor inflate the decision
-  // count, so every timeline-facing read works off the heartbeat-free stream (the reasoning panel
-  // filters them the same way).
-  const decisionEvents = useMemo(() => events.filter(e => !isHeartbeatEvent(e)), [events]);
+  // Heartbeats (~45s freshness pings) and live-activity NARRATIONs (the per-iteration "what it is
+  // doing right now" lines the worker streams to keep the cockpit thinking window scrolling) are
+  // both cockpit-liveness signals, not decisions. Neither must appear as a node on the decision
+  // timeline nor inflate the decision count, so every timeline-facing read works off the filtered
+  // stream (the reasoning panel filters them the same way - single source of truth in
+  // autonomousEventVisuals).
+  const decisionEvents = useMemo(
+    () => events.filter(e => !isHeartbeatEvent(e) && !isLiveActivityEvent(e)),
+    [events],
+  );
 
   const buildProofReport = (): string => {
     const lines: string[] = [];
