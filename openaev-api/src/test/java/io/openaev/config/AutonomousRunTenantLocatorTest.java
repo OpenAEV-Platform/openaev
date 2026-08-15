@@ -30,10 +30,12 @@ import org.springframework.jdbc.core.RowMapper;
  * deriving a callback's scope FROM the run is a chicken-and-egg (the read that decides the scope
  * cannot run under the scope it is deciding, and the inspector would fail-close it), so it may
  * bypass the inspector ONLY while it stays a single-row, primary-key-addressed SELECT of the run's
- * own immutable {@code tenant_id}. A reason that lives only in a comment rots, so - like the
- * insert-only seed exemption pinned by {@code AttackPathSeedServiceTest} - it is enforced here:
- * widening the statement, adding a second statement, or adding a sibling bypass on the {@code
- * autonomous_*} tables fails the build and forces the conversation.
+ * own immutable {@code tenant_id}, filtered on the owning tenant's liveness (a soft-deleted tenant
+ * is out of every caller scope, so the run-derived scope refuses it too). A reason that lives only
+ * in a comment rots, so - like the insert-only seed exemption pinned by {@code
+ * AttackPathSeedServiceTest} - it is enforced here: widening the statement, adding a second
+ * statement, or adding a sibling bypass on the {@code autonomous_*} tables fails the build and
+ * forces the conversation.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("the run-tenant locator stays a pinned, fail-closed scope-bootstrap read")
@@ -58,15 +60,26 @@ class AutonomousRunTenantLocatorTest {
         .as("the locator emits exactly one SQL statement")
         .containsExactly(AutonomousRunTenantLocator.SELECT_RUN_TENANT);
     assertThat(AutonomousRunTenantLocator.SELECT_RUN_TENANT)
-        .isEqualTo("SELECT tenant_id FROM autonomous_runs WHERE autonomous_run_id = ?");
+        .isEqualTo(
+            "SELECT r.tenant_id FROM autonomous_runs r JOIN tenants t ON t.tenant_id = r.tenant_id"
+                + " WHERE r.autonomous_run_id = ? AND t.tenant_deleted_at IS NULL");
+    // The liveness predicate is load-bearing, not decoration: a soft-deleted tenant is out of
+    // every caller scope for its whole grace period, so the run-derived scope must fail closed on
+    // it too instead of re-admitting a tenant no operator can reach. Pinned explicitly so a
+    // rewrite of the statement cannot drop it without meeting this assertion by name.
+    assertThat(AutonomousRunTenantLocator.SELECT_RUN_TENANT)
+        .as("the bootstrap read must refuse a run whose owning tenant is soft-deleted")
+        .contains("JOIN tenants")
+        .contains("tenant_deleted_at IS NULL");
   }
 
   @Test
   @DisplayName("the literal scan counts every Java literal form, so no statement can hide")
   void theLiteralScanCountsEveryJavaLiteralForm() {
     // The pin above is only as strong as this scanner, so the scanner is pinned too: a statement
-    // in a text block, one led by a CTE, and one led by whitespace must all be counted, while a
-    // prose literal mentioning the run must not be.
+    // in a text block, one led by a CTE, one led by whitespace, and one split across a
+    // +-concatenated chain (the formatter's long-string shape) must all be counted - the chain as
+    // the single folded string - while a prose literal mentioning the run must not be.
     String sneakySource =
         """
         class Sneaky {
@@ -77,17 +90,21 @@ class AutonomousRunTenantLocatorTest {
               \""";
           static final String CTE = "WITH last AS (SELECT 1) DELETE FROM autonomous_events";
           static final String PADDED = "  Truncate autonomous_directives";
+          static final String CHAIN =
+              "INSERT INTO autonomous_events (autonomous_event_id)"
+                  + " VALUES (?)";
           static final String PROSE = "reads only the run's immutable tenant id";
         }
         """;
 
     assertThat(sqlLiterals(sneakySource))
-        .as("both literal forms are counted, in any lead-in, and prose is not")
+        .as("both literal forms are counted, in any lead-in, chains folded, and prose is not")
         .containsExactlyInAnyOrder(
             "SELECT a FROM b WHERE id = ?",
             "UPDATE autonomous_runs SET tenant_id = 'x' WHERE autonomous_run_id = ?",
             "WITH last AS (SELECT 1) DELETE FROM autonomous_events",
-            "Truncate autonomous_directives");
+            "Truncate autonomous_directives",
+            "INSERT INTO autonomous_events (autonomous_event_id) VALUES (?)");
   }
 
   @Test
@@ -180,7 +197,10 @@ class AutonomousRunTenantLocatorTest {
    * quote would miss a text block (its opening delimiter is always followed by a line terminator,
    * never by the verb) and any statement led by whitespace or a CTE, so a second statement could
    * hide from the pin; containing-verb matching over every literal form keeps the exact-statement
-   * claim honest. {@link #theLiteralScanCountsEveryJavaLiteralForm()} pins this scanner itself.
+   * claim honest. A chain of {@code +}-concatenated one-line literals is folded into the single
+   * string javac constant-folds it to, so the formatter splitting a long statement across fragments
+   * neither hides a verb-less fragment from the pin nor fails it spuriously. {@link
+   * #theLiteralScanCountsEveryJavaLiteralForm()} pins this scanner itself.
    */
   private static List<String> sqlLiterals(String source) {
     // A unicode-escaped delimiter (\u0022) is the one remaining way to hide a literal from a
@@ -200,14 +220,29 @@ class AutonomousRunTenantLocatorTest {
       copiedUpTo = textBlocks.end();
     }
     remainder.append(source, copiedUpTo, source.length());
-    Matcher oneLiners = Pattern.compile("\"([^\"\\n]*)\"").matcher(remainder);
+    Matcher oneLiners =
+        Pattern.compile("\"[^\"\\n]*\"(?:\\s*\\+\\s*\"[^\"\\n]*\")*").matcher(remainder);
     while (oneLiners.find()) {
-      collectWhenSql(found, oneLiners.group(1));
+      collectWhenSql(found, joinLiteralChain(oneLiners.group()));
     }
     assertThat(found)
         .as("the scan must find the locator's statement, or it proves nothing")
         .isNotEmpty();
     return found;
+  }
+
+  /**
+   * Folds a chain of {@code +}-concatenated one-line literals into the single string javac
+   * constant-folds it to. Only directly adjacent literals join: a chain broken by any non-literal
+   * operand keeps its fragments separate, so dynamically composed SQL still fails the pin loudly.
+   */
+  private static String joinLiteralChain(String chain) {
+    StringBuilder joined = new StringBuilder();
+    Matcher segments = Pattern.compile("\"([^\"\\n]*)\"").matcher(chain);
+    while (segments.find()) {
+      joined.append(segments.group(1));
+    }
+    return joined.toString();
   }
 
   private static void collectWhenSql(List<String> found, String literal) {

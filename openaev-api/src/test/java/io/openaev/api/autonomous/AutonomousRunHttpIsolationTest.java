@@ -57,7 +57,10 @@ import org.springframework.transaction.annotation.Transactional;
  * cross-tenant IDOR case proves a normal EE user cannot reach a foreign tenant's run through a
  * callback even knowing its id. The derivation is also route-scoped: the same handlers on the
  * TENANT-PREFIXED route stay caller-authorized (the URL names the tenant, rights are the boundary),
- * which this suite pins too. Operator isolation is proven unchanged alongside it.
+ * which this suite pins too. Operator isolation is proven unchanged alongside it. The derived scope
+ * also respects tenant liveness: a run whose tenant is soft-deleted is refused even for the
+ * verified service identity (a grace-period tenant is out of every caller scope, and the
+ * run-derived scope must not re-admit it), and reactivating the tenant restores the callbacks.
  *
  * <p>Both scope routes are covered, because the orchestrator's callbacks ride the legacy
  * non-prefixed mapping: the tenant-prefixed path (operator UI) and the plain path where the scope
@@ -457,6 +460,39 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
 
   @Test
   @DisplayName(
+      "POST event on a run whose tenant is soft-deleted is refused (404) even for the verified"
+          + " service identity - and works again once the tenant is reactivated")
+  void recordEventOnSoftDeletedTenantRunIsFailClosedForServiceIdentity() throws Exception {
+    // A soft-deleted tenant is excluded from every caller scope for its whole retention grace
+    // period (TenantRepository.findTenantsByUserId and TenantMembershipCacheManager both filter on
+    // tenant_deleted_at IS NULL), so no operator can reach the run. The run-derived service scope
+    // must not quietly re-admit it: the locator's liveness predicate makes the derivation resolve
+    // empty exactly like an unknown run, the verified service caller gets a 404, and the timeline
+    // stays untouched.
+    softDeleteTenant(tenantA);
+    mvc.perform(
+            asVerifiedServiceIdentity(post(PLAIN + "/{runId}/events", runId))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"type\": \"DECISION\", \"title\": \"grace-period append\"}"))
+        .andExpect(status().isNotFound());
+    assertThat(rawCount("autonomous_events", "autonomous_event_run_id", runId)).isEqualTo(1L);
+
+    // The refusal is the tenant's liveness, not a permanent latch on the run: reactivating the
+    // tenant within the grace period (TenantService#reactivateTenant's contract) restores the
+    // callback path, so an admin undoing a deletion gets the run's autonomy back with the tenant.
+    reactivateTenant(tenantA);
+    mvc.perform(
+            asVerifiedServiceIdentity(post(PLAIN + "/{runId}/events", runId))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"type\": \"DECISION\", \"title\": \"post-reactivation append\"}"))
+        .andExpect(status().isOk());
+    assertThat(rawCount("autonomous_events", "autonomous_event_run_id", runId)).isEqualTo(2L);
+  }
+
+  @Test
+  @DisplayName(
       "POST event via the tenant-prefixed route stays caller-scoped: a foreign tenant's path 404s"
           + " and writes nothing")
   void recordEventViaTenantPrefixedRouteOutsideRunTenantIsRefused() throws Exception {
@@ -605,6 +641,23 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
         .setParameter("tenant", tenantId)
         .executeUpdate();
     return id;
+  }
+
+  // Soft delete / reactivation at the column TenantService drives, on the test's own transaction:
+  // the tenants table is not tenant-active, so the native update is not rewritten, and the
+  // locator's DataSourceUtils connection joins this transaction and sees the flag flip.
+  private void softDeleteTenant(String tenantId) {
+    entityManager
+        .createNativeQuery("UPDATE tenants SET tenant_deleted_at = now() WHERE tenant_id = :id")
+        .setParameter("id", tenantId)
+        .executeUpdate();
+  }
+
+  private void reactivateTenant(String tenantId) {
+    entityManager
+        .createNativeQuery("UPDATE tenants SET tenant_deleted_at = NULL WHERE tenant_id = :id")
+        .setParameter("id", tenantId)
+        .executeUpdate();
   }
 
   private String seedDirective(String tenantId, String runId) {

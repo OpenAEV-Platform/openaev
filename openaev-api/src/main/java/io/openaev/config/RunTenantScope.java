@@ -24,7 +24,10 @@ import java.lang.annotation.Target;
  * acts on the run's tenant regardless of the caller's selector or memberships, and every write it
  * makes is stamped with that tenant. An unknown run resolves to {@link
  * io.openaev.context.TxCtx#missing()} (fail-closed), which the service then reports as a 404
- * through its own run lookup.
+ * through its own run lookup. A run whose owning tenant is soft-deleted resolves the same way: a
+ * grace-period tenant is excluded from every caller scope, so the run-derived scope refuses it too
+ * instead of quietly re-admitting a tenant no operator can reach (reactivation within the grace
+ * period restores the callbacks with it).
  *
  * <p>Run-authoritative scope is granted ONLY to the verified XTM One cross-platform SERVICE
  * identity: the request must carry the server-side marker ({@link

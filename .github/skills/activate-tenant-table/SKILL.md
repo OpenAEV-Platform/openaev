@@ -682,7 +682,11 @@ inefficiency). The two forms behave very differently once the table is active:
   ONLY when all three hold: it emits nothing but a single-row `SELECT` of the
   row's own immutable `tenant_id` addressed by primary key, it projects no
   other column, and a test pins the bypass class list and the exact statement
-  on every build so the exemption cannot silently widen. The autonomous-run
+  on every build so the exemption cannot silently widen. The bootstrap read
+  must also respect tenant liveness (filter on `tenant_deleted_at IS NULL`):
+  a soft-deleted tenant is excluded from every caller scope for its whole
+  grace period, so a row-derived scope that ignored the flag would quietly
+  re-admit a tenant no caller can reach. The autonomous-run
   callback locator is the reference (`AutonomousRunTenantLocator` /
   `AutonomousRunTenantLocatorTest`). Absent that enforced read-only proof, the
   HARD BLOCKER stands.
