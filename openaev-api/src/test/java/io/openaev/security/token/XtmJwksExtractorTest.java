@@ -3,6 +3,7 @@ package io.openaev.security.token;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,9 +31,9 @@ import org.springframework.mock.web.MockHttpServletRequest;
  * Unit coverage for the cross-platform service-identity marker: {@code authUser} must stamp {@link
  * XtmJwksExtractor#CROSS_PLATFORM_ATTRIBUTE} ONLY when the bearer fully validated as an XTM One
  * cross-platform JWT (trusted issuer, JWKS signature, expected audience) AND resolved a user -
- * never on a refused issuer, a wrong audience, or an unresolved user. {@code TxCtxArgumentResolver}
- * grants run-authoritative tenant scope on exactly this marker, so a stray stamp would be a
- * cross-tenant privilege grant.
+ * never on a refused issuer, a forged signature, a wrong audience, an expired token, or an
+ * unresolved user. {@code TxCtxArgumentResolver} grants run-authoritative tenant scope on exactly
+ * this marker, so a stray stamp would be a cross-tenant privilege grant.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("XtmJwksExtractor cross-platform service-identity marker")
@@ -109,6 +110,44 @@ class XtmJwksExtractorTest {
     assertThatThrownBy(() -> extractor.authUser(bundle.jwtToken(), request))
         .isInstanceOf(JwtException.class);
     assertThat(request.getAttribute(XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE)).isNull();
+  }
+
+  @Test
+  @DisplayName("a forged token signed by a key outside the JWKS is refused and never stamps")
+  void forgedSignatureDoesNotStampMarker() throws Exception {
+    // The forged-token attack shape: the presented JWT claims the trusted issuer and reuses the
+    // fixture's kid, but is signed by the ATTACKER's key pair while the issuer's JWKS serves the
+    // legitimate key. Signature verification must refuse it before the user is even looked up, so
+    // the marker - and with it run-authoritative tenant scope - can never be minted from a
+    // signature the issuer does not vouch for.
+    JwtFixture.Bundle legitimate =
+        JwtFixture.generateXtmJwksJwtBundle(TRUSTED_ISSUER, EMAIL, AUDIENCE, false);
+    JwtFixture.Bundle forged =
+        JwtFixture.generateXtmJwksJwtBundle(TRUSTED_ISSUER, EMAIL, AUDIENCE, false);
+    stubJwks(legitimate.jwks());
+    when(openAEVConfig.getBaseUrl()).thenReturn(AUDIENCE);
+
+    assertThatThrownBy(() -> extractor.authUser(forged.jwtToken(), request))
+        .isInstanceOf(JwtException.class);
+    assertThat(request.getAttribute(XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE)).isNull();
+    verifyNoInteractions(userService);
+  }
+
+  @Test
+  @DisplayName("an expired token is refused and never stamps the marker")
+  void expiredTokenDoesNotStampMarker() throws Exception {
+    // A replayed callback bearer past its lifetime: correctly signed by the trusted issuer, but
+    // expired. The parse must refuse it and the marker must stay absent, so an old captured JWT
+    // cannot be replayed into the service-identity privilege.
+    JwtFixture.Bundle bundle =
+        JwtFixture.generateXtmJwksJwtBundle(TRUSTED_ISSUER, EMAIL, AUDIENCE, true);
+    stubJwks(bundle.jwks());
+    when(openAEVConfig.getBaseUrl()).thenReturn(AUDIENCE);
+
+    assertThatThrownBy(() -> extractor.authUser(bundle.jwtToken(), request))
+        .isInstanceOf(JwtException.class);
+    assertThat(request.getAttribute(XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE)).isNull();
+    verifyNoInteractions(userService);
   }
 
   @Test
