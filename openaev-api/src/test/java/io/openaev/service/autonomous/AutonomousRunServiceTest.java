@@ -576,11 +576,11 @@ class AutonomousRunServiceTest {
   // region OpenAEV-owned liveness: short idle/stall watchdog (independent of the 24h deadline)
 
   /**
-   * Tests for the stall watchdog {@link AutonomousRunService#enforceLiveness}. A live run that stops
-   * posting timeline heartbeats for {@link AutonomousRunService#STALL_IDLE_SECONDS} is settled to
-   * FAILED and narrated "Run stalled" - UNLESS the chained simulation still has work in flight (an
-   * executing inject or an open expectation), which is a genuine {@code await_finding} park and must
-   * be left alone. The flip is claimed exactly once, like the deadline hard stop.
+   * Tests for the stall watchdog {@link AutonomousRunService#enforceLiveness}. A live run that
+   * stops posting timeline heartbeats for {@link AutonomousRunService#STALL_IDLE_SECONDS} is
+   * settled to FAILED and narrated "Run stalled" - UNLESS the chained simulation still has work in
+   * flight (an executing inject or an open expectation), which is a genuine {@code await_finding}
+   * park and must be left alone. The flip is claimed exactly once, like the deadline hard stop.
    */
   private AutonomousRun stallableRun() {
     AutonomousRun run = new AutonomousRun();
@@ -597,7 +597,8 @@ class AutonomousRunServiceTest {
   }
 
   @Test
-  @DisplayName("enforceLiveness settles a silent run with nothing in flight to FAILED (Run stalled)")
+  @DisplayName(
+      "enforceLiveness settles a silent run with nothing in flight to FAILED (Run stalled)")
   void enforceLivenessSettlesSilentRun() throws Exception {
     AutonomousRun run = stallableRun();
     when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
@@ -613,11 +614,13 @@ class AutonomousRunServiceTest {
     // Torn down like an operator Stop, and the end is narrated once with the distinct stall title.
     verify(exerciseService).changeExerciseStatus(ExerciseStatus.CANCELED, "sim-1");
     verify(eventService)
-        .appendTerminalStatusOnce(eq("run-1"), eq("sim-1"), eq("Run stalled"), anyString());
+        .appendTerminalStatusOnce(
+            eq("run-1"), eq("tenant-1"), eq("sim-1"), eq("Run stalled"), anyString());
   }
 
   @Test
-  @DisplayName("enforceLiveness exempts a silent run with an inject still in flight (await_finding)")
+  @DisplayName(
+      "enforceLiveness exempts a silent run with an inject still in flight (await_finding)")
   void enforceLivenessExemptsInFlightInject() {
     AutonomousRun run = stallableRun();
     when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
@@ -633,13 +636,15 @@ class AutonomousRunServiceTest {
   }
 
   @Test
-  @DisplayName("enforceLiveness exempts a silent run with an open expectation (no inject in flight)")
+  @DisplayName(
+      "enforceLiveness exempts a silent run with an open expectation (no inject in flight)")
   void enforceLivenessExemptsOpenExpectation() {
     AutonomousRun run = stallableRun();
     when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
     when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(20 * 60));
     when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(0L);
-    // e.g. a phishing lure whose inject already EXECUTED but whose click/detection is still awaited.
+    // e.g. a phishing lure whose inject already EXECUTED but whose click/detection is still
+    // awaited.
     when(injectExpectationRepository.countOpenByExerciseId("sim-1")).thenReturn(3L);
 
     service.enforceLiveness("run-1", "tenant-1");
@@ -665,7 +670,8 @@ class AutonomousRunServiceTest {
   }
 
   @Test
-  @DisplayName("enforceLiveness re-asserts RUNNING: a run parked for input since the sweep is spared")
+  @DisplayName(
+      "enforceLiveness re-asserts RUNNING: a run parked for input since the sweep is spared")
   void enforceLivenessSkipsNonRunningRun() {
     AutonomousRun run = stallableRun();
     run.setStatus(AutonomousRunStatus.WAITING_INPUT);
@@ -673,8 +679,10 @@ class AutonomousRunServiceTest {
 
     service.enforceLiveness("run-1", "tenant-1");
 
-    // A WAITING_INPUT park is an open-ended operator wait; the watchdog must not even read its clock.
-    verifyNoInteractions(eventService, injectRepository, injectExpectationRepository, exerciseService);
+    // A WAITING_INPUT park is an open-ended operator wait; the watchdog must not even read its
+    // clock.
+    verifyNoInteractions(
+        eventService, injectRepository, injectExpectationRepository, exerciseService);
     verify(runRepository, never())
         .settleTerminalStatusIfRunning(anyString(), anyString(), any(), any(Instant.class));
   }
@@ -697,11 +705,13 @@ class AutonomousRunServiceTest {
     service.enforceLiveness("run-1", "tenant-1");
 
     verify(eventService)
-        .appendTerminalStatusOnce(eq("run-1"), eq("sim-1"), eq("Run stalled"), anyString());
+        .appendTerminalStatusOnce(
+            eq("run-1"), eq("tenant-1"), eq("sim-1"), eq("Run stalled"), anyString());
   }
 
   @Test
-  @DisplayName("the stall flip is claimed once: a lost race with a concurrent transition stays silent")
+  @DisplayName(
+      "the stall flip is claimed once: a lost race with a concurrent transition stays silent")
   void enforceLivenessStallClaimedOnce() throws Exception {
     AutonomousRun run = stallableRun();
     when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
@@ -718,7 +728,7 @@ class AutonomousRunServiceTest {
 
     verify(exerciseService, never()).changeExerciseStatus(any(), anyString());
     verify(eventService, never())
-        .appendTerminalStatusOnce(anyString(), anyString(), anyString(), anyString());
+        .appendTerminalStatusOnce(anyString(), anyString(), anyString(), anyString(), anyString());
   }
 
   // endregion

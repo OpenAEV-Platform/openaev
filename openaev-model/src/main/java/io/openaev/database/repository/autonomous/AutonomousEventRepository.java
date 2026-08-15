@@ -26,8 +26,8 @@ public interface AutonomousEventRepository extends JpaRepository<AutonomousEvent
   /**
    * Instant of the newest timeline entry for a run, or {@code null} when the run has no events yet.
    * This is the run's liveness clock for the idle/stall watchdog: every active decision cycle
-   * appends events (including a ~45s "still working" heartbeat), so a newest-event age far past that
-   * cadence means the orchestrator has gone silent (crashed, disconnected, or never resumed).
+   * appends events (including a ~45s "still working" heartbeat), so a newest-event age far past
+   * that cadence means the orchestrator has gone silent (crashed, disconnected, or never resumed).
    */
   @Query("SELECT MAX(e.createdAt) FROM AutonomousEvent e WHERE e.runId = :runId")
   Instant findMaxCreatedAt(@Param("runId") String runId);

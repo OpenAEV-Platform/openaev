@@ -11,14 +11,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Server-side watchdog for autonomous runs, invoked periodically by {@code AutonomousTimeoutJob}. It
- * runs two independent per-tenant sweeps:
+ * Server-side watchdog for autonomous runs, invoked periodically by {@code AutonomousTimeoutJob}.
+ * It runs two independent per-tenant sweeps:
  *
  * <ul>
  *   <li><b>Deadline</b> - for each run whose OpenAEV-enforced deadline is near or passed, delegates
- *       to {@link AutonomousRunService#enforceDeadline(String, String)} to queue a winddown steering
- *       nudge (5 min / 1 min before) or hard-stop the run at the deadline (exactly like an operator
- *       Stop).
+ *       to {@link AutonomousRunService#enforceDeadline(String, String)} to queue a winddown
+ *       steering nudge (5 min / 1 min before) or hard-stop the run at the deadline (exactly like an
+ *       operator Stop).
  *   <li><b>Liveness/stall</b> - for each live (RUNNING, non-plan) run, delegates to {@link
  *       AutonomousRunService#enforceLiveness(String, String)} to settle a run that has gone SILENT
  *       (no timeline heartbeat for {@link AutonomousRunService#STALL_IDLE_SECONDS}) with nothing in
@@ -72,7 +72,8 @@ public class AutonomousTimeoutService {
                 log.warn("[Autonomous] Timeout enforcement failed for run {}", runId, e);
               }
             }
-            // Independently of the 24h deadline, settle runs that have gone SILENT: a live run whose
+            // Independently of the 24h deadline, settle runs that have gone SILENT: a live run
+            // whose
             // orchestrator crashed, disconnected, or cannot authenticate stops posting timeline
             // heartbeats but never reaches its deadline, so without this it shows a frozen cockpit
             // for up to 24h. enforceLiveness exempts a genuine await_finding park (a step result is

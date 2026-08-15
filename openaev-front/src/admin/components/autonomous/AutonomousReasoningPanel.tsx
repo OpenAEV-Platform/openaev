@@ -903,8 +903,10 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         };
     }
   })();
-  // How long the cockpit has been silent, in whole minutes, for the truthful stall caption/notice.
-  const stalledMinutes = Math.max(1, Math.round(newestEventAgeMs / 60000));
+  // How long the cockpit has been silent, in whole ELAPSED minutes, for the truthful stall
+  // caption/notice. Floor (not round): a rounded value can overstate the silence (e.g. 3.6 min ->
+  // 4), and the caption must never claim more elapsed time than has actually passed.
+  const stalledMinutes = Math.max(1, Math.floor(newestEventAgeMs / 60000));
   // Capture whether the caption was pulsing BEFORE the staleness backstop settles it: a stale-yet-
   // active caption is the "frozen cockpit" signal (the timeline, heartbeats included, stopped while
   // the orchestrator was mid-work), as opposed to a park/wait that is already an idle caption.

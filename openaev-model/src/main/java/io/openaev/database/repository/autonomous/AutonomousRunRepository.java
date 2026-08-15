@@ -140,13 +140,13 @@ public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, St
 
   /**
    * Stall-watchdog variant: atomically settles a run to a terminal status ONLY while it is still
-   * RUNNING. Unlike {@link #settleTerminalStatusIfLive}, WAITING_INPUT is deliberately NOT settled -
-   * an operator HITL park is an open-ended, legitimate wait, and the idle sweep decides a run is
+   * RUNNING. Unlike {@link #settleTerminalStatusIfLive}, WAITING_INPUT is deliberately NOT settled
+   * - an operator HITL park is an open-ended, legitimate wait, and the idle sweep decides a run is
    * stalled on a stale-liveness read taken earlier in its transaction; if the orchestrator parked
    * the run for input between that read and this flip, re-asserting RUNNING lets the UPDATE match
    * zero rows and leaves the park intact. Returns 1 when this call performed the flip, 0 when the
-   * run moved on (settled, restarted, paused, or parked for input), belongs to another tenant, or no
-   * longer exists.
+   * run moved on (settled, restarted, paused, or parked for input), belongs to another tenant, or
+   * no longer exists.
    */
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query(

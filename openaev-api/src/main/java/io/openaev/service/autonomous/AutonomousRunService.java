@@ -1290,8 +1290,8 @@ public class AutonomousRunService {
    * run's tenant scope, independently of the 24h deadline. A live autonomous run posts a "still
    * working" timeline heartbeat every ~45s while a decision cycle is active, so a run that has gone
    * silent for {@link #STALL_IDLE_SECONDS} is one whose orchestrator crashed, disconnected, or
-   * cannot authenticate (the observed 401-storm) - it never reaches its deadline, so without this it
-   * shows a frozen cockpit for up to 24h.
+   * cannot authenticate (the observed 401-storm) - it never reaches its deadline, so without this
+   * it shows a frozen cockpit for up to 24h.
    *
    * <p>The exemption is what makes this safe against a LEGITIMATE silence: between cycles the
    * orchestrator parks on {@code await_finding} and stops heartbeating while a dispatched step's
@@ -1353,10 +1353,11 @@ public class AutonomousRunService {
 
   /**
    * Settles a stalled run to FAILED and narrates it once. Mirrors {@link #timeoutRun}: the terminal
-   * flip is an atomic conditional UPDATE so a run that moved on between the idle read and this write
-   * is a silent no-op, and the chained simulation is torn down best-effort like an operator Stop.
-   * The flip is guarded on RUNNING only (not the deadline sweep's RUNNING/WAITING_INPUT): a run that
-   * parked for operator input between the idle decision and this write must not be stalled.
+   * flip is an atomic conditional UPDATE so a run that moved on between the idle read and this
+   * write is a silent no-op, and the chained simulation is torn down best-effort like an operator
+   * Stop. The flip is guarded on RUNNING only (not the deadline sweep's RUNNING/WAITING_INPUT): a
+   * run that parked for operator input between the idle decision and this write must not be
+   * stalled.
    */
   private void stallRun(AutonomousRun run, long idleSeconds) {
     int changed =
@@ -1371,6 +1372,7 @@ public class AutonomousRunService {
     long idleMinutes = Math.max(1, idleSeconds / 60L);
     eventService.appendTerminalStatusOnce(
         run.getId(),
+        runTenantId(run),
         run.getSimulationId(),
         "Run stalled",
         "No orchestrator activity for ~"
