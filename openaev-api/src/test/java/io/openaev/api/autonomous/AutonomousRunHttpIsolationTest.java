@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
@@ -323,6 +324,44 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
 
     // Only the seeded event remains: nothing was written for the refused append.
     assertThat(rawCount("autonomous_events", "autonomous_event_run_id", runId)).isEqualTo(1L);
+  }
+
+  @Test
+  @DisplayName("POST bare create with no selector lands on the default tenant (platform fallback)")
+  void createBareRunWithoutSelectorLandsOnDefaultTenantForDefaultMember() throws Exception {
+    // The platform-wide rule for a request with no tenant selector (issues #6331 / #6332, same
+    // convention as TxCtxArgumentResolver#fallbackSelector and TenantContext#getCurrentTenant):
+    // a multi-tenant caller falls back to the DEFAULT tenant - deterministic and well-known,
+    // never a "first membership" guess - and only a multi-tenant caller WITHOUT default-tenant
+    // access is refused, which createOutsideValidWriteScopeIsRefusedAndWritesNothing pins. The
+    // bare autonomous create converges to the same outcome through the provisioned scenario's
+    // legacy default-tenant stamping, validated against the caller's scope. This case pins the
+    // convention: 200, and every new row lands on the default tenant at the raw column level.
+    String userId = testUserHolder.get().getId();
+    if (!tenantMembershipCacheManager
+        .findTenantIdsByUserId(userId)
+        .contains(Tenant.DEFAULT_TENANT_UUID)) {
+      tenantRepository.addUserToTenant(userId, Tenant.DEFAULT_TENANT_UUID);
+      tenantMembershipCacheManager.evict(userId, Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    String response =
+        mvc.perform(
+                post(PLAIN)
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"objective\": \"Bare default-scope run\", \"plan_mode\": true}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.autonomous_run_id").exists())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String createdRunId = JsonPath.read(response, "$.autonomous_run_id");
+
+    assertThat(rawTenantId("autonomous_runs", "autonomous_run_id", createdRunId))
+        .isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+    assertThat(rawTenantId("autonomous_events", "autonomous_event_run_id", createdRunId))
+        .isEqualTo(Tenant.DEFAULT_TENANT_UUID);
   }
 
   @Test

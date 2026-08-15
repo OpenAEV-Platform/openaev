@@ -60,6 +60,14 @@ import org.springframework.stereotype.Component;
  * on fresh, healthy and already-repaired databases). Orphaned children (parent run already deleted)
  * are skipped - there is no parent to align with and no live run to break. Sequences are never
  * touched - they are already unique per run globally, so realignment cannot introduce a duplicate.
+ *
+ * <p>TRANSITIONAL - retire after the activation transition window: once every production writer
+ * stamps children from the parent run (every node runs a release at or after this activation),
+ * rolling windows can no longer produce misattributed rows and the per-boot sweep repairs nothing
+ * forever. A later release should delete this component and ship, in the same change, a one-shot
+ * versioned Flyway migration with these two UPDATEs so installs that skip releases (upgrading
+ * straight from a pre-activation version) still get their backlog repaired at first boot. Until
+ * then the cost is one set-based pass over two human-review-cadence tables per node boot.
  */
 @Component
 @Slf4j
