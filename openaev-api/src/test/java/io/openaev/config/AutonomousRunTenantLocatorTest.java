@@ -98,20 +98,38 @@ class AutonomousRunTenantLocatorTest {
   }
 
   /**
-   * Every production class that opts out of the inspector AND names an autonomous table. Scanning
-   * the tree rather than the one known file is the point: a new sibling bypass must show up here
-   * instead of slipping past a test that only ever looked at the locator.
+   * Every production class, in EVERY production module, that opts out of the inspector AND names an
+   * autonomous table. Scanning the trees rather than the one known file is the point: a new sibling
+   * bypass must show up here instead of slipping past a test that only ever looked at the locator -
+   * and {@code openaev-model} already hosts {@code @AllowRawJdbc} classes of its own, so a
+   * model-layer bypass must fail this pin exactly like an api-layer one.
    */
   private static List<Path> rawJdbcClassesTouchingAutonomousTables() throws Exception {
-    try (Stream<Path> tree = Files.walk(Path.of("src/main/java"))) {
-      return tree.filter(path -> path.toString().endsWith(".java"))
-          .filter(
-              path -> {
-                String body = read(path);
-                return body.contains("@AllowRawJdbc") && body.contains("autonomous_");
-              })
-          .toList();
+    // Surefire runs with the module directory as CWD, so sibling production roots sit one level up.
+    List<Path> roots =
+        Stream.of(
+                Path.of("src/main/java"),
+                Path.of("../openaev-model/src/main/java"),
+                Path.of("../openaev-framework/src/main/java"))
+            .filter(Files::isDirectory)
+            .toList();
+    assertThat(roots)
+        .as(
+            "the api and model production source roots must both be scannable, or this pin is blind")
+        .hasSizeGreaterThanOrEqualTo(2);
+    List<Path> bypasses = new ArrayList<>();
+    for (Path root : roots) {
+      try (Stream<Path> tree = Files.walk(root)) {
+        tree.filter(path -> path.toString().endsWith(".java"))
+            .filter(
+                path -> {
+                  String body = read(path);
+                  return body.contains("@AllowRawJdbc") && body.contains("autonomous_");
+                })
+            .forEach(bypasses::add);
+      }
     }
+    return bypasses;
   }
 
   private static String read(Path path) {
