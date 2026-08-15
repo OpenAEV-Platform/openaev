@@ -48,7 +48,10 @@ import org.springframework.transaction.annotation.Transactional;
  * row with the selected / parent-run tenant. The inspector only guards reads - INSERT attribution
  * is explicit application code since {@code TenantBaseListener} was removed - so a missing {@code
  * setTenant} would pass any read-only suite and misattribute production data; these cases pin the
- * attribution at the column level and the refusal outside a valid scope.
+ * attribution at the column level and the refusal outside a valid scope. A deliberately
+ * multi-tenant header scope is covered too: parent-derived writes must stay deterministic (landing
+ * on the run's own tenant) rather than refusing the broad scope or spilling into another selected
+ * tenant - only a create without any tenant selector is ambiguous under a broad scope and refused.
  *
  * <p>Each test stays on a single tenant selection: the per-request scope is set once and the aspect
  * refuses to redefine it within one transaction.
@@ -245,6 +248,61 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
     assertThat(rawTenantId("autonomous_directives", "autonomous_directive_id", createdDirectiveId))
         .isEqualTo(tenantA);
     // The "Operator directive queued" narration carries the same tenant as the directive.
+    assertThat(rawCount("autonomous_events", "autonomous_event_run_id", activeRunId)).isEqualTo(1L);
+    assertThat(rawTenantId("autonomous_events", "autonomous_event_run_id", activeRunId))
+        .isEqualTo(tenantA);
+  }
+
+  @Test
+  @DisplayName("POST event under a multi-tenant scope lands on the parent run's tenant")
+  void recordEventUnderMultiTenantScopeStampsParentRunTenant() throws Exception {
+    // A broad scope is a legitimate request state on the plain route (a service identity or an
+    // administrator can hold several memberships, X-Tenant-Ids is multi-value by design).
+    // Parent-derived writes need no single-tenant scope: the run row, resolved under that scope,
+    // pins the attribution. The append must succeed and land on the run's own tenant - never on
+    // another selected tenant, never as a refusal. Only a create without a tenant selector is
+    // ambiguous under a broad scope (createOutsideValidWriteScopeIsRefusedAndWritesNothing).
+    String response =
+        mvc.perform(
+                post(PLAIN + "/{runId}/events", runId)
+                    .with(csrf())
+                    .header("X-Tenant-Ids", tenantA + "," + tenantB)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"type\": \"DECISION\", \"title\": \"Broad-scope append\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.autonomous_event_id").exists())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String createdEventId = JsonPath.read(response, "$.autonomous_event_id");
+
+    assertThat(rawTenantId("autonomous_events", "autonomous_event_id", createdEventId))
+        .isEqualTo(tenantA);
+  }
+
+  @Test
+  @DisplayName("POST directive under a multi-tenant scope stamps the parent run's tenant")
+  void addDirectiveUnderMultiTenantScopeStampsParentRunTenant() throws Exception {
+    // Same contract as the broad-scope event append, on the operator steering write and through
+    // the header route: the directive and its "Operator directive queued" narration both derive
+    // from the parent run, whatever the width of the caller's scope.
+    String activeRunId = seedActiveRun(tenantA);
+    String response =
+        mvc.perform(
+                post(PLAIN + "/{runId}/directives", activeRunId)
+                    .with(csrf())
+                    .header("X-Tenant-Ids", tenantA + "," + tenantB)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"content\": \"Broad-scope steering\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.autonomous_directive_id").exists())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String createdDirectiveId = JsonPath.read(response, "$.autonomous_directive_id");
+
+    assertThat(rawTenantId("autonomous_directives", "autonomous_directive_id", createdDirectiveId))
+        .isEqualTo(tenantA);
     assertThat(rawCount("autonomous_events", "autonomous_event_run_id", activeRunId)).isEqualTo(1L);
     assertThat(rawTenantId("autonomous_events", "autonomous_event_run_id", activeRunId))
         .isEqualTo(tenantA);
