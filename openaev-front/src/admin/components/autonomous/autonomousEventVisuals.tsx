@@ -223,6 +223,103 @@ export const stripMarkdown = (text?: string | null): string => {
     .trim();
 };
 
+// -- Thinking window: collapsed live steps --------------------------------------------------------
+
+// The dimmed "thinking" window streams the tail of the orchestrator's NARRATION / DECISION /
+// TOOL_ACTION prose so the operator watches its train of thought. These are the only event types
+// that carry live reasoning text; everything else (STATUS bookkeeping, QUESTION, DIRECTIVE) belongs
+// in the decision feed, not the thought echo.
+const THINKING_STREAM_EVENT_TYPES: ReadonlySet<string> = new Set(['NARRATION', 'DECISION', 'TOOL_ACTION']);
+
+// One collapsed line of the thinking window. Consecutive events that render to the SAME caption are
+// merged into a single step so a long same-caption burst (e.g. the multi-minute arsenal build where
+// every iteration narrates "Searching arsenal for contracts") is one advancing line instead of a
+// wall of identical glowing lines that stops visibly moving - the reported "never moves, just
+// glows" symptom.
+export interface ThinkingStep {
+  /** Caption text, already sanitized + markdown-stripped, ready to render. */
+  text: string;
+  /** How many consecutive source events collapsed into this step (>= 1). */
+  count: number;
+  /** Epoch-ms timestamp of the FIRST event in this consecutive run (the caption-run start), so the
+   *  live step can tick a monotonic per-caption elapsed clock. null when the source event carried no
+   *  parseable timestamp. */
+  since: number | null;
+}
+
+// Current phase of the thinking window (label + colour + whether the orchestrator is actively
+// working). Shared with the panel and the ThinkingBubble component so the phase shape has one
+// definition across the caption logic and the renderer.
+export interface ThinkingPhase {
+  key: string;
+  label: string;
+  color: string;
+  // Whether the orchestrator is actively working (mid-cycle) vs. idle/parked (awaiting a
+  // human-timescale event or the operator's answer). Only an ACTIVE phase pulses and streams the
+  // live thought echo; an idle phase settles into a calm, static waiting indicator so a parked run
+  // does not look like it is still computing.
+  active: boolean;
+}
+
+// Collapse the reasoning stream into thinking-window steps, merging CONSECUTIVE identical captions
+// into one step that carries a repeat count and the run-start timestamp. Only adjacent duplicates
+// are merged (a caption that recurs after a different one starts a fresh step), so genuine progress
+// still reads as a moving list while a same-caption burst becomes a single line the renderer can
+// advance with a ticking timer. The last returned step is the live one; earlier steps are finalized
+// history. Keeps at most `limit` steps (the most recent), matching the window's visible capacity.
+export const collapseThinkingSteps = (
+  events: AutonomousEvent[],
+  limit = 8,
+): ThinkingStep[] => {
+  const steps: ThinkingStep[] = [];
+  for (const event of events) {
+    if (!THINKING_STREAM_EVENT_TYPES.has(event.autonomous_event_type)) {
+      continue;
+    }
+    const text = stripMarkdown(sanitizeEventText(event.autonomous_event_content ?? event.autonomous_event_title));
+    if (!text) {
+      continue;
+    }
+    const at = event.autonomous_event_created_at ? new Date(event.autonomous_event_created_at).getTime() : Number.NaN;
+    const since = Number.isFinite(at) ? at : null;
+    const last = steps[steps.length - 1];
+    if (last && last.text === text) {
+      // Same caption as the current live step: fold it in and KEEP the first timestamp so the
+      // per-caption clock measures the whole burst (never resets while the caption holds).
+      last.count += 1;
+    } else {
+      steps.push({
+        text,
+        count: 1,
+        since,
+      });
+    }
+  }
+  return steps.slice(-limit);
+};
+
+// Phase keys whose label is a GENERIC placeholder ("Getting to work", "Analyzing the results",
+// "Thinking through the next move") rather than a specific, human-meaningful state. During a long
+// live burst these are the labels that freeze on-screen while the orchestrator is demonstrably
+// narrating changing captions, so for these phases the bold label should yield to the live caption.
+// The specific phases (Consulting <agent>, Capturing proof, Deciding the next move, parked/waiting,
+// stalled...) keep their own label because it conveys more than the raw narration line.
+export const GENERIC_WORKING_PHASE_KEYS: ReadonlySet<string> = new Set(['engaging', 'analyzing', 'thinking']);
+
+// Resolve the bold thinking-window label: for a generic working phase with a live caption available,
+// show what the orchestrator is narrating RIGHT NOW so the label tracks the live stream (instead of
+// freezing on a generic phrase for the whole burst); otherwise keep the phase's own label.
+export const resolveLiveLabel = (
+  phaseKey: string,
+  phaseActive: boolean,
+  fallbackLabel: string,
+  liveCaption: string | null | undefined,
+): string => (
+  phaseActive && !!liveCaption && GENERIC_WORKING_PHASE_KEYS.has(phaseKey)
+    ? liveCaption
+    : fallbackLabel
+);
+
 // The orchestrator authors its narration / decisions / proofs / gaps in GitHub-flavored Markdown
 // (bold, lists, tables, inline code, fenced code for commands). Render it through the platform's
 // standard MarkdownDisplay - the same renderer the rest of the app uses - so the reasoning reads like

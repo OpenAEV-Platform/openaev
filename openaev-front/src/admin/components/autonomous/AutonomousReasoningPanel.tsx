@@ -7,7 +7,6 @@ import {
   WarningAmber,
 } from '@mui/icons-material';
 import { Box, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
-import type { Theme } from '@mui/material/styles';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -25,7 +24,19 @@ import { useFormatter } from '../../../components/i18n';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useChatbot, useChatbotContentMargin } from '../ariane/useChatbotHooks';
-import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, isHeartbeatEvent, isLiveActivityEvent, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
+import {
+  collapseThinkingSteps,
+  eventAccent,
+  eventIcon,
+  EventMarkdown,
+  eventTypeLabel,
+  isHeartbeatEvent,
+  isLiveActivityEvent,
+  resolveLiveLabel,
+  sanitizeEventText,
+  type ThinkingPhase,
+} from './autonomousEventVisuals';
+import ThinkingBubble from './AutonomousThinkingBubble';
 import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 
 // An "active" run is one the orchestrator is currently driving, so the panel keeps polling the
@@ -117,211 +128,6 @@ const parseQuestionChoices = (data?: string | null): QuestionChoice[] => {
   } catch {
     return [];
   }
-};
-
-interface ThinkingPhase {
-  key: string;
-  label: string;
-  color: string;
-  // Whether the orchestrator is actively working (mid-cycle) vs. idle/parked (awaiting a
-  // human-timescale event or the operator's answer). Only an ACTIVE phase pulses and streams the
-  // live thought echo; an idle phase settles into a calm, static waiting indicator so a parked run
-  // does not look like it is still computing.
-  active: boolean;
-}
-
-// Tail-of-stream status window. While the orchestrator is actively working (active phase) it shows
-// three pulsing dots plus its most recent reasoning line, faintly shimmering, so the panel feels
-// alive between activity events (mirrors the XTM One scrolling thinking window). When the run is
-// idle - parked on a status awaiting a human-timescale event, or waiting on the operator - it
-// settles into a STATIC hourglass + calm caption with no pulsing and no thought echo, so a parked
-// run stops looking like it is still thinking. The label + colour reflect the CURRENT phase and
-// animate on every phase change.
-// Turn a millisecond gap into a compact "still working" clock: "12s", "1m 20s". Kept short so it
-// sits inline next to the phase caption without wrapping.
-const formatElapsed = (ms: number): string => {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  if (totalSeconds < 60) return `${totalSeconds}s`;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
-};
-
-const ThinkingBubble: FunctionComponent<{
-  phase: ThinkingPhase;
-  theme: Theme;
-  lines: string[];
-  /** Timestamp of the most recent activity, so the window can tick a live "working for Ns" clock.
-   *  This is what turns a silent stretch (e.g. the orchestrator grinding through tool retries with
-   *  no new narration) from a frozen caption into a visibly advancing counter. */
-  activitySince?: string | number | null;
-}> = ({
-  phase,
-  theme,
-  lines,
-  activitySince,
-}) => {
-  const accent = phase.color;
-  const active = phase.active;
-  // Tick a 1s clock ONLY while actively working, so the elapsed counter advances live and the
-  // interval is torn down the moment the run parks/waits.
-  const [now, setNow] = useState<number>(() => Date.now());
-  useEffect(() => {
-    if (!active) return undefined;
-    setNow(Date.now());
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [active, phase.key]);
-  const sinceMs = activitySince != null ? new Date(activitySince).getTime() : Number.NaN;
-  const elapsedLabel = active && Number.isFinite(sinceMs) ? formatElapsed(now - sinceMs) : null;
-  // A parked/waiting phase never streams the live thought echo (there is no live thought - the run
-  // is idle), and its dots do not pulse.
-  const showLatest = active && lines.length > 0;
-  // Keep the window pinned to the bottom as the reasoning grows, so it visibly "defiles" like the
-  // XTM One thinking window: each new thought line is appended at the bottom and older lines scroll
-  // up out of view under the fade mask, instead of a single static block that never moves.
-  const textRef = useRef<HTMLDivElement | null>(null);
-  const streamText = lines.join('\n');
-  useEffect(() => {
-    const node = textRef.current;
-    if (node) {
-      node.scrollTop = node.scrollHeight;
-    }
-  }, [streamText]);
-
-  return (
-    <Box
-      sx={{
-        'marginTop': 0.5,
-        'paddingLeft': 2,
-        'position': 'relative',
-        '@keyframes aevThinkingShimmer': {
-          '0%': { opacity: 0.35 },
-          '50%': { opacity: 0.9 },
-          '100%': { opacity: 0.35 },
-        },
-        '@keyframes aevThinkingDot': {
-          '0%, 80%, 100%': {
-            transform: 'scale(0.6)',
-            opacity: 0.3,
-          },
-          '40%': {
-            transform: 'scale(1)',
-            opacity: 1,
-          },
-        },
-        '@keyframes aevPhaseIn': {
-          '0%': {
-            opacity: 0,
-            transform: 'translateY(4px)',
-          },
-          '100%': {
-            opacity: 1,
-            transform: 'translateY(0)',
-          },
-        },
-      }}
-    >
-      <Stack sx={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 0.75,
-      }}
-      >
-        {active ? (
-          <Stack sx={{
-            flexDirection: 'row',
-            gap: 0.4,
-            alignItems: 'center',
-          }}
-          >
-            {[0, 1, 2].map(i => (
-              <Box
-                key={i}
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  backgroundColor: accent,
-                  transition: theme.transitions.create('background-color'),
-                  animation: 'aevThinkingDot 1.4s infinite ease-in-out both',
-                  animationDelay: `${i * 0.16}s`,
-                }}
-              />
-            ))}
-          </Stack>
-        ) : (
-          // Idle/parked: a still hourglass, not pulsing dots, so the run reads as waiting - not working.
-          <HourglassEmpty sx={{
-            fontSize: 16,
-            color: accent,
-          }}
-          />
-        )}
-        {/* Key on the phase so a new phase remounts and replays the fade/slide-in transition. */}
-        <Typography
-          key={phase.key}
-          variant="caption"
-          sx={{
-            color: accent,
-            fontWeight: 600,
-            letterSpacing: '0.02em',
-            transition: theme.transitions.create('color'),
-            animation: 'aevPhaseIn 0.35s ease',
-          }}
-        >
-          {phase.label}
-        </Typography>
-        {elapsedLabel && (
-          <Typography
-            variant="caption"
-            sx={{
-              color: alpha(theme.palette.text.secondary, 0.7),
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {`· ${elapsedLabel}`}
-          </Typography>
-        )}
-      </Stack>
-      {showLatest && (
-        <Box
-          ref={textRef}
-          sx={{
-            'maxHeight': 132,
-            'overflowY': 'auto',
-            'marginTop': 0.75,
-            // Fade the top edge so older lines appear to scroll up out of view; no visible scrollbar.
-            'maskImage': 'linear-gradient(to bottom, transparent 0, black 28px)',
-            'WebkitMaskImage': 'linear-gradient(to bottom, transparent 0, black 28px)',
-            'scrollbarWidth': 'none',
-            '&::-webkit-scrollbar': { display: 'none' },
-          }}
-        >
-          {lines.map((line, index) => {
-            const isLast = index === lines.length - 1;
-            return (
-              <Typography
-                key={`${index}-${line.slice(0, 24)}`}
-                variant="caption"
-                sx={{
-                  display: 'block',
-                  fontStyle: 'italic',
-                  lineHeight: 1.5,
-                  color: alpha(theme.palette.text.secondary, isLast ? 0.95 : 0.5),
-                  whiteSpace: 'pre-wrap',
-                  // Only the newest line shimmers - the "live" thought; older lines settle, dimmed.
-                  animation: isLast ? 'aevThinkingShimmer 2.4s ease-in-out infinite' : undefined,
-                }}
-              >
-                {line}
-              </Typography>
-            );
-          })}
-        </Box>
-      )}
-    </Box>
-  );
 };
 
 interface AutonomousReasoningPanelProps {
@@ -665,19 +471,18 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // (not a single frozen line): keep the tail of narration/decision/tool prose in chronological
   // order so each new cycle appends a line at the bottom and older ones scroll up under the fade
   // mask, mirroring the XTM One thinking window. Operators read its train of thought, not a spinner.
-  // Memoised: the map runs the regex-heavy stripMarkdown over the tail of the stream, so it should
-  // recompute once per new batch of events - not on every keystroke in the composer (which re-renders
-  // this component through the `directive` state).
-  const thinkingLines = useMemo(
-    () => events
-      .filter(e => (['NARRATION', 'DECISION', 'TOOL_ACTION'] as const).includes(
-        e.autonomous_event_type as 'NARRATION' | 'DECISION' | 'TOOL_ACTION',
-      ))
-      .map(e => stripMarkdown(sanitizeEventText(e.autonomous_event_content ?? e.autonomous_event_title)))
-      .filter((line): line is string => Boolean(line))
-      .slice(-8),
-    [events],
-  );
+  //
+  // Consecutive identical captions are COLLAPSED into a single step (see collapseThinkingSteps): a
+  // multi-minute same-caption burst (e.g. the arsenal build where every iteration narrates
+  // "Searching arsenal for contracts") would otherwise render as a wall of identical glowing lines
+  // that stops visibly moving - indistinguishable from a frozen cockpit. The collapsed live step
+  // keeps advancing via a per-caption ticking clock + repeat count instead. Memoised: the regex-heavy
+  // stripMarkdown runs over the tail of the stream, so it should recompute once per new batch of
+  // events - not on every keystroke in the composer (which re-renders this component via `directive`).
+  const thinkingSteps = useMemo(() => collapseThinkingSteps(events), [events]);
+  // The caption the orchestrator is narrating RIGHT NOW - the last (live) collapsed step. Drives the
+  // bold-label anchoring below so a generic phase label yields to what is actually happening live.
+  const liveCaption = thinkingSteps.length > 0 ? thinkingSteps[thinkingSteps.length - 1].text : null;
 
   // Current orchestrator phase for the thinking window. Derived from status + the latest activity
   // event rather than the raw run status, so the caption narrates what the run is doing and animates
@@ -947,6 +752,16 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         };
     }
   })();
+  // Anchor the bold label to the CURRENT live caption during a generic working phase, so it tracks
+  // what the orchestrator is narrating right now (e.g. "Searching arsenal for contracts") instead of
+  // freezing on a generic placeholder ("Getting to work" / "Analyzing the results" / "Thinking
+  // through the next move") for the whole live stream. Specific, meaningful phases (Consulting
+  // <agent>, Deciding the next move, Capturing proof, parked/waiting...) keep their own label. This
+  // runs BEFORE the staleness backstop below, which still gets the final say when the stream stalls.
+  thinkingPhase = {
+    ...thinkingPhase,
+    label: resolveLiveLabel(thinkingPhase.key, thinkingPhase.active, thinkingPhase.label, liveCaption),
+  };
   // How long the cockpit has been silent, in whole ELAPSED minutes, for the truthful stall
   // caption/notice. Floor (not round): a rounded value can overstate the silence (e.g. 3.6 min ->
   // 4), and the caption must never claim more elapsed time than has actually passed.
@@ -1216,7 +1031,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                   <ThinkingBubble
                     phase={thinkingPhase}
                     theme={theme}
-                    lines={thinkingLines}
+                    steps={thinkingSteps}
                     activitySince={activitySince}
                   />
                 )}
