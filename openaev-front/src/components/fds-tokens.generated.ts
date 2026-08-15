@@ -6,7 +6,7 @@
  * fields. Wiring: fds-migration/TOKEN-MAPPING.md.
  *
  * Source: @filigran/design-system packages/filigran-design-system/src/tokens/theme.css
- * Theme.css content hash: sha256:4a38c3cce69e1805e81eb0349e38336eebbb35ca598aa22866acac8c43662b95
+ * Theme.css content hash: sha256:87f2d00abcbf4b6a580835f90060a860b7846ccf04ad1b6f18306722d551fbab
  * Regenerate (from the filigran-design-system repo, not here):
  *   pnpm generate:mui-bridge --product openaev --write-to-product
  *
@@ -18,7 +18,7 @@
 
 export const FDS_META = {
   product: "openaev",
-  themeCssHash: "sha256:4a38c3cce69e1805e81eb0349e38336eebbb35ca598aa22866acac8c43662b95",
+  themeCssHash: "sha256:87f2d00abcbf4b6a580835f90060a860b7846ccf04ad1b6f18306722d551fbab",
   generator: "@filigran/design-system scripts/generate-mui-bridge.ts",
 } as const;
 
@@ -80,15 +80,15 @@ const colorsDark = {
   "--border-elevation-subtle-layer-1": "#2b4f8d",
   "--border-elevation-subtle-layer-2": "#2b4f8d",
   "--border-elevation-subtle-layer-3": "#2b4f8d",
-  "--border-elevation-subtle-soft": "#2b4f8d66",
+  "--border-elevation-subtle-soft": "#2b4f8d26",
   "--border-elevation-subtle-soft-layer-0": "#2b4f8d",
-  "--border-elevation-subtle-soft-layer-0-transparency-40": "#2b4f8d66",
+  "--border-elevation-subtle-soft-layer-0-transparency-15": "#2b4f8d26",
   "--border-elevation-subtle-soft-layer-1": "#2b4f8d",
-  "--border-elevation-subtle-soft-layer-1-transparency-40": "#2b4f8d66",
+  "--border-elevation-subtle-soft-layer-1-transparency-15": "#2b4f8d26",
   "--border-elevation-subtle-soft-layer-2": "#2b4f8d",
-  "--border-elevation-subtle-soft-layer-2-transparency-40": "#2b4f8d66",
+  "--border-elevation-subtle-soft-layer-2-transparency-15": "#2b4f8d26",
   "--border-elevation-subtle-soft-layer-3": "#2b4f8d",
-  "--border-elevation-subtle-soft-layer-3-transparency-40": "#2b4f8d66",
+  "--border-elevation-subtle-soft-layer-3-transparency-15": "#2b4f8d26",
   "--border-input-error": "#f14337",
   "--border-input-focus": "#42caff",
   "--border-input-hover": "#f2f2f3",
@@ -229,15 +229,15 @@ const colorsLight = {
   "--border-elevation-subtle-layer-1": "#cacbce",
   "--border-elevation-subtle-layer-2": "#cacbce",
   "--border-elevation-subtle-layer-3": "#afb0b6",
-  "--border-elevation-subtle-soft": "#afb0b666",
-  "--border-elevation-subtle-soft-layer-0": "#afb0b6",
-  "--border-elevation-subtle-soft-layer-0-transparency-40": "#afb0b666",
-  "--border-elevation-subtle-soft-layer-1": "#afb0b6",
-  "--border-elevation-subtle-soft-layer-1-transparency-40": "#afb0b666",
-  "--border-elevation-subtle-soft-layer-2": "#afb0b6",
-  "--border-elevation-subtle-soft-layer-2-transparency-40": "#afb0b666",
-  "--border-elevation-subtle-soft-layer-3": "#afb0b6",
-  "--border-elevation-subtle-soft-layer-3-transparency-40": "#afb0b666",
+  "--border-elevation-subtle-soft": "#95969d26",
+  "--border-elevation-subtle-soft-layer-0": "#95969d",
+  "--border-elevation-subtle-soft-layer-0-transparency-15": "#95969d26",
+  "--border-elevation-subtle-soft-layer-1": "#95969d",
+  "--border-elevation-subtle-soft-layer-1-transparency-15": "#95969d26",
+  "--border-elevation-subtle-soft-layer-2": "#95969d",
+  "--border-elevation-subtle-soft-layer-2-transparency-15": "#95969d26",
+  "--border-elevation-subtle-soft-layer-3": "#95969d",
+  "--border-elevation-subtle-soft-layer-3-transparency-15": "#95969d26",
   "--border-input-error": "#b8180a",
   "--border-input-focus": "#0079a8",
   "--border-input-hover": "#18191b",

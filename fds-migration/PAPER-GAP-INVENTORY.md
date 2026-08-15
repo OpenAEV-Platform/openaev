@@ -687,3 +687,55 @@ Note de portée : cette page n'est pas dans le périmètre de la vague Paper, et
 elle n'est pas migrée vers le `Paper` de la lib — c'est une correction de
 couleur d'une surface MUI, pas une conversion. Le motif Paper du gate ne la
 couvre donc pas.
+
+---
+
+## 12. Dernier re-bump — bordure à 15 % (lib #125)
+
+Pin `0472f45` → **`a22b188b28bc151f930d19d4f8ed7114df581e6e`**. Serveurs
+**arrêtés** avant la purge de `node_modules/.vite` (jamais sous leurs pieds),
+paquet supprimé, réinstallation, redémarrage, puis **découverte forcée des
+routes à import dynamique** (`/src/admin/Index.tsx`, `/src/public/.../Login.tsx`)
+depuis un vrai navigateur avant toute conclusion.
+
+**Pin prouvé par les octets servis**, pas par le lockfile : dans le CSS que le
+serveur de dev délivre, `transparency-15` est présent une fois et
+`transparency-40` zéro fois.
+
+### Contraste bordure/surface mesuré, 4 élévations, deux thèmes
+
+| élévation | dark | light |
+|---|---|---|
+| 0 | **1,09** | 1,13 |
+| 1 (défaut) | **1,09** | **1,15** |
+| 2 | **1,09** | 1,13 |
+| 3 | 1,05 | 1,12 |
+
+Attendu ~1,09 en sombre et ~1,15 en clair : conforme. L'élévation 3 en sombre
+descend à 1,05 — la surface y est la plus claire (`#1f3965`), donc la bordure
+diluée s'en rapproche ; c'est la même mécanique que l'écart déjà signé en
+arbitration #11 côté lib, pas une nouveauté de ce pin.
+
+La base claire a bien baissé d'un cran : `#afb0b6` → **`#95969d`**.
+
+### §10 appliquée au renommage `-transparency-40` → `-transparency-15`
+
+Cassant côté lib, **sans effet ici** — et vérifié plutôt que supposé :
+
+| forme cherchée dans le code produit | résultat |
+|---|---|
+| `var(--…-transparency-40)` en chaîne | **aucune** |
+| classe utilitaire en littéral contenant `transparency-40` | **aucune** |
+| pont régénéré : clés disparues / apparues | les 4 `-transparency-40` par couche → `-transparency-15`, **base par couche inchangée** |
+
+C'est exactement pourquoi la surcharge de thème client vise la **BASE**
+(`--border-elevation-subtle-soft-layer-1`) et non la variante diluée : le
+renommage est passé sans toucher une ligne de `AppThemeProvider`. Le commentaire
+du fichier, qui annonçait « 40 % », a été corrigé.
+
+### Thème client — l'arête reste absente, et c'est voulu
+
+Sur une install à thème personnalisé, la bordure composite toujours exactement
+à la surface : le panneau n'a pas d'arête propre. **Non corrigé, compromis
+assumé du temps 1** (voir §9). Visible sur la planche « thème client » du
+checkpoint.

@@ -619,3 +619,25 @@ in filigran-design-system).
   entry lifts it if the need is confirmed.
 - Non-regressions: typecheck clean, eslint clean, vitest 43/650, conformity
   19 checks / 0 issue.
+
+### 2026-08-16 — final re-bump: Paper border at 15% (library #125)
+- Branch: fds/paper-pilot (PR #7427, open). Pin `0472f45` → **`a22b188`**.
+- Sequence applied in the order yesterday's incident taught: servers STOPPED
+  first, `.vite` and the package purged with nothing running, reinstall,
+  restart, then the late dynamic-import routes (`/src/admin/Index.tsx`,
+  the login page) warmed from a real browser BEFORE concluding anything.
+  Both imported OK; no 504 this time.
+- Pin proven from the SERVED bytes: the dev server's CSS carries
+  `transparency-15` and zero `transparency-40`.
+- Border contrast measured across all four elevations, both themes: dark
+  1.09 / 1.09 / 1.09 / 1.05, light 1.13 / 1.15 / 1.13 / 1.12 — matching the
+  expected ~1.09 dark and ~1.15 light. Light base darkened `#afb0b6` → `#95969d`.
+- §10 procedure run on the breaking rename `-transparency-40` →
+  `-transparency-15`: zero product reference in either silent shape, and the
+  bridge diff shows only the four per-layer diluted keys renamed — the per-layer
+  BASE is untouched, which is exactly why the theme override needed no change.
+  The `AppThemeProvider` comment claiming 40% was corrected.
+- Customer-theme border still composites to the surface (no edge): NOT fixed,
+  recorded as the accepted phase-1 compromise, visible on the checkpoint board.
+- Non-regressions: typecheck clean, eslint 0 error, vitest 43 files / 650 tests,
+  conformity 19 checks / 0 issue.
