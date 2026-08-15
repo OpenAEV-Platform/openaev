@@ -1626,11 +1626,13 @@ itself surfaced.
   semantic alias `--bg-elevation-default` at the same time does **nothing**.
   Wiring `paper_color` → `--bg-elevation-default-layer-1` was a three-line change
   in this product's `AppThemeProvider`.
-- **#29 DetailHero — still open, and deliberately so.** Not a blocker for this
-  wave: Sandy moved DetailHero out of it (accent gradient + transparent fill, and
-  the transparency falls under the semi-transparent exclusion). The question the
-  entry asks — can a `Paper` ever be transparent or consumer-painted — is still
-  the one to settle before that site can move.
+- **#29 DetailHero — CLOSED as a Paper question, 2026-08-15.** Sandy's decision:
+  `DetailHero` becomes **its own component** (accent gradient + transparent
+  fill). It therefore leaves the Paper waves **permanently** — this is not "a
+  site still to migrate", and no future wave should pick it up. What the entry
+  asked ("can a Paper ever be transparent or consumer-painted") is answered by
+  not asking Paper to be either: the need gets a component of its own. The
+  product keeps it on MUI until that component exists.
 
 ## 31. The `imported-from-library` guard cannot express a mixed file
 
@@ -1703,3 +1705,49 @@ prop and the effective fallback. Falling back to the default 24 rather than 0
 would also be defensible, but the warning matters more than the fallback: 0px
 is at least visible, whereas a silent 24 on a site that asked for 12 would just
 move the problem. Whichever is chosen, it belongs in `Paper.meta.ts` too.
+
+
+---
+
+## 33. The product-side inventory of a token rename was incomplete — and two of the misses were silent
+
+**Not a library defect. A method finding, recorded here because the next
+product bump will hit it.**
+
+When #121 renamed 17 alpha tokens, this product's migration state pointed at
+one thing: the generated bridge (`fds-tokens.generated.ts`) and the two theme
+files declared as `wiredFiles`. Regenerating the bridge and fixing the theme
+files felt like the whole job. It was not. **Three product references were
+dead after the bump, and only one of them said so:**
+
+| reference | where | how it failed |
+|---|---|---|
+| `FDS.colors.*['--color-feedback-info-secondary-transparency']` | `ThemeDark.ts`, `ThemeLight.ts` | **TypeScript error** — loud, caught by `tsc` |
+| `var(--color-filigran-brand-primary-transparency)` | `TopBarIconLink.tsx` | **silent** — a dangling `var()` in a plain string, no error anywhere |
+| `'bg-filigran-ia-secondary-transparency'` | `AskArianeButton.tsx` | **silent** — a utility class that no longer exists in the shipped sheet, so it resolves to nothing |
+
+The two silent ones are the point. Neither `tsc`, nor eslint, nor the
+conformity gate, nor the build says a word: the class simply stops matching and
+the custom property simply stops resolving. The only signal is visual, on a
+state (a selected top-bar link, an open Ariane button) that no screenshot in
+this wave's checkpoint even covers.
+
+**What the inventory has to look for at the next bump — OpenCTI included.**
+Regenerating the bridge is necessary and not sufficient. Grep the product
+source, not just the wired files, for **both** of these shapes:
+
+```
+var(--<token>)          # in .ts/.tsx string literals, style objects, CSS files
+bg-/text-/border-<name> # library utility classes written as string literals
+```
+
+and cross-check every hit against the tokens and utilities actually present in
+the **installed** `dist/index.css` — the shipped sheet, not the source
+`theme.css`. `migration-state.json`'s `wiredFiles` describes the *theme*
+wiring; these two shapes live in ordinary component files, outside it by
+design, and that is exactly why they were missed here.
+
+**Ask (small, and optional).** The renames are documented in the token diff, so
+a product can already do this. What would make it mechanical is a machine-
+readable rename map in the release — old name → new name — so a consumer can
+grep for the old names rather than having to notice their absence.

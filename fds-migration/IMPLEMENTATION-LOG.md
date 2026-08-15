@@ -539,3 +539,44 @@ in filigran-design-system).
   (`--color-feedback-warning-primary` and `--border-alert-warning`).
 - Friction / process feedback: LIBRARY-FEEDBACK #31 (the `imported-from-library`
   guard cannot express a partially-migrated file).
+
+### 2026-08-15 (later) — border on customer themes, navbar cascade check, method lesson
+- Branch: fds/paper-pilot (PR #7427, open). Library pin unchanged (`2e77492`).
+- **Border on a customer theme — product-side, nothing missing in the library.**
+  Measured all three candidate overrides in a browser: the alias
+  `--border-elevation-subtle-soft` does nothing (the `.layer-N` trap again),
+  the per-layer base `--border-elevation-subtle-soft-layer-1` lands and the
+  library dilutes it to 40% itself. Wired in `AppThemeProvider` next to the
+  surface, under the same condition: with a `paper_color` the border takes the
+  customer's card colour, without one both properties are removed. Default
+  themes verified unchanged. Consequence, captured and reported rather than
+  glossed: derived from the card colour, the border composites to exactly the
+  surface — no foreign colour left, but no outline either. That is the phase-1
+  trade-off; no dedicated theme entry created (Sandy's instruction).
+- **Bench CSS stack was incomplete, now byte-identical to the app's.** It loaded
+  2 of the 5 stylesheets `index.tsx` imports. With all five plus the real
+  `app-navbar` class, exactly one measured value changes across the navbar's
+  five states on both levels: `outline` goes `3px none` → `0px none`, the
+  product's own `:focus { outline: 0 }` winning. It changes nothing visually
+  because #123 replaced the focus ring with an inset border — the product rule
+  would have killed a ring. Everything else identical.
+- **Navbar hover left border, refined.** It is not white: the hover left border
+  takes the default-primary TEXT colour — `rgb(242,242,243)` in dark,
+  `rgb(24,25,27)` in light, i.e. near-black in light mode. Both levels. Nothing
+  changed product-side; the fix comes from the library.
+- **Not done, and why:** the verification inside the RUNNING app. The stack was
+  built and started for it (JDK 21 via brew, `openaev-api.jar`, the dev docker
+  services, front on 3021 proxying to 8080, `/api/settings/public` answering) —
+  but reaching the navbar needs a login, and submitting credentials is outside
+  what this agent does, even against a throwaway local instance. The substitute
+  above answers the cascade question the run was wanted for; what stays
+  unverified is anything that depends on the real `AppNavbar` shell (fixed
+  positioning, banner offset, collapsed state) rather than on CSS.
+- **Method lesson, recorded in PAPER-GAP-INVENTORY §10 and LIBRARY-FEEDBACK #33:**
+  the product-side inventory of the token rename was incomplete. Regenerating
+  the bridge is necessary and not sufficient — `var(--token)` in string
+  literals and library utility classes written as literals live in ordinary
+  component files, outside `wiredFiles`, and fail silently. Grep both shapes
+  against the INSTALLED `dist/index.css` at the next bump, OpenCTI included.
+- Non-regressions after this round: typecheck clean, eslint clean, conformity
+  19 checks / 0 issue.

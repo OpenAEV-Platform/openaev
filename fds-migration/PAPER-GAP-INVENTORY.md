@@ -572,3 +572,73 @@ quand la plateforme n'a pas d'override.
 `imported-from-library` n'est **pas** armée — le fichier importe les deux Papers
 à dessein tant que `DetailHero` n'a pas migré ; raison inscrite dans le
 manifeste, écart remonté en LIBRARY-FEEDBACK #31.
+
+---
+
+## 9. Bordure et thème client — arbitrage temps 1
+
+**Question posée : est-ce faisable entièrement côté produit ? Oui. Rien ne
+manque à la lib.** Mesuré dans le navigateur, les trois voies possibles :
+
+| ce qu'on redéclare | effet mesuré |
+|---|---|
+| `--border-elevation-subtle-soft` (l'alias) | **aucun** — même piège que la surface : chaque `.layer-N` redéclare l'alias sur l'élément lui-même |
+| **`--border-elevation-subtle-soft-layer-1`** (la base par couche) | ✅ **fonctionne** — la lib applique elle-même la dilution à 40 % |
+| `--border-elevation-subtle-soft-layer-1-transparency-40` | fonctionne aussi mais court-circuite la dilution : à éviter, c'est la valeur finie |
+
+Appliqué dans `AppThemeProvider`, au même endroit et sous la même condition que
+la surface : quand `paper_color` est posé, la base de bordure de la couche 1
+prend cette même couleur ; sans thème client, les deux propriétés sont retirées
+et les tokens de la lib reprennent la main. **Les thèmes par défaut ne bougent
+pas** — vérifié : dark et light rendent exactement les mêmes valeurs qu'avant.
+
+### La conséquence, mesurée, à voir sur la planche
+
+Dériver la bordure de la couleur de fond des cartes la rend **invisible contre
+sa propre surface** :
+
+| | bordure | fond | composite de la bordure |
+|---|---|---|---|
+| avant | `rgba(43,79,141,0.4)` — la valeur lib, bleutée sur du violet | `#3b2450` | ≈ `#2b2a4a`, visible et **désaccordée** |
+| après | `rgba(59,36,80,0.4)` — la couleur du client | `#3b2450` | **`#3b2450`**, soit exactement la surface |
+
+Le panneau ne perd pas sa lisibilité — il se détache encore du fond de page
+(`#2b1a3d` contre `#3b2450`) — mais il n'a plus de contour propre. C'est le
+compromis du temps 1 : plus aucune couleur étrangère à la charte du client, au
+prix du contour. Si c'est le contour qui compte, c'est précisément là qu'une
+entrée de thème dédiée (non créée ici, décision Sandy) prendra son sens.
+
+---
+
+## 10. Leçon de méthode — l'inventaire produit était incomplet
+
+À écrire noir sur blanc, parce que ça se reproduira au prochain bump, OpenCTI
+compris.
+
+Le renommage de 17 tokens par #121 a laissé **trois références produit mortes**,
+et **deux l'ont été silencieusement** :
+
+| référence | fichier | signal |
+|---|---|---|
+| `FDS.colors.*['--color-feedback-info-secondary-transparency']` | `ThemeDark.ts`, `ThemeLight.ts` | erreur TypeScript — **bruyante** |
+| `var(--color-filigran-brand-primary-transparency)` | `TopBarIconLink.tsx` | **silencieuse** — `var()` pendant dans une chaîne |
+| `'bg-filigran-ia-secondary-transparency'` | `AskArianeButton.tsx` | **silencieuse** — classe utilitaire absente de la feuille livrée |
+
+Ni `tsc`, ni eslint, ni le gate de conformité, ni le build ne disent quoi que
+ce soit sur les deux dernières. Le seul signal est visuel, sur des états
+(lien sélectionné du top bar, bouton Ariane ouvert) qu'aucune capture de cette
+vague ne couvre.
+
+**Ce que l'inventaire doit chercher au prochain bump.** Régénérer le pont est
+nécessaire et insuffisant. Il faut grepper le code produit — pas seulement les
+`wiredFiles` — sur les **deux formes** :
+
+- `var(--<token>)` dans les chaînes `.ts`/`.tsx`, les objets `style` et les CSS ;
+- les **classes utilitaires de la lib écrites en littéral** (`bg-…`, `text-…`,
+  `border-…`) ;
+
+puis recouper chaque occurrence avec les tokens et utilitaires réellement
+présents dans le `dist/index.css` **installé** — la feuille livrée, pas le
+`theme.css` source. Ces deux formes vivent dans des fichiers de composants
+ordinaires, hors des `wiredFiles` par construction : c'est exactement pour ça
+qu'elles ont été manquées ici. Repris en LIBRARY-FEEDBACK #33.

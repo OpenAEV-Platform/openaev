@@ -81,12 +81,23 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
   // value can never win. Paper's default elevation is 1, hence layer-1.
   // Cleared when the platform has no override, so the library's own token
   // stays in charge.
+  // The border follows the same rule and the same trap, verified the same way:
+  // `--border-elevation-subtle-soft` (the alias) is re-declared inside every
+  // `.layer-N` block, so setting it here does nothing; the per-layer BASE
+  // `--border-elevation-subtle-soft-layer-1` is the one that lands, and the
+  // library dilutes it to 40% itself. Sandy's arbitration for phase 1: on a
+  // customer theme the border takes the customer's card colour, and ONLY then
+  // — with no override, both properties are removed and the library's own
+  // tokens stay in charge, so the default themes are untouched.
   useEffect(() => {
     const root = document.documentElement;
-    if (activeThemeConfig?.paper_color) {
-      root.style.setProperty('--bg-elevation-default-layer-1', activeThemeConfig.paper_color);
+    const paperColor = activeThemeConfig?.paper_color;
+    if (paperColor) {
+      root.style.setProperty('--bg-elevation-default-layer-1', paperColor);
+      root.style.setProperty('--border-elevation-subtle-soft-layer-1', paperColor);
     } else {
       root.style.removeProperty('--bg-elevation-default-layer-1');
+      root.style.removeProperty('--border-elevation-subtle-soft-layer-1');
     }
   }, [activeThemeConfig?.paper_color]);
 
