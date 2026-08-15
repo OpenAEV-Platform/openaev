@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -57,6 +58,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -601,7 +603,7 @@ class AutonomousRunServiceTest {
       "enforceLiveness settles a silent run with nothing in flight to FAILED (Run stalled)")
   void enforceLivenessSettlesSilentRun() throws Exception {
     AutonomousRun run = stallableRun();
-    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(20 * 60));
     when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(0L);
     when(injectExpectationRepository.countOpenByExerciseId("sim-1")).thenReturn(0L);
@@ -616,6 +618,17 @@ class AutonomousRunServiceTest {
     verify(eventService)
         .appendTerminalStatusOnce(
             eq("run-1"), eq("tenant-1"), eq("sim-1"), eq("Run stalled"), anyString());
+    // The read + flip are serialized against timeline appends in row -> advisory order: the run is
+    // row-locked, THEN the per-run timeline advisory lock is held, THEN the liveness clock is read,
+    // THEN the terminal flip runs - so a heartbeat racing the decision cannot slip in between.
+    InOrder inOrder = inOrder(runRepository, eventService);
+    inOrder.verify(runRepository).findByIdForUpdate("run-1");
+    inOrder.verify(eventService).lockRunTimeline("run-1");
+    inOrder.verify(eventService).lastActivityAt("run-1");
+    inOrder
+        .verify(runRepository)
+        .settleTerminalStatusIfRunning(
+            eq("run-1"), eq("tenant-1"), eq(AutonomousRunStatus.FAILED), any(Instant.class));
   }
 
   @Test
@@ -623,7 +636,7 @@ class AutonomousRunServiceTest {
       "enforceLiveness exempts a silent run with an inject still in flight (await_finding)")
   void enforceLivenessExemptsInFlightInject() {
     AutonomousRun run = stallableRun();
-    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(20 * 60));
     // A step is still executing: the orchestrator is legitimately awaiting its result.
     when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(1L);
@@ -640,7 +653,7 @@ class AutonomousRunServiceTest {
       "enforceLiveness exempts a silent run with an open expectation (no inject in flight)")
   void enforceLivenessExemptsOpenExpectation() {
     AutonomousRun run = stallableRun();
-    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(20 * 60));
     when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(0L);
     // e.g. a phishing lure whose inject already EXECUTED but whose click/detection is still
@@ -658,7 +671,7 @@ class AutonomousRunServiceTest {
   @DisplayName("enforceLiveness leaves a run active within the idle window untouched")
   void enforceLivenessIgnoresRecentlyActiveRun() {
     AutonomousRun run = stallableRun();
-    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     // Heartbeat two minutes ago - well inside the idle window; nothing else is even consulted.
     when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(2 * 60));
 
@@ -675,7 +688,7 @@ class AutonomousRunServiceTest {
   void enforceLivenessSkipsNonRunningRun() {
     AutonomousRun run = stallableRun();
     run.setStatus(AutonomousRunStatus.WAITING_INPUT);
-    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
 
     service.enforceLiveness("run-1", "tenant-1");
 
@@ -694,7 +707,7 @@ class AutonomousRunServiceTest {
     // No decision timeline yet and the live window opened 20 minutes ago: the orchestrator never
     // started. The fallback clock (startedAt) drives the stall decision.
     run.setStartedAt(Instant.now().minusSeconds(20 * 60));
-    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     when(eventService.lastActivityAt("run-1")).thenReturn(null);
     when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(0L);
     when(injectExpectationRepository.countOpenByExerciseId("sim-1")).thenReturn(0L);
@@ -714,7 +727,7 @@ class AutonomousRunServiceTest {
       "the stall flip is claimed once: a lost race with a concurrent transition stays silent")
   void enforceLivenessStallClaimedOnce() throws Exception {
     AutonomousRun run = stallableRun();
-    when(runRepository.findByIdAndTenantId("run-1", "tenant-1")).thenReturn(Optional.of(run));
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     when(eventService.lastActivityAt("run-1")).thenReturn(Instant.now().minusSeconds(20 * 60));
     when(injectRepository.countByExerciseIdAndStatusNameIn(eq("sim-1"), any())).thenReturn(0L);
     when(injectExpectationRepository.countOpenByExerciseId("sim-1")).thenReturn(0L);

@@ -11,6 +11,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -167,6 +168,24 @@ public class AutonomousEventService {
   @Transactional(readOnly = true)
   public Instant lastActivityAt(String runId) {
     return eventRepository.findMaxCreatedAt(runId);
+  }
+
+  /**
+   * Takes the per-run event-sequence advisory lock for the CURRENT transaction - the same lock
+   * {@link #append} / {@link #appendTerminalStatusOnce} / {@link #deleteByRun} take. The idle/stall
+   * watchdog ({@link AutonomousRunService#enforceLiveness}) calls this AFTER it has row-locked the
+   * run and BEFORE it reads {@link #lastActivityAt}, so the liveness read and the terminal flip are
+   * serialized against a concurrent timeline append: a heartbeat committing right now is waited on
+   * (the watchdog then reads the fresh activity and does NOT stall), and one that arrives later is
+   * blocked until the watchdog's flip commits. Acquiring this AFTER the run ROW lock preserves the
+   * platform-wide {@code row -> advisory} order (see {@link #deleteByRun}); acquiring it first
+   * would invert that order and risk a deadlock against a concurrent operator Stop / reconcile.
+   * Declared {@code MANDATORY} because an advisory lock in its own throwaway transaction would
+   * release immediately and serialize nothing.
+   */
+  @Transactional(propagation = Propagation.MANDATORY)
+  public void lockRunTimeline(String runId) {
+    eventRepository.lockRunEventSequence(sequenceLockKey(runId));
   }
 
   /**

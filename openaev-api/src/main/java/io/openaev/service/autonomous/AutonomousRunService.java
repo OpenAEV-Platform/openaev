@@ -1301,21 +1301,35 @@ public class AutonomousRunService {
    * when NOTHING is pending is the silence a genuine stall rather than a wait. WAITING_INPUT (an
    * operator HITL park) is excluded by status, and plan builds are out of scope entirely.
    *
-   * <p>The load is tenant-scoped ({@code @Filter} does not protect PK lookups): the caller resolved
-   * {@code runId} from a tenant-predicated query and the read stays consistent with that scope.
+   * <p>Concurrency: the whole read-decide-flip is serialized so it can never fail a run that is
+   * actually alive. The run ROW is pessimistically locked first (matching every other settle path's
+   * {@code row -> advisory} order), then the per-run timeline advisory lock is held across the
+   * {@code lastActivityAt} read and the terminal flip: a heartbeat committing concurrently is
+   * either waited on - so the re-read sees it and the watchdog backs off - or blocked until the
+   * flip commits. This closes the race where a fresh append lands between the liveness read and the
+   * RUNNING-guarded UPDATE. The lock is taken row-first on purpose; taking the advisory lock before
+   * the row-locking flip would invert the platform-wide order (see {@code
+   * AutonomousEventService#deleteByRun}) and risk a deadlock against a concurrent operator Stop.
    */
   @Transactional(rollbackFor = Exception.class)
   public void enforceLiveness(String runId, String tenantId) {
-    AutonomousRun run = runRepository.findByIdAndTenantId(runId, tenantId).orElse(null);
-    if (run == null) {
-      return;
+    // Row-lock the run first (row -> advisory order): this serializes the whole decision against a
+    // concurrent operator Stop / reconcile that also row-locks then settles, and it is the lock we
+    // must already hold before taking the timeline advisory lock below.
+    AutonomousRun run = runRepository.findByIdForUpdate(runId).orElse(null);
+    if (run == null || !tenantId.equals(runTenantId(run))) {
+      return; // gone, or (defense in depth) not this tenant's run
     }
-    // Re-assert the sweep's selection predicates against the freshly-loaded row: the id came from a
+    // Re-assert the sweep's selection predicates against the freshly-locked row: the id came from a
     // query taken earlier in the sweep and the run may have moved on since (parked for input,
     // paused, settled, restarted). Only a live, execute-mode run can stall.
     if (run.getStatus() != AutonomousRunStatus.RUNNING || run.isPlanMode()) {
       return;
     }
+    // Hold the per-run timeline advisory lock across the liveness read AND the flip so a concurrent
+    // heartbeat append cannot slip between them: an in-flight append is waited on (we then read the
+    // fresh activity and back off), a later one is blocked until we settle.
+    eventService.lockRunTimeline(runId);
     Instant lastActivity = eventService.lastActivityAt(runId);
     if (lastActivity == null) {
       // No decision timeline yet: fall back to when the live window opened so a run the worker has
@@ -1353,11 +1367,13 @@ public class AutonomousRunService {
 
   /**
    * Settles a stalled run to FAILED and narrates it once. Mirrors {@link #timeoutRun}: the terminal
-   * flip is an atomic conditional UPDATE so a run that moved on between the idle read and this
+   * flip is an atomic conditional UPDATE so a run that moved on between the idle decision and this
    * write is a silent no-op, and the chained simulation is torn down best-effort like an operator
    * Stop. The flip is guarded on RUNNING only (not the deadline sweep's RUNNING/WAITING_INPUT): a
    * run that parked for operator input between the idle decision and this write must not be
-   * stalled.
+   * stalled. Called by {@link #enforceLiveness} while it holds the run row lock and the per-run
+   * timeline advisory lock, so the RUNNING guard is evaluated against a timeline that cannot change
+   * under it - a heartbeat racing the decision was already reconciled before the flip.
    */
   private void stallRun(AutonomousRun run, long idleSeconds) {
     int changed =
