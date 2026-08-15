@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -531,7 +532,8 @@ public class ScenarioService {
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
    * @return the list of deleted scenario ids
    */
-  public List<String> bulkDeleteScenarios(@NotNull final ScenarioBulkProcessingInput input) {
+  public List<String> bulkDeleteScenarios(
+      TxCtx ctx, @NotNull final ScenarioBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
@@ -542,6 +544,7 @@ public class ScenarioService {
     User currentUser = userService.currentUser();
     List<String> scenarioIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Scenario> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -579,6 +582,7 @@ public class ScenarioService {
             });
     List<String> deletedIds =
         bulkDeleteExecutor.deleteInChunks(
+            ctx,
             "scenarios",
             scenarioIdsToDelete,
             chunk -> {

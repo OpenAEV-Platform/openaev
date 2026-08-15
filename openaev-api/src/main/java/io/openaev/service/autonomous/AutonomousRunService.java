@@ -22,6 +22,9 @@ import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Endpoint;
@@ -37,6 +40,7 @@ import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
@@ -184,11 +188,34 @@ public class AutonomousRunService {
   // writing inside the caller's (read-only) transaction, and mark it rollback-only.
   private final AutonomousRunReconciliationWriter reconciliationWriter;
 
+  // Multi-tenancy v2 write attribution: the autonomous_* tables are tenant-active with NO listener
+  // default, so a new run's tenant is stamped explicitly from its scenario and validated against
+  // the caller's transaction scope through this resolver.
+  private final TenantWriteScopeResolver writeScopeResolver;
+
+  // Tenant-scoped transaction primitive for the post-commit writers (the orchestrator session
+  // handle lands after the start/launch transaction has committed, where the transaction-local
+  // GUC scope is already gone and a bare repository call would be denied by the inspector).
+  private final TenantScopedTransaction tenantTx;
+
   // Resource-level RBAC for the operator control surface. The controller keeps skipRBAC (the run's
   // authority derives from its bound simulation/scenario, which the declarative aspect cannot
   // name),
   // so every operator-facing read/mutation gates in-service through this component.
   private final AutonomousRunAccessControl accessControl;
+
+  private static String runTenantId(AutonomousRun run) {
+    return run.getTenant().getId();
+  }
+
+  /**
+   * Stamps the run's tenant from its scenario, validated against the caller's transaction scope.
+   * {@code autonomous_runs} is tenant-active with no listener default, so every INSERT must
+   * attribute the tenant explicitly.
+   */
+  private void attributeRunTenant(TxCtx ctx, AutonomousRun run, Scenario scenario) {
+    run.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, scenario.getTenant().getId())));
+  }
 
   private AutonomousRun require(String runId) {
     return runRepository
@@ -291,7 +318,7 @@ public class AutonomousRunService {
    * orchestrator is engaged separately by {@link #start} so creation stays fast and idempotent.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun create(AutonomousRunCreateInput input) {
+  public AutonomousRun create(TxCtx ctx, AutonomousRunCreateInput input) {
     // A caller-provided scenario must be one the operator can launch; a bare (auto-provisioned) run
     // only needs the launch-assessment capability floor.
     if (input != null && hasText(input.getScenarioId())) {
@@ -299,7 +326,7 @@ public class AutonomousRunService {
     } else {
       accessControl.assertCanCreate();
     }
-    return doCreate(input);
+    return doCreate(ctx, input);
   }
 
   /**
@@ -308,7 +335,7 @@ public class AutonomousRunService {
    * self-invocation trap (a same-class call bypasses the Spring proxy). Must be called inside an
    * active transaction.
    */
-  private AutonomousRun doCreate(AutonomousRunCreateInput input) {
+  private AutonomousRun doCreate(TxCtx ctx, AutonomousRunCreateInput input) {
     String objective = resolveObjective(input);
 
     Scenario scenario;
@@ -366,6 +393,7 @@ public class AutonomousRunService {
     workflowService.markSimulationWorkflowKeepAlive(simulation.getId());
 
     AutonomousRun run = new AutonomousRun();
+    attributeRunTenant(ctx, run, scenario);
     run.setObjective(objective);
     run.setObjectiveTemplateKey(input.getObjectiveTemplateKey());
     run.setPlanMode(planMode);
@@ -458,6 +486,7 @@ public class AutonomousRunService {
 
     eventService.append(
         saved.getId(),
+        runTenantId(saved),
         simulation.getId(),
         AutonomousEventType.STATUS,
         planMode ? "Plan created" : "Run created",
@@ -492,7 +521,8 @@ public class AutonomousRunService {
    * exactly like {@link #start}). No scenario is ever provisioned here.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun launchFromScenario(String scenarioId, AutonomousRunCreateInput input) {
+  public AutonomousRun launchFromScenario(
+      TxCtx ctx, String scenarioId, AutonomousRunCreateInput input) {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
@@ -534,7 +564,7 @@ public class AutonomousRunService {
     // The un-annotated internals run inside THIS transaction: doCreate() builds + saves the run,
     // doStart() flips it live and registers the post-commit orchestrator engagement. Calling the
     // public @Transactional create()/start() here would self-invoke past the Spring proxy.
-    AutonomousRun created = doCreate(effective);
+    AutonomousRun created = doCreate(ctx, effective);
     return doStart(created.getId());
   }
 
@@ -552,7 +582,7 @@ public class AutonomousRunService {
    * one. A still-active run is refused with 409.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun planScenario(String scenarioId, AutonomousRunCreateInput input) {
+  public AutonomousRun planScenario(TxCtx ctx, String scenarioId, AutonomousRunCreateInput input) {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
@@ -569,8 +599,8 @@ public class AutonomousRunService {
     // Refine (follow-up) vs rebuild (from scratch): refine keeps the existing logic + history and
     // continues from it; rebuild wipes the logic map and re-authors fresh (the original behaviour).
     return effective.isRefine()
-        ? refineScenarioPlan(scenarioId, scenario, effective)
-        : rebuildScenarioPlan(scenarioId, scenario, effective);
+        ? refineScenarioPlan(ctx, scenarioId, scenario, effective)
+        : rebuildScenarioPlan(ctx, scenarioId, scenario, effective);
   }
 
   /**
@@ -581,7 +611,7 @@ public class AutonomousRunService {
    * one. A still-active run is refused with 409.
    */
   private AutonomousRun rebuildScenarioPlan(
-      String scenarioId, Scenario scenario, AutonomousRunCreateInput effective) {
+      TxCtx ctx, String scenarioId, Scenario scenario, AutonomousRunCreateInput effective) {
     // Supersede the previous settled run (if any) so the fresh plan run can bind, then wipe the
     // whole logic map (steps + events/triggers) so the orchestrator starts fresh.
     supersedePriorRun(scenarioId, "plan rebuilt by operator");
@@ -600,6 +630,7 @@ public class AutonomousRunService {
     // config: the built scenario keeps its default 1h "Simulation time out" (editable in the Scope
     // tab) so it can later be launched in normal mode and run-and-end normally.
     AutonomousRun run = new AutonomousRun();
+    attributeRunTenant(ctx, run, scenario);
     run.setObjective(objective);
     List<WorkflowScopeRuleInput> seededScopeRules =
         applyScenarioPlanConfig(run, scenarioId, effective);
@@ -609,6 +640,7 @@ public class AutonomousRunService {
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         saved.getId(),
+        runTenantId(saved),
         null,
         AutonomousEventType.STATUS,
         "Planning started",
@@ -633,7 +665,7 @@ public class AutonomousRunService {
    * 409.
    */
   private AutonomousRun refineScenarioPlan(
-      String scenarioId, Scenario scenario, AutonomousRunCreateInput effective) {
+      TxCtx ctx, String scenarioId, Scenario scenario, AutonomousRunCreateInput effective) {
     AutonomousRun prior = runRepository.findByScenarioId(scenarioId).orElse(null);
     boolean reusePrior = false;
     if (prior != null) {
@@ -665,6 +697,7 @@ public class AutonomousRunService {
     String objective = buildRefineObjective(scenario, instruction);
 
     AutonomousRun run = reusePrior ? prior : new AutonomousRun();
+    attributeRunTenant(ctx, run, scenario);
     run.setObjective(objective);
     List<WorkflowScopeRuleInput> seededScopeRules =
         applyScenarioPlanConfig(run, scenarioId, effective);
@@ -681,6 +714,7 @@ public class AutonomousRunService {
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         saved.getId(),
+        runTenantId(saved),
         null,
         AutonomousEventType.STATUS,
         "Refinement requested",
@@ -821,6 +855,7 @@ public class AutonomousRunService {
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId,
+        runTenantId(run),
         run.getSimulationId(),
         AutonomousEventType.STATUS,
         planMode ? "Planning started" : "Run started",
@@ -852,6 +887,7 @@ public class AutonomousRunService {
     // Snapshot the values the call needs now, while the entity is managed - the callback runs after
     // this transaction has committed and the entity may be detached.
     final String runId = run.getId();
+    final String tenantId = runTenantId(run);
     final String agentSlug = run.getXtmAgentSlug();
     final String objective = run.getObjective();
     final String simulationId = run.getSimulationId();
@@ -880,6 +916,7 @@ public class AutonomousRunService {
             public void afterCommit() {
               engageOrchestratorNow(
                   runId,
+                  tenantId,
                   agentSlug,
                   objective,
                   simulationId,
@@ -898,6 +935,7 @@ public class AutonomousRunService {
     } else {
       engageOrchestratorNow(
           runId,
+          tenantId,
           agentSlug,
           objective,
           simulationId,
@@ -922,6 +960,7 @@ public class AutonomousRunService {
    */
   private void engageOrchestratorNow(
       String runId,
+      String tenantId,
       String agentSlug,
       String objective,
       String simulationId,
@@ -955,11 +994,15 @@ public class AutonomousRunService {
               agentModes);
       String sessionId = handle != null ? asString(handle.get("session_id")) : null;
       String resolvedSlug = handle != null ? asString(handle.get("agent_slug")) : null;
-      persistSessionHandle(runId, sessionId, resolvedSlug, null);
+      persistSessionHandle(runId, tenantId, sessionId, resolvedSlug, null);
     } catch (Exception e) {
       log.warn("[Autonomous] Failed to engage orchestrator for run {}", runId, e);
       persistSessionHandle(
-          runId, null, null, "Failed to engage the XTM One orchestrator: " + e.getMessage());
+          runId,
+          tenantId,
+          null,
+          null,
+          "Failed to engage the XTM One orchestrator: " + e.getMessage());
     }
   }
 
@@ -969,28 +1012,43 @@ public class AutonomousRunService {
    * post-commit on a detached entity.
    */
   private void persistSessionHandle(
-      String runId, String sessionId, String agentSlug, String error) {
-    runRepository
-        .findById(runId)
-        .ifPresent(
-            run -> {
-              boolean changed = false;
-              if (sessionId != null) {
-                run.setXtmSessionId(sessionId);
-                changed = true;
-              }
-              if (agentSlug != null) {
-                run.setXtmAgentSlug(agentSlug);
-                changed = true;
-              }
-              if (error != null) {
-                run.setLastError(error);
-                changed = true;
-              }
-              if (changed) {
-                runRepository.save(run);
-              }
-            });
+      String runId, String tenantId, String sessionId, String agentSlug, String error) {
+    Runnable work =
+        () ->
+            runRepository
+                .findById(runId)
+                .ifPresent(
+                    run -> {
+                      boolean changed = false;
+                      if (sessionId != null) {
+                        run.setXtmSessionId(sessionId);
+                        changed = true;
+                      }
+                      if (agentSlug != null) {
+                        run.setXtmAgentSlug(agentSlug);
+                        changed = true;
+                      }
+                      if (error != null) {
+                        run.setLastError(error);
+                        changed = true;
+                      }
+                      if (changed) {
+                        runRepository.save(run);
+                      }
+                    });
+    // The start/launch transaction (and its GUC) is already committed, so this write needs its own
+    // scoped transaction for the inspector to let the session-handle UPDATE through. Inside the
+    // afterCommit callback the committed transaction's resources are STILL bound to the thread
+    // (Spring only clears them after the callbacks have run), so execute()'s top-level guard would
+    // refuse and a REQUIRED join would silently write into the already-committed zombie: a NEW
+    // transaction (Spring's documented rule for transactional work in afterCommit) is the only
+    // correct shape there. The no-synchronization fallback path runs outside any transaction and
+    // opens a plain top-level scope instead.
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      tenantTx.executeNew(TxCtx.forTenant(tenantId), work);
+    } else {
+      tenantTx.execute(TxCtx.forTenant(tenantId), work);
+    }
   }
 
   /**
@@ -1008,7 +1066,13 @@ public class AutonomousRunService {
     run.setStatus(AutonomousRunStatus.PAUSED);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
-        runId, run.getSimulationId(), AutonomousEventType.STATUS, "Run paused", null, null);
+        runId,
+        runTenantId(run),
+        run.getSimulationId(),
+        AutonomousEventType.STATUS,
+        "Run paused",
+        null,
+        null);
     // Pause must NOT purge: a resume re-engages the SAME run and should continue from its existing
     // shared state + open work items, not start over.
     cancelOrchestratorAfterCommit(runId, "run paused by operator", false);
@@ -1034,6 +1098,7 @@ public class AutonomousRunService {
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId,
+        runTenantId(run),
         run.getSimulationId(),
         AutonomousEventType.STATUS,
         "Run resumed",
@@ -1080,7 +1145,8 @@ public class AutonomousRunService {
     // Narrate at most once per run life: if a reconcile / watchdog already claimed this flip
     // (changed == 0) or already narrated the run's end, the guard drops this line.
     if (changed > 0) {
-      eventService.appendTerminalStatusOnce(runId, simulationId, "Run canceled", null);
+      eventService.appendTerminalStatusOnce(
+          runId, runTenantId(run), simulationId, "Run canceled", null);
     }
     // Stop purges the run's coordination state so a later restart starts clean (re-asks the
     // operator
@@ -1188,6 +1254,7 @@ public class AutonomousRunService {
     transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
     eventService.appendTerminalStatusOnce(
         run.getId(),
+        runTenantId(run),
         run.getSimulationId(),
         "Run timed out",
         "The run reached its OpenAEV-enforced deadline and was hard-stopped: the simulation was"
@@ -1211,12 +1278,14 @@ public class AutonomousRunService {
     run.setWinddownPhase(phase);
     runRepository.save(run);
     AutonomousDirective directive = new AutonomousDirective();
+    directive.setTenant(run.getTenant());
     directive.setRunId(run.getId());
     directive.setContent(content);
     directive.setStatus(AutonomousDirectiveStatus.PENDING);
     directiveRepository.save(directive);
     eventService.append(
         run.getId(),
+        runTenantId(run),
         run.getSimulationId(),
         AutonomousEventType.DIRECTIVE,
         WINDDOWN_PHASE_1M.equals(phase)
@@ -1344,6 +1413,7 @@ public class AutonomousRunService {
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         saved.getId(),
+        runTenantId(saved),
         simulation.getId(),
         AutonomousEventType.STATUS,
         "Run restarted",
@@ -1421,6 +1491,7 @@ public class AutonomousRunService {
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         saved.getId(),
+        runTenantId(saved),
         simulation.getId(),
         AutonomousEventType.STATUS,
         "Plan launched as a live run",
@@ -1719,7 +1790,8 @@ public class AutonomousRunService {
               + "\"findings\" array in the event data. There is no valid proof without an "
               + "associated finding.");
     }
-    return eventService.append(runId, run.getSimulationId(), type, title, content, data);
+    return eventService.append(
+        runId, runTenantId(run), run.getSimulationId(), type, title, content, data);
   }
 
   /**
@@ -1854,6 +1926,7 @@ public class AutonomousRunService {
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
         runId,
+        runTenantId(run),
         run.getSimulationId(),
         AutonomousEventType.STATUS,
         title != null ? title : "Status: " + status,
@@ -1882,6 +1955,7 @@ public class AutonomousRunService {
       AutonomousRun run = require(runId);
       eventService.append(
           runId,
+          runTenantId(run),
           run.getSimulationId(),
           AutonomousEventType.DIRECTIVE,
           "Directives applied",
@@ -1902,12 +1976,14 @@ public class AutonomousRunService {
     accessControl.assertCanManage(run);
     assertRunNotTerminal(run, "steered");
     AutonomousDirective directive = new AutonomousDirective();
+    directive.setTenant(run.getTenant());
     directive.setRunId(runId);
     directive.setContent(content);
     directive.setStatus(AutonomousDirectiveStatus.PENDING);
     AutonomousDirective saved = directiveRepository.save(directive);
     eventService.append(
         runId,
+        runTenantId(run),
         run.getSimulationId(),
         AutonomousEventType.DIRECTIVE,
         "Operator directive queued",
@@ -1986,6 +2062,7 @@ public class AutonomousRunService {
         workflowService.updateRunWorkflowConfiguration(run.getSimulationId(), input);
     eventService.append(
         runId,
+        runTenantId(run),
         run.getSimulationId(),
         AutonomousEventType.DIRECTIVE,
         "Live configuration updated",
@@ -2022,6 +2099,7 @@ public class AutonomousRunService {
             .toList());
     eventService.append(
         runId,
+        runTenantId(run),
         run.getSimulationId(),
         AutonomousEventType.DECISION,
         "Scope set",
@@ -2229,6 +2307,7 @@ public class AutonomousRunService {
       boolean findingDrivenPlan = !triggerConditions.isEmpty();
       eventService.append(
           runId,
+          runTenantId(run),
           null,
           AutonomousEventType.TOOL_ACTION,
           "Attack-path step authored",
@@ -2265,6 +2344,7 @@ public class AutonomousRunService {
     boolean findingDriven = !triggerConditions.isEmpty();
     eventService.append(
         runId,
+        runTenantId(run),
         run.getSimulationId(),
         AutonomousEventType.TOOL_ACTION,
         "Attack-path step authored",
@@ -2472,6 +2552,7 @@ public class AutonomousRunService {
       }
       eventService.append(
           runId,
+          runTenantId(run),
           null,
           AutonomousEventType.TOOL_ACTION,
           "Attack-path step updated",
@@ -2502,6 +2583,7 @@ public class AutonomousRunService {
     enableTargetedTeamMembers(run.getSimulationId(), injectInput.getTeams());
     eventService.append(
         runId,
+        runTenantId(run),
         run.getSimulationId(),
         AutonomousEventType.TOOL_ACTION,
         "Attack-path step updated",
@@ -2842,6 +2924,7 @@ public class AutonomousRunService {
     findingRepository.insertFindingAsset(findingId, endpoint.getId());
     eventService.append(
         runId,
+        runTenantId(run),
         run.getSimulationId(),
         AutonomousEventType.TOOL_ACTION,
         "Finding promoted to asset",
@@ -2955,6 +3038,7 @@ public class AutonomousRunService {
     List<String> enabledPlayerIds = team.getUsers().stream().map(User::getId).toList();
     eventService.append(
         runId,
+        runTenantId(run),
         simulationId,
         AutonomousEventType.TOOL_ACTION,
         "Target team ready",
@@ -3686,7 +3770,7 @@ public class AutonomousRunService {
     try {
       AutonomousRun settled =
           reconciliationWriter.settleRunStatus(
-              run.getId(), run.getTenant().getId(), target, detail);
+              TxCtx.forTenant(runTenantId(run)), run.getId(), runTenantId(run), target, detail);
       if (settled != null) {
         // The run is now terminal, so stop the orchestrator loop too (purge on cancel so a later
         // restart starts clean). Best-effort, after commit.

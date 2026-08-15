@@ -9,6 +9,8 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -19,6 +21,9 @@ import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.ConvertToManualMode;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Scenario;
@@ -42,6 +47,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -53,6 +59,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -75,11 +83,20 @@ class AutonomousRunServiceTest {
   @Mock private ScenarioToExerciseService scenarioToExerciseService;
   @Mock private XtmOneClient xtmOneClient;
   @Mock private OpenAEVConfig openAEVConfig;
+  @Mock private TenantWriteScopeResolver writeScopeResolver;
+  @Mock private TenantScopedTransaction tenantTx;
   // Lenient by default (void asserts are no-ops): these unit tests exercise lifecycle logic, not
   // authorization. The deny paths are covered by AutonomousRunAccessControlTest.
   @Mock private AutonomousRunAccessControl accessControl;
 
   @InjectMocks private AutonomousRunService service;
+
+  private static final TxCtx TX = TxCtx.forTenant("tenant-1");
+
+  @BeforeEach
+  void stubTenantWriteScope() {
+    lenient().when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn("tenant-1");
+  }
 
   @Test
   @DisplayName("evaluateAttackPath is a no-op in plan mode (never touches the run workflow)")
@@ -120,6 +137,109 @@ class AutonomousRunServiceTest {
         .isInstanceOf(ResponseStatusException.class);
   }
 
+  // region post-commit session-handle persistence
+
+  /**
+   * Pins the transaction shape of the post-commit session-handle write ({@code autonomous_runs} is
+   * tenant-active, so it needs its own scoped transaction). Inside Spring's {@code afterCommit}
+   * callback the committed transaction's resources are STILL bound to the thread (Spring clears
+   * them only after the callbacks have run), so the write must open a {@code REQUIRES_NEW} scope
+   * ({@code executeNew}); the plain top-level {@code execute()} would be refused by its own guard
+   * there and fail every start/resume/launch post-commit. The no-transaction fallback path keeps
+   * the plain top-level scope.
+   */
+  @Nested
+  @DisplayName("Post-commit orchestrator session-handle persistence")
+  class PersistSessionHandle {
+
+    private AutonomousRun startableCreatedRun() {
+      AutonomousRun run = new AutonomousRun();
+      run.setId("run-1");
+      run.setStatus(AutonomousRunStatus.CREATED);
+      run.setPlanMode(false);
+      run.setTenant(new Tenant("tenant-1"));
+      return run;
+    }
+
+    private void stubStart(AutonomousRun run) {
+      when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+      when(runRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+      when(xtmOneClient.startAutonomousRun(
+              any(),
+              any(),
+              any(),
+              any(),
+              any(),
+              anyBoolean(),
+              any(),
+              any(),
+              anyList(),
+              any(),
+              anyBoolean(),
+              any(),
+              any(),
+              anyList(),
+              anyMap()))
+          .thenReturn(Map.of("session_id", "sess-1"));
+    }
+
+    @Test
+    @DisplayName("without an active transaction, the handle write opens a plain top-level scope")
+    void given_noTransaction_when_engaging_then_handlePersistsThroughTopLevelScope() {
+      AutonomousRun run = startableCreatedRun();
+      stubStart(run);
+      doAnswer(
+              invocation -> {
+                ((Runnable) invocation.getArgument(1)).run();
+                return null;
+              })
+          .when(tenantTx)
+          .execute(eq(TX), any(Runnable.class));
+
+      service.start("run-1");
+
+      // The fallback path (no synchronization, no transaction) opens a plain scoped transaction
+      // and the session id actually reaches the run row under the run's own tenant.
+      verify(tenantTx).execute(eq(TX), any(Runnable.class));
+      verify(tenantTx, never()).executeNew(any(TxCtx.class), any(Runnable.class));
+      assertThat(run.getXtmSessionId()).isEqualTo("sess-1");
+    }
+
+    @Test
+    @DisplayName("inside afterCommit (resources still bound), the handle write is REQUIRES_NEW")
+    void given_afterCommitCallback_when_engaging_then_handlePersistsThroughRequiresNew() {
+      AutonomousRun run = startableCreatedRun();
+      stubStart(run);
+      doAnswer(
+              invocation -> {
+                ((Runnable) invocation.getArgument(1)).run();
+                return null;
+              })
+          .when(tenantTx)
+          .executeNew(eq(TX), any(Runnable.class));
+
+      TransactionSynchronizationManager.initSynchronization();
+      TransactionSynchronizationManager.setActualTransactionActive(true);
+      try {
+        service.start("run-1");
+        // start() only registered the engagement; nothing has been engaged or persisted yet.
+        assertThat(run.getXtmSessionId()).isNull();
+        // Fire the registered callback exactly like Spring does: after doCommit, with the
+        // transaction thread-locals still bound (they are cleared only after the callbacks).
+        TransactionSynchronizationManager.getSynchronizations()
+            .forEach(TransactionSynchronization::afterCommit);
+      } finally {
+        TransactionSynchronizationManager.clear();
+      }
+
+      verify(tenantTx).executeNew(eq(TX), any(Runnable.class));
+      verify(tenantTx, never()).execute(any(TxCtx.class), any(Runnable.class));
+      assertThat(run.getXtmSessionId()).isEqualTo("sess-1");
+    }
+  }
+
+  // endregion
+
   // region orchestrator status callback validation
 
   /**
@@ -137,6 +257,7 @@ class AutonomousRunServiceTest {
       run.setSimulationId("sim-1");
       run.setStatus(status);
       run.setPlanMode(planMode);
+      run.setTenant(new Tenant("tenant-1"));
       // updateStatus reads through the row-locking lookup so its check-then-write serialises with
       // the operator lifecycle writers.
       when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
@@ -228,6 +349,7 @@ class AutonomousRunServiceTest {
       verify(eventService)
           .append(
               eq("run-1"),
+              eq("tenant-1"),
               eq("sim-1"),
               eq(AutonomousEventType.STATUS),
               anyString(),
@@ -374,6 +496,7 @@ class AutonomousRunServiceTest {
     verify(eventService, times(1))
         .append(
             eq("run-1"),
+            eq("tenant-1"),
             eq("sim-1"),
             eq(AutonomousEventType.DIRECTIVE),
             anyString(),
@@ -422,7 +545,8 @@ class AutonomousRunServiceTest {
 
     verify(exerciseService).changeExerciseStatus(ExerciseStatus.CANCELED, "sim-1");
     verify(eventService)
-        .appendTerminalStatusOnce(eq("run-1"), eq("sim-1"), eq("Run timed out"), anyString());
+        .appendTerminalStatusOnce(
+            eq("run-1"), eq("tenant-1"), eq("sim-1"), eq("Run timed out"), anyString());
     verify(directiveRepository, never()).save(any());
   }
 
@@ -454,6 +578,7 @@ class AutonomousRunServiceTest {
     run.setSimulationId("sim-old");
     run.setStatus(status);
     run.setPlanMode(false);
+    run.setTenant(new Tenant("tenant-1"));
     return run;
   }
 
@@ -681,7 +806,7 @@ class AutonomousRunServiceTest {
     // launched in autonomous mode - the entry point must 400 before creating any run.
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(false);
 
-    assertThatThrownBy(() -> service.launchFromScenario("scenario-1", null))
+    assertThatThrownBy(() -> service.launchFromScenario(TX, "scenario-1", null))
         .isInstanceOfSatisfying(
             ResponseStatusException.class,
             ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
@@ -694,7 +819,7 @@ class AutonomousRunServiceTest {
   void planScenarioRejectsNonChainedScenario() {
     when(workflowService.isScenarioChaining("scenario-1")).thenReturn(false);
 
-    assertThatThrownBy(() -> service.planScenario("scenario-1", null))
+    assertThatThrownBy(() -> service.planScenario(TX, "scenario-1", null))
         .isInstanceOfSatisfying(
             ResponseStatusException.class,
             ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
@@ -711,6 +836,7 @@ class AutonomousRunServiceTest {
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
+    scenario.setTenant(new Tenant("tenant-1"));
     when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
 
     // save() assigns the generated id and the follow-up start() reloads it by that id.
@@ -734,7 +860,7 @@ class AutonomousRunServiceTest {
     input.setAgentIds(List.of());
     input.setAgentModes(Map.of());
 
-    AutonomousRun run = service.planScenario("scenario-1", input);
+    AutonomousRun run = service.planScenario(TX, "scenario-1", input);
 
     // Author-scenario mode is a dry-run bound to the SCENARIO, with no simulation ever provisioned.
     assertThat(run.isPlanMode()).isTrue();
@@ -783,7 +909,7 @@ class AutonomousRunServiceTest {
     prior.setStatus(AutonomousRunStatus.PLANNING);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(prior));
 
-    assertThatThrownBy(() -> service.planScenario("scenario-1", null))
+    assertThatThrownBy(() -> service.planScenario(TX, "scenario-1", null))
         .isInstanceOfSatisfying(
             ResponseStatusException.class,
             ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
@@ -799,6 +925,7 @@ class AutonomousRunServiceTest {
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
+    scenario.setTenant(new Tenant("tenant-1"));
     when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
 
     // A settled dry-run (PLANNED, no simulation) already exists: it must be torn down so the fresh
@@ -828,7 +955,7 @@ class AutonomousRunServiceTest {
     input.setAgentIds(List.of());
     input.setAgentModes(Map.of());
 
-    AutonomousRun run = service.planScenario("scenario-1", input);
+    AutonomousRun run = service.planScenario(TX, "scenario-1", input);
 
     // The prior settled run row is removed and its coordination state purged (no simulation delete
     // for a plan-mode dry-run), then the fresh plan run is created and the logic map wiped.
@@ -848,6 +975,7 @@ class AutonomousRunServiceTest {
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
+    scenario.setTenant(new Tenant("tenant-1"));
     when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
 
     // The scenario was previously built by the AI: a settled PLAN-mode run (PLANNED, no simulation)
@@ -868,7 +996,7 @@ class AutonomousRunServiceTest {
     input.setAgentIds(List.of());
     input.setAgentModes(Map.of());
 
-    AutonomousRun run = service.planScenario("scenario-1", input);
+    AutonomousRun run = service.planScenario(TX, "scenario-1", input);
 
     // Refine NEVER wipes the logic map and NEVER supersedes/deletes the prior run - the whole point
     // is to keep the existing steps AND the prior run's decision timeline (full history).
@@ -889,6 +1017,7 @@ class AutonomousRunServiceTest {
     verify(eventService)
         .append(
             eq("prior-run"),
+            eq("tenant-1"),
             isNull(),
             eq(AutonomousEventType.STATUS),
             eq("Refinement requested"),
@@ -922,6 +1051,7 @@ class AutonomousRunServiceTest {
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
+    scenario.setTenant(new Tenant("tenant-1"));
     when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
     // A manually authored chained scenario: it has steps but no autonomous run.
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
@@ -945,7 +1075,7 @@ class AutonomousRunServiceTest {
     input.setAgentIds(List.of());
     input.setAgentModes(Map.of());
 
-    AutonomousRun run = service.planScenario("scenario-1", input);
+    AutonomousRun run = service.planScenario(TX, "scenario-1", input);
 
     // Refine keeps the authored steps in place (no wipe), even when there is no prior run.
     verify(workflowService, never()).deleteAllScenarioSteps(anyString());
@@ -963,6 +1093,7 @@ class AutonomousRunServiceTest {
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
+    scenario.setTenant(new Tenant("tenant-1"));
     when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
     AutonomousRun prior = new AutonomousRun();
     prior.setId("prior-run");
@@ -973,7 +1104,7 @@ class AutonomousRunServiceTest {
     AutonomousRunCreateInput input = new AutonomousRunCreateInput();
     input.setRefine(true);
 
-    assertThatThrownBy(() -> service.planScenario("scenario-1", input))
+    assertThatThrownBy(() -> service.planScenario(TX, "scenario-1", input))
         .isInstanceOfSatisfying(
             ResponseStatusException.class,
             ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
@@ -992,6 +1123,7 @@ class AutonomousRunServiceTest {
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
+    scenario.setTenant(new Tenant("tenant-1"));
     when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
 
@@ -1016,7 +1148,7 @@ class AutonomousRunServiceTest {
     input.setAgentModes(Map.of());
 
     // Act
-    service.planScenario("scenario-1", input);
+    service.planScenario(TX, "scenario-1", input);
 
     // Assert - refine must never silently wipe/reset the scenario's existing scope: with nothing
     // supplied, the workflow scope is not touched at all.
@@ -1033,6 +1165,7 @@ class AutonomousRunServiceTest {
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
+    scenario.setTenant(new Tenant("tenant-1"));
     when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
 
@@ -1058,7 +1191,7 @@ class AutonomousRunServiceTest {
     input.setScope(List.of(new AutonomousScopeTarget("ASSETS_GROUPS", "asset-group-1")));
 
     // Act
-    service.planScenario("scenario-1", input);
+    service.planScenario(TX, "scenario-1", input);
 
     // Assert - an explicitly supplied scope IS written onto the scenario workflow (null simulation:
     // plan mode has none), as an ALLOWLIST rule carrying the picked asset group.
