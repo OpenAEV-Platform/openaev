@@ -111,6 +111,37 @@ export const eventTypeLabel = (type?: AutonomousEventType | string | null): stri
   }
 };
 
+// Parsed-JSON cache for an event's `autonomous_event_data`, keyed on the event object itself. The
+// timeline is append-only and each event object is an immutable snapshot (pollTimeline only ever
+// appends never-before-seen ids, carrying the existing objects across by reference), so any given
+// event is parsed at most once for its whole lifetime - even though the classification predicates
+// below re-run over the WHOLE array on every 3s poll batch (visibleEvents / decisionEvents /
+// thinkingLines each re-filter it). A WeakMap lets a dropped event (on a stream reset) be
+// garbage-collected together with its cache entry. `null` is cached too (unparseable payload, or a
+// non-object like a bare string/number) so a malformed payload is never re-parsed on every poll.
+const parsedEventData = new WeakMap<AutonomousEvent, Record<string, unknown> | null>();
+
+const parseEventData = (event: AutonomousEvent): Record<string, unknown> | null => {
+  const cached = parsedEventData.get(event);
+  if (cached !== undefined) {
+    return cached;
+  }
+  let parsed: Record<string, unknown> | null = null;
+  const raw = event.autonomous_event_data;
+  if (raw) {
+    try {
+      const value = JSON.parse(raw) as unknown;
+      if (value !== null && typeof value === 'object') {
+        parsed = value as Record<string, unknown>;
+      }
+    } catch {
+      parsed = null;
+    }
+  }
+  parsedEventData.set(event, parsed);
+  return parsed;
+};
+
 // A heartbeat is a lightweight STATUS event the XTM One orchestrator emits every ~45s WHILE a
 // decision cycle is actively running (flagged {"heartbeat": true} in its data). It exists ONLY to
 // keep the cockpit's "working" indicator honest and to nudge the graph poll during a long silent
@@ -122,16 +153,12 @@ export const isHeartbeatEvent = (event: AutonomousEvent | undefined): boolean =>
   if (!event || event.autonomous_event_type !== 'STATUS' || !event.autonomous_event_data) {
     return false;
   }
-  // Cheap substring pre-check before the JSON.parse: this runs for every event on every render of
-  // the feed, and most STATUS payloads never mention "heartbeat" at all.
+  // Cheap substring pre-check before the (cached) JSON.parse: most STATUS payloads never mention
+  // "heartbeat" at all, so this skips the parse entirely for them.
   if (!event.autonomous_event_data.includes('"heartbeat"')) {
     return false;
   }
-  try {
-    return (JSON.parse(event.autonomous_event_data) as { heartbeat?: boolean }).heartbeat === true;
-  } catch {
-    return false;
-  }
+  return parseEventData(event)?.heartbeat === true;
 };
 
 // A live-activity NARRATION is a per-iteration "what the orchestrator is doing right now" line the
@@ -141,21 +168,18 @@ export const isHeartbeatEvent = (event: AutonomousEvent | undefined): boolean =>
 // across the many iterations where the LLM narrates nothing. Every surface that renders the operator
 // decision feed (the reasoning-panel rows AND the overview decision timeline/count) filters it out so
 // it never shows as a decision row/node - only as streaming text in the thinking window. Single
-// source of truth so the two surfaces can never drift, mirroring isHeartbeatEvent.
+// source of truth so the two surfaces can never drift, mirroring isHeartbeatEvent (same substring
+// pre-check + shared cached parse).
 export const isLiveActivityEvent = (event: AutonomousEvent | undefined): boolean => {
   if (!event || event.autonomous_event_type !== 'NARRATION' || !event.autonomous_event_data) {
     return false;
   }
-  // Cheap substring pre-check before the JSON.parse: this runs for every event on every render of
-  // the feed, and the vast majority of NARRATION payloads never mention "live" at all.
+  // Cheap substring pre-check before the (cached) JSON.parse: the vast majority of NARRATION
+  // payloads never mention "live" at all, so this skips the parse entirely for them.
   if (!event.autonomous_event_data.includes('"live"')) {
     return false;
   }
-  try {
-    return (JSON.parse(event.autonomous_event_data) as { live?: boolean }).live === true;
-  } catch {
-    return false;
-  }
+  return parseEventData(event)?.live === true;
 };
 
 // Defensive display-time cleanup: the orchestrator (an LLM) occasionally leaks its own tool-call
