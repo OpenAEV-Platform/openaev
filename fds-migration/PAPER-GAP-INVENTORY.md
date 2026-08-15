@@ -1,13 +1,16 @@
 # Inventaire des écarts — Paper (lib) vs surfaces conteneur OpenAEV
 
 Rendu **avant** toute conversion, comme prérequis bloquant de la vague pilote
-Paper. Rien n'a été converti : la migration ne démarre qu'après arbitrage
-écart par écart.
+Paper. Les sections 0 à 5 sont l'inventaire tel qu'il a été rendu au pin
+`35a4768`, quand rien n'était converti — elles ne sont pas réécrites. Les
+arbitrages (§4, §6), le deuxième passage du gate (§7) et le résultat de la
+conversion (§8) sont ajoutés à la suite.
 
 - Produit : OpenAEV, branche `fds/paper-pilot` sur `design-system/current`
   (base `dd758996369665e479453bdf71620c19a61cab88`).
-- Lib : `@filigran/design-system` **pin `35a476849ba72d48cacae2568643f0b5638bc468`**
-  (celui déjà épinglé dans `openaev-front/package.json`).
+- Lib au moment de l'inventaire : **pin `35a476849ba72d48cacae2568643f0b5638bc468`**.
+  Lib après le bump de phase 0 : **pin `2e774922e1c667ee3a1e2424b5b4014dfd1a4f55`**
+  (#121 + #123) — voir §7.
 - Toutes les valeurs ci-dessous sont **mesurées sur le build installé** et sur
   les composants réels du produit montés dans le vrai thème MUI
   (`ThemeDark`/`ThemeLight`, `spacing: 8`) — jamais lues dans les types, le
@@ -493,3 +496,74 @@ a une ligne** — sinon il n'y a rien à ne pas doubler.
 **Toujours hors de cette vague** : la conversion reproduit l'existant à
 l'identique, et l'application d'option A aux 23 usages est un changement de
 densité qui se fait dans son propre commit, isolable et réversible.
+
+---
+
+## 7. Gate étape 0 — deuxième passage, au pin `2e77492`
+
+Re-mesuré sur le **nouveau build installé** (cache vidé, `yarn cache clean` +
+`node_modules/@filigran/design-system` supprimé avant réinstallation ; pin
+prouvé par la résolution du lockfile, pas par le `package.json`).
+
+| Point | État | Mesure |
+|---|---|---|
+| prop `padding` 0/8/16/24/32 | ✅ | rend `p-0` / `p-2` / `p-4` / `p-6` / `p-8`, et **les cinq classes existent dans `dist/index.css`** (`p-8` résolvait à `0px` avant). Défaut 24. Plus aucune fuite : `padding` ne sort plus en attribut DOM. |
+| `title` / `action` | ✅ | rangée d'en-tête **au-dessus** de la surface, hors bordure et hors padding. `as`, `className`, `ref` et le reste des props restent sur la surface dans les deux branches (vérifié : `as="section"` + `title` → `<section class="… p-6 custom-x" data-testid>`). |
+| contrat de thème hôte | ✅ | `:root { --bg-elevation-default-layer-1: #3b2450 }` **repeint** (mesuré `rgb(59,36,80)`) ; `--bg-elevation-default: #ff0000` posé au même moment **ne fait rien**. Contrat conforme à ce que la lib documente. |
+| bordure | ✅ | token propre par couche. Light, sur les panneaux convertis : composite `rgb(223,223,226)` sur blanc, **1,33:1** — là où MUI mesurait 1,32:1. L'invisibilité à 1,03:1 a disparu. |
+| élévations 0-3 | ✅ | inchangées, quatre surfaces distinctes. |
+
+Un comportement relevé au passage, non bloquant : une valeur **hors échelle**
+(`padding={12}`) ne rend **aucune** classe de padding — la surface tombe à 0px
+sans erreur. TypeScript la refuse ; un appelant JS ou une valeur dynamique, non.
+
+---
+
+## 8. Conversion — ce qui a été fait
+
+**13 surfaces converties**, `DetailHero` exclu.
+
+| lot | sites | padding avant → après |
+|---|---|---|
+| échauffement (`lessons`) | L1, L2, L3, L4, L6 | 0 → `padding={0}` |
+| | L5, L7, L8 | 16 → `padding={16}` |
+| | L9, L10 | 0 (+32 dans le placeholder) → `padding={32}` + `disablePadding` au site d'appel |
+| pilote (`EntityDetailCommon`) | E1 `Section`, E2 `InformationGrid` | 16 → `padding={16}` |
+| | E3 `SectionBlock` | 16 / 0 → `padding={disablePadding ? 0 : 16}` |
+
+**ISO vérifié au DOM** sur les 13 sites : padding, fond, rayon identiques
+avant/après, dans les trois thèmes.
+
+Décisions appliquées sans les rejouer :
+
+- **§6.1** — L1/L3/L4/L6 restent à `padding={0}`, gouttières intactes : les
+  séparateurs touchent toujours les bords.
+- **§6.2** — L9/L10 : le padding passe au Paper, les 32px partent **au site
+  d'appel** via un `disablePadding` *optionnel* ajouté à `LessonsPlaceholder`.
+  Le composant partagé garde son rendu par défaut, donc ses deux autres
+  consommateurs (`LessonsObjectives`, `CrysisIntensity`) sont inchangés. C'est
+  la seule façon d'exprimer « retrait au site d'appel » sans changer le rendu
+  des autres ; si la lecture ne convient pas, revenir à `padding={0}` sur ces
+  deux Paper est un changement d'une ligne.
+- **§6.3** — E3 reproduit le cumul 16+16 tel quel. Non corrigé ici.
+- **§4 / G4** — `DetailHero` reste sur MUI (`Paper as MuiPaper`), commenté sur
+  place.
+
+**En-têtes** : `title`/`action` de la lib existent maintenant, mais ne sont
+**pas** adoptés dans cette vague. L'en-tête produit (`SECTION_LABEL_SX`,
+Geologica 11px/600/0.12em, rangée d'action à 32px) n'a ni la même typographie
+ni la même hauteur que celui de la lib ; l'adopter changerait le rendu des 106
+écrans, ce qui n'est pas ISO. À traiter comme une décision design séparée.
+
+**Contrat de thème hôte** : câblé dans `AppThemeProvider` — `paper_color`
+d'un thème client est posé sur `--bg-elevation-default-layer-1`, et retiré
+quand la plateforme n'a pas d'override.
+
+**Gate** : le motif Paper est déclaré dans `migration-state.json`
+(`libComponentUsage`), avec les deux gardes livrées par la lib —
+`imported-from-library` et `no-hardcoded-padding`. Cette dernière est la garde
+« compensation perdue » demandée : elle rougit si un `className="p-4"` ou un
+`sx={{ p: 2 }}` réapparaît sur un Paper lib. Sur `EntityDetailCommon.tsx`,
+`imported-from-library` n'est **pas** armée — le fichier importe les deux Papers
+à dessein tant que `DetailHero` n'a pas migré ; raison inscrite dans le
+manifeste, écart remonté en LIBRARY-FEEDBACK #31.

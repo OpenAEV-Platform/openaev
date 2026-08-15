@@ -14,7 +14,7 @@ in the Filigran workspace. This repo NEVER defines a design-system token
 locally: every color, spacing, radius and typography value used here traces
 back to `filigran-design-system/packages/filigran-design-system/src/tokens/theme.css`.
 
-Full machine-readable reference: `https://silver-doodle-mnyv84e.pages.github.io/llms-full.txt`
+Full machine-readable reference: <https://silver-doodle-mnyv84e.pages.github.io/llms-full.txt>
 (same content as the sibling checkout's `filigran-design-system/llms-full.txt`,
 served by the docs site).
 
@@ -27,7 +27,7 @@ served by the docs site).
    the generated file here.
 2. **Never invent a token value.** A color/spacing/typography value with no
    design-system equivalent is a gap to flag (TOKEN-MAPPING.md, section
-   "Tokens à créer dans Figma"), not something to improvise.
+   "Tokens to create in Figma"), not something to improvise.
 3. **Branch discipline.** All work happens on `fds/*` branches, never on
    this product's main/master. Run `git branch --show-current` before
    every commit. No push to any remote without explicit human validation.
@@ -35,7 +35,7 @@ served by the docs site).
    doesn't exist yet for something you're migrating, report the gap
    (filigran-design-system's `process/AI-BACKLOG.md` or `ROADMAP.json`)
    and move on — never build a local approximation.
-5. **This phase is TOKENS ONLY.** The current chantier
+5. **This phase is TOKENS ONLY.** The current workstream
    (IMPLEMENTATION-ROADMAP.md, "Phase 1") wires design-system token
    *values* into this product's existing MUI theme — it does not touch
    component code. Migrating individual components to design-system
@@ -62,6 +62,44 @@ verifies the generated bridge file hasn't been hand-edited, that wired
 files still import it, and that no hardcoded value has crept back into a
 migrated zone. Fix everything it reports before committing — it lists
 concrete file:line issues, it does not need re-deriving by hand.
+
+### Declaring a component-adoption site (`libComponentUsage`)
+
+Once a real design-system COMPONENT (not just its tokens) is adopted in a
+file, declare it in `migration-state.json`'s `libComponentUsage` so the
+check keeps watching it:
+
+```jsonc
+"libComponentUsage": [
+  {
+    "component": "Paper",
+    "importFrom": "@filigran/design-system",
+    "files": ["openaev-front/src/.../PanelWidget.tsx"],
+    "guards": ["imported-from-library", "no-hardcoded-padding"],
+    "reason": "Paper owns padding as a typed prop (0|8|16|24|32) since the Phase 0 round"
+  }
+]
+```
+
+Two things to know before writing one:
+
+- **You declare intent, never a pattern.** `guards` names checks the design
+  system implements and maintains; an unknown name is reported `INVALID`
+  rather than passing quietly, so a typo can never read as coverage. Run
+  the check with an obviously wrong name once if you want to see the list.
+- **The scan is structural, not textual.** Each `<Component …>` opening tag
+  is walked to its own closing `>` with quotes, template literals and `{}`
+  nesting tracked, after comments are stripped — so a multiline element is
+  the normal case, a padding on a sibling element is not attributed to this
+  one, and a commented-out class cannot produce a finding. Findings name one
+  element and one line.
+
+Available guards today:
+
+| Guard | What it catches |
+|---|---|
+| `imported-from-library` | the component is rendered but no longer imported from the library, or has fallen back to `@mui/material` — a revert the JSX alone cannot show |
+| `no-hardcoded-padding` | a rendered instance sets padding through `className`, `sx` or `style` instead of the component's own `padding` prop, re-forking a scale the component now owns |
 
 ## Notes
 

@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import { BallotOutlined, ContactMailOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, SendOutlined, SpeakerNotesOutlined, SportsScoreOutlined, VisibilityOutlined } from '@mui/icons-material';
 import {
   Alert,
@@ -9,7 +10,6 @@ import {
   DialogContentText,
   DialogTitle,
   FormControlLabel,
-  Paper,
   Switch,
   Typography,
   useTheme,
@@ -149,13 +149,9 @@ const Lessons: FunctionComponent<Props> = ({
     }}
     >
       {/* Headline metrics */}
-      <Paper
-        variant="outlined"
-        sx={{
-          padding: 2,
-          borderRadius: 1,
-        }}
-      >
+      {/* padding=16 (ISO) : la gouttière droite des HeroStat est structurelle,
+          elle reste — PAPER-GAP-INVENTORY §5.3. */}
+      <Paper padding={16}>
         <HeroStats>
           <HeroStat
             icon={SportsScoreOutlined}
@@ -352,11 +348,12 @@ const Lessons: FunctionComponent<Props> = ({
           </Can>
         </header>
         {lessonsCategories.length === 0 ? (
-          <Paper
-            variant="outlined"
-            sx={{ borderRadius: 1 }}
-          >
+          /* padding=32 porté par le Paper, et les 32px du placeholder retirés
+             ICI, au site d'appel : le composant partagé garde son rendu pour
+             ses autres consommateurs — PAPER-GAP-INVENTORY §6.2. */
+          <Paper padding={32}>
             <LessonsPlaceholder
+              disablePadding
               icon={BallotOutlined}
               message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
             />

@@ -1601,3 +1601,68 @@ titled panels, so the temptation is not hypothetical.
 **Ask.** Either the props, or a line in `Paper.meta.ts` / the docs stating that
 `title` is not a slot and lands on the native attribute. The cheap half of this
 (the documentation line) is worth doing even if the props never come.
+
+---
+
+Raised during: the **Paper pilot, wave 1 conversion** (after the phase-0 bump to
+pin `2e774922e1c667ee3a1e2424b5b4014dfd1a4f55`, carrying #121 and #123).
+Entries 26-29 are **closed by that bump**; what follows is what the conversion
+itself surfaced.
+
+**Closure of 26-29, re-measured on the new installed build, not assumed:**
+
+- **#26 padding — CLOSED.** `padding={0|8|16|24|32}` renders `p-0/p-2/p-4/p-6/p-8`,
+  and all five now exist in the shipped `dist/index.css` (`p-8` used to resolve
+  to `0px`). Default 24. The 13 converted sites render byte-identical padding to
+  their pre-migration state.
+- **#27 border — CLOSED.** The border is now its own per-layer token
+  (`--border-elevation-subtle-soft`). Measured in light mode on the converted
+  panels: composite `rgb(223,223,226)` on white, **1.33:1** against its own
+  surface — where the product's MUI border measured 1.32:1. The invisible
+  1.03:1 is gone.
+- **#28 host theme — CLOSED, and the contract is the important part.** Measured
+  both directions in a real browser: re-declaring `--bg-elevation-default-layer-1`
+  on `:root` repaints the surface to the customer's colour, and re-declaring the
+  semantic alias `--bg-elevation-default` at the same time does **nothing**.
+  Wiring `paper_color` → `--bg-elevation-default-layer-1` was a three-line change
+  in this product's `AppThemeProvider`.
+- **#29 DetailHero — still open, and deliberately so.** Not a blocker for this
+  wave: Sandy moved DetailHero out of it (accent gradient + transparent fill, and
+  the transparency falls under the semi-transparent exclusion). The question the
+  entry asks — can a `Paper` ever be transparent or consumer-painted — is still
+  the one to settle before that site can move.
+
+## 31. The `imported-from-library` guard cannot express a mixed file
+
+**Context.** `check-fds-conformity.mjs` now ships two named guards, and both are
+exactly what this migration needed — this entry is a limit found by using them,
+not a complaint about them.
+
+**Needed.** `EntityDetailCommon.tsx` holds four surfaces. Three are migrated
+(`Section`, `InformationGrid`, `SectionBlock`); the fourth, `DetailHero`, stays
+on MUI by arbitration. So the file legitimately imports **both** Papers, and
+will keep doing so until DetailHero's gap is answered.
+
+**Today.** `imported-from-library` is file-granular: it fails as soon as the
+file contains `import { … Paper … } from "@mui/material"`. An alias
+(`Paper as MuiPaper`) still matches, correctly — the regex reads the imported
+name, not the local one.
+
+**Consequence.** Three ways out, and two of them are bad:
+
+- arm the guard → a permanent red on a file that is in the state its
+  arbitration says it should be in;
+- switch the MUI import to a deep default import (`@mui/material/Paper`) purely
+  because the guard's regex does not look there → the gate reports green about
+  something it did not verify, which is worse than the red;
+- **what this product did**: split the declaration in two, arm both guards on
+  the six fully-migrated files, and arm only `no-hardcoded-padding` on this one,
+  with the reason recorded in `migration-state.json` and a note to re-arm the
+  day DetailHero moves.
+
+**Ask.** A way to say "this file is partially migrated, and here is the symbol
+that is allowed to remain" — e.g. an `allowMuiFor: ["DetailHero"]` field the
+guard checks the enclosing component of, or simply a documented
+`guards`-per-file granularity so the third option above is the *supported*
+answer rather than a workaround a product invented. The middle option
+(dodging the regex) is the one worth making impossible.

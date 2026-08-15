@@ -72,6 +72,24 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
     activeThemeConfig?.secondary_color,
     activeThemeConfig?.accent_color,
   ].join('|');
+  // A customer-configured `paper_color` must reach the design-system surfaces
+  // (Paper), not only MUI's. The library's contract is explicit and measured
+  // (Paper.tsx, "SURFACE COLOUR AND HOST THEMING"): a host re-declares
+  // `--bg-elevation-default-layer-N`, the per-layer token. Re-declaring the
+  // semantic alias `--bg-elevation-default` does NOTHING — every `.layer-N`
+  // class re-declares that alias on the Paper element itself, so an inherited
+  // value can never win. Paper's default elevation is 1, hence layer-1.
+  // Cleared when the platform has no override, so the library's own token
+  // stays in charge.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (activeThemeConfig?.paper_color) {
+      root.style.setProperty('--bg-elevation-default-layer-1', activeThemeConfig.paper_color);
+    } else {
+      root.style.removeProperty('--bg-elevation-default-layer-1');
+    }
+  }, [activeThemeConfig?.paper_color]);
+
   const muiTheme = useMemo(() => {
     const buildTheme = theme === 'light' ? themeLight : themeDark;
     return createTheme(

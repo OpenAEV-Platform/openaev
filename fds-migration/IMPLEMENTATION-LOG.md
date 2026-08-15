@@ -493,3 +493,49 @@ in filigran-design-system).
 - Still out of this wave: the conversion reproduces the existing cumulation;
   applying option A to the 23 usages is a density change that gets its own
   isolable, revertable commit.
+
+### 2026-08-15 — Paper pilot: phase-0 bump, gate re-passed green, 13 surfaces converted
+- Branch: fds/paper-pilot (PR #7427, open, targeting design-system/current)
+- Library pin: `35a4768` → **`2e774922e1c667ee3a1e2424b5b4014dfd1a4f55`** — ONE bump
+  carrying both #121 (padding prop, host-theme contract, title/action, border
+  token, 17 alpha-token renames) and #123 (navbar aligned on Figma). Cold
+  install (`yarn cache clean` + package removed), pin proven from the lockfile
+  resolution, not from package.json.
+- Step 0 gate, second pass, all measured on the new installed build: padding
+  0/8/16/24/32 emits p-0/p-2/p-4/p-6/p-8 and all five classes now exist in the
+  shipped stylesheet; title/action render a header row outside the surface and
+  no longer leak to the DOM; the host-theme contract works in the documented
+  direction only (`--bg-elevation-default-layer-N` repaints,
+  `--bg-elevation-default` does nothing); the light-mode border is back to
+  1.33:1 where MUI measured 1.32:1. GREEN — conversion started.
+- Token renames: the bridge was REGENERATED (`pnpm generate:mui-bridge
+  --out-dir`), never hand-edited. Three product references to renamed tokens
+  were dead after the bump — two of them silently (CSS): `ThemeDark`/`ThemeLight`
+  (`--color-feedback-info-secondary-transparency` → `-30`, a TS error),
+  `TopBarIconLink` (`var(--color-filigran-brand-primary-transparency)` → `-10`)
+  and `AskArianeButton` (`bg-filigran-ia-secondary-transparency` → `-10`).
+  Renamed, plus the stale token names in the neighbouring comments.
+- Converted: 13 surfaces (10 lessons + Section/InformationGrid/SectionBlock).
+  ISO verified at the DOM in all three themes — padding, background and radius
+  identical before/after on every one. DetailHero left on MUI as arbitrated.
+- `title`/`action` exist now but are NOT adopted: the product header has its own
+  typography and height, adopting the library's would move 106 screens. Flagged
+  as a separate design decision, not done here.
+- Host theming wired in `AppThemeProvider`: a customer `paper_color` is set on
+  `--bg-elevation-default-layer-1`, cleared when there is no override.
+- Conformity gate: the Paper motif is declared in `migration-state.json`
+  (`libComponentUsage`) with both library-owned guards. `no-hardcoded-padding`
+  is the "lost compensation" guard that was asked for. `imported-from-library`
+  is armed on the six fully-migrated files but NOT on EntityDetailCommon.tsx,
+  which imports both Papers on purpose until DetailHero moves — reason in the
+  manifest, gap raised as LIBRARY-FEEDBACK #31.
+- Non-regressions: typecheck clean, eslint clean (`--max-warnings 0`), vitest
+  43 files / 650 tests passed, conformity 19 checks / 0 issue.
+- Navbar #123 measured in the product for the first time (both levels, both
+  themes): hover on highlight (dark `rgb(19,33,62)`, light `rgb(228,229,231)`),
+  focus as a 2px inset border in brand with `outline: none`, level-1 selected on
+  a 10% brand background, level-2 selected with NO background (brand text only).
+- Expected and confirmed: the warning token changed hue — `#e6700f` → `#b8550a`
+  (`--color-feedback-warning-primary` and `--border-alert-warning`).
+- Friction / process feedback: LIBRARY-FEEDBACK #31 (the `imported-from-library`
+  guard cannot express a partially-migrated file).

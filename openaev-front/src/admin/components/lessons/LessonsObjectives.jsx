@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { FlagOutlined } from '@mui/icons-material';
-import { Box, LinearProgress, List, ListItem, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
+import { Box, LinearProgress, List, ListItem, ListItemButton, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext } from 'react';
@@ -23,10 +24,11 @@ const LessonsObjectives = ({
     objectives,
   );
   return (
+    /* padding=0 (ISO) : les gouttières des lignes portent la marge, et leurs
+       séparateurs doivent continuer à toucher les bords — PAPER-GAP-INVENTORY §6.1. */
     <Paper
-      variant="outlined"
-      sx={{
-        borderRadius: 1,
+      padding={0}
+      style={{
         flex: 1,
         overflow: 'hidden',
       }}

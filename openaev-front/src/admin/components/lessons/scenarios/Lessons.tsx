@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import { BallotOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, VisibilityOutlined } from '@mui/icons-material';
 import {
   Box,
@@ -8,7 +9,6 @@ import {
   DialogContentText,
   DialogTitle,
   FormControlLabel,
-  Paper,
   Switch,
   Typography,
   useTheme,
@@ -214,11 +214,12 @@ const Lessons: FunctionComponent<Props> = ({
           </Can>
         </header>
         {lessonsCategories.length === 0 ? (
-          <Paper
-            variant="outlined"
-            sx={{ borderRadius: 1 }}
-          >
+          /* padding=32 porté par le Paper, et les 32px du placeholder retirés
+             ICI, au site d'appel : le composant partagé garde son rendu pour
+             ses autres consommateurs — PAPER-GAP-INVENTORY §6.2. */
+          <Paper padding={32}>
             <LessonsPlaceholder
+              disablePadding
               icon={BallotOutlined}
               message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
             />

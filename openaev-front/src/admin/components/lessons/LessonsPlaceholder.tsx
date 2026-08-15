@@ -4,10 +4,14 @@ import { type ComponentType, type ReactNode } from 'react';
 
 // Modern empty state for the lessons learned screens: centered tinted icon
 // above a muted message (same pattern as the simulation overview placeholder).
-const LessonsPlaceholder = ({ icon: Icon, message, action }: {
+const LessonsPlaceholder = ({ icon: Icon, message, action, disablePadding }: {
   icon: ComponentType<{ sx?: object }>;
   message: string;
   action?: ReactNode;
+  // Opt-in: drops this component's own 32px so the surface above it can own
+  // the padding instead (PAPER-GAP-INVENTORY §6.2). Default keeps today's
+  // rendering, so the call sites that don't pass it are untouched.
+  disablePadding?: boolean;
 }) => {
   const theme = useTheme();
   return (
@@ -18,7 +22,7 @@ const LessonsPlaceholder = ({ icon: Icon, message, action }: {
         alignItems: 'center',
         justifyContent: 'center',
         gap: 1.5,
-        padding: 4,
+        padding: disablePadding ? 0 : 4,
         textAlign: 'center',
         height: '100%',
       }}

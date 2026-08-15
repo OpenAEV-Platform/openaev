@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { CastForEducationOutlined, HelpOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemText, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, List, ListItem, ListItemText, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext } from 'react';
@@ -112,10 +113,10 @@ const LessonsCategories = ({
               }}
               >
                 <Typography sx={SECTION_LABEL_SX}>{t('Questions')}</Typography>
+                {/* padding=0 (ISO) : séparateurs de lignes bord à bord — PAPER-GAP-INVENTORY §6.1. */}
                 <Paper
-                  variant="outlined"
-                  sx={{
-                    borderRadius: 1,
+                  padding={0}
+                  style={{
                     flex: 1,
                     overflow: 'hidden',
                   }}
@@ -186,15 +187,14 @@ const LessonsCategories = ({
                     />
                   )}
                 </Typography>
+                {/* padding=16 (ISO) : le padding des puces est intrinsèque, il reste — PAPER-GAP-INVENTORY §5.3. */}
                 <Paper
-                  variant="outlined"
-                  sx={{
-                    padding: 2,
-                    borderRadius: 1,
+                  padding={16}
+                  style={{
                     flex: 1,
                     display: 'flex',
                     flexWrap: 'wrap',
-                    gap: 1,
+                    gap: 8,
                     alignContent: 'flex-start',
                   }}
                 >

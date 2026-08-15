@@ -1,4 +1,5 @@
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Box, Paper as MuiPaper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -33,14 +34,10 @@ export const Section = ({ title, children }: {
   }}
   >
     <Typography sx={SECTION_LABEL_SX}>{title}</Typography>
-    <Paper
-      variant="outlined"
-      sx={{
-        padding: 2,
-        borderRadius: 1,
-        flex: 1,
-      }}
-    >
+    {/* padding=16 (ISO). Le titre reste produit et au-dessus de la surface :
+        la lib expose title/action, mais son en-tete a sa propre typographie et
+        sa propre hauteur -- l'adopter changerait le rendu de 106 ecrans. */}
+    <Paper padding={16} style={{ flex: 1 }}>
       {children}
     </Paper>
   </div>
@@ -88,16 +85,16 @@ export const InformationGrid = ({ title, action, children }: {
           </Box>
         )
       : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
+    {/* padding=16 (ISO) : la surface EST la grille, +8px feraient retomber
+        une colonne (pistes minmax(180px, 1fr)). */}
     <Paper
-      variant="outlined"
-      sx={{
-        padding: 2,
-        borderRadius: 1,
+      padding={16}
+      style={{
         flex: 1,
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: 1.5,
-        rowGap: 2,
+        gap: 12,
+        rowGap: 16,
         alignContent: 'start',
       }}
     >
@@ -185,11 +182,12 @@ export const SectionBlock = ({ title, action, children, disablePadding, centerCo
           </Box>
         )
       : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
+    {/* padding=16 (ISO), 0 sous `disablePadding`. Le cumul 16+16 avec les
+        gouttieres des lignes est REPRODUIT tel quel : le corriger est une
+        decision de densite hors de cette vague -- PAPER-GAP-INVENTORY §6.3. */}
     <Paper
-      variant="outlined"
-      sx={{
-        padding: disablePadding ? 0 : 2,
-        borderRadius: 1,
+      padding={disablePadding ? 0 : 16}
+      style={{
         flex: 1,
         ...(centerContent && {
           display: 'flex',
@@ -353,7 +351,10 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
   const theme = useTheme();
   const accent = theme.palette.primary.main;
   return (
-    <Paper
+    // DetailHero reste sur MUI : degrade d'accent + fond transparent, et la
+    // transparence tombe sous l'exclusion « semi-transparents = temps 2 »
+    // (PAPER-GAP-INVENTORY §4, arbitrage G4).
+    <MuiPaper
       variant="outlined"
       data-testid="detail-hero"
       sx={{
@@ -477,6 +478,6 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
       </Box>
       {stats && <HeroStats>{stats}</HeroStats>}
       {footer}
-    </Paper>
+    </MuiPaper>
   );
 };

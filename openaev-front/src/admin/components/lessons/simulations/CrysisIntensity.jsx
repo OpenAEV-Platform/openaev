@@ -1,5 +1,5 @@
+import { Paper } from '@filigran/design-system';
 import { TimelineOutlined } from '@mui/icons-material';
-import { Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 
@@ -32,10 +32,10 @@ const CrysisIntensity = ({ injects }) => {
     },
   ];
   return (
+    /* padding=0 (ISO) : le graphe occupe la surface bord à bord — PAPER-GAP-INVENTORY §6.1. */
     <Paper
-      variant="outlined"
-      sx={{
-        borderRadius: 1,
+      padding={0}
+      style={{
         flex: 1,
         overflow: 'hidden',
       }}
