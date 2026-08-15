@@ -19,11 +19,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Verifies the pre-activation tenant repair for autonomous child rows: an event or directive
- * stamped with a different tenant than its parent run (the {@code TenantBaseListener} thread-local
- * default on the orchestrator's callback route did exactly that) is realigned to the run's tenant,
- * already-aligned rows and their sequences are left untouched, orphaned children without a parent
- * run are skipped, and re-running the migration is a no-op.
+ * Verifies the tenant repair for autonomous child rows: an event or directive stamped with a
+ * different tenant than its parent run (the {@code TenantBaseListener} thread-local default on the
+ * orchestrator's callback route did exactly that, and a not-yet-upgraded node still does during a
+ * rolling deployment) is realigned to the run's tenant, already-aligned rows and their sequences
+ * are left untouched, orphaned children without a parent run are skipped, and re-running the
+ * migration is a no-op - the load-bearing property, since the repeatable migration re-applies on
+ * every startup by design ({@code RealignAutonomousChildTenantAttributionContractTest} pins the
+ * re-run contract itself).
  *
  * <p>All seeding and ground-truth reads go over native SQL / raw JDBC on the test's own connection,
  * mirroring {@code AutonomousRunHttpIsolationTest}: the migration is plain SQL, so the test must
@@ -37,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Realign autonomous child tenant attribution migration")
 class RealignAutonomousChildTenantAttributionMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20260815100000000__Realign_autonomous_child_tenant_attribution migration;
+  @Autowired private R__Realign_autonomous_child_tenant_attribution migration;
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
