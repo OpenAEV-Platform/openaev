@@ -42,12 +42,15 @@ import org.springframework.transaction.annotation.Transactional;
  * AttackPathHttpIsolationTest}.
  *
  * <p>The orchestrator CALLBACK endpoints are the deliberate exception, and the second half of this
- * suite pins their SERVICE-IDENTITY contract: they are scoped from the parent run (the {@link
- * io.openaev.config.RunTenantScope} argument), so a caller whose scope does NOT pin the run's
- * tenant still records the run's events, drives its status and consumes its directives - every
- * write stamped with the run's own tenant. XTM One reaches them with a per-user JWT that carries no
- * tenant claim, so this is what keeps a long run authoring and settling itself once the caller's
- * scope no longer pins the run's tenant. Operator isolation is proven unchanged alongside it.
+ * suite pins their SERVICE-IDENTITY contract: on the legacy non-prefixed route they are scoped from
+ * the parent run (the {@link io.openaev.config.RunTenantScope} argument), so a caller whose scope
+ * does NOT pin the run's tenant still records the run's events, drives its status and consumes its
+ * directives - every write stamped with the run's own tenant. XTM One reaches them with a per-user
+ * JWT that carries no tenant claim, so this is what keeps a long run authoring and settling itself
+ * once the caller's scope no longer pins the run's tenant. The derivation is route-scoped: the same
+ * handlers on the TENANT-PREFIXED route stay caller-authorized (the URL names the tenant, rights
+ * are the boundary), which this suite pins too. Operator isolation is proven unchanged alongside
+ * it.
  *
  * <p>Both scope routes are covered, because the orchestrator's callbacks ride the legacy
  * non-prefixed mapping: the tenant-prefixed path (operator UI) and the plain path where the scope
@@ -396,6 +399,40 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
                 "autonomous_directive_id",
                 directiveId))
         .isEqualTo("CONSUMED");
+  }
+
+  @Test
+  @DisplayName(
+      "POST event via the tenant-prefixed route stays caller-scoped: a foreign tenant's path 404s"
+          + " and writes nothing")
+  void recordEventViaTenantPrefixedRouteOutsideRunTenantIsRefused() throws Exception {
+    // The service-identity derivation exists only on the legacy non-prefixed route. On the
+    // tenant-prefixed route the same handler keeps the operator contract: the URL names the
+    // tenant, so a caller addressing tenantB cannot reach (or write) tenantA's run through the
+    // @RunTenantScope-annotated endpoint - the run row is invisible under the addressed scope and
+    // the append dies on the run lookup, leaving the timeline untouched.
+    mvc.perform(
+            post(SCOPED + "/{runId}/events", tenantB, runId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"type\": \"DECISION\", \"title\": \"prefixed cross-tenant append\"}"))
+        .andExpect(status().isNotFound());
+
+    // Only the seeded event remains: nothing was written through the foreign tenant's path.
+    assertThat(rawCount("autonomous_events", "autonomous_event_run_id", runId)).isEqualTo(1L);
+  }
+
+  @Test
+  @DisplayName(
+      "GET attack-path state via the owner tenant's path works caller-scoped (operator parity)")
+  void attackPathStateViaTenantPrefixedRouteUnderOwnerTenantIsVisible() throws Exception {
+    // The UI reads the attack-path state through the tenant-prefixed route (the tenant prefix is
+    // added centrally by the frontend's buildUri). With the derivation route-scoped, this read
+    // resolves the caller's addressed tenant like every other operator endpoint and must keep
+    // working; the seeded run has no simulation and no scenario, so the state is simply empty.
+    mvc.perform(get(SCOPED + "/{runId}/attack-path/state", tenantA, runId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isArray());
   }
 
   @Test

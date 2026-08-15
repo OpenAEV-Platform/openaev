@@ -52,7 +52,9 @@ import org.springframework.web.server.ResponseStatusException;
  * their scope from the parent run instead of the caller (the {@link
  * io.openaev.config.RunTenantScope} argument on {@link
  * io.openaev.api.autonomous.AutonomousRunApi}), so a callback always writes the run's own tenant
- * and never depends on whether the caller's scope happens to pin it.
+ * and never depends on whether the caller's scope happens to pin it. That derivation exists only on
+ * the legacy non-prefixed route the orchestrator calls; the same handlers on the tenant-prefixed
+ * route stay caller-authorized like every other prefixed endpoint.
  */
 @org.springframework.stereotype.Component
 @RequiredArgsConstructor

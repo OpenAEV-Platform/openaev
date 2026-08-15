@@ -32,7 +32,10 @@ import org.springframework.web.servlet.HandlerMapping;
  * <p>A {@link RunTenantScope}-annotated parameter is the one exception to "the caller decides": it
  * is a service-identity callback whose scope is derived from the parent autonomous run named by the
  * {@code {runId}} path variable, independent of the caller's selector or memberships (see the
- * annotation for why).
+ * annotation for why). The exception exists ONLY on the legacy non-prefixed route the orchestrator
+ * actually rides: when the request addresses a tenant through the {@code {tenantId}} path variable
+ * (the tenant-prefixed operator route), the standard caller-authorized resolution applies, so the
+ * prefixed API keeps its uniform "the URL names the tenant, rights are the boundary" contract.
  */
 @Component
 @RequiredArgsConstructor
@@ -57,7 +60,7 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
       ModelAndViewContainer mavContainer,
       NativeWebRequest webRequest,
       WebDataBinderFactory binderFactory) {
-    if (parameter.hasParameterAnnotation(RunTenantScope.class)) {
+    if (parameter.hasParameterAnnotation(RunTenantScope.class) && !hasPathTenant(webRequest)) {
       return runTenantScope(webRequest);
     }
     Set<String> selector = extractSelector(webRequest);
@@ -75,7 +78,10 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
    * its {@code {runId}} path variable, never the caller's memberships. An absent or unknown run
    * yields {@link TxCtx#missing()} (fail-closed), which the callback then surfaces as a 404 through
    * its own run lookup. Deliberately does NOT vary the response by {@code X-Tenant-Ids}: the scope
-   * depends only on the run id already in the path, so the header is ignored here.
+   * depends only on the run id already in the path, so the header is ignored here. Only reachable
+   * on the legacy non-prefixed route: {@link #resolveArgument} keeps the tenant-prefixed route on
+   * the caller-authorized resolution, so this derivation never overrides an explicitly addressed
+   * tenant.
    */
   private TxCtx runTenantScope(NativeWebRequest webRequest) {
     String runId = pathVariable(webRequest, RUN_ID_PATH_VARIABLE);
@@ -138,6 +144,12 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
 
   private String pathTenant(NativeWebRequest webRequest) {
     return pathVariable(webRequest, TENANT_ID_PATH_VARIABLE);
+  }
+
+  /** Whether the request addresses a tenant through the tenant-prefixed route. */
+  private boolean hasPathTenant(NativeWebRequest webRequest) {
+    String pathTenant = pathTenant(webRequest);
+    return pathTenant != null && !pathTenant.isBlank();
   }
 
   @SuppressWarnings("unchecked")

@@ -4,11 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
+import io.openaev.rest.exception.TenantAccessDeniedException;
 import io.openaev.rest.exception.TenantSelectorRequiredException;
 import java.util.Arrays;
 import java.util.Map;
@@ -120,9 +122,13 @@ class TxCtxArgumentResolverTest {
   }
 
   private void pathRunId(String runId) {
+    pathVariables(Map.of("runId", runId));
+  }
+
+  private void pathVariables(Map<String, String> variables) {
     when(webRequest.getAttribute(
             HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST))
-        .thenReturn(Map.of("runId", runId));
+        .thenReturn(variables);
   }
 
   @Test
@@ -146,5 +152,49 @@ class TxCtxArgumentResolverTest {
 
     // Missing scope denies every row, so the callback's own run lookup then reports a 404.
     assertThat(resolve()).isInstanceOf(TxCtx.Missing.class);
+  }
+
+  @Test
+  @DisplayName("a run-tenant-scoped callback without a {runId} path variable is fail-closed")
+  void runTenantScopeWithoutRunIdPathVariableIsFailClosed() {
+    // Defensive contract for a future handler that carries the annotation but names its path
+    // variable differently: the derivation cannot identify the run, so it must deny everything
+    // (the safe direction) rather than fall back to any caller-derived scope.
+    runTenantScoped();
+    pathVariables(Map.of());
+
+    assertThat(resolve()).isInstanceOf(TxCtx.Missing.class);
+    verifyNoInteractions(runTenantLocator);
+  }
+
+  @Test
+  @DisplayName(
+      "on the tenant-prefixed route the annotation is inert: the caller-authorized resolution"
+          + " applies")
+  void runTenantScopeOnTenantPrefixedRouteKeepsCallerAuthorizedResolution() {
+    // The service-identity derivation exists only for the legacy non-prefixed callback route. A
+    // request that addresses a tenant through the URL (the operator route) keeps the standard
+    // "rights are the boundary" resolution: the scope is the addressed tenant, validated against
+    // the caller's memberships, and the run's own tenant is never consulted.
+    runTenantScoped();
+    pathVariables(Map.of("tenantId", "tenant-1", "runId", "run-1"));
+    authorizeTenants("tenant-1", "tenant-2");
+
+    assertThat(resolve().toGuc()).isEqualTo("tenant-1");
+    verifyNoInteractions(runTenantLocator);
+  }
+
+  @Test
+  @DisplayName("on the tenant-prefixed route a tenant outside the caller's rights stays refused")
+  void runTenantScopeOnTenantPrefixedRouteRefusesForeignTenant() {
+    // The annotated handler must not become a caller-independent door on the prefixed route: a
+    // caller addressing a tenant it is not a member of is refused exactly like on any other
+    // prefixed endpoint, whatever tenant the run named by {runId} belongs to.
+    runTenantScoped();
+    pathVariables(Map.of("tenantId", "tenant-3", "runId", "run-1"));
+    authorizeTenants("tenant-1", "tenant-2");
+
+    assertThatThrownBy(this::resolve).isInstanceOf(TenantAccessDeniedException.class);
+    verifyNoInteractions(runTenantLocator);
   }
 }

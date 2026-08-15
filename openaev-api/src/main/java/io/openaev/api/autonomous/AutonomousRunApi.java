@@ -62,11 +62,12 @@ import org.springframework.web.bind.annotation.RestController;
  * autonomous_directives} tables are tenant-active (multi-tenancy v2): handlers that touch them take
  * a {@code TxCtx} so the transaction aspect sets the request scope. Operator handlers resolve that
  * scope from the caller's memberships / {@code X-Tenant-Ids}; the orchestrator CALLBACK handlers
- * mark their {@code TxCtx} with {@link io.openaev.config.RunTenantScope} so the scope is derived
- * from the parent run's own tenant (a service-identity operation, independent of the caller's
- * memberships) - otherwise the legacy non-prefixed callback, whose per-user JWT carries no tenant
- * claim, would fail to write the run's own timeline once the caller's scope does not pin the run's
- * tenant.
+ * mark their {@code TxCtx} with {@link io.openaev.config.RunTenantScope} so, on the legacy
+ * non-prefixed route only, the scope is derived from the parent run's own tenant (a
+ * service-identity operation, independent of the caller's memberships) - otherwise that legacy
+ * callback, whose per-user JWT carries no tenant claim, would fail to write the run's own timeline
+ * once the caller's scope does not pin the run's tenant. On the tenant-prefixed route the same
+ * handlers stay caller-authorized like every other prefixed endpoint.
  *
  * <p>Endpoints split into three audiences: the operator UI (create / start / pause / resume /
  * cancel / steer / read), the XTM One orchestrator callbacks (events / status / directive
@@ -382,6 +383,10 @@ public class AutonomousRunApi extends RestBehavior {
     return autonomousRunService.applyLiveConfiguration(runId, input);
   }
 
+  // endregion
+
+  // region orchestrator callbacks
+
   @Operation(summary = "Orchestrator: read the run's live, resolved scope (allow-list + deny-list)")
   @GetMapping("/{runId}/scope")
   @Transactional(readOnly = true)
@@ -400,10 +405,6 @@ public class AutonomousRunApi extends RestBehavior {
       @Valid @RequestBody AutonomousScopeUpdateInput input) {
     return autonomousRunService.setRunScope(runId, input.getScope());
   }
-
-  // endregion
-
-  // region orchestrator callbacks
 
   @Operation(summary = "Orchestrator: append a timeline event")
   @PostMapping("/{runId}/events")

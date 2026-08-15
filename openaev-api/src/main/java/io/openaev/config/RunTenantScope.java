@@ -26,6 +26,12 @@ import java.lang.annotation.Target;
  * io.openaev.context.TxCtx#missing()} (fail-closed), which the service then reports as a 404
  * through its own run lookup.
  *
+ * <p>The derivation applies ONLY on the legacy non-prefixed route (the one the orchestrator
+ * actually calls). On the tenant-prefixed operator route the handler keeps the standard
+ * caller-authorized resolution - the {@code {tenantId}} the URL names stays the boundary - so the
+ * annotation never turns the prefixed API into a second, caller-independent door to another
+ * tenant's run.
+ *
  * <p>Deliberately NOT applied to the operator-facing endpoints (create / list / get / timeline /
  * start-pause-resume-cancel-restart / queue-directive / configuration): those stay tenant-isolated
  * against the caller's scope exactly as multi-tenancy v2 made them. This annotation only restores
