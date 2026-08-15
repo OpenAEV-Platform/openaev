@@ -70,6 +70,21 @@ public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, St
       @Param("tenantId") String tenantId, @Param("threshold") Instant threshold);
 
   /**
+   * Ids of the given tenant's actively-working live runs the idle/stall watchdog must inspect:
+   * RUNNING and NOT plan mode. WAITING_INPUT (an operator HITL park) and PAUSED are deliberate,
+   * open-ended parks and are excluded; plan builds are bounded on the XTM One side and never await
+   * a finding, so they are out of scope for this watchdog. Only projects the id so the sweep can
+   * re-load and judge each run inside its own scoped transaction. The explicit {@code tenant_id}
+   * predicate keeps a per-tenant sweep correct whether or not {@code autonomous_runs} is onboarded
+   * to the tenant statement inspector.
+   */
+  @Query(
+      "SELECT r.id FROM AutonomousRun r WHERE r.tenant.id = :tenantId "
+          + "AND r.status = io.openaev.database.model.autonomous.AutonomousRunStatus.RUNNING "
+          + "AND r.planMode = false")
+  List<String> findLiveRunIdsForStallCheck(@Param("tenantId") String tenantId);
+
+  /**
    * Atomically settles a still-active run to a terminal status, but ONLY when it is not already
    * terminal. Returns the number of rows changed (1 = this call performed the flip; 0 = the run was
    * already CANCELED / COMPLETED / FAILED, belongs to another tenant, or no longer exists).
@@ -118,6 +133,27 @@ public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, St
           + "AND (r.status = io.openaev.database.model.autonomous.AutonomousRunStatus.RUNNING "
           + "OR r.status = io.openaev.database.model.autonomous.AutonomousRunStatus.WAITING_INPUT)")
   int settleTerminalStatusIfLive(
+      @Param("id") String id,
+      @Param("tenantId") String tenantId,
+      @Param("target") AutonomousRunStatus target,
+      @Param("now") Instant now);
+
+  /**
+   * Stall-watchdog variant: atomically settles a run to a terminal status ONLY while it is still
+   * RUNNING. Unlike {@link #settleTerminalStatusIfLive}, WAITING_INPUT is deliberately NOT settled
+   * - an operator HITL park is an open-ended, legitimate wait, and the idle sweep decides a run is
+   * stalled on a stale-liveness read taken earlier in its transaction; if the orchestrator parked
+   * the run for input between that read and this flip, re-asserting RUNNING lets the UPDATE match
+   * zero rows and leaves the park intact. Returns 1 when this call performed the flip, 0 when the
+   * run moved on (settled, restarted, paused, or parked for input), belongs to another tenant, or
+   * no longer exists.
+   */
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      "UPDATE AutonomousRun r SET r.status = :target, r.updatedAt = :now "
+          + "WHERE r.id = :id AND r.tenant.id = :tenantId "
+          + "AND r.status = io.openaev.database.model.autonomous.AutonomousRunStatus.RUNNING")
+  int settleTerminalStatusIfRunning(
       @Param("id") String id,
       @Param("tenantId") String tenantId,
       @Param("target") AutonomousRunStatus target,

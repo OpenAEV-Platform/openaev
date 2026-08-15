@@ -1,6 +1,7 @@
 package io.openaev.database.repository.autonomous;
 
 import io.openaev.database.model.autonomous.AutonomousEvent;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,6 +22,15 @@ public interface AutonomousEventRepository extends JpaRepository<AutonomousEvent
   /** Highest sequence written for a run, 0 when the run has no events yet. */
   @Query("SELECT COALESCE(MAX(e.sequence), 0) FROM AutonomousEvent e WHERE e.runId = :runId")
   long findMaxSequence(@Param("runId") String runId);
+
+  /**
+   * Instant of the newest timeline entry for a run, or {@code null} when the run has no events yet.
+   * This is the run's liveness clock for the idle/stall watchdog: every active decision cycle
+   * appends events (including a ~45s "still working" heartbeat), so a newest-event age far past
+   * that cadence means the orchestrator has gone silent (crashed, disconnected, or never resumed).
+   */
+  @Query("SELECT MAX(e.createdAt) FROM AutonomousEvent e WHERE e.runId = :runId")
+  Instant findMaxCreatedAt(@Param("runId") String runId);
 
   /**
    * Takes a PostgreSQL transaction-scoped advisory lock keyed on {@code key} and returns once it is

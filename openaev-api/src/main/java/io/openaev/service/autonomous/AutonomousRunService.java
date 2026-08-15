@@ -28,6 +28,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Finding;
@@ -57,6 +58,7 @@ import io.openaev.database.model.autonomous.AutonomousScopeTarget;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.TeamRepository;
@@ -163,6 +165,26 @@ public class AutonomousRunService {
   static final String WINDDOWN_PHASE_5M = "WINDDOWN_5M";
   static final String WINDDOWN_PHASE_1M = "WINDDOWN_1M";
 
+  /**
+   * Idle window the stall watchdog allows before settling a silent live run. A working run posts a
+   * "still working" timeline heartbeat every ~45s ({@code HEARTBEAT_INTERVAL_SECONDS} on the XTM
+   * One side), so 15 minutes is ~20 missed beats - comfortably past any single long decision cycle
+   * (whose in-burst heartbeats keep the clock fresh), well past the frontend's ~3-minute staleness
+   * cliff, and far below the 24h deadline. It targets the observed failure: a run whose
+   * orchestrator 401-stormed / disconnected and fell silent for ~12 minutes with the cockpit frozen
+   * on a spinner.
+   */
+  static final long STALL_IDLE_SECONDS = 15L * 60L;
+
+  /**
+   * Inject execution statuses that count as "in flight": the step is still progressing, so its
+   * result is legitimately pending and the orchestrator may be silently awaiting it. A DRAFT inject
+   * (no status row yet, never launched) is deliberately excluded - it is not in flight and cannot
+   * justify the orchestrator's silence - as are all terminal statuses (EXECUTED / ERROR / PARTIAL).
+   */
+  private static final Set<ExecutionStatus> IN_FLIGHT_INJECT_STATUSES =
+      Set.of(ExecutionStatus.QUEUING, ExecutionStatus.PENDING, ExecutionStatus.EXECUTING);
+
   private final AutonomousRunRepository runRepository;
   private final AutonomousDirectiveRepository directiveRepository;
   private final AutonomousEventService eventService;
@@ -175,6 +197,7 @@ public class AutonomousRunService {
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
   private final InjectRepository injectRepository;
+  private final InjectExpectationRepository injectExpectationRepository;
   private final FindingRepository findingRepository;
   private final EndpointService endpointService;
   private final TeamRepository teamRepository;
@@ -1260,6 +1283,119 @@ public class AutonomousRunService {
         "The run reached its OpenAEV-enforced deadline and was hard-stopped: the simulation was"
             + " stopped and the orchestration is torn down and cleaned up, exactly like an operator"
             + " Stop.");
+  }
+
+  /**
+   * Idle/stall watchdog for a single live run, invoked by {@code AutonomousTimeoutJob} inside the
+   * run's tenant scope, independently of the 24h deadline. A live autonomous run posts a "still
+   * working" timeline heartbeat every ~45s while a decision cycle is active, so a run that has gone
+   * silent for {@link #STALL_IDLE_SECONDS} is one whose orchestrator crashed, disconnected, or
+   * cannot authenticate (the observed 401-storm) - it never reaches its deadline, so without this
+   * it shows a frozen cockpit for up to 24h.
+   *
+   * <p>The exemption is what makes this safe against a LEGITIMATE silence: between cycles the
+   * orchestrator parks on {@code await_finding} and stops heartbeating while a dispatched step's
+   * result is pending (the default park is 24h). That pending result always shows up on the chained
+   * simulation as an in-flight inject (still executing) or an open, unscored expectation (e.g. a
+   * phishing lure whose inject already EXECUTED but whose click/detection is still awaited). Only
+   * when NOTHING is pending is the silence a genuine stall rather than a wait. WAITING_INPUT (an
+   * operator HITL park) is excluded by status, and plan builds are out of scope entirely.
+   *
+   * <p>Concurrency: the whole read-decide-flip is serialized so it can never fail a run that is
+   * actually alive. The run ROW is pessimistically locked first (matching every other settle path's
+   * {@code row -> advisory} order), then the per-run timeline advisory lock is held across the
+   * {@code lastActivityAt} read and the terminal flip: a heartbeat committing concurrently is
+   * either waited on - so the re-read sees it and the watchdog backs off - or blocked until the
+   * flip commits. This closes the race where a fresh append lands between the liveness read and the
+   * RUNNING-guarded UPDATE. The lock is taken row-first on purpose; taking the advisory lock before
+   * the row-locking flip would invert the platform-wide order (see {@code
+   * AutonomousEventService#deleteByRun}) and risk a deadlock against a concurrent operator Stop.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void enforceLiveness(String runId, String tenantId) {
+    // Row-lock the run first (row -> advisory order): this serializes the whole decision against a
+    // concurrent operator Stop / reconcile that also row-locks then settles, and it is the lock we
+    // must already hold before taking the timeline advisory lock below.
+    AutonomousRun run = runRepository.findByIdForUpdate(runId).orElse(null);
+    if (run == null || !tenantId.equals(runTenantId(run))) {
+      return; // gone, or (defense in depth) not this tenant's run
+    }
+    // Re-assert the sweep's selection predicates against the freshly-locked row: the id came from a
+    // query taken earlier in the sweep and the run may have moved on since (parked for input,
+    // paused, settled, restarted). Only a live, execute-mode run can stall.
+    if (run.getStatus() != AutonomousRunStatus.RUNNING || run.isPlanMode()) {
+      return;
+    }
+    // Hold the per-run timeline advisory lock across the liveness read AND the flip so a concurrent
+    // heartbeat append cannot slip between them: an in-flight append is waited on (we then read the
+    // fresh activity and back off), a later one is blocked until we settle.
+    eventService.lockRunTimeline(runId);
+    Instant lastActivity = eventService.lastActivityAt(runId);
+    if (lastActivity == null) {
+      // No decision timeline yet: fall back to when the live window opened so a run the worker has
+      // not picked up still gets its full grace period from a real instant (never settled on the
+      // first sweep after it went RUNNING).
+      lastActivity = run.getStartedAt() != null ? run.getStartedAt() : run.getCreatedAt();
+    }
+    if (lastActivity == null) {
+      return; // no usable liveness clock; leave it to the deadline watchdog
+    }
+    long idleSeconds = Duration.between(lastActivity, now()).getSeconds();
+    if (idleSeconds < STALL_IDLE_SECONDS) {
+      return; // still active within the idle window (in-cycle heartbeats keep this fresh)
+    }
+    // Idle past the threshold: settle ONLY if nothing on the simulation justifies the silence.
+    String simulationId = run.getSimulationId();
+    if (hasText(simulationId) && hasPendingSimulationWork(simulationId)) {
+      return; // a genuine await_finding park - a step result is still pending
+    }
+    stallRun(run, idleSeconds);
+  }
+
+  /**
+   * Whether the run's chained simulation has execution the orchestrator could still be legitimately
+   * awaiting: an in-flight inject (QUEUING / PENDING / EXECUTING) or an open, unscored expectation.
+   * Either makes a silent run a genuine {@code await_finding} park rather than a stall.
+   */
+  private boolean hasPendingSimulationWork(String simulationId) {
+    if (injectRepository.countByExerciseIdAndStatusNameIn(simulationId, IN_FLIGHT_INJECT_STATUSES)
+        > 0) {
+      return true;
+    }
+    return injectExpectationRepository.countOpenByExerciseId(simulationId) > 0;
+  }
+
+  /**
+   * Settles a stalled run to FAILED and narrates it once. Mirrors {@link #timeoutRun}: the terminal
+   * flip is an atomic conditional UPDATE so a run that moved on between the idle decision and this
+   * write is a silent no-op, and the chained simulation is torn down best-effort like an operator
+   * Stop. The flip is guarded on RUNNING only (not the deadline sweep's RUNNING/WAITING_INPUT): a
+   * run that parked for operator input between the idle decision and this write must not be
+   * stalled. Called by {@link #enforceLiveness} while it holds the run row lock and the per-run
+   * timeline advisory lock, so the RUNNING guard is evaluated against a timeline that cannot change
+   * under it - a heartbeat racing the decision was already reconciled before the flip.
+   */
+  private void stallRun(AutonomousRun run, long idleSeconds) {
+    int changed =
+        runRepository.settleTerminalStatusIfRunning(
+            run.getId(), run.getTenant().getId(), AutonomousRunStatus.FAILED, now());
+    if (changed == 0) {
+      // Someone else settled it, or it paused / parked for input / restarted, between the idle read
+      // and this flip; nothing to narrate.
+      return;
+    }
+    transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
+    long idleMinutes = Math.max(1, idleSeconds / 60L);
+    eventService.appendTerminalStatusOnce(
+        run.getId(),
+        runTenantId(run),
+        run.getSimulationId(),
+        "Run stalled",
+        "No orchestrator activity for ~"
+            + idleMinutes
+            + " minutes and nothing in flight (no running step, no open expectation), so the run"
+            + " was settled as failed. The orchestrator most likely crashed, lost its connection,"
+            + " or could not authenticate; restart the run to resume.");
   }
 
   /**

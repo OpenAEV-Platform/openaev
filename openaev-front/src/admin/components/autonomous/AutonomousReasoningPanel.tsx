@@ -1,8 +1,10 @@
 import {
   AutoAwesome,
+  ErrorOutline,
   HelpOutline,
   HourglassEmpty,
   SendOutlined,
+  WarningAmber,
 } from '@mui/icons-material';
 import { Box, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
@@ -901,19 +903,78 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         };
     }
   })();
+  // How long the cockpit has been silent, in whole ELAPSED minutes, for the truthful stall
+  // caption/notice. Floor (not round): a rounded value can overstate the silence (e.g. 3.6 min ->
+  // 4), and the caption must never claim more elapsed time than has actually passed.
+  const stalledMinutes = Math.max(1, Math.floor(newestEventAgeMs / 60000));
+  // Capture whether the caption was pulsing BEFORE the staleness backstop settles it: a stale-yet-
+  // active caption is the "frozen cockpit" signal (the timeline, heartbeats included, stopped while
+  // the orchestrator was mid-work), as opposed to a park/wait that is already an idle caption.
+  const captionWasActive = thinkingPhase.active;
   // Staleness backstop: never keep an active caption pulsing over a timeline that has not moved in
-  // minutes. Settle it into a calm idle caption that tells the truth (still awaiting the operator,
-  // or simply parked between moves). Static captions (open question, end-of-cycle park) already
-  // reflect an idle state, so leave them untouched. A newer event clears captionStale and the live
-  // caption resumes on the next 3s poll.
+  // minutes. When the operator is being awaited, settle to the calm "Waiting for your input".
+  // Otherwise the run is NOT parked (parks are already idle captions, left untouched above) and NOT
+  // waiting - it has genuinely gone silent mid-work, so tell the truth ("No updates for N min",
+  // static, no spinner) instead of the old calm "Awaiting the next event" that masked a stall.
   if (captionStale && thinkingPhase.active) {
-    thinkingPhase = {
-      key: 'idle',
-      label: isWaitingInput ? t('Waiting for your input') : t('Awaiting the next event'),
-      color: theme.palette.text.secondary,
-      active: false,
-    };
+    thinkingPhase = isWaitingInput
+      ? {
+          key: 'idle',
+          label: t('Waiting for your input'),
+          color: theme.palette.text.secondary,
+          active: false,
+        }
+      : {
+          key: 'stalled',
+          label: `${t('No updates for')} ${stalledMinutes} min`,
+          color: theme.palette.warning.main,
+          active: false,
+        };
   }
+  // Terminal-failure + client-side stall detection and the single run-level notice they drive, so
+  // the operator is never left staring at a frozen thought or a bare "No decisions" empty state.
+  const statusIsTerminalFailure = status === 'FAILED' || status === 'CANCELED';
+  // Nominally active but the caption went stale while pulsing: the orchestrator was working, then
+  // the timeline (heartbeats included) stopped for minutes with no park/wait. This is the auth-
+  // storm / crashed-cycle window BEFORE OpenAEV's own idle watchdog (WS8) settles the run.
+  const runStalled = isActive && captionStale && captionWasActive && !isWaitingInput;
+  // The last tool/auth error OpenAEV recorded on the run (cleared on (re)start/resume), surfaced
+  // ONLY when the run is terminal or stalled - never on a healthy, actively-progressing run, where
+  // a lingering earlier transient error would be stale noise.
+  const lastErrorText = sanitizeEventText(run.autonomous_run_last_error);
+  const runNotice: {
+    severity: 'error' | 'warning';
+    title: string;
+    detail?: string;
+  } | null = (() => {
+    if (lastErrorText && (statusIsTerminalFailure || runStalled)) {
+      let title = t('The AI hit an error');
+      if (status === 'CANCELED') {
+        title = t('The run was canceled');
+      } else if (statusIsTerminalFailure) {
+        title = t('The run stopped after an error');
+      }
+      return {
+        severity: 'error',
+        title,
+        detail: lastErrorText,
+      };
+    }
+    if (runStalled) {
+      // Plan-mode builds are exempt from OpenAEV's idle watchdog (WS8), so only a live run can
+      // truthfully promise auto-settlement; a stalled plan build is the operator's to restart.
+      const planMode = run.autonomous_run_plan_mode === true;
+      const settleHint = planMode
+        ? t('You can restart the plan build if it stays stalled.')
+        : t('OpenAEV will settle the run automatically if it stays silent.');
+      return {
+        severity: 'warning',
+        title: planMode ? t('The scenario planner looks stalled') : t('The orchestrator looks stalled'),
+        detail: `${t('No updates for')} ${stalledMinutes} min. ${settleHint}`,
+      };
+    }
+    return null;
+  })();
 
   return (
     <Box
@@ -983,7 +1044,12 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           </Typography>
           {isActive && (thinkingPhase.active
             ? <CircularProgress size={14} sx={{ color: accent }} />
-            : <HourglassEmpty fontSize="small" sx={{ color: theme.palette.text.secondary }} />)}
+            : (
+                <HourglassEmpty
+                  fontSize="small"
+                  sx={{ color: runStalled ? theme.palette.warning.main : theme.palette.text.secondary }}
+                />
+              ))}
         </Stack>
       </Box>
 
@@ -1000,7 +1066,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           padding: theme.spacing(1, 2),
         }}
       >
-        {visibleEvents.length === 0 && !isActive
+        {visibleEvents.length === 0 && !isActive && !runNotice
           ? (
               <Stack sx={{
                 alignItems: 'center',
@@ -1109,6 +1175,50 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     lines={thinkingLines}
                     activitySince={activitySince}
                   />
+                )}
+                {/* Run-level notice: a terminal-failure/cancel error, or a client-side stall. It
+                    replaces a frozen thinking bubble (a stalled run stops pulsing above) and a bare
+                    "No decisions" empty state, so the operator sees WHY the run stopped (the tool /
+                    auth error OpenAEV recorded) or that it has gone silent, instead of a spinner. */}
+                {runNotice && (
+                  <Box
+                    sx={{
+                      padding: theme.spacing(1.25, 1.5),
+                      borderRadius: 1.5,
+                      border: `1px solid ${alpha(runNotice.severity === 'error' ? theme.palette.error.main : theme.palette.warning.main, 0.4)}`,
+                      backgroundColor: alpha(runNotice.severity === 'error' ? theme.palette.error.main : theme.palette.warning.main, 0.08),
+                    }}
+                  >
+                    <Stack sx={{
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: 1,
+                    }}
+                    >
+                      {runNotice.severity === 'error'
+                        ? <ErrorOutline fontSize="small" color="error" sx={{ marginTop: '2px' }} />
+                        : <WarningAmber fontSize="small" color="warning" sx={{ marginTop: '2px' }} />}
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="subtitle2" sx={{ margin: 0 }}>
+                          {runNotice.title}
+                        </Typography>
+                        {runNotice.detail && (
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              margin: theme.spacing(0.25, 0, 0),
+                              color: 'text.secondary',
+                              fontSize: '0.8125rem',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {runNotice.detail}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Stack>
+                  </Box>
                 )}
                 {/* When the run parks on the operator, its question + one-click choices render HERE,
                     inline at the tail of the scrollable stream (normal conversation flow) - not as a

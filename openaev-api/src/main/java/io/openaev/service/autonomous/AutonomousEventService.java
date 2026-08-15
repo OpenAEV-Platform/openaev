@@ -5,11 +5,13 @@ import io.openaev.database.model.autonomous.AutonomousEvent;
 import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -44,7 +46,7 @@ public class AutonomousEventService {
    * + re-settled run can never spam a second identical one.
    */
   public static final Set<String> TERMINAL_STATUS_TITLES =
-      Set.of("Run canceled", "Run completed", "Run timed out", "Run failed");
+      Set.of("Run canceled", "Run completed", "Run timed out", "Run failed", "Run stalled");
 
   /**
    * High 32 bits of the per-run advisory-lock key, namespacing autonomous event-sequence locks so
@@ -154,6 +156,36 @@ public class AutonomousEventService {
   public List<AutonomousEvent> timelineSince(String runId, long sinceSequence) {
     return eventRepository.findByRunIdAndSequenceGreaterThanOrderBySequenceAsc(
         runId, sinceSequence);
+  }
+
+  /**
+   * Instant of the run's newest timeline entry, or {@code null} when it has none yet. This is the
+   * run's liveness clock for the idle/stall watchdog ({@link
+   * AutonomousRunService#enforceLiveness}): every active decision cycle appends events (including a
+   * ~45s "still working" heartbeat), so a newest-event age far past that cadence means the
+   * orchestrator has gone silent.
+   */
+  @Transactional(readOnly = true)
+  public Instant lastActivityAt(String runId) {
+    return eventRepository.findMaxCreatedAt(runId);
+  }
+
+  /**
+   * Takes the per-run event-sequence advisory lock for the CURRENT transaction - the same lock
+   * {@link #append} / {@link #appendTerminalStatusOnce} / {@link #deleteByRun} take. The idle/stall
+   * watchdog ({@link AutonomousRunService#enforceLiveness}) calls this AFTER it has row-locked the
+   * run and BEFORE it reads {@link #lastActivityAt}, so the liveness read and the terminal flip are
+   * serialized against a concurrent timeline append: a heartbeat committing right now is waited on
+   * (the watchdog then reads the fresh activity and does NOT stall), and one that arrives later is
+   * blocked until the watchdog's flip commits. Acquiring this AFTER the run ROW lock preserves the
+   * platform-wide {@code row -> advisory} order (see {@link #deleteByRun}); acquiring it first
+   * would invert that order and risk a deadlock against a concurrent operator Stop / reconcile.
+   * Declared {@code MANDATORY} because an advisory lock in its own throwaway transaction would
+   * release immediately and serialize nothing.
+   */
+  @Transactional(propagation = Propagation.MANDATORY)
+  public void lockRunTimeline(String runId) {
+    eventRepository.lockRunEventSequence(sequenceLockKey(runId));
   }
 
   /**

@@ -271,13 +271,14 @@ public class ThreatArsenalService {
 
   private ThreatArsenalAction updateActionPayloadBased(
       InjectorContract injectorContract, ThreatArsenalActionUpdateInput actionInput) {
+    // Missing required fields are a client mistake, not a server fault: raise the domain
+    // BadRequestException (400) so the caller gets an actionable message it can auto-correct,
+    // instead of leaning on the catch-all IllegalArgumentException mapper.
     if (actionInput.executionArch() == null) {
-      throw new IllegalArgumentException(
-          "action_execution_arch is required for payload-based actions");
+      throw new BadRequestException("action_execution_arch is required for payload-based actions");
     }
     if (actionInput.expectations() == null) {
-      throw new IllegalArgumentException(
-          "action_expectations is required for payload-based actions");
+      throw new BadRequestException("action_expectations is required for payload-based actions");
     }
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
