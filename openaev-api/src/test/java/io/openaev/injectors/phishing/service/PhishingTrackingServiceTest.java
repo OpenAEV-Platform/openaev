@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
@@ -164,6 +165,236 @@ class PhishingTrackingServiceTest {
         0.0, opened.getScore(), "a followed link implies an open, so the opened step flips too");
     verify(injectExpectationRepository).save(clicked);
     verify(injectExpectationRepository).save(opened);
+  }
+
+  @Test
+  @DisplayName("markClicked should stamp the triggering request's IP and user agent on the step")
+  void markClicked_should_stampSourceIpAndUserAgentMetadata() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(true, true);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation clicked = resistedStep(PhishingTrackingService.STEP_CLICKED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(clicked));
+
+    // -- ACT -- a human-looking browser agent, no sentAt on the row (so no delay/automation).
+    phishingTrackingService.markClicked(
+        "token-1", "203.0.113.7", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120");
+
+    // -- ASSERT -- the compromised step carries the forensic origin of THIS request.
+    Map<String, String> metadata = clicked.getResults().get(0).getMetadata();
+    assertNotNull(metadata, "a compromised step must carry forensic metadata");
+    assertEquals("203.0.113.7", metadata.get(PhishingTrackingService.SOURCE_IP_METADATA_KEY));
+    assertEquals(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120",
+        metadata.get(PhishingTrackingService.SOURCE_USER_AGENT_METADATA_KEY));
+    assertNull(
+        metadata.get(PhishingTrackingService.SOURCE_AUTOMATION_METADATA_KEY),
+        "a human browser agent with no timing signal must not be flagged automated");
+  }
+
+  @Test
+  @DisplayName(
+      "markOpened should NOT score a known email-scanner user agent, only annotate the green step")
+  void markOpened_should_suppressScannerUserAgent() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    ManualInjectExpectation opened = resistedStep(PhishingTrackingService.STEP_OPENED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(opened));
+
+    // -- ACT -- Microsoft Safe Links pre-detonation user agent (BingPreview family).
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markOpened(
+            "token-1", "40.94.2.10", "Mozilla/5.0 (compatible; BingPreview/1.0b)");
+
+    // -- ASSERT -- the step stays GREEN and untimestamped; the probe is only an annotation.
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getOpenedAt(), "a scanner probe must not win the first-open slot");
+    assertEquals(100.0, opened.getScore(), "a scanner probe must never flip the step to RED");
+    Map<String, String> metadata = opened.getResults().get(0).getMetadata();
+    assertNotNull(metadata, "the ignored probe must leave a forensic annotation");
+    assertEquals("40.94.2.10", metadata.get(PhishingTrackingService.SOURCE_IP_METADATA_KEY));
+    assertNotNull(
+        metadata.get(PhishingTrackingService.SOURCE_AUTOMATION_METADATA_KEY),
+        "the annotation must say why the hit was treated as automated");
+    assertEquals(
+        PhishingTrackingService.AUTOMATION_LEVEL_LIKELY,
+        metadata.get(PhishingTrackingService.SOURCE_AUTOMATION_LEVEL_METADATA_KEY),
+        "a pure scanner signature must carry the machine-readable 'likely' level");
+    verifyNoInteractions(findingService);
+  }
+
+  @Test
+  @DisplayName("markOpened should still score a genuine open after a suppressed scanner probe")
+  void markOpened_should_scoreGenuineOpenAfterSuppressedProbe() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation opened = resistedStep(PhishingTrackingService.STEP_OPENED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(opened));
+
+    // -- ACT -- the scanner probes first (suppressed annotation), the recipient opens later.
+    phishingTrackingService.markOpened(
+        "token-1", "40.94.2.10", "Mozilla/5.0 (compatible; BingPreview/1.0b)");
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markOpened(
+            "token-1", "203.0.113.7", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120");
+
+    // -- ASSERT -- the annotation never poisons the step: the genuine open still flips it RED
+    // with the recipient's own forensic origin, not the scanner's.
+    assertTrue(updated.isPresent());
+    assertNotNull(updated.get().getOpenedAt(), "the genuine open must win the first-open slot");
+    assertEquals(0.0, opened.getScore(), "the genuine open must still flip the step to RED");
+    Map<String, String> metadata = opened.getResults().get(0).getMetadata();
+    assertNotNull(metadata);
+    assertEquals(
+        "203.0.113.7",
+        metadata.get(PhishingTrackingService.SOURCE_IP_METADATA_KEY),
+        "the flip must carry the recipient's origin, not the earlier probe's");
+  }
+
+  @Test
+  @DisplayName("a scanner probe must not rewrite the forensics of a step already flipped RED")
+  void markOpened_should_leaveCompromisedStepUntouchedOnLaterProbe() {
+    // -- ARRANGE -- the recipient already fell for the step; its result carries their origin.
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation opened = resistedStep(PhishingTrackingService.STEP_OPENED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(opened));
+    phishingTrackingService.markOpened(
+        "token-1", "203.0.113.7", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120");
+    List<InjectExpectationResult> flippedResults = opened.getResults();
+
+    // -- ACT -- a scanner probes the lure afterwards.
+    phishingTrackingService.markOpened(
+        "token-1", "40.94.2.10", "Mozilla/5.0 (compatible; BingPreview/1.0b)");
+
+    // -- ASSERT -- the RED step keeps the recipient's forensic trail, byte for byte.
+    assertEquals(0.0, opened.getScore(), "the step must stay RED");
+    assertEquals(
+        flippedResults,
+        opened.getResults(),
+        "a later probe must not rewrite a compromised step's results");
+    assertEquals(
+        "203.0.113.7",
+        opened
+            .getResults()
+            .get(0)
+            .getMetadata()
+            .get(PhishingTrackingService.SOURCE_IP_METADATA_KEY),
+        "the recipient's own origin must survive the later probe");
+  }
+
+  @Test
+  @DisplayName("buildSourceMetadata should cap attacker-controlled header values")
+  void markClicked_should_truncateOversizedUserAgentMetadata() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation clicked = resistedStep(PhishingTrackingService.STEP_CLICKED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(clicked));
+
+    // -- ACT -- a hostile client sends a multi-kilobyte User-Agent header.
+    phishingTrackingService.markClicked("token-1", "1.2.3.4", "A".repeat(5000));
+
+    // -- ASSERT -- the stored forensic value is capped, not the raw header.
+    String storedAgent =
+        clicked
+            .getResults()
+            .get(0)
+            .getMetadata()
+            .get(PhishingTrackingService.SOURCE_USER_AGENT_METADATA_KEY);
+    assertNotNull(storedAgent);
+    assertEquals(512, storedAgent.length(), "the stored user agent must be capped at 512 chars");
+  }
+
+  @Test
+  @DisplayName("markOpened should NOT score a hit landing within seconds of delivery")
+  void markOpened_should_suppressFastHit() {
+    // -- ARRANGE -- the lure was 'delivered' now, so any hit is within the automation window.
+    PhishingResult result = resultWith(false, false);
+    result.setSentAt(java.time.Instant.now());
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    ManualInjectExpectation opened = resistedStep(PhishingTrackingService.STEP_OPENED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(opened));
+
+    // -- ACT -- a human-looking agent, but impossibly fast after delivery (Safe Links
+    // detonation pattern: the gateway fetches with a browser-like agent seconds after send).
+    phishingTrackingService.markOpened(
+        "token-1", "203.0.113.9", "Mozilla/5.0 (Macintosh; Intel Mac OS X) Safari/17");
+
+    // -- ASSERT -- timing alone suppresses; the annotation carries the delay and the reason.
+    assertEquals(100.0, opened.getScore(), "a too-fast hit must never flip the step to RED");
+    Map<String, String> metadata = opened.getResults().get(0).getMetadata();
+    assertNotNull(metadata);
+    assertNotNull(
+        metadata.get(PhishingTrackingService.SOURCE_DELAY_METADATA_KEY),
+        "the annotation must carry the human-readable delay after delivery");
+    assertNotNull(
+        metadata.get(PhishingTrackingService.SOURCE_AUTOMATION_METADATA_KEY),
+        "the annotation must say why the hit was treated as automated");
+  }
+
+  @Test
+  @DisplayName(
+      "markOpened should still score a dual-use image proxy agent, with an advisory hint only")
+  void markOpened_should_scoreImageProxyWithAdvisoryHint() {
+    // -- ARRANGE -- no sentAt on the row: the delay signal is unavailable, like a legacy row.
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation opened = resistedStep(PhishingTrackingService.STEP_OPENED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(opened));
+
+    // -- ACT -- Gmail image proxy: genuine recipient opens ride through it too, so it must
+    // score (suppressing it would hide every real Gmail open) but carry the advisory hint.
+    phishingTrackingService.markOpened(
+        "token-1", "66.102.8.1", "Mozilla/5.0 (Windows NT 5.1; de) via ggpht.com GoogleImageProxy");
+
+    // -- ASSERT --
+    assertEquals(0.0, opened.getScore(), "a dual-use proxy open must still score the step");
+    Map<String, String> metadata = opened.getResults().get(0).getMetadata();
+    assertNotNull(metadata);
+    assertNotNull(
+        metadata.get(PhishingTrackingService.SOURCE_AUTOMATION_METADATA_KEY),
+        "a dual-use proxy open must carry the advisory automation hint");
+    assertEquals(
+        PhishingTrackingService.AUTOMATION_LEVEL_POSSIBLE,
+        metadata.get(PhishingTrackingService.SOURCE_AUTOMATION_LEVEL_METADATA_KEY),
+        "a dual-use proxy must carry the machine-readable 'possible' level, not 'likely'");
+  }
+
+  @Test
+  @DisplayName("markSubmitted should NOT capture credentials submitted by a sandbox detonator")
+  void markSubmitted_should_suppressScannerSubmit() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(true, true);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    ManualInjectExpectation submitted = resistedStep(PhishingTrackingService.STEP_SUBMITTED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(submitted));
+
+    // -- ACT -- a URL-detonation sandbox auto-filling the landing form with synthetic data.
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markSubmitted(
+            "token-1",
+            Map.of("username", "synthetic@detonation.test", "password", "fake"),
+            "40.94.2.11",
+            "Mozilla/5.0 (compatible; MSIE SafeLinks detonation)");
+
+    // -- ASSERT -- no verdict, no timestamps, no fake Credentials finding.
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getSubmittedAt(), "a detonator submit must not win first-submit");
+    assertEquals(100.0, submitted.getScore(), "a detonator submit must never flip the step");
+    verifyNoInteractions(findingService);
   }
 
   @Test
