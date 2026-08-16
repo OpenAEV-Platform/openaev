@@ -34,9 +34,9 @@ export const Section = ({ title, children }: {
   }}
   >
     <Typography sx={SECTION_LABEL_SX}>{title}</Typography>
-    {/* padding=16 (ISO). Le titre reste produit et au-dessus de la surface :
-        la lib expose title/action, mais son en-tete a sa propre typographie et
-        sa propre hauteur -- l'adopter changerait le rendu de 106 ecrans. */}
+    {/* padding=16 (iso). The header is still product-side and above the
+        surface. Adopting the library's title/action slot is a deliberate visual
+        change, decided separately — see PAPER-GAP-INVENTORY §13. */}
     <Paper padding={16} style={{ flex: 1 }}>
       {children}
     </Paper>
@@ -85,8 +85,8 @@ export const InformationGrid = ({ title, action, children }: {
           </Box>
         )
       : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
-    {/* padding=16 (ISO) : la surface EST la grille, +8px feraient retomber
-        une colonne (pistes minmax(180px, 1fr)). */}
+    {/* padding=16 (iso): the surface IS the grid, +8px would drop a column
+        (tracks are minmax(180px, 1fr)). */}
     <Paper
       padding={16}
       style={{
@@ -182,9 +182,9 @@ export const SectionBlock = ({ title, action, children, disablePadding, centerCo
           </Box>
         )
       : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
-    {/* padding=16 (ISO), 0 sous `disablePadding`. Le cumul 16+16 avec les
-        gouttieres des lignes est REPRODUIT tel quel : le corriger est une
-        decision de densite hors de cette vague -- PAPER-GAP-INVENTORY §6.3. */}
+    {/* padding=16 (iso), 0 under `disablePadding`. The 16+16 cumulation with
+        the row gutters is REPRODUCED as-is: correcting it is a density decision
+        outside this wave — PAPER-GAP-INVENTORY §6.3. */}
     <Paper
       padding={disablePadding ? 0 : 16}
       style={{
@@ -351,9 +351,10 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
   const theme = useTheme();
   const accent = theme.palette.primary.main;
   return (
-    // DetailHero reste sur MUI : degrade d'accent + fond transparent, et la
-    // transparence tombe sous l'exclusion « semi-transparents = temps 2 »
-    // (PAPER-GAP-INVENTORY §4, arbitrage G4).
+    // DetailHero stays on MUI: accent gradient + transparent fill, and the
+    // transparency falls under the "semi-transparent = phase 2" exclusion.
+    // It also leaves the Paper waves permanently — it becomes its own
+    // component (PAPER-GAP-INVENTORY §4, arbitration G4).
     <MuiPaper
       variant="outlined"
       data-testid="detail-hero"

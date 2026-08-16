@@ -32,7 +32,8 @@ const CrysisIntensity = ({ injects }) => {
     },
   ];
   return (
-    /* padding=0 (ISO) : le graphe occupe la surface bord à bord — PAPER-GAP-INVENTORY §6.1. */
+    /* padding=0 (iso): the chart fills the surface edge to edge. No dividers
+       here — this site keeps 0 for the full-bleed chart, not for row dividers. */
     <Paper
       padding={0}
       style={{

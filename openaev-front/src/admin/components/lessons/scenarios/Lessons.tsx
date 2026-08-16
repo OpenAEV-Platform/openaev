@@ -214,9 +214,9 @@ const Lessons: FunctionComponent<Props> = ({
           </Can>
         </header>
         {lessonsCategories.length === 0 ? (
-          /* padding=32 porté par le Paper, et les 32px du placeholder retirés
-             ICI, au site d'appel : le composant partagé garde son rendu pour
-             ses autres consommateurs — PAPER-GAP-INVENTORY §6.2. */
+          /* padding=32 carried by the Paper, and the placeholder's own 32px
+             dropped HERE, at the call site: the shared component keeps its
+             default rendering for its other consumers — PAPER-GAP-INVENTORY §6.2. */
           <Paper padding={32}>
             <LessonsPlaceholder
               disablePadding

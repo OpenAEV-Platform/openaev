@@ -117,10 +117,13 @@ const Login = () => {
             {isLocal && !reset && (
               // The login panel is an elevation-1 surface, like every other
               // panel in the app. `background.secondary` resolved to
-              // `--bg-elevation-highlight-layer-0` (#13213e), which is
-              // layer 2's value — measured on the running page. Dropping the
+              // `--bg-elevation-highlight-layer-0`, a token whose value happens
+              // to coincide with layer 2 in dark (#13213e) and with layer 3 in
+              // light (#e4e5e7) — so the panel sat one step too high in dark and
+              // three in light. Both measured on the running page. Dropping the
               // override leaves MUI's own `background.paper`, i.e. layer 1
-              // (#0d172b), and it keeps following a customer's `paper_color`.
+              // (#0d172b dark, #ffffff light), and it keeps following a
+              // customer's `paper_color`.
               <Paper
                 elevation={0}
                 sx={{

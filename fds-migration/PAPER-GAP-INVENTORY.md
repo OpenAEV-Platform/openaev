@@ -655,15 +655,17 @@ qu'elles ont été manquées ici. Repris en LIBRARY-FEEDBACK #33.
 Signalé par Sandy sur le rendu réel, vérifié dans l'app tournante (la page de
 login est publique : mesurée sans authentification, sur `localhost:3001`).
 
-| | fond mesuré | couche |
-|---|---|---|
-| avant | `rgb(19,33,62)` = `#13213e` | **layer 2** |
-| après | `rgb(13,23,43)` = `#0d172b` | **layer 1** ✅ |
+| thème | avant | après | déplacement |
+|---|---|---|---|
+| **sombre** | `#13213e` (= valeur de la **couche 2**) | `#0d172b` (**couche 1**) | 1 cran |
+| **clair** | `#e4e5e7` (= valeur de la **couche 3**) | `#ffffff` (**couche 1**) | **3 crans** |
 
 **Cause.** `Login.tsx:118` posait `backgroundColor: 'background.secondary'`, et
-`palette.background.secondary` résout sur `--bg-elevation-highlight-layer-0`,
-dont la valeur est exactement celle de layer 2. Le panneau se retrouvait donc
-deux crans au-dessus de la page au lieu d'un.
+`palette.background.secondary` résout sur `--bg-elevation-highlight-layer-0` —
+un token dont la valeur **coïncide** avec la couche 2 en sombre et avec la
+couche **3** en clair. Le décalage n'était donc pas le même dans les deux
+modes : d'un cran en sombre, de trois en clair. Le champ de palette ne nommait
+aucune couche, ce qui rendait l'écart invisible à la lecture.
 
 **Correction.** L'override est retiré : le `Paper` reprend le
 `background.paper` de MUI, c'est-à-dire layer 1 — et il continue de suivre le
@@ -726,12 +728,20 @@ Cassant côté lib, **sans effet ici** — et vérifié plutôt que supposé :
 |---|---|
 | `var(--…-transparency-40)` en chaîne | **aucune** |
 | classe utilitaire en littéral contenant `transparency-40` | **aucune** |
-| pont régénéré : clés disparues / apparues | les 4 `-transparency-40` par couche → `-transparency-15`, **base par couche inchangée** |
+| pont régénéré : clés disparues / apparues | les 4 `-transparency-40` par couche → `-transparency-15` ; **le NOM de la base par couche est inchangé** |
 
-C'est exactement pourquoi la surcharge de thème client vise la **BASE**
-(`--border-elevation-subtle-soft-layer-1`) et non la variante diluée : le
-renommage est passé sans toucher une ligne de `AppThemeProvider`. Le commentaire
-du fichier, qui annonçait « 40 % », a été corrigé.
+**Précision, parce que le fichier se contredisait :** seul le **nom** de la base
+par couche est inchangé. Sa **valeur** bouge en clair, sur les quatre couches —
+`#afb0b6` → `#95969d` (c'est la « base claire descendue d'un cran » de #125).
+En sombre, la valeur ne bouge pas.
+
+La conclusion tient quand même, et pour deux raisons : la surcharge de thème
+client vise la **BASE** (`--border-elevation-subtle-soft-layer-1`) et non la
+variante diluée, dont le nom a changé — le renommage est donc passé sans toucher
+une ligne de `AppThemeProvider` ; et sur une install à thème client, **la
+surcharge écrase cette base de toute façon**, donc le déplacement de valeur en
+clair n'y est même pas observable. Il ne l'est que sur les thèmes par défaut.
+Le commentaire du fichier, qui annonçait « 40 % », a été corrigé.
 
 ### Thème client — l'arête reste absente, et c'est voulu
 

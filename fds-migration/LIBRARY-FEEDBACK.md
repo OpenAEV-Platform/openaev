@@ -21,6 +21,20 @@ is **resolved** too, by the `Menu` component (#74). The entries left open are 2,
 blocking and is now **resolved** (#79), with a consumer-install proof running on
 every library pull request.
 
+**Status of the Paper-pilot entries (26 → 34), at pin `a22b188`.**
+
+| entry | state |
+|---|---|
+| 26 padding prop | **closed** — the 0/8/16/24/32 scale ships and all five classes exist in `dist` |
+| 27 border | **closed as ARBITRATED** — the per-layer token exists; the 15% opacity is a decision, and the converted panels end up with a weaker border than before (see the entry) |
+| 28 host theming | **closed** — `--bg-elevation-default-layer-N` repaints, the alias does nothing |
+| 29 DetailHero | **closed as a Paper question** — it becomes its own component and leaves the Paper waves permanently |
+| 30 title/action | **closed** — both are real props; the product now adopts them |
+| 31 guard vs mixed file | **open** |
+| 32 off-scale padding → 0px | **open** |
+| 33 incomplete rename inventory | **open** (method finding, not a library defect) |
+| 34 host `outline` reset | **open** |
+
 ---
 
 ## 1. `NavbarItem` has no link destination (`href` / `to`)
@@ -1615,11 +1629,21 @@ itself surfaced.
   and all five now exist in the shipped `dist/index.css` (`p-8` used to resolve
   to `0px`). Default 24. The 13 converted sites render byte-identical padding to
   their pre-migration state.
-- **#27 border — CLOSED.** The border is now its own per-layer token
-  (`--border-elevation-subtle-soft`). Measured in light mode on the converted
-  panels: composite `rgb(223,223,226)` on white, **1.33:1** against its own
-  surface — where the product's MUI border measured 1.32:1. The invisible
-  1.03:1 is gone.
+- **#27 border — CLOSED AS ARBITRATED, not as "satisfied".** What the entry
+  asked for exists: the border is now its own per-layer token
+  (`--border-elevation-subtle-soft`), themeable by a host. The **opacity is
+  Sandy's decision** (15% since #125), and the measured consequence is that the
+  converted panels' border is **weaker than before migration**, not equal to it:
+
+  | | before migration (MUI) | after, at pin `a22b188` |
+  |---|---|---|
+  | dark | 1.42:1 | **1.09:1** |
+  | light | 1.32:1 | **1.15:1** |
+
+  The invisible 1.03:1 that opened this entry **is gone**. Parity with MUI's
+  `divider` is explicitly **no longer an objective** — the library's border is
+  its own design decision, not a reproduction of the product's. Full table
+  across all four elevations and both themes: PAPER-GAP-INVENTORY §12.
 - **#28 host theme — CLOSED, and the contract is the important part.** Measured
   both directions in a real browser: re-declaring `--bg-elevation-default-layer-1`
   on `:root` repaints the surface to the customer's colour, and re-declaring the
@@ -1633,6 +1657,23 @@ itself surfaced.
   asked ("can a Paper ever be transparent or consumer-painted") is answered by
   not asking Paper to be either: the need gets a component of its own. The
   product keeps it on MUI until that component exists.
+
+### Status, pin `a22b188` — #30 is CLOSED
+
+`title` and `action` became real props at pin `2e77492`, so the two documented
+breakages this entry described are gone:
+
+- `<Paper title="X">` no longer lands on the native `title` attribute (no more
+  browser tooltip over the whole panel) — it renders a header row above the
+  surface, outside its border and padding;
+- `<Paper action={node}>` no longer serialises to `action="[object Object]"` on
+  a `<div>` — it renders in a right-aligned slot.
+
+Measured on the installed build, not read from the changelog. The product now
+**adopts** both props (see PAPER-GAP-INVENTORY §13): the visual change they
+bring is deliberate, the library being the reference.
+
+---
 
 ## 31. The `imported-from-library` guard cannot express a mixed file
 

@@ -24,8 +24,8 @@ const LessonsObjectives = ({
     objectives,
   );
   return (
-    /* padding=0 (ISO) : les gouttières des lignes portent la marge, et leurs
-       séparateurs doivent continuer à toucher les bords — PAPER-GAP-INVENTORY §6.1. */
+    /* padding=0 (iso): the row gutters carry the inset, and their dividers
+       must keep touching the edges — PAPER-GAP-INVENTORY §6.1. */
     <Paper
       padding={0}
       style={{

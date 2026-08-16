@@ -138,7 +138,7 @@ const LessonsCategories = ({
               }}
               >
                 <Typography sx={SECTION_LABEL_SX}>{t('Questions')}</Typography>
-                {/* padding=0 (ISO) : séparateurs de lignes bord à bord — PAPER-GAP-INVENTORY §6.1. */}
+                {/* padding=0 (iso): row dividers stay edge to edge — PAPER-GAP-INVENTORY §6.1. */}
                 <Paper
                   padding={0}
                   style={{
@@ -201,7 +201,7 @@ const LessonsCategories = ({
               }}
               >
                 <Typography sx={SECTION_LABEL_SX}>{t('Results')}</Typography>
-                {/* padding=0 (ISO) : séparateurs de lignes bord à bord — PAPER-GAP-INVENTORY §6.1. */}
+                {/* padding=0 (iso): row dividers stay edge to edge — PAPER-GAP-INVENTORY §6.1. */}
                 <Paper
                   padding={0}
                   style={{
@@ -304,7 +304,7 @@ const LessonsCategories = ({
                     />
                   )}
                 </Typography>
-                {/* padding=16 (ISO) : le padding des puces est intrinsèque, il reste — PAPER-GAP-INVENTORY §5.3. */}
+                {/* padding=16 (iso): the chips' own padding is intrinsic and stays — PAPER-GAP-INVENTORY §5.3. */}
                 <Paper
                   padding={16}
                   style={{
