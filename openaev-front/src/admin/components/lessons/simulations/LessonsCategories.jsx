@@ -146,7 +146,13 @@ const LessonsCategories = ({
                     overflow: 'hidden',
                   }}
                 >
-                  <List disablePadding>
+                  <List
+                    disablePadding
+                    // The last row's divider lands 1px above the Paper's own border and
+                    // reads as a 2px line (measured: 1px divider, 1px gap, 1px border).
+                    // Only the last child loses it — intermediate rows keep theirs.
+                    sx={{ '& > :last-child': { borderBottom: 0 } }}
+                  >
                     {questions.map(question => (
                       <ListItem
                         key={question.lessonsquestion_id}
@@ -209,7 +215,13 @@ const LessonsCategories = ({
                     overflow: 'hidden',
                   }}
                 >
-                  <List disablePadding>
+                  <List
+                    disablePadding
+                    // The last row's divider lands 1px above the Paper's own border and
+                    // reads as a 2px line (measured: 1px divider, 1px gap, 1px border).
+                    // Only the last child loses it — intermediate rows keep theirs.
+                    sx={{ '& > :last-child': { borderBottom: 0 } }}
+                  >
                     {questions.map((question) => {
                       const consolidatedAnswer = consolidatedAnswers[
                         question.lessonsquestion_id

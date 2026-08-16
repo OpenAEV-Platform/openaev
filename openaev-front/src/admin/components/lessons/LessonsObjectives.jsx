@@ -34,7 +34,13 @@ const LessonsObjectives = ({
       }}
     >
       {sortedObjectives.length > 0 ? (
-        <List disablePadding>
+        <List
+          disablePadding
+          // The last row's divider lands 1px above the Paper's own border and
+          // reads as a 2px line (measured: 1px divider, 1px gap, 1px border).
+          // Only the last child loses it — intermediate rows keep theirs.
+          sx={{ '& > :last-child': { borderBottom: 0 } }}
+        >
           {sortedObjectives.map(objective => (
             <ListItem
               key={objective.objective_id}
