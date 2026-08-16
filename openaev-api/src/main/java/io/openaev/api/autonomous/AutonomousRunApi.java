@@ -22,6 +22,7 @@ import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
+import io.openaev.config.RunTenantScope;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Workflow;
@@ -59,8 +60,16 @@ import org.springframework.web.bind.annotation.RestController;
  * authority derives from its bound simulation, checked in-service through {@code
  * AutonomousRunAccessControl}. The {@code autonomous_runs}, {@code autonomous_events} and {@code
  * autonomous_directives} tables are tenant-active (multi-tenancy v2): handlers that touch them take
- * a {@code TxCtx} so the transaction aspect sets the request scope. The orchestrator's legacy
- * non-prefixed path resolves that scope from the caller's memberships / {@code X-Tenant-Ids}.
+ * a {@code TxCtx} so the transaction aspect sets the request scope. Operator handlers resolve that
+ * scope from the caller's memberships / {@code X-Tenant-Ids}; the orchestrator CALLBACK handlers
+ * mark their {@code TxCtx} with {@link io.openaev.config.RunTenantScope} so, on the legacy
+ * non-prefixed route and for the VERIFIED XTM One cross-platform service identity only (the bearer
+ * {@code io.openaev.security.token.XtmJwksExtractor} fully validated), the scope is derived from
+ * the parent run's own tenant - otherwise that legacy callback, whose per-user JWT carries no
+ * tenant claim, would fail to write the run's own timeline once the caller's scope does not pin the
+ * run's tenant. A non-service caller on the same handlers keeps the standard caller-authorized
+ * resolution (no cross-tenant reach from a known run id), and on the tenant-prefixed route the
+ * handlers stay caller-authorized like every other prefixed endpoint.
  *
  * <p>Endpoints split into three audiences: the operator UI (create / start / pause / resume /
  * cancel / steer / read), the XTM One orchestrator callbacks (events / status / directive
@@ -376,11 +385,15 @@ public class AutonomousRunApi extends RestBehavior {
     return autonomousRunService.applyLiveConfiguration(runId, input);
   }
 
+  // endregion
+
+  // region orchestrator callbacks
+
   @Operation(summary = "Orchestrator: read the run's live, resolved scope (allow-list + deny-list)")
   @GetMapping("/{runId}/scope")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public AutonomousScopeView getScope(TxCtx ctx, @PathVariable String runId) {
+  public AutonomousScopeView getScope(@RunTenantScope TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.getRunScopeView(runId);
   }
 
@@ -389,20 +402,20 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRun setScope(
-      TxCtx ctx, @PathVariable String runId, @Valid @RequestBody AutonomousScopeUpdateInput input) {
+      @RunTenantScope TxCtx ctx,
+      @PathVariable String runId,
+      @Valid @RequestBody AutonomousScopeUpdateInput input) {
     return autonomousRunService.setRunScope(runId, input.getScope());
   }
-
-  // endregion
-
-  // region orchestrator callbacks
 
   @Operation(summary = "Orchestrator: append a timeline event")
   @PostMapping("/{runId}/events")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousEvent recordEvent(
-      TxCtx ctx, @PathVariable String runId, @Valid @RequestBody AutonomousEventInput input) {
+      @RunTenantScope TxCtx ctx,
+      @PathVariable String runId,
+      @Valid @RequestBody AutonomousEventInput input) {
     return autonomousRunService.recordEvent(
         runId, input.getType(), input.getTitle(), input.getContent(), input.getData());
   }
@@ -412,7 +425,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRun updateStatus(
-      TxCtx ctx,
+      @RunTenantScope TxCtx ctx,
       @PathVariable String runId,
       @Valid @RequestBody AutonomousStatusUpdateInput input) {
     return autonomousRunService.updateStatus(
@@ -423,7 +436,8 @@ public class AutonomousRunApi extends RestBehavior {
   @PostMapping("/{runId}/directives/consume")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public List<AutonomousDirective> consumeDirectives(TxCtx ctx, @PathVariable String runId) {
+  public List<AutonomousDirective> consumeDirectives(
+      @RunTenantScope TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.consumePendingDirectives(runId);
   }
 
@@ -441,7 +455,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousAttackPathStepResult appendAttackPathStep(
-      TxCtx ctx,
+      @RunTenantScope TxCtx ctx,
       @PathVariable String runId,
       @Valid @RequestBody AutonomousAttackPathStepInput input) {
     String stepTemplateId =
@@ -462,7 +476,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousAttackPathStepResult updateAttackPathStep(
-      TxCtx ctx,
+      @RunTenantScope TxCtx ctx,
       @PathVariable String runId,
       @PathVariable String stepTemplateId,
       @Valid @RequestBody AutonomousAttackPathStepInput input) {
@@ -482,7 +496,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public List<AutonomousAttackPathStepState> attackPathState(
-      TxCtx ctx, @PathVariable String runId) {
+      @RunTenantScope TxCtx ctx, @PathVariable String runId) {
     return autonomousRunService.attackPathState(runId);
   }
 
@@ -495,7 +509,7 @@ public class AutonomousRunApi extends RestBehavior {
   @PostMapping("/{runId}/attack-path/evaluate")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public AutonomousRun evaluateAttackPath(TxCtx ctx, @PathVariable String runId) {
+  public AutonomousRun evaluateAttackPath(@RunTenantScope TxCtx ctx, @PathVariable String runId) {
     // The service returns the reconciled run itself: this is an orchestrator CALLBACK, and reading
     // back through the operator-gated get() would 403 a valid service-identity callback.
     return autonomousRunService.evaluateAttackPath(runId);
@@ -512,7 +526,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousPromotedAssetResult promoteFindingToAsset(
-      TxCtx ctx,
+      @RunTenantScope TxCtx ctx,
       @PathVariable String runId,
       @PathVariable String findingId,
       @RequestParam(name = "acting_agent_id", required = false) String actingAgentId) {
@@ -533,7 +547,9 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousTargetTeamResult ensureTargetTeam(
-      TxCtx ctx, @PathVariable String runId, @Valid @RequestBody AutonomousTargetTeamInput input) {
+      @RunTenantScope TxCtx ctx,
+      @PathVariable String runId,
+      @Valid @RequestBody AutonomousTargetTeamInput input) {
     return autonomousRunService.ensureTargetTeam(
         runId, input.getPlayerIds(), input.getName(), input.getTeamId(), input.getActingAgentId());
   }

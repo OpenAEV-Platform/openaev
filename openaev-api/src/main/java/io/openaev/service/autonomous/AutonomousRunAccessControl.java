@@ -41,13 +41,22 @@ import org.springframework.web.server.ResponseStatusException;
  * short-circuit inside {@link PermissionService#hasPermission}.
  *
  * <p>The orchestrator CALLBACK endpoints (events / status / directive consumption / attack-path
- * authoring / scope) are deliberately NOT gated here. They are authenticated with the tenant's
- * single configured XTM One service token - one identity for every run, never the operator's - so a
- * resource check would break live orchestration for any run whose operator differs from the token
- * owner. They stay behind the Enterprise-Edition license. Restricting them to the actual service
- * identity (today any authenticated EE user can reach them) is tracked separately from tenant
- * isolation. The {@code autonomous_runs}, {@code autonomous_events} and {@code
- * autonomous_directives} tables are tenant-active (multi-tenancy v2).
+ * authoring, evaluation and state / scope get-set / target-teams / promote-finding-to-asset) are
+ * deliberately NOT gated here. XTM One authenticates them with a per-user cross-platform JWT that
+ * carries no tenant claim and sends no {@code X-Tenant-Ids}; a resource check would break live
+ * orchestration for any run whose operator differs from the JWT owner, so they stay behind the
+ * Enterprise-Edition license. The {@code autonomous_runs}, {@code autonomous_events} and {@code
+ * autonomous_directives} tables are tenant-active (multi-tenancy v2); because the callback JWT pins
+ * no tenant, these handlers are authorized as the XTM One cross-platform SERVICE identity and
+ * scoped to the parent run's tenant: only a request whose bearer {@link
+ * io.openaev.security.token.XtmJwksExtractor} fully validated as a cross-platform JWT derives its
+ * scope from the run (the {@link io.openaev.config.RunTenantScope} argument on {@link
+ * io.openaev.api.autonomous.AutonomousRunApi}), so a callback always writes the run's own tenant
+ * and never depends on whether the caller's scope happens to pin it. A NON-service caller on the
+ * same handlers remains caller-isolated (standard caller-authorized resolution), so knowing a run
+ * id gives an ordinary EE user no cross-tenant reach. The derivation also exists only on the legacy
+ * non-prefixed route the orchestrator calls; the same handlers on the tenant-prefixed route stay
+ * caller-authorized like every other prefixed endpoint.
  */
 @org.springframework.stereotype.Component
 @RequiredArgsConstructor
