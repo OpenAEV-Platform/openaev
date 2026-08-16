@@ -7,6 +7,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import NodePopover from '../chaining_flow/nodes/NodePopover';
 import LogicNodeTooltip, { type TooltipRow } from '../chaining_flow/NodeTooltip';
 import { formatConditionKeyLabel } from '../events/event-types';
+import GraphCardTooltip from './GraphCardTooltip';
 import graphTooltipSlotProps from './graphTooltipSlotProps';
 
 export interface GraphTriggerCardProps {
@@ -24,6 +25,8 @@ export interface GraphTriggerCardProps {
   dimmed?: boolean;
   pathIndex?: number;
   readOnly?: boolean;
+  /** Force-closes the rich tooltip when it changes (graph structural relayout). */
+  tooltipDismissKey?: unknown;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   /** Inline "+": add an action gated by this trigger (continue the chain). */
@@ -50,6 +53,7 @@ const GraphTriggerCard = ({
   dimmed = false,
   pathIndex,
   readOnly = false,
+  tooltipDismissKey,
   onEdit,
   onDelete,
   onAddAction,
@@ -114,7 +118,7 @@ const GraphTriggerCard = ({
   const active = selected || highlighted;
 
   return (
-    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300} slotProps={graphTooltipSlotProps}>
+    <GraphCardTooltip title={tooltip} dismissKey={tooltipDismissKey}>
       <Box
         sx={{
           'position': 'relative',
@@ -304,7 +308,7 @@ const GraphTriggerCard = ({
           />
         )}
       </Box>
-    </Tooltip>
+    </GraphCardTooltip>
   );
 };
 

@@ -33,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
@@ -272,6 +273,24 @@ public class WorkflowService {
       findWorkflowRunBySimulationId(simulationId)
           .forEach(w -> writeAllowlistRules(w, rules, replaceExisting));
     }
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #writeAllowlistScope} for the autonomous orchestrator's
+   * scope callback. Runs in its OWN transaction ({@link Propagation#REQUIRES_NEW}) so that a
+   * failure while mirroring the resolved scope onto the scenario template / live simulation
+   * workflow(s) rolls back only this mirror and can NEVER mark the caller's transaction
+   * rollback-only. The caller records the resolved scope on the run authoritatively first and
+   * treats this workflow mirror as a secondary projection - a mirror failure must not fail (500)
+   * the callback and stall the run. See {@code AutonomousRunService#setRunScope}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void writeAllowlistScopeIsolated(
+      String scenarioId,
+      String simulationId,
+      List<WorkflowScopeRuleInput> allowlistRules,
+      boolean replaceExisting) {
+    writeAllowlistScope(scenarioId, simulationId, allowlistRules, replaceExisting);
   }
 
   /**

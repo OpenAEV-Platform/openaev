@@ -582,6 +582,7 @@ const LogicGraph = ({
                   dimmed={dimmed}
                   pathIndex={flow.pathIndex[node.id]}
                   readOnly={readOnly}
+                  tooltipDismissKey={fitSignature}
                   onEdit={handleEditAction}
                   onDelete={setPendingDeleteNodeId}
                 />
@@ -631,6 +632,7 @@ const LogicGraph = ({
                 dimmed={dimmed}
                 pathIndex={flow.pathIndex[node.id]}
                 readOnly={readOnly}
+                tooltipDismissKey={fitSignature}
                 onEdit={handleEditTrigger}
                 onDelete={setPendingDeleteNodeId}
                 onAddAction={onAddActionToEvent}

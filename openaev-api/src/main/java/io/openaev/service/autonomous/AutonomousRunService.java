@@ -2221,18 +2221,42 @@ public class AutonomousRunService {
     AutonomousRun run = require(runId);
     assertRunAcceptsAuthoring(run);
     List<AutonomousScopeTarget> scope = targets != null ? new ArrayList<>(targets) : List.of();
-    workflowService.writeAllowlistScope(
-        run.getScenarioId(), run.getSimulationId(), toAllowlistScopeInputs(scope), true);
+    // Record the resolved scope on the run AUTHORITATIVELY first. This is the callback's primary
+    // job and the source the cockpit, a restart and the read-path reconcile all read back. The
+    // workflow mirror and team enablement below are secondary projections and must never fail (500)
+    // this callback - a failure there previously propagated out and stalled the run.
     run.setScope(scope);
     run.setScopeAssetGroupId(firstScopeIdOfType(scope, "ASSETS_GROUPS"));
     run.setScopeTeamId(firstScopeIdOfType(scope, "TEAMS"));
     AutonomousRun saved = runRepository.save(run);
-    enableTargetedTeamMembers(
-        run.getSimulationId(),
-        scope.stream()
-            .filter(t -> "TEAMS".equals(t.getType()))
-            .map(AutonomousScopeTarget::getId)
-            .toList());
+    // Best-effort, transaction-isolated: mirror the allowlist onto the scenario template + live
+    // simulation workflow(s). REQUIRES_NEW so a mirror failure (e.g. an action-target realignment
+    // error) rolls back only the mirror and cannot mark this callback's transaction rollback-only.
+    try {
+      workflowService.writeAllowlistScopeIsolated(
+          run.getScenarioId(), run.getSimulationId(), toAllowlistScopeInputs(scope), true);
+    } catch (Exception e) {
+      log.warn(
+          "[Autonomous] Scope recorded on run {} but the workflow mirror failed (best-effort): {}",
+          runId,
+          e.getMessage());
+    }
+    // Best-effort: enable in-scope team members on the simulation so human-targeted steps are
+    // deliverable (a no-op for plan/author-scenario runs, which have no simulation).
+    try {
+      enableTargetedTeamMembers(
+          run.getSimulationId(),
+          scope.stream()
+              .filter(t -> "TEAMS".equals(t.getType()))
+              .map(AutonomousScopeTarget::getId)
+              .toList());
+    } catch (Exception e) {
+      log.warn(
+          "[Autonomous] Scope recorded on run {} but enabling targeted team members failed"
+              + " (best-effort): {}",
+          runId,
+          e.getMessage());
+    }
     eventService.append(
         runId,
         runTenantId(run),

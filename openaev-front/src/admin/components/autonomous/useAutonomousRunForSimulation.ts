@@ -7,6 +7,15 @@ import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 
 /** How often to re-probe for an autonomous run until we find one (transient error / late creation). */
 const DISCOVERY_POLL_MS = 10000;
+/**
+ * Consecutive 404s required before concluding a scenario/simulation is manual (non-AI). A single
+ * 404 can be transient right after a page reload - the run row is briefly unqueryable during the
+ * post-start reconcile window - and latching to manual on the FIRST miss permanently stranded the
+ * live AI cockpit until a full reload (the reported "reload and I lost the AI overview, the run is
+ * still going" bug). Requiring a short streak lets a transient miss recover on the next discovery
+ * poll, while a genuinely manual entity still stops quickly (bounded - never re-probes forever).
+ */
+const MAX_DISCOVERY_NOT_FOUND = 3;
 
 interface AutonomousRunDetection {
   /** The run driving this entity, or null when it is a manual (non-AI) scenario/simulation. */
@@ -50,11 +59,12 @@ const useAutonomousRunDetection = (
   const [resolved, setResolved] = useState(false);
   // A run bumps this to force a re-probe (discovery poll below); it is NOT a status poll.
   const [attempt, setAttempt] = useState(0);
-  // Authoritative "this is a manual (non-AI) entity" verdict from a 404. Once set we STOP probing:
-  // a manual scenario/simulation never becomes autonomous (an autonomous run provisions its OWN
-  // scenario), so re-polling it forever only spams an expected 404 and churns state - which, via the
-  // caller's `!resolved` full-page Loader, forced a whole-page remount + refetch every poll. Only a
-  // TRANSIENT error (5xx / network) keeps the discovery poll alive.
+  // Authoritative "this is a manual (non-AI) entity" verdict from a STREAK of consecutive 404s (see
+  // MAX_DISCOVERY_NOT_FOUND). Once set we STOP probing: a manual scenario/simulation never becomes
+  // autonomous (an autonomous run provisions its OWN scenario), so re-polling it forever only spams
+  // an expected 404 and churns state - which, via the caller's `!resolved` full-page Loader, forced
+  // a whole-page remount + refetch every poll. A single transient 404 (5xx / network too) keeps the
+  // discovery poll alive so a post-reload miss on a live AI run still recovers.
   const [manual, setManual] = useState(false);
   // Once we have confirmed this entity is autonomous, it STAYS autonomous for the life of the
   // mount. An eligibility blip (XTM One health / settings refresh flipping platform_xtm_one_configured)
@@ -66,9 +76,13 @@ const useAutonomousRunDetection = (
   // transient-error retry) must NOT flip `resolved` back to false, otherwise the caller's Loader
   // unmounts and remounts the entire page on every poll.
   const resolvedOnceRef = useRef(false);
+  // Consecutive 404 count for the discovery probe (see MAX_DISCOVERY_NOT_FOUND). Reset on any
+  // success and whenever the id changes, so only an UNBROKEN streak of misses concludes "manual".
+  const notFoundStreakRef = useRef(0);
 
   const pushRun = useCallback((next: AutonomousRun) => {
     detectedRef.current = true;
+    notFoundStreakRef.current = 0;
     setManual(false);
     setRun(next);
   }, []);
@@ -89,6 +103,7 @@ const useAutonomousRunDetection = (
       prevIdRef.current = id;
       resolvedOnceRef.current = false;
       detectedRef.current = false;
+      notFoundStreakRef.current = 0;
       setManual(false);
     }
     if (!id) {
@@ -112,20 +127,31 @@ const useAutonomousRunDetection = (
       .then((res) => {
         if (stale) return;
         detectedRef.current = true;
+        notFoundStreakRef.current = 0;
         setManual(false);
         setRun(res.data);
       })
       .catch((err: unknown) => {
         if (stale) return;
         const status = (err as { response?: { status?: number } })?.response?.status;
-        // A 404 is the authoritative "this is a manual (non-AI) entity" signal - only then do we
-        // clear AND stop probing. Any other error (403 / 5xx / network / a transient reconcile)
-        // must leave a previously-detected run intact so a blip can't strand the manual UI, and
-        // keeps the discovery poll alive so a transient first-load failure still recovers.
+        // A 404 is the "this is a manual (non-AI) entity" signal - but a SINGLE 404 can be a
+        // transient post-reload reconcile race on an entity that IS autonomous, so only conclude
+        // manual (clear AND stop probing) after a streak of consecutive 404s. Until the streak is
+        // reached we leave any previously-detected run intact and let the discovery poll retry, so
+        // a reload no longer strands a live AI cockpit on one transient miss.
         if (status === 404) {
-          detectedRef.current = false;
-          setManual(true);
-          setRun(null);
+          notFoundStreakRef.current += 1;
+          if (notFoundStreakRef.current >= MAX_DISCOVERY_NOT_FOUND) {
+            detectedRef.current = false;
+            setManual(true);
+            setRun(null);
+          }
+        } else {
+          // Any other error (403 / 5xx / network / a transient reconcile) must leave a previously-
+          // detected run intact so a blip can't strand the UI, and keeps the discovery poll alive
+          // so a transient first-load failure still recovers. Reset the not-found streak so a mix
+          // of transient errors never accumulates into a false manual verdict.
+          notFoundStreakRef.current = 0;
         }
       })
       .finally(() => {
