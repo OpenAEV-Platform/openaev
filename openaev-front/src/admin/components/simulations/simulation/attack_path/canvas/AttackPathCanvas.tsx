@@ -755,12 +755,21 @@ const AttackPathCanvas = ({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      // A pan is a pointer gesture, but the browser will happily reinterpret a press-and-drag that
+      // begins on an inner <img> (an endpoint/finding/injector glyph or its broken-image
+      // placeholder) or a run of selectable text as a native HTML5 drag / text selection. That
+      // hijack stops pointermove firing mid-gesture, so the pan silently dies and the cursor turns
+      // into the "no-drop" (forbidden) sign. dragstart bubbles, so cancelling it once here disarms
+      // every draggable descendant at once (same fix as the Logic canvas' PanZoom).
+      onDragStart={e => e.preventDefault()}
       sx={{
         position: 'absolute',
         inset: 0,
         overflow: 'hidden',
         cursor: panning ? 'grabbing' : 'grab',
         touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
         backgroundColor: theme.palette.background.default,
         // Faint dot grid in screen space (the Logic canvas' paper texture, same metrics).
         backgroundImage: `radial-gradient(${theme.palette.divider} 1px, transparent 1px)`,

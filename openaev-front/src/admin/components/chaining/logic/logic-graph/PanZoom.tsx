@@ -235,6 +235,13 @@ const PanZoom = ({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      // A pan is a pointer gesture, but the browser will happily reinterpret a press-and-drag that
+      // begins on an inner <img> (the injector/payload glyph, or its broken-image placeholder) or a
+      // run of selectable text as a native HTML5 drag / text selection. That hijack stops
+      // pointermove firing mid-gesture, so the pan silently dies and the cursor turns into the
+      // "no-drop" (forbidden) sign - the intermittent "can't drag the grid here" the operator hit.
+      // dragstart bubbles, so cancelling it once here disarms every draggable descendant at once.
+      onDragStart={e => e.preventDefault()}
       sx={{
         position: 'relative',
         width: '100%',
@@ -242,6 +249,8 @@ const PanZoom = ({
         overflow: 'hidden',
         cursor: panning ? 'grabbing' : 'grab',
         touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
         // Minimal low-opacity "paper" dot grid in screen space (does not clutter the graph).
         backgroundImage: `radial-gradient(${theme.palette.divider} 1px, transparent 1px)`,
         backgroundSize: '28px 28px',
