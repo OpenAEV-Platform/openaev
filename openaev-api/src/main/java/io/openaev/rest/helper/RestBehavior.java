@@ -25,6 +25,7 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springdoc.api.ErrorMessage;
@@ -275,20 +276,48 @@ public class RestBehavior {
                 : error instanceof ObjectError objectError
                     ? objectError.getObjectName()
                     : valueParameterLabel;
-        String label = jsonFieldsMapping.getOrDefault(rawName, rawName);
-        String errorMessage = error.getDefaultMessage();
-        // getDefaultMessage() is nullable and ValidationContent wraps it in List.of(), which
-        // rejects null - degrade to a generic reason instead of a 500, as the sibling handler does.
-        errorsBag.put(
-            label, new ValidationContent(errorMessage == null ? "Invalid value" : errorMessage));
-        summaryParts.add(summaryPart(label, errorMessage));
+        collectValidationError(
+            errorsBag, summaryParts, jsonFieldsMapping.getOrDefault(rawName, rawName), error);
       }
+    }
+    // Method-level cross-parameter constraints (rejecting a combination of arguments) are
+    // reported separately from the per-parameter results; without this they would degrade to
+    // the generic "Validation Failed" fallback with empty children.
+    for (MessageSourceResolvable error : ex.getCrossParameterValidationResults()) {
+      collectValidationError(errorsBag, summaryParts, "parameters", error);
     }
     errors.setChildren(errorsBag);
     bag.setErrors(errors);
     bag.setMessage(summarizeValidationErrors(summaryParts));
     log.debug("HandlerMethodValidationException: {}", bag.getMessage(), ex);
     return bag;
+  }
+
+  // One children entry plus one summary part per violation. Children entries MERGE on a duplicate
+  // label (the same field rejected by two constraints, or two unnamed parameters sharing a
+  // degraded label) so no reason is silently clobbered. getDefaultMessage() is nullable and
+  // ValidationContent wraps it in List.of(), which rejects null - degrade to a generic reason
+  // instead of a 500, as the sibling MethodArgumentNotValidException handler does.
+  private static void collectValidationError(
+      Map<String, ValidationContent> errorsBag,
+      List<String> summaryParts,
+      String label,
+      MessageSourceResolvable error) {
+    String errorMessage = error.getDefaultMessage();
+    ValidationContent content =
+        new ValidationContent(errorMessage == null ? "Invalid value" : errorMessage);
+    errorsBag.merge(label, content, RestBehavior::mergeValidationContents);
+    summaryParts.add(summaryPart(label, errorMessage));
+  }
+
+  private static ValidationContent mergeValidationContents(
+      ValidationContent existing, ValidationContent added) {
+    ValidationContent merged = new ValidationContent();
+    merged.setErrors(
+        Stream.concat(existing.getErrors().stream(), added.getErrors().stream())
+            .distinct()
+            .toList());
+    return merged;
   }
 
   // Best-effort internal-name -> JSON-name mapping for a validated bean argument. Empty when the
@@ -305,17 +334,21 @@ public class RestBehavior {
     }
   }
 
-  // Parameter name for a value-level constraint, degrading to the declaring type when the name is
-  // unavailable (sources not compiled with -parameters); never null so the children key stays valid
-  // (Jackson refuses to serialize a null map key, which would be a 500).
+  // Parameter name for a value-level constraint, degrading to the JDK-style positional argN label
+  // when the name is unavailable (sources not compiled with -parameters): a bare type simple name
+  // could collide across parameters (e.g. two String parameters) and clobber children entries.
+  // Never null so the children key stays valid (Jackson refuses to serialize a null map key, which
+  // would be a 500).
   private static String parameterLabel(ParameterValidationResult result) {
     MethodParameter parameter = result.getMethodParameter();
     String name = parameter.getParameterName();
     if (name != null && !name.isBlank()) {
       return name;
     }
-    Class<?> type = parameter.getParameterType();
-    return type != null ? type.getSimpleName() : "parameter";
+    int index = parameter.getParameterIndex();
+    // Index -1 is the method return value, which has no position to point at - the declared type
+    // is the most useful label left.
+    return index >= 0 ? "arg" + index : parameter.getParameterType().getSimpleName();
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)

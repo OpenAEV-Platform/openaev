@@ -549,6 +549,11 @@ class RestBehaviorTest {
     @SuppressWarnings("unused")
     private void updateActionLike(String actionId, SampleValidationInput input) {}
 
+    // Two same-typed parameters: without -parameters both would degrade to the same "String"
+    // label, so this shape proves the positional fallback keeps them apart.
+    @SuppressWarnings("unused")
+    private void linkActionsLike(String actionId, String parentId) {}
+
     private RestBehavior behavior() {
       RestBehavior behavior = new RestBehavior();
       behavior.mapper = ObjectMapperHelper.openAEVJsonMapper();
@@ -655,6 +660,94 @@ class RestBehaviorTest {
       assertFalse(bag.getErrors().getChildren().containsKey(null));
       assertEquals(
           List.of("Invalid value"), bag.getErrors().getChildren().get("sample_name").getErrors());
+    }
+
+    @Test
+    @DisplayName(
+        "unnamed same-typed parameters get distinct positional labels instead of colliding")
+    void given_unnamedParameters_should_labelPositionallyWithoutCollision()
+        throws NoSuchMethodException {
+      // GIVEN - two String parameters whose names are unavailable (no discoverer initialized,
+      // as when sources are not compiled with -parameters): a type-based fallback would label
+      // both "String" and clobber one children entry
+      Method method =
+          HandlerMethodValidationHandling.class.getDeclaredMethod(
+              "linkActionsLike", String.class, String.class);
+      ParameterValidationResult first =
+          new ParameterValidationResult(
+              new MethodParameter(method, 0),
+              "",
+              List.of(
+                  new DefaultMessageSourceResolvable(
+                      new String[] {"NotBlank"}, "must not be blank")));
+      ParameterValidationResult second =
+          new ParameterValidationResult(
+              new MethodParameter(method, 1),
+              "x",
+              List.of(
+                  new DefaultMessageSourceResolvable(
+                      new String[] {"Size"}, "size must be between 36 and 36")));
+      HandlerMethodValidationException ex =
+          new HandlerMethodValidationException(
+              MethodValidationResult.create(this, method, List.of(first, second)));
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+
+      // THEN - both violations survive under deterministic, distinct labels
+      assertEquals(
+          "arg0: must not be blank; arg1: size must be between 36 and 36", bag.getMessage());
+      assertTrue(bag.getErrors().getChildren().containsKey("arg0"));
+      assertTrue(bag.getErrors().getChildren().containsKey("arg1"));
+    }
+
+    @Test
+    @DisplayName("a field rejected by two constraints keeps both reasons in its children entry")
+    void given_sameFieldRejectedTwice_should_mergeReasonsInsteadOfClobbering()
+        throws NoSuchMethodException {
+      // GIVEN - e.g. @NotBlank and @Pattern both rejecting the same field with different reasons
+      HandlerMethodValidationException ex =
+          bodyValidationException(
+              new FieldError("input", "name", "must not be blank"),
+              new FieldError("input", "name", "must match \"[a-z]+\""));
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+
+      // THEN - the children entry merges instead of keeping only the last reason
+      assertEquals(
+          List.of("must not be blank", "must match \"[a-z]+\""),
+          bag.getErrors().getChildren().get("sample_name").getErrors());
+      assertTrue(bag.getMessage().contains("must not be blank"));
+      assertTrue(bag.getMessage().contains("must match"));
+    }
+
+    @Test
+    @DisplayName(
+        "a cross-parameter constraint failure surfaces its reason instead of the generic fallback")
+    void given_crossParameterConstraint_should_surfaceReason() throws NoSuchMethodException {
+      // GIVEN - a method-level constraint rejecting a combination of arguments, reported by
+      // Spring 6.2 separately from the per-parameter results
+      Method method = updateActionLikeMethod();
+      HandlerMethodValidationException ex =
+          new HandlerMethodValidationException(
+              MethodValidationResult.create(
+                  this,
+                  method,
+                  List.of(),
+                  List.of(
+                      new DefaultMessageSourceResolvable(
+                          new String[] {"ConsistentIds"},
+                          "action and parent identifiers must differ"))));
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+
+      // THEN - actionable, not the "Validation Failed" fallback with empty children
+      assertEquals("parameters: action and parent identifiers must differ", bag.getMessage());
+      assertEquals(
+          List.of("action and parent identifiers must differ"),
+          bag.getErrors().getChildren().get("parameters").getErrors());
     }
   }
 }
