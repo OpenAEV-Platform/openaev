@@ -1,4 +1,4 @@
-import { AddModeratorOutlined, InventoryOutlined } from '@mui/icons-material';
+import { AddModeratorOutlined, InventoryOutlined, SmartToyOutlined } from '@mui/icons-material';
 import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
@@ -29,8 +29,20 @@ interface Props {
   target: InjectTarget;
 }
 
+// Forensic metadata keys stamped by the phishing tracking backend
+// (PhishingTrackingService) on the result of a step the moment it flips to
+// "fell for it": where the triggering request came from (IP / user agent),
+// how long after delivery it landed, and - when the evidence points that way -
+// a "likely automated" hint. The load-bearing signal for telling a mail
+// security scanner (Microsoft Safe Links, image pre-fetchers...) apart from a
+// real recipient. Shared string keys - never change one side alone.
+const PHISHING_SOURCE_IP_KEY = 'phishing_source_ip';
+const PHISHING_SOURCE_USER_AGENT_KEY = 'phishing_source_user_agent';
+const PHISHING_SOURCE_DELAY_KEY = 'phishing_source_delay';
+const PHISHING_SOURCE_AUTOMATION_KEY = 'phishing_source_automation';
+
 const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target }: Props) => {
-  const { t } = useFormatter();
+  const { t, nsdt } = useFormatter();
   const theme = useTheme();
   const ability = useContext(AbilityContext);
   const { permissions, inherited_context } = useContext(PermissionsContext);
@@ -73,6 +85,15 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
     || (inherited_context === INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, inject.inject_id))
     || permissions.canManage;
+
+  // Human-step outcomes (manual/article/challenge): the technical result list
+  // below only renders for DETECTION/PREVENTION/VULNERABILITY, so without this
+  // block a phishing step that flipped red gives the analyst no clue WHY. Each
+  // message-bearing result is surfaced with its timestamp and, when the backend
+  // stamped them, the forensic origin of the triggering request.
+  const manualOutcomes = isManualExpectation(injectExpectation.inject_expectation_type)
+    ? (injectExpectation.inject_expectation_results ?? []).filter(result => (result.result ?? '').trim().length > 0)
+    : [];
 
   const entries = [{
     label: t('Update'),
@@ -238,6 +259,151 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
             <Typography sx={{ fontSize: 13 }}>{emptyFilled(getLabelOfValidationType())}</Typography>
           </div>
         )}
+
+      {manualOutcomes.length > 0 && (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing(0.75),
+          marginTop: theme.spacing(1),
+        }}
+        >
+          {manualOutcomes.map((result, index) => {
+            const metadata = result.metadata ?? {};
+            const sourceIp = metadata[PHISHING_SOURCE_IP_KEY];
+            const sourceUserAgent = metadata[PHISHING_SOURCE_USER_AGENT_KEY];
+            const sourceDelay = metadata[PHISHING_SOURCE_DELAY_KEY];
+            const sourceAutomation = metadata[PHISHING_SOURCE_AUTOMATION_KEY];
+            const hasOrigin = Boolean(sourceIp || sourceUserAgent || sourceDelay);
+            return (
+              <div
+                key={`${result.sourceId ?? 'outcome'}-${index}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: theme.spacing(0.25),
+                }}
+              >
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: theme.spacing(1),
+                  flexWrap: 'wrap',
+                }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      color: 'text.secondary',
+                      fontFamily: theme.typography.h1.fontFamily,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t('Outcome:')}
+                  </Typography>
+                  <Typography sx={{ fontSize: 13 }}>{result.result}</Typography>
+                  {result.date && (
+                    <Typography sx={{
+                      fontSize: 11,
+                      color: 'text.secondary',
+                    }}
+                    >
+                      {nsdt(result.date)}
+                    </Typography>
+                  )}
+                </div>
+                {(hasOrigin || sourceAutomation) && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: theme.spacing(1),
+                    flexWrap: 'wrap',
+                  }}
+                  >
+                    {hasOrigin && (
+                      <Typography
+                        sx={{
+                          fontSize: 11,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                          color: 'text.secondary',
+                          fontFamily: theme.typography.h1.fontFamily,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {t('Origin:')}
+                      </Typography>
+                    )}
+                    {sourceIp && (
+                      <Tooltip title={sourceUserAgent ?? ''}>
+                        <Typography
+                          component="span"
+                          sx={{
+                            fontSize: 12,
+                            fontFamily: 'Consolas, monaco, monospace',
+                          }}
+                        >
+                          {sourceIp}
+                        </Typography>
+                      </Tooltip>
+                    )}
+                    {!sourceIp && sourceUserAgent && (
+                      <Tooltip title={sourceUserAgent}>
+                        <Typography
+                          component="span"
+                          sx={{
+                            fontSize: 12,
+                            fontFamily: 'Consolas, monaco, monospace',
+                            maxWidth: 260,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {sourceUserAgent}
+                        </Typography>
+                      </Tooltip>
+                    )}
+                    {sourceDelay && (
+                      <Typography sx={{
+                        fontSize: 12,
+                        color: 'text.secondary',
+                      }}
+                      >
+                        {sourceDelay}
+                      </Typography>
+                    )}
+                    {sourceAutomation && (
+                      <Tooltip title={sourceAutomation}>
+                        <Box
+                          component="span"
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            height: 20,
+                            paddingInline: 0.75,
+                            borderRadius: 1,
+                            backgroundColor: alpha(theme.palette.warning.main, 0.12),
+                            color: theme.palette.warning.main,
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          <SmartToyOutlined sx={{ fontSize: 13 }} />
+                          {t('Likely automated')}
+                        </Box>
+                      </Tooltip>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {
         // If endpoint with agents, show the aggregated security-platform results of the endpoint

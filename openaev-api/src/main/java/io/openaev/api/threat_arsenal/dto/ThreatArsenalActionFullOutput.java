@@ -93,4 +93,12 @@ public record ThreatArsenalActionFullOutput(
                     + " parsed output). Derived from the payload output parsers or, for native"
                     + " injectors without a payload, from the contract content outputs.")
         @JsonProperty("action_providing")
-        List<ContractOutputType> providing) {}
+        List<ContractOutputType> providing,
+    @Schema(
+            description =
+                "Predefined expectations declared by the contract, each with its name, description"
+                    + " and display order (e.g. phishing's ordered human steps). Null for"
+                    + " payload-based actions, which declare expectations by type only - readers"
+                    + " then fall back to action_expectations.")
+        @JsonProperty("action_expectation_details")
+        List<ThreatArsenalExpectationDetail> expectationDetails) {}
