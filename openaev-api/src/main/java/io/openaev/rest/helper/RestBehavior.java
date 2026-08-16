@@ -148,12 +148,23 @@ public class RestBehavior {
         .getAllErrors()
         .forEach(
             (error) -> {
-              String fieldName = ((FieldError) error).getField();
+              // Class-level constraints (cross-field validators) surface as ObjectError, not
+              // FieldError: an unconditional cast would turn this 400 into a 500. Label those
+              // with the validated object's name instead. The raw-name fallback also keeps the
+              // children key non-null for nested/indexed field paths absent from the flat JSON
+              // mapping - Jackson refuses to serialize a null map key, which was another 500.
+              String rawName =
+                  error instanceof FieldError fieldError
+                      ? fieldError.getField()
+                      : error.getObjectName();
+              String label = jsonFieldsMapping.getOrDefault(rawName, rawName);
               String errorMessage = error.getDefaultMessage();
-              errorsBag.put(jsonFieldsMapping.get(fieldName), new ValidationContent(errorMessage));
-              String label = jsonFieldsMapping.getOrDefault(fieldName, fieldName);
-              summaryParts.add(
-                  label == null || label.isBlank() ? errorMessage : label + ": " + errorMessage);
+              // getDefaultMessage() is nullable and ValidationContent wraps it in List.of(),
+              // which rejects null - degrade to a generic reason instead of a 500.
+              errorsBag.put(
+                  label,
+                  new ValidationContent(errorMessage == null ? "Invalid value" : errorMessage));
+              summaryParts.add(summaryPart(label, errorMessage));
             });
     errors.setChildren(errorsBag);
     bag.setErrors(errors);
@@ -170,23 +181,54 @@ public class RestBehavior {
   private static final int MAX_VALIDATION_SUMMARY_LENGTH = 300;
   private static final int MAX_VALIDATION_SUMMARY_PARTS = 8;
 
+  // One "label: reason" summary entry, degrading to whichever half is present so a
+  // constraint without a default message never renders as "field: null".
+  private static String summaryPart(String label, String message) {
+    boolean hasLabel = label != null && !label.isBlank();
+    boolean hasMessage = message != null && !message.isBlank();
+    if (hasLabel && hasMessage) {
+      return label + ": " + message;
+    }
+    if (hasLabel) {
+      return label;
+    }
+    return hasMessage ? message : null;
+  }
+
+  // Collapse control characters and whitespace runs to single spaces: the summary must
+  // stay a single line whatever a constraint message contains, so it is safe to log and
+  // to render in a toast.
+  private static String sanitizeSummaryText(String text) {
+    return text.replaceAll("[\\p{Cntrl}\\s]+", " ").trim();
+  }
+
   // Fold the per-field validation reasons into one human-readable top-level
   // message. Bounded in count and length so the response stays small and
   // log-safe; falls back to the generic message when nothing usable was
   // collected (so an empty binding result is never surfaced as a blank reason).
   private static String summarizeValidationErrors(List<String> parts) {
-    List<String> nonBlank = parts.stream().filter(p -> p != null && !p.isBlank()).toList();
-    if (nonBlank.isEmpty()) {
+    // Deduplicated and sorted: bean validation reports violations in no guaranteed order,
+    // so sorting keeps the message stable for identical payloads.
+    List<String> usable =
+        parts.stream()
+            .filter(Objects::nonNull)
+            .map(RestBehavior::sanitizeSummaryText)
+            .filter(p -> !p.isBlank())
+            .distinct()
+            .sorted()
+            .toList();
+    if (usable.isEmpty()) {
       return "Validation Failed";
     }
     String joined =
-        nonBlank.stream().limit(MAX_VALIDATION_SUMMARY_PARTS).collect(Collectors.joining("; "));
-    if (nonBlank.size() > MAX_VALIDATION_SUMMARY_PARTS) {
-      joined += "; ...";
+        usable.stream().limit(MAX_VALIDATION_SUMMARY_PARTS).collect(Collectors.joining("; "));
+    if (usable.size() > MAX_VALIDATION_SUMMARY_PARTS) {
+      joined += " (+" + (usable.size() - MAX_VALIDATION_SUMMARY_PARTS) + " more)";
     }
+    // Truncate INCLUDING the ellipsis so the advertised bound is a real bound.
     return joined.length() <= MAX_VALIDATION_SUMMARY_LENGTH
         ? joined
-        : joined.substring(0, MAX_VALIDATION_SUMMARY_LENGTH) + "...";
+        : joined.substring(0, MAX_VALIDATION_SUMMARY_LENGTH - 3) + "...";
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)

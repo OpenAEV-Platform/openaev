@@ -1,11 +1,13 @@
 package io.openaev.rest.helper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -17,13 +19,19 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ChainingOperationNotSupportedException;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import java.lang.reflect.Method;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springdoc.api.ErrorMessage;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver;
 
 @DisplayName("RestBehavior exception mapping")
@@ -336,6 +344,184 @@ class RestBehaviorTest {
       assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
       assertNotNull(response.getBody());
       assertEquals("Malformed or unreadable request body", response.getBody().getMessage());
+    }
+  }
+
+  @Nested
+  @DisplayName("MethodArgumentNotValidException handling (bean-validation 400 summary)")
+  class MethodArgumentNotValidHandling {
+
+    /** Input shape exercising the internal-name -> JSON-name mapping. */
+    static class SampleValidationInput {
+      @JsonProperty("sample_name")
+      public String name;
+
+      @JsonProperty("sample_description")
+      public String description;
+    }
+
+    @SuppressWarnings("unused")
+    private void sampleEndpoint(SampleValidationInput input) {}
+
+    private RestBehavior behavior() {
+      RestBehavior behavior = new RestBehavior();
+      behavior.mapper = ObjectMapperHelper.openAEVJsonMapper();
+      return behavior;
+    }
+
+    private BeanPropertyBindingResult emptyBinding() {
+      return new BeanPropertyBindingResult(new SampleValidationInput(), "input");
+    }
+
+    private MethodArgumentNotValidException exceptionFor(BeanPropertyBindingResult binding)
+        throws NoSuchMethodException {
+      MethodParameter parameter =
+          new MethodParameter(
+              MethodArgumentNotValidHandling.class.getDeclaredMethod(
+                  "sampleEndpoint", SampleValidationInput.class),
+              0);
+      return new MethodArgumentNotValidException(parameter, binding);
+    }
+
+    @Test
+    @DisplayName(
+        "field reasons are folded into the top-level message using JSON names, deterministically")
+    void given_fieldErrors_should_summarizeReasonsInTopLevelMessage() throws NoSuchMethodException {
+      // GIVEN - errors added out of alphabetical order to prove the summary is deterministic
+      BeanPropertyBindingResult binding = emptyBinding();
+      binding.addError(new FieldError("input", "name", "must not be blank"));
+      binding.addError(new FieldError("input", "description", "size must be between 1 and 255"));
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleValidationExceptions(exceptionFor(binding));
+
+      // THEN
+      assertEquals(
+          "sample_description: size must be between 1 and 255; sample_name: must not be blank",
+          bag.getMessage());
+      assertTrue(bag.getErrors().getChildren().containsKey("sample_name"));
+      assertTrue(bag.getErrors().getChildren().containsKey("sample_description"));
+    }
+
+    @Test
+    @DisplayName("a class-level ObjectError is labeled by object name instead of throwing")
+    void given_objectError_should_labelByObjectNameInsteadOfClassCast()
+        throws NoSuchMethodException {
+      // GIVEN - a cross-field validator reports on the object, not a field
+      BeanPropertyBindingResult binding = emptyBinding();
+      binding.addError(new ObjectError("input", "start date must precede end date"));
+
+      // WHEN - must not throw ClassCastException (which would turn the 400 into a 500)
+      ValidationErrorBag bag = behavior().handleValidationExceptions(exceptionFor(binding));
+
+      // THEN
+      assertEquals("input: start date must precede end date", bag.getMessage());
+      assertTrue(bag.getErrors().getChildren().containsKey("input"));
+    }
+
+    @Test
+    @DisplayName("a nested field path absent from the JSON mapping keeps a non-null children key")
+    void given_unmappedNestedFieldPath_should_fallBackToRawFieldName()
+        throws NoSuchMethodException {
+      // GIVEN - @Valid nested/indexed paths are absent from the flat JSON mapping; a null map
+      // key would make Jackson fail to serialize the 400 body
+      BeanPropertyBindingResult binding = emptyBinding();
+      binding.addError(new FieldError("input", "items[0].name", "must not be blank"));
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleValidationExceptions(exceptionFor(binding));
+
+      // THEN
+      assertEquals("items[0].name: must not be blank", bag.getMessage());
+      assertTrue(bag.getErrors().getChildren().containsKey("items[0].name"));
+      assertFalse(bag.getErrors().getChildren().containsKey(null));
+    }
+
+    @Test
+    @DisplayName("a constraint without a default message degrades to the field label alone")
+    void given_nullDefaultMessage_should_useLabelWithoutNullText() throws NoSuchMethodException {
+      // GIVEN
+      BeanPropertyBindingResult binding = emptyBinding();
+      binding.addError(new FieldError("input", "name", null));
+
+      // WHEN - must not throw (ValidationContent wraps the message in List.of, which
+      // rejects null)
+      ValidationErrorBag bag = behavior().handleValidationExceptions(exceptionFor(binding));
+
+      // THEN
+      assertEquals("sample_name", bag.getMessage());
+      assertEquals(
+          List.of("Invalid value"), bag.getErrors().getChildren().get("sample_name").getErrors());
+    }
+
+    @Test
+    @DisplayName("the summary is bounded in part count with an explicit overflow indicator")
+    void given_manyErrors_should_boundPartCountAndReportOverflow() throws NoSuchMethodException {
+      // GIVEN - 12 distinct reasons, 4 beyond the 8-part bound
+      BeanPropertyBindingResult binding = emptyBinding();
+      for (int i = 0; i < 12; i++) {
+        binding.addError(new FieldError("input", "items[" + i + "].name", "must not be blank"));
+      }
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleValidationExceptions(exceptionFor(binding));
+
+      // THEN
+      assertTrue(bag.getMessage().endsWith("(+4 more)"));
+    }
+
+    @Test
+    @DisplayName("the summary never exceeds the advertised length bound, ellipsis included")
+    void given_oversizedReason_should_truncateWithinBound() throws NoSuchMethodException {
+      // GIVEN - a reason far beyond the 300-char summary bound
+      BeanPropertyBindingResult binding = emptyBinding();
+      binding.addError(new FieldError("input", "name", "X".repeat(500)));
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleValidationExceptions(exceptionFor(binding));
+
+      // THEN
+      assertEquals(300, bag.getMessage().length());
+      assertTrue(bag.getMessage().endsWith("..."));
+    }
+
+    @Test
+    @DisplayName("an empty binding result falls back to the generic message")
+    void given_noErrors_should_fallBackToGenericMessage() throws NoSuchMethodException {
+      // GIVEN / WHEN
+      ValidationErrorBag bag = behavior().handleValidationExceptions(exceptionFor(emptyBinding()));
+
+      // THEN
+      assertEquals("Validation Failed", bag.getMessage());
+    }
+
+    @Test
+    @DisplayName("control characters in constraint messages are flattened to a single line")
+    void given_multilineMessage_should_flattenToSingleLine() throws NoSuchMethodException {
+      // GIVEN
+      BeanPropertyBindingResult binding = emptyBinding();
+      binding.addError(new FieldError("input", "name", "line one\nline two\ttab"));
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleValidationExceptions(exceptionFor(binding));
+
+      // THEN
+      assertEquals("sample_name: line one line two tab", bag.getMessage());
+    }
+
+    @Test
+    @DisplayName("identical reasons reported by several constraints are deduplicated")
+    void given_duplicateReasons_should_deduplicate() throws NoSuchMethodException {
+      // GIVEN - e.g. @NotBlank and @Size both rejecting the same field with the same text
+      BeanPropertyBindingResult binding = emptyBinding();
+      binding.addError(new FieldError("input", "name", "must not be blank"));
+      binding.addError(new FieldError("input", "name", "must not be blank"));
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleValidationExceptions(exceptionFor(binding));
+
+      // THEN
+      assertEquals("sample_name: must not be blank", bag.getMessage());
     }
   }
 }
