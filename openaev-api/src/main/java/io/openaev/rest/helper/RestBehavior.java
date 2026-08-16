@@ -255,11 +255,14 @@ public class RestBehavior {
   // the opaque "Bad request" a plain API caller or an AI agent's tool wrapper cannot self-correct
   // from (the exact "why did the arsenal fork bad-request" pain). Mirror the
   // MethodArgumentNotValidException handler: per-field children plus a concise summarized message.
-  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  // The exception's own status is preserved rather than hard-coding 400: Spring supplies 500 when
+  // the failure is a controller RETURN VALUE constraint (a broken server-side contract, not a
+  // client mistake), and that must not be downgraded to a client error.
   @ExceptionHandler(HandlerMethodValidationException.class)
-  public ValidationErrorBag handleHandlerMethodValidationException(
+  public ResponseEntity<ValidationErrorBag> handleHandlerMethodValidationException(
       HandlerMethodValidationException ex) {
     ValidationErrorBag bag = new ValidationErrorBag();
+    bag.setCode(ex.getStatusCode().value());
     ValidationError errors = new ValidationError();
     Map<String, ValidationContent> errorsBag = new HashMap<>();
     List<String> summaryParts = new ArrayList<>();
@@ -289,8 +292,13 @@ public class RestBehavior {
     errors.setChildren(errorsBag);
     bag.setErrors(errors);
     bag.setMessage(summarizeValidationErrors(summaryParts));
-    log.debug("HandlerMethodValidationException: {}", bag.getMessage(), ex);
-    return bag;
+    if (ex.getStatusCode().is5xxServerError()) {
+      // A rejected return value is a server-side bug: keep it visible in production logs.
+      log.error("HandlerMethodValidationException (return value): {}", bag.getMessage(), ex);
+    } else {
+      log.debug("HandlerMethodValidationException: {}", bag.getMessage(), ex);
+    }
+    return new ResponseEntity<>(bag, ex.getStatusCode());
   }
 
   // One children entry plus one summary part per violation. Children entries MERGE on a duplicate

@@ -554,6 +554,13 @@ class RestBehaviorTest {
     @SuppressWarnings("unused")
     private void linkActionsLike(String actionId, String parentId) {}
 
+    // A String-returning handler for the return-value regression: parameter index -1 targets the
+    // method return type.
+    @SuppressWarnings("unused")
+    private String renderActionLike() {
+      return "";
+    }
+
     private RestBehavior behavior() {
       RestBehavior behavior = new RestBehavior();
       behavior.mapper = ObjectMapperHelper.openAEVJsonMapper();
@@ -609,9 +616,14 @@ class RestBehaviorTest {
               new FieldError("input", "outputParsers", "must not be null"));
 
       // WHEN
-      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+      ResponseEntity<ValidationErrorBag> response =
+          behavior().handleHandlerMethodValidationException(ex);
 
       // THEN - non-empty, actionable, and NOT the opaque default the frontend showed before
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      ValidationErrorBag bag = response.getBody();
+      assertNotNull(bag);
+      assertEquals(400, bag.getCode());
       assertFalse(bag.getMessage() == null || bag.getMessage().isBlank());
       assertFalse("Validation Failed".equals(bag.getMessage()));
       assertEquals(
@@ -637,9 +649,13 @@ class RestBehaviorTest {
               MethodValidationResult.create(this, method, List.of(result)));
 
       // WHEN
-      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+      ResponseEntity<ValidationErrorBag> response =
+          behavior().handleHandlerMethodValidationException(ex);
 
       // THEN
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      ValidationErrorBag bag = response.getBody();
+      assertNotNull(bag);
       assertFalse(bag.getMessage() == null || bag.getMessage().isBlank());
       assertFalse("Validation Failed".equals(bag.getMessage()));
       assertTrue(bag.getMessage().contains("must not be blank"));
@@ -653,9 +669,10 @@ class RestBehaviorTest {
           bodyValidationException(new FieldError("input", "name", null));
 
       // WHEN - must not throw (ValidationContent wraps the message in List.of, which rejects null)
-      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex).getBody();
 
       // THEN
+      assertNotNull(bag);
       assertEquals("sample_name", bag.getMessage());
       assertFalse(bag.getErrors().getChildren().containsKey(null));
       assertEquals(
@@ -692,9 +709,10 @@ class RestBehaviorTest {
               MethodValidationResult.create(this, method, List.of(first, second)));
 
       // WHEN
-      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex).getBody();
 
       // THEN - both violations survive under deterministic, distinct labels
+      assertNotNull(bag);
       assertEquals(
           "arg0: must not be blank; arg1: size must be between 36 and 36", bag.getMessage());
       assertTrue(bag.getErrors().getChildren().containsKey("arg0"));
@@ -712,9 +730,10 @@ class RestBehaviorTest {
               new FieldError("input", "name", "must match \"[a-z]+\""));
 
       // WHEN
-      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex).getBody();
 
       // THEN - the children entry merges instead of keeping only the last reason
+      assertNotNull(bag);
       assertEquals(
           List.of("must not be blank", "must match \"[a-z]+\""),
           bag.getErrors().getChildren().get("sample_name").getErrors());
@@ -741,13 +760,45 @@ class RestBehaviorTest {
                           "action and parent identifiers must differ"))));
 
       // WHEN
-      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex).getBody();
 
       // THEN - actionable, not the "Validation Failed" fallback with empty children
+      assertNotNull(bag);
       assertEquals("parameters: action and parent identifiers must differ", bag.getMessage());
       assertEquals(
           List.of("action and parent identifiers must differ"),
           bag.getErrors().getChildren().get("parameters").getErrors());
+    }
+
+    @Test
+    @DisplayName("a return-value validation failure keeps Spring's 500 status (server contract)")
+    void given_returnValueValidationFailure_should_preserve500Status()
+        throws NoSuchMethodException {
+      // GIVEN - a constraint rejecting what the controller RETURNED: Spring marks the result as
+      // for-return-value (parameter index -1) and supplies INTERNAL_SERVER_ERROR, because a
+      // broken response contract is a server bug, not a client mistake
+      Method method = HandlerMethodValidationHandling.class.getDeclaredMethod("renderActionLike");
+      ParameterValidationResult result =
+          new ParameterValidationResult(
+              new MethodParameter(method, -1),
+              "",
+              List.of(
+                  new DefaultMessageSourceResolvable(
+                      new String[] {"NotBlank"}, "must not be blank")));
+      HandlerMethodValidationException ex =
+          new HandlerMethodValidationException(
+              MethodValidationResult.create(this, method, List.of(result)));
+
+      // WHEN
+      ResponseEntity<ValidationErrorBag> response =
+          behavior().handleHandlerMethodValidationException(ex);
+
+      // THEN - the 500 must not be downgraded to a 400
+      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+      ValidationErrorBag bag = response.getBody();
+      assertNotNull(bag);
+      assertEquals(500, bag.getCode());
+      assertTrue(bag.getMessage().contains("must not be blank"));
     }
   }
 }
