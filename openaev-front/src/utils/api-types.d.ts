@@ -6143,6 +6143,11 @@ export interface InjectExpectationOutput {
   inject_expectation_inject?: string;
   /** Name of the inject expectation */
   inject_expectation_name?: string;
+  /**
+   * Display order of the expectation within its inject, ascending. Declared by the injector contract (e.g. phishing orders its steps email -> link -> submission); null means unordered and readers fall back to name / id.
+   * @format int32
+   */
+  inject_expectation_order?: number;
   /** Results associated with the inject expectation */
   inject_expectation_results?: InjectExpectationResult[];
   /**

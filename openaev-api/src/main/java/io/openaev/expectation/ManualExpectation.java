@@ -60,6 +60,9 @@ public class ManualExpectation implements Expectation {
   /** Time in seconds after which this expectation expires. */
   private Long expirationTime;
 
+  /** Optional display order within the inject (ascending); {@code null} means unordered. */
+  private Integer order;
+
   /** Creates an empty manual expectation. */
   public ManualExpectation() {}
 
@@ -83,6 +86,7 @@ public class ManualExpectation implements Expectation {
     this.description = expectation.getDescription();
     this.expectationGroup = expectation.isExpectationGroup();
     this.expirationTime = expectation.getExpirationTime();
+    this.order = expectation.getOrder();
   }
 
   /**
