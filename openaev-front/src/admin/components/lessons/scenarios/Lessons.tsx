@@ -116,8 +116,9 @@ const Lessons: FunctionComponent<Props> = ({
         alignItems: 'stretch',
       }}
       >
-        {/* action={null} adopts the 32px action-row header so the Paper
-            top-aligns with the Objectives column (which carries a create
+        {/* action={null} is now a NO-OP, kept only to avoid churn: the
+            library's header row is a constant 24px with or without an action,
+            so this panel top-aligns with the Objectives column (which carries a create
             button in its header). */}
         <InformationGrid title={t('Parameters')} action={null}>
           {permissions.canManage && (

@@ -166,9 +166,13 @@ const Channel = () => {
           gap: 16,
         }}
         >
-          {/* action={null} adopts the 32px header row so the Paper top-aligns
-              with the Live preview column (whose header holds the theme
-              toggle). */}
+          {/* action={null} is now a NO-OP, kept only to avoid churn: since the
+              library's header was adopted its row is a constant 24px whether or
+              not an action is present, so this panel top-aligns with the Live
+              preview column (whose header holds the theme toggle) on its own.
+              Measured — with action, action={null} and no prop at all, the three
+              surfaces start at the same y. Do not re-derive a need from this
+              line. */}
           <SectionBlock title={t('Parameters')} action={null}>
             <ChannelParametersForm
               initialValues={initialValues}
