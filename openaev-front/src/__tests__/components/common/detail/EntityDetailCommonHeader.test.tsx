@@ -21,6 +21,15 @@ import { InformationGrid, Section, SectionBlock } from '../../../../components/c
  * those values apply at all.
  */
 
+/**
+ * Fixture copy, bound in constants rather than written inline: the repo lints
+ * with `i18next/no-literal-string`, which cannot tell a test fixture from
+ * user-facing copy. Binding them keeps the rule active over the rest of the
+ * file instead of switching it off with a disable comment.
+ */
+const BODY = 'body';
+const ACTION_LABEL = 'Add';
+
 /** The library paints its surface with this class; the product never does. */
 const SURFACE = '[class*="bg-elevation-default"]';
 
@@ -41,9 +50,9 @@ describe('EntityDetailCommon — titled wrappers use the library header', () => 
   afterEach(cleanup);
 
   describe.each([
-    ['Section', (title: string) => <Section title={title}>body</Section>],
-    ['InformationGrid', (title: string) => <InformationGrid title={title}>body</InformationGrid>],
-    ['SectionBlock', (title: string) => <SectionBlock title={title}>body</SectionBlock>],
+    ['Section', (title: string) => <Section title={title}>{BODY}</Section>],
+    ['InformationGrid', (title: string) => <InformationGrid title={title}>{BODY}</InformationGrid>],
+    ['SectionBlock', (title: string) => <SectionBlock title={title}>{BODY}</SectionBlock>],
   ])('%s', (_name, renderWrapper) => {
     it('renders the title in the library header, outside the surface', () => {
       const { container } = render(renderWrapper('Panel title'));
@@ -83,10 +92,10 @@ describe('EntityDetailCommon — titled wrappers use the library header', () => 
 
   it('renders the action in the header, not in the surface', () => {
     const { container } = render(
-      <SectionBlock title="With action" action={<button type="button">Add</button>}>body</SectionBlock>,
+      <SectionBlock title="With action" action={<button type="button">{ACTION_LABEL}</button>}>{BODY}</SectionBlock>,
     );
-    expect(headerOf(container).contains(screen.getByRole('button', { name: 'Add' }))).toBe(true);
-    expect(surfaceOf(container).contains(screen.getByRole('button', { name: 'Add' }))).toBe(false);
+    expect(headerOf(container).contains(screen.getByRole('button', { name: ACTION_LABEL }))).toBe(true);
+    expect(surfaceOf(container).contains(screen.getByRole('button', { name: ACTION_LABEL }))).toBe(false);
   });
 
   it('still renders a header row for an empty title — measured, not assumed', () => {
@@ -98,7 +107,7 @@ describe('EntityDetailCommon — titled wrappers use the library header', () => 
     // No such call site exists today: all `?? ''` titles in the product belong
     // to Drawer/Tooltip, never to these wrappers. This test is the tripwire if
     // that changes.
-    const { container } = render(<SectionBlock title="">body</SectionBlock>);
+    const { container } = render(<SectionBlock title="">{BODY}</SectionBlock>);
     const header = surfaceOf(container).previousElementSibling as HTMLElement;
     expect(header).not.toBeNull();
     expect(header.textContent).toBe('');
