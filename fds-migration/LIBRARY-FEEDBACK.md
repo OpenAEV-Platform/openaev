@@ -34,6 +34,7 @@ every library pull request.
 | 32 off-scale padding → 0px | **open** |
 | 33 incomplete rename inventory | **open** (method finding, not a library defect) |
 | 34 host `outline` reset | **open** |
+| 35 clickable card must be a real link | **open** (raised for the future `Card`) |
 
 ---
 
@@ -1849,3 +1850,52 @@ cascade shows it.
 **Product-side note for OpenAEV:** the rule is old, broad, and not this
 migration's to remove. Flagged here rather than deleted, because deleting it
 changes focus rendering across the entire application — a decision, not a fix.
+
+---
+
+## 35. A clickable card must be a real link, not a click handler
+
+**Raised while classifying the 81 container surfaces still on MUI** (Paper pilot,
+wave 2 preparation). Recorded now, before `Card` is designed, because it is a
+behaviour to preserve — not an implementation detail to rediscover afterwards.
+
+**What the product does today.** Three surfaces are clickable cards, and all
+three carry the same comment in their source:
+
+```tsx
+// Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.
+component={Link}
+to={`/admin/reporting/${reporting.reporting_id}`}
+```
+
+| site | screen |
+|---|---|
+| `SecurityPlatformCard.tsx:30` | Security platforms |
+| `ReportingCard.tsx:34` | Reporting |
+| `CustomDashboardCard.tsx:28` | Custom dashboards |
+
+The whole surface is the control, and it is a **real `<a href>`** — deliberately,
+not a `<div onClick={navigate}>`. That single choice is what makes ⌘-click and
+middle-click open the card in a new tab, what puts the destination in the
+browser's status bar on hover, and what lets "copy link address" work. A JS
+click handler silently loses all three, and nothing in a test suite notices.
+
+**Why this belongs to the library now.** This is the same shape as
+[#1](#1-navbaritem-has-no-link-destination-href--to): `NavbarItem` had to grow
+`href`/`to` for exactly this reason, and until it did, the product had to reach
+for `asChild` and re-declare the row's internals by hand. A `Card` that only
+offers `onClick` will push products into the same corner — either a `div` that
+breaks ⌘-click, or an `asChild` escape that forces them to re-declare the card's
+anatomy and drift from the library's own styling.
+
+**Ask.** When `Card` is designed, give it a link destination as a first-class
+prop (`href` / `to`, or a documented polymorphic `as`), and state in its meta
+that a clickable card renders an `<a>` by default. Two properties worth pinning
+in its tests, because both are invisible to a snapshot: the rendered element is
+an anchor with a real `href`, and a modified click is not intercepted.
+
+**Product-side status.** Nothing is forced meanwhile: these three cards, plus
+`Logs.jsx:211` (a `ButtonBase` surface) and `ReportingForm.tsx:511` (a choice
+card carrying `onClick` and a `selected` state), are all held out of the Paper
+waves under the "clickable card" motif, waiting for `Card`. They are listed as
+class (g) of the wave-2 decision sheet.
