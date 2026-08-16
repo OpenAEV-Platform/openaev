@@ -114,6 +114,30 @@ public class PhishingTrackingService {
   public static final String SOURCE_AUTOMATION_METADATA_KEY = "phishing_source_automation";
 
   /**
+   * Machine-readable severity of the {@link #SOURCE_AUTOMATION_METADATA_KEY} hint: {@link
+   * #AUTOMATION_LEVEL_LIKELY} (pure scanner signature or impossibly-fast hit) or {@link
+   * #AUTOMATION_LEVEL_POSSIBLE} (dual-use image proxy that also carries genuine opens). The
+   * frontend keys its chip label off this value instead of parsing the human-readable sentence, so
+   * the wording of the hint can evolve freely.
+   */
+  public static final String SOURCE_AUTOMATION_LEVEL_METADATA_KEY =
+      "phishing_source_automation_level";
+
+  public static final String AUTOMATION_LEVEL_LIKELY = "likely";
+  public static final String AUTOMATION_LEVEL_POSSIBLE = "possible";
+
+  /**
+   * Hard caps on the forensic metadata values persisted per step result. Both the user agent and
+   * X-Forwarded-For are attacker-controlled request input (a tracking endpoint is public and
+   * unauthenticated), so without a cap a hostile client could bloat every flipped step's stored
+   * metadata up to the server's header-size limit. Generous enough for any legitimate value - real
+   * user agents top out around 300 characters.
+   */
+  private static final int MAX_USER_AGENT_METADATA_LENGTH = 512;
+
+  private static final int MAX_IP_METADATA_LENGTH = 64;
+
+  /**
    * A hit landing at most this many seconds after the lure was delivered is treated as automated
    * scanning: no human recipient can receive, notice and act on an email within this window, while
    * Microsoft Defender Safe Links and similar gateways detonate every URL right at delivery. Such
@@ -676,10 +700,12 @@ public class PhishingTrackingService {
       final PhishingResult result, final String ip, final String userAgent) {
     Map<String, String> metadata = new LinkedHashMap<>();
     if (ip != null && !ip.isBlank()) {
-      metadata.put(SOURCE_IP_METADATA_KEY, ip.trim());
+      metadata.put(SOURCE_IP_METADATA_KEY, truncate(ip.trim(), MAX_IP_METADATA_LENGTH));
     }
     if (userAgent != null && !userAgent.isBlank()) {
-      metadata.put(SOURCE_USER_AGENT_METADATA_KEY, userAgent.trim());
+      metadata.put(
+          SOURCE_USER_AGENT_METADATA_KEY,
+          truncate(userAgent.trim(), MAX_USER_AGENT_METADATA_LENGTH));
     }
     Instant sentAt = result.getSentAt();
     Instant eventAt = now();
@@ -691,37 +717,56 @@ public class PhishingTrackingService {
         metadata.put(SOURCE_DELAY_METADATA_KEY, humanizeDelay(seconds));
       }
     }
-    String automation = describeAutomation(userAgent, delaySeconds);
+    AutomationHint automation = describeAutomation(userAgent, delaySeconds);
     if (automation != null) {
-      metadata.put(SOURCE_AUTOMATION_METADATA_KEY, automation);
+      metadata.put(SOURCE_AUTOMATION_METADATA_KEY, automation.text());
+      metadata.put(SOURCE_AUTOMATION_LEVEL_METADATA_KEY, automation.level());
     }
     return metadata;
   }
 
   /**
-   * Returns a "likely automated" hint when the evidence points to a scanner/bot rather than a human
+   * An automation verdict on a tracking hit: a machine-readable severity ({@link
+   * #AUTOMATION_LEVEL_LIKELY} / {@link #AUTOMATION_LEVEL_POSSIBLE}) the UI keys its chip label off,
+   * plus the human-readable explanation shown in the chip's tooltip.
+   */
+  private record AutomationHint(String level, String text) {}
+
+  /**
+   * Returns an automation hint when the evidence points to a scanner/bot rather than a human
    * recipient, else {@code null}. On a SUPPRESSED probe's annotation it explains why the hit was
    * ignored; on a scored step it can only come from a dual-use image proxy (pure scanner agents and
    * too-fast hits never reach scoring), where it stays advisory: it never changes the score, a
    * match just helps the analyst weigh the row.
    */
-  private static String describeAutomation(final String userAgent, final Long delaySeconds) {
+  private static AutomationHint describeAutomation(
+      final String userAgent, final Long delaySeconds) {
     if (userAgent != null && !userAgent.isBlank()) {
       String normalized = userAgent.toLowerCase(Locale.ROOT);
       if (SCANNER_USER_AGENT_SIGNATURES.stream().anyMatch(normalized::contains)) {
-        return "Likely automated - the user agent matches a known email security scanner or link"
-            + " preview bot, not a human recipient";
+        return new AutomationHint(
+            AUTOMATION_LEVEL_LIKELY,
+            "Likely automated - the user agent matches a known email security scanner or link"
+                + " preview bot, not a human recipient");
       }
       if (PROXY_USER_AGENT_SIGNATURES.stream().anyMatch(normalized::contains)) {
-        return "Possibly automated - the user agent is a mail-client image proxy, which carries"
-            + " both genuine recipient opens and provider-side pre-fetches";
+        return new AutomationHint(
+            AUTOMATION_LEVEL_POSSIBLE,
+            "Possibly automated - the user agent is a mail-client image proxy, which carries"
+                + " both genuine recipient opens and provider-side pre-fetches");
       }
     }
     if (delaySeconds != null && delaySeconds <= AUTOMATION_MAX_DELAY_SECONDS) {
-      return "Likely automated - triggered within seconds of delivery, too fast for a human"
-          + " recipient (typical of a mail security scanner pre-fetching the link or image)";
+      return new AutomationHint(
+          AUTOMATION_LEVEL_LIKELY,
+          "Likely automated - triggered within seconds of delivery, too fast for a human"
+              + " recipient (typical of a mail security scanner pre-fetching the link or image)");
     }
     return null;
+  }
+
+  private static String truncate(final String value, final int maxLength) {
+    return value.length() <= maxLength ? value : value.substring(0, maxLength);
   }
 
   /** Formats an elapsed second count as a compact, human-readable "... after delivery" string. */

@@ -40,6 +40,12 @@ const PHISHING_SOURCE_IP_KEY = 'phishing_source_ip';
 const PHISHING_SOURCE_USER_AGENT_KEY = 'phishing_source_user_agent';
 const PHISHING_SOURCE_DELAY_KEY = 'phishing_source_delay';
 const PHISHING_SOURCE_AUTOMATION_KEY = 'phishing_source_automation';
+// Machine-readable severity of the automation hint ("likely" for pure scanner
+// signatures and impossibly-fast hits, "possible" for dual-use image proxies
+// that also carry genuine opens). The chip label keys off this value - never
+// off the human-readable hint text, whose wording is free to evolve.
+const PHISHING_SOURCE_AUTOMATION_LEVEL_KEY = 'phishing_source_automation_level';
+const AUTOMATION_LEVEL_POSSIBLE = 'possible';
 
 const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target }: Props) => {
   const { t, nsdt } = useFormatter();
@@ -274,6 +280,9 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
             const sourceUserAgent = metadata[PHISHING_SOURCE_USER_AGENT_KEY];
             const sourceDelay = metadata[PHISHING_SOURCE_DELAY_KEY];
             const sourceAutomation = metadata[PHISHING_SOURCE_AUTOMATION_KEY];
+            const automationLabel = metadata[PHISHING_SOURCE_AUTOMATION_LEVEL_KEY] === AUTOMATION_LEVEL_POSSIBLE
+              ? t('Possibly automated')
+              : t('Likely automated');
             const hasOrigin = Boolean(sourceIp || sourceUserAgent || sourceDelay);
             return (
               <div
@@ -393,7 +402,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
                           }}
                         >
                           <SmartToyOutlined sx={{ fontSize: 13 }} />
-                          {t('Likely automated')}
+                          {automationLabel}
                         </Box>
                       </Tooltip>
                     )}

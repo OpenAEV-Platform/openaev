@@ -11969,7 +11969,7 @@ export interface ThreatArsenalActionFullOutput {
   action_domains?: string[];
   /** CPU architecture targeted for action execution */
   action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
-  /** Predefined expectations declared by the contract, each with its name, description and display order (e.g. phishing's ordered human steps). Null for payload-based actions, which declare expectations by type only - readers then fall back to action_expectations. */
+  /** Predefined expectations declared by the contract, each with its name, description and display order (e.g. phishing's ordered human steps). Omitted for payload-based actions, which declare expectations by type only - readers then fall back to action_expectations. */
   action_expectation_details?: ThreatArsenalExpectationDetail[];
   /** Expected output types for action execution */
   action_expectations?: (
