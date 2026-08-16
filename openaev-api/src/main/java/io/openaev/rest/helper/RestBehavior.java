@@ -28,6 +28,8 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springdoc.api.ErrorMessage;
+import org.springframework.context.MessageSourceResolvable;
+import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,12 +37,15 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 @RestControllerAdvice
@@ -52,12 +57,21 @@ public class RestBehavior {
   // Build the mapping between json specific name and the actual database field name
   private Map<String, String> buildJsonMappingFields(MethodArgumentNotValidException ex) {
     Class<?> inputClass = Objects.requireNonNull(ex.getBindingResult().getTarget()).getClass();
+    return buildJsonMappingFields(inputClass);
+  }
+
+  // Internal-name -> JSON-name mapping for a bound input class, shared by the two validation
+  // handlers. The merge function keeps a duplicate internal name from failing the collector with an
+  // IllegalStateException inside the handler (which would turn the 400 into a 500).
+  private Map<String, String> buildJsonMappingFields(Class<?> inputClass) {
     JavaType javaType = mapper.getTypeFactory().constructType(inputClass);
     BeanDescription beanDescription = mapper.getSerializationConfig().introspect(javaType);
     return beanDescription.findProperties().stream()
         .collect(
             Collectors.toMap(
-                BeanPropertyDefinition::getInternalName, BeanPropertyDefinition::getName));
+                BeanPropertyDefinition::getInternalName,
+                BeanPropertyDefinition::getName,
+                (existing, ignored) -> existing));
   }
 
   // -- 400 BAD_REQUEST --
@@ -229,6 +243,79 @@ public class RestBehavior {
     return joined.length() <= MAX_VALIDATION_SUMMARY_LENGTH
         ? joined
         : joined.substring(0, MAX_VALIDATION_SUMMARY_LENGTH - 3) + "...";
+  }
+
+  // Spring 6.2 routes controller method validation through HandlerMethodValidationException, NOT
+  // MethodArgumentNotValidException, whenever a handler mixes a method-level constraint with a
+  // cascaded body - e.g. updateAction's `@NotBlank @PathVariable actionId` alongside a
+  // `@Valid @RequestBody`. RestBehavior does not extend ResponseEntityExceptionHandler, so with no
+  // handler for this class the class-level default applies and the body's "message" is empty
+  // (unless server.error.include-message=always, which this codebase deliberately does not set) -
+  // the opaque "Bad request" a plain API caller or an AI agent's tool wrapper cannot self-correct
+  // from (the exact "why did the arsenal fork bad-request" pain). Mirror the
+  // MethodArgumentNotValidException handler: per-field children plus a concise summarized message.
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(HandlerMethodValidationException.class)
+  public ValidationErrorBag handleHandlerMethodValidationException(
+      HandlerMethodValidationException ex) {
+    ValidationErrorBag bag = new ValidationErrorBag();
+    ValidationError errors = new ValidationError();
+    Map<String, ValidationContent> errorsBag = new HashMap<>();
+    List<String> summaryParts = new ArrayList<>();
+    for (ParameterValidationResult result : ex.getParameterValidationResults()) {
+      // A cascaded @Valid bean argument reports FieldError/ObjectError, whose label needs the JSON
+      // property name; a direct value constraint (@PathVariable / @RequestParam) reports a plain
+      // resolvable, whose best label is the parameter name.
+      Map<String, String> jsonFieldsMapping = jsonMappingForArgument(result.getArgument());
+      String valueParameterLabel = parameterLabel(result);
+      for (MessageSourceResolvable error : result.getResolvableErrors()) {
+        String rawName =
+            error instanceof FieldError fieldError
+                ? fieldError.getField()
+                : error instanceof ObjectError objectError
+                    ? objectError.getObjectName()
+                    : valueParameterLabel;
+        String label = jsonFieldsMapping.getOrDefault(rawName, rawName);
+        String errorMessage = error.getDefaultMessage();
+        // getDefaultMessage() is nullable and ValidationContent wraps it in List.of(), which
+        // rejects null - degrade to a generic reason instead of a 500, as the sibling handler does.
+        errorsBag.put(
+            label, new ValidationContent(errorMessage == null ? "Invalid value" : errorMessage));
+        summaryParts.add(summaryPart(label, errorMessage));
+      }
+    }
+    errors.setChildren(errorsBag);
+    bag.setErrors(errors);
+    bag.setMessage(summarizeValidationErrors(summaryParts));
+    log.debug("HandlerMethodValidationException: {}", bag.getMessage(), ex);
+    return bag;
+  }
+
+  // Best-effort internal-name -> JSON-name mapping for a validated bean argument. Empty when the
+  // argument is null (a direct value constraint) or introspection fails, so labeling degrades to
+  // the raw field/parameter name instead of throwing a second time inside the handler.
+  private Map<String, String> jsonMappingForArgument(Object argument) {
+    if (argument == null) {
+      return Map.of();
+    }
+    try {
+      return buildJsonMappingFields(argument.getClass());
+    } catch (RuntimeException ignored) {
+      return Map.of();
+    }
+  }
+
+  // Parameter name for a value-level constraint, degrading to the declaring type when the name is
+  // unavailable (sources not compiled with -parameters); never null so the children key stays valid
+  // (Jackson refuses to serialize a null map key, which would be a 500).
+  private static String parameterLabel(ParameterValidationResult result) {
+    MethodParameter parameter = result.getMethodParameter();
+    String name = parameter.getParameterName();
+    if (name != null && !name.isBlank()) {
+      return name;
+    }
+    Class<?> type = parameter.getParameterType();
+    return type != null ? type.getSimpleName() : "parameter";
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)

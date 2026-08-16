@@ -24,6 +24,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springdoc.api.ErrorMessage;
+import org.springframework.context.MessageSourceResolvable;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,8 +34,11 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
+import org.springframework.validation.method.MethodValidationResult;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 @DisplayName("RestBehavior exception mapping")
 class RestBehaviorTest {
@@ -522,6 +528,133 @@ class RestBehaviorTest {
 
       // THEN
       assertEquals("sample_name: must not be blank", bag.getMessage());
+    }
+  }
+
+  @Nested
+  @DisplayName("HandlerMethodValidationException handling (Spring 6.2 method validation 400)")
+  class HandlerMethodValidationHandling {
+
+    /** Input shape exercising the internal-name -> JSON-name mapping, as the arsenal DTOs do. */
+    static class SampleValidationInput {
+      @JsonProperty("sample_name")
+      public String name;
+
+      @JsonProperty("output_parsers")
+      public List<String> outputParsers;
+    }
+
+    // A handler mixing a method-level path-var constraint with a cascaded @Valid body - the exact
+    // updateAction shape that makes Spring 6.2 raise HandlerMethodValidationException.
+    @SuppressWarnings("unused")
+    private void updateActionLike(String actionId, SampleValidationInput input) {}
+
+    private RestBehavior behavior() {
+      RestBehavior behavior = new RestBehavior();
+      behavior.mapper = ObjectMapperHelper.openAEVJsonMapper();
+      return behavior;
+    }
+
+    private Method updateActionLikeMethod() throws NoSuchMethodException {
+      return HandlerMethodValidationHandling.class.getDeclaredMethod(
+          "updateActionLike", String.class, SampleValidationInput.class);
+    }
+
+    private HandlerMethodValidationException bodyValidationException(FieldError... fieldErrors)
+        throws NoSuchMethodException {
+      Method method = updateActionLikeMethod();
+      MethodParameter bodyParameter = new MethodParameter(method, 1);
+      ParameterValidationResult result =
+          new ParameterValidationResult(
+              bodyParameter, new SampleValidationInput(), List.of(fieldErrors));
+      MethodValidationResult validation =
+          MethodValidationResult.create(this, method, List.of(result));
+      return new HandlerMethodValidationException(validation);
+    }
+
+    @Test
+    @DisplayName("the handler is registered and resolved for HandlerMethodValidationException")
+    void given_handlerMethodValidationException_should_resolveCorrectHandler()
+        throws NoSuchMethodException {
+      // GIVEN
+      ExceptionHandlerMethodResolver resolver =
+          new ExceptionHandlerMethodResolver(RestBehavior.class);
+
+      // WHEN - any non-empty method-validation failure (ParameterValidationResult rejects an
+      // empty resolvable-errors list, so a representative field error is required)
+      Method resolved =
+          resolver.resolveMethodByThrowable(
+              bodyValidationException(new FieldError("input", "name", "must not be blank")));
+
+      // THEN - without this the class falls to Spring's default /error (empty message)
+      assertNotNull(resolved);
+      assertEquals("handleHandlerMethodValidationException", resolved.getName());
+    }
+
+    @Test
+    @DisplayName(
+        "a cascaded @Valid body failure carries a non-empty message with JSON field names "
+            + "(the arsenal fork 400 is now self-correcting)")
+    void given_bodyValidationErrors_should_carryNonEmptySummaryWithJsonNames()
+        throws NoSuchMethodException {
+      // GIVEN - the arsenal shape: name @NotBlank and outputParsers @NotNull both rejected
+      HandlerMethodValidationException ex =
+          bodyValidationException(
+              new FieldError("input", "name", "must not be blank"),
+              new FieldError("input", "outputParsers", "must not be null"));
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+
+      // THEN - non-empty, actionable, and NOT the opaque default the frontend showed before
+      assertFalse(bag.getMessage() == null || bag.getMessage().isBlank());
+      assertFalse("Validation Failed".equals(bag.getMessage()));
+      assertEquals(
+          "output_parsers: must not be null; sample_name: must not be blank", bag.getMessage());
+      assertTrue(bag.getErrors().getChildren().containsKey("sample_name"));
+      assertTrue(bag.getErrors().getChildren().containsKey("output_parsers"));
+    }
+
+    @Test
+    @DisplayName("a direct value constraint (path variable) still yields a non-empty message")
+    void given_valueConstraintFailure_should_carryNonEmptyMessage() throws NoSuchMethodException {
+      // GIVEN - a method-level @NotBlank @PathVariable actionId reports a plain resolvable, not a
+      // FieldError; the label degrades to the parameter name but the reason must still surface
+      Method method = updateActionLikeMethod();
+      MethodParameter pathParameter = new MethodParameter(method, 0);
+      pathParameter.initParameterNameDiscovery(new DefaultParameterNameDiscoverer());
+      MessageSourceResolvable resolvable =
+          new DefaultMessageSourceResolvable(new String[] {"NotBlank"}, "must not be blank");
+      ParameterValidationResult result =
+          new ParameterValidationResult(pathParameter, "", List.of(resolvable));
+      HandlerMethodValidationException ex =
+          new HandlerMethodValidationException(
+              MethodValidationResult.create(this, method, List.of(result)));
+
+      // WHEN
+      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+
+      // THEN
+      assertFalse(bag.getMessage() == null || bag.getMessage().isBlank());
+      assertFalse("Validation Failed".equals(bag.getMessage()));
+      assertTrue(bag.getMessage().contains("must not be blank"));
+    }
+
+    @Test
+    @DisplayName("a constraint without a default message never renders a null children key")
+    void given_nullDefaultMessage_should_degradeWithoutNullKey() throws NoSuchMethodException {
+      // GIVEN
+      HandlerMethodValidationException ex =
+          bodyValidationException(new FieldError("input", "name", null));
+
+      // WHEN - must not throw (ValidationContent wraps the message in List.of, which rejects null)
+      ValidationErrorBag bag = behavior().handleHandlerMethodValidationException(ex);
+
+      // THEN
+      assertEquals("sample_name", bag.getMessage());
+      assertFalse(bag.getErrors().getChildren().containsKey(null));
+      assertEquals(
+          List.of("Invalid value"), bag.getErrors().getChildren().get("sample_name").getErrors());
     }
   }
 }
