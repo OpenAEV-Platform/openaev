@@ -143,6 +143,7 @@ public class RestBehavior {
     ValidationErrorBag bag = new ValidationErrorBag();
     ValidationError errors = new ValidationError();
     Map<String, ValidationContent> errorsBag = new HashMap<>();
+    List<String> summaryParts = new ArrayList<>();
     ex.getBindingResult()
         .getAllErrors()
         .forEach(
@@ -150,10 +151,42 @@ public class RestBehavior {
               String fieldName = ((FieldError) error).getField();
               String errorMessage = error.getDefaultMessage();
               errorsBag.put(jsonFieldsMapping.get(fieldName), new ValidationContent(errorMessage));
+              String label = jsonFieldsMapping.getOrDefault(fieldName, fieldName);
+              summaryParts.add(
+                  label == null || label.isBlank() ? errorMessage : label + ": " + errorMessage);
             });
     errors.setChildren(errorsBag);
     bag.setErrors(errors);
+    // Replace the generic "Validation Failed" top-level message with a concise
+    // summary of the per-field reasons. Those reasons otherwise live only in
+    // errors.children, so any client that reads just "message" - the frontend
+    // toast, a plain API caller, an AI agent's tool wrapper - gets an opaque 400
+    // and cannot self-correct (the exact "why did the arsenal fork bad-request"
+    // pain). The per-field children bag is left unchanged for structured clients.
+    bag.setMessage(summarizeValidationErrors(summaryParts));
     return bag;
+  }
+
+  private static final int MAX_VALIDATION_SUMMARY_LENGTH = 300;
+  private static final int MAX_VALIDATION_SUMMARY_PARTS = 8;
+
+  // Fold the per-field validation reasons into one human-readable top-level
+  // message. Bounded in count and length so the response stays small and
+  // log-safe; falls back to the generic message when nothing usable was
+  // collected (so an empty binding result is never surfaced as a blank reason).
+  private static String summarizeValidationErrors(List<String> parts) {
+    List<String> nonBlank = parts.stream().filter(p -> p != null && !p.isBlank()).toList();
+    if (nonBlank.isEmpty()) {
+      return "Validation Failed";
+    }
+    String joined =
+        nonBlank.stream().limit(MAX_VALIDATION_SUMMARY_PARTS).collect(Collectors.joining("; "));
+    if (nonBlank.size() > MAX_VALIDATION_SUMMARY_PARTS) {
+      joined += "; ...";
+    }
+    return joined.length() <= MAX_VALIDATION_SUMMARY_LENGTH
+        ? joined
+        : joined.substring(0, MAX_VALIDATION_SUMMARY_LENGTH) + "...";
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)
