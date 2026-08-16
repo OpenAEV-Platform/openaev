@@ -35,6 +35,8 @@ every library pull request.
 | 33 incomplete rename inventory | **open** (method finding, not a library defect) |
 | 34 host `outline` reset | **open** |
 | 35 clickable card must be a real link | **open** (raised for the future `Card`) |
+| 36 header renders on prop presence, not value | **open** |
+| 37 truncated title unreadable in full | **open** |
 
 ---
 
@@ -1899,3 +1901,94 @@ an anchor with a real `href`, and a modified click is not intercepted.
 card carrying `onClick` and a `selected` state), are all held out of the Paper
 waves under the "clickable card" motif, waiting for `Card`. They are listed as
 class (g) of the wave-2 decision sheet.
+
+---
+
+## 36. `Paper` renders its header on the PRESENCE of the prop, not on its value
+
+**Measured on the installed build at pin `a22b188`, while writing the render
+guard for the three converted wrappers** — not read from the source.
+
+```tsx
+<Paper title="">body</Paper>
+```
+
+renders the full header row — a 24px band, empty — above the surface. The
+library keys the header on whether the prop was passed, not on whether it
+carries anything. `title={undefined}` correctly renders no header; `title=""`,
+`title={null}` and any expression that resolves to an empty string all render a
+blank band.
+
+**Why it matters beyond one product.** A wrapper that always forwards `title`
+makes the header unconditional for every one of its call sites. OpenAEV's three
+wrappers do exactly that, so a call site whose title resolves to `''` would show
+a blank 24px band instead of a tight panel — a silent, purely visual defect.
+
+Checked here rather than assumed: **no such call site exists in OpenAEV today**.
+Every `?? ''` title in the product belongs to `Drawer` or `Tooltip`, never to a
+`Paper` wrapper. A regression test now pins the behaviour as a tripwire.
+
+**OpenCTI is the exposed one.** Its panel titles frequently come from data —
+entity names, external references, observable values — where an empty string is
+a normal runtime value, not a coding mistake. There, the blank band is not a
+hypothetical: it is what an unnamed entity will render.
+
+**Nothing warns.** Not TypeScript (`string` accepts `""`), not a lint rule, not
+the conformity gate, not a snapshot — the DOM is *correct*, it simply contains
+an empty row. Only a human looking at the screen sees it.
+
+**Ask.** Pick one and document it, either is defensible:
+
+- **treat an empty title as absent** — render no header when the resolved title
+  is empty and no `action` is set, which is what a consumer intuitively expects;
+- **or keep the current behaviour and say so** in `Paper.meta.ts`, so a product
+  knows it must guard its own call sites.
+
+What should not stay is the current silence: the behaviour is reasonable, it is
+just undiscoverable until it renders wrong on someone's screen.
+
+---
+
+## 37. A truncated `Paper` title offers no way to read the full text
+
+**Measured on the installed build at pin `a22b188`**, with real translations at
+the narrowest panel width this product can produce.
+
+`Paper`'s header truncates its title — `<div class="min-w-0 truncate">` — which
+is the right behaviour for a fixed 24px row. What it does not do is give a
+sighted user any way back to the full string:
+
+| checked on the truncated element | result |
+|---|---|
+| native `title` attribute | **absent** |
+| `aria-label` / `aria-labelledby` | **absent** |
+| tooltip trigger (Radix or otherwise) | **absent** |
+| full text present in the DOM | **yes**, as `textContent` |
+
+**The important nuance, so the severity is not overstated.** Because the full
+string stays in the DOM, a screen reader announces it in full. This is **not**
+an assistive-technology failure. It is a loss for the sighted user who sees
+`Distribución de la puntuación total esperada por tipo de iny…` and has no
+hover, no focus and no click that reveals the rest.
+
+**How often, measured rather than feared.** Across the 68 distinct titles this
+product passes to its three wrappers, in nine locales: median 13 characters in
+English, 66 at worst in Spanish, and 15 titles whose translation grows by 60% or
+more. At the narrowest track (`minmax(340px, 1fr)`, with an action in the row)
+exactly **one** title truncates today. So this is rare here — and it is rare
+*because* the component happens to fit, not because anything guarantees it. A
+product with data-driven titles (OpenCTI) has no such luck.
+
+**Ask.** Have the header expose the full title when, and only when, it actually
+truncates — the standard shape is a `title` attribute set from a width
+comparison, or the library's own `Tooltip` on the trigger. Doing it in the
+library is what makes it conditional: only the component knows whether its own
+text overflowed.
+
+**What a product can do meanwhile, and why it is not free.** A consumer can pass
+a node instead of a string — `title={<span title={text}>{text}</span>}` — and
+the native tooltip then works; verified, the attribute survives into the
+library's truncating div. But a consumer cannot know whether truncation
+happened, so the tooltip appears on **every** header, truncated or not: 106
+panels in this product would grow a hover tooltip to fix one. Not applied here
+for that reason; recorded so the trade-off is explicit rather than rediscovered.

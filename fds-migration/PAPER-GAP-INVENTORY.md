@@ -749,3 +749,123 @@ Sur une install à thème personnalisé, la bordure composite toujours exactemen
 à la surface : le panneau n'a pas d'arête propre. **Non corrigé, compromis
 assumé du temps 1** (voir §9). Visible sur la planche « thème client » du
 checkpoint.
+
+## 13. Lot A — les trois wrappers titrés adoptent l'en-tête de la lib
+
+`EntityDetailCommon.tsx` porte trois conteneurs titrés — `Section`,
+`InformationGrid`, `SectionBlock` — utilisés **106 fois dans 33 fichiers**. La
+surface était déjà le Paper de la lib depuis la vague 1 ; ce lot fait passer le
+**titre** dans la prop `title` de la lib au lieu de le dessiner au-dessus avec
+`SECTION_LABEL_SX`.
+
+### 13.1 Ce que le titre devient — mesuré dans un vrai navigateur
+
+|                  | avant (produit)              | après (lib)          |
+| ---------------- | ---------------------------- | -------------------- |
+| police           | Geologica                    | IBM Plex Sans        |
+| taille           | 11px                         | 12px                 |
+| graisse          | 600                          | 400                  |
+| casse            | MAJUSCULES (`textTransform`) | casse d'origine      |
+| interlettrage    | 1,32px                       | 0,09px               |
+| rangée           | 11px + `marginBottom: 12px`  | 24px, hauteur fixe   |
+| couleur (sombre) | `rgba(255,255,255,0.7)`      | `rgb(175,176,182)`   |
+| couleur (clair)  | `rgba(0,0,0,0.6)`            | `rgb(73,74,80)`      |
+
+Le nombre de surfaces de la lib rendues est **identique des deux côtés** sur les
+quatre écrans capturés (5 / 11 / 6 / 8) : aucune surface gagnée ni perdue.
+
+### 13.2 Le piège du flex — pourquoi le conteneur devient une grille
+
+`style` atteint la **surface**, jamais l'enveloppe que la lib ajoute quand
+`title` est posé. Un `flex: 1` sur la surface ne peut donc plus étirer le
+panneau : c'est l'enveloppe qui doit être étirée par le conteneur produit.
+Mesuré sur un panneau voisin d'un panneau plus haut : **58px contre 130px**
+attendus. Le conteneur produit devient une grille à une rangée `1fr` — mesuré
+ensuite **268 / 268**. Corrigé côté produit, sans demande à la lib.
+
+### 13.3 Le correctif de colonne — `minmax(0, 1fr)` et non `1fr`
+
+Une colonne de grille **implicite** vaut `auto` : elle se dimensionne au
+contenu. Avec la seule rangée déclarée, l'enveloppe de la lib mesurait donc
+**354px dans une piste de 340px** — elle débordait de 15px et le titre ne se
+tronquait pas, il sortait du panneau. Avec `gridTemplateColumns: 'minmax(0, 1fr)'` :
+enveloppe **338px**, débordement **−1px**, titre tronqué de 16px avec ellipse.
+Appliqué aux **trois** wrappers. Planche : `planche-lotA-colonne-{dark,light}.png`.
+
+### 13.4 Troncature multilingue — écart CONNU ET ACCEPTÉ
+
+14 titres distincts sont passés à ces wrappers. Toutes locales confondues, **un
+seul** dépasse la piste la plus étroite que `DetailSections` puisse produire
+(340px) : l'espagnol *« Distribución de la puntuación total esperada por tipo de
+inyección »*, 66 caractères, **16px coupés**.
+
+Décision : **on accepte l'ellipse**. Un titre sur quatorze, à la piste la plus
+étroite, n'est pas un motif pour raccourcir une traduction, ni pour appliquer
+une compensation côté produit sur un composant de la lib. Le texte complet reste
+annoncé aux lecteurs d'écran. La lib **n'expose pas** le titre complet au survol
+quand elle tronque : c'est l'objet du **feedback #37**. À écrire tel quel dans le
+corps de la PR — ce n'est pas une découverte à venir.
+
+### 13.5 `action={null}` — l'idiome est devenu sans effet
+
+Trois sites passent `action={null}` : `Channel.tsx:172`, `Lessons.tsx:122`
+(scénarios), `PhishingEmailTemplate.tsx:129`. L'idiome venait de l'en-tête
+produit, qui avait **deux hauteurs** (courte sans action, 32px avec) : le `null`
+forçait la haute pour aligner le haut du panneau sur son voisin.
+
+La rangée de la lib est à **hauteur constante**. Mesuré, trois panneaux côte à
+côte dans un vrai `DetailSections` :
+
+| cas               | en-tête | haut de surface |
+| ----------------- | ------- | --------------- |
+| avec une action   | 24px    | 86              |
+| `action={null}`   | 24px    | 86              |
+| sans la prop      | 24px    | 86              |
+
+Identique en sombre et en clair. L'alignement que l'idiome protégeait se produit
+donc **tout seul** : ce n'est pas une perte, c'est un besoin qui disparaît.
+
+**L'idiome est laissé en place** (le retirer serait un nettoyage hors périmètre),
+mais **son commentaire a été mis à jour sur les trois sites** et dans la
+documentation des deux props, pour qu'aucune session ne re-dérive dans six mois
+un besoin d'alignement qui n'existe plus.
+
+`InjectCreationConfig.tsx:136` porte aussi `action={null}` avec un titre qui peut
+valoir `''` — c'est un `InjectCardComponent`, **pas** un de ces trois wrappers.
+L'assertion « aucun site d'appel n'a de titre potentiellement vide » de la garde
+de rendu tient.
+
+### 13.6 Bordure du bas doublée — corrigé, vague 1 incluse
+
+Sur un Paper à `padding=0` contenant une liste à séparateurs, le séparateur de
+la **dernière** ligne tombe 1px au-dessus de la bordure du Paper : mesuré
+**1px + 1px de blanc + 1px = un trait de 2px** là où toutes les autres lignes en
+ont un de 1px.
+
+Correctif : `sx={{ '& > :last-child': { borderBottom: 0 } }}` sur la `List`.
+Appliqué aux **4 listes de la vague 1** — `LessonsObjectives.jsx`,
+`scenarios/LessonsCategories.jsx`, `simulations/LessonsCategories.jsx` (deux
+listes). Mesuré après : bordures par ligne **1px / 1px / 0px**, trait du bas
+**1px** — aucune ligne intermédiaire ne perd son séparateur. Sombre et clair.
+Planche : `planche-lotA-bordure-{dark,light}.png`, avec le coin bas-gauche à la
+densité 8×.
+
+### 13.7 Garde de rendu
+
+`src/__tests__/components/common/detail/EntityDetailCommonHeader.test.tsx`,
+11 tests. Les deux gardes de `check-fds-conformity.mjs` regardent les imports et
+les paddings en dur : **aucune ne voit un en-tête**. La garde teste la
+**structure** (le titre est dans l'en-tête et pas dans la surface, aucune casse
+ni police réimposée, `flex` sur la surface, conteneur en grille), jamais le style
+calculé — jsdom n'applique pas la feuille de styles de la lib. Les valeurs en
+pixels sont mesurées dans un vrai navigateur et vivent ici, en §13.1.
+
+### 13.8 Planches
+
+Capturées dans l'**application réelle** (`localhost:3001`, jeu de données
+ensemencé par l'API), pas sur le banc : « avant » = arbre de travail détaché sur
+`bc20bf76a`, « après » = lot A. L'arbre servi est **prouvé** à chaque passe en
+lisant le fichier pilote à travers le serveur de développement, pas déclaré.
+Quatre écrans × deux thèmes, plus les deux planches dédiées (colonne, bordure) :
+douze planches en tout, avec un zoom 1:1 sur le premier en-tête titré de chaque
+écran.
