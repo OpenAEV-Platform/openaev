@@ -73,11 +73,16 @@ public class PhishingTrackingService {
    * Names of the three phishing-awareness expectation steps. Shared with {@code
    * PhishingLandingPageService} (which advertises them in the injector contract) so the contract
    * and the runtime scoring can never drift on which row represents which step.
+   *
+   * <p>The names are phrased as the RESISTED (green) outcome, matching the inverted phishing
+   * polarity: a step is green ("resisted") while the recipient has not performed it and only flips
+   * red the moment they do. A recipient who never interacts keeps a row of green "not opened / not
+   * clicked / not submitted" verdicts, so the name always reads true for the desired outcome.
    */
-  public static final String STEP_OPENED = "Email opened";
+  public static final String STEP_OPENED = "Email not opened";
 
-  public static final String STEP_CLICKED = "Phishing link clicked";
-  public static final String STEP_SUBMITTED = "Credentials submitted";
+  public static final String STEP_CLICKED = "Link not clicked";
+  public static final String STEP_SUBMITTED = "Credentials not submitted";
 
   private static final Set<String> PHISHING_STEP_NAMES =
       Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED);

@@ -89,7 +89,7 @@ const TargetResultsTimeline: FunctionComponent<Props> = ({
         const color = getColor(step.status);
         const completed = isCompleted(step);
         const previous = steps[index - 1];
-        // Prefer the expectation's own name (e.g. "Credentials submitted") over the generic
+        // Prefer the expectation's own name (e.g. "Credentials not submitted") over the generic
         // status label (e.g. "Validation Failed"): the outcome is already conveyed by the node
         // color and detailed in the cards below. Fall back to the status label for the
         // attack start/end steps and for expectations without a name.
