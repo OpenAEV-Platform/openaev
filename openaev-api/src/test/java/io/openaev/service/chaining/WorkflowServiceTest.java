@@ -17,6 +17,7 @@ import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
+import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
@@ -2563,6 +2564,29 @@ class WorkflowServiceTest {
           .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
 
       assertTrue(workflowService.resolveEventRootAsInputs("leaf").isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+        "appendChainedStep rejects a reused id that is not an event root on the sim workflow at the"
+            + " service boundary, before any step is linked")
+    void given_aNonRootReusedId_when_appending_then_itThrowsBeforeLinking() {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(workflowRepository.findBySimulation_IdAndStatus(SIMULATION_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+      // The caller-supplied reused id resolves to a CHILD condition (a leaf), not an event root.
+      Condition root = condition("evt", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      when(conditionService.findConditionByIdOrNull("leaf"))
+          .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
+
+      assertThrows(
+          ChainingException.class,
+          () ->
+              workflowService.appendChainedStep(
+                  SIMULATION_ID, new InjectInput(), null, List.of(), List.of("leaf")));
+      // Rejected at the boundary: the step-service link is never reached.
+      verifyNoInteractions(stepService);
     }
   }
 }

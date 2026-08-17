@@ -1730,6 +1730,12 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
+    // Defence in depth: the link channel below (stepInput.conditionIds -> findConditionRootById)
+    // only checks root-ness, so enforce the FULL event invariant at this service boundary - each
+    // reused id must be an AND/OR finding-event root on THIS simulation's own workflow - instead of
+    // trusting the caller's earlier validation. A no-op for the validated autonomous caller; it
+    // closes the boundary against a cross-workflow or non-event link from any other caller.
+    assertEventRootsOnWorkflow(simulationTemplate.getId(), existingEventConditionIds);
 
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
@@ -1895,6 +1901,12 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+    // Defence in depth (same as doAppendChainedStep): validate each reused id is an AND/OR
+    // finding-event root on THIS scenario's own workflow before linking, so the isolated mirror
+    // path - which links a recorded eventMirror twin without re-validating - can never cross-link
+    // workflows on a stale or incorrect entry. A no-op for a valid twin; a stale entry throws and
+    // is swallowed by the best-effort mirror exactly like a missing id already was.
+    assertEventRootsOnWorkflow(scenarioTemplate.getId(), existingEventConditionIds);
 
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
@@ -1967,6 +1979,25 @@ public class WorkflowService {
                     new ChainingException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
     assertEventRootOnWorkflow(template.getId(), eventId);
+  }
+
+  /**
+   * Validates every non-blank id in {@code eventConditionIds} is an AND/OR finding-event root on
+   * {@code workflowId}. The service-boundary guard for the reused-event link channel (which itself
+   * only checks root-ness): callers pass the reused ids straight to {@code
+   * stepInput.setConditionIds}, so this is what keeps a cross-workflow or non-event id from being
+   * linked. No-op for a null/empty list.
+   */
+  private void assertEventRootsOnWorkflow(String workflowId, List<String> eventConditionIds)
+      throws ChainingException {
+    if (eventConditionIds == null) {
+      return;
+    }
+    for (String eventConditionId : eventConditionIds) {
+      if (hasText(eventConditionId)) {
+        assertEventRootOnWorkflow(workflowId, eventConditionId);
+      }
+    }
   }
 
   private void assertEventRootOnWorkflow(String workflowId, String eventId)
