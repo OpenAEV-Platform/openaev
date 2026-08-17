@@ -197,7 +197,7 @@ const CredentialForm: FunctionComponent<Props> = ({
   });
 
   const currentFormValues = useMemo(
-    () => getValues(),
+    () => getValues() as Record<string, unknown>,
     [getValues, watchedConditionValues],
   );
 
@@ -217,7 +217,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     const isRequired = !!field.required
       || matchesCondition(
         currentFormValues,
-        field.mandatory_condition_field as keyof CredentialInput,
+        field.mandatory_condition_field,
         field.mandatory_condition_value,
       );
 
@@ -308,7 +308,7 @@ const CredentialForm: FunctionComponent<Props> = ({
           required
           items={availableTypes.map(type => ({
             value: type,
-            label: t(`${t(type)}`),
+            label: t(`${type}`),
           }))}
           disabled={isLoadingContracts || availableTypes.length < 2}
         />
@@ -319,7 +319,7 @@ const CredentialForm: FunctionComponent<Props> = ({
           required
           items={availableAuthMethods.map(method => ({
             value: method,
-            label: t(`${t(method)}`),
+            label: t(`${humanizeEnum(method)}`),
           }))}
           disabled={isLoadingContracts || availableAuthMethods.length === 0}
         />
@@ -328,7 +328,7 @@ const CredentialForm: FunctionComponent<Props> = ({
           .filter((field: CredentialContractField) => field.visible_condition_field
             ? matchesCondition(
                 currentFormValues,
-                field.visible_condition_field as keyof CredentialInput,
+                field.visible_condition_field,
                 field.visible_condition_value,
               )
             : true)
