@@ -327,12 +327,16 @@ public class ConditionService {
   }
 
   /**
-   * Finds a condition by id without throwing when it is missing or is not a root. Used by callers
-   * that need to VALIDATE an untrusted, caller-supplied condition id (e.g. an autonomous step's
-   * {@code event_id}) and produce their own precise error, rather than a generic not-found.
+   * Finds a condition by id, returning {@code null} instead of throwing when no condition has that
+   * id (unlike {@link #findConditionRootById}, which throws). It returns whatever condition carries
+   * the id REGARDLESS of its position in the tree - a root or a child leaf alike - and never
+   * inspects root-ness; deciding whether the condition is acceptable (a root, an AND/OR event, on
+   * the right workflow, ...) is left entirely to the caller. Used by callers that VALIDATE an
+   * untrusted, caller-supplied condition id (e.g. an autonomous step's {@code event_id}) and
+   * produce their own precise error rather than a generic not-found.
    *
    * @param conditionId the condition id to look up
-   * @return the condition, or {@code null} when no condition has that id
+   * @return the condition (root or child), or {@code null} when no condition has that id
    */
   @Transactional(readOnly = true)
   public Condition findConditionByIdOrNull(String conditionId) {

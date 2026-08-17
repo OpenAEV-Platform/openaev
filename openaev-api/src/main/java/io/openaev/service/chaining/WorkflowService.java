@@ -2004,10 +2004,18 @@ public class WorkflowService {
   }
 
   /**
-   * The AND/OR finding-event root id currently linked to a step template, or {@code null} when the
+   * The AND/OR finding-event ROOT id currently linked to a step template, or {@code null} when the
    * step has no finding event (a seed, standalone, or pure DEPEND_ON step). This is the id the
    * attack-path state surfaces as {@code event_id} and the caller records in the run's sim-&gt;
    * scenario event mapping so a reused event mirrors to the same scenario event.
+   *
+   * <p>Filters on both the AND/OR type AND root-ness ({@code conditionParent == null}): a step's
+   * linked conditions include an event's leaf children (they carry the step link too), and a
+   * manually authored event MAY nest AND/OR groups, so a type-only match could return a nested
+   * child group instead of the root. The returned id must be a true root because {@link
+   * #assertEventRootOnWorkflow} rejects non-roots when the caller reuses it, and the sim-&gt;
+   * scenario event mirror is keyed on root ids. Autonomous events are flat (one AND/OR root + leaf
+   * filters), so this only hardens the read against manually edited or future nested trees.
    *
    * @param stepTemplateId the step template to inspect
    * @return the linked event root id, or {@code null}
@@ -2015,6 +2023,7 @@ public class WorkflowService {
   @Transactional(readOnly = true)
   public String findStepTriggerEventRootId(String stepTemplateId) {
     return conditionService.findAllConditionsByStepId(stepTemplateId).stream()
+        .filter(condition -> condition.getConditionParent() == null)
         .filter(condition -> EVENT_ROOT_TYPES.contains(condition.getType()))
         .map(Condition::getId)
         .findFirst()
@@ -2023,15 +2032,22 @@ public class WorkflowService {
 
   /**
    * Resolves an existing finding-event root into a fresh set of {@link ConditionCreateInput}s (the
-   * AND/OR root plus its non-MAPPER leaf filters) so a faithful COPY of the event can be created on
-   * another workflow. Used by the scenario mirror as a fallback: when the run has no recorded
+   * AND/OR root plus its WHOLE non-MAPPER subtree) so a faithful COPY of the event can be created
+   * on another workflow. Used by the scenario mirror as a fallback: when the run has no recorded
    * sim-&gt;scenario twin for a reused simulation event, the mirror re-creates the event on the
    * scenario so the exported step is never left event-less. MAPPER children are excluded - the
    * caller supplies the step's own mappers. Returns an empty list when {@code eventId} is not a
    * resolvable event root.
    *
+   * <p>Copies the subtree to FULL depth (not just the root's direct children): an event authored in
+   * the manual logic map MAY nest AND/OR condition groups, and a shallow copy would silently drop
+   * grandchildren, mirroring a structurally incorrect / partial event onto the scenario. The walk
+   * mirrors {@link StepService#copyStepConditionTemplate} - group children by parent id, then BFS
+   * from the root re-parenting each copied node by temporary id. Autonomous events are flat, so
+   * this only hardens the fallback against manually edited or future nested trees.
+   *
    * @param eventId the existing event root id to copy
-   * @return the root + leaf inputs, or an empty list
+   * @return the root + full-subtree inputs, or an empty list
    */
   @Transactional(readOnly = true)
   public List<ConditionCreateInput> resolveEventRootAsInputs(String eventId) {
@@ -2041,30 +2057,47 @@ public class WorkflowService {
         || !EVENT_ROOT_TYPES.contains(root.getType())) {
       return List.of();
     }
-    String tmpRootId = UUID.randomUUID().toString();
+    // Index the event's whole subtree by parent id so nested groups are copied to full depth.
+    Map<String, List<Condition>> childrenByParentId =
+        conditionService.findAllNonMapperConditionsByWorkflowId(root.getWorkflowId()).stream()
+            .filter(condition -> condition.getConditionParent() != null)
+            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
+
     List<ConditionCreateInput> inputs = new ArrayList<>();
+    String rootTmpId = UUID.randomUUID().toString();
     inputs.add(
         ConditionCreateInput.builder()
-            .temporaryId(tmpRootId)
+            .temporaryId(rootTmpId)
             .type(root.getType())
             .name(root.getName())
             .build());
-    conditionService.findAllNonMapperConditionsByWorkflowId(root.getWorkflowId()).stream()
-        .filter(
-            leaf ->
-                leaf.getConditionParent() != null
-                    && Objects.equals(leaf.getConditionParent().getId(), eventId))
-        .forEach(
-            leaf ->
-                inputs.add(
-                    ConditionCreateInput.builder()
-                        .temporaryId(UUID.randomUUID().toString())
-                        .temporaryIdConditionParent(tmpRootId)
-                        .type(leaf.getType())
-                        .keyTypes(leaf.getKeyTypes())
-                        .value(leaf.getValue())
-                        .caseSensitive(leaf.isCaseSensitive())
-                        .build()));
+    // BFS from the root carrying each source node's assigned temporary id so children re-parent
+    // onto their copied parent. The visited set guards against a corrupted parent chain cycling
+    // (same guard as ConditionService#isPreserved).
+    Set<String> visited = new HashSet<>();
+    visited.add(root.getId());
+    Queue<Map.Entry<String, String>> queue = new LinkedList<>();
+    queue.add(Map.entry(root.getId(), rootTmpId));
+    while (!queue.isEmpty()) {
+      Map.Entry<String, String> current = queue.poll();
+      for (Condition child : childrenByParentId.getOrDefault(current.getKey(), List.of())) {
+        if (child.getId() == null || !visited.add(child.getId())) {
+          continue;
+        }
+        String childTmpId = UUID.randomUUID().toString();
+        inputs.add(
+            ConditionCreateInput.builder()
+                .temporaryId(childTmpId)
+                .temporaryIdConditionParent(current.getValue())
+                .type(child.getType())
+                .keyTypes(child.getKeyTypes())
+                .value(child.getValue())
+                .caseSensitive(child.isCaseSensitive())
+                .name(child.getName())
+                .build());
+        queue.add(Map.entry(child.getId(), childTmpId));
+      }
+    }
     return inputs;
   }
 
