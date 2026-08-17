@@ -1,9 +1,10 @@
-import { Box, Button, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Popover, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Popover, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
 import { Binoculars, Cog } from 'mdi-material-ui';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
-import { fetchFindingArchiveDays, updateFindingArchiveDays } from '../../../actions/findings/finding-actions';
+import { archiveFindingsBulk, fetchFindingArchiveDays, updateFindingArchiveDays } from '../../../actions/findings/finding-actions';
+import { triageFindingsBulk } from '../../../actions/findings/finding-triage-actions';
 import { type UserHelper } from '../../../actions/helper';
 import ExportButton from '../../../components/common/ExportButton';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
@@ -18,12 +19,22 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { useHelper } from '../../../store';
-import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import { type AggregatedFindingOutput, type FindingArchiveBulkItemOutput, type FindingTriageBulkItemOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import InjectIcon from '../common/injects/InjectIcon';
+import FindingBulkActionBar from './FindingBulkActionBar';
 import FindingTriageControl from './FindingTriageControl';
 import getFindingTypeLabel from './FindingTypeLabel';
 
 const DEFAULT_ARCHIVE_DAYS = 30;
+
+// Not a real filterable column (see FindingDistinctSearchService#extractArchivedSpecification on
+// the backend): injected directly into the search request's filterGroup by the Active/Archived
+// tabs below, never exposed as a user-selectable filter chip like availableFilterNames.
+const ARCHIVED_FILTER_KEY = 'finding_archived';
+
+type TriageStatus = NonNullable<AggregatedFindingOutput['finding_triage_status']>;
+type ArchiveTab = 'active' | 'archived';
 
 interface Props {
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
@@ -34,6 +45,11 @@ interface Props {
   // Compact mode for embedding in a narrow container (e.g. the attack-path drawer): hides the
   // search/filters/pagination top bar. Defaults to false so the full-page usage is unchanged.
   compact?: boolean;
+  // Shows the Active/Archived tabs and filters the query server-side accordingly (see
+  // FindingDistinctSearchService#extractArchivedSpecification). Only enabled on the main Finding
+  // page (Findings.tsx): scoped views (by simulation/scenario/inject/endpoint) call a different
+  // backend method that does not implement this filter, and would silently ignore it if sent.
+  showArchiveTabs?: boolean;
 }
 
 const inlineStyles: Record<string, CSSProperties> = ({
@@ -47,17 +63,17 @@ const inlineStyles: Record<string, CSSProperties> = ({
   finding_triage_status: { width: '10%' },
 });
 
-const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
+const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false, showArchiveTabs = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const [loading, setLoading] = useState<boolean>(true);
 
   const { user } = useHelper((helper: UserHelper) => ({ user: helper.getMe() }));
 
-  // Archive settings: a finding is considered archived (frontend-computed, no persisted status)
-  // once it hasn't been re-detected for more than this many days. Configurable per-tenant, only
-  // shown/editable to admins, from the settings menu on the non-compact (full page) list.
-  const [archiveDays, setArchiveDays] = useState<number>(DEFAULT_ARCHIVE_DAYS);
+  // Archive settings: number of days of inactivity after which a finding is treated as archived
+  // by the backend (see FindingDistinctSearchService#extractArchivedSpecification), driving the
+  // Active/Archived tabs. Configurable per-tenant, only shown/editable to admins, from the
+  // settings menu on the non-compact (full page) list.
   const [archiveDaysDraft, setArchiveDaysDraft] = useState<string>(String(DEFAULT_ARCHIVE_DAYS));
   const [settingsAnchorEl, setSettingsAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -65,7 +81,6 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     if (!compact) {
       fetchFindingArchiveDays().then((res: { data: { finding_archive_days?: number } }) => {
         const days = res.data.finding_archive_days ?? DEFAULT_ARCHIVE_DAYS;
-        setArchiveDays(days);
         setArchiveDaysDraft(String(days));
       });
     }
@@ -75,7 +90,6 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     const days = parseInt(archiveDaysDraft, 10);
     if (!Number.isNaN(days) && days > 0) {
       updateFindingArchiveDays({ finding_archive_days: days }).then(() => {
-        setArchiveDays(days);
         setSettingsAnchorEl(null);
       });
     }
@@ -99,6 +113,14 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   // Compact mode drops the pager, so raise the page size well above the default to cover most scans; a
   // "showing X of N" note still appears if a run produces more than this.
   const compactPageSize = 100;
+  // Active/Archived tabs: which occurrences the query should return. Only relevant when
+  // showArchiveTabs is set (main Finding page); the filter is injected into the request below,
+  // never exposed as a regular user-selectable filter chip.
+  const [archiveTab, setArchiveTab] = useState<ArchiveTab>('active');
+  // Bumped on every tab switch to force PaginationComponentV2 to refetch (its own effect only
+  // reacts to searchPaginationInput/contextId identity changes, neither of which the tab switch
+  // touches - see reloadContentCount in PaginationComponentV2).
+  const [reloadContentCount, setReloadContentCount] = useState(0);
   // Default sort on last seen: the most recent activity is what tells whether a finding is still
   // alive or has been solved. The storage key is suffixed (-v2) so browsers that persisted the
   // previous "first seen" default pick up the new one instead of restoring the stale sort.
@@ -111,7 +133,27 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   );
   const searchFindingsToload = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchDistinctFindings(input)
+    // Injects the (non-user-facing) archived-status filter server-side so the "Archived" tab
+    // doesn't fetch (and then hide) every archived finding just to filter it out client-side -
+    // see FindingDistinctSearchService#extractArchivedSpecification.
+    const effectiveInput = showArchiveTabs
+      ? {
+          ...input,
+          filterGroup: {
+            mode: input.filterGroup?.mode ?? 'and',
+            filters: [
+              ...(input.filterGroup?.filters ?? []),
+              {
+                id: ARCHIVED_FILTER_KEY,
+                key: ARCHIVED_FILTER_KEY,
+                operator: 'eq' as const,
+                values: [archiveTab === 'archived' ? 'true' : 'false'],
+              },
+            ],
+          },
+        }
+      : input;
+    return searchDistinctFindings(effectiveInput)
       .then((res) => {
         setTotal(res.data.totalElements);
         return res;
@@ -119,6 +161,65 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  // Bulk selection: checkboxes + select-all + floating action bar (Triage / Archive), full
+  // Finding page only (not the compact/embedded drawer usage) - mirrors the Scenarios page
+  // pattern (useEntityToggle). No frontend permission gating here: the backend enforces
+  // MANAGE_FINDING_TRIAGE / MANAGE_FINDING_ARCHIVE per-item and reports failures individually
+  // (same convention as the single-row FindingTriageControl, which is also ungated client-side).
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<AggregatedFindingOutput>('finding', findings, total);
+
+  const handleArchiveTabChange = (tab: ArchiveTab) => {
+    if (tab === archiveTab) return;
+    handleClearSelectedElements();
+    setArchiveTab(tab);
+    setReloadContentCount(c => c + 1);
+  };
+
+  const selectedFindingIds = () => (selectAll
+    ? findings.map(f => f.finding_id).filter(id => !(id in (deSelectedElements || {})))
+    : Object.keys(selectedElements));
+
+  const bulkTriage = (status: TriageStatus, justification: string): Promise<FindingTriageBulkItemOutput[]> => {
+    const ids = selectedFindingIds();
+    return triageFindingsBulk(ids, status, justification).then((res: { data: FindingTriageBulkItemOutput[] }) => {
+      const successIds = new Set(res.data.filter(r => r.success && r.finding_id).map(r => r.finding_id));
+      setFindings(current => current.map(f => (successIds.has(f.finding_id)
+        ? {
+            ...f,
+            finding_triage_status: status,
+          }
+        : f)));
+      handleClearSelectedElements();
+      return res.data;
+    });
+  };
+
+  const bulkArchive = (archived: boolean): Promise<FindingArchiveBulkItemOutput[]> => {
+    const ids = selectedFindingIds();
+    return archiveFindingsBulk({
+      finding_ids: ids,
+      archived,
+    }).then((res: { data: FindingArchiveBulkItemOutput[] }) => {
+      const byId = new Map(res.data.filter(r => r.success && r.finding_id).map(r => [r.finding_id, r.finding_archived_at ?? null]));
+      setFindings(current => current.map(f => (byId.has(f.finding_id)
+        ? {
+            ...f,
+            finding_archived_at: byId.get(f.finding_id) ?? undefined,
+          }
+        : f)));
+      handleClearSelectedElements();
+      return res.data;
+    });
   };
 
   const headers = [
@@ -238,15 +339,11 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         const isNew = Math.abs(
           new Date(finding.finding_updated_at).getTime() - new Date(finding.finding_created_at).getTime(),
         ) < 1000;
-        // Archived: derived purely from timestamps (no persisted status), same computed-at-render
-        // pattern as "New" above — a finding not re-detected for more than `archiveDays` is stale.
-        const daysSinceLastSeen = (Date.now() - new Date(finding.finding_updated_at).getTime()) / (1000 * 60 * 60 * 24);
-        const isArchived = !isNew && daysSinceLastSeen > archiveDays;
-        if (!isNew && !isArchived) {
+        if (!isNew) {
           return <>{nsdt(finding.finding_updated_at)}</>;
         }
-        const label = isNew ? t('New') : t('Archived');
-        const color = isNew ? 'info.main' : 'text.secondary';
+        const label = t('New');
+        const color = 'info.main';
         return (
           <Box sx={{ display: 'inline-block' }}>
             <Typography
@@ -320,7 +417,9 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   );
 
   // Export current page as CSV, and (admin-only) let the tenant configure the archive-days
-  // threshold used by the "Archived" badge above. Hidden in compact mode (embedded drawers).
+  // threshold used by the "Archived" tab's server-side filter (see
+  // FindingDistinctSearchService#extractArchivedSpecification). Hidden in compact mode (embedded
+  // drawers).
   const exportProps = {
     exportType: 'FINDING',
     exportKeys: visibleHeaders.map(h => h.field),
@@ -385,6 +484,16 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
 
   return (
     <>
+      {showArchiveTabs && (
+        <Tabs
+          value={archiveTab}
+          onChange={(_e, value: ArchiveTab) => handleArchiveTabChange(value)}
+          sx={{ mb: 1 }}
+        >
+          <Tab label={t('Active')} value="active" />
+          <Tab label={t('Archived')} value="archived" />
+        </Tabs>
+      )}
       <PaginationComponentV2
         fetch={searchFindingsToload}
         searchPaginationInput={searchPaginationInput}
@@ -397,24 +506,58 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         disableFilters={compact}
         disablePagination={compact}
         topBarButtons={topBarButtons}
+        reloadContentCount={reloadContentCount}
       />
       <List>
         <ListItem
           sx={{
             textTransform: 'uppercase',
             paddingTop: 0,
+            ...(numberOfSelectedElements > 0
+              ? {
+                  backgroundColor: 'background.accent',
+                  paddingBlock: 0.5,
+                }
+              : {}),
           }}
         >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={visibleHeaders}
-                inlineStylesHeaders={visibleStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
+          {!compact && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
               />
-            )}
-          />
+            </ListItemIcon>
+          )}
+          {numberOfSelectedElements > 0
+            ? (
+                <ListItemText
+                  primary={(
+                    <FindingBulkActionBar
+                      numberOfSelectedElements={numberOfSelectedElements}
+                      onClear={handleClearSelectedElements}
+                      onTriage={bulkTriage}
+                      onArchive={bulkArchive}
+                    />
+                  )}
+                />
+              )
+            : (
+                <>
+                  <ListItemIcon />
+                  <ListItemText
+                    primary={(
+                      <SortHeadersComponentV2
+                        headers={visibleHeaders}
+                        inlineStylesHeaders={visibleStyles}
+                        sortHelpers={queryableHelpers.sortHelpers}
+                      />
+                    )}
+                  />
+                </>
+              )}
         </ListItem>
         {loading
           ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={visibleStyles} />
@@ -426,6 +569,24 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
                 disablePadding
                 data-testid="finding-row"
               >
+                {!compact && (
+                  <ListItemIcon
+                    style={{
+                      minWidth: 40,
+                      marginLeft: 16,
+                    }}
+                    onClick={event => onToggleEntity(finding, event)}
+                  >
+                    <Checkbox
+                      edge="start"
+                      checked={
+                        (selectAll && !(finding.finding_id in (deSelectedElements || {})))
+                        || finding.finding_id in (selectedElements || {})
+                      }
+                      disableRipple
+                    />
+                  </ListItemIcon>
+                )}
                 <ListItemButton
                   sx={{ height: 50 }}
                   component={Link}

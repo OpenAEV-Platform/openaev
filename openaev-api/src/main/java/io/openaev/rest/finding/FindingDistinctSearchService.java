@@ -2,6 +2,7 @@ package io.openaev.rest.finding;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Filters.Filter;
@@ -16,6 +17,7 @@ import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.FindingTriageRepository;
 import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
@@ -42,10 +44,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class FindingDistinctSearchService {
 
   private static final String TRIAGE_STATUS_FILTER_KEY = "finding_triage_status";
+  // Not a persisted column: "archived" is a computed status (manual finding_archived_at OR no
+  // re-detection for more than the tenant's configured archiveDays, see
+  // FindingSpecification#withArchived), so this filter is extracted and applied the same way the
+  // finding_triage_status one is above. Only sent by the main Finding page's Active/Archived tabs
+  // (see FindingList.tsx); every scoped caller (by inject/simulation/scenario/endpoint) never sets
+  // it and keeps its previous, unfiltered-by-archive-status behavior.
+  private static final String ARCHIVED_FILTER_KEY = "finding_archived";
 
   private final FindingRepository findingRepository;
   private final FindingTriageRepository findingTriageRepository;
   private final FindingMapper findingMapper;
+  private final TenantSettingsService tenantSettingsService;
 
   public Page<AggregatedFindingOutput> searchDistinctFindings(
       SearchPaginationInput searchPaginationInput) {
@@ -53,13 +63,17 @@ public class FindingDistinctSearchService {
         extractTriageStatusSpecification(searchPaginationInput);
     Specification<Finding> triageStatusOrderSpecification =
         extractTriageStatusOrderSpecification(searchPaginationInput);
+    Specification<Finding> archivedSpecification =
+        extractArchivedSpecification(searchPaginationInput);
     Page<Finding> page =
         buildPaginationJPA(
             (specification, pageable) ->
                 findingRepository.findAll(
                     withTriageStatusOrder(
                         FindingSpecification.distinctTypeValueWithFilter(
-                            withTriageStatus(specification, triageStatusSpecification)),
+                            withArchived(
+                                withTriageStatus(specification, triageStatusSpecification),
+                                archivedSpecification)),
                         triageStatusOrderSpecification),
                     pageable),
             searchPaginationInput,
@@ -173,6 +187,11 @@ public class FindingDistinctSearchService {
     return triageStatusSpecification == null
         ? specification
         : specification.and(triageStatusSpecification);
+  }
+
+  private static Specification<Finding> withArchived(
+      Specification<Finding> specification, Specification<Finding> archivedSpecification) {
+    return archivedSpecification == null ? specification : specification.and(archivedSpecification);
   }
 
   /**
@@ -318,6 +337,44 @@ public class FindingDistinctSearchService {
       Predicate combined = FilterMode.and.equals(mode) ? cb.and(predicates) : cb.or(predicates);
       return negate ? cb.not(combined) : combined;
     };
+  }
+
+  /**
+   * Extracts and removes any {@code finding_archived} filter from the input's filter group,
+   * returning an equivalent Specification built outside the generic {@code FilterUtilsJpa}
+   * mechanism, mirroring {@link #extractTriageStatusSpecification} above.
+   *
+   * <p>"Archived" is not a persisted boolean column: a finding is archived either because it was
+   * manually archived ({@code finding_archived_at} set, see {@link FindingArchiveService}) or
+   * because it has not been re-detected for more than the tenant's configured archiveDays (see
+   * {@code TenantSettingsService#findFindingArchiveDays}). {@link
+   * FindingSpecification#withArchived} encodes both conditions directly in SQL so archived findings
+   * can be excluded (or included, for the "Archived" tab) at the database level instead of being
+   * fetched and merely hidden client-side.
+   */
+  private Specification<Finding> extractArchivedSpecification(
+      SearchPaginationInput searchPaginationInput) {
+    FilterGroup filterGroup = searchPaginationInput.getFilterGroup();
+    if (filterGroup == null || filterGroup.getFilters() == null) {
+      return null;
+    }
+
+    Optional<Filter> archivedFilter = filterGroup.findByKey(ARCHIVED_FILTER_KEY);
+    if (archivedFilter.isEmpty()) {
+      return null;
+    }
+    // Remove it from the group so the generic FilterUtilsJpa mechanism never sees it - there is
+    // no such physical column to filter on.
+    filterGroup.removeByKey(ARCHIVED_FILTER_KEY);
+
+    List<String> values = Optional.ofNullable(archivedFilter.get().getValues()).orElse(List.of());
+    if (values.isEmpty()) {
+      return null;
+    }
+    boolean archived = Boolean.parseBoolean(values.get(0));
+    int archiveDays =
+        tenantSettingsService.findFindingArchiveDays(TenantContext.getCurrentTenant());
+    return FindingSpecification.withArchived(archived, archiveDays);
   }
 
   public Page<AggregatedFindingOutput> searchDistinctBySpecification(

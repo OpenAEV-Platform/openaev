@@ -5,6 +5,7 @@ import io.openaev.database.model.Finding;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -70,6 +71,25 @@ public class FindingSpecification {
       subquery.groupBy(subRoot.get("type"), subRoot.get("value"));
 
       return root.get("id").in(subquery);
+    };
+  }
+
+  /**
+   * Filters findings by their effective archived status: a finding is archived either because it
+   * was manually archived ({@code finding_archived_at} set via the bulk "Archive" action) or
+   * because it has not been re-detected for more than {@code archiveDays} (tenant-configurable, see
+   * {@code TenantSettingsService#findFindingArchiveDays}), mirroring the same computation
+   * previously done client-side only (see FindingList.tsx history). Doing this in SQL - instead of
+   * fetching every row and hiding archived ones in the UI - is what actually reduces the page's
+   * load, since archived findings can vastly outnumber active ones over time.
+   */
+  public static Specification<Finding> withArchived(boolean archived, int archiveDays) {
+    return (root, query, cb) -> {
+      Instant cutoff = Instant.now().minus(archiveDays, ChronoUnit.DAYS);
+      Predicate manuallyArchived = cb.isNotNull(root.get("archivedAt"));
+      Predicate timedOut = cb.lessThan(root.<Instant>get("updateDate"), cutoff);
+      Predicate isArchived = cb.or(manuallyArchived, timedOut);
+      return archived ? isArchived : cb.not(isArchived);
     };
   }
 
