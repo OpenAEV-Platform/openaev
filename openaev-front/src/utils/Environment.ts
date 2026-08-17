@@ -135,6 +135,30 @@ export const exportData = <T extends object>(
           entry,
         );
       }
+
+      // Finding-specific object/array-of-object fields: flatten to a human-readable string,
+      // otherwise react-csv stringifies the object as "[object Object]".
+      if (entry.finding_source) {
+        const source = entry.finding_source as { injector_name?: string };
+        entry = R.assoc('finding_source', source.injector_name ?? '', entry);
+      }
+      if (entry.finding_assets) {
+        const assets = entry.finding_assets as { asset_name?: string }[];
+        entry = R.assoc(
+          'finding_assets',
+          assets.map(a => a.asset_name).filter(x => !!x).join(', '),
+          entry,
+        );
+      }
+      if (entry.finding_asset_groups) {
+        const assetGroups = entry.finding_asset_groups as { asset_group_name?: string }[];
+        entry = R.assoc(
+          'finding_asset_groups',
+          assetGroups.map(g => g.asset_group_name).filter(x => !!x).join(', '),
+          entry,
+        );
+      }
+
       return R.mapObjIndexed(escape, entry) as Record<string, string | undefined>;
     });
 };
