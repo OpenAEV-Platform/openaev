@@ -67,14 +67,11 @@ public class Generator {
 
   private String snakeToPascal(String snake) {
     StringBuilder sb = new StringBuilder();
-    Matcher firstChar = Pattern.compile("^(.)").matcher(snake);
-    Matcher charAfterUnderscore = Pattern.compile("_(.)").matcher(snake);
-    if (firstChar.find()) {
-      firstChar.appendReplacement(sb, firstChar.group(1).toUpperCase());
+    Matcher firstChar = Pattern.compile("(^\\w|_\\w)").matcher(snake);
+    while (firstChar.find()) {
+      firstChar.appendReplacement(sb, firstChar.group(1).replace("_", "").toUpperCase());
     }
-    while (charAfterUnderscore.find()) {
-      charAfterUnderscore.appendReplacement(sb, charAfterUnderscore.group(1).toUpperCase());
-    }
+    firstChar.appendTail(sb);
     return sb.toString();
   }
 

@@ -33,8 +33,8 @@ public class GenerateParserTest {
     Path resources = Paths.get(getClass().getResource("").getPath());
     PluginContext ctx = new PluginContext(resources, Paths.get(""));
 
-    SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_8, ctx);
-    schema.refreshAllSources();
+    SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_8_0, ctx);
+    //schema.refreshAllSources();
 
     Generator gen = new Generator();
 
