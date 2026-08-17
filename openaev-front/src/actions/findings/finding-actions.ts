@@ -1,4 +1,4 @@
-import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
+import { simpleCall, simplePatchCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import { type FindingArchiveSettingsInput, type SearchPaginationInput } from '../../utils/api-types';
 
 const FINDING_URI = '/api/findings';
@@ -11,6 +11,15 @@ export const fetchFindingArchiveDays = () => {
 
 export const updateFindingArchiveDays = (data: FindingArchiveSettingsInput) => {
   return simplePutCall(`${FINDING_URI}/settings/archive-days`, data);
+};
+
+// -- BULK ARCHIVE --
+
+export const archiveFindingsBulk = (data: {
+  finding_ids: string[];
+  archived: boolean;
+}) => {
+  return simplePatchCall(`${FINDING_URI}/archive/bulk`, data);
 };
 
 export const fetchFinding = (findingId: string) => {

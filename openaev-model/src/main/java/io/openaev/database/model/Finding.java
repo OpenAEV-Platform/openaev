@@ -202,6 +202,15 @@ public class Finding implements TenantBase {
   @JsonProperty("finding_human_updated_at")
   private Instant humanUpdateDate;
 
+  // Manual archive flag: set when a user archives this finding (bulk "Archive" action), cleared
+  // back to null on "Un-archive". Distinct from - and unioned with, at display time - the
+  // frontend-computed "stale" archive (finding_updated_at older than the tenant's archive-days
+  // setting). Nullable: most findings are never manually archived.
+  @Queryable(filterable = true, sortable = true, label = "archived at")
+  @Column(name = "finding_archived_at")
+  @JsonProperty("finding_archived_at")
+  private Instant archivedAt;
+
   // Relation
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)

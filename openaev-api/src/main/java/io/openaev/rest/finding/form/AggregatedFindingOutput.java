@@ -56,6 +56,14 @@ public class AggregatedFindingOutput {
   @JsonProperty("finding_human_updated_at")
   private Instant humanUpdateDate;
 
+  @Schema(
+      description =
+          "Time this finding was manually archived (bulk 'Archive' action), null if it has never"
+              + " been manually archived. Combined with the tenant's archive-days setting on the"
+              + " frontend to compute the 'Archived' badge.")
+  @JsonProperty("finding_archived_at")
+  private Instant archivedAt;
+
   @Schema(description = "Assets linked to the finding (any asset type, not only endpoints)")
   @JsonProperty("finding_assets")
   @NotNull

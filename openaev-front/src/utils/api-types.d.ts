@@ -176,6 +176,11 @@ export interface AgentTarget {
 
 export interface AggregatedFindingOutput {
   /**
+   * Time this finding was manually archived (bulk 'Archive' action), null if it has never been manually archived. Combined with the tenant's archive-days setting on the frontend to compute the 'Archived' badge.
+   * @format date-time
+   */
+  finding_archived_at?: string;
+  /**
    * Asset groups linked to assets
    * @uniqueItems true
    */
@@ -5366,6 +5371,8 @@ export interface FilterGroup {
 }
 
 export interface Finding {
+  /** @format date-time */
+  finding_archived_at?: string;
   /** @uniqueItems true */
   finding_asset_groups?: AssetGroup[];
   finding_assets?: string[];
@@ -5427,11 +5434,30 @@ export interface Finding {
   listened?: boolean;
 }
 
+export interface FindingArchiveBulkInput {
+  archived: boolean;
+  /** @minItems 1 */
+  finding_ids: string[];
+}
+
+export interface FindingArchiveBulkItemOutput {
+  error?: string;
+  /** @format date-time */
+  finding_archived_at?: string;
+  finding_id?: string;
+  success?: boolean;
+}
+
 export interface FindingArchiveSettingsInput {
+  /**
+   * @format int32
+   * @min 1
+   */
   finding_archive_days: number;
 }
 
 export interface FindingArchiveSettingsOutput {
+  /** @format int32 */
   finding_archive_days?: number;
 }
 
@@ -9088,6 +9114,7 @@ export interface PlatformRoleInput {
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
     | "MANAGE_FINDING_TRIAGE"
+    | "MANAGE_FINDING_ARCHIVE"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -9624,6 +9651,11 @@ export interface RelatedEntityOutput {
 
 export interface RelatedFindingOutput {
   /**
+   * Time this finding was manually archived (bulk 'Archive' action), null if it has never been manually archived. Combined with the tenant's archive-days setting on the frontend to compute the 'Archived' badge.
+   * @format date-time
+   */
+  finding_archived_at?: string;
+  /**
    * Asset groups linked to assets
    * @uniqueItems true
    */
@@ -9927,6 +9959,7 @@ export interface RoleInput {
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
     | "MANAGE_FINDING_TRIAGE"
+    | "MANAGE_FINDING_ARCHIVE"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -11970,6 +12003,7 @@ export interface User {
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
     | "MANAGE_FINDING_TRIAGE"
+    | "MANAGE_FINDING_ARCHIVE"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"

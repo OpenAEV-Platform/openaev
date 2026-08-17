@@ -193,6 +193,7 @@ public enum Capability {
       pair(ResourceType.FINDING, Action.CREATE)),
   DELETE_FINDINGS(MANAGE_FINDINGS, true, pair(ResourceType.FINDING, Action.DELETE)),
   MANAGE_FINDING_TRIAGE(ACCESS_FINDINGS, true, pair(ResourceType.FINDING, Action.TRIAGE)),
+  MANAGE_FINDING_ARCHIVE(ACCESS_FINDINGS, true, pair(ResourceType.FINDING, Action.ARCHIVE)),
 
   // Documents
   ACCESS_DOCUMENTS(

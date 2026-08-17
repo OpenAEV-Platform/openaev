@@ -48,6 +48,7 @@ public class FindingMapper {
         .creationDate(finding.getCreationDate())
         .updateDate(finding.getUpdateDate())
         .humanUpdateDate(finding.getHumanUpdateDate())
+        .archivedAt(finding.getArchivedAt())
         // Findings can attach to ANY asset type (agentless websites, AI targets, cloud/network
         // assets), so no instanceof Endpoint filtering here.
         .assets(
