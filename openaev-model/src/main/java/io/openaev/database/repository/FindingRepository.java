@@ -135,4 +135,20 @@ public interface FindingRepository
               + " WHERE finding_id = :findingId AND tenant_id = :tenantId",
       nativeQuery = true)
   void touchHumanUpdate(@Param("findingId") String findingId, @Param("tenantId") String tenantId);
+
+  // Used by FindingSoftDeleteJob: a single cross-tenant bulk update (native query bypasses @Filter
+  // tenantFilter, but that is fine here - the WHERE clause only targets rows already
+  // manually-archived long enough, there is nothing tenant-specific about the grace-period rule
+  // itself). Mirrors ExecutionTraceRetentionJob's single-query-no-tenant-loop approach for the same
+  // reason: this is a column bulk-update, not an entity load, so the Hibernate tenant filter never
+  // applies regardless.
+  @Modifying
+  @Query(
+      value =
+          "UPDATE findings SET finding_soft_deleted_at = now()"
+              + " WHERE finding_archived_at IS NOT NULL"
+              + " AND finding_archived_at < :cutoff"
+              + " AND finding_soft_deleted_at IS NULL",
+      nativeQuery = true)
+  int softDeleteStaleArchivedFindings(@Param("cutoff") Instant cutoff);
 }

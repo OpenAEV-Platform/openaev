@@ -211,6 +211,18 @@ public class Finding implements TenantBase {
   @JsonProperty("finding_archived_at")
   private Instant archivedAt;
 
+  // Set by FindingSoftDeleteJob once this finding has sat manually archived (archivedAt) for more
+  // than the job's configured grace period (30 days by default) without being un-archived. Once
+  // set, FindingDistinctSearchService#searchDistinctFindings (the main Finding page's Active AND
+  // Archived tabs) excludes this row entirely - it remains fully visible from its
+  // inject/simulation/scenario-scoped views, which never apply this filter. Cleared back to null
+  // by FindingArchiveService as soon as the finding is un-archived (a fresh un-archive always
+  // resets this "stasis" clock). Nullable: most findings are never archived long enough to reach
+  // this state.
+  @Column(name = "finding_soft_deleted_at")
+  @JsonProperty("finding_soft_deleted_at")
+  private Instant softDeletedAt;
+
   // Relation
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)

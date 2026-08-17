@@ -93,6 +93,18 @@ public class FindingSpecification {
     };
   }
 
+  /**
+   * Excludes findings soft-deleted by FindingSoftDeleteJob (manually archived for longer than its
+   * grace period, see {@code Finding#softDeletedAt}). Unlike {@link #withArchived}, this is applied
+   * unconditionally - regardless of the Active/Archived tab - by {@code
+   * FindingDistinctSearchService#searchDistinctFindings} only; scoped views
+   * (by-inject/simulation/scenario) never call this, so a soft-deleted finding stays fully visible
+   * there.
+   */
+  public static Specification<Finding> withoutSoftDeleted() {
+    return (root, query, cb) -> cb.isNull(root.get("softDeletedAt"));
+  }
+
   public static Specification<Finding> withAssets() {
     return (root, query, cb) -> {
       root.fetch("assets", JoinType.LEFT);

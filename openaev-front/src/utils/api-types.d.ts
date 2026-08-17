@@ -5397,6 +5397,8 @@ export interface Finding {
   finding_scenario?: Scenario;
   finding_severity?: string;
   finding_simulation?: Exercise;
+  /** @format date-time */
+  finding_soft_deleted_at?: string;
   finding_source?: Injector;
   finding_tags?: string[];
   finding_teams?: string[];
@@ -5536,6 +5538,7 @@ export interface FindingTriageBulkItemOutput {
 }
 
 export interface FindingTriageHistoryOutput {
+  finding_triage_history_action?: "TRIAGE_CHANGE" | "ARCHIVE" | "UNARCHIVE";
   finding_triage_history_actor_firstname?: string;
   finding_triage_history_actor_id?: string;
   finding_triage_history_actor_lastname?: string;

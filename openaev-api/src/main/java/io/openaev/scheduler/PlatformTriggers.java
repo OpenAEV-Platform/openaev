@@ -2,6 +2,7 @@ package io.openaev.scheduler;
 
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_TRIGGER;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
+import static io.openaev.scheduler.jobs.FindingSoftDeleteJob.FINDING_SOFT_DELETE_TRIGGER;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_TRIGGER;
@@ -228,6 +229,16 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.urlAccessTokenPurgeJobDetail())
         .withIdentity(URL_ACCESS_TOKEN_PURGE_TRIGGER)
         .withSchedule(cronSchedule("0 0 2 ? * SUN")) // Every Sunday at 2:00 AM
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger findingSoftDeleteTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.findingSoftDeleteJobDetail())
+        .withIdentity(FINDING_SOFT_DELETE_TRIGGER)
+        .withSchedule(cronSchedule("0 30 2 * * ?")) // Daily at 2:30 AM
         .build();
   }
 

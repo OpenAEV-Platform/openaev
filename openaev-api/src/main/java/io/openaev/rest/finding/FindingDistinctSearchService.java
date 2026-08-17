@@ -72,7 +72,8 @@ public class FindingDistinctSearchService {
                     withTriageStatusOrder(
                         FindingSpecification.distinctTypeValueWithFilter(
                             withArchived(
-                                withTriageStatus(specification, triageStatusSpecification),
+                                withTriageStatus(specification, triageStatusSpecification)
+                                    .and(FindingSpecification.withoutSoftDeleted()),
                                 archivedSpecification)),
                         triageStatusOrderSpecification),
                     pageable),

@@ -32,11 +32,17 @@ import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 /**
- * One append-only row PER transition (including reverts) of a {@link Finding}'s triage status. Rows
- * are never updated or overwritten - {@link FindingTriage} always holds the current status.
+ * One append-only row PER event on a {@link Finding}: either a triage status transition (including
+ * reverts) or a manual archive/un-archive action - see {@link FindingHistoryActionType}. Rows are
+ * never updated or overwritten - {@link FindingTriage} always holds the current triage status, and
+ * {@code Finding#archivedAt} always holds the current archive state.
  *
  * <p>{@code finding} is a direct FK to {@code Finding} (not to {@code FindingTriage}), per explicit
  * product spec, so history survives independently of the current-status row's lifecycle.
+ *
+ * <p>{@code fromStatus}/{@code toStatus} are only populated for {@code TRIAGE_CHANGE} rows; they
+ * are {@code null} for {@code ARCHIVE}/{@code UNARCHIVE} rows, which have no triage transition to
+ * describe.
  *
  * <p>{@code actor} is nullable: a {@code null} actor represents an automatic system-triggered
  * transition (re-detection auto-reset to UNTRIAGED). No exact precedent for a "System actor" exists
@@ -66,21 +72,33 @@ public class FindingTriageHistory implements TenantBase {
   @NotNull
   private Finding finding;
 
-  @NotNull
-  @Column(name = "finding_triage_history_from_status", updatable = false, nullable = false)
+  // Nullable since V6_20260817124500000__Add_finding_triage_history_action: only populated for
+  // TRIAGE_CHANGE rows, null for ARCHIVE/UNARCHIVE rows.
+  @Column(name = "finding_triage_history_from_status", updatable = false)
   @JsonProperty("finding_triage_history_from_status")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-  @Schema(description = "Triage status before this transition")
+  @Schema(description = "Triage status before this transition (TRIAGE_CHANGE rows only)")
   private FindingTriageStatus fromStatus;
 
-  @NotNull
-  @Column(name = "finding_triage_history_to_status", updatable = false, nullable = false)
+  // Nullable since V6_20260817124500000__Add_finding_triage_history_action: only populated for
+  // TRIAGE_CHANGE rows, null for ARCHIVE/UNARCHIVE rows.
+  @Column(name = "finding_triage_history_to_status", updatable = false)
   @JsonProperty("finding_triage_history_to_status")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-  @Schema(description = "Triage status after this transition")
+  @Schema(description = "Triage status after this transition (TRIAGE_CHANGE rows only)")
   private FindingTriageStatus toStatus;
+
+  // Discriminates a plain triage transition from a manual archive/un-archive action. Defaults to
+  // TRIAGE_CHANGE to match this entity's original (pre-archive-history) sole purpose.
+  @NotNull
+  @Column(name = "finding_triage_history_action", updatable = false, nullable = false)
+  @JsonProperty("finding_triage_history_action")
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Schema(description = "What kind of event this row records")
+  private FindingHistoryActionType actionType = FindingHistoryActionType.TRIAGE_CHANGE;
 
   // 4000 chars reuses the baseline established for finding_comment_content
   // (V6_20260730140000000__Add_finding_comments); 10 chars is the min length required by product
