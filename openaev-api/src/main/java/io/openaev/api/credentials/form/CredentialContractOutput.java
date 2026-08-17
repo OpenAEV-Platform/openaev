@@ -24,5 +24,9 @@ public record CredentialContractOutput(
       @JsonProperty("field_name") String fieldName,
       @JsonProperty("field_type") CredentialContractFieldType fieldType,
       @JsonProperty("required") boolean required,
-      @JsonProperty("choices") List<String> choices) {}
+      @JsonProperty("choices") List<String> choices,
+      @JsonProperty("mandatory_condition_field") String mandatoryConditionField,
+      @JsonProperty("mandatory_condition_value") String mandatoryConditionValue,
+      @JsonProperty("visible_condition_field") String visibleConditionField,
+      @JsonProperty("visible_condition_value") String visibleConditionValue) {}
 }

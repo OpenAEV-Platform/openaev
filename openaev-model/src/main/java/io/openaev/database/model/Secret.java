@@ -64,9 +64,13 @@ public class Secret implements TenantBase {
 
   public enum SECRET_TYPE {
     USERNAME_PASSWORD,
-    HASH;
+    HASH,
+    AWS_ACCESS_KEY,
+    AWS_ASSUME_ROLE;
 
     public static final String USERNAME_PASSWORD_VALUE = "USERNAME_PASSWORD";
     public static final String HASH_VALUE = "HASH";
+    public static final String AWS_ACCESS_KEY_VALUE = "AWS_ACCESS_KEY";
+    public static final String AWS_ASSUME_ROLE_VALUE = "AWS_ASSUME_ROLE";
   }
 }

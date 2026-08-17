@@ -8,7 +8,7 @@ import {
   useForm,
   useWatch,
 } from 'react-hook-form';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { fetchCredentialContracts } from '../../../../actions/assets/credential-actions';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
@@ -30,6 +30,7 @@ interface Props {
   editing?: boolean;
   initialValues?: Partial<CredentialInput>;
 }
+
 const CredentialForm: FunctionComponent<Props> = ({
   onSubmit,
   handleClose,
@@ -41,20 +42,29 @@ const CredentialForm: FunctionComponent<Props> = ({
   const [contracts, setContracts] = useState<CredentialContractOutput[]>([]);
   const [isLoadingContracts, setIsLoadingContracts] = useState(true);
 
+  const matchesCondition = (
+    values: Record<string, unknown>,
+    conditionField?: string,
+    conditionValue?: string,
+  ): boolean => {
+    if (!conditionField || !conditionValue) {
+      return false;
+    }
+    return values[conditionField] === conditionValue;
+  };
+
   const schema = useMemo(
     () => z
       .object({
         credential_name: z.string().min(1, { message: t('Should not be empty') }),
         credential_description: z.string().optional(),
-        credential_type: z.literal('IDENTITY'),
-        credential_auth_method: z.enum(['USERNAME_PASSWORD', 'HASH']),
-        credential_username: z.string().optional(),
-        credential_password: z.string().optional(),
-        credential_hash: z.string().optional(),
-        credential_hash_algorithm: z.enum(['SHA', 'NTLM']).optional(),
+        credential_type: z.string().min(1, { message: t('Should not be empty') }),
+        credential_auth_method: z.string().min(1, { message: t('Should not be empty') }),
         credential_tags: z.array(z.string()).optional(),
       })
-      .superRefine((values, ctx) => {
+      .passthrough()
+      .check(({ value, issues }) => {
+        const values = value as Record<string, unknown>;
         const contract = contracts.find(
           c => c.credential_type === values.credential_type
             && c.credential_auth_method === values.credential_auth_method,
@@ -65,21 +75,29 @@ const CredentialForm: FunctionComponent<Props> = ({
         }
 
         (contract.fields || [])
-          .filter(field => field.required)
+          .filter((field: CredentialContractField) => {
+            const isVisible = !field.visible_condition_field || matchesCondition(
+              values,
+              field.visible_condition_field,
+              field.visible_condition_value,
+            );
+            const isRequired = field.required || matchesCondition(
+              values,
+              field.mandatory_condition_field,
+              field.mandatory_condition_value,
+            );
+            return isVisible && isRequired;
+          })
           .forEach((field: CredentialContractField) => {
-            const fieldName = field.field_name;
-            if (!fieldName) {
-              return;
-            }
-            const dynamicValues = values as Record<string, unknown>;
-            const fieldValue = dynamicValues[fieldName];
+            const fieldValue = values[field.field_name];
             const isEmptyString = typeof fieldValue === 'string' && fieldValue.trim().length === 0;
             const isMissing = fieldValue === undefined || fieldValue === null || isEmptyString;
 
             if (isMissing) {
-              ctx.addIssue({
+              issues.push({
                 code: 'custom',
-                path: [fieldName],
+                input: values,
+                path: [field.field_name],
                 message: t('Should not be empty'),
               });
             }
@@ -88,7 +106,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     [contracts, t],
   );
 
-  const methods = useForm<CredentialInput>({
+  const methods = useForm<Partial<CredentialInput>>({
     mode: 'onTouched',
     resolver: zodResolver(schema),
     defaultValues: initialValues,
@@ -96,6 +114,7 @@ const CredentialForm: FunctionComponent<Props> = ({
 
   const {
     handleSubmit,
+    getValues,
     formState: { isDirty, isSubmitting },
   } = methods;
 
@@ -144,6 +163,29 @@ const CredentialForm: FunctionComponent<Props> = ({
     [contracts, selectedAuthMethod, selectedType],
   );
 
+  const fieldsToSubscribe = useMemo(() => {
+    const names = new Set<string>();
+    (selectedContract?.fields ?? []).forEach((field: CredentialContractField) => {
+      if (field.mandatory_condition_field) {
+        names.add(field.mandatory_condition_field);
+      }
+      if (field.visible_condition_field) {
+        names.add(field.visible_condition_field);
+      }
+    });
+    return Array.from(names);
+  }, [selectedContract]);
+
+  const watchedConditionValues = useWatch({
+    control: methods.control,
+    name: fieldsToSubscribe as (keyof CredentialInput)[],
+  });
+
+  const currentFormValues = useMemo(
+    () => getValues() as Record<string, unknown>,
+    [getValues, watchedConditionValues],
+  );
+
   const formatFieldType = (type: CredentialContractField['field_type'],
   ): ContractType => {
     const supportedType = ['select', 'text', 'number', 'checkbox', 'password'];
@@ -157,15 +199,22 @@ const CredentialForm: FunctionComponent<Props> = ({
   };
 
   const formatField = (field: CredentialContractField): EnhancedContractElement => {
+    const isRequired = !!field.required
+      || matchesCondition(
+        currentFormValues,
+        field.mandatory_condition_field,
+        field.mandatory_condition_value,
+      );
+
     return {
       originalKey: `${field.field_name}`,
       isInjectContentType: false,
-      isVisible: true,
       isInMandatoryGroup: false,
       mandatoryGroupContractElementLabels: '',
+      isVisible: true,
       key: `${field.field_name}`,
       type: formatFieldType(field.field_type),
-      mandatory: !!field.required,
+      mandatory: isRequired,
       label: t(`${field.field_name}`) ?? '',
       readOnly: false,
       choices: field.choices?.map((value: string) => ({
@@ -174,7 +223,7 @@ const CredentialForm: FunctionComponent<Props> = ({
       })),
       cardinality: '1',
       defaultValue: undefined,
-      settings: { required: field.required },
+      settings: { required: isRequired },
       writeOnly: editing && field.field_type === 'password',
     };
   };
@@ -252,12 +301,20 @@ const CredentialForm: FunctionComponent<Props> = ({
           disabled={isLoadingContracts || availableAuthMethods.length === 0}
         />
 
-        {(selectedContract?.fields ?? []).map(field => (
-          <InjectContentFieldComponent
-            key={field.field_name}
-            field={formatField(field)}
-          />
-        ))}
+        {(selectedContract?.fields ?? [])
+          .filter((field: CredentialContractField) => field.visible_condition_field
+            ? matchesCondition(
+                currentFormValues,
+                field.visible_condition_field,
+                field.visible_condition_value,
+              )
+            : true)
+          .map(field => (
+            <InjectContentFieldComponent
+              key={field.field_name}
+              field={formatField(field)}
+            />
+          ))}
 
         <div
           style={{

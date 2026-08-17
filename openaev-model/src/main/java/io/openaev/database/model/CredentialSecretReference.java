@@ -9,7 +9,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.validation.constraints.NotNull;
+import java.util.EnumSet;
+import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -20,13 +24,26 @@ import lombok.EqualsAndHashCode;
 @EntityListeners(ModelBaseListener.class)
 public class CredentialSecretReference extends SecretReference {
 
+  private static final Map<CREDENTIAL_TYPE, EnumSet<CREDENTIAL_AUTH_METHOD>>
+      ALLOWED_AUTH_METHODS_BY_TYPE =
+          Map.of(
+              CREDENTIAL_TYPE.IDENTITY,
+                  EnumSet.of(CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD, CREDENTIAL_AUTH_METHOD.HASH),
+              CREDENTIAL_TYPE.CLOUD_AWS,
+                  EnumSet.of(
+                      CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
+                      CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE));
+
   public enum CREDENTIAL_AUTH_METHOD {
     USERNAME_PASSWORD,
-    HASH
+    HASH,
+    AWS_ACCESS_KEY,
+    AWS_ASSUME_ROLE
   }
 
   public enum CREDENTIAL_TYPE {
     IDENTITY,
+    CLOUD_AWS,
   }
 
   @Column(name = "secret_reference_credential_type")
@@ -42,4 +59,25 @@ public class CredentialSecretReference extends SecretReference {
   @NotNull
   @Enumerated(EnumType.STRING)
   private CREDENTIAL_AUTH_METHOD credentialAuthMethod;
+
+  public void validateCredentialCombinationOrThrow() {
+    if (credentialType == null || credentialAuthMethod == null) {
+      return;
+    }
+    EnumSet<CREDENTIAL_AUTH_METHOD> allowedMethods =
+        ALLOWED_AUTH_METHODS_BY_TYPE.get(credentialType);
+    if (allowedMethods == null || !allowedMethods.contains(credentialAuthMethod)) {
+      throw new IllegalArgumentException(
+          "Invalid credential_type/credential_auth_method combination: "
+              + credentialType
+              + " / "
+              + credentialAuthMethod);
+    }
+  }
+
+  @PrePersist
+  @PreUpdate
+  private void validateCredentialCombination() {
+    validateCredentialCombinationOrThrow();
+  }
 }
