@@ -286,4 +286,57 @@ public interface StepRepository extends JpaRepository<Step, String> {
   boolean existsInjectorContractByWorkflowIdAndInjectorContractId(
       @Param("workflowId") String workflowId,
       @Param("injectorContractId") String injectorContractId);
+
+  /**
+   * Returns the TEMPLATE steps (authored logic-map nodes) of the given tenant whose frozen {@code
+   * step_data} references any of the given injector contract ids.
+   *
+   * <p>Unlike regular injects, a chaining step has NO foreign key to its injector contract - the
+   * contract lives only as a JSON snapshot inside {@code step_data}, so there is nothing for the
+   * database {@code ON DELETE CASCADE} to act on. This query is the JSONB counterpart used to
+   * cascade-clean those steps when their contract / payload is deleted from the threat arsenal.
+   * Both serialized shapes are matched: the full contract object (UI steps, {@code
+   * inject_injector_contract.injector_contract_id}) and the legacy plain-string contract id.
+   *
+   * <p>Tenant scoping is mandatory here: {@code InjectorContract} has a composite {@code (id,
+   * tenant_id)} key and the default contracts are provisioned id-for-id into every tenant, so the
+   * same contract id string legitimately exists in several tenants at once. Native SQL bypasses the
+   * Hibernate {@code tenantFilter}, and the {@code steps} table has no {@code tenant_id} of its
+   * own, so the tenant is resolved through the owning workflow's scenario or simulation ({@code
+   * COALESCE} - a workflow is attached to exactly one of the two). A workflow attached to neither
+   * is unreachable from any tenant UI and is deliberately left alone rather than risk sweeping
+   * another tenant's graph.
+   *
+   * <p>Scoped to TEMPLATE steps on purpose: RUN steps carry immutable execution history and must
+   * survive their contract's deletion, mirroring the TEMPLATE-only rule of {@code
+   * WorkflowScopeRuleCascadeListener}. The canonical {@code step_status = 'TEMPLATE'} check is the
+   * primary guard; the redundant {@code step_template_id IS NULL} belt guarantees an orphaned run
+   * artifact with a null template link can never be mistaken for an authored node.
+   *
+   * @param injectorContractIds the deleted injector contract ids to look for
+   * @param tenantId the tenant whose logic maps are swept (the tenant the contract was deleted in)
+   * @return the matching TEMPLATE steps (empty when the input is empty)
+   */
+  @Query(
+      value =
+          """
+        SELECT s.* FROM steps s
+        JOIN workflows w ON w.workflow_id = s.step_workflow_id
+        LEFT JOIN scenarios sc ON sc.scenario_id = w.workflow_scenario_id
+        LEFT JOIN exercises e ON e.exercise_id = w.workflow_simulation_id
+        WHERE s.step_status = 'TEMPLATE'
+          AND s.step_template_id IS NULL
+          AND COALESCE(sc.tenant_id, e.tenant_id) = :tenantId
+          AND (
+            (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
+              AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' IN (:injectorContractIds))
+            OR
+            (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'string'
+              AND s.step_data ->> 'inject_injector_contract' IN (:injectorContractIds))
+          )
+        """,
+      nativeQuery = true)
+  List<Step> findTemplateStepsByInjectorContractIds(
+      @Param("injectorContractIds") Collection<String> injectorContractIds,
+      @Param("tenantId") String tenantId);
 }

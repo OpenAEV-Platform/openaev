@@ -7,7 +7,6 @@ import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
@@ -22,7 +21,6 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.exercise.service.PauseExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
@@ -58,7 +56,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Autowired private TeamService teamService;
   @Autowired private TagRuleService tagRuleService;
   @Autowired private DocumentService documentService;
@@ -149,7 +146,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
-            previewFeatureService,
             pauseExerciseService,
             fileService,
             stepService,
@@ -207,8 +203,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     // -- PREPARE --
     // Stopping used to delete every inject of a manual chained simulation, which emptied the
     // Execution screen while the attack path (cleared only on reset) still showed the same run.
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
-
     Exercise exercise = ExerciseFixture.getExercise();
     exercise.setFrom("test@test.com");
     exercise.setStatus(ExerciseStatus.RUNNING);

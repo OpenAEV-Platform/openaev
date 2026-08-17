@@ -18,15 +18,23 @@ import com.google.gson.JsonPrimitive;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.TenantRepository;
+import io.openaev.execution.ExecutionContext;
+import io.openaev.execution.ExecutionContextService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.ExerciseTeamUserService;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
@@ -34,8 +42,11 @@ import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.ConditionUtils;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.helpers.InjectTestHelper;
+import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,13 +66,20 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private ConditionUtils conditionUtils;
   @MockitoBean private io.openaev.executors.Executor executor;
   @MockitoBean private ScopeService scopeService;
+  @MockitoBean private ExerciseTeamUserService exerciseTeamUserService;
+  @MockitoBean private ExecutionContextService executionContextService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private TeamRepository teamRepository;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private DocumentRepository documentRepository;
   @Autowired InjectExecutionStep injectExecutionStep;
   @Autowired AttackPathExecutionIngestionService attackPathExecutionIngestionService;
   ObjectMapper mapper = new ObjectMapper();
   @Autowired private InjectTestHelper injectTestHelper;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private EntityManager entityManager;
   String injectInputJson;
   InjectorContract injectorContractSaved;
   Asset savedAsset;
@@ -798,6 +816,523 @@ public class InjectExecutionStepTest extends IntegrationTest {
     String idInject = ex.getMessage().replace("Inject execution failed. Inject ID: ", "");
     Assertions.assertFalse(
         injectRepository.findById(idInject).isPresent(), idInject + " should not be persisted");
+  }
+
+  // ---------------------------------------------------------------------------
+  // resolveAudienceRecipients (tabletop audience: teams, scope players, denylist)
+  // ---------------------------------------------------------------------------
+
+  /** A tabletop (email) step snapshot with teams explicitly picked in the drawer. */
+  private static final String AUDIENCE_STEP_WITH_EXPLICIT_TEAMS_DATA =
+      """
+      {"inject_injector_contract":{"injector_contract_id":"contract-email",
+      "injector_contract_content":
+      "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
+      "inject_all_teams":false,"inject_teams":["team-1"]}
+      """;
+
+  /** The same tabletop step snapshot with no audience configured in the drawer. */
+  private static final String AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA =
+      """
+      {"inject_injector_contract":{"injector_contract_id":"contract-email",
+      "injector_contract_content":
+      "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
+      "inject_all_teams":false,"inject_teams":[]}
+      """;
+
+  private Step audienceReadyStep(String data) {
+    Step readyStep = new Step();
+    readyStep.setWorkflow(Workflow.builder().id("workflow-1").build());
+    readyStep.setData(data);
+    return readyStep;
+  }
+
+  @Test
+  void given_audienceStepWithDeniedTeamMember_whenResolvingRecipients_thenDeniedPlayerIsExcluded() {
+    // Arrange
+    User keptUser = new User();
+    keptUser.setId("user-kept");
+    User deniedUser = new User();
+    deniedUser.setId("user-denied");
+    Team team = new Team();
+    team.setId("team-1");
+    team.setName("Blue team");
+    team.setUsers(List.of(keptUser, deniedUser));
+
+    Exercise exercise = ExerciseFixture.createDefaultExercise();
+    Inject inject = new Inject();
+    inject.setExercise(exercise);
+    inject.setTeams(new ArrayList<>(List.of(team)));
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITH_EXPLICIT_TEAMS_DATA);
+
+    doReturn(Set.of("user-denied")).when(scopeService).getDeniedPlayerIds("workflow-1");
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertEquals(1, recipients.size());
+    verify(executionContextService).executionContext(keptUser, inject, "Blue team");
+    verify(executionContextService, never())
+        .executionContext(eq(deniedUser), any(Inject.class), anyString());
+    // Explicit drawer audience stays authoritative: scope players are never consulted.
+    verify(scopeService, never()).getValidPlayers(any());
+    // The denylist travels into the enable step so the denied player is never persisted into
+    // the simulation audience (exercise_teams_users) either.
+    verify(exerciseTeamUserService)
+        .enableTargetedTeamMembers(exercise.getId(), List.of("team-1"), Set.of("user-denied"));
+  }
+
+  @Test
+  void
+      given_audienceStepWithoutAudience_whenResolvingRecipients_thenScopePlayersAreDirectRecipients() {
+    // Arrange
+    User scopePlayer = new User();
+    scopePlayer.setId("player-1");
+
+    Inject inject = new Inject();
+    inject.setExercise(ExerciseFixture.createDefaultExercise());
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA);
+
+    doReturn(List.of(scopePlayer)).when(scopeService).getValidPlayers("workflow-1");
+    doReturn(Set.of()).when(scopeService).getDeniedPlayerIds("workflow-1");
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertEquals(1, recipients.size());
+    verify(executionContextService).executionContext(scopePlayer, inject, "Direct execution");
+    // No targeted team to enable on the simulation.
+    verifyNoInteractions(exerciseTeamUserService);
+  }
+
+  @Test
+  void given_audienceStepWithRecipientsMapper_whenResolvingRecipients_thenScopePlayersAreSkipped() {
+    // Arrange: a mapper feeds the "recipients" content field from upstream outputs, so the
+    // mapped audience is authoritative and scope players must not widen it.
+    Inject inject = new Inject();
+    inject.setExercise(ExerciseFixture.createDefaultExercise());
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA);
+    readyStep.setId("ready-mapper-1");
+
+    Condition recipientsMapper = new Condition();
+    recipientsMapper.setType(ConditionType.MAPPER);
+    recipientsMapper.setKey("recipients");
+    doReturn(Map.of("ready-mapper-1", List.of(recipientsMapper)))
+        .when(conditionService)
+        .findAllConditionsByStepIds(any());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertTrue(recipients.isEmpty());
+    verify(scopeService, never()).getValidPlayers(any());
+  }
+
+  @Test
+  void
+      given_playerBothInTargetedTeamAndScope_whenResolvingRecipients_thenSingleRecipientWithTeamLabel() {
+    // Arrange
+    User player = new User();
+    player.setId("player-1");
+    Team team = new Team();
+    team.setId("team-1");
+    team.setName("Blue team");
+    team.setUsers(List.of(player));
+
+    Inject inject = new Inject();
+    inject.setExercise(ExerciseFixture.createDefaultExercise());
+    // Teams set by the scope audience fallback; the drawer itself holds no audience.
+    inject.setTeams(new ArrayList<>(List.of(team)));
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA);
+
+    doReturn(List.of(player)).when(scopeService).getValidPlayers("workflow-1");
+    doReturn(Set.of()).when(scopeService).getDeniedPlayerIds("workflow-1");
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertEquals(1, recipients.size());
+    verify(executionContextService).executionContext(player, inject, "Blue team");
+    verify(executionContextService, never()).executionContext(player, inject, "Direct execution");
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep audience fallback (scope teams consumed at run time)
+  // ---------------------------------------------------------------------------
+
+  /** Email-style (audience-centric) contract content: team + recipients fields, no payload. */
+  private static final String EMAIL_CONTRACT_CONTENT =
+      "{\"fields\":[{\"key\":\"teams\",\"type\":\"team\",\"cardinality\":\"n\"},"
+          + "{\"key\":\"recipients\",\"type\":\"text\",\"cardinality\":\"1\"},"
+          + "{\"key\":\"subject\",\"type\":\"text\",\"cardinality\":\"1\"}]}";
+
+  /**
+   * Builds a READY email step through the real create/ready path so its data carries the full
+   * serialized inject and contract snapshot, with the given teams picked in the drawer.
+   */
+  private Step emailReadyStep(List<String> drawerTeamIds) throws Exception {
+    return emailReadyStep(drawerTeamIds, List.of());
+  }
+
+  /**
+   * Same as {@link #emailReadyStep(List)} with attachment documents picked in the drawer, so the
+   * step data carries {@code inject_documents} link objects serialized from the inject entity.
+   */
+  private Step emailReadyStep(List<String> drawerTeamIds, List<Document> drawerDocuments)
+      throws Exception {
+    Injector emailInjector =
+        injectorRepository.save(
+            InjectorFixture.createInjector(
+                UUID.randomUUID().toString(), "Email injector", "openaev_email_test"));
+    InjectorContract emailContract =
+        InjectorContractFixture.createInjectorContract(
+            Map.of("en", "Email"), EMAIL_CONTRACT_CONTENT);
+    emailContract.addInjector(emailInjector);
+    InjectorContract emailContractSaved = injectorContractRepository.save(emailContract);
+    emailInjector.linkContract(emailContractSaved);
+    injectorRepository.save(emailInjector);
+    doReturn(emailContractSaved)
+        .when(injectorContractService)
+        .injectorContract(emailContractSaved.getId());
+
+    String teamsJson =
+        drawerTeamIds.stream()
+            .map(id -> "\"" + id + "\"")
+            .collect(java.util.stream.Collectors.joining(","));
+    String documentsJson =
+        drawerDocuments.stream()
+            .map(d -> "{\"document_id\":\"" + d.getId() + "\",\"document_attached\":true}")
+            .collect(java.util.stream.Collectors.joining(","));
+    String emailInputJson =
+        """
+        {"type":"inject","inject_title":"tabletop email","inject_description":"",
+         "inject_injector_contract":"%s","inject_injector":"%s",
+         "inject_content":{"subject":"Subject","body":"Body"},
+         "inject_depends_on":[],"inject_depends_duration":0,
+         "inject_teams":[%s],"inject_assets":[],"inject_asset_groups":[],
+         "inject_documents":[%s],"inject_all_teams":false,"inject_tags":[],"inject_enabled":true}
+        """
+            .formatted(emailContractSaved.getId(), emailInjector.getId(), teamsJson, documentsJson);
+    InjectInput injectInput = mapper.readValue(emailInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+    Step stepTemplate = injectExecutionStep.create(step, workflowTemplate).orElseThrow();
+
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    return injectExecutionStep.ready(stepTemplate, null, workflowRun).orElseThrow();
+  }
+
+  @Test
+  void given_audienceStepWithoutDrawerAudience_whenBuildingInject_thenScopeTeamsAreConsumed()
+      throws Exception {
+    // Arrange
+    Step readyStep = emailReadyStep(List.of());
+    Team scopeTeam = new Team();
+    scopeTeam.setId("scope-team-1");
+    scopeTeam.setName("Scope team");
+    doReturn(List.of(scopeTeam)).when(scopeService).getValidTeams(any());
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: empty drawer audience falls back to the workflow scope's teams.
+    assertNotNull(inject);
+    assertEquals(List.of("scope-team-1"), inject.getTeams().stream().map(Team::getId).toList());
+  }
+
+  @Test
+  void given_audienceStepWithRecipientsMapper_whenBuildingInject_thenScopeFallbackIsSkipped()
+      throws Exception {
+    // Arrange: the step's audience is mapper-fed (upstream findings mapped into "recipients"),
+    // so the scope-team fallback must not widen the mapped audience.
+    Step readyStep = emailReadyStep(List.of());
+    readyStep.setId("ready-step-mapper");
+    Condition recipientsMapper = new Condition();
+    recipientsMapper.setType(ConditionType.MAPPER);
+    recipientsMapper.setKey("recipients");
+    doReturn(Map.of("ready-step-mapper", List.of(recipientsMapper)))
+        .when(conditionService)
+        .findAllConditionsByStepIds(any());
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert
+    assertNotNull(inject);
+    assertTrue(inject.getTeams() == null || inject.getTeams().isEmpty());
+    verify(scopeService, never()).getValidTeams(any());
+  }
+
+  @Test
+  void given_audienceStepWithExplicitDrawerTeams_whenBuildingInject_thenScopeIsNotConsulted()
+      throws Exception {
+    // Arrange
+    Team drawerTeam = teamRepository.save(TeamFixture.getDefaultTeam());
+    Step readyStep = emailReadyStep(List.of(drawerTeam.getId()));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the drawer audience stays authoritative, the scope is never consulted.
+    assertNotNull(inject);
+    assertEquals(List.of(drawerTeam.getId()), inject.getTeams().stream().map(Team::getId).toList());
+    verify(scopeService, never()).getValidTeams(any());
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep document attachments (inject_documents round-trip)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void given_emailStepWithAttachment_whenBuildingInject_thenDocumentLinkSurvivesRoundTrip()
+      throws Exception {
+    // Arrange: the step data serializes the inject entity, so inject_documents holds full link
+    // objects ({inject_id, document_id, document_attached, document_name}), not scalar ids.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of(), List.of(attachment));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the attachment round-trips and is re-parented onto the deserialized inject so the
+    // cascade persist in run() can derive the @MapsId composite key.
+    assertNotNull(inject);
+    assertEquals(1, inject.getDocuments().size());
+    InjectDocument link = inject.getDocuments().getFirst();
+    assertEquals(attachment.getId(), link.getDocument().getId());
+    assertTrue(link.isAttached());
+    assertSame(inject, link.getInject());
+  }
+
+  @Test
+  void given_stepDataWithScalarDocumentId_whenBuildingInject_thenDocumentIsResolved()
+      throws Exception {
+    // Arrange: defensive shape - a plain string document id instead of the link object.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of());
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.putArray("inject_documents").add(attachment.getId());
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the scalar form resolves too, with document_attached defaulting to true.
+    assertNotNull(inject);
+    assertEquals(1, inject.getDocuments().size());
+    assertEquals(attachment.getId(), inject.getDocuments().getFirst().getDocument().getId());
+    assertTrue(inject.getDocuments().getFirst().isAttached());
+  }
+
+  @Test
+  void given_stepDataWithDeletedDocument_whenBuildingInject_thenAttachmentIsDropped()
+      throws Exception {
+    // Arrange: the document is deleted between step authoring and execution.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of(), List.of(attachment));
+    documentRepository.delete(attachment);
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: a deleted attachment degrades to "no attachment" instead of failing the step.
+    assertNotNull(inject);
+    assertTrue(inject.getDocuments().isEmpty());
+  }
+
+  @Test
+  void given_stepDataWithForeignTenantDocument_whenBuildingInject_thenAttachmentIsDropped()
+      throws Exception {
+    // Arrange: the step is authored under the current tenant, but its data references a document
+    // persisted under ANOTHER tenant (stale or crafted step id). The document resolution goes
+    // through a JPQL query precisely so Hibernate's tenantFilter applies; this test pins that
+    // guarantee - a future primary-key lookup (filters never apply to those) or a disabled filter
+    // would resolve the foreign document and fail here.
+    Step readyStep = emailReadyStep(List.of());
+    String currentTenantId = TenantContext.getCurrentTenant();
+    // A bare tenant row is enough here (no provisioning side effects): the document only needs a
+    // foreign tenant to be stamped with, and the run-path lookup only reads documents.
+    Tenant foreignTenant =
+        tenantRepository.save(TenantFixture.getTenant("inject-doc-isolation-" + UUID.randomUUID()));
+    Document foreignDocument;
+    tenantIsolationTestHelper.switchToTenant(foreignTenant.getId(), entityManager);
+    try {
+      foreignDocument = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    } finally {
+      tenantIsolationTestHelper.switchToTenant(currentTenantId, entityManager);
+    }
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    ObjectNode link = mapper.createObjectNode();
+    link.put("document_id", foreignDocument.getId());
+    link.put("document_attached", true);
+    data.putArray("inject_documents").add(link);
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act: deserialize through the real scoped run path (the helper re-enabled the tenantFilter
+    // for the current tenant on this session, as the transaction aspect does for the queue run).
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the foreign-tenant attachment degrades exactly like a deleted one - dropped, with
+    // the step still executable - instead of leaking another tenant's document.
+    assertNotNull(inject);
+    assertTrue(inject.getDocuments().isEmpty());
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep mono-id collections (inject_communications /
+  // inject_expectations round-trip) - #7414
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void
+      given_stepDataWithObjectShapedCommunicationsAndExpectations_whenBuildingInject_thenNoDesyncAndTrailingFieldBinds()
+          throws Exception {
+    // Arrange: MultiModelSerializer writes inject_communications and inject_expectations as FULL
+    // objects (each starting with its id property), yet both are read back through the scalar-only
+    // MonoIdDeserializerHelper. Before #7414 the object was not consumed, so the collection
+    // deserializer misread the object's first field name as the next element's id and desynced the
+    // whole stream - corrupting every field that came after the collections. Craft that exact
+    // shape and put a scalar field (inject_title) AFTER both collections: the trailing field is the
+    // observable desync symptom.
+    Step readyStep = emailReadyStep(List.of());
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.remove("inject_communications");
+    data.remove("inject_expectations");
+    data.remove("inject_title");
+    data.putArray("inject_communications")
+        .addObject()
+        .put("communication_id", "comm-1")
+        .put("communication_subject", "Subject")
+        .put("communication_from", "from@openaev.io")
+        .put("communication_to", "to@openaev.io");
+    data.putArray("inject_expectations")
+        .addObject()
+        .put("inject_expectation_id", "exp-1")
+        .put("inject_expectation_name", "Prevention")
+        .put("inject_expectation_type", "PREVENTION");
+    // Trailing field, placed AFTER both object-shaped collections on purpose.
+    data.put("inject_title", "desync sentinel title");
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: no desync - the elements resolve by their id and the field AFTER the collections
+    // still binds to its own value instead of being consumed by the misaligned array parsing.
+    assertNotNull(inject);
+    assertEquals("desync sentinel title", inject.getTitle());
+    assertEquals(1, inject.getCommunications().size());
+    assertEquals("comm-1", inject.getCommunications().getFirst().getId());
+    assertEquals(1, inject.getExpectations().size());
+    assertEquals("exp-1", inject.getExpectations().getFirst().getId());
+  }
+
+  @Test
+  void
+      given_stepDataWithScalarCommunicationAndExpectationIds_whenBuildingInject_thenElementsResolve()
+          throws Exception {
+    // Arrange: the defensive scalar shape (a plain string id per element) must keep working exactly
+    // as before - the scalar path in the deserializer is unchanged by #7414.
+    Step readyStep = emailReadyStep(List.of());
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.remove("inject_communications");
+    data.remove("inject_expectations");
+    data.putArray("inject_communications").add("comm-scalar");
+    data.putArray("inject_expectations").add("exp-scalar");
+    // Trailing field, to prove the scalar path leaves the stream aligned too.
+    data.remove("inject_title");
+    data.put("inject_title", "scalar sentinel title");
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert
+    assertNotNull(inject);
+    assertEquals("scalar sentinel title", inject.getTitle());
+    assertEquals(1, inject.getCommunications().size());
+    assertEquals("comm-scalar", inject.getCommunications().getFirst().getId());
+    assertEquals(1, inject.getExpectations().size());
+    assertEquals("exp-scalar", inject.getExpectations().getFirst().getId());
+  }
+
+  // ---------------------------------------------------------------------------
+  // create - injector contract existence validation at authoring time (#7418)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void create_shouldRejectWith400_whenInjectorContractDoesNotExist() throws Exception {
+    // #7418: a stale client (or one racing the contract-delete tx) can reference an injector
+    // contract that no longer exists. Authoring must reject it (BadRequestException -> 400) instead
+    // of baking it into an un-runnable ghost step; the existence check is real (repository) so the
+    // mocked injectorContractService return value is irrelevant here.
+    String missingContractId = "missing-" + UUID.randomUUID();
+    InjectInput injectInput =
+        mapper.readValue(
+            injectInputJson.replace(injectorContractSaved.getId(), missingContractId),
+            InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    BadRequestException ex =
+        assertThrows(
+            BadRequestException.class, () -> injectExecutionStep.create(step, workflowTemplate));
+    assertTrue(ex.getMessage().contains(missingContractId));
+  }
+
+  @Test
+  void create_shouldSucceed_whenInjectorContractExists() throws Exception {
+    // #7418: the happy path - the referenced contract exists in the tenant, so authoring proceeds.
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    Optional<Step> created = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(created.isPresent());
   }
 
   /**

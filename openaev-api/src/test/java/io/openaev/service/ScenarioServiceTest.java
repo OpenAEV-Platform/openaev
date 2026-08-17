@@ -24,7 +24,6 @@ import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
@@ -87,14 +86,12 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private UserService userService;
   @Mock private TenantSettingsService tenantSettingsService;
   @Mock private CustomDashboardService customDashboardService;
-  @Mock private InjectorContractService injectorContractService;
   @InjectMocks private ScenarioService scenarioService;
   @Autowired private ScenarioService scenarioServiceBean;
   @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private WorkflowService workflowService;
   @Mock private WorkflowExportInitializer workflowExportInitializer;
-  @Autowired private PreviewFeatureService previewFeatureService;
 
   @Mock private LicenseCacheManager licenseCacheManager;
   @Autowired private ExerciseMapper exerciseMapper;
@@ -131,7 +128,6 @@ class ScenarioServiceTest extends IntegrationTest {
             userService,
             tenantSettingsService,
             customDashboardService,
-            injectorContractService,
             injectRepository,
             lessonsCategoryRepository,
             tagRepository,

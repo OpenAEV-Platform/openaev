@@ -18,8 +18,23 @@ public interface InjectorRepository
 
   Optional<Injector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
-  @NotNull
-  Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
+  boolean existsByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
+
+  @Query(
+      "SELECT i FROM Injector i "
+          + "WHERE i.type = :externalReference AND i.tenantId = :tenantId "
+          + "ORDER BY i.id")
+  List<Injector> findBySecurityPlatformExternalReferenceByTenantId(
+      @Param("externalReference") @NotNull String externalReference,
+      @Param("tenantId") @NotNull String tenantId);
+
+  @Query(
+      "SELECT i FROM Injector i "
+          + "WHERE i.type = :contractType AND i.tenantId = :tenantId "
+          + "ORDER BY i.id")
+  List<Injector> findByPhishingContractTypeByTenantId(
+      @Param("contractType") @NotNull String contractType,
+      @Param("tenantId") @NotNull String tenantId);
 
   @Query(
       "SELECT l.injector FROM InjectorInjectorContract l "

@@ -81,7 +81,7 @@ const Credentials = () => {
   };
 
   // Bulk selection
-  const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.PLATFORM_SETTINGS);
+  const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.CREDENTIALS);
   const {
     selectedElements,
     deSelectedElements,
@@ -183,7 +183,7 @@ const Credentials = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <Box display="flex" gap={1} alignItems="center">
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.CREDENTIALS}>
               <CredentialCreation
                 onCreate={result => setCredentials(current => [result, ...current])}
               />

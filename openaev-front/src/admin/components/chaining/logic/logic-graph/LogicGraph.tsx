@@ -257,12 +257,21 @@ const LogicGraph = ({
     };
   }, [positionedNodes, layout.bbox]);
 
-  // Stable fingerprint of the graph structure so PanZoom only re-fits on real changes (not on
-  // selection, dragging, or polling re-renders that keep the same nodes). `refitNonce` forces a
-  // re-fit after "Auto-organize" restores the auto positions.
+  // Structural fingerprint of the graph (bbox + node id SET). Drives PanZoom's ONE-TIME fit: a live
+  // run authoring steps changes this, but PanZoom fits only on first content and re-fits only on an
+  // explicit `refitNonce` bump, so authoring a step never yanks the operator's manual pan/zoom.
+  // Deliberately omits node positions and the nonce (both handled elsewhere).
   const fitSignature = useMemo(
-    () => `${Math.round(layout.bbox.width)}x${Math.round(layout.bbox.height)}|${layout.nodes.map(n => n.id).join(',')}|${refitNonce}`,
-    [layout, refitNonce],
+    () => `${Math.round(layout.bbox.width)}x${Math.round(layout.bbox.height)}|${layout.nodes.map(n => n.id).join(',')}`,
+    [layout],
+  );
+  // Tooltip dismiss key: the structural signature PLUS each node's rounded position. A pure relayout
+  // that keeps the same node-id set leaves `fitSignature` unchanged yet still slides a card out from
+  // under a stationary cursor, which would strand a rich tooltip; folding positions in force-closes
+  // it. Kept separate from `fitSignature` so a drag/relayout dismisses tooltips without re-fitting.
+  const tooltipDismissKey = useMemo(
+    () => `${fitSignature}|${positionedNodes.map(n => `${n.id}:${Math.round(n.x)},${Math.round(n.y)}`).join(';')}`,
+    [fitSignature, positionedNodes],
   );
 
   // Data-flow spotlight for the selected node (action or trigger). `flow` resolves one representative
@@ -475,6 +484,7 @@ const LogicGraph = ({
         contentWidth={contentSize.width}
         contentHeight={contentSize.height}
         fitSignature={fitSignature}
+        refitNonce={refitNonce}
         onBackgroundClick={() => setSelectedNodeId(null)}
         onZoomChange={(zoom) => { zoomRef.current = zoom; }}
         onAutoLayout={readOnly ? undefined : handleAutoLayout}
@@ -582,6 +592,7 @@ const LogicGraph = ({
                   dimmed={dimmed}
                   pathIndex={flow.pathIndex[node.id]}
                   readOnly={readOnly}
+                  tooltipDismissKey={tooltipDismissKey}
                   onEdit={handleEditAction}
                   onDelete={setPendingDeleteNodeId}
                 />
@@ -631,6 +642,7 @@ const LogicGraph = ({
                 dimmed={dimmed}
                 pathIndex={flow.pathIndex[node.id]}
                 readOnly={readOnly}
+                tooltipDismissKey={tooltipDismissKey}
                 onEdit={handleEditTrigger}
                 onDelete={setPendingDeleteNodeId}
                 onAddAction={onAddActionToEvent}

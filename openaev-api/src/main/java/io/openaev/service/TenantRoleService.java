@@ -116,10 +116,12 @@ public class TenantRoleService {
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
-    assertCanAssignCapabilities(userService.currentUser(), capabilities, CapabilityScope.TENANT);
+    Set<Capability> scopedCapabilities = Capability.filterForTenantRole(capabilities);
+    assertCanAssignCapabilities(
+        userService.currentUser(), scopedCapabilities, CapabilityScope.TENANT);
     ReservedKeyValidator.validateRoleId(roleId);
     return updateRoleInternal(
-        roleId, roleName, roleDescription, capabilities, TenantContext.getCurrentTenant());
+        roleId, roleName, roleDescription, scopedCapabilities, TenantContext.getCurrentTenant());
   }
 
   /** Internal method for system-managed roles. Bypasses reserved name validation. */
@@ -129,7 +131,7 @@ public class TenantRoleService {
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities,
       String tenantId) {
-    Capability.validateForTenantRole(capabilities);
+    Set<Capability> scopedCapabilities = Capability.filterForTenantRole(capabilities);
     Optional<Role> roleOpt = findByIdAndTenant(roleId, tenantId);
     if (roleOpt.isEmpty()) {
       throw new ElementNotFoundException("Role not found with id: " + roleId);
@@ -137,7 +139,7 @@ public class TenantRoleService {
     Role role = roleOpt.get();
     role.setName(roleName);
     role.setDescription(roleDescription);
-    role.setCapabilities(capabilities);
+    role.setCapabilities(scopedCapabilities);
     return roleRepository.save(role);
   }
 

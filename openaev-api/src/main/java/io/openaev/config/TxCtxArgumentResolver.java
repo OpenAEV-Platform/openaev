@@ -1,9 +1,10 @@
 package io.openaev.config;
 
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exception.TenantSelectorRequiredException;
-import io.openaev.service.tenants.TenantService;
+import io.openaev.security.token.XtmJwksExtractor;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -28,16 +29,32 @@ import org.springframework.web.servlet.HandlerMapping;
  * addressed), otherwise from the {@code X-Tenant-Ids} header (one or more comma-separated ids),
  * otherwise empty (which resolves to the caller's full allowed set). The resolved {@code TxCtx} is
  * the value the transaction aspect writes into the tenant scope.
+ *
+ * <p>A {@link RunTenantScope}-annotated parameter is the one exception to "the caller decides": it
+ * is a service-identity callback whose scope is derived from the parent autonomous run named by the
+ * {@code {runId}} path variable, independent of the caller's selector or memberships (see the
+ * annotation for why). Run-authoritative scope is a SERVICE-IDENTITY privilege: it is granted only
+ * when the request authenticated as the verified XTM One cross-platform JWT caller (trusted issuer
+ * + JWKS signature + audience, stamped by {@link
+ * io.openaev.security.token.XtmJwksExtractor#CROSS_PLATFORM_ATTRIBUTE}). Any other authenticated
+ * caller keeps the caller-authorized resolution, so knowing a run id can never let a normal
+ * Enterprise-Edition user read or mutate a run in a tenant it does not belong to. The exception
+ * also exists ONLY on the legacy non-prefixed route the orchestrator actually rides: when the
+ * request addresses a tenant through the {@code {tenantId}} path variable (the tenant-prefixed
+ * operator route), the standard caller-authorized resolution applies, so the prefixed API keeps its
+ * uniform "the URL names the tenant, rights are the boundary" contract.
  */
 @Component
 @RequiredArgsConstructor
 public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
 
   static final String TENANT_ID_PATH_VARIABLE = "tenantId";
+  static final String RUN_ID_PATH_VARIABLE = "runId";
   static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
 
   private final TenantScopeResolver scopeResolver;
-  private final TenantService tenantService;
+  private final TenantMembershipCacheManager membershipCache;
+  private final AutonomousRunTenantLocator runTenantLocator;
 
   @Override
   public boolean supportsParameter(MethodParameter parameter) {
@@ -50,15 +67,67 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
       ModelAndViewContainer mavContainer,
       NativeWebRequest webRequest,
       WebDataBinderFactory binderFactory) {
+    if (parameter.hasParameterAnnotation(RunTenantScope.class) && !hasPathTenant(webRequest)) {
+      return runTenantScope(parameter, webRequest);
+    }
+    return callerScope(parameter, webRequest);
+  }
+
+  /**
+   * The standard caller-authorized resolution: the caller's rights, not the request, decide the
+   * scope. The selector (path tenant / {@code X-Tenant-Ids} / empty) is validated against the
+   * caller's memberships by {@link TenantScopeResolver}.
+   */
+  private TxCtx callerScope(MethodParameter parameter, NativeWebRequest webRequest) {
     Set<String> selector = extractSelector(webRequest);
     Set<String> authorized =
-        tenantService.findTenantsByUserId(SessionHelper.currentUser().getId()).stream()
-            .map(Tenant::getId)
-            .collect(Collectors.toSet());
+        new LinkedHashSet<>(
+            membershipCache.findTenantIdsByUserId(SessionHelper.currentUser().getId()));
     if (selector.isEmpty() && parameter.hasParameterAnnotation(RequireTenantSelector.class)) {
       selector = fallbackSelector(authorized);
     }
     return scopeResolver.resolve(selector, authorized);
+  }
+
+  /**
+   * Service-identity scope for an orchestrator callback: the run's own tenant, read scope-free by
+   * its {@code {runId}} path variable, never the caller's memberships. Run-authoritative scope is a
+   * privilege of the VERIFIED service identity: only a request authenticated as the XTM One
+   * cross-platform JWT caller (the marker {@link XtmJwksExtractor} stamps after validating issuer,
+   * JWKS signature and audience) derives from the run; every other caller falls back to {@link
+   * #callerScope} and stays inside its own tenant rights, which is what keeps a run id from acting
+   * as a cross-tenant capability token. For the service caller an absent or unknown run yields
+   * {@link TxCtx#missing()} (fail-closed), which the callback then surfaces as a 404 through its
+   * own run lookup. Deliberately does NOT vary the response by {@code X-Tenant-Ids}: the derived
+   * scope depends only on the run id already in the path, so the header is ignored here. Only
+   * reachable on the legacy non-prefixed route: {@link #resolveArgument} keeps the tenant-prefixed
+   * route on the caller-authorized resolution, so this derivation never overrides an explicitly
+   * addressed tenant.
+   */
+  private TxCtx runTenantScope(MethodParameter parameter, NativeWebRequest webRequest) {
+    if (!isCrossPlatformServiceCaller(webRequest)) {
+      // Not the orchestrator: caller-authorized resolution, no cross-tenant reach.
+      return callerScope(parameter, webRequest);
+    }
+    String runId = pathVariable(webRequest, RUN_ID_PATH_VARIABLE);
+    if (runId == null || runId.isBlank()) {
+      return TxCtx.missing();
+    }
+    return runTenantLocator
+        .findRunTenant(runId.trim())
+        .map(TxCtx::forTenant)
+        .orElse(TxCtx.missing());
+  }
+
+  /**
+   * Whether this request authenticated as the XTM One cross-platform service identity. The marker
+   * is a server-side request attribute set exclusively by {@link XtmJwksExtractor} after full JWT
+   * validation; it cannot be supplied by a client.
+   */
+  private boolean isCrossPlatformServiceCaller(NativeWebRequest webRequest) {
+    return Boolean.TRUE.equals(
+        webRequest.getAttribute(
+            XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST));
   }
 
   /**
@@ -109,12 +178,22 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
     }
   }
 
-  @SuppressWarnings("unchecked")
   private String pathTenant(NativeWebRequest webRequest) {
+    return pathVariable(webRequest, TENANT_ID_PATH_VARIABLE);
+  }
+
+  /** Whether the request addresses a tenant through the tenant-prefixed route. */
+  private boolean hasPathTenant(NativeWebRequest webRequest) {
+    String pathTenant = pathTenant(webRequest);
+    return pathTenant != null && !pathTenant.isBlank();
+  }
+
+  @SuppressWarnings("unchecked")
+  private String pathVariable(NativeWebRequest webRequest, String key) {
     Map<String, String> pathVariables =
         (Map<String, String>)
             webRequest.getAttribute(
                 HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
-    return pathVariables == null ? null : pathVariables.get(TENANT_ID_PATH_VARIABLE);
+    return pathVariables == null ? null : pathVariables.get(key);
   }
 }

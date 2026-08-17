@@ -13,18 +13,16 @@ import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The causal seed entrypoint: admin-only and gated behind the ATTACK_PATH feature, it creates a
- * simulation, writes a causal chain under it, and returns its id; the seeded graph is then readable
- * through the graph endpoint for that simulation.
+ * The causal seed entrypoint is admin-only: it creates a simulation, writes a causal chain under
+ * it, and returns its id; the seeded graph is then readable through the graph endpoint for that
+ * simulation.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH")
 class AttackPathCausalSeedApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;

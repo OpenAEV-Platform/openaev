@@ -6,6 +6,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Assertions;
@@ -27,6 +29,7 @@ class StepRepositoryTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private TenantComposer tenantComposer;
 
   @Test
   void whenFindAllByStepTemplateIdIsNullAndWorkflowId_thenReturnsStepsTemplateForWorkflow() {
@@ -271,6 +274,121 @@ class StepRepositoryTest extends IntegrationTest {
             .collect(java.util.stream.Collectors.toSet());
     Assertions.assertTrue(resolved.contains(withInject1.getId() + "=inject-batch-1"));
     Assertions.assertTrue(resolved.contains(withInject2.getId() + "=inject-batch-2"));
+  }
+
+  @Test
+  void given_bothStepDataShapesAcrossTenants_should_matchOnlyTenantTemplateSteps() {
+    // GIVEN: two TEMPLATE steps referencing the doomed contracts (one per serialized shape), a
+    // TEMPLATE step on an unrelated contract, and a RUN step on the same doomed contract.
+    String objectContractId = "cascade-contract-object";
+    String stringContractId = "cascade-contract-string";
+    String otherContractId = "cascade-contract-other";
+
+    Step objectShapeTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + objectContractId
+                    + "\"}}")
+            .build();
+    Step stringShapeTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"inject_injector_contract\": \"" + stringContractId + "\"}")
+            .build();
+    Step unrelatedTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + otherContractId
+                    + "\"}}")
+            .build();
+    // A RUN step references the doomed contract too, but carries immutable execution history and
+    // must survive: it is excluded by the step_status = 'TEMPLATE' guard even though its
+    // step_template_id is also null here.
+    Step runStepSameContract =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.RUN)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + objectContractId
+                    + "\"}}")
+            .build();
+
+    ExerciseComposer.Composer exerciseWrapper =
+        simulationComposer.forExercise(ExerciseFixture.createDefaultExercise());
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+        .withSimulation(exerciseWrapper)
+        .withStep(stepComposer.forStep(objectShapeTemplate))
+        .withStep(stepComposer.forStep(stringShapeTemplate))
+        .withStep(stepComposer.forStep(unrelatedTemplate))
+        .withStep(stepComposer.forStep(runStepSameContract))
+        .persist();
+    String tenantId = exerciseWrapper.get().getTenant().getId();
+
+    // AND: another tenant authored a TEMPLATE step referencing the SAME contract id - default
+    // contracts are provisioned id-for-id into every tenant, so this is a legitimate state. The
+    // sweep scoped to the deleting tenant must never touch it.
+    Tenant otherTenant =
+        tenantComposer.forTenant(TenantFixture.getTenant("chaining-sweep-other")).persist().get();
+    Exercise otherTenantExercise = ExerciseFixture.createDefaultExercise();
+    otherTenantExercise.setTenant(otherTenant);
+    Step otherTenantTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + objectContractId
+                    + "\"}}")
+            .build();
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+        .withSimulation(simulationComposer.forExercise(otherTenantExercise))
+        .withStep(stepComposer.forStep(otherTenantTemplate))
+        .persist();
+
+    // WHEN
+    List<Step> matched =
+        stepRepository.findTemplateStepsByInjectorContractIds(
+            List.of(objectContractId, stringContractId), tenantId);
+
+    // THEN
+    Set<String> matchedIds =
+        matched.stream().map(Step::getId).collect(java.util.stream.Collectors.toSet());
+    Assertions.assertEquals(
+        2, matchedIds.size(), "Only the two TEMPLATE steps on the doomed contracts match");
+    Assertions.assertTrue(
+        matchedIds.contains(objectShapeTemplate.getId()), "object-shape TEMPLATE matches");
+    Assertions.assertTrue(
+        matchedIds.contains(stringShapeTemplate.getId()), "string-shape TEMPLATE matches");
+    Assertions.assertFalse(
+        matchedIds.contains(unrelatedTemplate.getId()), "unrelated contract is excluded");
+    Assertions.assertFalse(
+        matchedIds.contains(runStepSameContract.getId()), "RUN step is preserved");
+    Assertions.assertFalse(
+        matchedIds.contains(otherTenantTemplate.getId()),
+        "another tenant's TEMPLATE step on the same contract id must be out of scope");
+
+    // AND: the same sweep scoped to the other tenant only sees that tenant's own step.
+    Set<String> otherTenantMatchedIds =
+        stepRepository
+            .findTemplateStepsByInjectorContractIds(
+                List.of(objectContractId, stringContractId), otherTenant.getId())
+            .stream()
+            .map(Step::getId)
+            .collect(java.util.stream.Collectors.toSet());
+    Assertions.assertEquals(
+        Set.of(otherTenantTemplate.getId()),
+        otherTenantMatchedIds,
+        "the sweep scoped to the other tenant matches exactly its own TEMPLATE step");
   }
 
   @Test

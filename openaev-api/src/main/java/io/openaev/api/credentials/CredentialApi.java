@@ -38,7 +38,7 @@ public class CredentialApi extends RestBehavior {
 
   @GetMapping("/contracts")
   @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CREDENTIAL_ASSET)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CREDENTIAL)
   @Operation(summary = "Retrieve credential form contracts")
   public List<CredentialContractOutput> credentialContracts(TxCtx ctx) {
     return credentialService.credentialContracts();
@@ -47,7 +47,7 @@ public class CredentialApi extends RestBehavior {
   @LogExecutionTime
   @PostMapping("/search")
   @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CREDENTIAL_ASSET)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CREDENTIAL)
   public Page<CredentialOutput> credentials(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     Page<CredentialSecretReference> credentialPage =
@@ -60,7 +60,7 @@ public class CredentialApi extends RestBehavior {
   @AccessControl(
       resourceId = "#credentialId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.CREDENTIAL_ASSET)
+      resourceType = ResourceType.CREDENTIAL)
   @Operation(summary = "Retrieve a credential")
   public CredentialFullOutput getCredential(TxCtx ctx, @PathVariable String credentialId) {
     return credentialService.getCredentialFullOutputInformation(credentialId);
@@ -68,7 +68,7 @@ public class CredentialApi extends RestBehavior {
 
   @PostMapping
   @Transactional
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CREDENTIAL_ASSET)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CREDENTIAL)
   @Operation(summary = "Create a credential")
   public CredentialOutput createCredential(TxCtx ctx, @Valid @RequestBody CredentialInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
@@ -80,7 +80,7 @@ public class CredentialApi extends RestBehavior {
   @AccessControl(
       resourceId = "#credentialId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.CREDENTIAL_ASSET)
+      resourceType = ResourceType.CREDENTIAL)
   @Operation(summary = "Update a credential with explicit secret update mode")
   public CredentialFullOutput updateCredential(
       TxCtx ctx, @PathVariable String credentialId, @Valid @RequestBody CredentialInput input) {
@@ -92,7 +92,7 @@ public class CredentialApi extends RestBehavior {
   @AccessControl(
       resourceId = "#credentialId",
       actionPerformed = Action.DELETE,
-      resourceType = ResourceType.CREDENTIAL_ASSET)
+      resourceType = ResourceType.CREDENTIAL)
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Operation(summary = "Delete a credential")
   public void deleteCredential(TxCtx ctx, @PathVariable String credentialId) {
@@ -102,7 +102,7 @@ public class CredentialApi extends RestBehavior {
   @LogExecutionTime
   @DeleteMapping
   @Transactional
-  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.CREDENTIAL_ASSET)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.CREDENTIAL)
   @Operation(summary = "Bulk delete credentials")
   public List<String> bulkDeleteCredentials(
       TxCtx ctx, @RequestBody @Valid CredentialBulkProcessingInput input) {

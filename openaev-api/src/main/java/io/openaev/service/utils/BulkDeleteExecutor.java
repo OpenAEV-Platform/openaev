@@ -1,6 +1,7 @@
 package io.openaev.service.utils;
 
 import io.openaev.context.BulkOperationContext;
+import io.openaev.context.TxCtx;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -52,6 +53,14 @@ public class BulkDeleteExecutor {
   }
 
   /**
+   * Same as {@link #resolveInTransaction(Supplier)} with an explicit tenant scope for the short
+   * read transaction (needed when the chunk touches tenant-active tables).
+   */
+  public <T> T resolveInTransaction(TxCtx ctx, Supplier<T> resolver) {
+    return chunkRunner.call(ctx, resolver);
+  }
+
+  /**
    * Deletes the given ids chunk by chunk, each chunk in its own transaction, retrying chunks that
    * lose a deadlock against a concurrent writer.
    *
@@ -68,6 +77,15 @@ public class BulkDeleteExecutor {
    */
   public List<String> deleteInChunks(
       String entityLabel, List<String> ids, Consumer<List<String>> chunkDeleter) {
+    return deleteInChunks(null, entityLabel, ids, chunkDeleter);
+  }
+
+  /**
+   * Same as {@link #deleteInChunks(String, List, Consumer)} with an explicit tenant scope on each
+   * chunk transaction, so tenant-active tables are visible to the deleter.
+   */
+  public List<String> deleteInChunks(
+      TxCtx ctx, String entityLabel, List<String> ids, Consumer<List<String>> chunkDeleter) {
     if (ids.isEmpty()) {
       return List.of();
     }
@@ -83,7 +101,7 @@ public class BulkDeleteExecutor {
       for (int start = 0; start < sortedIds.size(); start += CHUNK_SIZE) {
         List<String> chunk =
             sortedIds.subList(start, Math.min(start + CHUNK_SIZE, sortedIds.size()));
-        deleteChunkWithRetry(entityLabel, chunk, chunkDeleter);
+        deleteChunkWithRetry(ctx, entityLabel, chunk, chunkDeleter);
         // With open-session-in-view the request session outlives each chunk transaction: clear it
         // so deleted entities (and the related entities touched by @PreRemove hooks) do not
         // accumulate in the persistence context across a large bulk.
@@ -99,19 +117,24 @@ public class BulkDeleteExecutor {
   }
 
   private void deleteChunkWithRetry(
-      String entityLabel, List<String> chunk, Consumer<List<String>> chunkDeleter) {
+      TxCtx ctx, String entityLabel, List<String> chunk, Consumer<List<String>> chunkDeleter) {
     for (int attempt = 1; ; attempt++) {
       try {
         // The suppression scope wraps the transaction proxy call (not just the work): lifecycle
         // events also fire during the commit-time flush, which happens inside chunkRunner.call
         // after the work returns.
         BulkOperationContext.runSuppressed(
-            () ->
-                chunkRunner.call(
-                    () -> {
-                      chunkDeleter.accept(chunk);
-                      return null;
-                    }));
+            () -> {
+              Supplier<Void> work =
+                  () -> {
+                    chunkDeleter.accept(chunk);
+                    return null;
+                  };
+              if (ctx != null) {
+                return chunkRunner.call(ctx, work);
+              }
+              return chunkRunner.call(work);
+            });
         return;
       } catch (ConcurrencyFailureException e) {
         if (attempt >= MAX_ATTEMPTS) {

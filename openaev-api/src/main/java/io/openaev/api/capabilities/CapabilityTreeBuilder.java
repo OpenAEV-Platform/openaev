@@ -18,22 +18,39 @@ public final class CapabilityTreeBuilder {
   static {
     CACHE = new EnumMap<>(CapabilityScope.class);
     for (CapabilityScope s : CapabilityScope.values()) {
-      CACHE.put(s, Collections.unmodifiableList(computeTree(s)));
+      CACHE.put(s, Collections.unmodifiableList(computeTree(s, true)));
     }
   }
 
   private static final List<CapabilityOutput> ALL_SCOPES_CACHE =
-      Collections.unmodifiableList(computeTree(null));
+      Collections.unmodifiableList(computeTree(null, true));
 
   private CapabilityTreeBuilder() {}
 
   /** Build the full capability tree (all scopes). */
   public static List<CapabilityOutput> buildTree() {
-    return ALL_SCOPES_CACHE;
+    return buildTree(true);
+  }
+
+  /** Build the full capability tree (all scopes), optionally hiding credentials capabilities. */
+  public static List<CapabilityOutput> buildTree(boolean isCredentialAssetEnabled) {
+    if (isCredentialAssetEnabled) {
+      return ALL_SCOPES_CACHE;
+    }
+    return computeTree(null, false);
   }
 
   /** Build the capability tree filtered by scope — returns a cached, unmodifiable list. */
   public static List<CapabilityOutput> buildTree(CapabilityScope scope) {
+    return buildTree(scope, true);
+  }
+
+  /** Build the capability tree filtered by scope, optionally hiding credentials capabilities. */
+  public static List<CapabilityOutput> buildTree(
+      CapabilityScope scope, boolean isCredentialAssetEnabled) {
+    if (!isCredentialAssetEnabled) {
+      return computeTree(scope, false);
+    }
     if (scope == null) {
       return ALL_SCOPES_CACHE;
     }
@@ -41,12 +58,14 @@ public final class CapabilityTreeBuilder {
   }
 
   /** Computes the tree (called once per scope at class-loading time). */
-  private static List<CapabilityOutput> computeTree(CapabilityScope scope) {
+  private static List<CapabilityOutput> computeTree(
+      CapabilityScope scope, boolean isCredentialAssetEnabled) {
     // Group children by parent capability
     Map<Capability, List<Capability>> childrenByParent =
         Arrays.stream(Capability.values())
             .filter(c -> c.getParent() != null)
             .filter(c -> !c.isHidden())
+            .filter(c -> isCredentialAssetEnabled || !c.isCredentialCapability())
             .filter(c -> scope == null || c.getScopes().contains(scope))
             .collect(Collectors.groupingBy(Capability::getParent));
 
@@ -55,6 +74,7 @@ public final class CapabilityTreeBuilder {
         Arrays.stream(Capability.values())
             .filter(c -> c.getParent() == null)
             .filter(c -> !c.isHidden())
+            .filter(c -> isCredentialAssetEnabled || !c.isCredentialCapability())
             .filter(c -> scope == null || c.getScopes().contains(scope))
             .toList();
 

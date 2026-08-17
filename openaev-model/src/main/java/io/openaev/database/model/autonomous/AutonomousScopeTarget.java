@@ -2,6 +2,7 @@ package io.openaev.database.model.autonomous;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,10 +13,23 @@ import lombok.Setter;
  * an OpenAEV inject can target. {@code type} uses the {@code io.openaev.utils.TargetType}
  * vocabulary ({@code ASSETS}, {@code ASSETS_GROUPS}, {@code TEAMS}, {@code PLAYERS}); {@code id} is
  * the entity id of that kind (asset id / asset-group id / team id / user id).
+ *
+ * <p>Value-based {@link #equals}/{@link #hashCode} (on {@code type} + {@code id}) are REQUIRED, not
+ * cosmetic: this type is an element of {@link AutonomousRun#getScope()}, a {@code
+ * List<AutonomousScopeTarget>} mapped as a JSON column via {@code @JdbcTypeCode(SqlTypes.JSON)}.
+ * Hibernate dirty-checks such a JSON attribute by comparing the current list to a deep-copied
+ * load-time snapshot with {@code List.equals}, i.e. element-wise {@code equals}. With only identity
+ * equality the snapshot's (freshly deserialized) elements never equal the current ones, so the
+ * whole run is flagged dirty on EVERY flush and a phantom {@code UPDATE autonomous_runs} is emitted
+ * even on pure reads. Under open-in-view that UPDATE is replayed during the Spring Session save at
+ * response commit - outside the request's tenant scope - where it matches zero rows and blows up as
+ * a {@code StaleStateException} 500 (the by-scenario read 500 and the orchestrator scope/step-write
+ * 500s). Value equality keeps the list clean when nothing changed, so no phantom flush occurs.
  */
 @Getter
 @Setter
 @NoArgsConstructor
+@EqualsAndHashCode
 @Schema(description = "One targetable entity in an autonomous run's scope")
 public class AutonomousScopeTarget {
 

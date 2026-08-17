@@ -2745,7 +2745,8 @@ public class V1_DataImporter implements Importer {
    *
    * <ul>
    *   <li>(b) its injector type ({@code injector_contract_injector_type}) is present but no
-   *       injector of that type exists on the target ({@link InjectorService#injectorByType}); or
+   *       injector of that type exists on the target ({@link
+   *       InjectorService#injectorTypeExists(String)}); or
    *   <li>(a) its injector contract is neither already present on the target for the current tenant
    *       ({@code existsByContractIdAndTenant} / previously resolved) nor resolvable read-only from
    *       the payload external id ({@link #resolveInjectorContractReadOnly}).
@@ -2778,7 +2779,7 @@ public class V1_DataImporter implements Importer {
 
     // (b) Injector of the referenced type must exist on the target instance.
     String injectorType = extractInjectorType(injectContractNode);
-    if (hasText(injectorType) && injectorService.injectorByType(injectorType).isEmpty()) {
+    if (hasText(injectorType) && !injectorService.injectorTypeExists(injectorType)) {
       return Optional.of(
           new SkippedWorkflowStep(SkippedWorkflowStepType.INJECTOR, injectTitle, injectorType));
     }
@@ -3325,6 +3326,10 @@ public class V1_DataImporter implements Importer {
     // (exercise_tags / scenario_tags / payload_tags), so every exported tag is already resolved
     // here; any unresolved id is dropped (degraded but non-blocking) rather than left dangling.
     rewriteImportedTagIds(dataObject, "inject_tags", baseIds);
+    // Rewrite the inject_documents attachment references: documents are recreated with a NEW UUID
+    // on the target instance, so the source ids serialized in step_data must be mapped to the
+    // resolved target documents or the imported step silently loses valid attachments at run time.
+    rewriteImportedInjectDocuments(dataObject, baseIds);
     JsonNode injectContractNode = dataObject.get("inject_injector_contract");
     if (injectContractNode instanceof ObjectNode injectContractObject) {
       rewriteImportedTagIds(injectContractObject, "injector_contract_tags", baseIds);
@@ -3398,6 +3403,77 @@ public class V1_DataImporter implements Importer {
       }
     }
     parent.set(field, rewritten);
+  }
+
+  /**
+   * Rewrites the {@code inject_documents} array of a serialized step_data inject in place, mapping
+   * each SOURCE-instance document id to the resolved TARGET document id via {@code baseIds}
+   * (populated by {@link #importDocuments} before the workflow import). Documents are recreated
+   * with a NEW UUID on the target instance, so without this rewrite an imported chaining step
+   * queries the stale source UUID at run time and silently drops a valid attachment.
+   *
+   * <p>Elements keep their serialized shape: link objects ({@code MultiModelSerializer} output,
+   * matched on {@code document_id}) are rewritten in place, scalar id entries (the defensive shape
+   * also accepted by {@code InjectDocumentDeserializer}) are replaced by the resolved id. An id not
+   * seeded in {@code baseIds} but already present on the target tenant (re-import on the same
+   * instance without a bundled file) is kept as-is. An id that resolves to nothing is dropped: the
+   * run-time lookup in {@code InjectExecutionStep#getInjectFromDataStep} is tenant-filtered and
+   * would drop the attachment anyway, so dropping here keeps the persisted step data free of dead
+   * references.
+   */
+  private void rewriteImportedInjectDocuments(ObjectNode dataObject, Map<String, Base> baseIds) {
+    JsonNode documentsNode = dataObject.get("inject_documents");
+    if (documentsNode == null || !documentsNode.isArray()) {
+      return;
+    }
+    ArrayNode rewritten = mapper.createArrayNode();
+    for (JsonNode linkNode : documentsNode) {
+      String rawId = null;
+      if (linkNode instanceof ObjectNode linkObject) {
+        JsonNode idNode = linkObject.get("document_id");
+        rawId = idNode != null && idNode.isTextual() ? idNode.asText() : null;
+      } else if (linkNode != null && linkNode.isTextual()) {
+        rawId = linkNode.asText();
+      }
+      if (!hasText(rawId)) {
+        continue;
+      }
+      String resolvedId = resolveImportedDocumentId(rawId, baseIds);
+      if (resolvedId == null) {
+        continue;
+      }
+      if (linkNode instanceof ObjectNode linkObject) {
+        linkObject.put("document_id", resolvedId);
+        rewritten.add(linkObject);
+      } else {
+        rewritten.add(resolvedId);
+      }
+    }
+    dataObject.set("inject_documents", rewritten);
+  }
+
+  /**
+   * Resolves a step_data document reference to a TARGET-instance document id: the {@code baseIds}
+   * mapping seeded by the document import first, then a tenant-scoped lookup (re-import on the same
+   * instance where the export did not bundle the file), {@code null} when the id resolves to
+   * nothing. The fallback is tenant-scoped on purpose: the raw id comes from the import file and a
+   * bare {@code findById} could match another tenant's document. A successful fallback is cached
+   * back into {@code baseIds}, so an id referenced by several links or steps costs at most one
+   * query per import instead of one per occurrence.
+   */
+  private String resolveImportedDocumentId(String rawId, Map<String, Base> baseIds) {
+    if (baseIds.get(rawId) instanceof Document resolvedDocument
+        && resolvedDocument.getId() != null) {
+      return resolvedDocument.getId();
+    }
+    return documentRepository
+        .findByIdAndTenantId(rawId, TenantContext.getCurrentTenant())
+        .map(
+            document -> {
+              baseIds.put(rawId, document);
+              return document.getId();
+            })
+        .orElse(null);
   }
 
   /**

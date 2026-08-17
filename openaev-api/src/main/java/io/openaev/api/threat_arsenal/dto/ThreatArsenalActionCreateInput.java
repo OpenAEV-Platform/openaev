@@ -14,6 +14,7 @@ import io.openaev.database.model.SecurityPlatform;
 import io.openaev.rest.payload.form.DetectionRemediationInput;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -56,7 +57,7 @@ public record ThreatArsenalActionCreateInput(
     @JsonProperty("action_detection_remediations")
         @Schema(description = "List of detection remediation gaps for collectors")
         List<DetectionRemediationInput> detectionRemediations,
-    @JsonProperty("action_output_parsers") @Schema(description = "Set of output parsers")
+    @Valid @JsonProperty("action_output_parsers") @Schema(description = "Set of output parsers")
         Set<OutputParserInput> outputParsers,
     @NotNull(message = MANDATORY_MESSAGE)
         @JsonProperty("action_domains")

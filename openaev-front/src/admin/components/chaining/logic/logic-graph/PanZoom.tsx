@@ -17,8 +17,15 @@ interface PanZoomProps {
   /** Logical content size (bounding box of the laid-out graph). */
   contentWidth: number;
   contentHeight: number;
-  /** Changes whenever the graph structure changes; triggers an auto re-fit. */
+  /**
+   * Structural fingerprint of the graph. Triggers the FIRST fit when content becomes fittable, then
+   * never auto-fits again: a live run that authors steps changes this, and re-fitting there would
+   * yank the operator's manual pan/zoom on every new step. Explicit re-fit stays available via the
+   * Fit button and {@link refitNonce}.
+   */
   fitSignature: string;
+  /** Bumped by the parent (Fit / Auto-organize) to force an explicit re-fit. */
+  refitNonce?: number;
   minZoom?: number;
   maxZoom?: number;
   /** Called on a click on the empty canvas (no drag) - used to clear the selection. */
@@ -54,6 +61,7 @@ const PanZoom = ({
   contentWidth,
   contentHeight,
   fitSignature,
+  refitNonce,
   minZoom = 0.3,
   maxZoom = 2.5,
   onBackgroundClick,
@@ -117,11 +125,33 @@ const PanZoom = ({
     hasFitted.current = true;
   }, [contentWidth, contentHeight, clampZoom]);
 
-  // Re-fit whenever the graph structure changes.
+  // Fit ONCE, when the graph first becomes fittable. Later structural changes (a live run authoring
+  // steps) must NOT re-fit - that yanked the operator's manual pan/zoom on every new step. `fit()`
+  // early-returns while the content/container has no size, leaving `hasFitted` false, so the first
+  // real fit still lands when the first node appears.
   useLayoutEffect(() => {
-    hasFitted.current = false;
-    fit();
+    if (!hasFitted.current) {
+      fit();
+    }
   }, [fitSignature, fit]);
+
+  // Always call the latest `fit` from the explicit re-fit effect without listing it as a dependency:
+  // `fit` changes identity whenever the content size changes (a new step), and depending on it would
+  // turn the explicit-refit effect into an auto-refit-on-every-step - the exact yank #14 removes.
+  const fitRef = useRef(fit);
+  fitRef.current = fit;
+
+  // Explicit re-fit path (Fit button / Auto-organize bump the nonce). Skips the initial mount so it
+  // does not double-fit with the structural effect above; a bump resets `hasFitted` and re-centers.
+  const refitInitialized = useRef(false);
+  useLayoutEffect(() => {
+    if (!refitInitialized.current) {
+      refitInitialized.current = true;
+      return;
+    }
+    hasFitted.current = false;
+    fitRef.current();
+  }, [refitNonce]);
 
   // Fit once the container gets a real size (initial mount / late layout). Never re-fits after the
   // first successful fit, so window/tab resizes preserve the user's manual zoom.
@@ -235,6 +265,13 @@ const PanZoom = ({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      // A pan is a pointer gesture, but the browser will happily reinterpret a press-and-drag that
+      // begins on an inner <img> (the injector/payload glyph, or its broken-image placeholder) or a
+      // run of selectable text as a native HTML5 drag / text selection. That hijack stops
+      // pointermove firing mid-gesture, so the pan silently dies and the cursor turns into the
+      // "no-drop" (forbidden) sign - the intermittent "can't drag the grid here" the operator hit.
+      // dragstart bubbles, so cancelling it once here disarms every draggable descendant at once.
+      onDragStart={e => e.preventDefault()}
       sx={{
         position: 'relative',
         width: '100%',
@@ -242,6 +279,8 @@ const PanZoom = ({
         overflow: 'hidden',
         cursor: panning ? 'grabbing' : 'grab',
         touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
         // Minimal low-opacity "paper" dot grid in screen space (does not clutter the graph).
         backgroundImage: `radial-gradient(${theme.palette.divider} 1px, transparent 1px)`,
         backgroundSize: '28px 28px',

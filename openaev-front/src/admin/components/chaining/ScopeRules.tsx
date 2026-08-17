@@ -1,4 +1,13 @@
-import { BlockOutlined, DnsOutlined, EditOutlined, GroupsOutlined, InfoOutlined, PersonOutlined, PublicOutlined, TaskAltOutlined } from '@mui/icons-material';
+import {
+  BlockOutlined,
+  DnsOutlined,
+  EditOutlined,
+  GroupsOutlined,
+  InfoOutlined,
+  PersonOutlined,
+  PublicOutlined,
+  TaskAltOutlined,
+} from '@mui/icons-material';
 import { Box, Button, Chip, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
@@ -84,7 +93,7 @@ interface ScopeColumnProps {
   rules: WorkflowScopeRuleOutput[];
   resolveLabel: (rule: WorkflowScopeRuleOutput) => string;
   /** Per-entry glyph (asset platform / category, team, person, ...) so a chip reads like it does
-   *  everywhere else in the app rather than a bare label. */
+     *  everywhere else in the app rather than a bare label. */
   resolveIcon: (rule: WorkflowScopeRuleOutput) => ReactElement;
   onAdd: () => void;
   readOnly?: boolean;
@@ -103,8 +112,7 @@ const ScopeColumn = ({
   resolveLabel,
   resolveIcon,
   onAdd,
-  readOnly = false,
-  accent,
+  readOnly = false, accent,
   headerIcon,
   infoTooltip,
 }: ScopeColumnProps) => {
@@ -225,7 +233,7 @@ const ScopeColumn = ({
                           {resolveIcon(rule)}
                         </Box>
                       )}
-                      label={label}
+                      label={rule.workflow_scope_rule_snapshot_start_label ?? label}
                       size="small"
                       variant="outlined"
                       sx={{
@@ -407,10 +415,10 @@ const ScopeRules = ({ workflowId, workflowConfiguration, onUpdate, readOnly = fa
   );
 
   // Live-first, snapshot-fallback resolution. The live inventory lookup keeps the label in sync with
-  // renames; when the referenced asset / group has been deleted the backend-persisted snapshot
-  // (workflow_scope_rule_value_label) keeps a past simulation's scope readable. Only when neither is
-  // available (a pre-migration rule whose asset was already gone) do we show a generic "Deleted"
-  // message rather than the raw id or a permanent "Loading...".
+  // renames; when the referenced asset / group / team / player has been deleted the backend-persisted
+  // snapshot (workflow_scope_rule_value_label) keeps a past simulation's scope readable. Only when
+  // neither is available (a pre-migration rule whose target was already gone) do we show a generic
+  // "Deleted" message rather than the raw id or a permanent "Loading...".
   const resolveLabel = (rule: WorkflowScopeRuleOutput): string => {
     const value = rule.workflow_scope_rule_value ?? '';
     const snapshotLabel = rule.workflow_scope_rule_value_label ?? undefined;
@@ -427,11 +435,11 @@ const ScopeRules = ({ workflowId, workflowConfiguration, onUpdate, readOnly = fa
       }
       case 'TEAM': {
         const team = teamsMap[value];
-        return team?.team_name ?? unresolvedLabel;
+        return team?.team_name ?? snapshotLabel ?? t('Deleted team');
       }
       case 'PLAYER': {
         const user = usersMap[value];
-        if (!user) return unresolvedLabel;
+        if (!user) return snapshotLabel ?? t('Deleted person');
         const name = `${user.user_firstname ?? ''} ${user.user_lastname ?? ''}`.trim();
         return name.length > 0 ? name : (user.user_email ?? unresolvedLabel);
       }

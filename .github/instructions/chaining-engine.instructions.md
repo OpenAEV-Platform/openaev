@@ -4,7 +4,6 @@ applyTo: |
   openaev-api/src/main/java/io/openaev/service/chaining/**,
   openaev-api/src/main/java/io/openaev/scheduler/jobs/QueueChainingJob.java,
   openaev-api/src/main/java/io/openaev/scheduler/jobs/WorkflowTimeoutJob.java,
-  openaev-api/src/main/java/io/openaev/service/InjectChainingCondition.java,
   openaev-api/src/main/java/io/openaev/aop/WorkflowUpdateEvent.java,
   openaev-api/src/main/java/io/openaev/aop/WorkflowUpdateEventAspect.java,
   openaev-api/src/main/java/io/openaev/utils/ConditionUtils.java,
@@ -47,10 +46,6 @@ applyTo: |
 
 The **Chaining Engine** enables automated, conditional execution of steps within a simulation workflow.
 It orchestrates inject sequences based on events, conditions, outputs, and time constraints.
-
-The feature is gated behind the `INJECT_CHAINING` preview feature flag (`PreviewFeature.INJECT_CHAINING`).
-At application startup, beans are conditionally loaded via `InjectChainingCondition` (Spring `@Conditional`),
-and at runtime, endpoints check `PreviewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)`.
 
 The execution flow is driven by a **Step Queue + Delay Queue + Job + Pool** architecture using RabbitMQ.
 
@@ -277,9 +272,6 @@ io.openaev.scheduler.jobs/
   ├── QueueChainingJob.java           ← Quartz job: polls StepDelayQueue for time-delayed steps
   └── WorkflowTimeoutJob.java         ← Quartz job: expires timed-out workflow runs
 
-io.openaev.service/
-  └── InjectChainingCondition.java    ← Spring @Conditional: enables chaining beans if INJECT_CHAINING feature flag is set
-
 io.openaev.utils/
   └── ConditionUtils.java             ← Condition evaluation logic (shared between services)
 
@@ -376,8 +368,6 @@ openaev-front/src/components/common/chaining/
 
 ### Architecture
 
-- The feature is behind `PreviewFeature.INJECT_CHAINING`. All API endpoints must gate with `workflowService.isPreviewFeatureChainingEnable()` or `previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)`.
-- `InjectChainingCondition` is a Spring `@Conditional` — it controls whether chaining beans are loaded. It reads `openaev.enabled-dev-features` from environment properties.
 - `ActionStep` is the strategy interface. Currently only `InjectExecutionStep` implements it. To add a new action type, implement `ActionStep` and register in `StepService.factoryAction()`.
 
 ### Mappers & DTOs
@@ -472,7 +462,6 @@ All endpoints use `@AccessControl` with appropriate `Action` and `ResourceType`.
 ## Related Cross-Cutting Files
 
 - `WorkflowUpdateEventAspect.java` — AOP bridge from inject lifecycle to chaining engine
-- `InjectChainingCondition.java` — Spring `@Conditional` for bean loading
 - `PreviewFeatureService.java` — Runtime feature flag service
 - `PlatformTriggers.java` / `PlatformJobDefinitions.java` — Quartz job registration
 - `ConditionUtils.java` — Shared condition evaluation logic

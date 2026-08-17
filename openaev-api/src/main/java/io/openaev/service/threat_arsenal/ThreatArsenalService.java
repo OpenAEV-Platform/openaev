@@ -11,6 +11,7 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
@@ -270,13 +271,14 @@ public class ThreatArsenalService {
 
   private ThreatArsenalAction updateActionPayloadBased(
       InjectorContract injectorContract, ThreatArsenalActionUpdateInput actionInput) {
+    // Missing required fields are a client mistake, not a server fault: raise the domain
+    // BadRequestException (400) so the caller gets an actionable message it can auto-correct,
+    // instead of leaning on the catch-all IllegalArgumentException mapper.
     if (actionInput.executionArch() == null) {
-      throw new IllegalArgumentException(
-          "action_execution_arch is required for payload-based actions");
+      throw new BadRequestException("action_execution_arch is required for payload-based actions");
     }
     if (actionInput.expectations() == null) {
-      throw new IllegalArgumentException(
-          "action_expectations is required for payload-based actions");
+      throw new BadRequestException("action_expectations is required for payload-based actions");
     }
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
@@ -311,10 +313,13 @@ public class ThreatArsenalService {
    * Duplicates an existing threat arsenal action.
    *
    * <p>Delegates the duplication to the payload service and maps the result back to a {@link
-   * ThreatArsenalAction}.
+   * ThreatArsenalAction}. Native injector contracts (no payload) cannot be duplicated: they must be
+   * reused by id. Returning 404 here used to look like a missing id and sent agents hunting for a
+   * different contract or inventing a weaker original Command.
    *
    * @param actionId the ID of the action to duplicate
    * @return the newly created threat arsenal action copy
+   * @throws BadRequestException if the injector contract is not payload-based
    */
   @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction duplicate(String actionId) {
@@ -322,8 +327,11 @@ public class ThreatArsenalService {
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     Payload payload = injectorContract.getPayload();
     if (payload == null) {
-      throw new ElementNotFoundException(
-          "Only threat arsenal items based on a payload can be duplicated.");
+      throw new BadRequestException(
+          "This threat arsenal item is a native injector (not payload-based) and cannot be"
+              + " duplicated. Reuse its injector contract id as-is. Only payload-based actions"
+              + " (Command, FileDrop, Executable, DnsResolution, and other payload types) can be"
+              + " duplicated so parsers can be added on the copy.");
     }
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =

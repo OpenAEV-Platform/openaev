@@ -168,8 +168,17 @@ nav:
         - Custom Dashboards: usage/evaluate/dashboards/custom-dashboards.md
         - Widgets: usage/evaluate/dashboards/widgets.md
       - Reporting: usage/evaluate/reporting/reporting.md
-      - Autonomous attack path (AI): usage/autonomous-attack-path.md
       - Security Coverage enrichment (XTM Suite): usage/evaluate/xtm-suite-connector.md
+    - Attack Chaining:
+      - Overview: usage/attack-chaining/overview.md
+      - Scope Definition: usage/attack-chaining/scope-definition.md
+      - Action Selection: usage/attack-chaining/action-selection.md
+      - Logic Creation: usage/attack-chaining/logic-creation.md
+      - Attack Path Map: usage/attack-chaining/attack-path-map.md
+    - Autonomous Attack Chaining (AI Penetration Testing):
+      - Overview: usage/autonomous-attack-chaining/overview.md
+      - Scenario Creation: usage/autonomous-attack-chaining/scenario-creation.md
+      - Configuration: usage/autonomous-attack-chaining/configuration.md
     - Build your own Threat Scenario:
       - Scenario: usage/build/scenario/scenario.md
       - Scenario Generation from OpenCTI Security Coverage: usage/build/scenario/security-coverage.md
@@ -186,6 +195,8 @@ nav:
         - Lessons: usage/build/components/lessons.md
       - Threat Arsenal:
         - Actions: usage/build/threat-arsenals/threat-arsenals.md
+        - Action properties: usage/build/threat-arsenals/action-properties.md
+        - Output parsers: usage/build/threat-arsenals/output-parsers.md
         - Domains: usage/build/threat-arsenals/domains.md
     - Notifications: usage/notifications.md
     - Interact with your environment:

@@ -24,7 +24,6 @@ import useAuth from '../../../utils/hooks/useAuth';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ToolBar from '../common/ToolBar';
 import ImportUploaderScenario from './ImportUploaderScenario';
@@ -55,8 +54,6 @@ const Scenarios = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const { isXTMHubAccessible } = useAuth();
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-
   const [loading, setLoading] = useState<boolean>(true);
   const [reloadCount, setReloadCount] = useState<number>(0);
 
@@ -298,7 +295,7 @@ const Scenarios = () => {
           loading
             ? <PaginatedListLoader Icon={RouteOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
             : scenarios.map((scenario: Scenario) => {
-                const isScenarioChaining = isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id;
+                const isScenarioChaining = !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id;
                 // A chained scenario owns its attack-path logic and is never duplicated by hand
                 // (its metadata stays editable); a time-based one may also be duplicated.
                 const scenarioActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = isScenarioChaining

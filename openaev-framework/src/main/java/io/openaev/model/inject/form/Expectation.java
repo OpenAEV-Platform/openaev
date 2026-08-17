@@ -67,6 +67,16 @@ public class Expectation {
   private boolean predefined;
 
   /**
+   * Optional display order of this expectation within its inject, ascending. Lets a contract
+   * declare the logical sequence of its expectations (e.g. a phishing action orders its human steps
+   * email {@literal ->} link {@literal ->} submission) instead of relying on an incidental
+   * alphabetical sort. {@code null} means unordered - the reader then falls back to name / id, so
+   * every other contract is unaffected.
+   */
+  @JsonProperty("expectation_order")
+  private Integer order;
+
+  /**
    * Security platform types expected to fulfil this expectation.
    *
    * <p>When non-empty, the platform focuses the detection/prevention result on collectors of those

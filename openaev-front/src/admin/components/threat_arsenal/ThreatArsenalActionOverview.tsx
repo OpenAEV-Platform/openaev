@@ -51,6 +51,7 @@ import {
   type PayloadArgument,
   type PayloadPrerequisite,
   type ThreatArsenalAction,
+  type ThreatArsenalExpectationDetail,
 } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
 import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
@@ -80,6 +81,12 @@ interface Props {
   // injector-based), passed separately so contracts without a payload still
   // render an Expectations section.
   expectations?: ExpectationType[];
+  // Full contract-declared expectation details (name, description, order),
+  // available for injector-based contracts. When provided, each row renders
+  // its real ordered name (e.g. "Email not opened" -> "Link not clicked" ->
+  // "Credentials not submitted") instead of an indistinguishable type label;
+  // when absent (payload-based actions), rows fall back to `expectations`.
+  expectationDetails?: ThreatArsenalExpectationDetail[];
   // Security platform types expected to fulfil each technical expectation
   // (empty/absent = any security platform).
   expectedSecurityPlatforms?: Record<string, string[]>;
@@ -99,6 +106,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   action,
   payload,
   expectations,
+  expectationDetails,
   expectedSecurityPlatforms,
   providing,
   documentsMap: documentsMapOverride,
@@ -171,6 +179,16 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   const expectationTypes = expectations ?? payload?.payload_expectations ?? [];
   const expectedPlatforms: Record<string, string[]>
     = expectedSecurityPlatforms ?? payload?.payload_expected_security_platforms ?? {};
+
+  // Rows of the Expectations section: the full contract-declared details when
+  // available (real name, description, declared order - already sorted
+  // server-side), else the bare types mapped onto the same shape. One shared
+  // rendering path: a row without a name falls back to its type label, so
+  // payload-based actions look exactly as before.
+  const expectationRows: ThreatArsenalExpectationDetail[]
+    = (expectationDetails && expectationDetails.length > 0)
+      ? expectationDetails
+      : expectationTypes.map(type => ({ expectation_type: type }));
 
   // The author is the payload's author (a person, team or organization) when
   // set. It can legitimately be absent - such actions are shown with a dash, not
@@ -558,7 +576,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
         </Section>
       )}
 
-      {expectationTypes.length > 0 && (
+      {expectationRows.length > 0 && (
         <Section title={t('Expectations')} icon={<VerifiedOutlined fontSize="small" />}>
           <Box sx={{
             display: 'flex',
@@ -566,13 +584,20 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
             gap: 1,
           }}
           >
-            {expectationTypes.map((type) => {
+            {expectationRows.map((row, index) => {
+              const type = row.expectation_type ?? 'MANUAL';
               // Distinct name: `platforms` at component level holds the endpoint platforms.
               const expectedPlatformTypes = expectedPlatforms[type] ?? [];
               const technical = isTechnicalExpectation(type);
+              const typeLabel = t(EXPECTATION_TYPE_LABELS[type] ?? type);
+              const name = row.expectation_name;
+              // Ordered rows sort first (server-side), so their 1-based position
+              // IS the declared sequence - shown as a step numeral to make the
+              // kill-chain order (email -> link -> submission) explicit.
+              const stepNumber = row.expectation_order != null ? index + 1 : null;
               return (
                 <Box
-                  key={type}
+                  key={`${type}-${name ?? index}`}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -591,6 +616,27 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                     minWidth: 0,
                   }}
                   >
+                    {stepNumber != null && (
+                      <Box
+                        aria-hidden
+                        sx={{
+                          width: 20,
+                          height: 20,
+                          flexShrink: 0,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          fontVariantNumeric: 'tabular-nums',
+                          color: 'text.secondary',
+                          border: `1px solid ${theme.palette.divider}`,
+                        }}
+                      >
+                        {stepNumber}
+                      </Box>
+                    )}
                     <Box
                       aria-hidden
                       sx={{
@@ -607,9 +653,51 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                     >
                       {expectationIconByType(type)}
                     </Box>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {t(EXPECTATION_TYPE_LABELS[type] ?? type)}
-                    </Typography>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        minWidth: 0,
+                      }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {name ?? typeLabel}
+                        </Typography>
+                        {row.expectation_description && (
+                          <Tooltip title={row.expectation_description}>
+                            <InfoOutlined
+                              sx={{
+                                fontSize: 14,
+                                color: 'text.secondary',
+                                flexShrink: 0,
+                              }}
+                            />
+                          </Tooltip>
+                        )}
+                      </Box>
+                      {name && (
+                        <Typography
+                          sx={{
+                            fontSize: 10.5,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                            color: 'text.secondary',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {typeLabel}
+                        </Typography>
+                      )}
+                    </Box>
                   </Box>
                   <Box sx={{
                     display: 'flex',

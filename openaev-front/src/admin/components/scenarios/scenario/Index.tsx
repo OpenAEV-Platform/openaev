@@ -1,8 +1,8 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useMemo, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
-import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
+import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import { searchInjectTests } from '../../../../actions/inject_test/scenario-inject-test-actions';
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -20,10 +20,8 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
-import { isFeatureEnabled } from '../../../../utils/utils';
-import AutonomousOverview from '../../autonomous/AutonomousOverview';
 import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
-import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/autonomousStatus';
+import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
 import { useAutonomousRunForScenario } from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
@@ -58,18 +56,40 @@ const IndexScenarioComponent: FunctionComponent<{
 }> = ({ scenario, autonomousRun, onAutonomousRunUpdate, onAutonomousRunCleared }) => {
   const { t } = useFormatter();
   const location = useLocation();
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  // Attack path only exists for chained scenarios (workflow-backed), never
-  // for time-based ones: same gating as the simulation side.
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
-    && isChainingFeatureEnabled
-    && !!scenario.scenario_workflow_id;
-  const isChained = isChainingFeatureEnabled && !!scenario.scenario_workflow_id;
-  // The AI cockpit is live only while a run is ACTIVE (the orchestrator is planning or driving). A
-  // settled run (PLANNED / completed) leaves the scenario a normal editable chained scenario again,
-  // so scope/logic unlock and the overview reverts to the manual one - the operator then reviews the
-  // authored steps and launches (or relaunches) from the hero.
+  // Attack path only exists for workflow-backed (chained) scenarios, never
+  // for time-based ones.
+  const isChained = !!scenario.scenario_workflow_id;
+  // The AI cockpit (right-hand reasoning panel + read-only Scope/Logic) is live only while a run
+  // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
+  // normal scenario page with the AI outcome layered on top (see overviewElement).
   const hasCockpit = isAutonomousRunActive(autonomousRun);
+  const [cockpitTimeline, setCockpitTimeline] = useState<AutonomousEvent[]>([]);
+  // Same identity-change rule as AutonomousReasoningPanel: clear only on a real run /
+  // simulation switch. A transient payload that momentarily lost its simulation id must
+  // not blank the overview layer (it would receive sharedEvents=[] and would not poll).
+  const cockpitStreamKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const runId = autonomousRun?.autonomous_run_id;
+    const simulationId = autonomousRun?.autonomous_run_simulation_id;
+    if (!runId) {
+      cockpitStreamKeyRef.current = null;
+      setCockpitTimeline([]);
+      return;
+    }
+    const nextKey = `${runId}::${simulationId ?? ''}`;
+    if (cockpitStreamKeyRef.current === nextKey) {
+      return;
+    }
+    const previousRunId = cockpitStreamKeyRef.current?.split('::')[0];
+    // Ignore a transient missing simulation id on the SAME run only. A new run
+    // (including plan-mode with no simulation yet) must still reset the timeline
+    // so the previous run's outcome does not flash on the overview.
+    if (cockpitStreamKeyRef.current !== null && previousRunId === runId && !simulationId) {
+      return;
+    }
+    cockpitStreamKeyRef.current = nextKey;
+    setCockpitTimeline([]);
+  }, [autonomousRun?.autonomous_run_id, autonomousRun?.autonomous_run_simulation_id]);
   // Resizable reasoning-panel width, shared with the content padding so the scenario content never
   // renders underneath the panel (mirrors the simulation cockpit).
   const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
@@ -129,14 +149,12 @@ const IndexScenarioComponent: FunctionComponent<{
             value={`/admin/scenarios/${scenario.scenario_id}/logic`}
             label={t('Logic')}
           />
-          {isAttackPathEnabled && (
-            <Tab
-              component={Link}
-              to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-              value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-              label={t('Attack Path')}
-            />
-          )}
+          <Tab
+            component={Link}
+            to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
+            value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
+            label={t('Attack Path')}
+          />
           <Tab
             component={Link}
             to={`/admin/scenarios/${scenario.scenario_id}/execution`}
@@ -213,21 +231,19 @@ const IndexScenarioComponent: FunctionComponent<{
     );
   };
 
-  // Overview swaps to the AI cockpit overview while a run is live; otherwise the manual scenario
-  // overview. Scope and Logic go read-only while the orchestrator owns them (planning or driving) so
-  // an operator edit can never race the AI, and unlock again once the run settles.
-  //
-  // Once the run has SETTLED the cockpit is torn down (scope/logic editable again, no steer panel),
-  // but the manual overview keeps a durable, read-only AI outcome (mission, decision timeline, gaps
-  // and - for a live run - proofs): the settled run is threaded into the manual overview so the
-  // "we lost the timeline / gaps once the scenario is done" gap is closed.
-  const settledRun = isAutonomousRunSettled(autonomousRun) ? autonomousRun : null;
-  const overviewElement = hasCockpit && autonomousRun
-    ? <AutonomousOverview run={autonomousRun} />
-    : errorWrapper(ScenarioComponent)({
-        autonomousRun: settledRun,
-        setOpenInstantiateSimulationAndStart,
-      });
+  // The AI planning / run layer is ADDITIVE, never a replacement: the scenario keeps its FULL normal
+  // overview (posture, information, posture trend, kill chain) and the AI outcome (mission, decision
+  // timeline, capability gaps and - for a live run - proofs) renders as a layer ON TOP of it, for an
+  // active OR a settled run. Passing the current run here (not just a settled one) is what stops
+  // "building with AI" from wiping the normal overview - it is the same scenario with a planning
+  // layer, not a different page. The live reasoning stream still lives in the right-hand cockpit
+  // panel, and Scope / Logic still go read-only while the orchestrator owns them (see hasCockpit).
+  const overviewElement = errorWrapper(ScenarioComponent)({
+    autonomousRun,
+    setOpenInstantiateSimulationAndStart,
+    onAutonomousRunCleared,
+    timelineEvents: hasCockpit ? cockpitTimeline : undefined,
+  });
 
   return (
     <PermissionsContext.Provider value={permissionsContext}>
@@ -279,7 +295,7 @@ const IndexScenarioComponent: FunctionComponent<{
                 <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
                 <Route path="lessons" element={errorWrapper(Lessons)()} />
                 <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
-                {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
+                {isChained && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
                 {/* Live execution of the scenario's latest simulation - available for every scenario
                     type, mirroring the simulation Execution tab. */}
                 <Route path="execution" element={errorWrapper(ScenarioExecution)()} />
@@ -313,6 +329,7 @@ const IndexScenarioComponent: FunctionComponent<{
             <AutonomousReasoningPanel
               run={autonomousRun}
               onRunUpdate={onAutonomousRunUpdate}
+              onTimelineEvents={setCockpitTimeline}
               width={panelWidth}
               onWidthChange={setPanelWidth}
             />
@@ -338,12 +355,16 @@ const Index = () => {
   // live autonomous launch, while a TIME-BASED scenario never can - so we probe only chained
   // scenarios (undefined = probe) and skip the lookup entirely otherwise (false = known manual, no
   // 404). While the scenario is still loading we leave it undefined to probe as before.
-  const isChained = isFeatureEnabled('INJECT_CHAINING') && !!scenario?.scenario_workflow_id;
+  const isChained = !!scenario?.scenario_workflow_id;
   // undefined = still probing (scenario loading, or a chained scenario that may carry a run);
-  // false = known manual (a loaded time-based scenario), which skips the lookup and its 404.
+  // false = known manual (a loaded time-based scenario), which skips the lookup and its 404;
+  // true = declared autonomous (scenario_autonomous marker), so detection stays PENDING across a
+  // transient post-reload 404 instead of flashing this page's manual view, and re-probes fast.
   let knownAutonomous: boolean | undefined;
   if (scenario && !isChained) {
     knownAutonomous = false;
+  } else if (scenario?.scenario_autonomous === true) {
+    knownAutonomous = true;
   }
   const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun, clearRun: clearAutonomousRun } = useAutonomousRunForScenario(
     scenarioId,

@@ -1,5 +1,5 @@
 import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, Divider, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -8,8 +8,9 @@ import { fetchAutonomousTimeline } from '../../../actions/autonomous/autonomous-
 import { type AutonomousEvent, type AutonomousRun, type AutonomousRunStatus } from '../../../actions/autonomous/autonomous-types';
 import { HeroStat, HeroStats, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
+import GraphCardTooltip from '../chaining/logic/logic-graph/GraphCardTooltip';
 import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
-import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
+import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, isHeartbeatEvent, isLiveActivityEvent, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
 import AutonomousOutcomeDialog, { type OutcomeKind } from './AutonomousOutcomeDialog';
 
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['PLANNING', 'RUNNING', 'WAITING_INPUT'];
@@ -216,8 +217,11 @@ const OutcomeCard: FunctionComponent<{
 interface AutonomousOutcomeProps {
   run: AutonomousRun;
   // Live cockpit polls the timeline while the run is active; the durable read on a settled scenario
-  // fetches once and never polls. Defaults to live.
+  // fetches once and never polls. Defaults to live. Ignored when `sharedEvents` is provided.
   live?: boolean;
+  // When the parent already owns a live timeline (the reasoning panel), reuse it instead of
+  // starting a second full-from-cursor-0 poll of the same endpoint.
+  sharedEvents?: AutonomousEvent[];
 }
 
 /**
@@ -231,7 +235,7 @@ interface AutonomousOutcomeProps {
  * the proofs column, the "Proofs" hero stat and the sample PROOF timeline node are all dropped, and
  * the gaps column takes the full width.
  */
-const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, live = true }) => {
+const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, live = true, sharedEvents }) => {
   const theme = useTheme();
   const { t, nsdt, vnsdt } = useFormatter();
   const accent = theme.palette.ai?.main ?? theme.palette.primary.main;
@@ -244,7 +248,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
   const status = run.autonomous_run_status;
   const simulationId = run.autonomous_run_simulation_id;
 
-  const [events, setEvents] = useState<AutonomousEvent[]>([]);
+  const [events, setEvents] = useState<AutonomousEvent[]>(sharedEvents ?? []);
   // The gap / proof card the operator drilled into, with the tags already
   // extracted so the dialog does not re-parse them.
   const [selectedOutcome, setSelectedOutcome] = useState<{
@@ -258,25 +262,38 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
   // inspect earlier decisions (see the scroll handler + effect below).
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
   const timelinePinnedRef = useRef(true);
+  // Bumped on every timeline scroll and chained into the tooltip dismiss key: the timeline
+  // auto-scrolls under the live poll (tail-follow), which slides a node out from under a stationary
+  // cursor with no mouseleave - the exact stuck-tooltip trap the graph cards already guard against.
+  const [timelineScrollNonce, setTimelineScrollNonce] = useState(0);
+
+  const usesSharedTimeline = sharedEvents !== undefined;
+  useEffect(() => {
+    if (sharedEvents !== undefined) {
+      setEvents(sharedEvents);
+    }
+  }, [sharedEvents]);
 
   const reload = useCallback(() => fetchAutonomousTimeline(runId, 0)
     .then(res => setEvents(res.data ?? []))
     .catch(() => {}), [runId]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (!usesSharedTimeline) {
+      reload();
+    }
+  }, [reload, usesSharedTimeline]);
 
   const isActive = ACTIVE_STATUSES.includes(status);
   useEffect(() => {
-    if (!live || !isActive) {
+    if (usesSharedTimeline || !live || !isActive) {
       return undefined;
     }
     const interval = setInterval(() => {
       reload();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [live, isActive, reload]);
+  }, [live, isActive, reload, usesSharedTimeline]);
 
   // Keep timelinePinnedRef in sync with how close the operator is to the right
   // edge, so we only tail-follow when they are already watching the latest.
@@ -287,10 +304,22 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
     }
     const distanceFromRight = node.scrollWidth - node.clientWidth - node.scrollLeft;
     timelinePinnedRef.current = distanceFromRight < 48;
+    // Dismiss any open node tooltip: the card just moved under the cursor.
+    setTimelineScrollNonce(nonce => nonce + 1);
   }, []);
 
   const proofEvents = useMemo(() => events.filter(e => e.autonomous_event_type === 'PROOF'), [events]);
   const capabilityGaps = useMemo(() => events.filter(e => e.autonomous_event_type === 'GAP'), [events]);
+  // Heartbeats (~45s freshness pings) and live-activity NARRATIONs (the per-iteration "what it is
+  // doing right now" lines the worker streams to keep the cockpit thinking window scrolling) are
+  // both cockpit-liveness signals, not decisions. Neither must appear as a node on the decision
+  // timeline nor inflate the decision count, so every timeline-facing read works off the filtered
+  // stream (the reasoning panel filters them the same way - single source of truth in
+  // autonomousEventVisuals).
+  const decisionEvents = useMemo(
+    () => events.filter(e => !isHeartbeatEvent(e) && !isLiveActivityEvent(e)),
+    [events],
+  );
 
   const buildProofReport = (): string => {
     const lines: string[] = [];
@@ -423,7 +452,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
   // A small greyed sample storyline so the timeline reads as a timeline before the first real
   // events land, matching the sample fallbacks used everywhere else on this tab. In plan mode the
   // PROOF node is dropped - a plan never executes, so it can never prove exploitation.
-  const timelineIsSample = events.length === 0;
+  const timelineIsSample = decisionEvents.length === 0;
   const sampleTimeline: AutonomousEvent[] = useMemo(() => {
     const base = [
       {
@@ -462,7 +491,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
       autonomous_event_title: e.title,
     }));
   }, [t, runId, isPlanMode]);
-  const timelineEvents = timelineIsSample ? sampleTimeline : events;
+  const timelineEvents = timelineIsSample ? sampleTimeline : decisionEvents;
 
   // When new decision-timeline nodes append on the right, follow them to the
   // tail - but only if the operator has not scrolled back to inspect earlier
@@ -619,7 +648,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
             <HeroStat
               icon={BoltOutlined}
               label={t('Decisions')}
-              value={events.length}
+              value={decisionEvents.length}
               color={accent}
             />
             {/* Proof of exploitation is impossible in plan mode (nothing executes), so the stat is
@@ -652,7 +681,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
           : (
               <Chip
                 size="small"
-                label={events.length}
+                label={decisionEvents.length}
                 variant="outlined"
                 sx={{
                   borderRadius: 1,
@@ -708,8 +737,14 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                 );
                 const tipTags = renderTags(tipTechniques, tipCves);
                 return (
-                  <Tooltip
+                  <GraphCardTooltip
                     key={event.autonomous_event_id}
+                    // Controlled tooltip shared with the causal graph: it force-closes on press, on
+                    // wheel-zoom, and whenever the dismiss key changes. The key folds the timeline
+                    // length (a poll appended/removed a node) and a scroll nonce (the auto-scroll
+                    // slid the node under the cursor), so the rich card can never stick open over the
+                    // live-polling timeline the way the old uncontrolled Tooltip did.
+                    dismissKey={`${timelineEvents.length}:${timelineScrollNonce}`}
                     // Render the tooltip as a proper card (matches the panel/dialog surface) rather
                     // than the cramped default: header with the event-type chip + timestamp, a
                     // right-sized title, MITRE/CVE tags, then the reasoning body clamped so a long
@@ -728,7 +763,6 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                       },
                       arrow: { sx: { color: theme.palette.background.paper } },
                     }}
-                    arrow
                     title={(
                       <Box>
                         <Stack sx={{
@@ -846,7 +880,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                         </Typography>
                       )}
                     </Stack>
-                  </Tooltip>
+                  </GraphCardTooltip>
                 );
               })}
             </Box>

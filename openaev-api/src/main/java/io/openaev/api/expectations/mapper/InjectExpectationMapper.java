@@ -21,6 +21,7 @@ public final class InjectExpectationMapper {
         expectation.getExpectedScore(),
         expectation.getExpirationTime(),
         expectation.isExpectationGroup(),
+        expectation.getOrder(),
         expectation.getResponse(),
         expectation.getCreatedAt(),
         expectation.getUpdatedAt(),
