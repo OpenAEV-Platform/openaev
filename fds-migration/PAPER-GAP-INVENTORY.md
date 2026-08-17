@@ -869,3 +869,208 @@ lisant le fichier pilote à travers le serveur de développement, pas déclaré.
 Quatre écrans × deux thèmes, plus les deux planches dédiées (colonne, bordure) :
 douze planches en tout, avec un zoom 1:1 sur le premier en-tête titré de chaque
 écran.
+
+
+## 14. Règle de méthode — une surface se qualifie sur sa PILE D'ANCÊTRES
+
+**À lire avant tout recensement de surfaces, dans n'importe quel produit
+Filigran. Cette section est autonome : elle ne suppose rien de connu du reste du
+document.**
+
+### Le problème qu'elle traite
+
+Migrer les surfaces d'un produit vers le `Paper` de la bibliothèque suppose
+d'abord de savoir **lesquelles sont concernées**. Le périmètre retenu est celui
+des **conteneurs de premier niveau** : les blocs posés sur la page, portant le
+fond élevé, du type des tuiles d'un tableau de bord. En sont exclus les cartes,
+les infobulles, les alertes, les dialogues, les popovers, les menus, les
+autocomplétions, les accordéons, et toute surface **interne à un autre
+composant**.
+
+Recenser cela par recherche textuelle donne un résultat faux, et faux dans le
+sens dangereux : il fait entrer dans le périmètre des surfaces qui n'ont rien à
+y faire. Sur OpenAEV, 777 relevés bruts ont donné 395 conteneurs puis 130 dans
+le périmètre — et **deux surfaces recommandées à la conversion n'auraient jamais
+dû y figurer**. Les deux fois, c'était une surface FLOTTANTE.
+
+### La règle
+
+> **Toute surface se qualifie sur sa pile d'ancêtres JSX complète, jamais sur une
+> fenêtre de lignes. Une surface portée par un composant flottant — infobulle,
+> tiroir, popover, popper, menu, dialogue, autocomplétion — n'entre JAMAIS dans
+> le périmètre des conteneurs de premier niveau, quel que soit son aspect.**
+
+### Comment l'appliquer
+
+1. **Relever large.** Chercher les composants de surface de la bibliothèque
+   d'interface utilisée (`Paper`, `Card`, `Accordion`, `Dialog`, `Popover`,
+   `Menu`, `Drawer`, `Tooltip`, `Alert`…), **plus** les surfaces peintes à la
+   main : un `Box`/`div` dont le style pose la couleur de fond élevé. Ces
+   dernières sont invisibles à toute recherche par nom de composant. Sur
+   OpenAEV, elles étaient **48**, soit plus du tiers du périmètre final.
+2. **Calculer la pile d'ancêtres de chaque relevé** sur le fichier entier, en
+   empilant les balises ouvrantes et en dépilant les fermantes. Une fenêtre de
+   lignes ne suffit pas : un `Drawer` ouvert soixante lignes plus haut est hors
+   de portée d'une fenêtre de quarante.
+3. **Exclure tout relevé dont la pile contient un composant flottant encore
+   ouvert.** C'est mécanique et sans exception.
+4. **Relire à la main tout ce que l'outil classe en « à convertir ».** Sur
+   OpenAEV, les deux rattrapages viennent de cette relecture, pas d'un détecteur
+   mieux réglé.
+
+### Les quatre pièges, chacun payé par une erreur réelle
+
+- **Ne pas chercher un nom de prop, chercher un ancêtre.** Un composant peint sa
+  surface via `slotProps`, dont la clé porte le nom de la PARTIE stylée :
+  `slotProps={{ tooltip: { sx: { backgroundColor: … } } }}`. Le mot `paper`
+  n'apparaît nulle part. Chercher `PaperProps`/`slotProps.paper` rate le cas ;
+  chercher l'ancêtre `Tooltip` le trouve.
+- **Une fenêtre de lignes ment.** Passer d'une fenêtre de 40 lignes à la pile
+  complète a fait passer OpenAEV de 2 à 6 surfaces flottantes détectées.
+- **Un fond « élevé » peint à la main ne dit rien du rôle.** Le même
+  `background.paper` sert des panneaux de page, des pastilles, des nœuds de
+  graphe et des fonds d'infobulle.
+- **Le rôle déduit du nom de fichier est une hypothèse.** `…Panel.tsx` peut être
+  un conteneur de page ; `…Card.tsx` peut ne pas être une carte. Le nom oriente
+  la relecture, il ne la remplace pas.
+
+### Corollaire pour la revue
+
+Quand un arbitrage humain est demandé sur le rôle d'une surface, **fournir la
+pile d'ancêtres plutôt qu'une capture**. La pile est une preuve vérifiable ; une
+vignette montre une apparence, et une infobulle stylée en carte ressemble
+exactement à un conteneur de premier niveau.
+
+### Outil
+
+Le détecteur d'ancêtres utilisé pour OpenAEV ne dépend que de la structure JSX,
+pas du produit : il empile les balises ouvrantes du fichier et signale celles
+des relevés dont la pile contient un composant flottant. Il se réutilise tel
+quel sur un autre produit en changeant le chemin des sources et la liste des
+composants flottants de sa bibliothèque d'interface.
+
+
+## 15. Class A — what the census got wrong about padding, and the twelve it blocks
+
+Converting class A surfaced two defects in the census tooling and one hard
+limit in the library. Recorded here because the arbitration was made on the
+faulty numbers.
+
+### 15.1 The two extractor defects
+
+**The padding often lives in a `makeStyles` block**, reached through
+`classes={{ root }}`, not in `sx`. The extractor read `sx` and `style` only, so
+**18 sites** were recorded as "padding 0 conservé" when they carry one.
+
+**And a bare number in `sx` is not a pixel.** In MUI's `sx`, `padding: 2` means
+`theme.spacing(2)` = **16px**. Reading it as CSS made the first pass declare
+fourteen perfectly on-scale sites "hors échelle". The interpretation now depends
+on the source: spacing units inside `sx`, raw pixels inside `makeStyles` or
+`style`.
+
+After both fixes: **36 of the 51 convert as they stand, 15 do not.**
+
+### 15.2 The three off-scale values — 15 → 16 and 20 → 16
+
+`AtomicTesting.tsx:368` and `:422` carry 15px, `Policies.tsx:59` carries 20px.
+
+**Both go to 16, the nearest value DOWNWARD**, and that is a deliberate choice
+rather than a rounding rule: these three screens are dense — a remediation list
+and a policy grid — and taking 20 up to 24 would add height to panels that
+already scroll. Elsewhere in this migration a 12 went **up** to 16 and a 48 went
+**down** to 32; the rule is not "always down", it is "whichever neighbour serves
+the screen". **This is not an inconsistency to be tidied away later.**
+
+### 15.3 The twelve asymmetric ones stay out of the wave
+
+| padding | sites |
+| --- | --- |
+| `0 20px 0 0` | 9 — `ExerciseDistribution.tsx` charts |
+| `20px 20px 0 20px` | 2 — `Inject.tsx:191`, `Inject.tsx:215` |
+| `10px 15px 20px 15px` | 1 — `LessonsPlayer.jsx:160` |
+
+`Paper`'s `padding` takes a single value for all four sides, so none of these
+can be expressed. The workaround — `padding={0}` plus an inner wrapper — renders
+identically and adds a technical level inside twelve files to satisfy a prop
+signature. That is the debt this migration removes, so **they stay on MUI** until
+the library can express a per-side padding. Upstream request: **feedback #38**.
+
+### 15.4 Method — every spacing prop of an `sx` is in spacing units
+
+A bare number in MUI's `sx` is **not a pixel**: it is multiplied by the theme's
+spacing unit, 8px here. Moving an `sx` to the `style` prop — which the library
+`Paper` accepts, and `sx` is not — switches to raw CSS, where the same number
+means pixels. Every value moved across that boundary must be converted, or it
+silently shrinks by a factor of eight.
+
+This is not limited to `padding`. It applies to **every spacing prop**:
+
+| in `sx` | in `style` |
+| --- | --- |
+| `padding` / `p` / `px` / `py` / `pt` `pr` `pb` `pl` | `padding…` in px |
+| `margin` / `m` / `mx` / `my` / `mt` `mr` `mb` `ml` | `margin…` in px |
+| `gap`, `rowGap`, `columnGap` | same, in px |
+| `top` / `right` / `bottom` / `left` when given a bare number | same, in px |
+
+`padding: 2` → 16px. `gap: 1.5` → 12px. `mt: 3` → 24px.
+
+**Nothing catches this.** TypeScript accepts both forms, ESLint has no rule for
+it, and a unit test on structure will not see a gutter go from 12px to 1.5px.
+Only a measurement in a real browser, or reading each value at conversion time,
+will.
+
+**The rule for every remaining conversion:** before moving an `sx` to `style`,
+list its properties, convert each spacing value to pixels explicitly, and check
+that no property is dropped. Class G — the hand-painted `Box` surfaces — is
+where this matters most: the whole `sx` moves, so every spacing value in it
+crosses the boundary at once.
+
+
+## 16. Two more method rules, from the hand-painted surfaces
+
+These belong next to §14 and §15: they are what a census does not tell you, and
+what the OpenCTI pilot will meet the moment it touches a surface painted by hand
+rather than drawn by a `Paper`.
+
+### 16.1 Converting a hand-painted background changes the TAG, not the style
+
+A `Paper` → `Paper` conversion moves props between two components that both draw
+a surface. A hand-painted surface is different: the colour lives in the `sx` of a
+`Box`, a `div` or a `header`, and **removing that `sx` removes the surface**. The
+element must become the library `Paper`.
+
+Recorded because the mistake was made here: the `sx` of a
+`<Box component="section">` was replaced with `padding={0} style={…}` and the
+`Box` was left in place. The surface simply vanished — **no type error, no lint
+error, no failing test**. Nothing catches it but reading the diff or looking at
+the screen.
+
+> **Rule.** For a hand-painted surface, the conversion is `<Box sx={{…}}>` →
+> `<Paper padding={N} style={{…}}>` — tag included. Check the closing tag too.
+
+The practical consequence is that these conversions cannot be scripted the way a
+`Paper` → `Paper` swap can: each one is a structural edit, and each one needs its
+own before/after read.
+
+### 16.2 A conditionally painted surface has two faces
+
+`EmptyPlaceholder` paints its border and background inside a conditional spread:
+
+```
+...(bordered ? { border, backgroundColor } : {})
+```
+
+The component renders **with or without a surface** depending on a prop. A
+library `Paper` always has one, so converting it would give the bare variant a
+border and a background it never had — a change in every screen that uses the
+bare form.
+
+> **Rule.** Before converting, check whether the surface is unconditional. A
+> painted background behind a ternary, a spread or an `&&` means the component
+> has two faces, and the conversion must be arbitrated, not assumed.
+
+The same shape hides a second question: `SecurityDomainsModule` varies only the
+**opacity** by state (`alpha(paper, hasData ? 1 : 0.5)`). That one is convertible
+— its content carries the state independently, in four other places — but only
+because it was checked. The test is always the same: **does anything but the
+surface tell the user which state this is?**

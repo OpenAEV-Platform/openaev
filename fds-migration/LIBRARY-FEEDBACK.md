@@ -1992,3 +1992,61 @@ library's truncating div. But a consumer cannot know whether truncation
 happened, so the tooltip appears on **every** header, truncated or not: 106
 panels in this product would grow a hover tooltip to fix one. Not applied here
 for that reason; recorded so the trade-off is explicit rather than rediscovered.
+
+
+## 38. `Paper`'s `padding` cannot express a per-side value
+
+**Measured on the installed build at pin `a22b188`**, against the real product
+sites that carry an asymmetric padding today.
+
+`padding` takes one value from the `0 | 8 | 16 | 24 | 32` scale and applies it to
+all four sides. Fifteen container surfaces in OpenAEV cannot express their padding with the
+prop as it stands. Twelve pad their sides differently:
+
+| value in the product | sites | what it does |
+| --- | --- | --- |
+| `0 20px 0 0` | 9 — the simulation overview charts | right gutter only, so a chart's axis labels clear the panel edge while the plot itself runs full-bleed |
+| `20px 20px 0 20px` | 2 — the simulation e-mail panels | no bottom padding: the last row of the list sits flush on the border |
+| `10px 15px 20px 15px` | 1 — the lessons player | a heavier bottom than top |
+
+**This is not a rounding question.** The other off-scale paddings we met (12, 15,
+20, 48) each have a nearest neighbour on the scale, and the product picked one.
+A per-side value has no nearest neighbour: any single value changes the layout
+on at least one side.
+
+**Why the product will not work around it.** The obvious workaround is
+`padding={0}` plus an inner wrapper carrying the asymmetric padding. It renders
+identically, and it adds one technical level inside twelve files for no reason
+other than a prop signature. That is exactly the debt this migration exists to
+remove, so these twelve stay on MUI until the library can express it.
+
+**Three more forms, found while converting the hand-painted surfaces.** The
+request is wider than asymmetry:
+
+| form | site | what it does |
+| --- | --- | --- |
+| **responsive** — `padding: { xs: 2, md: 3 }` | threat-arsenal hero | 16px on a narrow screen, 24px from the medium breakpoint up |
+| **logical** — `paddingBlock: 8` + `paddingInline: 4` | threat-arsenal empty state | 64px vertical, 32px horizontal, expressed on the block/inline axes rather than per physical side |
+| **layered background** — `padding: 6` with a four-layer `backgroundImage` | report cover module | the surface paints a 28px grid pattern over its colour; padding is only half the story |
+
+The logical form matters beyond padding: it is the writing-mode-aware way to
+express spacing, and a design system that only offers `top/right/bottom/left`
+pushes consumers back to physical sides.
+
+**Ask.** Let `padding` accept, alongside the scalar:
+
+- a **per-side** form — an object (`{ top, right, bottom, left }`) or a tuple;
+- a **logical** form — `{ block, inline }`;
+- a **responsive** form — a value per breakpoint, as the host UI library already
+  allows.
+
+Each side still constrained to the scale. On the OpenAEV sites: the per-side
+form covers 11 of the 15 blocked surfaces, logical covers 1, responsive covers
+1; the remaining 2 also need a value off the scale and will round.
+
+The layered background is a separate question and not part of this request —
+recorded here only so the two are not confused when the padding work is scoped.
+
+**Not urgent, but it caps the wave.** Twelve surfaces out of the 130 in the
+OpenAEV container perimeter — 9%, and they are the only ones with no path
+forward. Everything else either converts or is out of scope by design.
