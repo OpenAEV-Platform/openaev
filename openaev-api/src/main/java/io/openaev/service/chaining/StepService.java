@@ -215,10 +215,18 @@ public class StepService {
    * non-preserved conditions, clear the step-side links, recreate from input, re-link the preserved
    * DEPEND_ON root.
    *
+   * <p>When {@code stepInput.getConditionIds()} names EXISTING event roots to reuse (the
+   * event-sharing path: a step corrected to fire on an event that already exists), those roots and
+   * their whole subtree are PRESERVED across the delete (never unlinked, so a shared event other
+   * steps depend on is never dropped) and then linked to this step, exactly the {@code
+   * condition_ids} channel {@link #createInjectStepTemplateIdempotent} uses. The link is
+   * idempotent, so re-passing an already-linked event is a no-op.
+   *
    * @param stepTemplateId the id of the step template to update
-   * @param stepInput the new inject step input (data)
+   * @param stepInput the new inject step input (data); its {@code conditionIds} name existing event
+   *     roots to reuse
    * @param triggerConditions the finding-trigger + mapper conditions to install (an empty list
-   *     clears the trigger while keeping DEPEND_ON)
+   *     clears the trigger while keeping DEPEND_ON and any reused event links)
    * @return the updated step template
    */
   @Transactional(rollbackFor = Exception.class)
@@ -250,12 +258,27 @@ public class StepService {
             .filter(condition -> condition.getType() == ConditionType.DEPEND_ON)
             .map(Condition::getId)
             .toList();
-    conditionService.deleteAllConditionsByStepId(stepTemplateId, preservedDependOnIds);
+    // Existing event roots the caller asked to reuse are preserved across the delete alongside the
+    // DEPEND_ON parent, so rebuilding this step's trigger never unlinks - let alone deletes - a
+    // shared event that other steps still fire on. deleteAllConditionsByStepId preserves the whole
+    // subtree of every excluded root, so the event's leaves survive too.
+    List<String> reusedEventIds =
+        stepInput.getConditionIds() == null
+            ? List.of()
+            : stepInput.getConditionIds().stream()
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
+    List<String> preserved = new ArrayList<>(preservedDependOnIds);
+    preserved.addAll(reusedEventIds);
+    conditionService.deleteAllConditionsByStepId(stepTemplateId, preserved);
     if (existing.getConditionSteps() != null) {
       existing.getConditionSteps().clear();
     }
     stepConditionTemplate(triggerConditions, existing.getWorkflow().getId(), existing);
     conditionService.linkExistingConditionsToStep(existing, preservedDependOnIds);
+    // Link the reused event roots (idempotent: a re-passed, still-linked event is a no-op; a newly
+    // chosen event is linked fresh). This is how an updated step attaches to a SHARED event.
+    conditionService.linkExistingConditionsToStep(existing, reusedEventIds);
     return saveStep(existing);
   }
 

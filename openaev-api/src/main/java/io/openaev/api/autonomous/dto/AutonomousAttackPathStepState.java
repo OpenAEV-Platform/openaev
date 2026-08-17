@@ -41,6 +41,16 @@ public class AutonomousAttackPathStepState {
               + "ordering fallback, not the primary wiring.")
   private String parentStepTemplateId;
 
+  @JsonProperty("event_id")
+  @Schema(
+      description =
+          "Stable id of the finding EVENT this step fires on (the trigger root), or null for a "
+              + "seed / standalone / pure DEPEND_ON step that has no event. Pass it back as a "
+              + "trigger's event_id when authoring another step to attach that step to the SAME "
+              + "event instead of duplicating it - this is how several actions share one event "
+              + "(e.g. one \"SMB service exposed\" event feeding many follow-on actions).")
+  private String eventId;
+
   @JsonProperty("event_name")
   @Schema(
       description =
