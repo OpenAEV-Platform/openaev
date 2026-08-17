@@ -25,14 +25,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * TenantScopedEntrypointsTxCtxArchTest} already forces every handler reaching the tenant-active
  * {@code autonomous_*} tables to carry a {@code TxCtx}; this test forces the NEXT decision - every
  * {@code TxCtx} handler on this controller must be explicitly classified as an orchestrator
- * callback (run-scoped) or an operator endpoint (caller-scoped), so a twelfth callback added later
- * fails here instead of silently defaulting to a scope nobody chose.
+ * callback (run-scoped) or an operator endpoint (caller-scoped), so a thirteenth callback added
+ * later fails here instead of silently defaulting to a scope nobody chose.
  *
  * <p>Each run-scoped handler must also name its run through the {@code {runId}} path variable: the
  * resolver derives the scope from exactly that variable and fails closed (404) when it is absent,
  * so a renamed variable would brick the callback silently in production but loudly here.
  */
-@DisplayName("@RunTenantScope stays pinned to the eleven orchestrator callbacks")
+@DisplayName("@RunTenantScope stays pinned to the twelve orchestrator callbacks")
 class AutonomousRunApiRunTenantScopeTest {
 
   /** The orchestrator callbacks: scoped from the parent run on the legacy non-prefixed route. */
@@ -45,6 +45,7 @@ class AutonomousRunApiRunTenantScopeTest {
           "consumeDirectives",
           "appendAttackPathStep",
           "updateAttackPathStep",
+          "deleteAttackPathStep",
           "attackPathState",
           "evaluateAttackPath",
           "promoteFindingToAsset",

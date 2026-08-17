@@ -202,6 +202,91 @@ public class StepService {
   }
 
   /**
+   * Trigger-aware sibling of {@link #updateInjectStepTemplateData(String,
+   * StepsCreateInput.StepInput)}: updates the baked inject data AND replaces the step's
+   * finding-trigger conditions (event root + leaf filters + MAPPER bindings), while PRESERVING any
+   * DEPEND_ON ordering parent so the kill-chain edge stays intact. This is how the AI orchestrator
+   * CORRECTS a mis-wired finding-driven step (change what it fires on / consumes) in place, instead
+   * of re-authoring a duplicate or moving it in the chain.
+   *
+   * <p>Deliberately does NOT assert {@link WorkflowEditability}: the orchestrator is the author of
+   * an autonomous run's workflow, exactly like {@link #createInjectStepTemplateIdempotent}. The
+   * condition swap mirrors the manual full-replace strategy in {@code updateStep} - delete the
+   * non-preserved conditions, clear the step-side links, recreate from input, re-link the preserved
+   * DEPEND_ON root.
+   *
+   * @param stepTemplateId the id of the step template to update
+   * @param stepInput the new inject step input (data)
+   * @param triggerConditions the finding-trigger + mapper conditions to install (an empty list
+   *     clears the trigger while keeping DEPEND_ON)
+   * @return the updated step template
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Step updateInjectStepTemplateDataAndTrigger(
+      String stepTemplateId,
+      StepsCreateInput.StepInput stepInput,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    Step existing =
+        stepRepository
+            .findById(stepTemplateId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Step template not found. Step template ID: " + stepTemplateId));
+    if (!StepActionClass.INJECT_EXECUTION.equals(existing.getStepAction())) {
+      throw new ChainingException(
+          "Step template " + stepTemplateId + " is not an inject-execution step");
+    }
+    ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
+    Step candidate =
+        actionStep
+            .create(stepInput, existing.getWorkflow())
+            .orElseThrow(() -> new ChainingException("Failed to rebuild step data (TEMPLATE)"));
+    existing.setData(candidate.getData());
+
+    List<String> preservedDependOnIds =
+        conditionService.findAllConditionsByStepId(stepTemplateId).stream()
+            .filter(condition -> condition.getType() == ConditionType.DEPEND_ON)
+            .map(Condition::getId)
+            .toList();
+    conditionService.deleteAllConditionsByStepId(stepTemplateId, preservedDependOnIds);
+    if (existing.getConditionSteps() != null) {
+      existing.getConditionSteps().clear();
+    }
+    stepConditionTemplate(triggerConditions, existing.getWorkflow().getId(), existing);
+    conditionService.linkExistingConditionsToStep(existing, preservedDependOnIds);
+    return saveStep(existing);
+  }
+
+  /**
+   * Deletes an INJECT_EXECUTION step template and its conditions on behalf of the AI orchestrator,
+   * WITHOUT the manual {@link WorkflowEditability} guard (the orchestrator is the author of an
+   * autonomous run's workflow, exactly like {@link #createInjectStepTemplateIdempotent}). Used to
+   * PRUNE a mis-authored finding-driven step. Executed run steps stay as history (their {@code
+   * stepTemplate} reference is nulled by the on-delete policy), so pruning a template never
+   * rewrites what already ran.
+   *
+   * @param stepTemplateId the id of the step template to delete
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteInjectStepTemplate(String stepTemplateId) throws ChainingException {
+    Step existing =
+        stepRepository
+            .findById(stepTemplateId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Step template not found. Step template ID: " + stepTemplateId));
+    if (!StepActionClass.INJECT_EXECUTION.equals(existing.getStepAction())) {
+      throw new ChainingException(
+          "Step template " + stepTemplateId + " is not an inject-execution step");
+    }
+    conditionService.deleteAllConditionsByStepId(stepTemplateId);
+    stepRepository.delete(existing);
+  }
+
+  /**
    * Create step templates.
    *
    * @param workflow workflow linked to the step templates

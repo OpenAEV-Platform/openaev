@@ -6,6 +6,7 @@ import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -29,6 +30,14 @@ public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, St
   boolean existsBySimulationId(String simulationId);
 
   List<AutonomousRun> findAllByOrderByCreatedAtDesc();
+
+  /**
+   * Newest-first page of runs, so the list read can be bounded by a cap instead of loading the
+   * whole tenant-wide table (which grows without limit over a deployment's life) and filtering it
+   * in memory. Used by the cockpit list, which is a newest-first view.
+   */
+  @Query("SELECT r FROM AutonomousRun r ORDER BY r.createdAt DESC")
+  List<AutonomousRun> findRecent(Pageable pageable);
 
   /**
    * Tenant-scoped primary-key lookup. Hibernate tenant {@code @Filter}s do not apply to {@code

@@ -3,7 +3,7 @@ import * as R from 'ramda';
 import { type FunctionComponent, useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
-import { type AutonomousRun, type AutonomousRunStatus } from '../../../actions/autonomous/autonomous-types';
+import { type AutonomousEvent, type AutonomousRun, type AutonomousRunStatus } from '../../../actions/autonomous/autonomous-types';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../actions/exercises/exercise-action';
 import { SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
 import PostureGauges from '../../../components/common/detail/PostureGauges';
@@ -19,7 +19,13 @@ import AutonomousOutcome from './AutonomousOutcome';
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['PLANNING', 'RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 5000;
 
-interface AutonomousOverviewProps { run: AutonomousRun }
+interface AutonomousOverviewProps {
+  run: AutonomousRun;
+  // The timeline already polled by the always-open reasoning panel. When provided, the outcome
+  // layer reuses it (via AutonomousOutcome's sharedEvents) instead of starting a SECOND
+  // full-from-cursor-0 poll of the same endpoint - the simulation-side double-poll fix (#7472).
+  sharedEvents?: AutonomousEvent[];
+}
 
 /**
  * Overview tab of an autonomous (AI-driven) run. It renders the durable, exportable
@@ -31,7 +37,7 @@ interface AutonomousOverviewProps { run: AutonomousRun }
  * Plan mode is non-executing (no injects run), so the posture / kill-chain sections are dropped:
  * there are no results to show and the outcome's proofs column is dropped for the same reason.
  */
-const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run }) => {
+const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run, sharedEvents }) => {
   const { t } = useFormatter();
   const navigate = useNavigate();
   const location = useLocation();
@@ -100,7 +106,7 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run })
 
   return (
     <Stack sx={{ gap: 2 }}>
-      <AutonomousOutcome run={run} />
+      <AutonomousOutcome run={run} sharedEvents={sharedEvents} />
 
       {/* Run posture: the single simulation's prevention / detection / vulnerability / human-response
           gauges. A plan never executes, so it produces no results - the section is dropped in plan
