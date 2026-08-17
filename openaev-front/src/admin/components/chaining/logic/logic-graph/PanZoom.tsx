@@ -1,4 +1,11 @@
-import { AccountTreeOutlined, AddOutlined, CenterFocusStrongOutlined, RemoveOutlined } from '@mui/icons-material';
+import {
+  AccountTreeOutlined,
+  AddOutlined,
+  CenterFocusStrongOutlined,
+  LinearScaleOutlined,
+  RemoveOutlined,
+  ViewWeekOutlined,
+} from '@mui/icons-material';
 import { Box, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -12,6 +19,7 @@ import {
 } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
+import type { LogicGraphLayoutMode } from './layout';
 
 interface PanZoomProps {
   /** Logical content size (bounding box of the laid-out graph). */
@@ -34,6 +42,10 @@ interface PanZoomProps {
   onZoomChange?: (zoom: number) => void;
   /** Re-organize control: clears manual positions and lets the auto-layout take over again. */
   onAutoLayout?: () => void;
+  /** Current layout strategy — drives the grouping toggle's icon and tooltip. */
+  layoutMode?: LogicGraphLayoutMode;
+  /** Switch between the grouped tactic columns and the causal chain. Button hidden when omitted. */
+  onToggleLayoutMode?: () => void;
   /** World content, rendered in logical coordinates inside the zoom/pan transform. */
   children: ReactNode;
 }
@@ -67,6 +79,8 @@ const PanZoom = ({
   onBackgroundClick,
   onZoomChange,
   onAutoLayout,
+  layoutMode,
+  onToggleLayoutMode,
   children,
 }: PanZoomProps) => {
   const theme = useTheme();
@@ -334,6 +348,17 @@ const PanZoom = ({
           <Tooltip title={t('Auto-organize')}>
             <IconButton size="small" sx={controlButtonSx} onClick={onAutoLayout}>
               <AccountTreeOutlined fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+        {onToggleLayoutMode && (
+          /* Grouping switcher: the icon depicts the layout the click switches TO (column bands vs a
+             left-to-right chain), matching the action described by the tooltip. */
+          <Tooltip title={layoutMode === 'chain' ? t('Group by MITRE tactic') : t('Switch to chain layout')}>
+            <IconButton size="small" sx={controlButtonSx} onClick={onToggleLayoutMode}>
+              {layoutMode === 'chain'
+                ? <ViewWeekOutlined fontSize="small" />
+                : <LinearScaleOutlined fontSize="small" />}
             </IconButton>
           </Tooltip>
         )}
