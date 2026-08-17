@@ -1766,6 +1766,32 @@ public class WorkflowService {
         scenarioId, injectInput, parentScenarioStepTemplateId, triggerConditions);
   }
 
+  /**
+   * Transaction-isolated variant of {@link #appendChainedStepToScenario(String, InjectInput,
+   * String, List)} for the autonomous orchestrator's step-authoring callback. Runs in its OWN
+   * transaction ({@link Propagation#REQUIRES_NEW}) so a scenario-mirror failure (the scenario
+   * template invisible under the callback thread's tenant, or a concurrent author racing the same
+   * scenario workflow) rolls back only this twin and can NEVER mark the caller's authoring
+   * transaction rollback-only. The executing simulation step is authored authoritatively first and
+   * this scenario mirror is a secondary projection - a mirror failure must not fail (500) the
+   * author callback and lose the executing step at commit. See {@code
+   * AutonomousRunService#mirrorStepOntoScenario}.
+   *
+   * <p>Both public entry points delegate to the same private, non-transactional body: a same-class
+   * call to a {@code @Transactional} sibling would bypass the Spring proxy (see {@code
+   * TenantBackgroundTransactionArchTest#no_transactional_self_invocation}).
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public String appendChainedStepToScenarioIsolated(
+      String scenarioId,
+      InjectInput injectInput,
+      String parentScenarioStepTemplateId,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    return doAppendChainedStepToScenario(
+        scenarioId, injectInput, parentScenarioStepTemplateId, triggerConditions);
+  }
+
   // Shared body for both appendChainedStepToScenario overloads. See doAppendChainedStep for why
   // this
   // is a private, non-transactional helper the public @Transactional overloads delegate to.
@@ -1878,6 +1904,30 @@ public class WorkflowService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void updateChainedStep(String stepTemplateId, InjectInput injectInput)
+      throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput);
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #updateChainedStep} for the autonomous orchestrator's
+   * step-update callback, used to keep the scenario mirror twin in lock-step. Runs in its OWN
+   * transaction ({@link Propagation#REQUIRES_NEW}) so a twin-update failure rolls back only itself
+   * and can NEVER mark the caller's update transaction rollback-only. The executing simulation step
+   * is updated authoritatively first; the scenario mirror is a secondary projection - a twin
+   * failure must not fail (500) the update callback. See {@code
+   * AutonomousRunService#updateAttackPathStep}.
+   *
+   * <p>Delegates to the same private, non-transactional body as {@link #updateChainedStep}: a
+   * same-class call to a {@code @Transactional} sibling would bypass the Spring proxy (see {@code
+   * TenantBackgroundTransactionArchTest#no_transactional_self_invocation}).
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void updateChainedStepIsolated(String stepTemplateId, InjectInput injectInput)
+      throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput);
+  }
+
+  private void doUpdateChainedStep(String stepTemplateId, InjectInput injectInput)
       throws ChainingException {
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);

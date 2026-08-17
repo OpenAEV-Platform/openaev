@@ -2516,18 +2516,37 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to author the attack-path step: " + e.getMessage(), e);
     }
-    // A human-in-the-loop inject (email, SMS, ...) delivers only to the players ENABLED on the
-    // simulation (exercise_teams_users), not merely to team members. The orchestrator can
-    // legitimately
-    // target a team directly - an operator-pre-selected audience, or one it built - without routing
-    // through ensure_openaev_target_team, and that team's members are then NOT enabled on this
-    // simulation, so the step ERRORs with "Email needs at least one user". Enable every targeted
-    // team's members here so any team-targeted step is deliverable regardless of how it was wired.
-    enableTargetedTeamMembers(run.getSimulationId(), injectInput.getTeams());
-    // Mirror the step onto the run's SCENARIO so the scenario carries the attack path and can be
-    // exported/reproduced (the executing copy lives on the simulation; this twin never runs).
-    mirrorStepOntoScenario(
-        run, injectInput, parentStepTemplateId, stepTemplateId, triggerConditions);
+    // The executing simulation step authored above is this callback's primary job. Both projections
+    // below are SECONDARY and must NEVER fail (500) this callback: a failure there previously
+    // marked
+    // the authoring transaction rollback-only, so a step that already succeeded was lost at commit
+    // and the orchestrator retried it in a loop. They read/write v1-filtered entities (the
+    // simulation's teams via exercise_teams_users; the scenario template workflow) and this
+    // callback
+    // arrives on the legacy non-prefixed /api/autonomous-runs route where the v1 TenantContext is
+    // unset (DEFAULT tenant), so bridge the run's own tenant - the same run-authoritative tenant
+    // @RunTenantScope already gives the v2 GUC - and restore it in finally so a pooled request
+    // thread never leaks it. Each projection runs in its OWN REQUIRES_NEW transaction (see the
+    // *Isolated / *BestEffort methods) so a failure rolls back only itself. Mirrors setRunScope.
+    //  - Team enablement: a human-in-the-loop inject (email, SMS, ...) delivers only to the players
+    //    ENABLED on the simulation, not merely to team members; a directly targeted team whose
+    //    members were never enabled would otherwise ERROR with "Email needs at least one user".
+    //  - Scenario mirror: the exportable/reproducible twin of the attack path (the executing copy
+    //    lives on the simulation; this twin never runs).
+    boolean hadTenant = TenantContext.hasCurrentTenant();
+    String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(runTenantId(run));
+    try {
+      enableTargetedTeamMembersBestEffort(run.getSimulationId(), injectInput.getTeams());
+      mirrorStepOntoScenario(
+          run, injectInput, parentStepTemplateId, stepTemplateId, triggerConditions);
+    } finally {
+      if (hadTenant) {
+        TenantContext.setCurrentTenant(previousTenant);
+      } else {
+        TenantContext.clearCurrentTenant();
+      }
+    }
     boolean findingDriven = !triggerConditions.isEmpty();
     eventService.append(
         runId,
@@ -2753,21 +2772,39 @@ public class AutonomousRunService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Failed to update the attack-path step: " + e.getMessage(), e);
     }
-    // Keep the scenario mirror twin in lock-step so the exported attack path reflects the edit.
+    // The executing simulation step is updated above. Keeping the scenario mirror twin in lock-step
+    // and re-enabling any newly targeted team's members are SECONDARY projections that must never
+    // fail (500) this callback. They read/write v1-filtered entities on the legacy non-prefixed
+    // /api/autonomous-runs route (v1 TenantContext unset -> DEFAULT tenant), so bridge the run's
+    // own
+    // tenant (restored in finally) and run each in its OWN REQUIRES_NEW transaction so a failure
+    // rolls back only itself and can never mark this update transaction rollback-only. Mirrors
+    // doAppendAttackPathStep / setRunScope.
     Map<String, String> mirror = run.getStepMirror();
     String scenarioStepId = mirror == null ? null : mirror.get(stepTemplateId);
-    if (hasText(scenarioStepId)) {
-      try {
-        workflowService.updateChainedStep(scenarioStepId, injectInput);
-      } catch (Exception e) {
-        log.warn(
-            "[Autonomous] Failed to update scenario mirror step {} for run {}: {}",
-            scenarioStepId,
-            runId,
-            e.getMessage());
+    boolean hadTenant = TenantContext.hasCurrentTenant();
+    String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(runTenantId(run));
+    try {
+      if (hasText(scenarioStepId)) {
+        try {
+          workflowService.updateChainedStepIsolated(scenarioStepId, injectInput);
+        } catch (Exception e) {
+          log.warn(
+              "[Autonomous] Failed to update scenario mirror step {} for run {}: {}",
+              scenarioStepId,
+              runId,
+              e.getMessage());
+        }
+      }
+      enableTargetedTeamMembersBestEffort(run.getSimulationId(), injectInput.getTeams());
+    } finally {
+      if (hadTenant) {
+        TenantContext.setCurrentTenant(previousTenant);
+      } else {
+        TenantContext.clearCurrentTenant();
       }
     }
-    enableTargetedTeamMembers(run.getSimulationId(), injectInput.getTeams());
     eventService.append(
         runId,
         runTenantId(run),
@@ -2802,8 +2839,16 @@ public class AutonomousRunService {
         run.getStepMirror() == null ? new HashMap<>() : new HashMap<>(run.getStepMirror());
     String parentScenarioStepId = hasText(parentSimStepId) ? mirror.get(parentSimStepId) : null;
     try {
+      // Append the scenario twin in its OWN transaction (REQUIRES_NEW): a mirror-side persistence
+      // failure (scenario template invisible under this thread's tenant, an action-target
+      // realignment error, a concurrent author racing the same scenario workflow) then rolls back
+      // only the twin and can never mark the caller's authoring transaction rollback-only - which
+      // previously turned a swallowed mirror error into a failed commit that lost the executing
+      // step. The stepMirror map update + run save below deliberately stay in the OUTER transaction
+      // so they commit atomically with the executing step and never race a REQUIRES_NEW twin over
+      // the same managed AutonomousRun row.
       String scenarioStepId =
-          workflowService.appendChainedStepToScenario(
+          workflowService.appendChainedStepToScenarioIsolated(
               scenarioId, injectInput, parentScenarioStepId, triggerConditions);
       mirror.put(simStepId, scenarioStepId);
       run.setStepMirror(mirror);
@@ -2838,6 +2883,35 @@ public class AutonomousRunService {
     // truth (idempotent: attaches each team to the simulation if missing, then enables its
     // players).
     exerciseService.enableTargetedTeamMembers(simulationId, teamIds);
+  }
+
+  /**
+   * Transaction-isolated, best-effort variant of {@link #enableTargetedTeamMembers} for the
+   * orchestrator's step author/update callbacks. Delegates to {@link
+   * ExerciseService#enableTargetedTeamMembersIsolated} ({@link
+   * org.springframework.transaction.annotation.Propagation#REQUIRES_NEW}) and swallows any failure
+   * so enabling players can never fail (500) the callback: the check-then-insert on {@code
+   * exercise_teams_users} can race a concurrent callback (the agent authors steps in parallel), and
+   * such a failure would otherwise mark the callback's transaction rollback-only and lose the
+   * executing step just authored. The caller is responsible for establishing the run's v1 {@link
+   * TenantContext} (the legacy non-prefixed callback route leaves it on the DEFAULT tenant). Unlike
+   * {@link #enableTargetedTeamMembers}, do NOT use this on the creation flow, whose simulation is
+   * not yet committed and must join the caller's transaction.
+   */
+  private void enableTargetedTeamMembersBestEffort(String simulationId, List<String> teamIds) {
+    // Author-scenario (AI planning) runs have no simulation to enable players on - nothing is
+    // delivered while planning, so this is a no-op.
+    if (!hasText(simulationId)) {
+      return;
+    }
+    try {
+      exerciseService.enableTargetedTeamMembersIsolated(simulationId, teamIds);
+    } catch (Exception e) {
+      log.warn(
+          "[Autonomous] Failed to enable targeted team members on simulation {} (best-effort): {}",
+          simulationId,
+          e.getMessage());
+    }
   }
 
   /**
