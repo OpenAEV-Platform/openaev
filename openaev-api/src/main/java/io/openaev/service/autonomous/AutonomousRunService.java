@@ -23,6 +23,7 @@ import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetGroup;
@@ -2229,39 +2230,59 @@ public class AutonomousRunService {
     run.setScopeAssetGroupId(firstScopeIdOfType(scope, "ASSETS_GROUPS"));
     run.setScopeTeamId(firstScopeIdOfType(scope, "TEAMS"));
     AutonomousRun saved = runRepository.save(run);
-    // Best-effort, transaction-isolated: mirror the allowlist onto the scenario template + live
-    // simulation workflow(s). REQUIRES_NEW so a mirror failure (e.g. an action-target realignment
-    // error) rolls back only the mirror and cannot mark this callback's transaction rollback-only.
+    // Both projections below read v1-filtered entities (the scenario's template workflow through
+    // its scenario join, the simulation, its teams), and this callback arrives on the legacy
+    // non-prefixed route where the v1 TenantContext is never set and falls back to the DEFAULT
+    // tenant. Establish the run's own tenant for their isolated transactions - the same
+    // run-authoritative scope @RunTenantScope already gives the v2 GUC - so a run owned by another
+    // tenant mirrors its scope instead of silently matching nothing. Restored in finally: the
+    // operator (tenant-prefixed) route carries the caller's tenant in this thread-local and must
+    // get it back, and a pooled request thread must never leak the run tenant onward.
+    boolean hadTenant = TenantContext.hasCurrentTenant();
+    String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(runTenantId(run));
     try {
-      workflowService.writeAllowlistScopeIsolated(
-          run.getScenarioId(), run.getSimulationId(), toAllowlistScopeInputs(scope), true);
-    } catch (Exception e) {
-      log.warn(
-          "[Autonomous] Scope recorded on run {} but the workflow mirror failed (best-effort)",
-          runId,
-          e);
-    }
-    // Best-effort and transaction-isolated like the mirror above: enable in-scope team members on
-    // the simulation so human-targeted steps are deliverable (skipped for plan/author-scenario
-    // runs, which have no simulation). REQUIRES_NEW because a repository-level failure (e.g. the
-    // check-then-insert on exercise_teams_users racing a concurrent callback) would otherwise mark
-    // this callback's transaction rollback-only - a poisoning the catch below could not undo, so
-    // the commit would still fail and lose the scope just recorded on the run.
-    try {
-      if (hasText(run.getSimulationId())) {
-        exerciseService.enableTargetedTeamMembersIsolated(
-            run.getSimulationId(),
-            scope.stream()
-                .filter(t -> "TEAMS".equals(t.getType()))
-                .map(AutonomousScopeTarget::getId)
-                .toList());
+      // Best-effort, transaction-isolated: mirror the allowlist onto the scenario template + live
+      // simulation workflow(s). REQUIRES_NEW so a mirror failure (e.g. an action-target
+      // realignment error) rolls back only the mirror and cannot mark this callback's transaction
+      // rollback-only.
+      try {
+        workflowService.writeAllowlistScopeIsolated(
+            run.getScenarioId(), run.getSimulationId(), toAllowlistScopeInputs(scope), true);
+      } catch (Exception e) {
+        log.warn(
+            "[Autonomous] Scope recorded on run {} but the workflow mirror failed (best-effort)",
+            runId,
+            e);
       }
-    } catch (Exception e) {
-      log.warn(
-          "[Autonomous] Scope recorded on run {} but enabling targeted team members failed"
-              + " (best-effort)",
-          runId,
-          e);
+      // Best-effort and transaction-isolated like the mirror above: enable in-scope team members
+      // on the simulation so human-targeted steps are deliverable (skipped for plan/author-scenario
+      // runs, which have no simulation). REQUIRES_NEW because a repository-level failure (e.g. the
+      // check-then-insert on exercise_teams_users racing a concurrent callback) would otherwise
+      // mark this callback's transaction rollback-only - a poisoning the catch below could not
+      // undo, so the commit would still fail and lose the scope just recorded on the run.
+      try {
+        if (hasText(run.getSimulationId())) {
+          exerciseService.enableTargetedTeamMembersIsolated(
+              run.getSimulationId(),
+              scope.stream()
+                  .filter(t -> "TEAMS".equals(t.getType()))
+                  .map(AutonomousScopeTarget::getId)
+                  .toList());
+        }
+      } catch (Exception e) {
+        log.warn(
+            "[Autonomous] Scope recorded on run {} but enabling targeted team members failed"
+                + " (best-effort)",
+            runId,
+            e);
+      }
+    } finally {
+      if (hadTenant) {
+        TenantContext.setCurrentTenant(previousTenant);
+      } else {
+        TenantContext.clearCurrentTenant();
+      }
     }
     eventService.append(
         runId,

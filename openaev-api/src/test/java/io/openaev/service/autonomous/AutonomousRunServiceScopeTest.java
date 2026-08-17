@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -19,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
@@ -42,8 +44,10 @@ import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.xtmone.XtmOneClient;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -109,6 +113,11 @@ class AutonomousRunServiceScopeTest {
     run.setSimulationId(SIMULATION_ID);
     when(runRepository.findById(RUN_ID)).thenReturn(Optional.of(run));
     when(runRepository.save(any(AutonomousRun.class))).thenAnswer(inv -> inv.getArgument(0));
+  }
+
+  @AfterEach
+  void cleanUpTenantContext() {
+    TenantContext.clearCurrentTenant();
   }
 
   @Test
@@ -201,5 +210,46 @@ class AutonomousRunServiceScopeTest {
     runService.setRunScope(RUN_ID, scope);
 
     verify(exerciseService, never()).enableTargetedTeamMembersIsolated(anyString(), anyList());
+  }
+
+  @Test
+  @DisplayName("Projections run under the run's v1 tenant scope, cleared again afterwards")
+  void given_theLegacyCallbackRoute_when_settingScope_then_projectionsRunUnderTheRunTenant() {
+    // The legacy non-prefixed orchestrator route never sets the v1 TenantContext, so the
+    // v1-filtered projection reads would otherwise fall back to the default tenant and silently
+    // match nothing for a run owned by another tenant. Clear the context the auto-registered
+    // DefaultTenantExtension seeds for every test to reproduce that route's no-tenant thread.
+    TenantContext.clearCurrentTenant();
+    List<String> seenTenants = new ArrayList<>();
+    doAnswer(
+            inv -> {
+              seenTenants.add(TenantContext.getCurrentTenant());
+              return null;
+            })
+        .when(workflowService)
+        .writeAllowlistScopeIsolated(anyString(), anyString(), anyList(), anyBoolean());
+    doAnswer(
+            inv -> {
+              seenTenants.add(TenantContext.getCurrentTenant());
+              return null;
+            })
+        .when(exerciseService)
+        .enableTargetedTeamMembersIsolated(anyString(), anyList());
+
+    runService.setRunScope(RUN_ID, List.of(new AutonomousScopeTarget("TEAMS", "team-1")));
+
+    assertThat(seenTenants).containsExactly("tenant-1", "tenant-1");
+    // The thread carried no tenant before the callback - it must not keep one after it.
+    assertThat(TenantContext.hasCurrentTenant()).isFalse();
+  }
+
+  @Test
+  @DisplayName("The operator route's caller tenant is restored after the projections")
+  void given_aCallerTenantOnTheThread_when_settingScope_then_itIsRestored() {
+    TenantContext.setCurrentTenant("caller-tenant");
+
+    runService.setRunScope(RUN_ID, List.of(new AutonomousScopeTarget("TEAMS", "team-1")));
+
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo("caller-tenant");
   }
 }
