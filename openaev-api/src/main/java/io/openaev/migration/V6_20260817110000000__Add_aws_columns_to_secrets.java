@@ -27,4 +27,3 @@ public class V6_20260817110000000__Add_aws_columns_to_secrets extends BaseJavaMi
     }
   }
 }
-
