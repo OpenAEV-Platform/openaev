@@ -1,7 +1,6 @@
 package io.openaev.secrets.provider.impl.handlers;
 
 import io.openaev.database.model.AwsAccessKeySecret;
-import io.openaev.database.model.AwsRegion;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
@@ -57,10 +56,11 @@ public class AwsAccessKeyHandler implements SecretHandler {
                   request.awsSessionToken(), "request.awsSessionToken must not be null")));
     }
 
-    if (awsSecret.getAwsDefaultRegion() == null ||
-            awsSecret.getAwsAccessKeyId() == null ||
-            awsSecret.getAwsSecretAccessKey() == null) {
-      throw new IllegalArgumentException("AWS default region, access key id and secret are required");
+    if (awsSecret.getAwsDefaultRegion() == null
+        || awsSecret.getAwsAccessKeyId() == null
+        || awsSecret.getAwsSecretAccessKey() == null) {
+      throw new IllegalArgumentException(
+          "AWS default region, access key id and secret are required");
     }
 
     return awsSecret;
@@ -72,8 +72,6 @@ public class AwsAccessKeyHandler implements SecretHandler {
       return SecretMetadata.forAwsAccessKey(
           awsAccessKeySecret.getAwsDefaultRegion(), awsAccessKeySecret.getAwsAccessKeyId());
     }
-    throw new IllegalArgumentException(
-        "Secret type mismatch: expected AWS_ACCESS_KEY secret");
+    throw new IllegalArgumentException("Secret type mismatch: expected AWS_ACCESS_KEY secret");
   }
 }
-

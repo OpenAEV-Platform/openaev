@@ -19,19 +19,19 @@ public record SecretMetadata(
     String awsSourceProfileAccessKeyId) {
 
   public static SecretMetadata empty() {
-    return new SecretMetadata(null, null,  null, null, null, null, null);
+    return new SecretMetadata(null, null, null, null, null, null, null);
   }
 
   public static SecretMetadata forUsername(String username) {
-    return new SecretMetadata(username,  null, null, null, null, null, null);
+    return new SecretMetadata(username, null, null, null, null, null, null);
   }
 
   public static SecretMetadata forHashAlgorithm(HashSecret.HASH_ALGORITHM hashAlgorithm) {
-    return new SecretMetadata(null, hashAlgorithm, null,  null, null, null, null);
+    return new SecretMetadata(null, hashAlgorithm, null, null, null, null, null);
   }
 
   public static SecretMetadata forAwsAccessKey(AwsRegion awsDefaultRegion, String awsAccessKeyId) {
-    return new SecretMetadata(null, null, awsDefaultRegion, awsAccessKeyId,  null, null, null);
+    return new SecretMetadata(null, null, awsDefaultRegion, awsAccessKeyId, null, null, null);
   }
 
   public static SecretMetadata forAwsAssumeRole(
@@ -46,6 +46,6 @@ public record SecretMetadata(
         null,
         awsRoleArn,
         awsSourceIdentityType,
-            awsSourceProfileAccessKeyId);
+        awsSourceProfileAccessKeyId);
   }
 }

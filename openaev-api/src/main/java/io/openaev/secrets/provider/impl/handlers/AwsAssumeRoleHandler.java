@@ -1,5 +1,7 @@
 package io.openaev.secrets.provider.impl.handlers;
 
+import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY;
+
 import io.openaev.database.model.AwsAssumeRoleSecret;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.Secret;
@@ -10,8 +12,6 @@ import io.openaev.service.connector_instances.NativeEncryptionService;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-
-import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY;
 
 @Component
 @RequiredArgsConstructor
@@ -46,15 +46,14 @@ public class AwsAssumeRoleHandler implements SecretHandler {
 
     if (request.awsExternalId() != null) {
       awsSecret.setAwsExternalId(
-              nativeEncryptionService.encrypt(
-                      Objects.requireNonNull(
-                              request.awsExternalId(),
-                              "request.awsExternalId must not be null")));
+          nativeEncryptionService.encrypt(
+              Objects.requireNonNull(
+                  request.awsExternalId(), "request.awsExternalId must not be null")));
     }
 
     if (request.awsSourceIdentityType() != null) {
       awsSecret.setAwsSourceIdentityType(request.awsSourceIdentityType());
-      if (STATIC_ACCESS_KEY.equals(request.awsSourceIdentityType())){
+      if (STATIC_ACCESS_KEY.equals(request.awsSourceIdentityType())) {
         awsSecret.setAwsSourceProfileAccessKeyId(null);
         awsSecret.setAwsSourceProfileSecretAccessKey(null);
       }
@@ -79,13 +78,12 @@ public class AwsAssumeRoleHandler implements SecretHandler {
           "AWS default region, role ARN and source identity type are required");
     }
 
-    if (awsSecret.getAwsSourceIdentityType()
-        == STATIC_ACCESS_KEY && (awsSecret.getAwsSourceProfileAccessKeyId() == null
-          || awsSecret.getAwsSourceProfileSecretAccessKey() == null)) {
-        throw new IllegalArgumentException(
-            "source profile access key id and secret access key are required for STATIC_ACCESS_KEY");
-      }
-
+    if (awsSecret.getAwsSourceIdentityType() == STATIC_ACCESS_KEY
+        && (awsSecret.getAwsSourceProfileAccessKeyId() == null
+            || awsSecret.getAwsSourceProfileSecretAccessKey() == null)) {
+      throw new IllegalArgumentException(
+          "source profile access key id and secret access key are required for STATIC_ACCESS_KEY");
+    }
 
     return awsSecret;
   }
@@ -99,9 +97,6 @@ public class AwsAssumeRoleHandler implements SecretHandler {
           awsAssumeRoleSecret.getAwsSourceIdentityType(),
           awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId());
     }
-    throw new IllegalArgumentException(
-        "Secret type mismatch: expected AWS_ASSUME_ROLE secret");
+    throw new IllegalArgumentException("Secret type mismatch: expected AWS_ASSUME_ROLE secret");
   }
-
 }
-
