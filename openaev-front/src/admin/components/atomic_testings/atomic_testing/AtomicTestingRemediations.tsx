@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { PolicyOutlined, ShieldOutlined } from '@mui/icons-material';
-import { Box, Paper, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Tab, Tabs, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
@@ -207,15 +208,14 @@ const AtomicTestingRemediations = () => {
 
   const renderEmptyRule = () => (
     <Paper
-      variant="outlined"
-      sx={{
-        borderRadius: 1,
-        padding: 4,
+      padding={32}
+      style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 1.5,
+        // `gap: 1.5` valait theme.spacing(1.5) dans le sx : 12px, pas 1.5px.
+        gap: 12,
         textAlign: 'center',
         flex: 1,
       }}
@@ -245,14 +245,12 @@ const AtomicTestingRemediations = () => {
       return (
         <Paper
           key={'rule.' + rem.detection_remediation_id}
-          variant="outlined"
-          sx={{
-            borderRadius: 1,
-            padding: 2,
+          padding={16}
+          style={{
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            gap: 1,
+            gap: 8,
           }}
         >
           <Box
@@ -286,13 +284,7 @@ const AtomicTestingRemediations = () => {
 
   if (tabs.length === 0) {
     return (
-      <Paper
-        variant="outlined"
-        sx={{
-          borderRadius: 1,
-          padding: 3,
-        }}
-      >
+      <Paper padding={24}>
         <Empty message={t('No security platform configured yet. Create one (including manual platforms) to document detection and remediation rules.')} />
       </Paper>
     );

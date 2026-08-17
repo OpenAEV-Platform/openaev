@@ -1,4 +1,5 @@
-import { Box, Checkbox, Paper, Stack, Typography } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Box, Checkbox, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 
@@ -77,14 +78,7 @@ const Login = () => {
         }}
       >
         {isConsentMessage && (
-          <Paper
-            variant="outlined"
-            sx={{
-              padding: 2,
-              borderRadius: 1,
-              textAlign: 'center',
-            }}
-          >
+          <Paper padding={16} style={{ textAlign: 'center' }}>
             <Markdown>{consentMessage}</Markdown>
             <Box display="flex" justifyContent="center" alignItems="center">
               <Markdown>{consentConfirmText}</Markdown>
@@ -125,10 +119,8 @@ const Login = () => {
               // (#0d172b dark, #ffffff light), and it keeps following a
               // customer's `paper_color`.
               <Paper
-                elevation={0}
-                sx={{
-                  padding: 3,
-                  borderRadius: 1,
+                padding={24}
+                style={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}

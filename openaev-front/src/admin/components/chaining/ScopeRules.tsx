@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { BlockOutlined, DnsOutlined, EditOutlined, GroupsOutlined, InfoOutlined, PersonOutlined, PublicOutlined, TaskAltOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import { type ReactElement, useState } from 'react';
@@ -106,16 +107,15 @@ const ScopeColumn = ({ title, rules, resolveLabel, resolveIcon, onAdd, accent, h
 
   return (
     <Paper
-      variant="outlined"
-      sx={{
+      padding={16}
+      style={{
         height: '100%',
         display: 'grid',
         gridTemplateRows: 'min-content 1fr',
-        gap: 1.5,
+        gap: 12,
         minHeight: 168,
         overflow: 'hidden',
         borderTop: `3px solid ${alpha(accent, 0.8)}`,
-        p: theme.spacing(2),
       }}
     >
       <Box

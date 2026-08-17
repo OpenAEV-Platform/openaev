@@ -1,4 +1,4 @@
-import { Paper } from '@mui/material';
+import { Paper } from '@filigran/design-system';
 import { makeStyles } from 'tss-react/mui';
 
 import ConnectorPage from '../common/ConnectorPage';
@@ -21,7 +21,7 @@ const InjectorPage = () => {
   return (
     <ConnectorPage
       extraInfoComponent={(
-        <Paper variant="outlined" className={`paper ${classes.paperConnector}`}>
+        <Paper padding={0} className={`paper ${classes.paperConnector}`}>
           <InjectorContracts />
         </Paper>
       )}

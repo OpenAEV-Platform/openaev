@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { ExpandMoreOutlined, NoteAltOutlined, RateReviewOutlined } from '@mui/icons-material';
-import { Box, ButtonBase, Collapse, Paper, Typography } from '@mui/material';
+import { Box, ButtonBase, Collapse, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext, useEffect, useRef, useState } from 'react';
@@ -118,7 +119,7 @@ const Logs = () => {
         </Box>
 
         {logs.length === 0 && (
-          <Paper variant="outlined" sx={{ borderRadius: 1 }}>
+          <Paper padding={0}>
             <Empty
               icon={NoteAltOutlined}
               message={t('No log entries yet')}
@@ -133,13 +134,11 @@ const Logs = () => {
           return (
             <Paper
               key={log.log_id}
-              variant="outlined"
-              sx={{
+              padding={16}
+              style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 1,
-                padding: 2,
-                borderRadius: 1,
+                gap: 8,
               }}
             >
               <Box sx={{
@@ -208,7 +207,7 @@ const Logs = () => {
 
         {/* Composer: collapsed one-line trigger, expands into the entry form. */}
         {permissions.canManage && (
-          <Paper variant="outlined" sx={{ borderRadius: 1 }}>
+          <Paper padding={0}>
             <ButtonBase
               onClick={handleToggleWrite}
               sx={{

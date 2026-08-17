@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { BoltOutlined, HourglassEmptyOutlined, PendingActionsOutlined, TaskAltOutlined } from '@mui/icons-material';
-import { Box, LinearProgress, List, ListItem, ListItemButton, Paper, Typography } from '@mui/material';
+import { Box, LinearProgress, List, ListItem, ListItemButton, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type FunctionComponent, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -76,12 +77,11 @@ const BoardColumn = ({ icon: Icon, label, count, accent, children }: {
   const theme = useTheme();
   return (
     <Paper
-      variant="outlined"
-      sx={{
+      padding={0}
+      style={{
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        borderRadius: 1,
         minHeight: COLUMN_MIN_HEIGHT,
         maxHeight: COLUMN_MAX_HEIGHT,
       }}

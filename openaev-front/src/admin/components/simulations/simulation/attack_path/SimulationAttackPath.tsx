@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { AccountTreeOutlined, BugReportOutlined, GroupOutlined, InsertDriveFileOutlined, LabelOutlined, PlayArrowOutlined, TrackChangesOutlined, VpnKeyOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, GlobalStyles, Paper } from '@mui/material';
+import { Alert, Box, Button, GlobalStyles } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FolderNetworkOutline } from 'mdi-material-ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -2744,8 +2745,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       >
         {view === 'table' && (
           <Paper
-            variant="outlined"
-            sx={{
+            padding={0}
+            style={{
               flex: 1,
               minWidth: 0,
               overflow: 'hidden',
@@ -2762,8 +2763,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         )}
         {view === 'graph' && (
           <Paper
-            variant="outlined"
-            sx={{
+            padding={0}
+            style={{
               flex: 1,
               minWidth: 0,
               position: 'relative',

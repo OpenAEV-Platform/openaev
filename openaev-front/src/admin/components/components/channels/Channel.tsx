@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { DarkModeOutlined, ImageOutlined, LightModeOutlined } from '@mui/icons-material';
-import { Box, Paper, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Box, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useCallback, useContext, useState } from 'react';
 import { useParams } from 'react-router';
@@ -270,14 +271,7 @@ const Channel = () => {
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
-          <Paper
-            variant="outlined"
-            sx={{
-              padding: 1,
-              borderRadius: 1,
-              flex: 1,
-            }}
-          >
+          <Paper padding={8} style={{ flex: 1 }}>
             <ChannelPreview channel={previewChannel} mode={previewMode} />
           </Paper>
         </div>
