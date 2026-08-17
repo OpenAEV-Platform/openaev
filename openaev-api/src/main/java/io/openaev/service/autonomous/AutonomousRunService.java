@@ -78,6 +78,8 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.IpAddressUtils;
 import io.openaev.xtmone.XtmOneClient;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -236,6 +238,12 @@ public class AutonomousRunService {
   // name),
   // so every operator-facing read/mutation gates in-service through this component.
   private final AutonomousRunAccessControl accessControl;
+
+  // Field-injected (not constructor) so it stays out of @RequiredArgsConstructor and null in the
+  // Mockito @InjectMocks unit tests, where detachForResponse() below no-ops. Used only to evict a
+  // returned run from the persistence context on the READ paths, so the open-in-view session's
+  // Spring-Session save at response commit can never flush it - see detachForResponse().
+  @PersistenceContext private EntityManager entityManager;
 
   private static String runTenantId(AutonomousRun run) {
     return run.getTenant().getId();
@@ -3625,13 +3633,33 @@ public class AutonomousRunService {
 
   // region reads
 
+  /**
+   * Evicts a run returned by a READ endpoint from the persistence context so it can never be
+   * flushed after the request transaction ends. {@code autonomous_runs} is served open-in-view, so
+   * the Hibernate session outlives the read-only request transaction and is flushed once more
+   * during the Spring Session {@code save} at response commit - OUTSIDE the request's tenant scope.
+   * Any run still managed and dirty at that point emits a phantom {@code UPDATE} whose tenant
+   * predicate matches nothing (or whose row was superseded by a concurrent relaunch), which blows
+   * up as a {@code StaleStateException} 500 (issue seen on {@code by-scenario}). The primary
+   * defence is that a clean entity is never flushed (see {@link AutonomousScopeTarget}'s value
+   * equality); detaching is belt-and-suspenders that also neutralises the in-memory status set by
+   * {@link #reconcileWithSimulation}'s best-effort fallback. Null-safe: the field is unset in the
+   * Mockito unit tests, where there is no open-in-view session to worry about.
+   */
+  private AutonomousRun detachForResponse(AutonomousRun run) {
+    if (run != null && entityManager != null && entityManager.contains(run)) {
+      entityManager.detach(run);
+    }
+    return run;
+  }
+
   // Not read-only: reconcileWithSimulation may need to persist a status sync so a run whose
   // simulation died out-of-band settles itself instead of dangling active forever.
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun get(String runId) {
     AutonomousRun run = require(runId);
     accessControl.assertCanRead(run);
-    return reconcileWithSimulation(run);
+    return detachForResponse(reconcileWithSimulation(run));
   }
 
   @Transactional(readOnly = true)
@@ -3640,8 +3668,12 @@ public class AutonomousRunService {
     // and status leaked to any Enterprise-Edition user regardless of their simulation/scenario
     // access. Bound the DB read at MAX_RUNS_LISTED (newest first) so the table is never loaded
     // whole just to filter it down in memory.
-    return accessControl.retainReadable(
-        runRepository.findRecent(PageRequest.of(0, MAX_RUNS_LISTED)));
+    List<AutonomousRun> runs =
+        accessControl.retainReadable(runRepository.findRecent(PageRequest.of(0, MAX_RUNS_LISTED)));
+    // Detach every listed run for the same open-in-view reason as detachForResponse: a listed run
+    // left managed is flushed at the Spring Session save and can 500 the whole list.
+    runs.forEach(this::detachForResponse);
+    return runs;
   }
 
   /**
@@ -3660,7 +3692,7 @@ public class AutonomousRunService {
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "No autonomous run drives this simulation"));
     accessControl.assertCanRead(run);
-    return reconcileWithSimulation(run);
+    return detachForResponse(reconcileWithSimulation(run));
   }
 
   /**
@@ -3680,7 +3712,7 @@ public class AutonomousRunService {
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "No autonomous run drives this scenario"));
     accessControl.assertCanRead(run);
-    return reconcileWithSimulation(run);
+    return detachForResponse(reconcileWithSimulation(run));
   }
 
   /**
