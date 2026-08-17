@@ -45,7 +45,11 @@ public class AwsAssumeRoleHandler implements SecretHandler {
     }
 
     if (request.awsExternalId() != null) {
-      awsSecret.setAwsExternalId(request.awsExternalId());
+      awsSecret.setAwsExternalId(
+              nativeEncryptionService.encrypt(
+                      Objects.requireNonNull(
+                              request.awsExternalId(),
+                              "request.awsExternalId must not be null")));
     }
 
     if (request.awsSourceIdentityType() != null) {
