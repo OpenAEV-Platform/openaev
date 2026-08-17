@@ -3111,18 +3111,23 @@ public class AutonomousRunService {
               scenarioConditions,
               scenarioExistingEventIds);
       stepMirror.put(simStepId, scenarioStepId);
-      // Record the sim->scenario EVENT twin for a NEWLY created event (not a reuse), so a later
-      // step
-      // reusing this same sim event mirrors onto the SAME scenario event above. Best-effort: a
-      // lookup miss just leaves the mapping unrecorded and the fallback copy path handles the rare
-      // un-mirrored reuse.
-      if (!hasText(reusedSimEventId)) {
-        String simEventId = workflowService.findStepTriggerEventRootId(simStepId);
-        if (hasText(simEventId)) {
-          String scenarioEventId = workflowService.findStepTriggerEventRootId(scenarioStepId);
-          if (hasText(scenarioEventId)) {
-            eventMirror.put(simEventId, scenarioEventId);
-          }
+      // Record the sim->scenario EVENT twin so a later step reusing this sim event mirrors onto the
+      // SAME scenario event instead of duplicating it. This must happen not only when the event was
+      // authored fresh, but ALSO when a reuse took the fallback COPY path above (no twin was
+      // recorded yet): otherwise every later reuse would take the fallback again and mint another
+      // scenario event, re-introducing the duplication this feature removes. A reuse that instead
+      // LINKED an already-recorded twin just re-records the same mapping (a harmless no-op). For a
+      // reuse the sim event id is exactly reusedSimEventId; for a fresh author it is read back from
+      // the newly authored step. Best-effort: a lookup miss leaves the mapping unrecorded and the
+      // fallback path still keeps the twin non-event-less.
+      String simEventId =
+          hasText(reusedSimEventId)
+              ? reusedSimEventId
+              : workflowService.findStepTriggerEventRootId(simStepId);
+      if (hasText(simEventId)) {
+        String scenarioEventId = workflowService.findStepTriggerEventRootId(scenarioStepId);
+        if (hasText(scenarioEventId)) {
+          eventMirror.put(simEventId, scenarioEventId);
         }
       }
       run.setStepMirror(stepMirror);
@@ -3182,14 +3187,21 @@ public class AutonomousRunService {
     try {
       workflowService.updateChainedStepIsolated(
           scenarioStepId, injectInput, scenarioConditions, scenarioExistingEventIds);
-      // A fresh-trigger update rebuilt a NEW event on both the sim step and its scenario twin;
-      // re-record the sim->scenario event twin so a later step reusing the rebuilt event mirrors
-      // onto the SAME scenario event. Reuse and data-only updates create no event, so skip them.
-      if (!hasText(reusedSimEventId) && triggerConditions != null) {
-        String simEventId = workflowService.findStepTriggerEventRootId(simStepId);
+      // Record the sim->scenario event twin whenever the trigger was (re)built - a fresh event OR a
+      // reuse that took the fallback COPY path - so a later step reusing this sim event shares the
+      // SAME scenario event instead of triggering the fallback again and duplicating it. A
+      // data-only update (triggerConditions == null) changes no event, so there is nothing to
+      // record; a reuse that linked an already-recorded twin re-records the same mapping, so only
+      // persist when it actually changed. For a reuse the sim event id is reusedSimEventId; for a
+      // fresh update it is read back from the rebuilt step.
+      if (triggerConditions != null) {
+        String simEventId =
+            hasText(reusedSimEventId)
+                ? reusedSimEventId
+                : workflowService.findStepTriggerEventRootId(simStepId);
         if (hasText(simEventId)) {
           String scenarioEventId = workflowService.findStepTriggerEventRootId(scenarioStepId);
-          if (hasText(scenarioEventId)) {
+          if (hasText(scenarioEventId) && !scenarioEventId.equals(eventMirror.get(simEventId))) {
             eventMirror.put(simEventId, scenarioEventId);
             run.setEventMirror(eventMirror);
             runRepository.save(run);

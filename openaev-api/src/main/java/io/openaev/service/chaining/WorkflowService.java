@@ -2192,9 +2192,17 @@ public class WorkflowService {
         .orElse(null);
   }
 
-  /** The finding-trigger event root (an AND / OR root) among a step's linked roots, or null. */
+  /**
+   * The finding-trigger event ROOT (an AND / OR node with no parent) among a step's linked
+   * conditions, or null. Filters on root-ness (conditionParent == null) as well as the AND/OR type:
+   * a step links its event's leaf children too, and an event may nest AND/OR groups, so a type-only
+   * match could return a nested child group. This value is surfaced to the orchestrator as {@code
+   * event_id} and passed back to reuse the event, where {@link #assertEventRootOnWorkflow} rejects
+   * anything that is not a true root - so it must be the root here.
+   */
   private static Condition triggerRoot(List<Condition> roots) {
     return roots.stream()
+        .filter(condition -> condition.getConditionParent() == null)
         .filter(
             condition ->
                 condition.getType() == ConditionType.AND || condition.getType() == ConditionType.OR)

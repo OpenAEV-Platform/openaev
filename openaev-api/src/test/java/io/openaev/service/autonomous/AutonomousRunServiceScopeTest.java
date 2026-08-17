@@ -430,6 +430,42 @@ class AutonomousRunServiceScopeTest {
 
   @Test
   @DisplayName(
+      "Reusing an event with NO recorded scenario twin recreates it as a fallback AND records the"
+          + " fresh twin, so later reuses share it instead of duplicating")
+  void given_aReusedEventWithoutAMirror_when_appendingLive_then_theFallbackTwinIsRecorded()
+      throws Exception {
+    // eventMirror is EMPTY: the reused sim event has no scenario twin yet (it pre-dates mirror
+    // tracking, or its first mirror failed), so the mirror RECREATES the event on the scenario as a
+    // fallback. It must also RECORD that fresh twin - otherwise every later step reusing the same
+    // sim event takes the fallback again and mints yet another scenario event, re-introducing the
+    // duplication this feature removes.
+    when(workflowService.appendChainedStep(anyString(), any(), any(), anyList(), anyList()))
+        .thenReturn("sim-step-2");
+    when(workflowService.resolveEventRootAsInputs("sim-evt-smb"))
+        .thenReturn(List.of(ConditionCreateInput.builder().type(ConditionType.AND).build()));
+    when(workflowService.appendChainedStepToScenarioIsolated(
+            anyString(), any(), any(), anyList(), scenarioEventIdsCaptor.capture()))
+        .thenReturn("scenario-step-copy");
+    when(workflowService.findStepTriggerEventRootId("scenario-step-copy"))
+        .thenReturn("scenario-evt-copy");
+
+    AutonomousStepTrigger trigger = new AutonomousStepTrigger();
+    trigger.setEventId("sim-evt-smb");
+    AutonomousInputMapping mapping = new AutonomousInputMapping();
+    mapping.setInputKey("host");
+    mapping.setKeyType(PrimitiveType.Host);
+    trigger.setMappings(List.of(mapping));
+
+    runService.appendAttackPathStep(RUN_ID, new InjectInput(), null, trigger);
+
+    // Fallback: no existing scenario event is LINKED (it is recreated, not shared yet)...
+    assertThat(scenarioEventIdsCaptor.getValue()).isEmpty();
+    // ...and the recreated scenario event twin is now recorded, so the NEXT reuse shares it.
+    assertThat(run.getEventMirror()).containsEntry("sim-evt-smb", "scenario-evt-copy");
+  }
+
+  @Test
+  @DisplayName(
       "Authoring WITHOUT event_id mints a fresh event and neither validates nor links an existing"
           + " one - event_id is optional")
   void given_noEventId_when_appendingLive_then_noReuseAndNoValidation() throws Exception {
