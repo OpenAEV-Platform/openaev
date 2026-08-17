@@ -13,6 +13,7 @@ import io.openaev.database.model.FindingTriageStatus;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.FindingTriageRepository;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.mapper.FindingMapper;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,13 +41,15 @@ class FindingDistinctSearchServiceTest {
   @Mock private FindingRepository findingRepository;
   @Mock private FindingTriageRepository findingTriageRepository;
   @Mock private FindingMapper findingMapper;
+  @Mock private TenantSettingsService tenantSettingsService;
 
   private FindingDistinctSearchService service;
 
   @BeforeEach
   void setUp() {
     service =
-        new FindingDistinctSearchService(findingRepository, findingTriageRepository, findingMapper);
+        new FindingDistinctSearchService(
+            findingRepository, findingTriageRepository, findingMapper, tenantSettingsService);
   }
 
   private Finding buildFinding(String id, ContractOutputType type, String value) {

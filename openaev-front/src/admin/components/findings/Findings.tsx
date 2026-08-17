@@ -18,6 +18,7 @@ const Findings = () => {
       <FindingList
         searchDistinctFindings={searchDistinctFindings}
         filterLocalStorageKey="findings"
+        showArchiveTabs
       />
     </>
   );
