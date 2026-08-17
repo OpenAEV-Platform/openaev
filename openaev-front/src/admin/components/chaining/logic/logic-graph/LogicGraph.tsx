@@ -29,13 +29,21 @@ import { useOutputProviders } from '../useOutputProviders';
 import Connectors from './Connectors';
 import GraphActionCard from './GraphActionCard';
 import GraphTriggerCard from './GraphTriggerCard';
-import { buildLogicGraphLayout, type PositionedBox, routeOrthogonalEdge } from './layout';
+import { buildLogicGraphLayout, type LogicGraphLayoutMode, type PositionedBox, routeOrthogonalEdge } from './layout';
 import PanZoom from './PanZoom';
 
 interface NodePosition {
   x: number;
   y: number;
 }
+
+// The layout mode is a personal reading preference shared by every Logic tab (scenario, simulation,
+// autonomous-run inspection), so it persists in localStorage rather than living per workflow.
+const LAYOUT_MODE_STORAGE_KEY = 'chaining_logic_layout_mode';
+const readStoredLayoutMode = (): LogicGraphLayoutMode =>
+  (typeof window !== 'undefined' && window.localStorage.getItem(LAYOUT_MODE_STORAGE_KEY) === 'chain'
+    ? 'chain'
+    : 'tactic');
 
 /** Decode HTML entities that occasionally survive in orchestrator-authored titles ("&amp;" -> "&"). */
 const decodeEntities = (value?: string): string =>
@@ -117,6 +125,9 @@ const LogicGraph = ({
   // by "Auto-organize". `refitNonce` bumps the fit signature so clearing them re-centers the view.
   const [positionOverrides, setPositionOverrides] = useState<Record<string, NodePosition>>({});
   const [refitNonce, setRefitNonce] = useState(0);
+  // 'tactic' (default): grouped MITRE-tactic columns. 'chain': grouping disabled, pure left-to-right
+  // causal layout. Persisted so the choice survives a reload.
+  const [layoutMode, setLayoutMode] = useState<LogicGraphLayoutMode>(readStoredLayoutMode);
   // Live zoom, published by PanZoom, used to convert a screen drag delta into logical units.
   const zoomRef = useRef(1);
 
@@ -197,8 +208,9 @@ const LogicGraph = ({
       outputProviders,
       tacticForStep,
       tacticOrder,
+      layoutMode,
     }),
-    [actionMetas, eventMetas, outputProviders, tacticForStep, tacticOrder],
+    [actionMetas, eventMetas, outputProviders, tacticForStep, tacticOrder, layoutMode],
   );
 
   // Apply manual overrides on top of the auto-layout positions.
@@ -363,6 +375,19 @@ const LogicGraph = ({
     setRefitNonce(n => n + 1);
   }, []);
 
+  // Switch between the grouped tactic columns and the ungrouped causal chain. Manual card positions
+  // belong to the layout that produced them and the frame that fit one mode rarely fits the other,
+  // so both are reset for a cleanly framed relayout.
+  const handleToggleLayoutMode = useCallback(() => {
+    setLayoutMode((prev) => {
+      const next: LogicGraphLayoutMode = prev === 'chain' ? 'tactic' : 'chain';
+      localStorage.setItem(LAYOUT_MODE_STORAGE_KEY, next);
+      return next;
+    });
+    setPositionOverrides({});
+    setRefitNonce(n => n + 1);
+  }, []);
+
   const handleEditAction = useCallback((stepId: string) => {
     const meta = actionMetas[stepId];
     if (meta) onEditStep?.(stepId, meta);
@@ -488,6 +513,8 @@ const LogicGraph = ({
         onBackgroundClick={() => setSelectedNodeId(null)}
         onZoomChange={(zoom) => { zoomRef.current = zoom; }}
         onAutoLayout={readOnly ? undefined : handleAutoLayout}
+        layoutMode={layoutMode}
+        onToggleLayoutMode={handleToggleLayoutMode}
       >
         {/* MITRE-tactic columns: one padded band behind each tactic's action cards, headed by the
             tactic name. Every band uses the SAME theme blue — a real chain carries far too many
