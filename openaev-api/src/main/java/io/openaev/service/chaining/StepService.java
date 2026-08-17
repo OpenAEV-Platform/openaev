@@ -114,12 +114,28 @@ public class StepService {
 
     String candidateData = candidate.getData();
     String normalizedParent = normalizeDependOnParent(dependOnParentTemplateId);
+    // The EVENT linkage is part of the idempotency identity. When this author REUSES an existing
+    // event by id (stepInput.conditionIds), only a pending twin ALREADY linked to exactly that
+    // event may collapse this call: otherwise a same-inject / same-parent step authored under a
+    // DIFFERENT event (or none) would swallow the call, silently drop the requested event_id, and
+    // mislead the scenario mirror into twinning the wrong event. A fresh-event / no-event author
+    // (empty conditionIds) keeps the historical data + parent identity, so the duplicate-storm
+    // guard for replayed identical authors is unchanged.
+    Set<String> requestedEventIds =
+        stepInput.getConditionIds() == null
+            ? Set.of()
+            : stepInput.getConditionIds().stream()
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
     Optional<Step> existing =
         findAllStepTemplateByWorkflow(workflow.getId()).stream()
             .filter(s -> StepActionClass.INJECT_EXECUTION.equals(s.getStepAction()))
             .filter(s -> Objects.equals(s.getData(), candidateData))
             .filter(
                 s -> Objects.equals(normalizeDependOnParent(dependOnParentOf(s)), normalizedParent))
+            // Same inject + same parent but a DIFFERENT reused event is NOT the same step.
+            .filter(
+                s -> requestedEventIds.isEmpty() || linkedEventRootIds(s).equals(requestedEventIds))
             // Collapse a duplicate ONLY while the twin is still pending (no run step yet). A twin
             // that already executed means this author is a deliberate re-run and must create a new
             // template - never block the try -> tweak -> re-fire loop.
@@ -163,6 +179,24 @@ public class StepService {
         .filter(v -> v != null && !v.isBlank())
         .findFirst()
         .orElse(null);
+  }
+
+  /**
+   * The set of AND/OR finding-event ROOT condition ids linked to a step template. Part of the
+   * idempotency identity in {@link #createInjectStepTemplateIdempotent}: reusing a DIFFERENT event
+   * by id must never collapse onto a same-inject / same-parent twin authored under another event.
+   * Filters on root-ness (no parent) so a linked event leaf or a nested AND/OR group is never
+   * mistaken for the event root.
+   *
+   * @param step the step template to inspect
+   * @return the linked event root ids (empty when the step has no finding event)
+   */
+  private Set<String> linkedEventRootIds(Step step) {
+    return conditionService.findAllConditionsByStepId(step.getId()).stream()
+        .filter(c -> c.getConditionParent() == null)
+        .filter(c -> c.getType() == ConditionType.AND || c.getType() == ConditionType.OR)
+        .map(Condition::getId)
+        .collect(Collectors.toSet());
   }
 
   /**
