@@ -3,6 +3,7 @@ import { type FindingTriageInput } from '../../utils/api-types';
 
 const FINDING_TRIAGE_URI = (findingId: string) => `/api/findings/${findingId}/triage`;
 const FINDING_TRIAGE_HISTORY_URI = (findingId: string) => `/api/findings/${findingId}/triage/history`;
+const FINDING_TRIAGE_BULK_URI = '/api/findings/triage/bulk';
 
 export const fetchFindingTriage = (findingId: string) => {
   return simpleCall(FINDING_TRIAGE_URI(findingId));
@@ -14,6 +15,18 @@ export const updateFindingTriage = (findingId: string, status: FindingTriageInpu
     justification,
   };
   return simplePatchCall(FINDING_TRIAGE_URI(findingId), data);
+};
+
+// Gated on Action.TRIAGE server-side, same as the single-finding PATCH above. Per-finding
+// failures are returned in the response body (one entry per finding_id), not as an HTTP error -
+// see FindingTriageBulkItemOutput / FindingTriageService#triageBulk.
+export const triageFindingsBulk = (findingIds: string[], status: FindingTriageInput['status'], justification: string) => {
+  const data = {
+    finding_ids: findingIds,
+    status,
+    justification,
+  };
+  return simplePatchCall(FINDING_TRIAGE_BULK_URI, data);
 };
 
 // Gated on Action.TRIAGE server-side (stricter than the Action.READ used for the current

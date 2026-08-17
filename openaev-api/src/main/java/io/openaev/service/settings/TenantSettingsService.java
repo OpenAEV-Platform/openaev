@@ -82,8 +82,8 @@ public class TenantSettingsService {
   }
 
   /**
-   * Number of days of inactivity after which a finding is considered archived on the Finding
-   * page, for the given tenant.
+   * Number of days of inactivity after which a finding is considered archived on the Finding page,
+   * for the given tenant.
    */
   @Transactional(readOnly = true)
   public int findFindingArchiveDays(@NotBlank String tenantId) {
