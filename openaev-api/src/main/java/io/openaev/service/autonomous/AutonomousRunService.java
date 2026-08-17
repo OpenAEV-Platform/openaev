@@ -2237,25 +2237,31 @@ public class AutonomousRunService {
           run.getScenarioId(), run.getSimulationId(), toAllowlistScopeInputs(scope), true);
     } catch (Exception e) {
       log.warn(
-          "[Autonomous] Scope recorded on run {} but the workflow mirror failed (best-effort): {}",
+          "[Autonomous] Scope recorded on run {} but the workflow mirror failed (best-effort)",
           runId,
-          e.getMessage());
+          e);
     }
-    // Best-effort: enable in-scope team members on the simulation so human-targeted steps are
-    // deliverable (a no-op for plan/author-scenario runs, which have no simulation).
+    // Best-effort and transaction-isolated like the mirror above: enable in-scope team members on
+    // the simulation so human-targeted steps are deliverable (skipped for plan/author-scenario
+    // runs, which have no simulation). REQUIRES_NEW because a repository-level failure (e.g. the
+    // check-then-insert on exercise_teams_users racing a concurrent callback) would otherwise mark
+    // this callback's transaction rollback-only - a poisoning the catch below could not undo, so
+    // the commit would still fail and lose the scope just recorded on the run.
     try {
-      enableTargetedTeamMembers(
-          run.getSimulationId(),
-          scope.stream()
-              .filter(t -> "TEAMS".equals(t.getType()))
-              .map(AutonomousScopeTarget::getId)
-              .toList());
+      if (hasText(run.getSimulationId())) {
+        exerciseService.enableTargetedTeamMembersIsolated(
+            run.getSimulationId(),
+            scope.stream()
+                .filter(t -> "TEAMS".equals(t.getType()))
+                .map(AutonomousScopeTarget::getId)
+                .toList());
+      }
     } catch (Exception e) {
       log.warn(
           "[Autonomous] Scope recorded on run {} but enabling targeted team members failed"
-              + " (best-effort): {}",
+              + " (best-effort)",
           runId,
-          e.getMessage());
+          e);
     }
     eventService.append(
         runId,

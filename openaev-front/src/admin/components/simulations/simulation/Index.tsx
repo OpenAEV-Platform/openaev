@@ -168,8 +168,15 @@ const Index = () => {
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   // Detect whether this simulation is an autonomous (AI-driven) run, so we can render the AI
-  // cockpit (reasoning panel + gated tabs) instead of the manual chaining editor.
-  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForSimulation(exerciseId);
+  // cockpit (reasoning panel + gated tabs) instead of the manual chaining editor. Forward the
+  // durable exercise_autonomous marker as a POSITIVE hint only: a marked simulation keeps the
+  // Loader up across a transient post-reload 404 (no manual-editor flash) and re-probes fast,
+  // while an unmarked one probes as before - `false` is deliberately NOT forwarded, because
+  // simulations provisioned before the marker existed carry false while still being autonomous.
+  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForSimulation(
+    exerciseId,
+    exercise?.exercise_autonomous === true ? true : undefined,
+  );
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchExercise(exerciseId)).finally(() => {

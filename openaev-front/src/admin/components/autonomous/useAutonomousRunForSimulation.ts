@@ -6,7 +6,7 @@ import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 
 /** How often to re-probe for an autonomous run until we find one (transient error / late creation). */
-const DISCOVERY_POLL_MS = 10000;
+export const DISCOVERY_POLL_MS = 10000;
 /**
  * Consecutive 404s required before concluding a scenario/simulation is manual (non-AI). A single
  * 404 can be transient right after a page reload - the run row is briefly unqueryable during the
@@ -15,7 +15,16 @@ const DISCOVERY_POLL_MS = 10000;
  * still going" bug). Requiring a short streak lets a transient miss recover on the next discovery
  * poll, while a genuinely manual entity still stops quickly (bounded - never re-probes forever).
  */
-const MAX_DISCOVERY_NOT_FOUND = 3;
+export const MAX_DISCOVERY_NOT_FOUND = 3;
+/**
+ * Fast re-probe delay used while a DECLARED-autonomous entity (knownAutonomous === true) is
+ * pending on a below-threshold 404 streak. Such an entity keeps the caller's Loader up instead of
+ * rendering the (affirmatively wrong) manual UI, so the streak must settle in seconds, not in
+ * {@link DISCOVERY_POLL_MS} steps: a transient reload miss re-attaches the cockpit after ~one
+ * retry, and the rare torn-down-run edge (marker outlives the run row) settles to manual after
+ * MAX_DISCOVERY_NOT_FOUND fast probes.
+ */
+export const DISCOVERY_RETRY_MS = 2000;
 
 interface AutonomousRunDetection {
   /** The run driving this entity, or null when it is a manual (non-AI) scenario/simulation. */
@@ -54,6 +63,13 @@ const useAutonomousRunDetection = (
   // nothing to look up regardless of EE / feature / XTM One state.
   const knownManual = knownAutonomous === false;
   const eligible = isEnterpriseEdition && xtmOneReady && !knownManual;
+  // A positive "this entity IS autonomous" hint (scenario_autonomous / exercise_autonomous). For a
+  // declared-autonomous entity the manual UI is affirmatively wrong, so while its run has not been
+  // found (and manual has not been latched by a full 404 streak) detection reports UNRESOLVED -
+  // the caller keeps its Loader up instead of flashing the manual page for a discovery-poll period
+  // after a transient reload miss - and misses re-probe on the fast retry cadence instead of the
+  // discovery poll so the pending window stays short.
+  const declaredAutonomous = knownAutonomous === true;
 
   const [run, setRun] = useState<AutonomousRun | null>(null);
   const [resolved, setResolved] = useState(false);
@@ -79,6 +95,10 @@ const useAutonomousRunDetection = (
   // Consecutive 404 count for the discovery probe (see MAX_DISCOVERY_NOT_FOUND). Reset on any
   // success and whenever the id changes, so only an UNBROKEN streak of misses concludes "manual".
   const notFoundStreakRef = useRef(0);
+  // One-shot fast re-probe (see DISCOVERY_RETRY_MS) scheduled after a below-threshold 404 on a
+  // declared-autonomous entity, so its pending window settles in seconds instead of waiting for
+  // the next discovery-poll tick. Cleared on every probe teardown (id change / unmount / re-run).
+  const fastRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const pushRun = useCallback((next: AutonomousRun) => {
     detectedRef.current = true;
@@ -145,6 +165,12 @@ const useAutonomousRunDetection = (
             detectedRef.current = false;
             setManual(true);
             setRun(null);
+          } else if (declaredAutonomous) {
+            // A declared-autonomous entity is PENDING (Loader up) while its streak settles, so
+            // re-probe on the fast cadence instead of leaving the operator on a spinner for a
+            // whole discovery-poll period.
+            if (fastRetryRef.current) clearTimeout(fastRetryRef.current);
+            fastRetryRef.current = setTimeout(() => setAttempt(a => a + 1), DISCOVERY_RETRY_MS);
           }
         } else {
           // Any other error (403 / 5xx / network / a transient reconcile) must leave a previously-
@@ -161,8 +187,15 @@ const useAutonomousRunDetection = (
       });
     return () => {
       stale = true;
+      if (fastRetryRef.current) {
+        clearTimeout(fastRetryRef.current);
+        fastRetryRef.current = null;
+      }
     };
-  }, [id, eligible, fetcher, attempt]);
+    // declaredAutonomous is a dependency on purpose: the hint often arrives AFTER the first probe
+    // (the scenario/simulation document lands later), and its arrival must re-probe immediately -
+    // the miss that just resolved may have been the transient reload race on a live AI run.
+  }, [id, eligible, fetcher, attempt, declaredAutonomous]);
 
   // Keep probing until we discover a run, then stop (the header/panel keep it fresh via setRun).
   // This recovers from a transient first-load failure and picks up a run created while the page is
@@ -174,9 +207,16 @@ const useAutonomousRunDetection = (
     return () => clearInterval(timer);
   }, [eligible, id, run, manual]);
 
+  // A DECLARED-autonomous entity with neither a run nor a latched manual verdict reports
+  // unresolved even after a probe answered: rendering the manual page for it would be affirmatively
+  // wrong, and this is what turned a single transient post-reload 404 into "the AI cockpit dropped
+  // to the manual scenario for a whole discovery-poll period". Derived synchronously (not via
+  // effects) so the manual UI cannot even flash for one frame; bounded because a full 404 streak
+  // latches `manual` (torn-down-run edge) and misses re-probe on the fast retry cadence.
+  const pendingDeclaredAutonomous = Boolean(id) && eligible && declaredAutonomous && !run && !manual;
   return {
     run,
-    resolved,
+    resolved: resolved && !pendingDeclaredAutonomous,
     setRun: pushRun,
     clearRun,
   };
@@ -186,9 +226,19 @@ const useAutonomousRunDetection = (
  * Detects whether a simulation is an autonomous (AI-driven) attack-path run, so the simulation
  * detail page can render the AI cockpit (reasoning panel + gated tabs) instead of the manual
  * chaining editor.
+ *
+ * <p>Pass {@code true} for {@code knownAutonomous} when the loaded simulation carries the durable
+ * {@code exercise_autonomous} marker: detection then stays pending (Loader) across a transient
+ * post-reload 404 instead of flashing the manual editor, and misses re-probe on the fast retry
+ * cadence. Leave it {@code undefined} otherwise - a {@code false} marker must NOT be forwarded as
+ * a manual hint, since simulations provisioned before the marker existed carry {@code false} while
+ * still being autonomous.
  */
-const useAutonomousRunForSimulation = (simulationId: string | undefined): AutonomousRunDetection =>
-  useAutonomousRunDetection(simulationId, fetchAutonomousRunBySimulation);
+const useAutonomousRunForSimulation = (
+  simulationId: string | undefined,
+  knownAutonomous?: boolean,
+): AutonomousRunDetection =>
+  useAutonomousRunDetection(simulationId, fetchAutonomousRunBySimulation, knownAutonomous);
 
 /**
  * Scenario-side twin: detects the CURRENT autonomous run of a scenario so the scenario detail page
