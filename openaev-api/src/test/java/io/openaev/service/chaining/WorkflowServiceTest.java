@@ -2588,5 +2588,74 @@ class WorkflowServiceTest {
       // Rejected at the boundary: the step-service link is never reached.
       verifyNoInteractions(stepService);
     }
+
+    @Test
+    @DisplayName(
+        "appendChainedStep rejects a reused event root from a DIFFERENT workflow at the service"
+            + " boundary, before any step is linked")
+    void given_aForeignReusedRoot_when_appending_then_itThrowsBeforeLinking() {
+      stubSimulationTemplate();
+      // A real AND/OR event root, but authored on some other run's workflow - the boundary must
+      // pin reuse to the caller's own workflow, never allow a silent cross-run link.
+      when(conditionService.findConditionByIdOrNull("foreign-evt"))
+          .thenReturn(condition("foreign-evt", ConditionType.AND, null, "wf-some-other-run"));
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () ->
+                  workflowService.appendChainedStep(
+                      SIMULATION_ID, new InjectInput(), null, List.of(), List.of("foreign-evt")));
+      assertTrue(ex.getMessage().contains("belongs to a different workflow"));
+      verifyNoInteractions(stepService);
+    }
+
+    @Test
+    @DisplayName(
+        "appendChainedStepToScenarioIsolated rejects a reused id that is not an event root on the"
+            + " scenario workflow at the service boundary, before any step is linked")
+    void given_aNonRootReusedId_when_appendingToScenarioIsolated_then_itThrowsBeforeLinking() {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(workflowRepository.findByScenario_IdAndStatus(SCENARIO_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+      // The mirror-recorded twin id resolves to a CHILD condition (a leaf), not an event root.
+      Condition root = condition("evt", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      when(conditionService.findConditionByIdOrNull("leaf"))
+          .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
+
+      assertThrows(
+          ChainingException.class,
+          () ->
+              workflowService.appendChainedStepToScenarioIsolated(
+                  SCENARIO_ID, new InjectInput(), null, List.of(), List.of("leaf")));
+      // Rejected at the boundary: the scenario mirror's step-service link is never reached.
+      verifyNoInteractions(stepService);
+    }
+
+    @Test
+    @DisplayName(
+        "updateChainedStep rejects a reused id that is not an event root on the step's own"
+            + " workflow at the service boundary, before the step is rebuilt")
+    void given_aNonRootReusedId_when_updating_then_itThrowsBeforeRebuilding()
+        throws ChainingException {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(stepService.findStepTemplateById("step-1"))
+          .thenReturn(Step.builder().id("step-1").workflow(template).build());
+      Condition root = condition("evt", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      when(conditionService.findConditionByIdOrNull("leaf"))
+          .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
+
+      assertThrows(
+          ChainingException.class,
+          () ->
+              workflowService.updateChainedStep(
+                  "step-1", new InjectInput(), List.of(), List.of("leaf")));
+      // Rejected at the boundary: neither update flavour is ever reached (the isolated overload
+      // shares this exact body).
+      verify(stepService, never()).updateInjectStepTemplateData(any(), any());
+      verify(stepService, never()).updateInjectStepTemplateDataAndTrigger(any(), any(), any());
+    }
   }
 }
