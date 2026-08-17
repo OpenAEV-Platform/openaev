@@ -3,7 +3,6 @@ package io.openaev.database.model.autonomous;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.ControlledUuidGeneration;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,12 +17,15 @@ import org.hibernate.annotations.CreationTimestamp;
  * An operator steering directive injected into a live autonomous run. The orchestrator reads
  * PENDING directives at the start of each decision cycle, so scope, focus, or "avoid host X"
  * instructions take effect without stopping the run.
+ *
+ * <p>Tenant-active (multi-tenancy v2): every INSERT point ({@code AutonomousRunService}) stamps the
+ * tenant explicitly from the parent run - deliberately no {@code TenantBaseListener}, whose
+ * thread-local default would silently land orchestrator-callback writes in the default tenant.
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "autonomous_directives")
-@EntityListeners(TenantBaseListener.class)
 public class AutonomousDirective implements TenantBase {
 
   @Id

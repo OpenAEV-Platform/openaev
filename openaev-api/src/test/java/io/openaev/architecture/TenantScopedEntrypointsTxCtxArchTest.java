@@ -174,7 +174,42 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // securityPlatforms (GET list and POST search) are covered by the single name entry.
           "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#securityPlatforms",
           "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#securityPlatform",
-          "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#updateSecurityPlatform");
+          "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#updateSecurityPlatform",
+          // autonomous_runs / autonomous_events / autonomous_directives (v2, #7396): every handler
+          // that reads or writes those tables carries TxCtx so the inspector can see rows. The
+          // scenario delete paths tear the run down and must keep the same scope.
+          "io.openaev.api.autonomous.AutonomousRunApi#create",
+          "io.openaev.api.autonomous.AutonomousRunApi#launchFromScenario",
+          "io.openaev.api.autonomous.AutonomousRunApi#planScenario",
+          "io.openaev.api.autonomous.AutonomousRunApi#list",
+          "io.openaev.api.autonomous.AutonomousRunApi#get",
+          "io.openaev.api.autonomous.AutonomousRunApi#getBySimulation",
+          "io.openaev.api.autonomous.AutonomousRunApi#getByScenario",
+          "io.openaev.api.autonomous.AutonomousRunApi#start",
+          "io.openaev.api.autonomous.AutonomousRunApi#pause",
+          "io.openaev.api.autonomous.AutonomousRunApi#resume",
+          "io.openaev.api.autonomous.AutonomousRunApi#cancel",
+          "io.openaev.api.autonomous.AutonomousRunApi#restart",
+          "io.openaev.api.autonomous.AutonomousRunApi#promote",
+          "io.openaev.api.autonomous.AutonomousRunApi#convertToManual",
+          "io.openaev.api.autonomous.AutonomousRunApi#timeline",
+          "io.openaev.api.autonomous.AutonomousRunApi#directives",
+          "io.openaev.api.autonomous.AutonomousRunApi#addDirective",
+          "io.openaev.api.autonomous.AutonomousRunApi#updateConfiguration",
+          "io.openaev.api.autonomous.AutonomousRunApi#getScope",
+          "io.openaev.api.autonomous.AutonomousRunApi#setScope",
+          "io.openaev.api.autonomous.AutonomousRunApi#recordEvent",
+          "io.openaev.api.autonomous.AutonomousRunApi#updateStatus",
+          "io.openaev.api.autonomous.AutonomousRunApi#consumeDirectives",
+          "io.openaev.api.autonomous.AutonomousRunApi#appendAttackPathStep",
+          "io.openaev.api.autonomous.AutonomousRunApi#updateAttackPathStep",
+          "io.openaev.api.autonomous.AutonomousRunApi#deleteAttackPathStep",
+          "io.openaev.api.autonomous.AutonomousRunApi#attackPathState",
+          "io.openaev.api.autonomous.AutonomousRunApi#evaluateAttackPath",
+          "io.openaev.api.autonomous.AutonomousRunApi#promoteFindingToAsset",
+          "io.openaev.api.autonomous.AutonomousRunApi#ensureTargetTeam",
+          "io.openaev.rest.scenario.ScenarioApi#deleteScenario",
+          "io.openaev.rest.scenario.ScenarioApi#bulkDeleteScenarios");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

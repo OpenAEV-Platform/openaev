@@ -6,7 +6,7 @@ import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../../components/i18n';
 import { type InjectTarget } from '../../../../../utils/api-types';
-import { getTargetOverviewUrl, isAssetGroups } from '../../../../../utils/target/TargetUtils';
+import { getTargetOverviewLabel, getTargetOverviewUrl } from '../../../../../utils/target/TargetUtils';
 import NewAtomicTestingResult from '../NewAtomicTestingResult';
 import TargetIcon from '../TargetIcon';
 
@@ -35,7 +35,7 @@ const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total
   const { t } = useFormatter();
 
   const overviewUrl = getTargetOverviewUrl(target);
-  const overviewLabel = isAssetGroups(target) ? t('Open asset group overview') : t('Open asset overview');
+  const overviewLabel = t(getTargetOverviewLabel(target));
   const typeLabel = t(TYPE_LABELS[target.target_type] ?? target.target_type);
 
   const canSwitch = !!(total && total > 1 && position);

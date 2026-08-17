@@ -1217,10 +1217,10 @@ class InjectExpectationServiceTest {
       // with the max - Hibernate then flushed that on commit, so every poll of the results page
       // grew the row's results JSON (until requests exceeded the Hikari leak threshold and
       // exhausted the pool) and flipped a compromised step back to green in the database.
-      ManualInjectExpectation opened = manualStep("exp-opened", "Email opened", 0.0);
-      ManualInjectExpectation clicked = manualStep("exp-clicked", "Phishing link clicked", 100.0);
+      ManualInjectExpectation opened = manualStep("exp-opened", "Email not opened", 0.0);
+      ManualInjectExpectation clicked = manualStep("exp-clicked", "Link not clicked", 100.0);
       ManualInjectExpectation submitted =
-          manualStep("exp-submitted", "Credentials submitted", 100.0);
+          manualStep("exp-submitted", "Credentials not submitted", 100.0);
       when(injectExpectationRepository.findAllByInjectAndTeam("inject-id", "team-id"))
           .thenReturn(List.of(opened, clicked, submitted));
 

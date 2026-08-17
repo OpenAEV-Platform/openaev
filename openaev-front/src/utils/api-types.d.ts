@@ -1293,11 +1293,13 @@ export interface AutonomousAttackPathStepResult {
 
 /** Live state of one authored attack-path step */
 export interface AutonomousAttackPathStepState {
+  /** Human-readable name of the finding EVENT this step reacts to (the trigger root's name, e.g. "SMB service exposed"), or null when the step has no finding trigger (a seed or a pure DEPEND_ON step). Mirror of the trigger's event_name on the write side. */
+  event_name?: string;
   /** Id of the inject backing this step (empty until the step has executed) */
   inject_id?: string;
   /** Id of the injector contract the step runs, when resolvable */
   injector_contract_id?: string;
-  /** The step template id this step runs AFTER (its DEPEND_ON parent), or null for a root step. Together with step_template_id this reconstructs the attack-path graph. */
+  /** Pure-ordering parent: the step template id this step runs AFTER (its DEPEND_ON parent), or null when the step is a seed or is wired finding-driven via its trigger. Prefer reading the trigger fields below to understand WHY a step fires; this is only the ordering fallback, not the primary wiring. */
   parent_step_template_id?: string;
   /** Execution status: PENDING when never started, otherwise the live ExecutionStatus (QUEUING, EXECUTING, SUCCESS, ERROR, ...) */
   status?: string;
@@ -1309,6 +1311,10 @@ export interface AutonomousAttackPathStepState {
   title?: string;
   /** Execution traces (action/status: message) captured while the step ran */
   traces?: string[];
+  /** The finding predicates that make this step fire, each rendered as "<key> <operator> <value>" (e.g. "port EQ 445", "service IS_NOT_NULL"). Empty when the step is a seed or a pure DEPEND_ON step. This is the read-back of the trigger's filters, so a reader can see - and correct - exactly what the step listens for instead of inferring a linear chain. */
+  trigger_filters?: string[];
+  /** The finding values this step binds into its inject inputs, each rendered as "<key> -> <input>" (e.g. "ipv4 -> target_host"). Empty when the step consumes no finding values. This is the read-back of the trigger's mappings. */
+  trigger_mappings?: string[];
   /** Inject type (injector) of the step */
   type?: string;
 }
@@ -6143,6 +6149,11 @@ export interface InjectExpectationOutput {
   inject_expectation_inject?: string;
   /** Name of the inject expectation */
   inject_expectation_name?: string;
+  /**
+   * Display order of the expectation within its inject, ascending. Declared by the injector contract (e.g. phishing orders its steps email -> link -> submission); null means unordered and readers fall back to name / id.
+   * @format int32
+   */
+  inject_expectation_order?: number;
   /** Results associated with the inject expectation */
   inject_expectation_results?: InjectExpectationResult[];
   /**
@@ -11964,6 +11975,8 @@ export interface ThreatArsenalActionFullOutput {
   action_domains?: string[];
   /** CPU architecture targeted for action execution */
   action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** Predefined expectations declared by the contract, each with its name, description and display order (e.g. phishing's ordered human steps). Omitted for payload-based actions, which declare expectations by type only - readers then fall back to action_expectations. */
+  action_expectation_details?: ThreatArsenalExpectationDetail[];
   /** Expected output types for action execution */
   action_expectations?: (
     | "ARTICLE"
@@ -12185,6 +12198,26 @@ export interface ThreatArsenalBulkDeleteOutput {
   deleted_count?: number;
   /** Ids of the actions that were actually deleted */
   deleted_ids?: string[];
+}
+
+export interface ThreatArsenalExpectationDetail {
+  /** Contract-declared expectation description (null = none) */
+  expectation_description?: string;
+  /** Contract-declared expectation name (null = unnamed, use the type label) */
+  expectation_name?: string;
+  /**
+   * Contract-declared display order, ascending (e.g. phishing orders its steps email -> link -> submission); null = unordered
+   * @format int32
+   */
+  expectation_order?: number;
+  /** Expectation type */
+  expectation_type?:
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY";
 }
 
 export interface ThreatArsenalFacetCountsOutput {

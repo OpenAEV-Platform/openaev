@@ -3,7 +3,6 @@ package io.openaev.database.model.autonomous;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.ControlledUuidGeneration;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,12 +24,16 @@ import org.hibernate.type.SqlTypes;
  * One AI-driven, autonomous attack-path run. The "brain" lives in XTM One; this row is OpenAEV's
  * durable handle on that run: it binds the objective, the chained simulation used as the execution
  * and visualization substrate, the XTM One session, and the live status the UI animates.
+ *
+ * <p>Tenant-active (multi-tenancy v2): reads and writes are scoped by the statement inspector, and
+ * the tenant is attributed EXPLICITLY at creation ({@code AutonomousRunService} stamps it from the
+ * scenario through the write-scope resolver) - deliberately no {@code TenantBaseListener}, whose
+ * thread-local default would silently land orchestrator-callback writes in the default tenant.
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "autonomous_runs")
-@EntityListeners(TenantBaseListener.class)
 public class AutonomousRun implements TenantBase {
 
   @Id

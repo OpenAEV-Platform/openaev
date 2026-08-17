@@ -93,6 +93,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -1262,6 +1263,23 @@ public class ExerciseService {
    * @param teamIds the ids of the teams targeted by a chained/authored step
    */
   public void enableTargetedTeamMembers(String simulationId, List<String> teamIds) {
+    this.exerciseTeamUserService.enableTargetedTeamMembers(simulationId, teamIds);
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #enableTargetedTeamMembers} for the autonomous
+   * orchestrator's scope callback. Runs in its OWN transaction ({@link Propagation#REQUIRES_NEW})
+   * so that a repository-level failure while enabling players (e.g. the check-then-insert on {@code
+   * exercise_teams_users} racing a concurrent callback, or a team deleted mid-flight) rolls back
+   * only this enablement and can NEVER mark the caller's transaction rollback-only - a poisoned
+   * callback transaction would fail its commit and lose the run's recorded scope, which is exactly
+   * the failure class the scope callback must not have. Only for callers whose simulation already
+   * exists in committed state (the callback path); creation flows must keep using {@link
+   * #enableTargetedTeamMembers}, which joins the surrounding transaction and therefore sees a
+   * simulation created in it. See {@code AutonomousRunService#setRunScope}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void enableTargetedTeamMembersIsolated(String simulationId, List<String> teamIds) {
     this.exerciseTeamUserService.enableTargetedTeamMembers(simulationId, teamIds);
   }
 

@@ -11,17 +11,26 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Server-side watchdog that enforces the OpenAEV-owned autonomous-run timeout. Invoked periodically
- * by {@code AutonomousTimeoutJob}, it sweeps every tenant's live runs and, for each whose deadline
- * is near or passed, delegates to {@link AutonomousRunService#enforceDeadline(String, String)} to
- * queue a winddown steering nudge (5 min / 1 min before) or hard-stop the run (exactly like an
- * operator Stop).
+ * Server-side watchdog for autonomous runs, invoked periodically by {@code AutonomousTimeoutJob}.
+ * It runs two independent per-tenant sweeps:
+ *
+ * <ul>
+ *   <li><b>Deadline</b> - for each run whose OpenAEV-enforced deadline is near or passed, delegates
+ *       to {@link AutonomousRunService#enforceDeadline(String, String)} to queue a winddown
+ *       steering nudge (5 min / 1 min before) or hard-stop the run at the deadline (exactly like an
+ *       operator Stop).
+ *   <li><b>Liveness/stall</b> - for each live (RUNNING, non-plan) run, delegates to {@link
+ *       AutonomousRunService#enforceLiveness(String, String)} to settle a run that has gone SILENT
+ *       (no timeline heartbeat for {@link AutonomousRunService#STALL_IDLE_SECONDS}) with nothing in
+ *       flight to justify the silence - a crashed / disconnected / unauthenticated orchestrator -
+ *       long before its 24h deadline, while exempting a genuine {@code await_finding} park.
+ * </ul>
  *
  * <p>This is the missing OpenAEV-side liveness guarantee: because an autonomous simulation is a
  * keep-alive chaining workflow, every native engine terminal condition (workflow END, the workflow
  * timeout job, the auto-close scheduler) is deliberately disabled for it. Without this watchdog a
  * run whose orchestrator crashes, disconnects, or never posts a terminal status would stay RUNNING
- * forever.
+ * forever (or, before the stall sweep, until the 24h deadline).
  *
  * <p>Tenancy/transactions: the sweep is background code, so it never uses {@code @Transactional}.
  * It runs the documented per-tenant idiom - {@link TenantScopedTransaction#forEachTenant} opens one
@@ -61,6 +70,22 @@ public class AutonomousTimeoutService {
                     () -> autonomousRunService.enforceDeadline(runId, tenantId));
               } catch (RuntimeException e) {
                 log.warn("[Autonomous] Timeout enforcement failed for run {}", runId, e);
+              }
+            }
+            // Independently of the 24h deadline, settle runs that have gone SILENT: a live run
+            // whose
+            // orchestrator crashed, disconnected, or cannot authenticate stops posting timeline
+            // heartbeats but never reaches its deadline, so without this it shows a frozen cockpit
+            // for up to 24h. enforceLiveness exempts a genuine await_finding park (a step result is
+            // still pending) and WAITING_INPUT / plan runs (excluded by the query).
+            List<String> liveRunIds = runRepository.findLiveRunIdsForStallCheck(tenantId);
+            for (String runId : liveRunIds) {
+              try {
+                tenantTx.executeNew(
+                    TxCtx.forTenant(tenantId),
+                    () -> autonomousRunService.enforceLiveness(runId, tenantId));
+              } catch (RuntimeException e) {
+                log.warn("[Autonomous] Stall enforcement failed for run {}", runId, e);
               }
             }
           } finally {

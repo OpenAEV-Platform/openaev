@@ -18,6 +18,9 @@ import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
+import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
+import io.openaev.database.repository.autonomous.AutonomousEventRepository;
+import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.executors.ExecutorService;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
@@ -52,6 +55,10 @@ import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
+import io.openaev.service.autonomous.AutonomousEventService;
+import io.openaev.service.autonomous.AutonomousRunReconciliationWriter;
+import io.openaev.service.autonomous.AutonomousRunService;
+import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.scenario.ScenarioService;
@@ -100,7 +107,10 @@ class TenantActiveTableAccessArchTest {
           "attackpath_execution",
           "attackpath_finding",
           "secret_references",
-          "secrets");
+          "secrets",
+          "autonomous_runs",
+          "autonomous_events",
+          "autonomous_directives");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -351,5 +361,59 @@ class TenantActiveTableAccessArchTest {
           .areAssignableTo(AttackPathFindingRepository.class)
           .because(
               "attackpath_finding is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule autonomous_runs_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Operator + orchestrator surface: TxCtx-carrying AutonomousRunApi (pinned by
+              // TenantScopedEntrypointsTxCtxArchTest) plus scenario delete/bulk-delete:
+              AutonomousRunService.class,
+              // Isolated REQUIRES_NEW writer: takes its own TxCtx because REQUIRES_NEW suspends
+              // the caller's GUC. Pinned by AutonomousRunReconciliationWriterTest:
+              AutonomousRunReconciliationWriter.class,
+              // Background watchdog: per-tenant primitive (forEachTenant + executeNew). Pinned
+              // by AutonomousTimeoutService:
+              AutonomousTimeoutService.class,
+              // Simulation status changes look up whether the exercise is AI-driven
+              // (existsBySimulationId). Driven by TxCtx-carrying ExerciseApi#changeExerciseStatus:
+              ExerciseService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AutonomousRunRepository.class)
+          .because(
+              "autonomous_runs is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule autonomous_events_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Timeline writer: tenant is stamped on every INSERT from the parent run. Callers
+              // are AutonomousRunService (TxCtx-carrying HTTP + scoped timeout/reconcile):
+              AutonomousEventService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AutonomousEventRepository.class)
+          .because(
+              "autonomous_events is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule autonomous_directives_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Steering + winddown INSERTs stamp tenant from the parent run. Driven by
+              // TxCtx-carrying AutonomousRunApi and the scoped timeout watchdog:
+              AutonomousRunService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AutonomousDirectiveRepository.class)
+          .because(
+              "autonomous_directives is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }

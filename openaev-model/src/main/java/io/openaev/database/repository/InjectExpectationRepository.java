@@ -204,6 +204,20 @@ public interface InjectExpectationRepository
   @Query(value = "select i from InjectExpectation i where i.exercise.id = :exerciseId")
   List<BaseInjectExpectation> findAllForExercise(@Param("exerciseId") String exerciseId);
 
+  /**
+   * Count of a simulation's still-open (unscored) expectations. An expectation gets a non-null
+   * {@code score} once its verdict lands (a detection/prevention result arrives, a collector or
+   * human fills it, or the expiration manager scores it as missed); a NULL score means it is still
+   * awaiting that result. Zero means nothing is pending - used by the autonomous idle/stall
+   * watchdog to exempt a silent-but-legitimate {@code await_finding} park (e.g. a phishing lure
+   * whose inject already EXECUTED but whose click/detection expectation is still open) from being
+   * settled as stalled.
+   */
+  @Query(
+      "SELECT COUNT(i) FROM InjectExpectation i WHERE i.exercise.id = :exerciseId "
+          + "AND i.score IS NULL")
+  long countOpenByExerciseId(@Param("exerciseId") String exerciseId);
+
   @Query(value = "select i from InjectExpectation i where i.inject.id = :injectId")
   List<BaseInjectExpectation> findAllByInjectId(@Param("injectId") @NotBlank final String injectId);
 

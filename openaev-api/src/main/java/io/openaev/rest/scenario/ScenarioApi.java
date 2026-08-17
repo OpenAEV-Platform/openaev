@@ -330,7 +330,7 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
-  public void deleteScenario(@PathVariable @NotBlank final String scenarioId) {
+  public void deleteScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     // Tear down the autonomous run's coordination first (409 if it is still active), then delete
     // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
     // any chained simulation. No-op for manual scenarios.
@@ -343,14 +343,17 @@ public class ScenarioApi extends RestBehavior {
       tags = {"Scenarios"})
   @LogExecutionTime
   @DeleteMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
-  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
-  // (chunked, with deadlock retry) - a request-wide transaction would defeat that and used to
-  // deadlock in production against concurrent inject expectation updates.
+  // SUPPORTS (not REQUIRED): the processor requires @Transactional on every REST endpoint, but
+  // a request-wide transaction would defeat the chunked independent commits (and used to
+  // deadlock in production against concurrent inject expectation updates). TxCtx is still
+  // declared so the resolver injects the request scope; the real GUC is set on each chunk
+  // transaction in BulkDeleteChunkRunner.call(TxCtx, ...), which is what makes autonomous_*
+  // (tenant-active) rows visible to deleteForScenarioForce.
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SCENARIO)
   public List<String> bulkDeleteScenarios(
-      @RequestBody @Valid final ScenarioBulkProcessingInput input) {
-    return this.scenarioService.bulkDeleteScenarios(input);
+      TxCtx ctx, @RequestBody @Valid final ScenarioBulkProcessingInput input) {
+    return this.scenarioService.bulkDeleteScenarios(ctx, input);
   }
 
   // -- TAGS --

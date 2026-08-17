@@ -5,6 +5,7 @@ import static io.openaev.utils.fixtures.ExerciseTeamUserFixture.createExerciseTe
 import static io.openaev.utils.fixtures.TeamFixture.getDefaultTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -107,8 +108,10 @@ class ExerciseTeamUserServiceTest extends IntegrationTest {
     exerciseTeamUserService.enableTargetedTeamMembers(
         "sim-1", List.of("team-1"), Set.of("user-denied"));
 
-    // -- ASSERT: only the kept member gains an exercise_teams_users link --
-    verify(exerciseTeamUserRepository).save(teamUserCaptor.capture());
-    assertEquals(kept, teamUserCaptor.getValue().getUser());
+    // -- ASSERT: only the kept member gains an exercise_teams_users link; the denied user never
+    // does. Enablement now goes through the DB-atomic idempotent insert (ON CONFLICT DO NOTHING)
+    // instead of a check-then-save, so the link is verified by the insertIfAbsent call.
+    verify(exerciseTeamUserRepository).insertIfAbsent("sim-1", "team-1", "user-kept");
+    verify(exerciseTeamUserRepository, never()).insertIfAbsent("sim-1", "team-1", "user-denied");
   }
 }

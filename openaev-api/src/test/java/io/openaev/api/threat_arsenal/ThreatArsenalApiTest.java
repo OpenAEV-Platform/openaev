@@ -1481,6 +1481,113 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Updating a payload-based action without execution arch should return a clean 400")
+    void given_missingExecutionArch_should_returnBadRequest() throws Exception {
+      // A payload-based update requires action_execution_arch. A missing value is a caller
+      // mistake, so the API must answer a clean 400 (with an actionable message the agent can
+      // self-correct on), never a 500 / raw IllegalArgumentException.
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput createInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+
+      String createResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(createInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String actionId = JsonPath.read(createResponse, "$.injector_contract_id");
+
+      ThreatArsenalActionUpdateInput updateInput =
+          new ThreatArsenalActionUpdateInput(
+              "Updated name",
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Windows},
+              "Updated description",
+              "powershell",
+              "echo updated",
+              null, // action_execution_arch missing
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              Collections.emptyList(),
+              Collections.emptyList(),
+              null,
+              null,
+              List.of(domain.getId()));
+
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInput)))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Updating a payload-based action without expectations should return a clean 400")
+    void given_missingExpectations_should_returnBadRequest() throws Exception {
+      // Same contract as the execution-arch case: a payload-based update requires
+      // action_expectations, and a missing value must map to a clean 400 the agent can correct.
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput createInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+
+      String createResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(createInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String actionId = JsonPath.read(createResponse, "$.injector_contract_id");
+
+      ThreatArsenalActionUpdateInput updateInput =
+          new ThreatArsenalActionUpdateInput(
+              "Updated name",
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Windows},
+              "Updated description",
+              "powershell",
+              "echo updated",
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              null, // action_expectations missing
+              Collections.emptyMap(),
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              Collections.emptyList(),
+              Collections.emptyList(),
+              null,
+              null,
+              List.of(domain.getId()));
+
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInput)))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("Updating an action with omitted tag and attack pattern id lists should succeed")
     void given_nullTagAndAttackPatternIds_should_updatePayloadWithInjectorContract()
         throws Exception {

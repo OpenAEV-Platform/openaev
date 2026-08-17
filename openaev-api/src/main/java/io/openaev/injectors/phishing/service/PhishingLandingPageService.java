@@ -516,7 +516,10 @@ public class PhishingLandingPageService {
    *       MANUAL expectation with inverted polarity (see {@link PhishingTrackingService}): GREEN
    *       ("resisted") while the recipient has not performed the step, flipping RED ("fell for it")
    *       the moment they do, so a recipient who never interacts keeps the green verdict through
-   *       expiration.
+   *       expiration. Named for the resisted outcome ("Email not opened", "Link not clicked",
+   *       "Credentials not submitted") so the row always reads true when green, and explicitly
+   *       ordered 1 {@literal ->} 2 {@literal ->} 3 to match the kill chain (email {@literal ->}
+   *       link {@literal ->} submission) in the results timeline and list.
    *   <li><b>Security control</b> - PREVENTION and DETECTION, exactly like most technical injector
    *       contracts: a phishing simulation is only complete if the platform can also score whether
    *       the lure was blocked (prevention) or detected (detection). Both are focused on {@link
@@ -542,23 +545,28 @@ public class PhishingLandingPageService {
         buildPhishingStep(
             PhishingTrackingService.STEP_OPENED,
             "Red once the recipient opens the lure email (tracking pixel loaded); green while the"
-                + " email is never opened."),
+                + " email is never opened.",
+            1),
         buildPhishingStep(
             PhishingTrackingService.STEP_CLICKED,
             "Red once the recipient opens the phishing landing page; green while the link is never"
-                + " followed."),
+                + " followed.",
+            2),
         buildPhishingStep(
             PhishingTrackingService.STEP_SUBMITTED,
             "Red once the recipient submits data on the phishing page; green while nothing is ever"
-                + " submitted."));
+                + " submitted.",
+            3));
   }
 
-  private Expectation buildPhishingStep(final String name, final String description) {
+  private Expectation buildPhishingStep(
+      final String name, final String description, final int order) {
     Expectation expectation = this.expectationBuilderService.buildManualExpectation();
     expectation.setName(name);
     expectation.setDescription(description);
     expectation.setPredefined(true);
     expectation.setMultiSelectable(false);
+    expectation.setOrder(order);
     return expectation;
   }
 }

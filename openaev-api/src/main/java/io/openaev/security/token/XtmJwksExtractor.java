@@ -50,6 +50,16 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class XtmJwksExtractor implements ExtractorBase {
 
+  /**
+   * Request attribute stamped (only) on a request whose bearer was validated as an XTM One
+   * cross-platform JWT: trusted issuer, JWKS signature, expected audience, resolved user. Request
+   * attributes are server-side only, so a client can never forge it. {@link
+   * io.openaev.config.TxCtxArgumentResolver} keys on it to grant run-authoritative tenant scope to
+   * the orchestrator callbacks - any caller without it keeps caller-authorized resolution.
+   */
+  public static final String CROSS_PLATFORM_ATTRIBUTE =
+      "io.openaev.security.xtmCrossPlatformAuthenticated";
+
   private static final Duration JWKS_CACHE_TTL = Duration.ofHours(1);
 
   private final XtmOneConfig xtmOneConfig;
@@ -63,7 +73,7 @@ public class XtmJwksExtractor implements ExtractorBase {
   private record CachedJwks(Instant fetchedAt, String jwksJson) {}
 
   @Override
-  public Optional<User> authUser(String value, HttpServletRequest _request)
+  public Optional<User> authUser(String value, HttpServletRequest request)
       throws JwtException, AuthenticationError {
     if (value == null) {
       throw new AuthenticationError("No bearer token found");
@@ -92,7 +102,13 @@ public class XtmJwksExtractor implements ExtractorBase {
       throw new AuthenticationError("The JWT does not contain the required 'email' claim.");
     }
 
-    return userService.findByEmailIgnoreCase(email);
+    Optional<User> user = userService.findByEmailIgnoreCase(email);
+    // Stamp the service-identity marker ONLY when this fully validated token resolved a user: a
+    // failed or unresolved authentication must never leave the request marked as the orchestrator.
+    if (user.isPresent() && request != null) {
+      request.setAttribute(CROSS_PLATFORM_ATTRIBUTE, Boolean.TRUE);
+    }
+    return user;
   }
 
   // -- PRIVATE --

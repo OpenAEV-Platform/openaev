@@ -64,6 +64,21 @@ public interface Expectation {
   String getName();
 
   /**
+   * Returns the optional display order of this expectation within its inject, ascending.
+   *
+   * <p>Lets an injector contract declare the logical sequence of its expectations (e.g. phishing
+   * orders its human steps email {@literal ->} link {@literal ->} submission) so both the chain
+   * timeline and the results list render them in that order rather than an incidental alphabetical
+   * one. {@code null} means unordered (the default for every expectation that does not set it), and
+   * readers fall back to name / id, leaving all other contracts unaffected.
+   *
+   * @return the display order, or {@code null} when unordered
+   */
+  default Integer getOrder() {
+    return null;
+  }
+
+  /**
    * Returns the time after which this expectation automatically expires.
    *
    * @return expiration time in seconds from creation, or null if no expiration

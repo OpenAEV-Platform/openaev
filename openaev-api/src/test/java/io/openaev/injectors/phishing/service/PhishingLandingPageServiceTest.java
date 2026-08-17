@@ -33,6 +33,7 @@ import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
+import io.openaev.injector_contract.fields.ContractExpectations;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.injectors.phishing.PhishingContract;
 import io.openaev.injectors.phishing.form.PhishingLandingPageBulkProcessingInput;
@@ -203,6 +204,58 @@ class PhishingLandingPageServiceTest {
     verify(mapper).writeValueAsString(contractCaptor.capture());
     Contract serialized = (Contract) contractCaptor.getValue();
     assertTrue(serialized.getOutputs().isEmpty());
+  }
+
+  @Test
+  @DisplayName(
+      "synchroniseInjectorContract declares resisted-outcome step names ordered email -> link ->"
+          + " submission")
+  void synchronise_should_declareOrderedResistedOutcomeSteps() throws Exception {
+    // -- ARRANGE --
+    PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setId("lp-1");
+    landingPage.setName("Login page");
+    arrangeSynchroniseStubs();
+    // Each human step mutates the instance the builder hands out; the shared-instance stub of
+    // arrangeSynchroniseStubs would alias the three steps into one object, so hand out fresh ones.
+    when(expectationBuilderService.buildManualExpectation())
+        .thenAnswer(invocation -> new Expectation());
+
+    ArgumentCaptor<Object> contractCaptor = ArgumentCaptor.forClass(Object.class);
+
+    // -- ACT --
+    phishingLandingPageService.synchroniseInjectorContract(landingPage);
+
+    // -- ASSERT --
+    // The human steps are the names the tracking service scores by (the join key with persisted
+    // expectation rows) and each carries its contract-declared display order: this is what lets
+    // the results UI render the chain as email -> link -> submission instead of alphabetically.
+    verify(mapper).writeValueAsString(contractCaptor.capture());
+    Contract serialized = (Contract) contractCaptor.getValue();
+    ContractExpectations expectationsField =
+        serialized.getFields().stream()
+            .filter(ContractExpectations.class::isInstance)
+            .map(ContractExpectations.class::cast)
+            .findFirst()
+            .orElseThrow();
+    // Detection/prevention are also available but carry no name (mocked builder) and no order.
+    List<Expectation> humanSteps =
+        expectationsField.getAvailableExpectations().stream()
+            .filter(expectation -> expectation.getName() != null)
+            .toList();
+    assertEquals(
+        List.of(
+            PhishingTrackingService.STEP_OPENED,
+            PhishingTrackingService.STEP_CLICKED,
+            PhishingTrackingService.STEP_SUBMITTED),
+        humanSteps.stream().map(Expectation::getName).toList());
+    assertEquals(List.of(1, 2, 3), humanSteps.stream().map(Expectation::getOrder).toList());
+    List<Expectation> unordered =
+        expectationsField.getAvailableExpectations().stream()
+            .filter(expectation -> expectation.getName() == null)
+            .toList();
+    assertEquals(2, unordered.size());
+    assertTrue(unordered.stream().allMatch(expectation -> expectation.getOrder() == null));
   }
 
   /**
