@@ -1293,6 +1293,8 @@ export interface AutonomousAttackPathStepResult {
 
 /** Live state of one authored attack-path step */
 export interface AutonomousAttackPathStepState {
+  /** Stable id of the finding EVENT this step fires on (the trigger root), or null for a seed / standalone / pure DEPEND_ON step that has no event. Pass it back as a trigger's event_id when authoring another step to attach that step to the SAME event instead of duplicating it - this is how several actions share one event (e.g. one "SMB service exposed" event feeding many follow-on actions). */
+  event_id?: string;
   /** Human-readable name of the finding EVENT this step reacts to (the trigger root's name, e.g. "SMB service exposed"), or null when the step has no finding trigger (a seed or a pure DEPEND_ON step). Mirror of the trigger's event_name on the write side. */
   event_name?: string;
   /** Id of the inject backing this step (empty until the step has executed) */
@@ -1691,6 +1693,8 @@ export interface AutonomousStatusUpdateInput {
 
 /** A finding-driven trigger: react to findings and consume their values */
 export interface AutonomousStepTrigger {
+  /** OPTIONAL. Id of an EXISTING event (a finding-trigger root already on this run's workflow) to attach this step to, instead of minting a new event. Read it from another step's event_id in the attack-path state, then pass it here so several actions fire off the SAME event (e.g. one "SMB service exposed" event feeding many follow-on actions) rather than duplicating it. When set, event_name / match / filters are IGNORED (the event already exists and is not re-described); only mappings still apply, binding this step's inject inputs from that event's finding values. Leave it null to create a new event from the filters, or omit the whole trigger entirely for an event-less seed or standalone action. It is never required: linking to an existing event is a choice, not an obligation. */
+  event_id?: string;
   /** Short, human-readable name for the EVENT this trigger represents - the discovery it fires on, phrased as an operator would read it (e.g. "SMB service exposed", "Valid credentials found", "Open web port discovered"). It becomes the event node's title in the Logic graph. When omitted, a readable name is derived from the filters so the event is never shown as "Untitled event". */
   event_name?: string;
   /** The predicates that make this step fire. Empty means: fire as soon as any of the mapped key_types is present in the finding pool. */

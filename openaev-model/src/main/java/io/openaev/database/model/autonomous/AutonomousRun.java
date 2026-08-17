@@ -150,6 +150,18 @@ public class AutonomousRun implements TenantBase {
   @Column(name = "autonomous_run_step_mirror")
   private Map<String, String> stepMirror = new HashMap<>();
 
+  // Internal bookkeeping: maps each finding-EVENT root condition id authored on the SIMULATION
+  // workflow to its twin event root id mirrored onto the SCENARIO workflow. The orchestrator only
+  // ever knows simulation event ids (those are what the attack-path state surfaces as event_id), so
+  // when it authors a step that REUSES an existing simulation event, this lets the mirror reattach
+  // the scenario twin to the SAME scenario event - keeping the exported scenario's events shared
+  // instead of duplicated, exactly like the live simulation side. Never exposed to the API or the
+  // orchestrator.
+  @JsonIgnore
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "autonomous_run_event_mirror")
+  private Map<String, String> eventMirror = new HashMap<>();
+
   @Column(name = "autonomous_run_xtm_session_id")
   @JsonProperty("autonomous_run_xtm_session_id")
   @Schema(description = "XTM One orchestrator session id for streaming reconnection")

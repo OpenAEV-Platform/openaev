@@ -2503,7 +2503,15 @@ public class AutonomousRunService {
     // updateStatus / restart.
     AutonomousRun run = requireForUpdate(runId);
     assertRunAcceptsAuthoring(run);
-    List<ConditionCreateInput> triggerConditions = toTriggerConditions(trigger);
+    // A trigger MAY reuse an existing event by id instead of minting a new one. When it does, the
+    // trigger contributes MAPPERS ONLY (the event's filter tree already exists on the workflow and
+    // is linked by id below); otherwise it builds a fresh event tree + mappers as before. event_id
+    // is always OPTIONAL - a null/absent trigger is an event-less seed or standalone action, which
+    // is a perfectly valid step, so nothing here forces an event to exist.
+    String requestedEventId = trigger != null ? trigger.getEventId() : null;
+    boolean reuseEvent = hasText(requestedEventId);
+    List<ConditionCreateInput> triggerConditions =
+        reuseEvent ? toMapperConditions(trigger) : toTriggerConditions(trigger);
     // Bridge the run's own tenant as the v1 TenantContext around the WHOLE authoring body (the
     // primary executing/scenario step AND the secondary projections). This callback arrives on the
     // legacy non-prefixed /api/autonomous-runs route where the v1 TenantContext is never set and
@@ -2533,18 +2541,32 @@ public class AutonomousRunService {
               HttpStatus.CONFLICT,
               "The autonomous run has neither a live simulation nor a scenario to build steps on");
         }
+        // Validate a reused event id up front so a bad/foreign id is a precise 400, never a silent
+        // mislink. In author-scenario mode the event lives on the scenario's own workflow.
+        if (reuseEvent) {
+          try {
+            workflowService.assertEventRootOnScenarioWorkflow(
+                run.getScenarioId(), requestedEventId);
+          } catch (ChainingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+          }
+        }
         String scenarioStepId;
         try {
           scenarioStepId =
               workflowService.appendChainedStepToScenario(
-                  run.getScenarioId(), injectInput, parentStepTemplateId, triggerConditions);
+                  run.getScenarioId(),
+                  injectInput,
+                  parentStepTemplateId,
+                  triggerConditions,
+                  reuseEvent ? List.of(requestedEventId) : List.of());
         } catch (ChainingException e) {
           throw new ResponseStatusException(
               HttpStatus.BAD_REQUEST,
               "Failed to author the attack-path step onto the scenario: " + e.getMessage(),
               e);
         }
-        boolean findingDrivenPlan = !triggerConditions.isEmpty();
+        boolean findingDrivenPlan = reuseEvent || !triggerConditions.isEmpty();
         eventService.append(
             runId,
             runTenantId(run),
@@ -2560,11 +2582,26 @@ public class AutonomousRunService {
             null);
         return scenarioStepId;
       }
+      // Validate a reused event id up front so a bad/foreign id is a precise 400, never a silent
+      // mislink. In live mode the event lives on the simulation's own workflow (the state read
+      // surfaces simulation event ids, so this is what the orchestrator passes back).
+      if (reuseEvent) {
+        try {
+          workflowService.assertEventRootOnSimulationWorkflow(
+              run.getSimulationId(), requestedEventId);
+        } catch (ChainingException e) {
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+      }
       String stepTemplateId;
       try {
         stepTemplateId =
             workflowService.appendChainedStep(
-                run.getSimulationId(), injectInput, parentStepTemplateId, triggerConditions);
+                run.getSimulationId(),
+                injectInput,
+                parentStepTemplateId,
+                triggerConditions,
+                reuseEvent ? List.of(requestedEventId) : List.of());
       } catch (ChainingException e) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Failed to author the attack-path step: " + e.getMessage(), e);
@@ -2583,8 +2620,13 @@ public class AutonomousRunService {
       //    lives on the simulation; this twin never runs).
       enableTargetedTeamMembersBestEffort(run.getSimulationId(), injectInput.getTeams());
       mirrorStepOntoScenario(
-          run, injectInput, parentStepTemplateId, stepTemplateId, triggerConditions);
-      boolean findingDriven = !triggerConditions.isEmpty();
+          run,
+          injectInput,
+          parentStepTemplateId,
+          stepTemplateId,
+          triggerConditions,
+          requestedEventId);
+      boolean findingDriven = reuseEvent || !triggerConditions.isEmpty();
       eventService.append(
           runId,
           runTenantId(run),
@@ -2680,6 +2722,25 @@ public class AutonomousRunService {
     }
 
     // MAPPER conditions bind finding values into this step's inject inputs (default GLOBAL pool).
+    conditions.addAll(toMapperConditions(mappings));
+    return conditions;
+  }
+
+  /**
+   * Builds ONLY the {@code MAPPER} conditions of a trigger - the finding-value input bindings, with
+   * NO event root and NO filter leaves. Used when a step REUSES an existing event (its filter tree
+   * already exists on the workflow and is linked by id): the step still needs its own mappers to
+   * consume that event's finding values into its inject inputs, but must never mint a duplicate
+   * event tree. Returns an empty list for a {@code null}/mapping-less trigger (the step then simply
+   * fires on the shared event with no value binding).
+   */
+  private List<ConditionCreateInput> toMapperConditions(AutonomousStepTrigger trigger) {
+    return toMapperConditions(
+        trigger == null || trigger.getMappings() == null ? List.of() : trigger.getMappings());
+  }
+
+  private List<ConditionCreateInput> toMapperConditions(List<AutonomousInputMapping> mappings) {
+    List<ConditionCreateInput> conditions = new ArrayList<>();
     for (AutonomousInputMapping mapping : mappings) {
       if (mapping == null || mapping.getKeyType() == null || !hasText(mapping.getInputKey())) {
         continue;
@@ -2787,12 +2848,23 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public String updateAttackPathStep(
       String runId, String stepTemplateId, InjectInput injectInput, AutonomousStepTrigger trigger) {
-    AutonomousRun run = require(runId);
+    // Row-locked read: a fresh-trigger update re-records the run's sim->scenario EVENT twin
+    // (eventMirror) with a full-entity write on a version-less row, so it must serialise with every
+    // other run writer exactly like doAppendAttackPathStep / deleteAttackPathStep.
+    AutonomousRun run = requireForUpdate(runId);
     assertRunAcceptsAuthoring(run);
     // A supplied trigger is translated to the engine's condition vocabulary once and used to
-    // rebuild the step (and its mirror twin); null means "leave the conditions as they are".
+    // rebuild
+    // the step (and its mirror twin); null means "leave the conditions as they are" (data-only,
+    // which also preserves any existing event link). When the trigger REUSES an event by id it
+    // contributes MAPPERS ONLY (the event is linked by id, not rebuilt); event_id stays OPTIONAL,
+    // so correcting a step never requires an event.
+    String requestedEventId = trigger != null ? trigger.getEventId() : null;
+    boolean reuseEvent = hasText(requestedEventId);
     List<ConditionCreateInput> triggerConditions =
-        trigger != null ? toTriggerConditions(trigger) : null;
+        trigger == null
+            ? null
+            : (reuseEvent ? toMapperConditions(trigger) : toTriggerConditions(trigger));
     // Bridge the run's own tenant as the v1 TenantContext around the WHOLE update body (the primary
     // in-place step update AND the secondary projections), for the same reason as
     // doAppendAttackPathStep: on the legacy non-prefixed callback route the v1 TenantContext falls
@@ -2818,8 +2890,22 @@ public class AutonomousRunService {
               HttpStatus.CONFLICT,
               "The autonomous run has neither a live simulation nor a scenario to update steps on");
         }
+        // Validate a reused event id up front so a bad/foreign id is a precise 400. In
+        // author-scenario mode the event lives on the scenario's own workflow.
+        if (reuseEvent) {
+          try {
+            workflowService.assertEventRootOnScenarioWorkflow(
+                run.getScenarioId(), requestedEventId);
+          } catch (ChainingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+          }
+        }
         try {
-          workflowService.updateChainedStep(stepTemplateId, injectInput, triggerConditions);
+          workflowService.updateChainedStep(
+              stepTemplateId,
+              injectInput,
+              triggerConditions,
+              reuseEvent ? List.of(requestedEventId) : List.of());
         } catch (ChainingException e) {
           throw new ResponseStatusException(
               HttpStatus.BAD_REQUEST,
@@ -2836,30 +2922,35 @@ public class AutonomousRunService {
             null);
         return stepTemplateId;
       }
+      // Validate a reused event id up front so a bad/foreign id is a precise 400. In live mode the
+      // event lives on the simulation's own workflow (the state read surfaces simulation event
+      // ids).
+      if (reuseEvent) {
+        try {
+          workflowService.assertEventRootOnSimulationWorkflow(
+              run.getSimulationId(), requestedEventId);
+        } catch (ChainingException e) {
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+      }
       try {
-        workflowService.updateChainedStep(stepTemplateId, injectInput, triggerConditions);
+        workflowService.updateChainedStep(
+            stepTemplateId,
+            injectInput,
+            triggerConditions,
+            reuseEvent ? List.of(requestedEventId) : List.of());
       } catch (ChainingException e) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Failed to update the attack-path step: " + e.getMessage(), e);
       }
       // The executing simulation step is updated above. Keeping the scenario mirror twin in
-      // lock-step and re-enabling any newly targeted team's members are SECONDARY projections that
-      // must never fail (500) this callback: each runs in its OWN REQUIRES_NEW transaction so a
-      // failure rolls back only itself and can never mark this update transaction rollback-only.
-      // Mirrors doAppendAttackPathStep / setRunScope.
-      Map<String, String> mirror = run.getStepMirror();
-      String scenarioStepId = mirror == null ? null : mirror.get(stepTemplateId);
-      if (hasText(scenarioStepId)) {
-        try {
-          workflowService.updateChainedStepIsolated(scenarioStepId, injectInput, triggerConditions);
-        } catch (Exception e) {
-          log.warn(
-              "[Autonomous] Failed to update scenario mirror step {} for run {}: {}",
-              scenarioStepId,
-              runId,
-              e.getMessage());
-        }
-      }
+      // lock-step (with the same event sharing) and re-enabling any newly targeted team's members
+      // are SECONDARY projections that must never fail (500) this callback: the twin update runs in
+      // its OWN REQUIRES_NEW transaction so a failure rolls back only itself and can never mark
+      // this
+      // update transaction rollback-only. Mirrors doAppendAttackPathStep / setRunScope.
+      mirrorStepUpdateOntoScenario(
+          run, stepTemplateId, injectInput, triggerConditions, requestedEventId);
       enableTargetedTeamMembersBestEffort(run.getSimulationId(), injectInput.getTeams());
       eventService.append(
           runId,
@@ -2967,33 +3058,160 @@ public class AutonomousRunService {
       InjectInput injectInput,
       String parentSimStepId,
       String simStepId,
-      List<ConditionCreateInput> triggerConditions) {
+      List<ConditionCreateInput> triggerConditions,
+      String reusedSimEventId) {
     String scenarioId = run.getScenarioId();
     if (!hasText(scenarioId)) {
       return;
     }
-    Map<String, String> mirror =
+    Map<String, String> stepMirror =
         run.getStepMirror() == null ? new HashMap<>() : new HashMap<>(run.getStepMirror());
-    String parentScenarioStepId = hasText(parentSimStepId) ? mirror.get(parentSimStepId) : null;
+    Map<String, String> eventMirror =
+        run.getEventMirror() == null ? new HashMap<>() : new HashMap<>(run.getEventMirror());
+    String parentScenarioStepId = hasText(parentSimStepId) ? stepMirror.get(parentSimStepId) : null;
+
+    // Resolve the scenario-side event linkage for a step that REUSED an existing simulation event,
+    // so the exported scenario SHARES one event across those steps exactly like the executing
+    // simulation does, instead of duplicating it per step:
+    //   - normal case: the scenario twin of the reused sim event was recorded in eventMirror when
+    //     that event was first authored (below), so link the twin by id and add no fresh event tree
+    //     (triggerConditions here are mappers-only).
+    //   - fallback: no twin recorded (the source event pre-dates event-mirror tracking, or its own
+    //     mirror failed), so re-create a faithful COPY of the event on the scenario from the sim
+    //     event's subtree plus this step's mappers, so the twin is never left event-less. That copy
+    //     is not shared - a graceful degradation of the export's display fidelity only, since the
+    //     scenario twin never executes.
+    List<ConditionCreateInput> scenarioConditions = triggerConditions;
+    List<String> scenarioExistingEventIds = List.of();
+    if (hasText(reusedSimEventId)) {
+      String scenarioEventId = eventMirror.get(reusedSimEventId);
+      if (hasText(scenarioEventId)) {
+        scenarioExistingEventIds = List.of(scenarioEventId);
+      } else {
+        List<ConditionCreateInput> recreated =
+            new ArrayList<>(workflowService.resolveEventRootAsInputs(reusedSimEventId));
+        recreated.addAll(triggerConditions);
+        scenarioConditions = recreated;
+      }
+    }
     try {
       // Append the scenario twin in its OWN transaction (REQUIRES_NEW): a mirror-side persistence
       // failure (scenario template invisible under this thread's tenant, an action-target
       // realignment error, a concurrent author racing the same scenario workflow) then rolls back
       // only the twin and can never mark the caller's authoring transaction rollback-only - which
       // previously turned a swallowed mirror error into a failed commit that lost the executing
-      // step. The stepMirror map update + run save below deliberately stay in the OUTER transaction
+      // step. The mirror map updates + run save below deliberately stay in the OUTER transaction
       // so they commit atomically with the executing step and never race a REQUIRES_NEW twin over
       // the same managed AutonomousRun row.
       String scenarioStepId =
           workflowService.appendChainedStepToScenarioIsolated(
-              scenarioId, injectInput, parentScenarioStepId, triggerConditions);
-      mirror.put(simStepId, scenarioStepId);
-      run.setStepMirror(mirror);
+              scenarioId,
+              injectInput,
+              parentScenarioStepId,
+              scenarioConditions,
+              scenarioExistingEventIds);
+      stepMirror.put(simStepId, scenarioStepId);
+      // Record the sim->scenario EVENT twin so a later step reusing this sim event mirrors onto the
+      // SAME scenario event instead of duplicating it. This must happen not only when the event was
+      // authored fresh, but ALSO when a reuse took the fallback COPY path above (no twin was
+      // recorded yet): otherwise every later reuse would take the fallback again and mint another
+      // scenario event, re-introducing the duplication this feature removes. A reuse that instead
+      // LINKED an already-recorded twin just re-records the same mapping (a harmless no-op). For a
+      // reuse the sim event id is exactly reusedSimEventId; for a fresh author it is read back from
+      // the newly authored step. Best-effort: a lookup miss leaves the mapping unrecorded and the
+      // fallback path still keeps the twin non-event-less.
+      String simEventId =
+          hasText(reusedSimEventId)
+              ? reusedSimEventId
+              : workflowService.findStepTriggerEventRootId(simStepId);
+      if (hasText(simEventId)) {
+        String scenarioEventId = workflowService.findStepTriggerEventRootId(scenarioStepId);
+        if (hasText(scenarioEventId)) {
+          eventMirror.put(simEventId, scenarioEventId);
+        }
+      }
+      run.setStepMirror(stepMirror);
+      run.setEventMirror(eventMirror);
       runRepository.save(run);
     } catch (Exception e) {
       log.warn(
           "[Autonomous] Failed to mirror attack-path step onto scenario {} for run {}: {}",
           scenarioId,
+          run.getId(),
+          e.getMessage());
+    }
+  }
+
+  /**
+   * Update-side twin of {@link #mirrorStepOntoScenario}: keeps the scenario mirror step in
+   * lock-step when the orchestrator updates a simulation step, PRESERVING event sharing on the
+   * scenario. A reused event links its recorded scenario twin (fallback: re-create a faithful copy
+   * from the sim event subtree so the twin is never event-less); a fresh trigger copies verbatim
+   * and re-records the sim-&gt;scenario event twin so a later step reusing the rebuilt event still
+   * mirrors onto the SAME scenario event; a data-only update ({@code triggerConditions == null})
+   * leaves the twin's conditions untouched. Best-effort: the executing simulation step is already
+   * updated, so a twin failure is logged and swallowed, never propagated (it runs in its OWN
+   * REQUIRES_NEW transaction).
+   */
+  private void mirrorStepUpdateOntoScenario(
+      AutonomousRun run,
+      String simStepId,
+      InjectInput injectInput,
+      List<ConditionCreateInput> triggerConditions,
+      String reusedSimEventId) {
+    Map<String, String> stepMirror = run.getStepMirror();
+    String scenarioStepId = stepMirror == null ? null : stepMirror.get(simStepId);
+    if (!hasText(scenarioStepId)) {
+      return;
+    }
+    Map<String, String> eventMirror =
+        run.getEventMirror() == null ? new HashMap<>() : new HashMap<>(run.getEventMirror());
+    // Resolve the scenario-side event linkage exactly like the append mirror: a reused event links
+    // its recorded scenario twin (fallback: recreate a copy); a fresh/absent trigger copies
+    // verbatim.
+    List<ConditionCreateInput> scenarioConditions = triggerConditions;
+    List<String> scenarioExistingEventIds = List.of();
+    if (hasText(reusedSimEventId)) {
+      String scenarioEventId = eventMirror.get(reusedSimEventId);
+      if (hasText(scenarioEventId)) {
+        scenarioExistingEventIds = List.of(scenarioEventId);
+      } else {
+        List<ConditionCreateInput> recreated =
+            new ArrayList<>(workflowService.resolveEventRootAsInputs(reusedSimEventId));
+        if (triggerConditions != null) {
+          recreated.addAll(triggerConditions);
+        }
+        scenarioConditions = recreated;
+      }
+    }
+    try {
+      workflowService.updateChainedStepIsolated(
+          scenarioStepId, injectInput, scenarioConditions, scenarioExistingEventIds);
+      // Record the sim->scenario event twin whenever the trigger was (re)built - a fresh event OR a
+      // reuse that took the fallback COPY path - so a later step reusing this sim event shares the
+      // SAME scenario event instead of triggering the fallback again and duplicating it. A
+      // data-only update (triggerConditions == null) changes no event, so there is nothing to
+      // record; a reuse that linked an already-recorded twin re-records the same mapping, so only
+      // persist when it actually changed. For a reuse the sim event id is reusedSimEventId; for a
+      // fresh update it is read back from the rebuilt step.
+      if (triggerConditions != null) {
+        String simEventId =
+            hasText(reusedSimEventId)
+                ? reusedSimEventId
+                : workflowService.findStepTriggerEventRootId(simStepId);
+        if (hasText(simEventId)) {
+          String scenarioEventId = workflowService.findStepTriggerEventRootId(scenarioStepId);
+          if (hasText(scenarioEventId) && !scenarioEventId.equals(eventMirror.get(simEventId))) {
+            eventMirror.put(simEventId, scenarioEventId);
+            run.setEventMirror(eventMirror);
+            runRepository.save(run);
+          }
+        }
+      }
+    } catch (Exception e) {
+      log.warn(
+          "[Autonomous] Failed to update scenario mirror step {} for run {}: {}",
+          scenarioStepId,
           run.getId(),
           e.getMessage());
     }
@@ -3148,11 +3366,13 @@ public class AutonomousRunService {
     }
     String injectId = injects.isEmpty() ? "" : injects.get(injects.size() - 1).getId();
     // Argument order MUST match the DTO field declaration order (its @AllArgsConstructor):
-    // stepTemplateId, parentStepTemplateId, event_name, trigger_filters, trigger_mappings,
+    // stepTemplateId, parentStepTemplateId, event_id, event_name, trigger_filters,
+    // trigger_mappings,
     // inject_id, title, type, injector_contract_id, target, status, traces.
     return new AutonomousAttackPathStepState(
         authored.stepTemplateId(),
         authored.parentStepTemplateId(),
+        authored.eventId(),
         authored.eventName(),
         authored.triggerFilters(),
         authored.triggerMappings(),

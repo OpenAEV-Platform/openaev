@@ -2,6 +2,7 @@ package io.openaev.service.autonomous;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -18,11 +19,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.autonomous.dto.AutonomousInputMapping;
+import io.openaev.api.autonomous.dto.AutonomousStepTrigger;
+import io.openaev.api.autonomous.dto.AutonomousTriggerFilter;
+import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
+import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.Tenant;
@@ -39,6 +46,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.EndpointService;
@@ -47,7 +55,9 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.xtmone.XtmOneClient;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +70,8 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Unit tests for the orchestrator scope + attack-path authoring callbacks ({@link
@@ -109,6 +121,9 @@ class AutonomousRunServiceScopeTest {
   @InjectMocks private AutonomousRunService runService;
 
   @Captor private ArgumentCaptor<List<WorkflowScopeRuleInput>> rulesCaptor;
+  @Captor private ArgumentCaptor<List<String>> existingEventIdsCaptor;
+  @Captor private ArgumentCaptor<List<String>> scenarioEventIdsCaptor;
+  @Captor private ArgumentCaptor<List<ConditionCreateInput>> triggerConditionsCaptor;
 
   private AutonomousRun run;
 
@@ -269,7 +284,7 @@ class AutonomousRunServiceScopeTest {
   @Test
   @DisplayName("Appending a step loads the run FOR UPDATE (row lock), never the unlocked read")
   void given_anAuthorCallback_when_appendingAStep_then_theRunIsLoadedForUpdate() throws Exception {
-    when(workflowService.appendChainedStep(anyString(), any(), any(), anyList()))
+    when(workflowService.appendChainedStep(anyString(), any(), any(), anyList(), anyList()))
         .thenReturn("sim-step-1");
 
     runService.appendAttackPathStep(RUN_ID, new InjectInput(), null);
@@ -288,7 +303,7 @@ class AutonomousRunServiceScopeTest {
     // Reproduce the legacy non-prefixed route's no-tenant thread (see the scope projections test).
     TenantContext.clearCurrentTenant();
     List<String> seenTenants = new ArrayList<>();
-    when(workflowService.appendChainedStep(anyString(), any(), any(), anyList()))
+    when(workflowService.appendChainedStep(anyString(), any(), any(), anyList(), anyList()))
         .thenAnswer(
             inv -> {
               seenTenants.add(TenantContext.getCurrentTenant());
@@ -312,7 +327,8 @@ class AutonomousRunServiceScopeTest {
     run.setSimulationId(null);
     TenantContext.clearCurrentTenant();
     List<String> seenTenants = new ArrayList<>();
-    when(workflowService.appendChainedStepToScenario(anyString(), any(), any(), anyList()))
+    when(workflowService.appendChainedStepToScenario(
+            anyString(), any(), any(), anyList(), anyList()))
         .thenAnswer(
             inv -> {
               seenTenants.add(TenantContext.getCurrentTenant());
@@ -330,23 +346,219 @@ class AutonomousRunServiceScopeTest {
       "The PRIMARY in-place step update runs under the run's v1 tenant, cleared afterwards")
   void given_theLegacyCallbackRoute_when_updatingAStep_then_thePrimaryRunsUnderTheRunTenant()
       throws Exception {
-    // updateAttackPathStep never saves the run, so it keeps the plain read (stubbed here).
-    when(runRepository.findById(RUN_ID)).thenReturn(Optional.of(run));
+    // updateAttackPathStep now loads the run FOR UPDATE (row lock) too: a fresh-trigger update
+    // re-records the sim->scenario event twin (eventMirror) with a version-less full-entity write,
+    // so it must serialise with the other run writers. The lock read is lenient-stubbed in setUp.
     TenantContext.clearCurrentTenant();
     List<String> seenTenants = new ArrayList<>();
-    // A null trigger routes through the three-argument updateChainedStep (data-only), so the tenant
-    // probe is stubbed on that overload.
+    // A null trigger routes through the four-argument updateChainedStep with an EMPTY
+    // existing-event
+    // id list (data-only: conditions untouched, no event minted or reused), so the tenant probe is
+    // stubbed on that overload.
     doAnswer(
             inv -> {
               seenTenants.add(TenantContext.getCurrentTenant());
               return null;
             })
         .when(workflowService)
-        .updateChainedStep(eq("sim-step-1"), any(), any());
+        .updateChainedStep(eq("sim-step-1"), any(), any(), anyList());
 
     runService.updateAttackPathStep(RUN_ID, "sim-step-1", new InjectInput(), null);
 
     assertThat(seenTenants).containsExactly("tenant-1");
     assertThat(TenantContext.hasCurrentTenant()).isFalse();
+  }
+
+  // ------------------------------------------------------------------------- //
+  // Event REUSE: attach a step to an EXISTING event by id instead of minting a  //
+  // duplicate. event_id is always OPTIONAL - an absent trigger/event is a valid //
+  // event-less seed or standalone action and nothing here forces an event.      //
+  // ------------------------------------------------------------------------- //
+
+  @Test
+  @DisplayName(
+      "Authoring with trigger.event_id links the EXISTING sim event (mappers-only) and the mirror"
+          + " shares its recorded scenario twin instead of duplicating it")
+  void given_aTriggerReusingAnEvent_when_appendingLive_then_theEventIsLinkedAndMirrorShares()
+      throws Exception {
+    // The run already knows this sim event's scenario twin (recorded when the event was first
+    // authored), so the exported scenario shares ONE event across the reusing steps - exactly like
+    // the executing simulation - rather than duplicating it per step.
+    run.setEventMirror(new HashMap<>(Map.of("sim-evt-smb", "scenario-evt-smb")));
+    when(workflowService.appendChainedStep(
+            anyString(),
+            any(),
+            any(),
+            triggerConditionsCaptor.capture(),
+            existingEventIdsCaptor.capture()))
+        .thenReturn("sim-step-2");
+    when(workflowService.appendChainedStepToScenarioIsolated(
+            anyString(), any(), any(), anyList(), scenarioEventIdsCaptor.capture()))
+        .thenReturn("scenario-step-2");
+
+    AutonomousStepTrigger trigger = new AutonomousStepTrigger();
+    trigger.setEventId("sim-evt-smb");
+    // event_name / filters are provided but MUST be ignored when reusing (the event already
+    // exists);
+    // only the mappers survive so this step still consumes the shared event's finding values.
+    trigger.setEventName("ignored when reusing");
+    AutonomousTriggerFilter filter = new AutonomousTriggerFilter();
+    filter.setKeyType(PrimitiveType.Port);
+    filter.setOperator(ConditionType.EQ);
+    filter.setValue("445");
+    trigger.setFilters(List.of(filter));
+    AutonomousInputMapping mapping = new AutonomousInputMapping();
+    mapping.setInputKey("host");
+    mapping.setKeyType(PrimitiveType.Host);
+    trigger.setMappings(List.of(mapping));
+
+    String stepId = runService.appendAttackPathStep(RUN_ID, new InjectInput(), null, trigger);
+
+    assertThat(stepId).isEqualTo("sim-step-2");
+    // The reused id is validated on the SIMULATION workflow (the state read surfaces sim event
+    // ids).
+    verify(workflowService).assertEventRootOnSimulationWorkflow(SIMULATION_ID, "sim-evt-smb");
+    // Linked by id (never re-minted): the reused id is threaded to the workflow append.
+    assertThat(existingEventIdsCaptor.getValue()).containsExactly("sim-evt-smb");
+    // MAPPERS ONLY: no event root / filter leaves are rebuilt - just the single value binding.
+    assertThat(triggerConditionsCaptor.getValue()).hasSize(1);
+    assertThat(triggerConditionsCaptor.getValue())
+        .allSatisfy(c -> assertThat(c.getType()).isEqualTo(ConditionType.MAPPER));
+    // The scenario twin SHARES the recorded scenario event (from eventMirror), not a duplicate.
+    assertThat(scenarioEventIdsCaptor.getValue()).containsExactly("scenario-evt-smb");
+  }
+
+  @Test
+  @DisplayName(
+      "Reusing an event with NO recorded scenario twin recreates it as a fallback AND records the"
+          + " fresh twin, so later reuses share it instead of duplicating")
+  void given_aReusedEventWithoutAMirror_when_appendingLive_then_theFallbackTwinIsRecorded()
+      throws Exception {
+    // eventMirror is EMPTY: the reused sim event has no scenario twin yet (it pre-dates mirror
+    // tracking, or its first mirror failed), so the mirror RECREATES the event on the scenario as a
+    // fallback. It must also RECORD that fresh twin - otherwise every later step reusing the same
+    // sim event takes the fallback again and mints yet another scenario event, re-introducing the
+    // duplication this feature removes.
+    when(workflowService.appendChainedStep(anyString(), any(), any(), anyList(), anyList()))
+        .thenReturn("sim-step-2");
+    when(workflowService.resolveEventRootAsInputs("sim-evt-smb"))
+        .thenReturn(List.of(ConditionCreateInput.builder().type(ConditionType.AND).build()));
+    when(workflowService.appendChainedStepToScenarioIsolated(
+            anyString(), any(), any(), anyList(), scenarioEventIdsCaptor.capture()))
+        .thenReturn("scenario-step-copy");
+    when(workflowService.findStepTriggerEventRootId("scenario-step-copy"))
+        .thenReturn("scenario-evt-copy");
+
+    AutonomousStepTrigger trigger = new AutonomousStepTrigger();
+    trigger.setEventId("sim-evt-smb");
+    AutonomousInputMapping mapping = new AutonomousInputMapping();
+    mapping.setInputKey("host");
+    mapping.setKeyType(PrimitiveType.Host);
+    trigger.setMappings(List.of(mapping));
+
+    runService.appendAttackPathStep(RUN_ID, new InjectInput(), null, trigger);
+
+    // Fallback: no existing scenario event is LINKED (it is recreated, not shared yet)...
+    assertThat(scenarioEventIdsCaptor.getValue()).isEmpty();
+    // ...and the recreated scenario event twin is now recorded, so the NEXT reuse shares it.
+    assertThat(run.getEventMirror()).containsEntry("sim-evt-smb", "scenario-evt-copy");
+  }
+
+  @Test
+  @DisplayName(
+      "Authoring WITHOUT event_id mints a fresh event and neither validates nor links an existing"
+          + " one - event_id is optional")
+  void given_noEventId_when_appendingLive_then_noReuseAndNoValidation() throws Exception {
+    when(workflowService.appendChainedStep(
+            anyString(), any(), any(), anyList(), existingEventIdsCaptor.capture()))
+        .thenReturn("sim-step-1");
+
+    AutonomousStepTrigger trigger = new AutonomousStepTrigger();
+    trigger.setEventName("SMB service exposed");
+    AutonomousTriggerFilter filter = new AutonomousTriggerFilter();
+    filter.setKeyType(PrimitiveType.Port);
+    filter.setOperator(ConditionType.EQ);
+    filter.setValue("445");
+    trigger.setFilters(List.of(filter));
+
+    runService.appendAttackPathStep(RUN_ID, new InjectInput(), null, trigger);
+
+    // No reuse -> the existing-event id list is EMPTY (a fresh event is minted from the filters).
+    assertThat(existingEventIdsCaptor.getValue()).isEmpty();
+    // Nothing to validate -> the reuse validation is never invoked.
+    verify(workflowService, never()).assertEventRootOnSimulationWorkflow(anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName(
+      "Author-scenario mode reuses an event by validating it on the SCENARIO workflow and linking"
+          + " it by id (never the live-mode validation)")
+  void given_aPlanRunReusingAnEvent_when_appending_then_theScenarioEventIsValidatedAndLinked()
+      throws Exception {
+    run.setSimulationId(null);
+    when(workflowService.appendChainedStepToScenario(
+            anyString(), any(), any(), anyList(), existingEventIdsCaptor.capture()))
+        .thenReturn("scenario-step-2");
+
+    AutonomousStepTrigger trigger = new AutonomousStepTrigger();
+    trigger.setEventId("scenario-evt-web");
+
+    String stepId = runService.appendAttackPathStep(RUN_ID, new InjectInput(), null, trigger);
+
+    assertThat(stepId).isEqualTo("scenario-step-2");
+    verify(workflowService).assertEventRootOnScenarioWorkflow(SCENARIO_ID, "scenario-evt-web");
+    assertThat(existingEventIdsCaptor.getValue()).containsExactly("scenario-evt-web");
+    verify(workflowService, never()).assertEventRootOnSimulationWorkflow(anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName(
+      "Updating with trigger.event_id re-points the step onto the EXISTING event (mappers-only) and"
+          + " links it by id")
+  void given_aTriggerReusingAnEvent_when_updatingLive_then_theEventIsValidatedAndLinked()
+      throws Exception {
+    AutonomousStepTrigger trigger = new AutonomousStepTrigger();
+    trigger.setEventId("sim-evt-smb");
+    AutonomousInputMapping mapping = new AutonomousInputMapping();
+    mapping.setInputKey("host");
+    mapping.setKeyType(PrimitiveType.Host);
+    trigger.setMappings(List.of(mapping));
+
+    runService.updateAttackPathStep(RUN_ID, "sim-step-9", new InjectInput(), trigger);
+
+    verify(workflowService).assertEventRootOnSimulationWorkflow(SIMULATION_ID, "sim-evt-smb");
+    // updateChainedStep is void: capture its args after the fact to assert the reused link + shape.
+    verify(workflowService)
+        .updateChainedStep(
+            eq("sim-step-9"),
+            any(),
+            triggerConditionsCaptor.capture(),
+            existingEventIdsCaptor.capture());
+    assertThat(existingEventIdsCaptor.getValue()).containsExactly("sim-evt-smb");
+    assertThat(triggerConditionsCaptor.getValue())
+        .allSatisfy(c -> assertThat(c.getType()).isEqualTo(ConditionType.MAPPER));
+  }
+
+  @Test
+  @DisplayName("A bad/foreign event_id is a precise 400 and no step is authored (never a mislink)")
+  void given_anInvalidEventId_when_appendingLive_then_itIs400_andNoStepAuthored() throws Exception {
+    doThrow(new ChainingException("No such event root on this workflow"))
+        .when(workflowService)
+        .assertEventRootOnSimulationWorkflow(SIMULATION_ID, "nope");
+
+    AutonomousStepTrigger trigger = new AutonomousStepTrigger();
+    trigger.setEventId("nope");
+
+    assertThatThrownBy(
+            () -> runService.appendAttackPathStep(RUN_ID, new InjectInput(), null, trigger))
+        .isInstanceOf(ResponseStatusException.class)
+        .satisfies(
+            e ->
+                assertThat(((ResponseStatusException) e).getStatusCode())
+                    .isEqualTo(HttpStatus.BAD_REQUEST));
+
+    // Rejected up front: nothing is authored, so no duplicate or mislinked step ever lands.
+    verify(workflowService, never())
+        .appendChainedStep(anyString(), any(), any(), anyList(), anyList());
   }
 }
