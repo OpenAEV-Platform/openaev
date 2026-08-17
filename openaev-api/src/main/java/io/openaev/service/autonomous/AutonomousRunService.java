@@ -3139,19 +3139,22 @@ public class AutonomousRunService {
       }
     }
     String injectId = injects.isEmpty() ? "" : injects.get(injects.size() - 1).getId();
+    // Argument order MUST match the DTO field declaration order (its @AllArgsConstructor):
+    // stepTemplateId, parentStepTemplateId, event_name, trigger_filters, trigger_mappings,
+    // inject_id, title, type, injector_contract_id, target, status, traces.
     return new AutonomousAttackPathStepState(
         authored.stepTemplateId(),
         authored.parentStepTemplateId(),
+        authored.eventName(),
+        authored.triggerFilters(),
+        authored.triggerMappings(),
         injectId,
         title,
         type,
         contractId,
         targetSummary(data),
         aggregateStatus(injects),
-        aggregateTraces(injects),
-        authored.eventName(),
-        authored.triggerFilters(),
-        authored.triggerMappings());
+        aggregateTraces(injects));
   }
 
   private JsonNode parseInjectData(String json) {
@@ -4216,32 +4219,34 @@ public class AutonomousRunService {
    */
   private SimulationStatusProbe probeSimulationStatus(String simulationId) {
     try {
-      return SimulationStatusProbe.readable(exerciseService.exercise(simulationId).getStatus());
+      return SimulationStatusProbe.ofReadable(exerciseService.exercise(simulationId).getStatus());
     } catch (ElementNotFoundException e) {
-      return SimulationStatusProbe.deleted();
+      return SimulationStatusProbe.ofDeleted();
     } catch (Exception e) {
       log.warn(
           "[Autonomous] Simulation {} status unreadable during reconcile; leaving the run status"
               + " untouched (not treated as a deletion)",
           simulationId,
           e);
-      return SimulationStatusProbe.unreadable();
+      return SimulationStatusProbe.ofUnreadable();
     }
   }
 
   /**
    * Outcome of {@link #probeSimulationStatus}: readable status, a deletion, or an unreadable read.
+   * The factories are named {@code of*} so they do not collide with the record's {@code deleted()}
+   * / {@code unreadable()} component accessors (which the callers use as boolean predicates).
    */
   private record SimulationStatusProbe(ExerciseStatus status, boolean deleted, boolean unreadable) {
-    static SimulationStatusProbe readable(ExerciseStatus status) {
+    static SimulationStatusProbe ofReadable(ExerciseStatus status) {
       return new SimulationStatusProbe(status, false, false);
     }
 
-    static SimulationStatusProbe deleted() {
+    static SimulationStatusProbe ofDeleted() {
       return new SimulationStatusProbe(null, true, false);
     }
 
-    static SimulationStatusProbe unreadable() {
+    static SimulationStatusProbe ofUnreadable() {
       return new SimulationStatusProbe(null, false, true);
     }
   }
