@@ -1519,10 +1519,15 @@ public class WorkflowService {
     }
     String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
 
-    // Guard: ignore if workflow run has already ended (e.g. timeout).
+    // Guard: ignore if workflow run has already ended (e.g. timeout). The early return is load-
+    // bearing: without it an ended workflow still fell through to
+    // createReadySteps/enqueueReadySteps
+    // below, re-readying and re-enqueuing steps on a terminated run (churn, and a possible re-fire
+    // after a timeout settle).
     if (this.isWorkflowEnded(workflowRun.getId())) {
       log.info(
           "[Chaining] Ignoring evaluation because workflow run {} has ended.", workflowRun.getId());
+      return workflowRun;
     }
 
     // Get all step template
@@ -1868,13 +1873,29 @@ public class WorkflowService {
     if (template.isEmpty()) {
       return List.of();
     }
+    Workflow workflow = template.get();
     List<Step> steps =
-        stepService.findAllStepTemplateByWorkflow(template.get().getId()).stream()
+        stepService.findAllStepTemplateByWorkflow(workflow.getId()).stream()
             .filter(s -> StepActionClass.INJECT_EXECUTION.equals(s.getStepAction()))
             .sorted(
                 Comparator.comparing(
                     Step::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
             .toList();
+    if (steps.isEmpty()) {
+      return List.of();
+    }
+    // Batch every step's LINKED root conditions in one query - a step links only its condition
+    // ROOTS (the DEPEND_ON parent, the finding-trigger event root, and any MAPPER roots) - and the
+    // workflow's leaf filter conditions once, grouped by parent id. This replaces a per-step
+    // condition read (the old dependOnParentTemplateId call) plus a per-step trigger walk with two
+    // batched reads, so the orchestrator's per-cycle attack-path poll stays flat instead of N+1 in
+    // the step count.
+    Set<String> stepIds = steps.stream().map(Step::getId).collect(Collectors.toSet());
+    Map<String, List<Condition>> rootsByStep = conditionService.findAllConditionsByStepIds(stepIds);
+    Map<String, List<Condition>> filterLeavesByParentId =
+        conditionService.findAllNonMapperConditionsByWorkflowId(workflow.getId()).stream()
+            .filter(condition -> condition.getConditionParent() != null)
+            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
     List<AuthoredAttackStep> authored = new ArrayList<>();
     for (Step step : steps) {
       List<String> runInjectIds =
@@ -1883,14 +1904,106 @@ public class WorkflowService {
               .filter(id -> id != null && !id.isBlank())
               .distinct()
               .toList();
+      List<Condition> roots = rootsByStep.getOrDefault(step.getId(), List.of());
       authored.add(
           new AuthoredAttackStep(
               step.getId(),
-              stepService.dependOnParentTemplateId(step.getId()),
+              dependOnParentFromRoots(roots),
               step.getData(),
-              runInjectIds));
+              runInjectIds,
+              triggerEventName(roots),
+              triggerFilters(roots, filterLeavesByParentId),
+              triggerMappings(roots)));
     }
     return authored;
+  }
+
+  /** The DEPEND_ON parent step template id among a step's linked root conditions, or null. */
+  private static String dependOnParentFromRoots(List<Condition> roots) {
+    return roots.stream()
+        .filter(condition -> condition.getType() == ConditionType.DEPEND_ON)
+        .map(Condition::getValue)
+        .filter(value -> value != null && !value.isBlank())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /** The finding-trigger event root (an AND / OR root) among a step's linked roots, or null. */
+  private static Condition triggerRoot(List<Condition> roots) {
+    return roots.stream()
+        .filter(
+            condition ->
+                condition.getType() == ConditionType.AND || condition.getType() == ConditionType.OR)
+        .findFirst()
+        .orElse(null);
+  }
+
+  /** Human name of the step's finding EVENT (the trigger root's name), or null when it has none. */
+  private static String triggerEventName(List<Condition> roots) {
+    Condition root = triggerRoot(roots);
+    return root != null && hasText(root.getName()) ? root.getName().trim() : null;
+  }
+
+  /**
+   * The step's finding predicates rendered as "&lt;key&gt; &lt;operator&gt; &lt;value&gt;" (value
+   * omitted for a valueless operator such as IS_NOT_NULL), read back from the trigger root's leaf
+   * children so the caller sees exactly what the step fires on - the finding-driven wiring, not an
+   * inferred linear chain.
+   */
+  private static List<String> triggerFilters(
+      List<Condition> roots, Map<String, List<Condition>> filterLeavesByParentId) {
+    Condition root = triggerRoot(roots);
+    if (root == null) {
+      return List.of();
+    }
+    return filterLeavesByParentId.getOrDefault(root.getId(), List.of()).stream()
+        .map(WorkflowService::formatTriggerFilter)
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  /**
+   * The step's finding-value bindings rendered as "&lt;key&gt; -&gt; &lt;input&gt;", from MAPPERs.
+   */
+  private static List<String> triggerMappings(List<Condition> roots) {
+    return roots.stream()
+        .filter(condition -> condition.getType() == ConditionType.MAPPER)
+        .map(WorkflowService::formatTriggerMapping)
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  private static String formatTriggerFilter(Condition condition) {
+    String key = keyTypeLabels(condition.getKeyTypes());
+    if (key == null) {
+      return null;
+    }
+    String operator = condition.getType() != null ? condition.getType().name() : "";
+    String value = condition.getValue();
+    String base = hasText(operator) ? key + " " + operator : key;
+    return hasText(value) ? base + " " + value.trim() : base;
+  }
+
+  private static String formatTriggerMapping(Condition condition) {
+    String key = keyTypeLabels(condition.getKeyTypes());
+    String input = condition.getKey();
+    if (key == null || !hasText(input)) {
+      return null;
+    }
+    return key + " -> " + input.trim();
+  }
+
+  /** Joins a condition's key types by their primitive label (e.g. "port", "ipv4"), or null. */
+  private static String keyTypeLabels(List<PrimitiveType> keyTypes) {
+    if (keyTypes == null || keyTypes.isEmpty()) {
+      return null;
+    }
+    String joined =
+        keyTypes.stream()
+            .filter(Objects::nonNull)
+            .map(keyType -> keyType.label)
+            .collect(Collectors.joining("/"));
+    return hasText(joined) ? joined : null;
   }
 
   /**
@@ -1905,7 +2018,25 @@ public class WorkflowService {
   @Transactional(rollbackFor = Exception.class)
   public void updateChainedStep(String stepTemplateId, InjectInput injectInput)
       throws ChainingException {
-    doUpdateChainedStep(stepTemplateId, injectInput);
+    doUpdateChainedStep(stepTemplateId, injectInput, null);
+  }
+
+  /**
+   * Trigger-aware overload of {@link #updateChainedStep(String, InjectInput)}: in addition to the
+   * inject data, it replaces the step's finding-trigger conditions with {@code triggerConditions}
+   * (preserving any DEPEND_ON ordering parent), so the orchestrator can CORRECT a mis-wired
+   * finding-driven step in place. A {@code null} {@code triggerConditions} keeps the existing
+   * conditions untouched (data-only), exactly like the two-argument overload; an empty list clears
+   * the trigger while keeping the DEPEND_ON parent.
+   *
+   * @param triggerConditions the finding-trigger + mapper conditions to install, or {@code null} to
+   *     leave the step's conditions untouched
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void updateChainedStep(
+      String stepTemplateId, InjectInput injectInput, List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput, triggerConditions);
   }
 
   /**
@@ -1924,14 +2055,57 @@ public class WorkflowService {
   @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
   public void updateChainedStepIsolated(String stepTemplateId, InjectInput injectInput)
       throws ChainingException {
-    doUpdateChainedStep(stepTemplateId, injectInput);
+    doUpdateChainedStep(stepTemplateId, injectInput, null);
   }
 
-  private void doUpdateChainedStep(String stepTemplateId, InjectInput injectInput)
+  /**
+   * Trigger-aware, transaction-isolated variant of {@link #updateChainedStepIsolated(String,
+   * InjectInput)} used to keep the scenario mirror twin's finding trigger in lock-step with the
+   * corrected simulation step. Same {@link Propagation#REQUIRES_NEW} best-effort isolation.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void updateChainedStepIsolated(
+      String stepTemplateId, InjectInput injectInput, List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput, triggerConditions);
+  }
+
+  /**
+   * Deletes a chained step template (and its conditions) on behalf of the autonomous orchestrator,
+   * so it can PRUNE a mis-authored finding-driven step. Bypasses the manual editability guard for
+   * the same reason the author path does (the orchestrator owns the run's workflow).
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteChainedStep(String stepTemplateId) throws ChainingException {
+    stepService.deleteInjectStepTemplate(stepTemplateId);
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #deleteChainedStep} for pruning the scenario mirror twin
+   * in lock-step. Runs in its OWN transaction ({@link Propagation#REQUIRES_NEW}) so a twin-delete
+   * failure rolls back only itself and can NEVER mark the caller's delete transaction
+   * rollback-only.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void deleteChainedStepIsolated(String stepTemplateId) throws ChainingException {
+    stepService.deleteInjectStepTemplate(stepTemplateId);
+  }
+
+  // Shared body for the update overloads. Private and non-transactional: the public overloads are
+  // the @Transactional proxy entry points and each delegates here (an intra-class call to a
+  // @Transactional sibling would bypass the proxy). A null triggerConditions means "data-only,
+  // keep the existing conditions"; a non-null list rebuilds the finding trigger while preserving
+  // the DEPEND_ON ordering parent.
+  private void doUpdateChainedStep(
+      String stepTemplateId, InjectInput injectInput, List<ConditionCreateInput> triggerConditions)
       throws ChainingException {
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
-    Step updated = stepService.updateInjectStepTemplateData(stepTemplateId, stepInput);
+    Step updated =
+        triggerConditions == null
+            ? stepService.updateInjectStepTemplateData(stepTemplateId, stepInput)
+            : stepService.updateInjectStepTemplateDataAndTrigger(
+                stepTemplateId, stepInput, triggerConditions);
     rearmStepForReExecution(updated);
   }
 
@@ -1958,12 +2132,18 @@ public class WorkflowService {
   }
 
   /**
-   * One authored attack-path step: its stable template id, its DEPEND_ON parent (null for a root),
-   * the baked inject JSON ({@code step_data}), and the inject ids of every run step it has spawned.
+   * One authored attack-path step: its stable template id, its DEPEND_ON ordering parent (null when
+   * it is a seed or wired finding-driven), the baked inject JSON ({@code step_data}), the inject
+   * ids of every run step it has spawned, and the read-back of its finding TRIGGER - the event
+   * name, the filter predicates it fires on, and the finding-value input bindings it consumes - so
+   * a reader reconstructs the finding-driven wiring rather than inferring a linear DEPEND_ON chain.
    */
   public record AuthoredAttackStep(
       String stepTemplateId,
       String parentStepTemplateId,
       String injectDataJson,
-      List<String> runInjectIds) {}
+      List<String> runInjectIds,
+      String eventName,
+      List<String> triggerFilters,
+      List<String> triggerMappings) {}
 }

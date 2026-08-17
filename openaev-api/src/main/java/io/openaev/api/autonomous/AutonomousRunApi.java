@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -470,8 +471,10 @@ public class AutonomousRunApi extends RestBehavior {
           "Edits a step the orchestrator already authored - payload / target / injector contract /"
               + " title - by its step template id (from the attack-path state read), preserving the"
               + " step's id and its DEPEND_ON kill-chain parent. This is how the AI changes"
-              + " existing logic instead of re-authoring a duplicate. The parent in the body is"
-              + " ignored; the existing dependency is kept.")
+              + " existing logic instead of re-authoring a duplicate. When a 'trigger' is supplied,"
+              + " the step's finding trigger is rebuilt too, so a mis-wired finding-driven step can"
+              + " be corrected in place; omit it to leave the conditions untouched. The parent in"
+              + " the body is ignored; the existing dependency is kept.")
   @PutMapping("/{runId}/attack-path/steps/{stepTemplateId}")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -481,8 +484,25 @@ public class AutonomousRunApi extends RestBehavior {
       @PathVariable String stepTemplateId,
       @Valid @RequestBody AutonomousAttackPathStepInput input) {
     String updatedId =
-        autonomousRunService.updateAttackPathStep(runId, stepTemplateId, input.getInject());
+        autonomousRunService.updateAttackPathStep(
+            runId, stepTemplateId, input.getInject(), input.getTrigger());
     return new AutonomousAttackPathStepResult(updatedId);
+  }
+
+  @Operation(
+      summary = "Orchestrator: delete an authored chained step",
+      description =
+          "Removes a step the orchestrator authored, by its step template id (from the attack-path"
+              + " state read) - the pruning counterpart of appending / updating a step, so a"
+              + " mis-wired finding-driven step can be corrected by deletion instead of left"
+              + " dangling. The scenario mirror twin is pruned in lock-step. Executed run steps stay"
+              + " as history; only the reusable template is removed.")
+  @DeleteMapping("/{runId}/attack-path/steps/{stepTemplateId}")
+  @Transactional
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public void deleteAttackPathStep(
+      @RunTenantScope TxCtx ctx, @PathVariable String runId, @PathVariable String stepTemplateId) {
+    autonomousRunService.deleteAttackPathStep(runId, stepTemplateId);
   }
 
   @Operation(

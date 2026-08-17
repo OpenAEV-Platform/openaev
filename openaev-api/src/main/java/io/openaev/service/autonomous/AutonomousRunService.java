@@ -68,6 +68,7 @@ import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.EndpointService;
@@ -94,6 +95,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -118,6 +120,13 @@ public class AutonomousRunService {
 
   /** Temporary-id anchor for the synthetic AND/OR root of a finding-driven trigger tree. */
   private static final String TRIGGER_ROOT_TMP_ID = "trigger-root";
+
+  /**
+   * Cap on the newest-first run list read: the result is filtered to readable runs in memory, so
+   * reading the whole tenant-wide table (unbounded over a deployment's life) is wasteful. The
+   * cockpit list is a newest-first view, so the cap never hides a run an operator is looking for.
+   */
+  private static final int MAX_RUNS_LISTED = 500;
 
   /**
    * Slug of the license-independent built-in specialist (payload creator) the orchestrator consults
@@ -2754,19 +2763,28 @@ public class AutonomousRunService {
   /**
    * Updates an existing chained step's inject definition IN PLACE - same step template id, same
    * DEPEND_ON parent - so the orchestrator edits a step it already authored (payload / target /
-   * injector contract / title) instead of minting a duplicate. The scenario mirror twin is updated
+   * injector contract / title) instead of minting a duplicate. When {@code trigger} is non-null the
+   * step's finding trigger is rebuilt too, so the orchestrator can CORRECT a mis-wired
+   * finding-driven step (change what it fires on / consumes); a null {@code trigger} leaves the
+   * conditions untouched (data-only), the historical behaviour. The scenario mirror twin is updated
    * in lock-step so the exported attack path stays faithful, and any newly targeted team's members
    * are re-enabled so a re-targeted human step stays deliverable.
    *
    * @param runId the autonomous run
    * @param stepTemplateId the step template to update (from the attack-path state read)
    * @param injectInput the new inject definition
+   * @param trigger the finding trigger to rebuild the step conditions from, or null to keep them
    * @return the (unchanged) step template id
    */
   @Transactional(rollbackFor = Exception.class)
-  public String updateAttackPathStep(String runId, String stepTemplateId, InjectInput injectInput) {
+  public String updateAttackPathStep(
+      String runId, String stepTemplateId, InjectInput injectInput, AutonomousStepTrigger trigger) {
     AutonomousRun run = require(runId);
     assertRunAcceptsAuthoring(run);
+    // A supplied trigger is translated to the engine's condition vocabulary once and used to
+    // rebuild the step (and its mirror twin); null means "leave the conditions as they are".
+    List<ConditionCreateInput> triggerConditions =
+        trigger != null ? toTriggerConditions(trigger) : null;
     // Bridge the run's own tenant as the v1 TenantContext around the WHOLE update body (the primary
     // in-place step update AND the secondary projections), for the same reason as
     // doAppendAttackPathStep: on the legacy non-prefixed callback route the v1 TenantContext falls
@@ -2793,7 +2811,7 @@ public class AutonomousRunService {
               "The autonomous run has neither a live simulation nor a scenario to update steps on");
         }
         try {
-          workflowService.updateChainedStep(stepTemplateId, injectInput);
+          workflowService.updateChainedStep(stepTemplateId, injectInput, triggerConditions);
         } catch (ChainingException e) {
           throw new ResponseStatusException(
               HttpStatus.BAD_REQUEST,
@@ -2811,7 +2829,7 @@ public class AutonomousRunService {
         return stepTemplateId;
       }
       try {
-        workflowService.updateChainedStep(stepTemplateId, injectInput);
+        workflowService.updateChainedStep(stepTemplateId, injectInput, triggerConditions);
       } catch (ChainingException e) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Failed to update the attack-path step: " + e.getMessage(), e);
@@ -2825,7 +2843,7 @@ public class AutonomousRunService {
       String scenarioStepId = mirror == null ? null : mirror.get(stepTemplateId);
       if (hasText(scenarioStepId)) {
         try {
-          workflowService.updateChainedStepIsolated(scenarioStepId, injectInput);
+          workflowService.updateChainedStepIsolated(scenarioStepId, injectInput, triggerConditions);
         } catch (Exception e) {
           log.warn(
               "[Autonomous] Failed to update scenario mirror step {} for run {}: {}",
@@ -2844,6 +2862,80 @@ public class AutonomousRunService {
           "An existing chained step was updated in place (no new step created).",
           null);
       return stepTemplateId;
+    } finally {
+      if (hadTenant) {
+        TenantContext.setCurrentTenant(previousTenant);
+      } else {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+  }
+
+  /**
+   * Removes a chained step the orchestrator previously authored - the pruning counterpart of {@link
+   * #appendAttackPathStep} / {@link #updateAttackPathStep} - so a mis-wired finding-driven step can
+   * be corrected by deletion instead of left dangling. The scenario mirror twin is pruned in
+   * lock-step and the sim-&gt;scenario mapping entry is dropped so the exported attack path stays
+   * faithful. Executed run steps stay as history (the on-delete policy nulls their template
+   * reference), so pruning a template never rewrites what already ran.
+   *
+   * @param runId the autonomous run
+   * @param stepTemplateId the step template to delete (from the attack-path state read)
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteAttackPathStep(String runId, String stepTemplateId) {
+    // Row-locked read: this callback drops the pruned step's sim->scenario mapping entry and saves
+    // the run (a full-entity write on a version-less row), so it must serialise with every other
+    // run writer exactly like setRunScope / doAppendAttackPathStep, or a racing terminal settle
+    // committing between this read and the save would be resurrected. Mirrors updateStatus.
+    AutonomousRun run = requireForUpdate(runId);
+    assertRunAcceptsAuthoring(run);
+    // Bridge the run's own tenant as the v1 TenantContext around the whole delete body, for the
+    // same reason as updateAttackPathStep: the legacy non-prefixed callback route leaves the v1
+    // TenantContext on the DEFAULT tenant, but the step template and its conditions live under the
+    // run's own tenant filter. Restored in finally so a pooled request thread never leaks it.
+    boolean hadTenant = TenantContext.hasCurrentTenant();
+    String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(runTenantId(run));
+    try {
+      try {
+        workflowService.deleteChainedStep(stepTemplateId);
+      } catch (ChainingException e) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Failed to delete the attack-path step: " + e.getMessage(), e);
+      }
+      // Prune the scenario mirror twin and drop the mapping entry - both SECONDARY projections that
+      // must never fail (500) this callback (the primary step is already gone). The twin delete
+      // runs in its OWN REQUIRES_NEW transaction so a failure rolls back only itself.
+      Map<String, String> mirror = run.getStepMirror();
+      String scenarioStepId = mirror == null ? null : mirror.get(stepTemplateId);
+      if (hasText(scenarioStepId)) {
+        try {
+          workflowService.deleteChainedStepIsolated(scenarioStepId);
+        } catch (Exception e) {
+          log.warn(
+              "[Autonomous] Deleted step {} but pruning its scenario mirror twin {} failed"
+                  + " (best-effort) for run {}",
+              stepTemplateId,
+              scenarioStepId,
+              runId,
+              e);
+        }
+      }
+      if (mirror != null && mirror.containsKey(stepTemplateId)) {
+        Map<String, String> updatedMirror = new HashMap<>(mirror);
+        updatedMirror.remove(stepTemplateId);
+        run.setStepMirror(updatedMirror);
+        runRepository.save(run);
+      }
+      eventService.append(
+          runId,
+          runTenantId(run),
+          run.getSimulationId(),
+          AutonomousEventType.TOOL_ACTION,
+          "Attack-path step removed",
+          "A chained step was removed from the attack path.",
+          null);
     } finally {
       if (hadTenant) {
         TenantContext.setCurrentTenant(previousTenant);
@@ -2994,31 +3086,43 @@ public class AutonomousRunService {
   @Transactional(readOnly = true)
   public List<AutonomousAttackPathStepState> attackPathState(String runId) {
     AutonomousRun run = require(runId);
+    List<WorkflowService.AuthoredAttackStep> authoredSteps;
     // Author-scenario mode: read the steps authored onto the scenario workflow (no simulation).
     if (!hasText(run.getSimulationId())) {
       if (!hasText(run.getScenarioId())) {
         return List.of();
       }
-      return workflowService.readAuthoredAttackPathForScenario(run.getScenarioId()).stream()
-          .map(this::toStepState)
-          .toList();
+      authoredSteps = workflowService.readAuthoredAttackPathForScenario(run.getScenarioId());
+    } else {
+      // Build the snapshot from the simulation TEMPLATE workflow's steps (the STABLE authoring
+      // handles the orchestrator built) rather than from materialized injects, so the read returns
+      // each step's step_template_id + parent + trigger + target - the finding-driven wiring the
+      // orchestrator needs to chain onto, correct, or UPDATE an existing step instead of
+      // re-authoring a duplicate.
+      authoredSteps = workflowService.readAuthoredAttackPath(run.getSimulationId());
     }
-    // Build the snapshot from the simulation TEMPLATE workflow's steps (the STABLE authoring
-    // handles the orchestrator built) rather than from materialized injects, so the read returns
-    // each step's step_template_id + DEPEND_ON parent + target - the graph the orchestrator needs
-    // to chain onto or UPDATE an existing step instead of re-authoring a duplicate.
-    return workflowService.readAuthoredAttackPath(run.getSimulationId()).stream()
-        .map(this::toStepState)
-        .toList();
+    // Batch the backing-inject lookup: one findAllById for every run-inject id across all steps,
+    // instead of one findById per id per step. The orchestrator polls this read every decision
+    // cycle, so an N+1 over the whole authored path is exactly the hot path to keep flat.
+    List<String> injectIds =
+        authoredSteps.stream()
+            .flatMap(step -> step.runInjectIds().stream())
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    Map<String, Inject> injectsById =
+        injectIds.isEmpty()
+            ? Map.of()
+            : injectRepository.findAllById(injectIds).stream()
+                .collect(Collectors.toMap(Inject::getId, inject -> inject));
+    return authoredSteps.stream().map(step -> toStepState(step, injectsById)).toList();
   }
 
-  private AutonomousAttackPathStepState toStepState(WorkflowService.AuthoredAttackStep authored) {
+  private AutonomousAttackPathStepState toStepState(
+      WorkflowService.AuthoredAttackStep authored, Map<String, Inject> injectsById) {
     JsonNode data = parseInjectData(authored.injectDataJson());
     List<Inject> injects =
-        authored.runInjectIds().stream()
-            .map(id -> injectRepository.findById(id).orElse(null))
-            .filter(Objects::nonNull)
-            .toList();
+        authored.runInjectIds().stream().map(injectsById::get).filter(Objects::nonNull).toList();
     String title = jsonText(data, "inject_title");
     String type = jsonText(data, "inject_type");
     String contractId = injectContractId(data);
@@ -3044,7 +3148,10 @@ public class AutonomousRunService {
         contractId,
         targetSummary(data),
         aggregateStatus(injects),
-        aggregateTraces(injects));
+        aggregateTraces(injects),
+        authored.eventName(),
+        authored.triggerFilters(),
+        authored.triggerMappings());
   }
 
   private JsonNode parseInjectData(String json) {
@@ -3528,8 +3635,10 @@ public class AutonomousRunService {
   public List<AutonomousRun> list() {
     // Filter the tenant-wide list to runs the caller can READ: without this, every run's objective
     // and status leaked to any Enterprise-Edition user regardless of their simulation/scenario
-    // access.
-    return accessControl.retainReadable(runRepository.findAllByOrderByCreatedAtDesc());
+    // access. Bound the DB read at MAX_RUNS_LISTED (newest first) so the table is never loaded
+    // whole just to filter it down in memory.
+    return accessControl.retainReadable(
+        runRepository.findRecent(PageRequest.of(0, MAX_RUNS_LISTED)));
   }
 
   /**
@@ -4011,9 +4120,17 @@ public class AutonomousRunService {
     if (!active) {
       return run;
     }
-    ExerciseStatus simStatus = loadSimulationStatusOrNull(run.getSimulationId());
+    SimulationStatusProbe probe = probeSimulationStatus(run.getSimulationId());
+    if (probe.unreadable()) {
+      // Defense in depth on top of OrchestratorRunTenantInterceptor: an UNREADABLE simulation read
+      // (a scope miss, a DB blip, any non-not-found error) must never be mistaken for a deletion
+      // and cancel a healthy run. Leave the status untouched; the next read/poll re-probes. Only a
+      // genuine not-found (deleted) settles the run below.
+      return run;
+    }
+    ExerciseStatus simStatus = probe.status();
     AutonomousRunStatus target;
-    if (simStatus == null) {
+    if (probe.deleted()) {
       // Simulation deleted out-of-band: there is nothing left to drive, settle the run.
       target = AutonomousRunStatus.CANCELED;
     } else if (simStatus == ExerciseStatus.CANCELED) {
@@ -4063,7 +4180,7 @@ public class AutonomousRunService {
     // truthful and never 500s.
     String detail =
         "Synced from the underlying simulation ("
-            + (simStatus == null ? "deleted" : simStatus.name())
+            + (probe.deleted() ? "deleted" : simStatus.name())
             + "): an autonomous run and its simulation are always kept in lockstep.";
     try {
       AutonomousRun settled =
@@ -4090,12 +4207,42 @@ public class AutonomousRunService {
     return run;
   }
 
-  /** Reads the simulation's status, or {@code null} when it no longer exists / is unreadable. */
-  private ExerciseStatus loadSimulationStatusOrNull(String simulationId) {
+  /**
+   * Probes the simulation's status, distinguishing the three outcomes reconcile must treat
+   * differently: READABLE (its {@link ExerciseStatus}), DELETED (a genuine not-found, so nothing is
+   * left to drive), and UNREADABLE (any other error - a scope miss, a DB blip). Only DELETED may
+   * settle a run; an UNREADABLE probe must leave the run untouched so a transient miss can never be
+   * mistaken for a deletion and cancel a healthy run.
+   */
+  private SimulationStatusProbe probeSimulationStatus(String simulationId) {
     try {
-      return exerciseService.exercise(simulationId).getStatus();
+      return SimulationStatusProbe.readable(exerciseService.exercise(simulationId).getStatus());
+    } catch (ElementNotFoundException e) {
+      return SimulationStatusProbe.deleted();
     } catch (Exception e) {
-      return null;
+      log.warn(
+          "[Autonomous] Simulation {} status unreadable during reconcile; leaving the run status"
+              + " untouched (not treated as a deletion)",
+          simulationId,
+          e);
+      return SimulationStatusProbe.unreadable();
+    }
+  }
+
+  /**
+   * Outcome of {@link #probeSimulationStatus}: readable status, a deletion, or an unreadable read.
+   */
+  private record SimulationStatusProbe(ExerciseStatus status, boolean deleted, boolean unreadable) {
+    static SimulationStatusProbe readable(ExerciseStatus status) {
+      return new SimulationStatusProbe(status, false, false);
+    }
+
+    static SimulationStatusProbe deleted() {
+      return new SimulationStatusProbe(null, true, false);
+    }
+
+    static SimulationStatusProbe unreadable() {
+      return new SimulationStatusProbe(null, false, true);
     }
   }
 

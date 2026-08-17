@@ -334,15 +334,17 @@ class AutonomousRunServiceScopeTest {
     when(runRepository.findById(RUN_ID)).thenReturn(Optional.of(run));
     TenantContext.clearCurrentTenant();
     List<String> seenTenants = new ArrayList<>();
+    // A null trigger routes through the three-argument updateChainedStep (data-only), so the tenant
+    // probe is stubbed on that overload.
     doAnswer(
             inv -> {
               seenTenants.add(TenantContext.getCurrentTenant());
               return null;
             })
         .when(workflowService)
-        .updateChainedStep(eq("sim-step-1"), any());
+        .updateChainedStep(eq("sim-step-1"), any(), any());
 
-    runService.updateAttackPathStep(RUN_ID, "sim-step-1", new InjectInput());
+    runService.updateAttackPathStep(RUN_ID, "sim-step-1", new InjectInput(), null);
 
     assertThat(seenTenants).containsExactly("tenant-1");
     assertThat(TenantContext.hasCurrentTenant()).isFalse();

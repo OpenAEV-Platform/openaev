@@ -2037,6 +2037,35 @@ class WorkflowServiceTest {
     }
 
     @Test
+    @DisplayName("given the workflow run already ended should return early without readying steps")
+    void given_endedWorkflowRun_should_returnEarlyWithoutReadyingSteps() throws Exception {
+      // Arrange - a run that a timeout settle already ENDed. The isWorkflowEnded guard must
+      // short-circuit; without the early return the evaluation fell through and re-readied /
+      // re-enqueued steps on a terminated run (churn, and a possible re-fire after the settle).
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+      stubReload(workflowRunId, workflowRun);
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(true);
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert - returned untouched, and no step ever readied / enqueued on the ended run.
+      assertSame(workflowRun, result);
+      verify(stepService, never()).findAllStepTemplateByWorkflow(any());
+      verify(stepService, never()).createReadySteps(any(), any(), any(), anyInt());
+      verify(stepService, never()).enqueueReadySteps(any(), any());
+    }
+
+    @Test
     @DisplayName("given workflow run has no template should return early without evaluating steps")
     void given_nullWorkflowTemplate_should_returnEarlyWithoutEvaluatingSteps() throws Exception {
       // Arrange - run with no template (e.g. corrupted state)
