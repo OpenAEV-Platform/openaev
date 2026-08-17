@@ -68,8 +68,8 @@ const CredentialForm: FunctionComponent<Props> = ({
       .object({
         credential_name: z.string().min(1, { message: t('Should not be empty') }),
         credential_description: z.string().optional(),
-        credential_type: z.enum(['IDENTITY', 'CLOUD_AWS']),
-        credential_auth_method: z.enum(['USERNAME_PASSWORD', 'HASH', 'AWS_ACCESS_KEY', 'AWS_ASSUME_ROLE']),
+        credential_type: z.enum(['IDENTITY', 'CLOUD_AWS', 'CLOUD_AZURE']),
+        credential_auth_method: z.enum(['USERNAME_PASSWORD', 'HASH', 'AWS_ACCESS_KEY', 'AWS_ASSUME_ROLE', 'AZURE_SERVICE_PRINCIPAL', 'AZURE_MANAGED_IDENTITY']),
         credential_tags: z.array(z.string()).optional(),
       })
       .catchall(dynamicFieldValueSchema)
