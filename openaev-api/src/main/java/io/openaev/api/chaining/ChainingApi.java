@@ -96,8 +96,6 @@ public class ChainingApi extends RestBehavior {
   public Exercise createSimulation(@Valid @RequestBody CreateExerciseInput input)
       throws ChainingException {
 
-    workflowService.isPreviewFeatureChainingEnable();
-
     if (input == null)
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Simulation input cannot be null");
 
@@ -134,8 +132,6 @@ public class ChainingApi extends RestBehavior {
       @PathVariable String simulationId, @Valid @RequestBody InjectInput input)
       throws ChainingException {
 
-    workflowService.isPreviewFeatureChainingEnable();
-
     if (workflowService.isSimulationChaining(simulationId)) {
       exerciseService.exercise(simulationId);
 
@@ -165,7 +161,6 @@ public class ChainingApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Exercise duplicateExercise(@PathVariable @NotBlank final String simulationId)
       throws ChainingException {
-    workflowService.isPreviewFeatureChainingEnable();
 
     Exercise simulation = exerciseService.getDuplicateExercise(simulationId);
     Optional<Workflow> workflowOpt =
@@ -189,8 +184,6 @@ public class ChainingApi extends RestBehavior {
       isEnterpriseEdition = true)
   public Scenario createScenarioChaining(@Valid @RequestBody final ScenarioInput input)
       throws ChainingException {
-
-    workflowService.isPreviewFeatureChainingEnable();
 
     if (input == null)
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
@@ -225,7 +218,6 @@ public class ChainingApi extends RestBehavior {
   public void createInjectForScenarioChaining(
       @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input)
       throws ChainingException {
-    workflowService.isPreviewFeatureChainingEnable();
 
     if (workflowService.isScenarioChaining(scenarioId)) {
       this.scenarioService.scenario(scenarioId);
@@ -255,8 +247,6 @@ public class ChainingApi extends RestBehavior {
       isEnterpriseEdition = true)
   public Scenario duplicateScenarioChaining(@PathVariable @NotBlank final String scenarioId)
       throws ChainingException {
-
-    workflowService.isPreviewFeatureChainingEnable();
 
     Scenario scenario = scenarioService.getDuplicateScenario(scenarioId);
     Optional<Workflow> workflowOpt = workflowService.findWorkflowTemplateByScenarioId(scenarioId);

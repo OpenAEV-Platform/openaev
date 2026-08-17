@@ -290,6 +290,15 @@ class StepServiceIntegrationTest extends IntegrationTest {
     Condition survivingRoot = conditionRepository.findById(rootId).orElse(null);
     assertNotNull(survivingRoot, "the preserved event survives");
     assertEquals(1, survivingRoot.getConditionChildren().size(), "and keeps its child");
+    // The step->root JOIN must survive too, not just the condition rows: the unconditional
+    // step-side conditionSteps.clear() must never orphan-delete the link the caller asked to
+    // preserve via conditionIds, or the updated step would be silently event-less. This is the
+    // exact clear() + linkExistingConditionsToStep(preserved) mechanism the autonomous
+    // updateInjectStepTemplateDataAndTrigger reuses to preserve a shared event on update (#7482).
+    List<Condition> stillLinked = conditionService.findAllConditionsByStepId(updated.getId());
+    assertTrue(
+        stillLinked.stream().anyMatch(c -> rootId.equals(c.getId())),
+        "the step stays linked to its preserved event root");
   }
 
   @Test

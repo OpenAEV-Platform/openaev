@@ -29,13 +29,21 @@ import { useOutputProviders } from '../useOutputProviders';
 import Connectors from './Connectors';
 import GraphActionCard from './GraphActionCard';
 import GraphTriggerCard from './GraphTriggerCard';
-import { buildLogicGraphLayout, type PositionedBox, routeOrthogonalEdge } from './layout';
+import { buildLogicGraphLayout, type LogicGraphLayoutMode, type PositionedBox, routeOrthogonalEdge } from './layout';
 import PanZoom from './PanZoom';
 
 interface NodePosition {
   x: number;
   y: number;
 }
+
+// The layout mode is a personal reading preference shared by every Logic tab (scenario, simulation,
+// autonomous-run inspection), so it persists in localStorage rather than living per workflow.
+const LAYOUT_MODE_STORAGE_KEY = 'chaining_logic_layout_mode';
+const readStoredLayoutMode = (): LogicGraphLayoutMode =>
+  (typeof window !== 'undefined' && window.localStorage.getItem(LAYOUT_MODE_STORAGE_KEY) === 'chain'
+    ? 'chain'
+    : 'tactic');
 
 /** Decode HTML entities that occasionally survive in orchestrator-authored titles ("&amp;" -> "&"). */
 const decodeEntities = (value?: string): string =>
@@ -117,6 +125,9 @@ const LogicGraph = ({
   // by "Auto-organize". `refitNonce` bumps the fit signature so clearing them re-centers the view.
   const [positionOverrides, setPositionOverrides] = useState<Record<string, NodePosition>>({});
   const [refitNonce, setRefitNonce] = useState(0);
+  // 'tactic' (default): grouped MITRE-tactic columns. 'chain': grouping disabled, pure left-to-right
+  // causal layout. Persisted so the choice survives a reload.
+  const [layoutMode, setLayoutMode] = useState<LogicGraphLayoutMode>(readStoredLayoutMode);
   // Live zoom, published by PanZoom, used to convert a screen drag delta into logical units.
   const zoomRef = useRef(1);
 
@@ -197,8 +208,9 @@ const LogicGraph = ({
       outputProviders,
       tacticForStep,
       tacticOrder,
+      layoutMode,
     }),
-    [actionMetas, eventMetas, outputProviders, tacticForStep, tacticOrder],
+    [actionMetas, eventMetas, outputProviders, tacticForStep, tacticOrder, layoutMode],
   );
 
   // Apply manual overrides on top of the auto-layout positions.
@@ -257,12 +269,21 @@ const LogicGraph = ({
     };
   }, [positionedNodes, layout.bbox]);
 
-  // Stable fingerprint of the graph structure so PanZoom only re-fits on real changes (not on
-  // selection, dragging, or polling re-renders that keep the same nodes). `refitNonce` forces a
-  // re-fit after "Auto-organize" restores the auto positions.
+  // Structural fingerprint of the graph (bbox + node id SET). Drives PanZoom's ONE-TIME fit: a live
+  // run authoring steps changes this, but PanZoom fits only on first content and re-fits only on an
+  // explicit `refitNonce` bump, so authoring a step never yanks the operator's manual pan/zoom.
+  // Deliberately omits node positions and the nonce (both handled elsewhere).
   const fitSignature = useMemo(
-    () => `${Math.round(layout.bbox.width)}x${Math.round(layout.bbox.height)}|${layout.nodes.map(n => n.id).join(',')}|${refitNonce}`,
-    [layout, refitNonce],
+    () => `${Math.round(layout.bbox.width)}x${Math.round(layout.bbox.height)}|${layout.nodes.map(n => n.id).join(',')}`,
+    [layout],
+  );
+  // Tooltip dismiss key: the structural signature PLUS each node's rounded position. A pure relayout
+  // that keeps the same node-id set leaves `fitSignature` unchanged yet still slides a card out from
+  // under a stationary cursor, which would strand a rich tooltip; folding positions in force-closes
+  // it. Kept separate from `fitSignature` so a drag/relayout dismisses tooltips without re-fitting.
+  const tooltipDismissKey = useMemo(
+    () => `${fitSignature}|${positionedNodes.map(n => `${n.id}:${Math.round(n.x)},${Math.round(n.y)}`).join(';')}`,
+    [fitSignature, positionedNodes],
   );
 
   // Data-flow spotlight for the selected node (action or trigger). `flow` resolves one representative
@@ -350,6 +371,19 @@ const LogicGraph = ({
   }, [readOnly]);
 
   const handleAutoLayout = useCallback(() => {
+    setPositionOverrides({});
+    setRefitNonce(n => n + 1);
+  }, []);
+
+  // Switch between the grouped tactic columns and the ungrouped causal chain. Manual card positions
+  // belong to the layout that produced them and the frame that fit one mode rarely fits the other,
+  // so both are reset for a cleanly framed relayout.
+  const handleToggleLayoutMode = useCallback(() => {
+    setLayoutMode((prev) => {
+      const next: LogicGraphLayoutMode = prev === 'chain' ? 'tactic' : 'chain';
+      localStorage.setItem(LAYOUT_MODE_STORAGE_KEY, next);
+      return next;
+    });
     setPositionOverrides({});
     setRefitNonce(n => n + 1);
   }, []);
@@ -475,9 +509,12 @@ const LogicGraph = ({
         contentWidth={contentSize.width}
         contentHeight={contentSize.height}
         fitSignature={fitSignature}
+        refitNonce={refitNonce}
         onBackgroundClick={() => setSelectedNodeId(null)}
         onZoomChange={(zoom) => { zoomRef.current = zoom; }}
         onAutoLayout={readOnly ? undefined : handleAutoLayout}
+        layoutMode={layoutMode}
+        onToggleLayoutMode={handleToggleLayoutMode}
       >
         {/* MITRE-tactic columns: one padded band behind each tactic's action cards, headed by the
             tactic name. Every band uses the SAME theme blue — a real chain carries far too many
@@ -582,6 +619,7 @@ const LogicGraph = ({
                   dimmed={dimmed}
                   pathIndex={flow.pathIndex[node.id]}
                   readOnly={readOnly}
+                  tooltipDismissKey={tooltipDismissKey}
                   onEdit={handleEditAction}
                   onDelete={setPendingDeleteNodeId}
                 />
@@ -631,6 +669,7 @@ const LogicGraph = ({
                 dimmed={dimmed}
                 pathIndex={flow.pathIndex[node.id]}
                 readOnly={readOnly}
+                tooltipDismissKey={tooltipDismissKey}
                 onEdit={handleEditTrigger}
                 onDelete={setPendingDeleteNodeId}
                 onAddAction={onAddActionToEvent}

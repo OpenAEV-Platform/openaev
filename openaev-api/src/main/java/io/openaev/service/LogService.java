@@ -12,7 +12,9 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.config.cache.LicenseRefreshedEvent;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
@@ -33,6 +35,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -55,14 +59,35 @@ public class LogService {
 
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
+  private final PlatformSettingsService platformSettingsService;
 
   /** Ensures the EE audit-disabled warning is logged only once. */
   private final AtomicBoolean auditEeDisabledWarningLogged = new AtomicBoolean(false);
 
   // -- Public API --
 
+  /**
+   * Triggers a banner/license state refresh on startup so the platform banner is accurate before
+   * the first audit event fires.
+   */
+  @EventListener(ApplicationReadyEvent.class)
+  public void onApplicationReady() {
+    isEnabled();
+  }
+
+  /**
+   * Re-evaluates the audit logging state whenever the license cache is refreshed (e.g. after a new
+   * Enterprise Edition certificate is saved).
+   */
+  @EventListener(LicenseRefreshedEvent.class)
+  public void onLicenseRefreshed() {
+    isEnabled();
+  }
+
   public boolean isEnabled() {
     if (!auditLogProperties.isEnabled()) {
+      // Feature not configured — ensure the warning banner is cleared.
+      updateBanner(true);
       return false;
     }
 
@@ -72,12 +97,31 @@ public class LogService {
       if (!isEeActive && auditEeDisabledWarningLogged.compareAndSet(false, true)) {
         log.error(
             "[AUDIT] Audit logging is configured but inactive - an Enterprise Edition license is required.");
+      } else if (isEeActive) {
+        // License now valid — reset so the warning fires again if it lapses later.
+        auditEeDisabledWarningLogged.set(false);
       }
+      updateBanner(isEeActive);
       return isEeActive;
     } catch (Exception e) {
       log.error("[AUDIT] Failed to check enterprise edition license", e);
     }
     return false;
+  }
+
+  /**
+   * Updates the {@link BannerMessage.BANNER_KEYS#AUDIT_LOG_NO_ENTERPRISE_LICENSE} platform banner.
+   *
+   * @param shouldClean {@code true} → clear the banner; {@code false} → show the banner.
+   */
+  private void updateBanner(boolean shouldClean) {
+    if (shouldClean) {
+      platformSettingsService.cleanMessage(
+          BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
+    } else {
+      platformSettingsService.errorMessage(
+          BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
+    }
   }
 
   /**

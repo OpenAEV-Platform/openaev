@@ -71,7 +71,6 @@ import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousRunConfigDrawer from '../../autonomous/AutonomousRunConfigDrawer';
 import { type RebuildMode } from '../../autonomous/AutonomousRunConfigFields';
@@ -186,12 +185,8 @@ const ScenarioHeader = ({
   });
   const hasChallenges = challenges.length > 0;
 
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  // isFeatureEnabled reads the store through a hook, so it must stay at render scope: calling it
-  // from an event handler throws and silently aborts the handler mid-way.
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
-  const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+  const isScenarioChaining = !!scenarioWorkflowId;
   // Autonomy is a launch-time MODE now (not a scenario type) and no longer has a dedicated flag: any
   // chained scenario can be launched autonomously (orchestrator-driven) or planned by the
   // orchestrator, gated by the same chaining feature. Time-based scenarios only ever launch a normal
@@ -898,9 +893,7 @@ const ScenarioHeader = ({
                       label={t('Attack path steps')}
                       value={attackPathStepCount ?? 0}
                       color={theme.palette.warning.main}
-                      to={isAttackPathEnabled
-                        ? `/admin/scenarios/${scenarioId}/attack-path`
-                        : `/admin/scenarios/${scenarioId}/execution`}
+                      to={`/admin/scenarios/${scenarioId}/attack-path`}
                     />
                   )
                 : (
@@ -1015,7 +1008,7 @@ const ScenarioHeader = ({
               // lands on the simulation's Attack path tab (the live execution view), a time-based
               // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
               // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
-              if (isScenarioChaining && isAttackPathEnabled) {
+              if (isScenarioChaining) {
                 navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
               } else {
                 navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);

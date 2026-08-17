@@ -21,13 +21,4 @@ public class PreviewFeatureService {
             .orElse(List.of());
     return enabledFeatures.contains(FEATURE_FLAG_ALL) || enabledFeatures.contains(feature);
   }
-
-  /**
-   * Autonomy is a launch-time MODE of a chained scenario, not a feature of its own: it is gated by
-   * the same {@code INJECT_CHAINING} flag that turns on the chaining engine it drives. There is no
-   * dedicated autonomous flag anymore - a tenant that has chaining has autonomous.
-   */
-  public boolean isAutonomousAttackPathEnabled() {
-    return isFeatureEnabled(PreviewFeature.INJECT_CHAINING);
-  }
 }

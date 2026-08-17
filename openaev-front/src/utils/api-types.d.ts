@@ -1293,11 +1293,15 @@ export interface AutonomousAttackPathStepResult {
 
 /** Live state of one authored attack-path step */
 export interface AutonomousAttackPathStepState {
+  /** Stable id of the finding EVENT this step fires on (the trigger root), or null for a seed / standalone / pure DEPEND_ON step that has no event. Pass it back as a trigger's event_id when authoring another step to attach that step to the SAME event instead of duplicating it - this is how several actions share one event (e.g. one "SMB service exposed" event feeding many follow-on actions). */
+  event_id?: string;
+  /** Human-readable name of the finding EVENT this step reacts to (the trigger root's name, e.g. "SMB service exposed"), or null when the step has no finding trigger (a seed or a pure DEPEND_ON step). Mirror of the trigger's event_name on the write side. */
+  event_name?: string;
   /** Id of the inject backing this step (empty until the step has executed) */
   inject_id?: string;
   /** Id of the injector contract the step runs, when resolvable */
   injector_contract_id?: string;
-  /** The step template id this step runs AFTER (its DEPEND_ON parent), or null for a root step. Together with step_template_id this reconstructs the attack-path graph. */
+  /** Pure-ordering parent: the step template id this step runs AFTER (its DEPEND_ON parent), or null when the step is a seed or is wired finding-driven via its trigger. Prefer reading the trigger fields below to understand WHY a step fires; this is only the ordering fallback, not the primary wiring. */
   parent_step_template_id?: string;
   /** Execution status: PENDING when never started, otherwise the live ExecutionStatus (QUEUING, EXECUTING, SUCCESS, ERROR, ...) */
   status?: string;
@@ -1309,6 +1313,10 @@ export interface AutonomousAttackPathStepState {
   title?: string;
   /** Execution traces (action/status: message) captured while the step ran */
   traces?: string[];
+  /** The finding predicates that make this step fire, each rendered as "<key> <operator> <value>" (e.g. "port EQ 445", "service IS_NOT_NULL"). Empty when the step is a seed or a pure DEPEND_ON step. This is the read-back of the trigger's filters, so a reader can see - and correct - exactly what the step listens for instead of inferring a linear chain. */
+  trigger_filters?: string[];
+  /** The finding values this step binds into its inject inputs, each rendered as "<key> -> <input>" (e.g. "ipv4 -> target_host"). Empty when the step consumes no finding values. This is the read-back of the trigger's mappings. */
+  trigger_mappings?: string[];
   /** Inject type (injector) of the step */
   type?: string;
 }
@@ -1685,6 +1693,8 @@ export interface AutonomousStatusUpdateInput {
 
 /** A finding-driven trigger: react to findings and consume their values */
 export interface AutonomousStepTrigger {
+  /** OPTIONAL. Id of an EXISTING event (a finding-trigger root already on this run's workflow) to attach this step to, instead of minting a new event. Read it from another step's event_id in the attack-path state, then pass it here so several actions fire off the SAME event (e.g. one "SMB service exposed" event feeding many follow-on actions) rather than duplicating it. When set, event_name / match / filters are IGNORED (the event already exists and is not re-described); only mappings still apply, binding this step's inject inputs from that event's finding values. Leave it null to create a new event from the filters, or omit the whole trigger entirely for an event-less seed or standalone action. It is never required: linking to an existing event is a choice, not an obligation. */
+  event_id?: string;
   /** Short, human-readable name for the EVENT this trigger represents - the discovery it fires on, phrased as an operator would read it (e.g. "SMB service exposed", "Valid credentials found", "Open web port discovered"). It becomes the event node's title in the Logic graph. When omitted, a readable name is derived from the filters so the event is never shown as "Untitled event". */
   event_name?: string;
   /** The predicates that make this step fire. Empty means: fire as soon as any of the mapped key_types is present in the finding pool. */
@@ -6143,6 +6153,11 @@ export interface InjectExpectationOutput {
   inject_expectation_inject?: string;
   /** Name of the inject expectation */
   inject_expectation_name?: string;
+  /**
+   * Display order of the expectation within its inject, ascending. Declared by the injector contract (e.g. phishing orders its steps email -> link -> submission); null means unordered and readers fall back to name / id.
+   * @format int32
+   */
+  inject_expectation_order?: number;
   /** Results associated with the inject expectation */
   inject_expectation_results?: InjectExpectationResult[];
   /**
@@ -9437,6 +9452,9 @@ export interface PlatformRoleInput {
     | "MANAGE_TENANTS"
     | "DELETE_TENANTS"
     | "ACCESS_TENANT_SETTINGS"
+    | "ACCESS_TAGS"
+    | "MANAGE_TAGS"
+    | "DELETE_TAGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -9488,8 +9506,6 @@ export interface PlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
-    | "INJECT_CHAINING"
-    | "ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** True if the Tanium Executor is enabled */
@@ -9786,8 +9802,6 @@ export interface PublicPlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
-    | "INJECT_CHAINING"
-    | "ATTACK_PATH"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
@@ -10265,6 +10279,9 @@ export interface RoleInput {
     | "MANAGE_TENANTS"
     | "DELETE_TENANTS"
     | "ACCESS_TENANT_SETTINGS"
+    | "ACCESS_TAGS"
+    | "MANAGE_TAGS"
+    | "DELETE_TAGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -11968,6 +11985,8 @@ export interface ThreatArsenalActionFullOutput {
   action_domains?: string[];
   /** CPU architecture targeted for action execution */
   action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** Predefined expectations declared by the contract, each with its name, description and display order (e.g. phishing's ordered human steps). Omitted for payload-based actions, which declare expectations by type only - readers then fall back to action_expectations. */
+  action_expectation_details?: ThreatArsenalExpectationDetail[];
   /** Expected output types for action execution */
   action_expectations?: (
     | "ARTICLE"
@@ -12191,6 +12210,26 @@ export interface ThreatArsenalBulkDeleteOutput {
   deleted_ids?: string[];
 }
 
+export interface ThreatArsenalExpectationDetail {
+  /** Contract-declared expectation description (null = none) */
+  expectation_description?: string;
+  /** Contract-declared expectation name (null = unnamed, use the type label) */
+  expectation_name?: string;
+  /**
+   * Contract-declared display order, ascending (e.g. phishing orders its steps email -> link -> submission); null = unordered
+   * @format int32
+   */
+  expectation_order?: number;
+  /** Expectation type */
+  expectation_type?:
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY";
+}
+
 export interface ThreatArsenalFacetCountsOutput {
   /** Number of contracts per platform under the current filters */
   platforms?: Record<string, number>;
@@ -12371,6 +12410,9 @@ export interface User {
     | "MANAGE_TENANTS"
     | "DELETE_TENANTS"
     | "ACCESS_TENANT_SETTINGS"
+    | "ACCESS_TAGS"
+    | "MANAGE_TAGS"
+    | "DELETE_TAGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"

@@ -1,5 +1,6 @@
 package io.openaev.api.threat_arsenal.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.*;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -93,4 +94,15 @@ public record ThreatArsenalActionFullOutput(
                     + " parsed output). Derived from the payload output parsers or, for native"
                     + " injectors without a payload, from the contract content outputs.")
         @JsonProperty("action_providing")
-        List<ContractOutputType> providing) {}
+        List<ContractOutputType> providing,
+    @Schema(
+            description =
+                "Predefined expectations declared by the contract, each with its name, description"
+                    + " and display order (e.g. phishing's ordered human steps). Omitted for"
+                    + " payload-based actions, which declare expectations by type only - readers"
+                    + " then fall back to action_expectations.")
+        @JsonProperty("action_expectation_details")
+        // Omitted (not an explicit JSON null) when absent, so the generated optional TypeScript
+        // type (action_expectation_details?: ...) is exactly what clients observe on the wire.
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        List<ThreatArsenalExpectationDetail> expectationDetails) {}

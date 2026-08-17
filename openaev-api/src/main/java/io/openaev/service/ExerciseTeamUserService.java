@@ -115,12 +115,12 @@ public class ExerciseTeamUserService {
         teamRepository.save(team);
       }
       for (User member : members) {
-        boolean alreadyLinked =
-            exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
-                simulationId, teamId, member.getId());
-        if (!alreadyLinked) {
-          createExerciseTeamUser(simulation, team, member);
-        }
+        // DB-atomic idempotent insert (ON CONFLICT DO NOTHING) instead of exists-then-create: the
+        // autonomous orchestrator authors steps in parallel (asyncio.gather), so two callbacks in
+        // one cycle could both pass an exists check, then both insert and violate the composite PK
+        // - poisoning the enclosing transaction and losing the step just authored. Let the DB
+        // serialise the enablement.
+        exerciseTeamUserRepository.insertIfAbsent(simulationId, teamId, member.getId());
       }
     }
   }

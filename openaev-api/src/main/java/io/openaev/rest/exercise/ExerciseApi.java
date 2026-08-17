@@ -45,7 +45,6 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
@@ -123,7 +122,6 @@ public class ExerciseApi extends RestBehavior {
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
-  private final PreviewFeatureService previewFeatureService;
   private final ExpectationsDriftService expectationsDriftService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
@@ -511,10 +509,8 @@ public class ExerciseApi extends RestBehavior {
     }
     Exercise savedExercise = this.exerciseService.createExercise(exercise);
 
-    // If the chaining feature flag is enabled and the engine is "chaining", create and link a
-    // workflow to the simulation
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-        && Boolean.TRUE.equals(input.getIsChaining())) {
+    // If the engine is chaining, create and link a workflow to the simulation.
+    if (Boolean.TRUE.equals(input.getIsChaining())) {
       // Chaining is an Enterprise Edition feature: reject the creation of a chaining simulation
       // when the enterprise license is inactive
       if (enterpriseEditionService.isEnterpriseLicenseInactive(

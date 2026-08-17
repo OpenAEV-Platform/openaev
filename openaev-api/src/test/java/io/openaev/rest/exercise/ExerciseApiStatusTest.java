@@ -25,7 +25,6 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.rest.exercise.form.ExerciseUpdateStatusInput;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
@@ -625,104 +624,6 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     assertEquals(
         List.of(ExerciseStatus.RUNNING.name()),
         JsonPath.read(response, "$.exercise_next_possible_status"));
-  }
-
-  @DisplayName("Pausing a chained simulation is refused with a 400 and a business message")
-  @Test
-  @WithMockUser(isAdmin = true)
-  void pauseAChainedSimulationTest() throws Exception {
-    // --PREPARE--
-    // A chained simulation is one that owns a workflow row (WorkflowService.isSimulationChaining),
-    // with the INJECT_CHAINING preview feature on. No autonomous run is attached, so the
-    // autonomous exemption does not apply and the pause must be refused.
-    String originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
-    openAEVConfig.setEnabledDevFeatures(PreviewFeature.INJECT_CHAINING.getValue());
-    clearGlobalCache();
-    try {
-      Exercise chainedExercise = ExerciseFixture.createRunningAttackExercise(REFERENCE_TIME);
-      Workflow workflow = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
-      workflowComposer
-          .forWorkflow(workflow)
-          .withSimulation(exerciseComposer.forExercise(chainedExercise))
-          .persist();
-      entityManager.flush();
-      entityManager.clear();
-
-      ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
-      input.setStatus(ExerciseStatus.PAUSED);
-
-      // --EXECUTE--
-      String response =
-          mvc.perform(
-                  put(EXERCISE_URI + "/" + chainedExercise.getId() + "/status")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              // Regression guard: this used to be an unhandled checked ChainingException -> 500.
-              .andExpect(status().isBadRequest())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // --ASSERT--
-      assertTrue(
-          response.contains(PAUSE_REFUSAL_MESSAGE),
-          "The refusal must carry its business message, got: " + response);
-    } finally {
-      openAEVConfig.setEnabledDevFeatures(originalDevFeatures);
-      clearGlobalCache();
-    }
-  }
-
-  @DisplayName("Resuming a chained simulation already paused in database is allowed")
-  @Test
-  @WithMockUser(isAdmin = true)
-  void resumeAChainedSimulationTest() throws Exception {
-    // --PREPARE--
-    // Only pausing is unsupported by the chaining engine (issue #307). A chained simulation set
-    // directly to PAUSED in database - created before the pause block, or from a historical state
-    // - must still be resumable, exactly like a non-chained one, otherwise it would be stuck
-    // forever while the UI keeps offering its Resume button. The PAUSED state is seeded directly
-    // (not through a pause call, which would now be refused).
-    String originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
-    openAEVConfig.setEnabledDevFeatures(PreviewFeature.INJECT_CHAINING.getValue());
-    clearGlobalCache();
-    try {
-      Exercise chainedExercise = ExerciseFixture.createPausedAttackExercise(REFERENCE_TIME);
-      Workflow workflow = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
-      workflowComposer
-          .forWorkflow(workflow)
-          .withSimulation(exerciseComposer.forExercise(chainedExercise))
-          .persist();
-      entityManager.flush();
-      entityManager.clear();
-
-      ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
-      input.setStatus(ExerciseStatus.RUNNING);
-
-      // --EXECUTE--
-      String response =
-          mvc.perform(
-                  put(EXERCISE_URI + "/" + chainedExercise.getId() + "/status")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // --ASSERT--
-      assertEquals(ExerciseStatus.RUNNING.name(), JsonPath.read(response, "$.exercise_status"));
-      assertEquals(
-          Arrays.asList(ExerciseStatus.CANCELED.name(), ExerciseStatus.PAUSED.name()),
-          JsonPath.read(response, "$.exercise_next_possible_status"));
-    } finally {
-      openAEVConfig.setEnabledDevFeatures(originalDevFeatures);
-      clearGlobalCache();
-    }
   }
 
   // The preview feature lookup is @Cacheable("global"), so the cache must be dropped on every

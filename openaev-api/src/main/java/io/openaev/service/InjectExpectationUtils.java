@@ -102,6 +102,7 @@ public class InjectExpectationUtils {
     baseInjectExpectation.setExpectedScore(expectation.getScore());
     baseInjectExpectation.setExpectationGroup(expectation.isExpectationGroup());
     baseInjectExpectation.setName(expectation.getName());
+    baseInjectExpectation.setOrder(expectation.getOrder());
     baseInjectExpectation.setExpirationTime(
         ofNullable(expectation.getExpirationTime())
             .orElse(expectationPropertiesConfig.getExpirationTimeByType(expectation.type())));

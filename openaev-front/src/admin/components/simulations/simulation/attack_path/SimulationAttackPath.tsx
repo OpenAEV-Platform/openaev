@@ -206,7 +206,7 @@ const findingValuesMatch = (type: string, a: string, b: string): boolean => {
 };
 
 /**
- * Attack-path tab (issue 6647), gated by the ATTACK_PATH preview feature. Renders the simulation as a
+ * Attack-path tab (issue 6647). Renders the simulation as a
  * clustered graph: each injector fans out to an aggregate endpoint dot (+N) and one cluster per
  * finding type (with counts), all derived from the collapsed graph — no extra reads. An injector can
  * be expanded into its real endpoints, and the five summary cards open a right drawer (backend
@@ -2830,18 +2830,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               </Alert>
             )}
             {!loading && !chainLoading && !forbidden && !error && !graphHasContent && (
-            // Inset the placeholder inside the (relative) graph Paper so its dashed frame sits
-            // within the Paper's own outline instead of doubling up against it.
+            // The graph Paper already draws the outline, so the placeholder fills it WITHOUT its own
+            // dashed frame (bordered={false}) - otherwise the two concentric borders read as a
+            // "double border" in the zero-state.
               <Box sx={{
                 position: 'absolute',
                 inset: 0,
-                p: 1.5,
               }}
               >
                 <EmptyPlaceholder
                   icon={<AccountTreeOutlined />}
                   title={emptyStateTitle}
                   message={emptyStateMessage}
+                  bordered={false}
                   action={scenarioHasNoSims && scenarioId && !hideLaunchCta
                     ? (
                         <Button

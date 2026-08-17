@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
@@ -13,9 +14,9 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
@@ -48,11 +49,9 @@ class WorkflowServiceTest {
   @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
   @Mock private io.openaev.database.repository.TeamRepository teamRepository;
   @Mock private io.openaev.database.repository.UserRepository userRepository;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
   @Mock private ConditionService conditionService;
   @Mock private StepDelayQueueService stepDelayQueueService;
-  @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private ScopeSnapshotService scopeSnapshotService;
   @Mock private ScopeService scopeService;
   @Mock private WorkflowStateService workflowStateService;
@@ -1151,10 +1150,8 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               conditionService,
-              previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
-              simulationRateLimitService,
               scopeSnapshotService,
               scopeService,
               workflowRepository,
@@ -1435,10 +1432,8 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               conditionService,
-              previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
-              simulationRateLimitService,
               scopeSnapshotService,
               scopeService,
               workflowRepository,
@@ -1625,10 +1620,8 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               conditionService,
-              previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
-              simulationRateLimitService,
               scopeSnapshotService,
               scopeService,
               workflowRepository,
@@ -1895,10 +1888,8 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               conditionService,
-              previewFeatureService,
               workflowStateService,
               stepDelayQueueService,
-              simulationRateLimitService,
               scopeSnapshotService,
               scopeService,
               workflowRepository,
@@ -2045,6 +2036,35 @@ class WorkflowServiceTest {
           ElementNotFoundException.class,
           () -> workflowService.evaluateWorkflowProgress(detachedRun));
       verify(workflowRepository).findById(workflowRunId);
+    }
+
+    @Test
+    @DisplayName("given the workflow run already ended should return early without readying steps")
+    void given_endedWorkflowRun_should_returnEarlyWithoutReadyingSteps() throws Exception {
+      // Arrange - a run that a timeout settle already ENDed. The isWorkflowEnded guard must
+      // short-circuit; without the early return the evaluation fell through and re-readied /
+      // re-enqueued steps on a terminated run (churn, and a possible re-fire after the settle).
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+      stubReload(workflowRunId, workflowRun);
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(true);
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert - returned untouched, and no step ever readied / enqueued on the ended run.
+      assertSame(workflowRun, result);
+      verify(stepService, never()).findAllStepTemplateByWorkflow(any());
+      verify(stepService, never()).createReadySteps(any(), any(), any(), anyInt());
+      verify(stepService, never()).enqueueReadySteps(any(), any());
     }
 
     @Test
@@ -2319,6 +2339,230 @@ class WorkflowServiceTest {
 
       // Assert
       verifyNoInteractions(workflowRepository);
+    }
+  }
+
+  // ========================================================================
+  // Event reuse: validate / resolve an existing event root (#7481)
+  // ========================================================================
+  @Nested
+  @DisplayName("event reuse - validation, root resolution, subtree copy")
+  class EventReuseTests {
+
+    private static final String SIMULATION_ID = "sim-1";
+    private static final String SCENARIO_ID = "scenario-1";
+    private static final String RUN_WORKFLOW_ID = "wf-run";
+
+    private Condition condition(
+        String id, ConditionType type, Condition parent, String workflowId) {
+      return Condition.builder()
+          .id(id)
+          .type(type)
+          .conditionParent(parent)
+          .workflowId(workflowId)
+          .build();
+    }
+
+    private void stubSimulationTemplate() {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(workflowRepository.findBySimulation_IdAndStatus(SIMULATION_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+    }
+
+    @Test
+    @DisplayName("accepts an AND/OR event root that lives on the run's own simulation workflow")
+    void given_anEventRootOnTheRunWorkflow_when_validating_then_itPasses() {
+      stubSimulationTemplate();
+      when(conditionService.findConditionByIdOrNull("evt"))
+          .thenReturn(condition("evt", ConditionType.AND, null, RUN_WORKFLOW_ID));
+
+      assertDoesNotThrow(
+          () -> workflowService.assertEventRootOnSimulationWorkflow(SIMULATION_ID, "evt"));
+    }
+
+    @Test
+    @DisplayName("rejects an unknown event_id with a precise 'does not exist' message")
+    void given_anUnknownEventId_when_validating_then_itThrows() {
+      stubSimulationTemplate();
+      when(conditionService.findConditionByIdOrNull("nope")).thenReturn(null);
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> workflowService.assertEventRootOnSimulationWorkflow(SIMULATION_ID, "nope"));
+      assertTrue(ex.getMessage().contains("does not exist"));
+    }
+
+    @Test
+    @DisplayName("rejects a child condition id (not a root) with a precise message")
+    void given_aChildConditionId_when_validating_then_itThrows() {
+      stubSimulationTemplate();
+      Condition root = condition("evt", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      when(conditionService.findConditionByIdOrNull("leaf"))
+          .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> workflowService.assertEventRootOnSimulationWorkflow(SIMULATION_ID, "leaf"));
+      assertTrue(ex.getMessage().contains("not an event root"));
+    }
+
+    @Test
+    @DisplayName("rejects a non-AND/OR root (e.g. a DEPEND_ON) as not a finding EVENT")
+    void given_aNonEventRoot_when_validating_then_itThrows() {
+      stubSimulationTemplate();
+      when(conditionService.findConditionByIdOrNull("dep"))
+          .thenReturn(condition("dep", ConditionType.DEPEND_ON, null, RUN_WORKFLOW_ID));
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> workflowService.assertEventRootOnSimulationWorkflow(SIMULATION_ID, "dep"));
+      assertTrue(ex.getMessage().contains("not a finding EVENT"));
+    }
+
+    @Test
+    @DisplayName(
+        "rejects an event root that belongs to a DIFFERENT workflow (cross-workflow / cross-run"
+            + " isolation)")
+    void given_anEventRootOnAnotherWorkflow_when_validating_then_itThrows() {
+      stubSimulationTemplate();
+      // A real AND/OR root, but authored on some other run's workflow - reuse must be pinned to the
+      // caller's own workflow, never leak across runs/tenants.
+      when(conditionService.findConditionByIdOrNull("foreign-evt"))
+          .thenReturn(condition("foreign-evt", ConditionType.AND, null, "wf-some-other-run"));
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () ->
+                  workflowService.assertEventRootOnSimulationWorkflow(
+                      SIMULATION_ID, "foreign-evt"));
+      assertTrue(ex.getMessage().contains("belongs to a different workflow"));
+    }
+
+    @Test
+    @DisplayName("rejects reuse when the run has no simulation template workflow")
+    void given_noSimulationTemplate_when_validating_then_itThrows() {
+      when(workflowRepository.findBySimulation_IdAndStatus(SIMULATION_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(null);
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> workflowService.assertEventRootOnSimulationWorkflow(SIMULATION_ID, "evt"));
+      assertTrue(ex.getMessage().contains("Workflow (TEMPLATE) not found"));
+    }
+
+    @Test
+    @DisplayName("author-scenario mode validates the event root on the SCENARIO workflow")
+    void given_anEventRootOnTheScenarioWorkflow_when_validating_then_itPasses() {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(workflowRepository.findByScenario_IdAndStatus(SCENARIO_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+      when(conditionService.findConditionByIdOrNull("evt"))
+          .thenReturn(condition("evt", ConditionType.OR, null, RUN_WORKFLOW_ID));
+
+      assertDoesNotThrow(
+          () -> workflowService.assertEventRootOnScenarioWorkflow(SCENARIO_ID, "evt"));
+    }
+
+    @Test
+    @DisplayName(
+        "author-scenario mode rejects an event root from a different workflow (cross-workflow"
+            + " isolation)")
+    void given_aForeignEventRoot_when_validatingScenario_then_itThrows() {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(workflowRepository.findByScenario_IdAndStatus(SCENARIO_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+      when(conditionService.findConditionByIdOrNull("foreign-evt"))
+          .thenReturn(condition("foreign-evt", ConditionType.AND, null, "wf-some-other-run"));
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> workflowService.assertEventRootOnScenarioWorkflow(SCENARIO_ID, "foreign-evt"));
+      assertTrue(ex.getMessage().contains("belongs to a different workflow"));
+    }
+
+    @Test
+    @DisplayName("findStepTriggerEventRootId returns the AND/OR ROOT, never a nested child group")
+    void given_aNestedEventTree_when_findingTheRootId_then_theRootWins() {
+      Condition root = condition("evt-root", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      Condition nestedGroup = condition("grp-child", ConditionType.OR, root, RUN_WORKFLOW_ID);
+      Condition leaf = condition("leaf", ConditionType.EQ, nestedGroup, RUN_WORKFLOW_ID);
+      // Deliberately return the nested group FIRST so a type-only filter would pick the wrong id.
+      when(conditionService.findAllConditionsByStepId("step"))
+          .thenReturn(List.of(nestedGroup, root, leaf));
+
+      assertEquals("evt-root", workflowService.findStepTriggerEventRootId("step"));
+    }
+
+    @Test
+    @DisplayName("findStepTriggerEventRootId returns null when the step has no finding event")
+    void given_aStepWithoutAnEvent_when_findingTheRootId_then_itIsNull() {
+      Condition dependOn = condition("dep", ConditionType.DEPEND_ON, null, RUN_WORKFLOW_ID);
+      Condition mapper = condition("map", ConditionType.MAPPER, null, RUN_WORKFLOW_ID);
+      when(conditionService.findAllConditionsByStepId("step"))
+          .thenReturn(List.of(dependOn, mapper));
+
+      assertNull(workflowService.findStepTriggerEventRootId("step"));
+    }
+
+    @Test
+    @DisplayName("resolveEventRootAsInputs copies the FULL subtree including nested groups")
+    void given_aNestedEvent_when_resolvingInputs_then_grandchildrenArePreserved() {
+      Condition root = condition("r", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      root.setName("SMB service exposed");
+      Condition directLeaf = condition("d", ConditionType.IS_NOT_NULL, root, RUN_WORKFLOW_ID);
+      directLeaf.setKeyTypes(List.of(PrimitiveType.Host));
+      Condition nestedGroup = condition("c", ConditionType.OR, root, RUN_WORKFLOW_ID);
+      Condition grandLeaf = condition("g", ConditionType.EQ, nestedGroup, RUN_WORKFLOW_ID);
+      grandLeaf.setKeyTypes(List.of(PrimitiveType.Port));
+      grandLeaf.setValue("445");
+
+      when(conditionService.findConditionByIdOrNull("r")).thenReturn(root);
+      when(conditionService.findAllNonMapperConditionsByWorkflowId(RUN_WORKFLOW_ID))
+          .thenReturn(List.of(root, directLeaf, nestedGroup, grandLeaf));
+
+      List<ConditionCreateInput> inputs = workflowService.resolveEventRootAsInputs("r");
+
+      // root + direct leaf + nested group + grandchild leaf = 4 nodes, none dropped.
+      assertEquals(4, inputs.size());
+
+      ConditionCreateInput rootInput =
+          inputs.stream()
+              .filter(i -> i.getTemporaryIdConditionParent() == null)
+              .findFirst()
+              .orElseThrow();
+      assertEquals(ConditionType.AND, rootInput.getType());
+      assertEquals("SMB service exposed", rootInput.getName());
+
+      // The nested OR group re-parents onto the copied root...
+      ConditionCreateInput groupInput =
+          inputs.stream().filter(i -> i.getType() == ConditionType.OR).findFirst().orElseThrow();
+      assertEquals(rootInput.getTemporaryId(), groupInput.getTemporaryIdConditionParent());
+
+      // ...and the grandchild leaf re-parents onto the copied group (depth > 1 preserved).
+      ConditionCreateInput grandInput =
+          inputs.stream().filter(i -> i.getType() == ConditionType.EQ).findFirst().orElseThrow();
+      assertEquals(groupInput.getTemporaryId(), grandInput.getTemporaryIdConditionParent());
+      assertEquals(List.of(PrimitiveType.Port), grandInput.getKeyTypes());
+      assertEquals("445", grandInput.getValue());
+    }
+
+    @Test
+    @DisplayName("resolveEventRootAsInputs returns empty when the id is not a resolvable root")
+    void given_aNonRoot_when_resolvingInputs_then_itIsEmpty() {
+      Condition root = condition("r", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      when(conditionService.findConditionByIdOrNull("leaf"))
+          .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
+
+      assertTrue(workflowService.resolveEventRootAsInputs("leaf").isEmpty());
     }
   }
 }

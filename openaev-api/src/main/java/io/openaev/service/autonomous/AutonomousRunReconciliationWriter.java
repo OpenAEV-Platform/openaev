@@ -1,5 +1,6 @@
 package io.openaev.service.autonomous;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
@@ -39,17 +40,21 @@ public class AutonomousRunReconciliationWriter {
    * event; the losers stay silent. This is the fix for the duplicated + repeated "Run canceled"
    * timeline spam where every racing reader appended its own identical status event.
    *
-   * <p>{@code tenantId} is the run's owning tenant, threaded from the caller's loaded entity: the
-   * conditional UPDATE is a bulk JPQL statement, which Hibernate tenant {@code @Filter}s do not
-   * cover, so the write carries its own explicit tenant predicate.
+   * <p>{@code ctx} scopes the fresh transaction: {@code REQUIRES_NEW} suspends the caller's
+   * transaction together with its GUC, so without its own {@code TxCtx} this writer would run
+   * scope-less and the statement inspector ({@code autonomous_runs} is tenant-active) would deny
+   * every row. The aspect reads the parameter and re-establishes the run's tenant for the new
+   * transaction. {@code tenantId} is that same tenant, kept as an explicit predicate on the
+   * conditional UPDATE and the re-load: defense in depth on the one write that settles runs, and
+   * the tenant source for the terminal event's attribution.
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
   public AutonomousRun settleRunStatus(
-      String runId, String tenantId, AutonomousRunStatus target, String reasonDetail) {
+      TxCtx ctx, String runId, String tenantId, AutonomousRunStatus target, String reasonDetail) {
     int changed =
         runRepository.settleTerminalStatusIfActive(runId, tenantId, target, Instant.now());
-    // Tenant-scoped re-load, consistent with the tenant-predicated UPDATE above: @Filter does not
-    // protect PK lookups, so a bare findById could read a cross-tenant row the write just refused.
+    // Tenant-scoped re-load, consistent with the tenant-predicated UPDATE above (a PK lookup is
+    // also rewritten by the inspector now, but the explicit predicate keeps the pair symmetric).
     AutonomousRun run = runRepository.findByIdAndTenantId(runId, tenantId).orElse(null);
     if (run == null) {
       return null;
@@ -64,6 +69,7 @@ public class AutonomousRunReconciliationWriter {
     if (changed > 0) {
       eventService.appendTerminalStatusOnce(
           run.getId(),
+          tenantId,
           run.getSimulationId(),
           target == AutonomousRunStatus.CANCELED ? "Run canceled" : "Run completed",
           reasonDetail);

@@ -36,25 +36,38 @@ export const SETTINGS_ACCESS_CHECKS: {
     action: ACTIONS.ACCESS,
     subject: SUBJECTS.LESSONS_LEARNED,
   },
+  {
+    action: ACTIONS.ACCESS,
+    subject: SUBJECTS.TAGS,
+  },
 ];
 
+export const canAccessTags = (ability: AppAbility): boolean => {
+  return ability.can(ACTIONS.ACCESS, SUBJECTS.TAGS);
+};
+
+export const canAccessTenantSettings = (ability: AppAbility): boolean => {
+  return ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
+};
+
 const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
-  const canAccessTenantSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
+  const hasTenantSettingsAccess = canAccessTenantSettings(ability);
   const canAccessPlatformSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
   const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
   const canAccessLessonsLearned = ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED);
+  const hasTagsAccess = canAccessTags(ability);
 
   const subItems = [
     {
       link: '/admin/settings/parameters',
       label: 'Parameters',
-      userRight: canAccessTenantSettings,
+      userRight: hasTenantSettingsAccess,
     },
     {
       link: '/admin/settings/security',
       label: 'Security',
-      userRight: canAccessTenantSettings || canAccessPlatformUGR || canAccessTenants,
+      userRight: hasTenantSettingsAccess || canAccessPlatformUGR || canAccessTenants,
     },
     {
       // Section root: redirects to asset_rules; Notifiers and Lessons learned
@@ -62,22 +75,22 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
       // direct entries.
       link: '/admin/settings/customization',
       label: 'Customization',
-      userRight: canAccessTenantSettings || canAccessLessonsLearned,
+      userRight: hasTenantSettingsAccess || canAccessLessonsLearned,
     },
     {
       link: '/admin/settings/taxonomies',
       label: 'Taxonomies',
-      userRight: canAccessTenantSettings,
+      userRight: hasTenantSettingsAccess || hasTagsAccess,
     },
     {
       link: '/admin/settings/data_ingestion',
       label: 'Data ingestion',
-      userRight: canAccessTenantSettings,
+      userRight: hasTenantSettingsAccess,
     },
     {
       link: '/admin/settings/experience',
       label: 'Filigran Experience',
-      userRight: canAccessTenantSettings || canAccessPlatformSettings,
+      userRight: hasTenantSettingsAccess || canAccessPlatformSettings,
     },
   ];
 

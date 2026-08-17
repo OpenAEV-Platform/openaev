@@ -32,7 +32,6 @@ import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
@@ -93,7 +92,6 @@ public class InjectExecutionStep implements ActionStep {
   private final WorkflowStateService workflowStateService;
   private final ScopeService scopeService;
   private final StepTargetingService stepTargetingService;
-  private final PreviewFeatureService previewFeatureService;
   private final AttackPathExecutionIngestionService attackPathIngestion;
   private final AttackPathFindingIngestionService attackPathFindingIngestion;
   private final InjectExpectationService injectExpectationService;
@@ -323,15 +321,12 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Records the run's attack-path rows: flag-gated and non-fatal. The whole ingestion (resolution +
-   * write) runs inside {@code onRun}, which opens its own tenant-scoped REQUIRES_NEW transaction,
-   * so a failure here is caught and logged and can never roll the inject execution back. Recover
-   * around this boundary, never inside {@code onRun} (activate-tenant-table skill).
+   * Records the run's attack-path rows, non-fatal. The whole ingestion (resolution + write) runs
+   * inside {@code onRun}, which opens its own tenant-scoped REQUIRES_NEW transaction, so a failure
+   * here is caught and logged and can never roll the inject execution back. Recover around this
+   * boundary, never inside {@code onRun} (activate-tenant-table skill).
    */
   private void recordAttackPathExecution(Step readyStep, Inject inject) {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
-      return;
-    }
     try {
       attackPathIngestion.onRun(inject, readyStep, this.getCommand(inject));
     } catch (Exception e) {
@@ -340,20 +335,13 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Pushes the step's expectation verdicts onto the attack-path projection: flag-gated and
-   * non-fatal, like the two ingestion hooks around it. The write opens its own tenant-scoped
-   * REQUIRES_NEW transaction, so a failure here is caught and logged and can never roll the step
-   * update back. Runs on every execution event; the updates are guarded, so replaying the same
-   * results matches zero rows - and a write that touched nothing publishes no nudge.
-   *
-   * <p>The flag gate matters beyond the write: the version bump this triggers publishes the
-   * real-time nudge, so an environment with {@code ATTACK_PATH} off must not emit attack-path
-   * events at all (spec 003, FR3).
+   * Pushes the step's expectation verdicts onto the attack-path projection, non-fatal like the two
+   * ingestion hooks around it. The write opens its own tenant-scoped REQUIRES_NEW transaction, so a
+   * failure here is caught and logged and can never roll the step update back. Runs on every
+   * execution event; the updates are guarded, so replaying the same results matches zero rows - and
+   * a write that touched nothing publishes no nudge.
    */
   private void syncAttackPathVerdicts(Inject inject, List<BaseInjectExpectation> expectations) {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
-      return;
-    }
     try {
       Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
           expectationResults =
@@ -366,14 +354,11 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Copies the inject's findings onto the attack-path snapshot: flag-gated and non-fatal. The copy
-   * opens its own tenant-scoped REQUIRES_NEW transaction, so a failure here is caught and logged
-   * and can never roll the step update back. Runs on every execution event; the copy is idempotent.
+   * Copies the inject's findings onto the attack-path snapshot, non-fatal. The copy opens its own
+   * tenant-scoped REQUIRES_NEW transaction, so a failure here is caught and logged and can never
+   * roll the step update back. Runs on every execution event; the copy is idempotent.
    */
   private void recordAttackPathFindings(Step stepRun, Inject inject) {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
-      return;
-    }
     try {
       attackPathFindingIngestion.copyFindings(inject, stepRun);
     } catch (Exception e) {
@@ -384,14 +369,11 @@ public class InjectExecutionStep implements ActionStep {
   /**
    * Copies the run's output-only values (contract outputs flagged {@code
    * contract_output_element_is_finding = false}) onto the attack-path snapshot, so the map shows
-   * every output the chaining used, not only the ones persisted as findings (ADR-004). Flag-gated
-   * and non-fatal, mirroring {@link #recordAttackPathFindings}.
+   * every output the chaining used, not only the ones persisted as findings (ADR-004), non-fatal,
+   * mirroring {@link #recordAttackPathFindings}.
    */
   private void recordAttackPathOutputs(
       Step stepRun, Inject inject, List<Map<String, JsonElement>> output) {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
-      return;
-    }
     try {
       JsonObject parsed = extractDataFromParsed(output);
       if (parsed.size() == 0) {

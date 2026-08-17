@@ -198,6 +198,18 @@ public class BaseInjectExpectation implements Base, Cloneable {
   private boolean expectationGroup;
 
   /**
+   * Optional display order of this expectation within its inject, ascending. Populated from the
+   * injector contract (see the phishing action, which orders its human steps email {@literal ->}
+   * link {@literal ->} submission) and used by the results UI to sort the chain timeline and the
+   * per-type list deterministically. {@code null} means unordered (every expectation that does not
+   * declare an order), and the UI falls back to name / id.
+   */
+  @Setter
+  @Column(name = "inject_expectation_order")
+  @JsonProperty("inject_expectation_order")
+  private Integer order;
+
+  /**
    * Security platform types expected to fulfil this (technical) expectation. When non-empty, only
    * collectors of those types are pre-seeded as pending results and considered for scoring. Empty
    * or null means "any security platform" (legacy behaviour).

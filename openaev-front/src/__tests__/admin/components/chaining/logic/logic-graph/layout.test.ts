@@ -383,3 +383,149 @@ describe('buildLogicGraphLayout tactic columns', () => {
     expect(empty.bbox.height).toBe(ACTION_NODE_HEIGHT);
   });
 });
+
+describe('buildLogicGraphLayout chain layout', () => {
+  // A five-wave causal chain crossing three tactics: seed emits "port" which smbFound listens on,
+  // smbFound gates exploit; exploit emits "file" which dataFound listens on, dataFound gates exfil.
+  const buildChain = () => buildLogicGraphLayout({
+    actionMetas: {
+      seed: action(),
+      exploit: action(['smbFound']),
+      exfil: action(['dataFound']),
+    },
+    eventMetas: {
+      smbFound: eventOn('port'),
+      dataFound: eventOn('file'),
+    },
+    outputProviders: {
+      port: [{ stepId: 'seed' } as unknown as OutputProviderEntry],
+      file: [{ stepId: 'exploit' } as unknown as OutputProviderEntry],
+    },
+    tacticForStep: {
+      seed: 'Reconnaissance',
+      exploit: 'Lateral Movement',
+      exfil: 'Exfiltration',
+    },
+    tacticOrder: {
+      'Reconnaissance': 1,
+      'Lateral Movement': 2,
+      'Exfiltration': 3,
+    },
+    layoutMode: 'chain',
+  });
+
+  it('keeps the tactic-column layout as the default when layoutMode is omitted', () => {
+    expect(build().columns.length).toBeGreaterThan(0);
+  });
+
+  it('orders the whole causal chain left to right by dependency depth', () => {
+    const { nodeById } = buildChain();
+    const xs = ['seed', 'smbFound', 'exploit', 'dataFound', 'exfil'].map(id => nodeById[id].x);
+    for (let i = 1; i < xs.length; i += 1) {
+      expect(xs[i]).toBeGreaterThan(xs[i - 1]);
+    }
+  });
+
+  it('lets dependency depth split same-tactic actions across columns (tactic never forces the layout)', () => {
+    // Same input as the tactic-mode depth-ordering case: `deep` is gated by a trigger fed by
+    // `shallow`, both in Discovery. Tactic mode stacks them in one column; chain mode must not.
+    const { nodeById } = buildLogicGraphLayout({
+      actionMetas: {
+        deep: action(['late']),
+        shallow: action(['first']),
+      },
+      eventMetas: {
+        first: event(),
+        late: eventOn('port'),
+      },
+      outputProviders: { port: [{ stepId: 'shallow' } as unknown as OutputProviderEntry] },
+      tacticForStep: {
+        deep: 'Discovery',
+        shallow: 'Discovery',
+      },
+      tacticOrder: { Discovery: 1 },
+      layoutMode: 'chain',
+    });
+    expect(nodeById.deep.x).toBeGreaterThan(nodeById.shallow.x);
+  });
+
+  it('draws no tactic bands: grouping is exactly what chain mode disables', () => {
+    expect(buildChain().columns).toHaveLength(0);
+  });
+
+  it('still renders both edges of a reciprocal real/inferred pair, without launching the pair right', () => {
+    const { edges, nodeById } = buildLogicGraphLayout({
+      actionMetas: { a1: action(['e1']) },
+      eventMetas: { e1: eventOn('text') },
+      outputProviders: { text: [{ stepId: 'a1' } as unknown as OutputProviderEntry] },
+      tacticForStep: { a1: 'Discovery' },
+      tacticOrder: { Discovery: 1 },
+      layoutMode: 'chain',
+    });
+    expect(edges.some(e => e.kind === 'real' && e.source === 'e1' && e.target === 'a1')).toBe(true);
+    expect(edges.some(e => e.kind === 'inferred' && e.source === 'a1' && e.target === 'e1')).toBe(true);
+    // Depth comes from the cycle-free subset: the two cards sit in ADJACENT columns (the real back
+    // edge hooks back one column), instead of drifting right on every relaxation pass.
+    expect(Math.abs(nodeById.a1.layer - nodeById.e1.layer)).toBe(1);
+  });
+
+  it('never overlaps two cards', () => {
+    // The same dense multi-tactic shape the tactic-mode non-overlap test uses.
+    const { nodes } = buildLogicGraphLayout({
+      actionMetas: {
+        scan1: action(),
+        scan2: action(),
+        exec1: action(['smbFound']),
+        exec2: action(['smbFound']),
+        disco1: action(['ldapFound']),
+        creds1: action(['event4']),
+        impair1: action(['event4']),
+        other1: action(),
+      },
+      eventMetas: {
+        smbFound: event(),
+        ldapFound: event(),
+        event4: event(),
+      },
+      outputProviders: {},
+      tacticForStep: {
+        scan1: 'Reconnaissance',
+        scan2: 'Reconnaissance',
+        exec1: 'Execution',
+        exec2: 'Execution',
+        disco1: 'Discovery',
+        creds1: 'Credential Access',
+        impair1: 'Defense Impairment',
+      },
+      tacticOrder: {
+        'Reconnaissance': 1,
+        'Execution': 2,
+        'Discovery': 3,
+        'Credential Access': 4,
+        'Defense Impairment': 5,
+      },
+      layoutMode: 'chain',
+    });
+    const box = (n: LogicGraphNode) => ({
+      x: n.x,
+      y: n.y,
+      width: n.width,
+      height: n.height,
+    });
+    for (let i = 0; i < nodes.length; i += 1) {
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        expect(overlaps(box(nodes[i]), box(nodes[j]))).toBe(false);
+      }
+    }
+  });
+
+  it('normalizes the layout to the origin (no negative coordinates)', () => {
+    const { nodes, bbox } = buildChain();
+    for (const node of nodes) {
+      expect(node.x).toBeGreaterThanOrEqual(0);
+      expect(node.y).toBeGreaterThanOrEqual(0);
+    }
+    expect(bbox.minX).toBe(0);
+    expect(bbox.minY).toBe(0);
+  });
+});

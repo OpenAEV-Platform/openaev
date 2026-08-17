@@ -1,7 +1,6 @@
 package io.openaev.api.threat_arsenal;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
@@ -19,7 +18,6 @@ import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutpu
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.schema.model.PropertySchemaDTO;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -176,9 +174,6 @@ public class ThreatArsenalApi {
   }
 
   private List<PrimitiveType> resolveAvailableTypes() {
-    if (!previewFeatureService.isFeatureEnabled(INJECT_CHAINING)) {
-      return List.of(PrimitiveType.Text, PrimitiveType.Document, PrimitiveType.TargetedAsset);
-    }
     return ChainingTypeRegistry.getPrimitiveTypes();
   }
 

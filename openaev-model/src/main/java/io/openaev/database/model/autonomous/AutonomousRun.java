@@ -3,7 +3,6 @@ package io.openaev.database.model.autonomous;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.ControlledUuidGeneration;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,12 +24,16 @@ import org.hibernate.type.SqlTypes;
  * One AI-driven, autonomous attack-path run. The "brain" lives in XTM One; this row is OpenAEV's
  * durable handle on that run: it binds the objective, the chained simulation used as the execution
  * and visualization substrate, the XTM One session, and the live status the UI animates.
+ *
+ * <p>Tenant-active (multi-tenancy v2): reads and writes are scoped by the statement inspector, and
+ * the tenant is attributed EXPLICITLY at creation ({@code AutonomousRunService} stamps it from the
+ * scenario through the write-scope resolver) - deliberately no {@code TenantBaseListener}, whose
+ * thread-local default would silently land orchestrator-callback writes in the default tenant.
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "autonomous_runs")
-@EntityListeners(TenantBaseListener.class)
 public class AutonomousRun implements TenantBase {
 
   @Id
@@ -146,6 +149,18 @@ public class AutonomousRun implements TenantBase {
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "autonomous_run_step_mirror")
   private Map<String, String> stepMirror = new HashMap<>();
+
+  // Internal bookkeeping: maps each finding-EVENT root condition id authored on the SIMULATION
+  // workflow to its twin event root id mirrored onto the SCENARIO workflow. The orchestrator only
+  // ever knows simulation event ids (those are what the attack-path state surfaces as event_id), so
+  // when it authors a step that REUSES an existing simulation event, this lets the mirror reattach
+  // the scenario twin to the SAME scenario event - keeping the exported scenario's events shared
+  // instead of duplicated, exactly like the live simulation side. Never exposed to the API or the
+  // orchestrator.
+  @JsonIgnore
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "autonomous_run_event_mirror")
+  private Map<String, String> eventMirror = new HashMap<>();
 
   @Column(name = "autonomous_run_xtm_session_id")
   @JsonProperty("autonomous_run_xtm_session_id")

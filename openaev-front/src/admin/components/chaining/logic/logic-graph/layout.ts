@@ -12,7 +12,7 @@ export const TRIGGER_NODE_HEIGHT = 76;
 // feeds. Columns are laid out with a running cursor rather than a fixed stride, so a tactic whose
 // events are absent claims no lane width at all and its band sits right next to its neighbour. Each
 // tactic still owns an exclusive horizontal span, which is what keeps the bands non-overlapping BY
-// CONSTRUCTION (see buildLogicGraphLayout). --
+// CONSTRUCTION (see layoutTacticColumns). --
 const EVENT_TO_COL_GAP = 60; // gap between an event lane and the action column it feeds
 const INTER_COLUMN_GAP = 90; // gap between one tactic column and the next column's event lane
 const ADJACENT_BAND_GAP = 40; // gap between two tactic bands with no event lane between them
@@ -24,7 +24,22 @@ const BAND_PADDING_X = 18; // horizontal breathing room between a card and its b
 const BAND_PADDING_BOTTOM = 20; // padding below the last card inside the band
 const BAND_HEADER_HEIGHT = 26; // room reserved at the top of a band for the tactic label
 
+// -- Chain-layout tokens (px). Column / row separation for the ungrouped causal layout. Denser when
+// the chain is large (mirrors XTM One's node-count-driven `dynNodeSep` / `dynRankSep`) so big graphs
+// stay compact. --
+const chainColumnGap = (nodeCount: number) => (nodeCount > 14 ? 84 : 120);
+const chainRowGap = (nodeCount: number) => (nodeCount > 14 ? 18 : 30);
+
 export type LogicGraphNodeKind = 'action' | 'trigger';
+
+/**
+ * Layout strategy for the logic map:
+ * - `'tactic'` (default): one column per MITRE tactic ordered by kill-chain phase, with a band
+ *   drawn behind each column (see {@link layoutTacticColumns}).
+ * - `'chain'`: tactic grouping disabled — a pure causal layout where dependency depth alone places
+ *   the cards left to right and no bands are drawn (see {@link layoutCausalChain}).
+ */
+export type LogicGraphLayoutMode = 'tactic' | 'chain';
 
 export interface LogicGraphNode {
   id: string;
@@ -118,6 +133,8 @@ interface BuildLayoutInput {
   tacticForStep: Record<string, string>;
   /** Tactic name -> kill-chain phase order, so group colours follow the MITRE order (lower = earlier). */
   tacticOrder: Record<string, number>;
+  /** Layout strategy — defaults to the grouped `'tactic'` columns. */
+  layoutMode?: LogicGraphLayoutMode;
 }
 
 interface RawEdge {
@@ -259,79 +276,52 @@ const computeLayers = (nodeIds: string[], acyclicEdges: RawEdge[]): Record<strin
   return layer;
 };
 
+/** Everything a positioning strategy needs once the shared edge pipeline has run. */
+interface PositionInput {
+  nodeIds: string[];
+  kindById: Record<string, LogicGraphNodeKind>;
+  actionMetas: Record<string, ActionMeta>;
+  eventMetas: Record<string, EventMeta>;
+  tacticForStep: Record<string, string>;
+  tacticOrder: Record<string, number>;
+  /** The edges that will be rendered (fan-in pruned, plus EVERY real link, back edges included). */
+  graphEdges: RawEdge[];
+  /** Cycle-free subset of `graphEdges` — what depth layering and barycenter ordering may consume. */
+  layeringEdges: RawEdge[];
+}
+
+/** Positioned nodes plus the tactic bands drawn behind them (empty in chain mode). */
+interface PositionedNodes {
+  nodes: LogicGraphNode[];
+  columns: LogicGraphColumn[];
+}
+
 /**
- * Build the auto-laid-out graph (nodes + orthogonal connector paths + tactic columns + bounding box)
- * from the parsed action / event metadata. Pure and deterministic so it can be memoized behind a
- * content fingerprint (polling re-renders must not shuffle the layout).
+ * `'tactic'` positioning — the default. INVARIANT: one MITRE tactic per column, and no overlap
+ * anywhere. Actions are bucketed into one column per tactic (columns ordered by kill-chain phase),
+ * and each gating event sits in a lane immediately to the LEFT of its action's column, aligned to
+ * the action it gates so the event -> action arrow stays horizontal.
  *
- * Columns are MITRE tactics, ordered by kill-chain phase: every action sits in its tactic's column
- * and every gating event in the lane just left of it, so the map reads as one band per tactic with
- * no overlap possible. Dependency depth only orders the cards inside a column.
+ * Because every tactic owns an exclusive horizontal span (event lane + gap + action column + gap),
+ * a tactic band can never intersect another band, nor a card of another tactic. That is the whole
+ * point of laying out by tactic rather than decorating a depth-ordered layout with per-tactic
+ * bounding hulls: one tactic's actions would then scatter across several depth columns, so its hull
+ * stretched over its neighbours' cards and every stacked hull's header landed on the card above.
  */
-export const buildLogicGraphLayout = ({
+const layoutTacticColumns = ({
+  nodeIds,
+  kindById,
   actionMetas,
   eventMetas,
-  outputProviders,
   tacticForStep,
   tacticOrder,
-}: BuildLayoutInput): LogicGraphLayout => {
-  const kindById: Record<string, LogicGraphNodeKind> = {};
-  for (const id of Object.keys(actionMetas)) kindById[id] = 'action';
-  for (const id of Object.keys(eventMetas)) kindById[id] = 'trigger';
-  const nodeIds = Object.keys(kindById);
-
-  const realEdges = buildRealEdges(actionMetas, eventMetas)
-    .filter(e => kindById[e.source] && kindById[e.target]);
-  const inferredEdges = buildInferredEdges(eventMetas, outputProviders)
-    .filter(e => kindById[e.source] && kindById[e.target]);
-  const rawEdges = [...inferredEdges, ...realEdges];
-
-  // Drop feedback loops entirely (both from layering and rendering): a downstream action that emits
-  // a finding its own gating trigger listens on would otherwise draw a backward dashed stub hooking
-  // out of the last card, which reads as a dangling connector rather than useful causality.
-  const acyclicEdges = removeBackEdges(nodeIds, rawEdges);
-
-  // Prune the inferred fan-in to the CLOSEST producer wave per trigger. A finding type (e.g. "port")
-  // is often emitted by both an early seed and a later step; drawing an edge from every producer
-  // creates long lines that cut across the whole canvas and wrongly imply the seed "triggers" a far
-  // trigger. Keeping only the producers in the trigger's nearest upstream layer preserves the real
-  // proximate cause, kills the crossing lines, and tightens the layout.
-  const provisionalLayer = computeLayers(nodeIds, acyclicEdges);
-  const inferredByTrigger = new Map<string, RawEdge[]>();
-  for (const edge of acyclicEdges) {
-    if (edge.kind === 'inferred') {
-      const list = inferredByTrigger.get(edge.target) ?? [];
-      list.push(edge);
-      inferredByTrigger.set(edge.target, list);
-    }
-  }
-  const prunedInferred: RawEdge[] = [];
-  for (const list of inferredByTrigger.values()) {
-    const closestLayer = Math.max(...list.map(e => provisionalLayer[e.source]));
-    for (const edge of list) {
-      if (provisionalLayer[edge.source] === closestLayer) prunedInferred.push(edge);
-    }
-  }
-  // Real trigger->action links must always be rendered, even when cycle breaking drops some edges
-  // from the layering graph (which is computed on inferred+real mixed edges).
-  const nonInferred = realEdges;
-  const graphEdges = [...prunedInferred, ...nonInferred];
-
-  // Dependency depth. It no longer picks a node's COLUMN (the tactic does, see below) — it only
-  // orders the cards top-down inside a column so a tactic's steps still read in causal order.
+  graphEdges,
+}: PositionInput): PositionedNodes => {
+  // Dependency depth over the FULL rendered edge set. It only ORDERS the cards inside a column (the
+  // tactic picks the column), so the inflated depths a rendered reciprocal real/inferred pair
+  // produces are harmless here.
   const layer = computeLayers(nodeIds, graphEdges);
 
-  // -- Tactic-column positioning ------------------------------------------------------------------
-  // INVARIANT: one MITRE tactic per column, and no overlap anywhere. Actions are bucketed into one
-  // column per tactic (columns ordered by kill-chain phase), and each gating event sits in a lane
-  // immediately to the LEFT of its action's column, aligned to the action it gates so the
-  // event -> action arrow stays horizontal.
-  //
-  // Because every tactic owns an exclusive horizontal span (event lane + gap + action column + gap),
-  // a tactic band can never intersect another band, nor a card of another tactic. That is the whole
-  // point of laying out by tactic rather than decorating a depth-ordered layout with per-tactic
-  // bounding hulls: one tactic's actions would then scatter across several depth columns, so its hull
-  // stretched over its neighbours' cards and every stacked hull's header landed on the card above.
   const actionIds = nodeIds.filter(id => kindById[id] === 'action');
   const eventIds = nodeIds.filter(id => kindById[id] === 'trigger');
   const inputOrder: Record<string, number> = {};
@@ -491,6 +481,198 @@ export const buildLogicGraphLayout = ({
       headerHeight: BAND_HEADER_HEIGHT,
     };
   });
+
+  return {
+    nodes,
+    columns,
+  };
+};
+
+/**
+ * `'chain'` positioning — tactic grouping disabled. Node positions come purely from dependency
+ * depth (longest-path layering), so the map reads left-to-right as `Action -> Trigger -> Action`
+ * causal waves and the tactic NEVER forces a card's column. A single barycenter pass orders each
+ * column by the average row of its predecessors to reduce edge crossings, and every column is
+ * vertically centered around a shared midline so the chain reads balanced rather than top-left
+ * heavy.
+ *
+ * Deliberately emits NO tactic bands: grouping is exactly what this mode switches off (each card's
+ * tooltip still names its tactic), and decorative bounding hulls over a depth-ordered layout are
+ * what used to overlap (#7240).
+ */
+const layoutCausalChain = ({
+  nodeIds,
+  kindById,
+  tacticForStep,
+  tacticOrder,
+  layeringEdges,
+}: PositionInput): PositionedNodes => {
+  // Depth over the CYCLE-FREE subset only. A reciprocal real/inferred pair stays rendered (the real
+  // link is always drawn), but here depth picks a node's COLUMN: feeding the cycle to the
+  // longest-path relaxation would inflate the pair's depth on every pass and launch it far to the
+  // right (see removeBackEdges) — the back edge simply hooks back one column instead.
+  const layer = computeLayers(nodeIds, layeringEdges);
+  const preds: Record<string, string[]> = {};
+  for (const edge of layeringEdges) (preds[edge.target] ??= []).push(edge.source);
+
+  // Bucket nodes per layer, keeping a stable initial order.
+  const layers: Record<number, string[]> = {};
+  for (const id of nodeIds) (layers[layer[id]] ??= []).push(id);
+  const layerKeys = Object.keys(layers).map(Number).sort((a, b) => a - b);
+
+  // Barycenter ordering (single downward pass) to reduce edge crossings: order each layer by the
+  // average row of its predecessors in the previous layer. Same-tactic actions are kept adjacent as
+  // a tie-break so related cards sit together without the tactic ever forcing the layout.
+  const orderIndex: Record<string, number> = {};
+  const tacticRank = (id: string) => tacticOrder[tacticForStep[id] ?? ''] ?? 99;
+  layerKeys.forEach((layerKey, layerIdx) => {
+    const ids = layers[layerKey];
+    if (layerIdx === 0) {
+      ids.forEach((id, i) => {
+        orderIndex[id] = i;
+      });
+      return;
+    }
+    const withKey = ids.map((id) => {
+      const parents = (preds[id] ?? []).filter(p => orderIndex[p] !== undefined);
+      const key = parents.length > 0
+        ? parents.reduce((sum, p) => sum + orderIndex[p], 0) / parents.length
+        : Number.MAX_SAFE_INTEGER;
+      return {
+        id,
+        key,
+        tactic: tacticRank(id),
+      };
+    });
+    withKey.sort((a, b) => (a.key !== b.key ? a.key - b.key : a.tactic - b.tactic));
+    layers[layerKey] = withKey.map(w => w.id);
+    layers[layerKey].forEach((id, i) => {
+      orderIndex[id] = i;
+    });
+  });
+
+  const nodeCount = nodeIds.length;
+  const colGap = chainColumnGap(nodeCount);
+  const rGap = chainRowGap(nodeCount);
+  const heightOf = (id: string) =>
+    (kindById[id] === 'action' ? ACTION_NODE_HEIGHT : TRIGGER_NODE_HEIGHT);
+
+  // Vertically center each column around a shared midline so the chain reads as balanced rather
+  // than top-left heavy.
+  const colHeight: Record<number, number> = {};
+  for (const layerKey of layerKeys) {
+    const ids = layers[layerKey];
+    colHeight[layerKey] = ids.reduce((sum, id) => sum + heightOf(id), 0)
+      + Math.max(0, ids.length - 1) * rGap;
+  }
+  const maxColHeight = Math.max(0, ...Object.values(colHeight));
+
+  const nodes: LogicGraphNode[] = [];
+  for (const layerKey of layerKeys) {
+    const ids = layers[layerKey];
+    let y = (maxColHeight - colHeight[layerKey]) / 2;
+    const x = layerKey * (NODE_WIDTH + colGap);
+    for (const id of ids) {
+      const height = heightOf(id);
+      nodes.push({
+        id,
+        kind: kindById[id],
+        layer: layerKey,
+        x,
+        y,
+        width: NODE_WIDTH,
+        height,
+      });
+      y += height + rGap;
+    }
+  }
+
+  return {
+    nodes,
+    columns: [],
+  };
+};
+
+/**
+ * Build the auto-laid-out graph (nodes + orthogonal connector paths + tactic columns + bounding box)
+ * from the parsed action / event metadata. Pure and deterministic so it can be memoized behind a
+ * content fingerprint (polling re-renders must not shuffle the layout).
+ *
+ * Both layout modes share ONE edge pipeline (real + inferred edges, cycle breaking, fan-in pruning,
+ * dependency layering) and differ only in where the cards land:
+ * - `'tactic'` (default): one column per MITRE tactic ordered by kill-chain phase, every gating
+ *   event in the lane just left of the column it feeds, one band per column — dependency depth only
+ *   orders the cards INSIDE a column.
+ * - `'chain'`: dependency depth alone places the cards left to right; no grouping, no bands.
+ */
+export const buildLogicGraphLayout = ({
+  actionMetas,
+  eventMetas,
+  outputProviders,
+  tacticForStep,
+  tacticOrder,
+  layoutMode = 'tactic',
+}: BuildLayoutInput): LogicGraphLayout => {
+  const kindById: Record<string, LogicGraphNodeKind> = {};
+  for (const id of Object.keys(actionMetas)) kindById[id] = 'action';
+  for (const id of Object.keys(eventMetas)) kindById[id] = 'trigger';
+  const nodeIds = Object.keys(kindById);
+
+  const realEdges = buildRealEdges(actionMetas, eventMetas)
+    .filter(e => kindById[e.source] && kindById[e.target]);
+  const inferredEdges = buildInferredEdges(eventMetas, outputProviders)
+    .filter(e => kindById[e.source] && kindById[e.target]);
+  const rawEdges = [...inferredEdges, ...realEdges];
+
+  // Drop feedback loops entirely (both from layering and rendering): a downstream action that emits
+  // a finding its own gating trigger listens on would otherwise draw a backward dashed stub hooking
+  // out of the last card, which reads as a dangling connector rather than useful causality.
+  const acyclicEdges = removeBackEdges(nodeIds, rawEdges);
+
+  // Prune the inferred fan-in to the CLOSEST producer wave per trigger. A finding type (e.g. "port")
+  // is often emitted by both an early seed and a later step; drawing an edge from every producer
+  // creates long lines that cut across the whole canvas and wrongly imply the seed "triggers" a far
+  // trigger. Keeping only the producers in the trigger's nearest upstream layer preserves the real
+  // proximate cause, kills the crossing lines, and tightens the layout.
+  const provisionalLayer = computeLayers(nodeIds, acyclicEdges);
+  const inferredByTrigger = new Map<string, RawEdge[]>();
+  for (const edge of acyclicEdges) {
+    if (edge.kind === 'inferred') {
+      const list = inferredByTrigger.get(edge.target) ?? [];
+      list.push(edge);
+      inferredByTrigger.set(edge.target, list);
+    }
+  }
+  const prunedInferred: RawEdge[] = [];
+  for (const list of inferredByTrigger.values()) {
+    const closestLayer = Math.max(...list.map(e => provisionalLayer[e.source]));
+    for (const edge of list) {
+      if (provisionalLayer[edge.source] === closestLayer) prunedInferred.push(edge);
+    }
+  }
+  // Real trigger->action links must always be rendered, even when cycle breaking drops some edges
+  // from the layering graph (which is computed on inferred+real mixed edges).
+  const nonInferred = realEdges;
+  const graphEdges = [...prunedInferred, ...nonInferred];
+  // The cycle-free subset of the rendered edges (same object identities), for the strategies that
+  // must layer without feedback loops. `prunedInferred` was drawn from `acyclicEdges`, so this only
+  // ever drops real back edges.
+  const acyclicSet = new Set(acyclicEdges);
+  const layeringEdges = graphEdges.filter(e => acyclicSet.has(e));
+
+  const positionInput: PositionInput = {
+    nodeIds,
+    kindById,
+    actionMetas,
+    eventMetas,
+    tacticForStep,
+    tacticOrder,
+    graphEdges,
+    layeringEdges,
+  };
+  const { nodes, columns } = layoutMode === 'chain'
+    ? layoutCausalChain(positionInput)
+    : layoutTacticColumns(positionInput);
 
   // Normalize the whole layout to the origin: the leftmost/topmost content is a band corner (bands
   // pad out around their cards), not a node. The render container and pan/zoom fit both assume

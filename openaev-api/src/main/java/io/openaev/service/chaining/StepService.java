@@ -114,12 +114,28 @@ public class StepService {
 
     String candidateData = candidate.getData();
     String normalizedParent = normalizeDependOnParent(dependOnParentTemplateId);
+    // The EVENT linkage is part of the idempotency identity. When this author REUSES an existing
+    // event by id (stepInput.conditionIds), only a pending twin ALREADY linked to exactly that
+    // event may collapse this call: otherwise a same-inject / same-parent step authored under a
+    // DIFFERENT event (or none) would swallow the call, silently drop the requested event_id, and
+    // mislead the scenario mirror into twinning the wrong event. A fresh-event / no-event author
+    // (empty conditionIds) keeps the historical data + parent identity, so the duplicate-storm
+    // guard for replayed identical authors is unchanged.
+    Set<String> requestedEventIds =
+        stepInput.getConditionIds() == null
+            ? Set.of()
+            : stepInput.getConditionIds().stream()
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
     Optional<Step> existing =
         findAllStepTemplateByWorkflow(workflow.getId()).stream()
             .filter(s -> StepActionClass.INJECT_EXECUTION.equals(s.getStepAction()))
             .filter(s -> Objects.equals(s.getData(), candidateData))
             .filter(
                 s -> Objects.equals(normalizeDependOnParent(dependOnParentOf(s)), normalizedParent))
+            // Same inject + same parent but a DIFFERENT reused event is NOT the same step.
+            .filter(
+                s -> requestedEventIds.isEmpty() || linkedEventRootIds(s).equals(requestedEventIds))
             // Collapse a duplicate ONLY while the twin is still pending (no run step yet). A twin
             // that already executed means this author is a deliberate re-run and must create a new
             // template - never block the try -> tweak -> re-fire loop.
@@ -166,6 +182,24 @@ public class StepService {
   }
 
   /**
+   * The set of AND/OR finding-event ROOT condition ids linked to a step template. Part of the
+   * idempotency identity in {@link #createInjectStepTemplateIdempotent}: reusing a DIFFERENT event
+   * by id must never collapse onto a same-inject / same-parent twin authored under another event.
+   * Filters on root-ness (no parent) so a linked event leaf or a nested AND/OR group is never
+   * mistaken for the event root.
+   *
+   * @param step the step template to inspect
+   * @return the linked event root ids (empty when the step has no finding event)
+   */
+  private Set<String> linkedEventRootIds(Step step) {
+    return conditionService.findAllConditionsByStepId(step.getId()).stream()
+        .filter(c -> c.getConditionParent() == null)
+        .filter(c -> c.getType() == ConditionType.AND || c.getType() == ConditionType.OR)
+        .map(Condition::getId)
+        .collect(Collectors.toSet());
+  }
+
+  /**
    * Updates an existing INJECT_EXECUTION step template's baked inject data IN PLACE, preserving its
    * id and its conditions (its DEPEND_ON kill-chain parent). This is how the AI orchestrator edits
    * a step it already authored - change the payload / target / injector contract / title of the
@@ -199,6 +233,114 @@ public class StepService {
             .orElseThrow(() -> new ChainingException("Failed to rebuild step data (TEMPLATE)"));
     existing.setData(candidate.getData());
     return saveStep(existing);
+  }
+
+  /**
+   * Trigger-aware sibling of {@link #updateInjectStepTemplateData(String,
+   * StepsCreateInput.StepInput)}: updates the baked inject data AND replaces the step's
+   * finding-trigger conditions (event root + leaf filters + MAPPER bindings), while PRESERVING any
+   * DEPEND_ON ordering parent so the kill-chain edge stays intact. This is how the AI orchestrator
+   * CORRECTS a mis-wired finding-driven step (change what it fires on / consumes) in place, instead
+   * of re-authoring a duplicate or moving it in the chain.
+   *
+   * <p>Deliberately does NOT assert {@link WorkflowEditability}: the orchestrator is the author of
+   * an autonomous run's workflow, exactly like {@link #createInjectStepTemplateIdempotent}. The
+   * condition swap mirrors the manual full-replace strategy in {@code updateStep} - delete the
+   * non-preserved conditions, clear the step-side links, recreate from input, re-link the preserved
+   * DEPEND_ON root.
+   *
+   * <p>When {@code stepInput.getConditionIds()} names EXISTING event roots to reuse (the
+   * event-sharing path: a step corrected to fire on an event that already exists), those roots and
+   * their whole subtree are PRESERVED across the delete (never unlinked, so a shared event other
+   * steps depend on is never dropped) and then linked to this step, exactly the {@code
+   * condition_ids} channel {@link #createInjectStepTemplateIdempotent} uses. The link is
+   * idempotent, so re-passing an already-linked event is a no-op.
+   *
+   * @param stepTemplateId the id of the step template to update
+   * @param stepInput the new inject step input (data); its {@code conditionIds} name existing event
+   *     roots to reuse
+   * @param triggerConditions the finding-trigger + mapper conditions to install (an empty list
+   *     clears the trigger while keeping DEPEND_ON and any reused event links)
+   * @return the updated step template
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Step updateInjectStepTemplateDataAndTrigger(
+      String stepTemplateId,
+      StepsCreateInput.StepInput stepInput,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    Step existing =
+        stepRepository
+            .findById(stepTemplateId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Step template not found. Step template ID: " + stepTemplateId));
+    if (!StepActionClass.INJECT_EXECUTION.equals(existing.getStepAction())) {
+      throw new ChainingException(
+          "Step template " + stepTemplateId + " is not an inject-execution step");
+    }
+    ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
+    Step candidate =
+        actionStep
+            .create(stepInput, existing.getWorkflow())
+            .orElseThrow(() -> new ChainingException("Failed to rebuild step data (TEMPLATE)"));
+    existing.setData(candidate.getData());
+
+    List<String> preservedDependOnIds =
+        conditionService.findAllConditionsByStepId(stepTemplateId).stream()
+            .filter(condition -> condition.getType() == ConditionType.DEPEND_ON)
+            .map(Condition::getId)
+            .toList();
+    // Existing event roots the caller asked to reuse are preserved across the delete alongside the
+    // DEPEND_ON parent, so rebuilding this step's trigger never unlinks - let alone deletes - a
+    // shared event that other steps still fire on. deleteAllConditionsByStepId preserves the whole
+    // subtree of every excluded root, so the event's leaves survive too.
+    List<String> reusedEventIds =
+        stepInput.getConditionIds() == null
+            ? List.of()
+            : stepInput.getConditionIds().stream()
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
+    List<String> preserved = new ArrayList<>(preservedDependOnIds);
+    preserved.addAll(reusedEventIds);
+    conditionService.deleteAllConditionsByStepId(stepTemplateId, preserved);
+    if (existing.getConditionSteps() != null) {
+      existing.getConditionSteps().clear();
+    }
+    stepConditionTemplate(triggerConditions, existing.getWorkflow().getId(), existing);
+    conditionService.linkExistingConditionsToStep(existing, preservedDependOnIds);
+    // Link the reused event roots (idempotent: a re-passed, still-linked event is a no-op; a newly
+    // chosen event is linked fresh). This is how an updated step attaches to a SHARED event.
+    conditionService.linkExistingConditionsToStep(existing, reusedEventIds);
+    return saveStep(existing);
+  }
+
+  /**
+   * Deletes an INJECT_EXECUTION step template and its conditions on behalf of the AI orchestrator,
+   * WITHOUT the manual {@link WorkflowEditability} guard (the orchestrator is the author of an
+   * autonomous run's workflow, exactly like {@link #createInjectStepTemplateIdempotent}). Used to
+   * PRUNE a mis-authored finding-driven step. Executed run steps stay as history (their {@code
+   * stepTemplate} reference is nulled by the on-delete policy), so pruning a template never
+   * rewrites what already ran.
+   *
+   * @param stepTemplateId the id of the step template to delete
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteInjectStepTemplate(String stepTemplateId) throws ChainingException {
+    Step existing =
+        stepRepository
+            .findById(stepTemplateId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Step template not found. Step template ID: " + stepTemplateId));
+    if (!StepActionClass.INJECT_EXECUTION.equals(existing.getStepAction())) {
+      throw new ChainingException(
+          "Step template " + stepTemplateId + " is not an inject-execution step");
+    }
+    conditionService.deleteAllConditionsByStepId(stepTemplateId);
+    stepRepository.delete(existing);
   }
 
   /**

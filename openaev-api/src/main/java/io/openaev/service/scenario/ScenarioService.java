@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -52,7 +53,6 @@ import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
@@ -146,7 +146,6 @@ public class ScenarioService {
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
   private final CustomDashboardService customDashboardService;
-  private final InjectorContractService injectorContractService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -175,7 +174,6 @@ public class ScenarioService {
   @Transactional
   public Scenario createScenarioChaining(@NotNull final Scenario scenario)
       throws ChainingException {
-    workflowService.isPreviewFeatureChainingEnable();
 
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
@@ -534,7 +532,8 @@ public class ScenarioService {
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
    * @return the list of deleted scenario ids
    */
-  public List<String> bulkDeleteScenarios(@NotNull final ScenarioBulkProcessingInput input) {
+  public List<String> bulkDeleteScenarios(
+      TxCtx ctx, @NotNull final ScenarioBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
@@ -545,6 +544,7 @@ public class ScenarioService {
     User currentUser = userService.currentUser();
     List<String> scenarioIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Scenario> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -582,6 +582,7 @@ public class ScenarioService {
             });
     List<String> deletedIds =
         bulkDeleteExecutor.deleteInChunks(
+            ctx,
             "scenarios",
             scenarioIdsToDelete,
             chunk -> {

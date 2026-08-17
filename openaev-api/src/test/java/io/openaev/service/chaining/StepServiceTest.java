@@ -1113,6 +1113,79 @@ class StepServiceTest {
     }
 
     @Test
+    @DisplayName(
+        "Idempotent author reusing a DIFFERENT event does not collapse onto a same-inject /"
+            + " same-parent pending twin - it mints a new step linked to the requested event")
+    void given_sameInjectDifferentEvent_should_notCollapse_andLinkRequestedEvent()
+        throws ChainingException {
+      // Arrange - a pending twin (same inject data, no DEPEND_ON parent) already gated by event A.
+      Workflow wf = mock(Workflow.class);
+      when(wf.getId()).thenReturn("wf-1");
+      Step existing = mock(Step.class);
+      when(existing.getId()).thenReturn("existing-1");
+      when(existing.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(existing.getData()).thenReturn("DATA");
+      // existing-1 is linked to event root A and has no DEPEND_ON parent.
+      Condition eventA = Condition.builder().id("evt-A").type(ConditionType.AND).build();
+      when(conditionService.findAllConditionsByStepId("existing-1")).thenReturn(List.of(eventA));
+      doReturn(List.of(existing)).when(stepService).findAllStepTemplateByWorkflow("wf-1");
+
+      // This author reuses a DIFFERENT event, B, for the same inject + parent.
+      StepsCreateInput.StepInput stepInput = mock(StepsCreateInput.StepInput.class);
+      when(stepInput.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepInput.getConditions()).thenReturn(Collections.emptyList());
+      when(stepInput.getConditionIds()).thenReturn(List.of("evt-B"));
+      Step candidate = mock(Step.class);
+      when(candidate.getData()).thenReturn("DATA");
+      doReturn(actionStep).when(stepService).factoryAction(StepActionClass.INJECT_EXECUTION, null);
+      when(actionStep.create(stepInput, wf)).thenReturn(Optional.of(candidate));
+      when(stepRepository.save(candidate)).thenReturn(candidate);
+
+      // Act
+      Step result = stepService.createInjectStepTemplateIdempotent(wf, stepInput, null);
+
+      // Assert - a NEW step is minted (not the event-A twin) and linked to the requested event B.
+      assertSame(candidate, result);
+      assertNotSame(existing, result);
+      verify(stepRepository).save(candidate);
+      verify(conditionService).linkExistingConditionsToStep(candidate, List.of("evt-B"));
+    }
+
+    @Test
+    @DisplayName(
+        "Idempotent author reusing the SAME event still collapses onto the pending twin (the storm"
+            + " guard is unchanged for a genuine replay)")
+    void given_sameInjectSameEvent_should_collapseOntoPendingTwin() throws ChainingException {
+      Workflow wf = mock(Workflow.class);
+      when(wf.getId()).thenReturn("wf-1");
+      Step existing = mock(Step.class);
+      when(existing.getId()).thenReturn("existing-1");
+      when(existing.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(existing.getData()).thenReturn("DATA");
+      Condition eventA = Condition.builder().id("evt-A").type(ConditionType.AND).build();
+      when(conditionService.findAllConditionsByStepId("existing-1")).thenReturn(List.of(eventA));
+      doReturn(List.of(existing)).when(stepService).findAllStepTemplateByWorkflow("wf-1");
+      // Still pending (no run step yet), so the storm guard may collapse.
+      when(stepRepository.existsByStepTemplateId("existing-1")).thenReturn(false);
+
+      StepsCreateInput.StepInput stepInput = mock(StepsCreateInput.StepInput.class);
+      when(stepInput.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepInput.getConditionIds()).thenReturn(List.of("evt-A"));
+      Step candidate = mock(Step.class);
+      when(candidate.getData()).thenReturn("DATA");
+      doReturn(actionStep).when(stepService).factoryAction(StepActionClass.INJECT_EXECUTION, null);
+      when(actionStep.create(stepInput, wf)).thenReturn(Optional.of(candidate));
+
+      // Act
+      Step result = stepService.createInjectStepTemplateIdempotent(wf, stepInput, null);
+
+      // Assert - same inject + same parent + SAME event + still pending -> reuse the pending twin.
+      assertSame(existing, result);
+      verify(stepRepository, never()).save(candidate);
+      verify(conditionService, never()).linkExistingConditionsToStep(eq(candidate), any());
+    }
+
+    @Test
     void given_existingStep_should_updateStepTemplate_andRebuildConditions()
         throws ChainingException {
       // Arrange

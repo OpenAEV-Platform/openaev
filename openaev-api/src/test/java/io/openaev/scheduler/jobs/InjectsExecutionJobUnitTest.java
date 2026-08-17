@@ -12,10 +12,8 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.NotificationEventService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -48,7 +46,6 @@ class InjectsExecutionJobUnitTest {
   @Mock private InjectDependenciesRepository injectDependenciesRepository;
 
   @Mock private ExerciseRepository exerciseRepository;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private WorkflowService workflowService;
   @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private NotificationEventService notificationEventService;
@@ -62,7 +59,6 @@ class InjectsExecutionJobUnitTest {
   void setUp() {
     reset(
         exerciseRepository,
-        previewFeatureService,
         workflowService,
         securityCoverageSendJobService,
         notificationEventService);
@@ -150,8 +146,6 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -176,9 +170,8 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(chainingSimulation, normalSimulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
-      when(workflowService.isSimulationChaining(chainingSimulationId)).thenReturn(true);
-      when(workflowService.isSimulationChaining(normalSimulationId)).thenReturn(false);
+      when(workflowService.existsBySimulationId(chainingSimulationId)).thenReturn(true);
+      when(workflowService.existsBySimulationId(normalSimulationId)).thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
 
       // Act
@@ -192,8 +185,8 @@ class InjectsExecutionJobUnitTest {
     }
 
     @Test
-    @DisplayName("should not filter simulations when chaining feature is disabled")
-    void shouldNotFilterSimulationsWhenChainingFeatureDisabled() {
+    @DisplayName("should keep non-chaining simulations")
+    void shouldKeepNonChainingSimulations() {
       // Prepare
       String simulationId1 = UUID.randomUUID().toString();
       String simulationId2 = UUID.randomUUID().toString();
@@ -203,15 +196,13 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation1, simulation2));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
 
       // Act
       injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
-      verify(workflowService, never()).isSimulationChaining(anyString());
+      verify(workflowService, times(2)).existsBySimulationId(anyString());
       verify(exerciseRepository).saveAll(simulationCaptor.capture());
       assertEquals(2, simulationCaptor.getValue().size());
     }
@@ -224,8 +215,6 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -248,8 +237,6 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -274,8 +261,6 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -300,8 +285,6 @@ class InjectsExecutionJobUnitTest {
           new ArrayList<>(List.of(simulationWithScenario, simulationWithoutScenario));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -316,8 +299,6 @@ class InjectsExecutionJobUnitTest {
     void shouldHandleEmptyListOfSimulations() {
       // Prepare
       when(exerciseRepository.thatMustBeFinished()).thenReturn(Collections.emptyList());
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenReturn(Collections.emptyList());
 
       // Act
@@ -343,9 +324,8 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation1, simulation2));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
-      when(workflowService.isSimulationChaining(simulationId1)).thenReturn(true);
-      when(workflowService.isSimulationChaining(simulationId2)).thenReturn(true);
+      when(workflowService.existsBySimulationId(simulationId1)).thenReturn(true);
+      when(workflowService.existsBySimulationId(simulationId2)).thenReturn(true);
       when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
 
       // Act
@@ -371,8 +351,6 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation1, simulation2));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act

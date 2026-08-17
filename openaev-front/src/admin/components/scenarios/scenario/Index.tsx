@@ -20,7 +20,6 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
 import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
@@ -57,13 +56,9 @@ const IndexScenarioComponent: FunctionComponent<{
 }> = ({ scenario, autonomousRun, onAutonomousRunUpdate, onAutonomousRunCleared }) => {
   const { t } = useFormatter();
   const location = useLocation();
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  // Attack path only exists for chained scenarios (workflow-backed), never
-  // for time-based ones: same gating as the simulation side.
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
-    && isChainingFeatureEnabled
-    && !!scenario.scenario_workflow_id;
-  const isChained = isChainingFeatureEnabled && !!scenario.scenario_workflow_id;
+  // Attack path only exists for workflow-backed (chained) scenarios, never
+  // for time-based ones.
+  const isChained = !!scenario.scenario_workflow_id;
   // The AI cockpit (right-hand reasoning panel + read-only Scope/Logic) is live only while a run
   // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
   // normal scenario page with the AI outcome layered on top (see overviewElement).
@@ -154,14 +149,12 @@ const IndexScenarioComponent: FunctionComponent<{
             value={`/admin/scenarios/${scenario.scenario_id}/logic`}
             label={t('Logic')}
           />
-          {isAttackPathEnabled && (
-            <Tab
-              component={Link}
-              to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-              value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-              label={t('Attack Path')}
-            />
-          )}
+          <Tab
+            component={Link}
+            to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
+            value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
+            label={t('Attack Path')}
+          />
           <Tab
             component={Link}
             to={`/admin/scenarios/${scenario.scenario_id}/execution`}
@@ -302,7 +295,7 @@ const IndexScenarioComponent: FunctionComponent<{
                 <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
                 <Route path="lessons" element={errorWrapper(Lessons)()} />
                 <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
-                {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
+                {isChained && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
                 {/* Live execution of the scenario's latest simulation - available for every scenario
                     type, mirroring the simulation Execution tab. */}
                 <Route path="execution" element={errorWrapper(ScenarioExecution)()} />
@@ -362,12 +355,16 @@ const Index = () => {
   // live autonomous launch, while a TIME-BASED scenario never can - so we probe only chained
   // scenarios (undefined = probe) and skip the lookup entirely otherwise (false = known manual, no
   // 404). While the scenario is still loading we leave it undefined to probe as before.
-  const isChained = isFeatureEnabled('INJECT_CHAINING') && !!scenario?.scenario_workflow_id;
+  const isChained = !!scenario?.scenario_workflow_id;
   // undefined = still probing (scenario loading, or a chained scenario that may carry a run);
-  // false = known manual (a loaded time-based scenario), which skips the lookup and its 404.
+  // false = known manual (a loaded time-based scenario), which skips the lookup and its 404;
+  // true = declared autonomous (scenario_autonomous marker), so detection stays PENDING across a
+  // transient post-reload 404 instead of flashing this page's manual view, and re-probes fast.
   let knownAutonomous: boolean | undefined;
   if (scenario && !isChained) {
     knownAutonomous = false;
+  } else if (scenario?.scenario_autonomous === true) {
+    knownAutonomous = true;
   }
   const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun, clearRun: clearAutonomousRun } = useAutonomousRunForScenario(
     scenarioId,

@@ -2,7 +2,7 @@
 
 **Output parsers** process the raw output of an [Action](threat-arsenals.md) execution. Define rules to extract
 specific data from the output and link it to variables. You can then use those variables to
-[chain Injects](../../evaluate/injects/inject-overview.md#conditional-execution-of-injects).
+[chain Injects](../../inject-chaining.md#conditional-execution).
 
 You attach output parsers to an Action from the **Output** tab of the Action form.
 

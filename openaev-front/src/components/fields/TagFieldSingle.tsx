@@ -125,33 +125,33 @@ const TagFieldSingle: FunctionComponent<Props> = ({
         )}
         classes={{ clearIndicator: classes.autoCompleteIndicator }}
       />
-      <IconButton
-        onClick={handleOpenTagCreation}
-        edge="end"
-        style={{
-          position: 'absolute',
-          top: 30,
-          right: 35,
-        }}
-        disabled={disabled}
-      >
-        <AddOutlined />
-      </IconButton>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-        <Dialog
-          open={tagCreation}
-          onClose={handleCloseTagCreation}
-          PaperProps={{ elevation: 1 }}
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
+        <IconButton
+          onClick={handleOpenTagCreation}
+          edge="end"
+          style={{
+            position: 'absolute',
+            top: 30,
+            right: 35,
+          }}
+          disabled={disabled}
         >
-          <DialogTitle>{t('Create a new tag')}</DialogTitle>
-          <DialogContent>
-            <TagForm
-              onSubmit={onSubmit}
-              handleClose={handleCloseTagCreation}
-            />
-          </DialogContent>
-        </Dialog>
+          <AddOutlined />
+        </IconButton>
       </Can>
+      <Dialog
+        open={tagCreation}
+        onClose={handleCloseTagCreation}
+        PaperProps={{ elevation: 1 }}
+      >
+        <DialogTitle>{t('Create a new tag')}</DialogTitle>
+        <DialogContent>
+          <TagForm
+            onSubmit={onSubmit}
+            handleClose={handleCloseTagCreation}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

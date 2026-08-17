@@ -845,7 +845,8 @@ inefficiency). The two forms behave very differently once the table is active:
   guarded by `TenantNonOrmAccessArchTest`
   (`no_raw_jdbc_outside_the_allowlist`), which fails the build on any new raw
   JDBC in production code outside the audited `@AllowRawJdbc` allowlist (which
-  covers non-tenant tables only). A raw-JDBC path touching the table you are
+  covers non-tenant tables, plus the two narrow test-enforced exceptions
+  below). A raw-JDBC path touching the table you are
   activating is a HARD BLOCKER: convert it to go through Hibernate (so it gets
   inspected) before go-live. Never `@AllowRawJdbc` a tenant table to make a job
   compile.
@@ -859,6 +860,22 @@ inefficiency). The two forms behave very differently once the table is active:
   build so the exemption cannot silently widen. The seed generator for the
   attack-path tables is the reference (`AttackPathSeedServiceTest`). Absent that
   enforced insert-only proof, the HARD BLOCKER stands.
+- **Narrow exception — a provably read-only scope-bootstrap lookup.** Deriving
+  a service-identity scope FROM a row (an orchestrator callback scoped by its
+  parent run's own tenant) is a chicken-and-egg: the read that decides the
+  scope cannot run under the scope it is deciding, and the inspector would
+  fail-close it. A raw-JDBC path may keep `@AllowRawJdbc` for that bootstrap
+  ONLY when all three hold: it emits nothing but a single-row `SELECT` of the
+  row's own immutable `tenant_id` addressed by primary key, it projects no
+  other column, and a test pins the bypass class list and the exact statement
+  on every build so the exemption cannot silently widen. The bootstrap read
+  must also respect tenant liveness (filter on `tenant_deleted_at IS NULL`):
+  a soft-deleted tenant is excluded from every caller scope for its whole
+  grace period, so a row-derived scope that ignored the flag would quietly
+  re-admit a tenant no caller can reach. The autonomous-run
+  callback locator is the reference (`AutonomousRunTenantLocator` /
+  `AutonomousRunTenantLocatorTest`). Absent that enforced read-only proof, the
+  HARD BLOCKER stands.
 
 Add a grep for both to the inventory and read each hit:
 
