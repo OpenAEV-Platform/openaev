@@ -76,4 +76,18 @@ describe('GraphCardTooltip force-close paths', () => {
     // Assert
     expect(screen.getByText(TOOLTIP_BODY)).toBeTruthy();
   });
+
+  it('given_anOpenTooltip_should_closeOnWheelZoom', async () => {
+    // Arrange
+    render(card('sig-1'), { wrapper });
+    expect(await openTooltip()).toBeTruthy();
+
+    // Act: the operator zooms the pan/zoom canvas. The canvas is overflow:hidden and preventDefaults
+    // the wheel, so Popper never repositions - the capture-phase wheel listener must force-close the
+    // card instead of letting it detach and float over the graph.
+    fireEvent.wheel(window, { deltaY: -120 });
+
+    // Assert
+    await waitFor(() => expect(screen.queryByText(TOOLTIP_BODY)).toBeNull());
+  });
 });

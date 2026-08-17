@@ -26,6 +26,53 @@ export const MAX_DISCOVERY_NOT_FOUND = 3;
  */
 export const DISCOVERY_RETRY_MS = 2000;
 
+/**
+ * sessionStorage key prefix for the "this entity was detected autonomous THIS session" sticky hint.
+ * Once a run is discovered for an id, that id is remembered for the tab session so a later reload -
+ * before the fresh probe resolves - treats it as declared-autonomous even when the loaded
+ * scenario/simulation carries a falsy marker (legacy entities provisioned before the durable marker
+ * existed read exercise_autonomous=false while still being autonomous). This is what stops those
+ * legacy entities from flashing the manual UI across a reload.
+ */
+const STICKY_AUTONOMOUS_PREFIX = 'openaev.autonomous.detected.';
+
+/** Whether this id was detected autonomous earlier in the tab session (best-effort). */
+const readStickyAutonomous = (id: string | undefined): boolean => {
+  if (!id) {
+    return false;
+  }
+  try {
+    return sessionStorage.getItem(`${STICKY_AUTONOMOUS_PREFIX}${id}`) === '1';
+  } catch {
+    // sessionStorage unavailable (private mode / disabled): degrade to marker-only behaviour.
+    return false;
+  }
+};
+
+/** Remember that this id is autonomous for the tab session (survives a reload, not a new tab). */
+const markStickyAutonomous = (id: string | undefined): void => {
+  if (!id) {
+    return;
+  }
+  try {
+    sessionStorage.setItem(`${STICKY_AUTONOMOUS_PREFIX}${id}`, '1');
+  } catch {
+    // Best-effort UX aid only; silently degrade when sessionStorage is unavailable.
+  }
+};
+
+/** Forget the sticky hint - the run was torn down server-side (operator converted to manual). */
+const clearStickyAutonomous = (id: string | undefined): void => {
+  if (!id) {
+    return;
+  }
+  try {
+    sessionStorage.removeItem(`${STICKY_AUTONOMOUS_PREFIX}${id}`);
+  } catch {
+    // Best-effort; ignore.
+  }
+};
+
 interface AutonomousRunDetection {
   /** The run driving this entity, or null when it is a manual (non-AI) scenario/simulation. */
   run: AutonomousRun | null;
@@ -69,7 +116,19 @@ const useAutonomousRunDetection = (
   // the caller keeps its Loader up instead of flashing the manual page for a discovery-poll period
   // after a transient reload miss - and misses re-probe on the fast retry cadence instead of the
   // discovery poll so the pending window stays short.
-  const declaredAutonomous = knownAutonomous === true;
+  // The marker-declared signal (scenario_autonomous / exercise_autonomous). This is the ONLY part of
+  // the declared-autonomous signal the probe effect depends on: the marker can arrive AFTER the
+  // first probe (the entity document lands later) and its arrival must re-probe, whereas the sticky
+  // hint below flips as a SIDE EFFECT of a successful detection and must NEVER re-fire a probe.
+  const declaredByMarker = knownAutonomous === true;
+  // A session-sticky "this id is autonomous" hint set once a run has been detected. OR-ed into the
+  // declared-autonomous signal so a legacy entity (falsy marker but actually autonomous) still keeps
+  // the Loader up across a reload and re-probes fast, instead of flashing the manual UI. Read in the
+  // probe effect through a ref (never a dependency) so setting it on detection cannot re-probe.
+  const [stickyAutonomous, setStickyAutonomous] = useState<boolean>(() => readStickyAutonomous(id));
+  const stickyAutonomousRef = useRef(stickyAutonomous);
+  stickyAutonomousRef.current = stickyAutonomous;
+  const declaredAutonomous = declaredByMarker || stickyAutonomous;
 
   const [run, setRun] = useState<AutonomousRun | null>(null);
   const [resolved, setResolved] = useState(false);
@@ -103,9 +162,11 @@ const useAutonomousRunDetection = (
   const pushRun = useCallback((next: AutonomousRun) => {
     detectedRef.current = true;
     notFoundStreakRef.current = 0;
+    markStickyAutonomous(id);
+    setStickyAutonomous(true);
     setManual(false);
     setRun(next);
-  }, []);
+  }, [id]);
 
   // Drop the detected run and pin the entity to manual so the discovery poll does NOT immediately
   // re-detect it (the run was just torn down server-side, so a probe would 404 and land on manual
@@ -113,9 +174,11 @@ const useAutonomousRunDetection = (
   // run (a fresh AI build / launch) clears this again through pushRun.
   const clearRun = useCallback(() => {
     detectedRef.current = false;
+    clearStickyAutonomous(id);
+    setStickyAutonomous(false);
     setManual(true);
     setRun(null);
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     // Fresh entity: reset the per-id detection latches so a new scenario/simulation is probed anew.
@@ -125,6 +188,9 @@ const useAutonomousRunDetection = (
       detectedRef.current = false;
       notFoundStreakRef.current = 0;
       setManual(false);
+      // Re-read the new id's session sticky hint so a reload of a legacy autonomous entity keeps
+      // the Loader up instead of flashing manual before the fresh probe resolves.
+      setStickyAutonomous(readStickyAutonomous(id));
     }
     if (!id) {
       setRun(null);
@@ -148,6 +214,8 @@ const useAutonomousRunDetection = (
         if (stale) return;
         detectedRef.current = true;
         notFoundStreakRef.current = 0;
+        markStickyAutonomous(id);
+        setStickyAutonomous(true);
         setManual(false);
         setRun(res.data);
       })
@@ -165,7 +233,7 @@ const useAutonomousRunDetection = (
             detectedRef.current = false;
             setManual(true);
             setRun(null);
-          } else if (declaredAutonomous) {
+          } else if (declaredByMarker || stickyAutonomousRef.current) {
             // A declared-autonomous entity is PENDING (Loader up) while its streak settles, so
             // re-probe on the fast cadence instead of leaving the operator on a spinner for a
             // whole discovery-poll period.
@@ -192,20 +260,27 @@ const useAutonomousRunDetection = (
         fastRetryRef.current = null;
       }
     };
-    // declaredAutonomous is a dependency on purpose: the hint often arrives AFTER the first probe
+    // declaredByMarker is a dependency on purpose: the MARKER often arrives AFTER the first probe
     // (the scenario/simulation document lands later), and its arrival must re-probe immediately -
-    // the miss that just resolved may have been the transient reload race on a live AI run.
-  }, [id, eligible, fetcher, attempt, declaredAutonomous]);
+    // the miss that just resolved may have been the transient reload race on a live AI run. The
+    // STICKY hint is deliberately NOT a dependency (read via ref above): it flips as a side effect
+    // of a successful detection, and depending on it would fire a spurious extra probe right after
+    // every detection.
+  }, [id, eligible, fetcher, attempt, declaredByMarker]);
 
   // Keep probing until we discover a run, then stop (the header/panel keep it fresh via setRun).
   // This recovers from a transient first-load failure and picks up a run created while the page is
   // already open, without adding a permanent poll once the cockpit is live. A confirmed-manual
   // entity (404) stops the poll entirely, so a normal chained scenario never re-probes.
   useEffect(() => {
-    if (!eligible || !id || run || manual) return () => {};
+    // A sticky-autonomous entity keeps re-probing even after a manual latch, so a transient blip
+    // that exhausted the not-found streak self-heals on the discovery cadence instead of stranding
+    // the live cockpit on the manual UI until a full reload. A genuinely manual entity (never
+    // sticky) still stops on the latch, so a normal chained scenario never re-probes.
+    if (!eligible || !id || run || (manual && !stickyAutonomous)) return () => {};
     const timer = setInterval(() => setAttempt(a => a + 1), DISCOVERY_POLL_MS);
     return () => clearInterval(timer);
-  }, [eligible, id, run, manual]);
+  }, [eligible, id, run, manual, stickyAutonomous]);
 
   // A DECLARED-autonomous entity with neither a run nor a latched manual verdict reports
   // unresolved even after a probe answered: rendering the manual page for it would be affirmatively

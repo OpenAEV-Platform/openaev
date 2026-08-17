@@ -1,5 +1,5 @@
 import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, Divider, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -8,6 +8,7 @@ import { fetchAutonomousTimeline } from '../../../actions/autonomous/autonomous-
 import { type AutonomousEvent, type AutonomousRun, type AutonomousRunStatus } from '../../../actions/autonomous/autonomous-types';
 import { HeroStat, HeroStats, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
+import GraphCardTooltip from '../chaining/logic/logic-graph/GraphCardTooltip';
 import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, isHeartbeatEvent, isLiveActivityEvent, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
 import AutonomousOutcomeDialog, { type OutcomeKind } from './AutonomousOutcomeDialog';
@@ -261,6 +262,10 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
   // inspect earlier decisions (see the scroll handler + effect below).
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
   const timelinePinnedRef = useRef(true);
+  // Bumped on every timeline scroll and chained into the tooltip dismiss key: the timeline
+  // auto-scrolls under the live poll (tail-follow), which slides a node out from under a stationary
+  // cursor with no mouseleave - the exact stuck-tooltip trap the graph cards already guard against.
+  const [timelineScrollNonce, setTimelineScrollNonce] = useState(0);
 
   const usesSharedTimeline = sharedEvents !== undefined;
   useEffect(() => {
@@ -299,6 +304,8 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
     }
     const distanceFromRight = node.scrollWidth - node.clientWidth - node.scrollLeft;
     timelinePinnedRef.current = distanceFromRight < 48;
+    // Dismiss any open node tooltip: the card just moved under the cursor.
+    setTimelineScrollNonce(nonce => nonce + 1);
   }, []);
 
   const proofEvents = useMemo(() => events.filter(e => e.autonomous_event_type === 'PROOF'), [events]);
@@ -730,8 +737,14 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                 );
                 const tipTags = renderTags(tipTechniques, tipCves);
                 return (
-                  <Tooltip
+                  <GraphCardTooltip
                     key={event.autonomous_event_id}
+                    // Controlled tooltip shared with the causal graph: it force-closes on press, on
+                    // wheel-zoom, and whenever the dismiss key changes. The key folds the timeline
+                    // length (a poll appended/removed a node) and a scroll nonce (the auto-scroll
+                    // slid the node under the cursor), so the rich card can never stick open over the
+                    // live-polling timeline the way the old uncontrolled Tooltip did.
+                    dismissKey={`${timelineEvents.length}:${timelineScrollNonce}`}
                     // Render the tooltip as a proper card (matches the panel/dialog surface) rather
                     // than the cramped default: header with the event-type chip + timestamp, a
                     // right-sized title, MITRE/CVE tags, then the reasoning body clamped so a long
@@ -750,7 +763,6 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                       },
                       arrow: { sx: { color: theme.palette.background.paper } },
                     }}
-                    arrow
                     title={(
                       <Box>
                         <Stack sx={{
@@ -868,7 +880,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                         </Typography>
                       )}
                     </Stack>
-                  </Tooltip>
+                  </GraphCardTooltip>
                 );
               })}
             </Box>

@@ -1,4 +1,4 @@
-import { Tooltip } from '@mui/material';
+import { Tooltip, type TooltipProps } from '@mui/material';
 import { cloneElement, type PointerEvent as ReactPointerEvent, type ReactElement, type ReactNode, useCallback, useEffect, useState } from 'react';
 
 import graphTooltipSlotProps from './graphTooltipSlotProps';
@@ -13,6 +13,12 @@ interface GraphCardTooltipProps {
    * would otherwise stay pinned over the graph at the card's old position.
    */
   dismissKey?: unknown;
+  /**
+   * Tooltip slot overrides. Defaults to the shared graph slot props (z-index capped below the
+   * drawer). A caller rendering a rich card body outside the graph canvas (the decision timeline)
+   * passes its own surface styling here while still reusing the controlled dismiss behaviour.
+   */
+  slotProps?: TooltipProps['slotProps'];
   /** The card element the tooltip is anchored to. */
   children: ReactElement<{ onPointerDownCapture?: (event: ReactPointerEvent) => void }>;
 }
@@ -30,7 +36,7 @@ interface GraphCardTooltipProps {
  * body, the row menu, the connect handle - even though those children {@code stopPropagation} in the
  * bubble phase to avoid starting a node drag.
  */
-const GraphCardTooltip = ({ title, dismissKey, children }: GraphCardTooltipProps) => {
+const GraphCardTooltip = ({ title, dismissKey, slotProps, children }: GraphCardTooltipProps) => {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
 
@@ -44,6 +50,23 @@ const GraphCardTooltip = ({ title, dismissKey, children }: GraphCardTooltipProps
     close();
   }, [dismissKey, close]);
 
+  // Force the popover shut on any wheel while it is open. The cards live in a pan/zoom canvas that
+  // is overflow:hidden and whose own wheel handler preventDefaults the browser zoom, so Popper
+  // never sees a scroll to reposition against: an open card would otherwise detach from its anchor
+  // and float over the graph while the operator zooms. A capture-phase passive listener catches the
+  // wheel before the canvas swallows it, without blocking the zoom itself.
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+    const closeOnWheel = () => close();
+    window.addEventListener('wheel', closeOnWheel, {
+      capture: true,
+      passive: true,
+    });
+    return () => window.removeEventListener('wheel', closeOnWheel, { capture: true });
+  }, [open, close]);
+
   return (
     <Tooltip
       title={title}
@@ -54,7 +77,7 @@ const GraphCardTooltip = ({ title, dismissKey, children }: GraphCardTooltipProps
       open={open}
       onOpen={() => setOpen(true)}
       onClose={close}
-      slotProps={graphTooltipSlotProps}
+      slotProps={slotProps ?? graphTooltipSlotProps}
     >
       {cloneElement(children, { onPointerDownCapture: handlePointerDownCapture })}
     </Tooltip>

@@ -46,11 +46,15 @@ const tickTimes = async (times: number, ms: number) => {
 describe('useAutonomousRunForSimulation (404-streak run detection)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    // The session-sticky "detected autonomous" hint lives in sessionStorage, which persists across
+    // tests in jsdom - clear it so a run detected in one test never leaks into the next.
+    sessionStorage.clear();
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it('given_aTransient404OnReload_should_keepProbingAndReattachTheRun', async () => {
@@ -162,5 +166,56 @@ describe('useAutonomousRunForSimulation (404-streak run detection)', () => {
     expect(mocks.fetchAutonomousRunByScenario).toHaveBeenCalledTimes(MAX_DISCOVERY_NOT_FOUND);
     await tick(DISCOVERY_POLL_MS * 3);
     expect(mocks.fetchAutonomousRunByScenario).toHaveBeenCalledTimes(MAX_DISCOVERY_NOT_FOUND);
+  });
+
+  it('given_aStickyAutonomousEntityWithoutAMarker_should_stayPendingAcrossATransient404', async () => {
+    // Arrange: a first mount detects a run for a LEGACY simulation (no exercise_autonomous marker),
+    // which marks the id sticky for the session. A reload (fresh mount, still no marker) then hits
+    // the post-reload transient 404 before the run is queryable again.
+    mocks.fetchAutonomousRunBySimulation
+      .mockResolvedValueOnce({ data: RUN })
+      .mockRejectedValueOnce(notFound())
+      .mockResolvedValue({ data: RUN });
+
+    // Act: first mount detects the run and records the sticky hint, then unmounts (reload).
+    const first = renderHook(() => useAutonomousRunForSimulation('sim-legacy'));
+    await flush();
+    expect(first.result.current.run).toEqual(RUN);
+    first.unmount();
+
+    const { result } = renderHook(() => useAutonomousRunForSimulation('sim-legacy'));
+    await flush();
+
+    // Assert: the sticky hint keeps the reload PENDING (no manual flash) despite the falsy marker
+    // and the transient 404, and the FAST retry re-attaches before the discovery poll would have.
+    expect(result.current.resolved).toBe(false);
+    expect(result.current.run).toBeNull();
+    await tick(DISCOVERY_RETRY_MS);
+    expect(result.current.run).toEqual(RUN);
+  });
+
+  it('given_aStickyEntityStrandedByALongBlip_should_selfHealWithoutAReload', async () => {
+    // Arrange: a first mount detects the run (sticky), then a blip long enough to exhaust the
+    // not-found streak (which latches manual), and finally the run is queryable again.
+    mocks.fetchAutonomousRunBySimulation
+      .mockResolvedValueOnce({ data: RUN })
+      .mockRejectedValue(notFound());
+
+    const first = renderHook(() => useAutonomousRunForSimulation('sim-sticky'));
+    await flush();
+    expect(first.result.current.run).toEqual(RUN);
+    first.unmount();
+
+    // Reload straight into the blip: every probe 404s past the fast streak, so manual latches.
+    const { result } = renderHook(() => useAutonomousRunForSimulation('sim-sticky'));
+    await flush();
+    await tickTimes(MAX_DISCOVERY_NOT_FOUND, DISCOVERY_RETRY_MS);
+    expect(result.current.run).toBeNull();
+
+    // The blip clears: a sticky entity keeps re-probing on the discovery cadence even after the
+    // manual latch, so the cockpit self-heals without a full reload.
+    mocks.fetchAutonomousRunBySimulation.mockResolvedValue({ data: RUN });
+    await tick(DISCOVERY_POLL_MS * 2);
+    expect(result.current.run).toEqual(RUN);
   });
 });

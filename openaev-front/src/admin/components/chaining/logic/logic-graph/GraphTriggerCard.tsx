@@ -78,16 +78,24 @@ const GraphTriggerCard = ({
   };
 
   // This card is the EVENT node (kind 'trigger' internally), so its title must read as the event's
-  // name — never the trigger's technical condition-field keys, which made an unnamed event look like
-  // a trigger. The listened-on fields still appear in the tooltip's "Listens on" row below.
+  // name. When the event is unnamed, fall back to the human condition line (e.g.
+  // `Hostname contains "dc01"`) so the node is self-describing, and only then to the generic
+  // placeholder — never to the raw listened-on condition-FIELD keys, which made an unnamed event
+  // look like a trigger. The listened-on fields still appear in the tooltip's "Listens on" row.
   const trimmedName = (name ?? '').trim();
-  const title = trimmedName || t('Untitled event');
+  const firstConditionLine = conditionLines.find(line => !!line && !!line.trim())?.trim();
+  const title = trimmedName || firstConditionLine || t('Untitled event');
 
   let summaryLine: ReactNode = t('Waits for a matching finding');
   if (conditionLines.length === 1) {
     summaryLine = conditionLines[0];
   } else if (conditionLines.length > 1) {
     summaryLine = `${conditionLines[0]} (+${conditionLines.length - 1})`;
+  }
+  // An unnamed event promotes its condition line to the title; drop it from the subtitle so the
+  // card never prints the same line twice.
+  if (title === summaryLine) {
+    summaryLine = t('Waits for a matching finding');
   }
 
   const tooltipRows: TooltipRow[] = [];
