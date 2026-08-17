@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import {
   FormProvider,
+  type Resolver,
   type SubmitHandler,
   useForm,
   useWatch,
@@ -30,6 +31,8 @@ interface Props {
   editing?: boolean;
   initialValues?: Partial<CredentialInput>;
 }
+
+type CredentialFormValues = Partial<CredentialInput> & Record<string, unknown>;
 
 const CredentialForm: FunctionComponent<Props> = ({
   onSubmit,
@@ -89,7 +92,11 @@ const CredentialForm: FunctionComponent<Props> = ({
             return isVisible && isRequired;
           })
           .forEach((field: CredentialContractField) => {
-            const fieldValue = values[field.field_name];
+            const fieldName = field.field_name;
+            if (!fieldName) {
+              return;
+            }
+            const fieldValue = values[fieldName];
             const isEmptyString = typeof fieldValue === 'string' && fieldValue.trim().length === 0;
             const isMissing = fieldValue === undefined || fieldValue === null || isEmptyString;
 
@@ -97,7 +104,7 @@ const CredentialForm: FunctionComponent<Props> = ({
               issues.push({
                 code: 'custom',
                 input: values,
-                path: [field.field_name],
+                path: [fieldName],
                 message: t('Should not be empty'),
               });
             }
@@ -106,10 +113,10 @@ const CredentialForm: FunctionComponent<Props> = ({
     [contracts, t],
   );
 
-  const methods = useForm<Partial<CredentialInput>>({
+  const methods = useForm<CredentialFormValues>({
     mode: 'onTouched',
-    resolver: zodResolver(schema),
-    defaultValues: initialValues,
+    resolver: zodResolver(schema) as unknown as Resolver<CredentialFormValues>,
+    defaultValues: initialValues as CredentialFormValues,
   });
 
   const {
@@ -228,7 +235,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     };
   };
 
-  const handleSubmitSanitized: SubmitHandler<CredentialInput> = async (values, event) => {
+  const handleSubmitSanitized: SubmitHandler<CredentialFormValues> = async (values, event) => {
     const allowedKeys = new Set<string>([
       'credential_name',
       'credential_type',
@@ -243,7 +250,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     const sanitizedEntries = Object.entries(values)
       .filter(([key, value]) => allowedKeys.has(key) && value != DOTS);
 
-    await onSubmit(Object.fromEntries(sanitizedEntries) as CredentialInput, event);
+    await onSubmit(Object.fromEntries(sanitizedEntries) as unknown as CredentialInput, event);
   };
 
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
