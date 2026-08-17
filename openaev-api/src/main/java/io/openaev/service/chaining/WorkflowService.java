@@ -1730,6 +1730,12 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
+    // Defence in depth: the link channel below (stepInput.conditionIds -> findConditionRootById)
+    // only checks root-ness, so enforce the FULL event invariant at this service boundary - each
+    // reused id must be an AND/OR finding-event root on THIS simulation's own workflow - instead of
+    // trusting the caller's earlier validation. A no-op for the validated autonomous caller; it
+    // closes the boundary against a cross-workflow or non-event link from any other caller.
+    assertEventRootsOnWorkflow(simulationTemplate.getId(), existingEventConditionIds);
 
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
@@ -1895,6 +1901,12 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+    // Defence in depth (same as doAppendChainedStep): validate each reused id is an AND/OR
+    // finding-event root on THIS scenario's own workflow before linking, so the isolated mirror
+    // path - which links a recorded eventMirror twin without re-validating - can never cross-link
+    // workflows on a stale or incorrect entry. A no-op for a valid twin; a stale entry throws and
+    // is swallowed by the best-effort mirror exactly like a missing id already was.
+    assertEventRootsOnWorkflow(scenarioTemplate.getId(), existingEventConditionIds);
 
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
@@ -1967,6 +1979,25 @@ public class WorkflowService {
                     new ChainingException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
     assertEventRootOnWorkflow(template.getId(), eventId);
+  }
+
+  /**
+   * Validates every non-blank id in {@code eventConditionIds} is an AND/OR finding-event root on
+   * {@code workflowId}. The service-boundary guard for the reused-event link channel (which itself
+   * only checks root-ness): callers pass the reused ids straight to {@code
+   * stepInput.setConditionIds}, so this is what keeps a cross-workflow or non-event id from being
+   * linked. No-op for a null/empty list.
+   */
+  private void assertEventRootsOnWorkflow(String workflowId, List<String> eventConditionIds)
+      throws ChainingException {
+    if (eventConditionIds == null) {
+      return;
+    }
+    for (String eventConditionId : eventConditionIds) {
+      if (hasText(eventConditionId)) {
+        assertEventRootOnWorkflow(workflowId, eventConditionId);
+      }
+    }
   }
 
   private void assertEventRootOnWorkflow(String workflowId, String eventId)
@@ -2422,14 +2453,27 @@ public class WorkflowService {
   // Existing-event variant of the update body: in addition to rebuilding the trigger it can LINK
   // the step to EXISTING event roots by id ({@code existingEventConditionIds}), so a corrected step
   // attaches to an event that already exists instead of duplicating it - the update-side twin of
-  // doAppendChainedStep's condition_ids channel. The step service preserves those roots (subtree
-  // included) across the condition rebuild so a shared event is never dropped, then links them.
+  // doAppendChainedStep's condition_ids channel. Reused ids are validated at this service boundary
+  // exactly like the append paths. The step service preserves those roots (subtree included)
+  // across the condition rebuild so a shared event is never dropped, then links them.
   private void doUpdateChainedStep(
       String stepTemplateId,
       InjectInput injectInput,
       List<ConditionCreateInput> triggerConditions,
       List<String> existingEventConditionIds)
       throws ChainingException {
+    // Defence in depth (same boundary as the append paths): the link channel below only checks
+    // root-ness, so validate every reused id is an AND/OR finding-event root on the step's OWN
+    // workflow before the rebuild links it. Resolved lazily - the step lookup only happens when a
+    // reused id is actually present, so the common no-reuse update pays nothing. A no-op for the
+    // validated autonomous caller; a stale scenario-mirror twin id throws and is swallowed by the
+    // best-effort mirror exactly like on the append side.
+    if (existingEventConditionIds != null
+        && existingEventConditionIds.stream().anyMatch(id -> hasText(id))) {
+      Workflow stepWorkflow = stepService.findStepTemplateById(stepTemplateId).getWorkflow();
+      assertEventRootsOnWorkflow(
+          stepWorkflow == null ? null : stepWorkflow.getId(), existingEventConditionIds);
+    }
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
     if (existingEventConditionIds != null && !existingEventConditionIds.isEmpty()) {
