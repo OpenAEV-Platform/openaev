@@ -212,8 +212,8 @@ const FindingBulkActionBar = ({ numberOfSelectedElements, onClear, onTriage, onA
         submitLabel={t('Confirm')}
         disableSubmit={submitting}
         text={archiveDialog === 'archive'
-          ? t('Archive {count} findings?', { count: String(numberOfSelectedElements) })
-          : t('Un-archive {count} findings?', { count: String(numberOfSelectedElements) })}
+          ? t('Archive {count} finding(s)? They will move out of the active view, but stay retrievable anytime from the Archived tab.', { count: String(numberOfSelectedElements) })
+          : t('Restore {count} finding(s) to the active view?', { count: String(numberOfSelectedElements) })}
       />
       {/* Never silent: whenever at least one finding in the batch could not be updated (e.g. an
           invalid triage transition like Risk Accepted -> False Positive, or a finding deleted in

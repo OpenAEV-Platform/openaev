@@ -2,6 +2,7 @@ package io.openaev.rest.finding;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Finding;
+import io.openaev.database.model.FindingHistoryActionType;
 import io.openaev.database.model.FindingTriage;
 import io.openaev.database.model.FindingTriageHistory;
 import io.openaev.database.model.FindingTriageStatus;
@@ -188,6 +189,7 @@ public class FindingTriageService {
 
     FindingTriageHistory history = new FindingTriageHistory();
     history.setFinding(finding);
+    history.setActionType(FindingHistoryActionType.TRIAGE_CHANGE);
     history.setFromStatus(fromStatus);
     history.setToStatus(targetStatus);
     history.setJustification(justification);

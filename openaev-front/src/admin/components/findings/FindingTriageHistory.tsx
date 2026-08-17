@@ -1,4 +1,5 @@
 import { Box, List, ListItem, ListItemText, Typography } from '@mui/material';
+import { ArchiveArrowUpOutline, ArchiveOutline } from 'mdi-material-ui';
 import { useEffect, useState } from 'react';
 
 import { fetchFindingTriageHistory } from '../../../actions/findings/finding-triage-actions';
@@ -89,10 +90,22 @@ const FindingTriageHistory = ({ findingId, refreshKey }: Props) => {
                   gap: 1,
                 }}
                 >
+                  {entry.finding_triage_history_action === 'ARCHIVE' && (
+                    <ArchiveOutline fontSize="small" sx={{ color: 'text.secondary' }} />
+                  )}
+                  {entry.finding_triage_history_action === 'UNARCHIVE' && (
+                    <ArchiveArrowUpOutline fontSize="small" sx={{ color: 'text.secondary' }} />
+                  )}
                   <Typography sx={{ fontWeight: 600 }}>
-                    {t(entry.finding_triage_history_from_status ?? 'UNTRIAGED')}
-                    {' → '}
-                    {t(entry.finding_triage_history_to_status ?? 'UNTRIAGED')}
+                    {entry.finding_triage_history_action === 'ARCHIVE' && t('Archived')}
+                    {entry.finding_triage_history_action === 'UNARCHIVE' && t('Un-archived')}
+                    {(entry.finding_triage_history_action === 'TRIAGE_CHANGE' || !entry.finding_triage_history_action) && (
+                      <>
+                        {t(entry.finding_triage_history_from_status ?? 'UNTRIAGED')}
+                        {' → '}
+                        {t(entry.finding_triage_history_to_status ?? 'UNTRIAGED')}
+                      </>
+                    )}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -104,15 +117,17 @@ const FindingTriageHistory = ({ findingId, refreshKey }: Props) => {
                   </Typography>
                 </Box>
               )}
-              secondary={(
-                <Typography
-                  variant="body2"
-                  sx={{ whiteSpace: 'pre-wrap' }}
-                  component="span"
-                >
-                  {entry.finding_triage_history_justification}
-                </Typography>
-              )}
+              secondary={entry.finding_triage_history_action === 'TRIAGE_CHANGE' || !entry.finding_triage_history_action
+                ? (
+                    <Typography
+                      variant="body2"
+                      sx={{ whiteSpace: 'pre-wrap' }}
+                      component="span"
+                    >
+                      {entry.finding_triage_history_justification}
+                    </Typography>
+                  )
+                : undefined}
             />
           </ListItem>
         );

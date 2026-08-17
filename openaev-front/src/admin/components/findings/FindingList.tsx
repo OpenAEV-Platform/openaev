@@ -461,10 +461,13 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 1,
-                  minWidth: 260,
+                  minWidth: 300,
                 }}
                 >
                   <Typography variant="subtitle2">{t('Archive findings after (days)')}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('Findings inactive for this many days move to the Archived tab. After 30 more days there, they are removed from this page to keep it fast — but stay fully visible from the simulations that found them.')}
+                  </Typography>
                   <TextField
                     type="number"
                     size="small"

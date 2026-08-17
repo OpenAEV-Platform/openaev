@@ -1,6 +1,7 @@
 package io.openaev.rest.finding.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.FindingHistoryActionType;
 import io.openaev.database.model.FindingTriageHistory;
 import io.openaev.database.model.FindingTriageStatus;
 import java.time.Instant;
@@ -23,6 +24,9 @@ public class FindingTriageHistoryOutput {
 
   @JsonProperty("finding_triage_history_finding_id")
   private String findingId;
+
+  @JsonProperty("finding_triage_history_action")
+  private FindingHistoryActionType actionType;
 
   @JsonProperty("finding_triage_history_from_status")
   private FindingTriageStatus fromStatus;
@@ -53,6 +57,7 @@ public class FindingTriageHistoryOutput {
         FindingTriageHistoryOutput.builder()
             .id(history.getId())
             .findingId(history.getFinding().getId())
+            .actionType(history.getActionType())
             .fromStatus(history.getFromStatus())
             .toStatus(history.getToStatus())
             .justification(history.getJustification())

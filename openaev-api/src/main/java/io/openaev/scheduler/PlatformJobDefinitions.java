@@ -4,6 +4,7 @@ import static io.openaev.scheduler.jobs.AgentInactivityMonitorJob.AGENT_INACTIVI
 import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIAL_CONNECTIVITY_CHECK_JOB;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_JOB;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_JOB;
+import static io.openaev.scheduler.jobs.FindingSoftDeleteJob.FINDING_SOFT_DELETE_JOB;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_JOB;
 import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_JOB;
@@ -194,6 +195,14 @@ public class PlatformJobDefinitions {
   public JobDetail credentialsConnectivityCheckJobDetail() {
     return JobBuilder.newJob(CredentialConnectivityCheckJob.class)
         .withIdentity(CREDENTIAL_CONNECTIVITY_CHECK_JOB)
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
+  public JobDetail findingSoftDeleteJobDetail() {
+    return JobBuilder.newJob(FindingSoftDeleteJob.class)
+        .withIdentity(FINDING_SOFT_DELETE_JOB)
         .storeDurably()
         .build();
   }
