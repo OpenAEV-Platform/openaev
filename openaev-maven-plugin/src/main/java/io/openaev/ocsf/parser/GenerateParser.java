@@ -95,7 +95,7 @@ public class GenerateParser extends AbstractMojo {
     try {
       SchemaSource schemaSource = Ocsf.schema(OcsfSchemaVersion._1_8_0, ctx);
       schemaSource.refreshAllSources();
-      JsonNode datatypes = schemaSource.get(SchemaDimension.DATATYPES);
+      JsonNode datatypes = schemaSource.getContents(SchemaDimension.DATATYPES.name());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

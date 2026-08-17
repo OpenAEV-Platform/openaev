@@ -3,7 +3,7 @@ package io.openaev.ocsf.parser;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.ocsf.parser.generator.Generator;
+import io.openaev.ocsf.parser.generator.DatatypeGenerator;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.cls.ClassMeta;
@@ -13,6 +13,7 @@ import io.openaev.ocsf.parser.schema.Ocsf;
 import io.openaev.ocsf.parser.schema.OcsfSchemaVersion;
 import io.openaev.ocsf.parser.schema.SchemaDimension;
 import io.openaev.ocsf.parser.schema.SchemaSource;
+import io.openaev.ocsf.parser.schema.source.ReferentialSource;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -34,15 +35,27 @@ public class GenerateParserTest {
     PluginContext ctx = new PluginContext(resources, Paths.get(""));
 
     SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_8_0, ctx);
-    //schema.refreshAllSources();
+    schema.refreshAllSources();
 
-    Generator gen = new Generator();
+    DatatypeGenerator gen = new DatatypeGenerator();
 
-    JsonNode datatypes = schema.get(SchemaDimension.DATATYPES);
+    JsonNode datatypes = schema.getContents(SchemaDimension.DATATYPES.name());
 
     for (Map.Entry<String, JsonNode> prop : datatypes.properties()) {
-      gen.emit(SchemaDimension.DATATYPES, prop.getKey(), prop.getValue());
+      gen.emit(prop.getKey(), prop.getValue());
     }
+  }
+
+  @Test
+  void objectsResource() throws IOException {
+    Path resources = Paths.get(getClass().getResource("").getPath());
+    PluginContext ctx = new PluginContext(resources, Paths.get(""));
+
+    SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_8_0, ctx);
+    schema.refreshAllSources();
+
+    JsonNode objects = schema.getContents(SchemaDimension.OBJECTS.name());
+    ((ReferentialSource) schema.getSource("OBJECTS")).getSubsourceKeys();
   }
 
   @Test

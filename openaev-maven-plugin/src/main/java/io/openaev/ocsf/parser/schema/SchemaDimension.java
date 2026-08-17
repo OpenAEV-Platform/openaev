@@ -4,5 +4,7 @@ public enum SchemaDimension {
   DATATYPES,
   DICTIONARY,
   OBJECTS,
-  CLASSES
+  SINGLE_OBJECT,
+  CLASSES,
+  SINGLE_CLASS
 }

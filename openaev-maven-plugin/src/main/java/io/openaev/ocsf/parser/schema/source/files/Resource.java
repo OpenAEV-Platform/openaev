@@ -13,7 +13,6 @@ import java.nio.file.Path;
 
 public abstract class Resource {
   private final String baseResourcePath = "ocsf/schemas";
-  private final Path fullFilepath;
   private final Path baseSchemaDirectoryPath;
 
   protected abstract String getResourceName();
@@ -28,9 +27,19 @@ public abstract class Resource {
         ctx.getPluginResourcesDirectory()
             .resolve(baseResourcePath)
             .resolve(version.getVersionNumber().getValue());
-    ensureDirectoryExists(baseSchemaDirectoryPath);
+    ensureDirectoryExists(getFullDirectoryPath());
+  }
 
-    this.fullFilepath = baseSchemaDirectoryPath.resolve(getResourceName() + ".json");
+  protected String getResourceSubPath() {
+    return "";
+  }
+
+  private Path getFullDirectoryPath() {
+    return baseSchemaDirectoryPath.resolve(getResourceSubPath());
+  }
+
+  private Path getFullFilepath() {
+    return getFullDirectoryPath().resolve(getResourceName() + ".json");
   }
 
   private void ensureDirectoryExists(Path path) throws IOException {
@@ -39,13 +48,13 @@ public abstract class Resource {
   }
 
   public void write(JsonNode node) throws IOException {
-    try (FileOutputStream fs = new FileOutputStream(fullFilepath.toString())) {
+    try (FileOutputStream fs = new FileOutputStream(getFullFilepath().toString())) {
       fs.write(node.toPrettyString().getBytes(StandardCharsets.UTF_8));
     }
   }
 
   public JsonNode read() throws IOException {
-    try (FileInputStream fis = new FileInputStream(fullFilepath.toString())) {
+    try (FileInputStream fis = new FileInputStream(getFullFilepath().toString())) {
       return new ObjectMapper().readTree(fis.readAllBytes());
     }
   }
