@@ -198,7 +198,7 @@ const CredentialForm: FunctionComponent<Props> = ({
   });
 
   const currentFormValues = useMemo(
-    () => getValues(),
+    () => getValues() as Record<string, unknown>,
     [getValues, watchedConditionValues],
   );
 
