@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +40,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.EndpointService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
@@ -60,14 +62,19 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Unit tests for the orchestrator scope callback ({@link AutonomousRunService#setRunScope}): the
- * resolved scope must be recorded on the run AUTHORITATIVELY (saved before any projection), and the
- * two secondary projections - the workflow allowlist mirror and the targeted-team enablement - must
- * be genuinely best-effort AND independent of each other. A projection failure previously
- * propagated out of the callback as a 500 and stalled the run (issue #7472).
+ * Unit tests for the orchestrator scope + attack-path authoring callbacks ({@link
+ * AutonomousRunService#setRunScope}, {@link AutonomousRunService#appendAttackPathStep}, {@link
+ * AutonomousRunService#updateAttackPathStep}): the resolved scope must be recorded on the run
+ * AUTHORITATIVELY (saved before any projection), the two secondary projections - the workflow
+ * allowlist mirror and the targeted-team enablement - must be genuinely best-effort AND independent
+ * of each other (a projection failure previously propagated out of the callback as a 500 and
+ * stalled the run, issue #7472), the run-saving callbacks must take the row lock so parallel
+ * callbacks cannot last-write-wins the run, and the PRIMARY step author/update - not just the
+ * secondary projections - must run under the run's own v1 tenant so a custom threat-arsenal
+ * injector contract (which lives in the run's tenant, not the callback route's DEFAULT) resolves.
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AutonomousRunService scope callback")
+@DisplayName("AutonomousRunService scope + attack-path authoring callbacks")
 class AutonomousRunServiceScopeTest {
 
   private static final String RUN_ID = "run-1";
@@ -111,8 +118,14 @@ class AutonomousRunServiceScopeTest {
     run.setTenant(new Tenant("tenant-1"));
     run.setScenarioId(SCENARIO_ID);
     run.setSimulationId(SIMULATION_ID);
-    when(runRepository.findById(RUN_ID)).thenReturn(Optional.of(run));
-    when(runRepository.save(any(AutonomousRun.class))).thenAnswer(inv -> inv.getArgument(0));
+    // setRunScope / appendAttackPathStep load the run FOR UPDATE (row lock); updateAttackPathStep
+    // keeps the plain read since it never saves the run. Lenient so a per-method test that
+    // exercises
+    // only one lookup does not trip strict-stub checks on the other.
+    lenient().when(runRepository.findByIdForUpdate(RUN_ID)).thenReturn(Optional.of(run));
+    lenient()
+        .when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(inv -> inv.getArgument(0));
   }
 
   @AfterEach
@@ -251,5 +264,87 @@ class AutonomousRunServiceScopeTest {
     runService.setRunScope(RUN_ID, List.of(new AutonomousScopeTarget("TEAMS", "team-1")));
 
     assertThat(TenantContext.getCurrentTenant()).isEqualTo("caller-tenant");
+  }
+
+  @Test
+  @DisplayName("Appending a step loads the run FOR UPDATE (row lock), never the unlocked read")
+  void given_anAuthorCallback_when_appendingAStep_then_theRunIsLoadedForUpdate() throws Exception {
+    when(workflowService.appendChainedStep(anyString(), any(), any(), anyList()))
+        .thenReturn("sim-step-1");
+
+    runService.appendAttackPathStep(RUN_ID, new InjectInput(), null);
+
+    // The author callback saves the run's step mirror with a full-entity write on a version-less
+    // row, so it must serialise with the parallel author/scope callbacks via the row lock rather
+    // than last-write-wins them through the plain read.
+    verify(runRepository).findByIdForUpdate(RUN_ID);
+    verify(runRepository, never()).findById(anyString());
+  }
+
+  @Test
+  @DisplayName("The PRIMARY step author runs under the run's v1 tenant, cleared again afterwards")
+  void given_theLegacyCallbackRoute_when_appendingAStep_then_thePrimaryRunsUnderTheRunTenant()
+      throws Exception {
+    // Reproduce the legacy non-prefixed route's no-tenant thread (see the scope projections test).
+    TenantContext.clearCurrentTenant();
+    List<String> seenTenants = new ArrayList<>();
+    when(workflowService.appendChainedStep(anyString(), any(), any(), anyList()))
+        .thenAnswer(
+            inv -> {
+              seenTenants.add(TenantContext.getCurrentTenant());
+              return "sim-step-1";
+            });
+
+    runService.appendAttackPathStep(RUN_ID, new InjectInput(), null);
+
+    // The executing step is baked under the run's OWN tenant - not the callback route's DEFAULT -
+    // so the explicit injector-contract existence check (stepData -> assertInjectorContractExists)
+    // resolves a custom threat-arsenal contract that lives in the run's tenant. The thread carried
+    // no tenant before the callback, so it must carry none after it.
+    assertThat(seenTenants).containsExactly("tenant-1");
+    assertThat(TenantContext.hasCurrentTenant()).isFalse();
+  }
+
+  @Test
+  @DisplayName("A plan run (no simulation) authors onto the scenario under the run's v1 tenant")
+  void given_aPlanRun_when_appendingAStep_then_theScenarioAuthorRunsUnderTheRunTenant()
+      throws Exception {
+    run.setSimulationId(null);
+    TenantContext.clearCurrentTenant();
+    List<String> seenTenants = new ArrayList<>();
+    when(workflowService.appendChainedStepToScenario(anyString(), any(), any(), anyList()))
+        .thenAnswer(
+            inv -> {
+              seenTenants.add(TenantContext.getCurrentTenant());
+              return "scenario-step-1";
+            });
+
+    runService.appendAttackPathStep(RUN_ID, new InjectInput(), null);
+
+    assertThat(seenTenants).containsExactly("tenant-1");
+    assertThat(TenantContext.hasCurrentTenant()).isFalse();
+  }
+
+  @Test
+  @DisplayName(
+      "The PRIMARY in-place step update runs under the run's v1 tenant, cleared afterwards")
+  void given_theLegacyCallbackRoute_when_updatingAStep_then_thePrimaryRunsUnderTheRunTenant()
+      throws Exception {
+    // updateAttackPathStep never saves the run, so it keeps the plain read (stubbed here).
+    when(runRepository.findById(RUN_ID)).thenReturn(Optional.of(run));
+    TenantContext.clearCurrentTenant();
+    List<String> seenTenants = new ArrayList<>();
+    doAnswer(
+            inv -> {
+              seenTenants.add(TenantContext.getCurrentTenant());
+              return null;
+            })
+        .when(workflowService)
+        .updateChainedStep(eq("sim-step-1"), any());
+
+    runService.updateAttackPathStep(RUN_ID, "sim-step-1", new InjectInput());
+
+    assertThat(seenTenants).containsExactly("tenant-1");
+    assertThat(TenantContext.hasCurrentTenant()).isFalse();
   }
 }

@@ -2219,7 +2219,17 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun setRunScope(String runId, List<AutonomousScopeTarget> targets) {
-    AutonomousRun run = require(runId);
+    // Row-locked read: this callback records the resolved scope with a full-entity save on a run
+    // row
+    // that carries NO optimistic version, so the check-then-save must serialise with every other
+    // run
+    // writer - updateStatus / pause / resume take the same lock, and the reconcile / timeout
+    // watchdog settle via row-locking conditional UPDATEs. The orchestrator fires scope and author
+    // callbacks in parallel (asyncio.gather), so without the lock a concurrent author's run save
+    // (its step mirror) and this scope save last-write-wins each other's fields, and a racing
+    // terminal settle committing between this read and the save would be silently resurrected.
+    // Mirrors updateStatus / restart.
+    AutonomousRun run = requireForUpdate(runId);
     assertRunAcceptsAuthoring(run);
     List<AutonomousScopeTarget> scope = targets != null ? new ArrayList<>(targets) : List.of();
     // Record the resolved scope on the run AUTHORITATIVELY first. This is the callback's primary
@@ -2467,79 +2477,111 @@ public class AutonomousRunService {
       InjectInput injectInput,
       String parentStepTemplateId,
       AutonomousStepTrigger trigger) {
-    AutonomousRun run = require(runId);
+    // Row-locked read: the author callback saves the run (its step mirror) with a full-entity write
+    // on a row that carries NO optimistic version, and the orchestrator fires author callbacks in
+    // parallel (asyncio.gather). Without the lock, two parallel authors last-write-wins the step
+    // mirror map - dropping a sim->scenario mapping, which then reattaches a later scenario twin as
+    // a root and breaks the exported attack path's kill-chain edges - and a reconcile / watchdog
+    // terminal settle committing between this read and the save would be resurrected. Mirrors
+    // updateStatus / restart.
+    AutonomousRun run = requireForUpdate(runId);
     assertRunAcceptsAuthoring(run);
     List<ConditionCreateInput> triggerConditions = toTriggerConditions(trigger);
-    // Author-scenario (AI planning) mode: no simulation exists, so the orchestrator authors the
-    // step directly onto the scenario's workflow TEMPLATE. Nothing executes; there is no mirror
-    // (the scenario IS the authored artifact) and the returned id is the scenario step id the
-    // orchestrator chains the next step onto.
-    if (!hasText(run.getSimulationId())) {
-      if (!hasText(run.getScenarioId())) {
-        throw new ResponseStatusException(
-            HttpStatus.CONFLICT,
-            "The autonomous run has neither a live simulation nor a scenario to build steps on");
+    // Bridge the run's own tenant as the v1 TenantContext around the WHOLE authoring body (the
+    // primary executing/scenario step AND the secondary projections). This callback arrives on the
+    // legacy non-prefixed /api/autonomous-runs route where the v1 TenantContext is never set and
+    // falls back to the DEFAULT tenant, yet baking a step reads v1-filtered entities: it resolves
+    // the injector contract under an EXPLICIT TenantContext.getCurrentTenant() existence check (a
+    // custom threat-arsenal contract lives in the run's own tenant, not DEFAULT, and shares its id
+    // across tenants) and resolves the step's targeted teams/assets under the v1 filter. The
+    // PRIMARY step must therefore see the run's tenant exactly like the scenario mirror twin does -
+    // otherwise an AI-authored custom payload 404s ("Injector contract not found") for any run not
+    // in the default tenant, and human targets resolve empty. @RunTenantScope already gives the
+    // matching v2 GUC; this adds the v1 scope. Restored in finally so the operator
+    // (tenant-prefixed)
+    // route keeps its caller tenant and a pooled request thread never leaks the run tenant onward.
+    // A no-op when the run already is the default tenant.
+    boolean hadTenant = TenantContext.hasCurrentTenant();
+    String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(runTenantId(run));
+    try {
+      // Author-scenario (AI planning) mode: no simulation exists, so the orchestrator authors the
+      // step directly onto the scenario's workflow TEMPLATE. Nothing executes; there is no mirror
+      // (the scenario IS the authored artifact) and the returned id is the scenario step id the
+      // orchestrator chains the next step onto. No secondary projection to isolate here - a real
+      // author failure SHOULD surface (400) since the scenario is the primary artifact.
+      if (!hasText(run.getSimulationId())) {
+        if (!hasText(run.getScenarioId())) {
+          throw new ResponseStatusException(
+              HttpStatus.CONFLICT,
+              "The autonomous run has neither a live simulation nor a scenario to build steps on");
+        }
+        String scenarioStepId;
+        try {
+          scenarioStepId =
+              workflowService.appendChainedStepToScenario(
+                  run.getScenarioId(), injectInput, parentStepTemplateId, triggerConditions);
+        } catch (ChainingException e) {
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST,
+              "Failed to author the attack-path step onto the scenario: " + e.getMessage(),
+              e);
+        }
+        boolean findingDrivenPlan = !triggerConditions.isEmpty();
+        eventService.append(
+            runId,
+            runTenantId(run),
+            null,
+            AutonomousEventType.TOOL_ACTION,
+            "Attack-path step authored",
+            "A chained step was added to the scenario's attack path"
+                + (findingDrivenPlan
+                    ? " (fires on a finding and consumes its values)."
+                    : hasText(parentStepTemplateId)
+                        ? " (depends on a previous step)."
+                        : " (seed step - readies immediately against the scope)."),
+            null);
+        return scenarioStepId;
       }
-      String scenarioStepId;
+      String stepTemplateId;
       try {
-        scenarioStepId =
-            workflowService.appendChainedStepToScenario(
-                run.getScenarioId(), injectInput, parentStepTemplateId, triggerConditions);
+        stepTemplateId =
+            workflowService.appendChainedStep(
+                run.getSimulationId(), injectInput, parentStepTemplateId, triggerConditions);
       } catch (ChainingException e) {
         throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST,
-            "Failed to author the attack-path step onto the scenario: " + e.getMessage(),
-            e);
+            HttpStatus.BAD_REQUEST, "Failed to author the attack-path step: " + e.getMessage(), e);
       }
-      boolean findingDrivenPlan = !triggerConditions.isEmpty();
+      // The executing simulation step authored above is this callback's primary job. Both
+      // projections below are SECONDARY and must NEVER fail (500) this callback: a failure there
+      // previously marked the authoring transaction rollback-only, so a step that already succeeded
+      // was lost at commit and the orchestrator retried it in a loop. Each runs in its OWN
+      // REQUIRES_NEW transaction (see the *Isolated / *BestEffort methods) so a failure rolls back
+      // only itself.
+      //  - Team enablement: a human-in-the-loop inject (email, SMS, ...) delivers only to the
+      //    players ENABLED on the simulation, not merely to team members; a directly targeted team
+      //    whose members were never enabled would otherwise ERROR with "Email needs at least one
+      //    user".
+      //  - Scenario mirror: the exportable/reproducible twin of the attack path (the executing copy
+      //    lives on the simulation; this twin never runs).
+      enableTargetedTeamMembersBestEffort(run.getSimulationId(), injectInput.getTeams());
+      mirrorStepOntoScenario(
+          run, injectInput, parentStepTemplateId, stepTemplateId, triggerConditions);
+      boolean findingDriven = !triggerConditions.isEmpty();
       eventService.append(
           runId,
           runTenantId(run),
-          null,
+          run.getSimulationId(),
           AutonomousEventType.TOOL_ACTION,
           "Attack-path step authored",
-          "A chained step was added to the scenario's attack path"
-              + (findingDrivenPlan
+          "A chained step was added to the live attack path"
+              + (findingDriven
                   ? " (fires on a finding and consumes its values)."
                   : hasText(parentStepTemplateId)
                       ? " (depends on a previous step)."
                       : " (seed step - readies immediately against the scope)."),
           null);
-      return scenarioStepId;
-    }
-    String stepTemplateId;
-    try {
-      stepTemplateId =
-          workflowService.appendChainedStep(
-              run.getSimulationId(), injectInput, parentStepTemplateId, triggerConditions);
-    } catch (ChainingException e) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Failed to author the attack-path step: " + e.getMessage(), e);
-    }
-    // The executing simulation step authored above is this callback's primary job. Both projections
-    // below are SECONDARY and must NEVER fail (500) this callback: a failure there previously
-    // marked
-    // the authoring transaction rollback-only, so a step that already succeeded was lost at commit
-    // and the orchestrator retried it in a loop. They read/write v1-filtered entities (the
-    // simulation's teams via exercise_teams_users; the scenario template workflow) and this
-    // callback
-    // arrives on the legacy non-prefixed /api/autonomous-runs route where the v1 TenantContext is
-    // unset (DEFAULT tenant), so bridge the run's own tenant - the same run-authoritative tenant
-    // @RunTenantScope already gives the v2 GUC - and restore it in finally so a pooled request
-    // thread never leaks it. Each projection runs in its OWN REQUIRES_NEW transaction (see the
-    // *Isolated / *BestEffort methods) so a failure rolls back only itself. Mirrors setRunScope.
-    //  - Team enablement: a human-in-the-loop inject (email, SMS, ...) delivers only to the players
-    //    ENABLED on the simulation, not merely to team members; a directly targeted team whose
-    //    members were never enabled would otherwise ERROR with "Email needs at least one user".
-    //  - Scenario mirror: the exportable/reproducible twin of the attack path (the executing copy
-    //    lives on the simulation; this twin never runs).
-    boolean hadTenant = TenantContext.hasCurrentTenant();
-    String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
-    TenantContext.setCurrentTenant(runTenantId(run));
-    try {
-      enableTargetedTeamMembersBestEffort(run.getSimulationId(), injectInput.getTeams());
-      mirrorStepOntoScenario(
-          run, injectInput, parentStepTemplateId, stepTemplateId, triggerConditions);
+      return stepTemplateId;
     } finally {
       if (hadTenant) {
         TenantContext.setCurrentTenant(previousTenant);
@@ -2547,21 +2589,6 @@ public class AutonomousRunService {
         TenantContext.clearCurrentTenant();
       }
     }
-    boolean findingDriven = !triggerConditions.isEmpty();
-    eventService.append(
-        runId,
-        runTenantId(run),
-        run.getSimulationId(),
-        AutonomousEventType.TOOL_ACTION,
-        "Attack-path step authored",
-        "A chained step was added to the live attack path"
-            + (findingDriven
-                ? " (fires on a finding and consumes its values)."
-                : hasText(parentStepTemplateId)
-                    ? " (depends on a previous step)."
-                    : " (seed step - readies immediately against the scope)."),
-        null);
-    return stepTemplateId;
   }
 
   /**
@@ -2740,52 +2767,62 @@ public class AutonomousRunService {
   public String updateAttackPathStep(String runId, String stepTemplateId, InjectInput injectInput) {
     AutonomousRun run = require(runId);
     assertRunAcceptsAuthoring(run);
-    // Author-scenario mode: the step id IS a scenario step template id; update it in place on the
-    // scenario workflow (no simulation, no mirror twin).
-    if (!hasText(run.getSimulationId())) {
-      if (!hasText(run.getScenarioId())) {
-        throw new ResponseStatusException(
-            HttpStatus.CONFLICT,
-            "The autonomous run has neither a live simulation nor a scenario to update steps on");
+    // Bridge the run's own tenant as the v1 TenantContext around the WHOLE update body (the primary
+    // in-place step update AND the secondary projections), for the same reason as
+    // doAppendAttackPathStep: on the legacy non-prefixed callback route the v1 TenantContext falls
+    // back to DEFAULT, but rebuilding the step data resolves the injector contract under an
+    // EXPLICIT
+    // TenantContext.getCurrentTenant() existence check (a custom threat-arsenal contract lives in
+    // the run's own tenant, not DEFAULT) and resolves its targeted teams/assets under the v1
+    // filter.
+    // Without this the primary in-place update of a custom-payload step 404s ("Injector contract
+    // not found") for any run not in the default tenant. @RunTenantScope already gives the matching
+    // v2 GUC; this adds the v1 scope. Restored in finally so a pooled request thread never leaks
+    // the
+    // run tenant onward. A no-op when the run already is the default tenant.
+    boolean hadTenant = TenantContext.hasCurrentTenant();
+    String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(runTenantId(run));
+    try {
+      // Author-scenario mode: the step id IS a scenario step template id; update it in place on the
+      // scenario workflow (no simulation, no mirror twin).
+      if (!hasText(run.getSimulationId())) {
+        if (!hasText(run.getScenarioId())) {
+          throw new ResponseStatusException(
+              HttpStatus.CONFLICT,
+              "The autonomous run has neither a live simulation nor a scenario to update steps on");
+        }
+        try {
+          workflowService.updateChainedStep(stepTemplateId, injectInput);
+        } catch (ChainingException e) {
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST,
+              "Failed to update the scenario attack-path step: " + e.getMessage(),
+              e);
+        }
+        eventService.append(
+            runId,
+            runTenantId(run),
+            null,
+            AutonomousEventType.TOOL_ACTION,
+            "Attack-path step updated",
+            "An existing chained step was updated in place on the scenario (no new step created).",
+            null);
+        return stepTemplateId;
       }
       try {
         workflowService.updateChainedStep(stepTemplateId, injectInput);
       } catch (ChainingException e) {
         throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST,
-            "Failed to update the scenario attack-path step: " + e.getMessage(),
-            e);
+            HttpStatus.BAD_REQUEST, "Failed to update the attack-path step: " + e.getMessage(), e);
       }
-      eventService.append(
-          runId,
-          runTenantId(run),
-          null,
-          AutonomousEventType.TOOL_ACTION,
-          "Attack-path step updated",
-          "An existing chained step was updated in place on the scenario (no new step created).",
-          null);
-      return stepTemplateId;
-    }
-    try {
-      workflowService.updateChainedStep(stepTemplateId, injectInput);
-    } catch (ChainingException e) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Failed to update the attack-path step: " + e.getMessage(), e);
-    }
-    // The executing simulation step is updated above. Keeping the scenario mirror twin in lock-step
-    // and re-enabling any newly targeted team's members are SECONDARY projections that must never
-    // fail (500) this callback. They read/write v1-filtered entities on the legacy non-prefixed
-    // /api/autonomous-runs route (v1 TenantContext unset -> DEFAULT tenant), so bridge the run's
-    // own
-    // tenant (restored in finally) and run each in its OWN REQUIRES_NEW transaction so a failure
-    // rolls back only itself and can never mark this update transaction rollback-only. Mirrors
-    // doAppendAttackPathStep / setRunScope.
-    Map<String, String> mirror = run.getStepMirror();
-    String scenarioStepId = mirror == null ? null : mirror.get(stepTemplateId);
-    boolean hadTenant = TenantContext.hasCurrentTenant();
-    String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
-    TenantContext.setCurrentTenant(runTenantId(run));
-    try {
+      // The executing simulation step is updated above. Keeping the scenario mirror twin in
+      // lock-step and re-enabling any newly targeted team's members are SECONDARY projections that
+      // must never fail (500) this callback: each runs in its OWN REQUIRES_NEW transaction so a
+      // failure rolls back only itself and can never mark this update transaction rollback-only.
+      // Mirrors doAppendAttackPathStep / setRunScope.
+      Map<String, String> mirror = run.getStepMirror();
+      String scenarioStepId = mirror == null ? null : mirror.get(stepTemplateId);
       if (hasText(scenarioStepId)) {
         try {
           workflowService.updateChainedStepIsolated(scenarioStepId, injectInput);
@@ -2798,6 +2835,15 @@ public class AutonomousRunService {
         }
       }
       enableTargetedTeamMembersBestEffort(run.getSimulationId(), injectInput.getTeams());
+      eventService.append(
+          runId,
+          runTenantId(run),
+          run.getSimulationId(),
+          AutonomousEventType.TOOL_ACTION,
+          "Attack-path step updated",
+          "An existing chained step was updated in place (no new step created).",
+          null);
+      return stepTemplateId;
     } finally {
       if (hadTenant) {
         TenantContext.setCurrentTenant(previousTenant);
@@ -2805,15 +2851,6 @@ public class AutonomousRunService {
         TenantContext.clearCurrentTenant();
       }
     }
-    eventService.append(
-        runId,
-        runTenantId(run),
-        run.getSimulationId(),
-        AutonomousEventType.TOOL_ACTION,
-        "Attack-path step updated",
-        "An existing chained step was updated in place (no new step created).",
-        null);
-    return stepTemplateId;
   }
 
   /**
