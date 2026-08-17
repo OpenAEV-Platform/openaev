@@ -251,6 +251,36 @@ public class WorkflowService {
       String simulationId,
       List<WorkflowScopeRuleInput> allowlistRules,
       boolean replaceExisting) {
+    doWriteAllowlistScope(scenarioId, simulationId, allowlistRules, replaceExisting);
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #writeAllowlistScope} for the autonomous orchestrator's
+   * scope callback. Runs in its OWN transaction ({@link Propagation#REQUIRES_NEW}) so that a
+   * failure while mirroring the resolved scope onto the scenario template / live simulation
+   * workflow(s) rolls back only this mirror and can NEVER mark the caller's transaction
+   * rollback-only. The caller records the resolved scope on the run authoritatively first and
+   * treats this workflow mirror as a secondary projection - a mirror failure must not fail (500)
+   * the callback and stall the run. See {@code AutonomousRunService#setRunScope}.
+   *
+   * <p>Both public entry points delegate to the same private, non-transactional body: a same-class
+   * call to the {@code @Transactional} sibling would bypass the Spring proxy (see {@code
+   * TenantBackgroundTransactionArchTest#no_transactional_self_invocation}).
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void writeAllowlistScopeIsolated(
+      String scenarioId,
+      String simulationId,
+      List<WorkflowScopeRuleInput> allowlistRules,
+      boolean replaceExisting) {
+    doWriteAllowlistScope(scenarioId, simulationId, allowlistRules, replaceExisting);
+  }
+
+  private void doWriteAllowlistScope(
+      String scenarioId,
+      String simulationId,
+      List<WorkflowScopeRuleInput> allowlistRules,
+      boolean replaceExisting) {
     if (!replaceExisting && (allowlistRules == null || allowlistRules.isEmpty())) {
       return;
     }
@@ -273,24 +303,6 @@ public class WorkflowService {
       findWorkflowRunBySimulationId(simulationId)
           .forEach(w -> writeAllowlistRules(w, rules, replaceExisting));
     }
-  }
-
-  /**
-   * Transaction-isolated variant of {@link #writeAllowlistScope} for the autonomous orchestrator's
-   * scope callback. Runs in its OWN transaction ({@link Propagation#REQUIRES_NEW}) so that a
-   * failure while mirroring the resolved scope onto the scenario template / live simulation
-   * workflow(s) rolls back only this mirror and can NEVER mark the caller's transaction
-   * rollback-only. The caller records the resolved scope on the run authoritatively first and
-   * treats this workflow mirror as a secondary projection - a mirror failure must not fail (500)
-   * the callback and stall the run. See {@code AutonomousRunService#setRunScope}.
-   */
-  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-  public void writeAllowlistScopeIsolated(
-      String scenarioId,
-      String simulationId,
-      List<WorkflowScopeRuleInput> allowlistRules,
-      boolean replaceExisting) {
-    writeAllowlistScope(scenarioId, simulationId, allowlistRules, replaceExisting);
   }
 
   /**
