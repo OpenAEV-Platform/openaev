@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public
-class V6_20260810100000000__Add_tags_capabilities_to_existing_roles_with_tenant_settings_capability
+class V6_20260817100000000__Add_tags_capabilities_to_existing_roles_with_tenant_settings_capability
     extends BaseJavaMigration {
 
   @Override
