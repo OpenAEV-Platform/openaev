@@ -2,7 +2,7 @@ import { Alert, AlertTitle } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
-import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
+import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import { fetchExercise } from '../../../../actions/Exercise';
 import { fetchScenarioFromSimulation } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
@@ -19,6 +19,7 @@ import useSimulationPermissions from '../../../../utils/permissions/useSimulatio
 import { AutonomousContext } from '../../autonomous/AutonomousContext';
 import AutonomousOverview from '../../autonomous/AutonomousOverview';
 import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
+import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
 import useAutonomousRunForSimulation from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
@@ -56,6 +57,35 @@ const IndexComponent: FunctionComponent<{
   const location = useLocation();
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
   const isAutonomous = !!autonomousRun;
+  // The AI cockpit polls the run's decision timeline in the always-open reasoning panel. Lift that
+  // stream here and share it with the overview outcome layer so the overview does NOT start a
+  // SECOND full-from-cursor-0 poll of the same endpoint while the run is active (the simulation-side
+  // double-poll fix, #7472 - mirrors the scenario cockpit).
+  const cockpitActive = isAutonomousRunActive(autonomousRun);
+  const [cockpitTimeline, setCockpitTimeline] = useState<AutonomousEvent[]>([]);
+  // Same identity-change rule as AutonomousReasoningPanel / the scenario cockpit: clear only on a
+  // real run / simulation switch. A transient payload that momentarily lost its simulation id on
+  // the SAME run must not blank the overview layer (it would receive sharedEvents=[] and not poll).
+  const cockpitStreamKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const runId = autonomousRun?.autonomous_run_id;
+    const simulationId = autonomousRun?.autonomous_run_simulation_id;
+    if (!runId) {
+      cockpitStreamKeyRef.current = null;
+      setCockpitTimeline([]);
+      return;
+    }
+    const nextKey = `${runId}::${simulationId ?? ''}`;
+    if (cockpitStreamKeyRef.current === nextKey) {
+      return;
+    }
+    const previousRunId = cockpitStreamKeyRef.current?.split('::')[0];
+    if (cockpitStreamKeyRef.current !== null && previousRunId === runId && !simulationId) {
+      return;
+    }
+    cockpitStreamKeyRef.current = nextKey;
+    setCockpitTimeline([]);
+  }, [autonomousRun?.autonomous_run_id, autonomousRun?.autonomous_run_simulation_id]);
   // Resizable reasoning-panel width, shared with the content padding so the two stay in lockstep.
   const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
   // Attack path only exists for chained simulations (workflow-backed), never
@@ -100,7 +130,7 @@ const IndexComponent: FunctionComponent<{
               <Suspense fallback={<Loader />}>
                 <Routes>
                   {/* Overview swaps to the AI cockpit for autonomous runs. */}
-                  <Route path="" element={isAutonomous ? <AutonomousOverview run={autonomousRun} /> : errorWrapper(Simulation)()} />
+                  <Route path="" element={isAutonomous ? <AutonomousOverview run={autonomousRun} sharedEvents={cockpitActive ? cockpitTimeline : undefined} /> : errorWrapper(Simulation)()} />
                   {/* Definition merged into the Injects authoring tab; redirect old links. */}
                   <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
                   <Route path="injects" element={errorWrapper(Injects)()} />
@@ -147,6 +177,7 @@ const IndexComponent: FunctionComponent<{
             <AutonomousReasoningPanel
               run={autonomousRun}
               onRunUpdate={onAutonomousRunUpdate}
+              onTimelineEvents={setCockpitTimeline}
               width={panelWidth}
               onWidthChange={setPanelWidth}
               readOnly
@@ -168,8 +199,15 @@ const Index = () => {
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   // Detect whether this simulation is an autonomous (AI-driven) run, so we can render the AI
-  // cockpit (reasoning panel + gated tabs) instead of the manual chaining editor.
-  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForSimulation(exerciseId);
+  // cockpit (reasoning panel + gated tabs) instead of the manual chaining editor. Forward the
+  // durable exercise_autonomous marker as a POSITIVE hint only: a marked simulation keeps the
+  // Loader up across a transient post-reload 404 (no manual-editor flash) and re-probes fast,
+  // while an unmarked one probes as before - `false` is deliberately NOT forwarded, because
+  // simulations provisioned before the marker existed carry false while still being autonomous.
+  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForSimulation(
+    exerciseId,
+    exercise?.exercise_autonomous === true ? true : undefined,
+  );
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchExercise(exerciseId)).finally(() => {

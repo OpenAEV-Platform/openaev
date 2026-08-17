@@ -203,6 +203,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.autonomous.AutonomousRunApi#consumeDirectives",
           "io.openaev.api.autonomous.AutonomousRunApi#appendAttackPathStep",
           "io.openaev.api.autonomous.AutonomousRunApi#updateAttackPathStep",
+          "io.openaev.api.autonomous.AutonomousRunApi#deleteAttackPathStep",
           "io.openaev.api.autonomous.AutonomousRunApi#attackPathState",
           "io.openaev.api.autonomous.AutonomousRunApi#evaluateAttackPath",
           "io.openaev.api.autonomous.AutonomousRunApi#promoteFindingToAsset",

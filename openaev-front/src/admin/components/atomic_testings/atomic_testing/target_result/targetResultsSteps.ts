@@ -4,7 +4,7 @@ export interface TimelineStep {
   key: string;
   /** Status-derived label (e.g. "Validation Failed") - used as a fallback when the expectation has no name. */
   label: string;
-  /** The expectation's own name (e.g. "Credentials submitted") - preferred over the status label in the timeline. */
+  /** The expectation's own name (e.g. "Credentials not submitted") - preferred over the status label in the timeline. */
   name?: string;
   /** Expectation type (PREVENTION, DETECTION, ...) - undefined for the attack start / end steps. */
   type?: string;

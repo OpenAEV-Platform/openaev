@@ -2830,18 +2830,19 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               </Alert>
             )}
             {!loading && !chainLoading && !forbidden && !error && !graphHasContent && (
-            // Inset the placeholder inside the (relative) graph Paper so its dashed frame sits
-            // within the Paper's own outline instead of doubling up against it.
+            // The graph Paper already draws the outline, so the placeholder fills it WITHOUT its own
+            // dashed frame (bordered={false}) - otherwise the two concentric borders read as a
+            // "double border" in the zero-state.
               <Box sx={{
                 position: 'absolute',
                 inset: 0,
-                p: 1.5,
               }}
               >
                 <EmptyPlaceholder
                   icon={<AccountTreeOutlined />}
                   title={emptyStateTitle}
                   message={emptyStateMessage}
+                  bordered={false}
                   action={scenarioHasNoSims && scenarioId && !hideLaunchCta
                     ? (
                         <Button

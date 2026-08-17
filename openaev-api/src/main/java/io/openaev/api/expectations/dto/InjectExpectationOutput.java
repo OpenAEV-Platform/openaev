@@ -49,6 +49,13 @@ public record InjectExpectationOutput(
     @Schema(description = "Whether this expectation is a group expectation")
         @JsonProperty("inject_expectation_group")
         boolean expectationGroup,
+    @Schema(
+            description =
+                "Display order of the expectation within its inject, ascending. Declared by the"
+                    + " injector contract (e.g. phishing orders its steps email -> link ->"
+                    + " submission); null means unordered and readers fall back to name / id.")
+        @JsonProperty("inject_expectation_order")
+        Integer order,
     @Schema(description = "Computed status of the inject expectation")
         @JsonProperty("inject_expectation_status")
         EXPECTATION_STATUS status,

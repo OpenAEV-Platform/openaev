@@ -357,10 +357,14 @@ const Index = () => {
   // 404). While the scenario is still loading we leave it undefined to probe as before.
   const isChained = !!scenario?.scenario_workflow_id;
   // undefined = still probing (scenario loading, or a chained scenario that may carry a run);
-  // false = known manual (a loaded time-based scenario), which skips the lookup and its 404.
+  // false = known manual (a loaded time-based scenario), which skips the lookup and its 404;
+  // true = declared autonomous (scenario_autonomous marker), so detection stays PENDING across a
+  // transient post-reload 404 instead of flashing this page's manual view, and re-probes fast.
   let knownAutonomous: boolean | undefined;
   if (scenario && !isChained) {
     knownAutonomous = false;
+  } else if (scenario?.scenario_autonomous === true) {
+    knownAutonomous = true;
   }
   const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun, clearRun: clearAutonomousRun } = useAutonomousRunForScenario(
     scenarioId,

@@ -291,7 +291,7 @@
         <dependency>
             <groupId>net.javacrumbs.json-unit</groupId>
             <artifactId>json-unit-assertj</artifactId>
-            <version>6.1.0</version>
+            <version>6.2.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
