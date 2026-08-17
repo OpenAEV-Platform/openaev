@@ -1,4 +1,4 @@
-import { Paper } from '@mui/material';
+import { Paper } from '@filigran/design-system';
 import { type CSSProperties, type FunctionComponent, memo, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import ReactGridLayout, { type Layout, type LayoutItem } from 'react-grid-layout';
 
@@ -191,12 +191,13 @@ const CustomDashboardReactLayout: FunctionComponent<{
     }
   };
 
+  // Le dégradé de lustre disparaît : la bibliothèque ne peint pas de dégradé,
+  // et l'arbitrage a accepté la perte. Le rayon part aussi — la surface porte
+  // désormais celui de la bibliothèque. Tout le reste est conservé.
   const paperStyle = {
     height: '100%',
     margin: 0,
-    borderRadius: 4,
     overflow: 'hidden',
-    backgroundImage: 'linear-gradient(165deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 45%)',
     transition: 'box-shadow 0.3s, border-color 0.3s',
   };
 
@@ -259,8 +260,8 @@ const CustomDashboardReactLayout: FunctionComponent<{
             <Paper
               key={widget.widget_id}
               data-grid={layout}
+              padding={0}
               style={paperStyle}
-              variant="outlined"
             >
               <LazyWidget>
                 <WidgetWrapper

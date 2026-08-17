@@ -1,4 +1,5 @@
-import { Box, Chip, List, ListItem, ListItemIcon, ListItemText, Paper, Typography } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Box, Chip, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -34,10 +35,11 @@ const LessonsTemplateCategoryCard: FunctionComponent<Props> = ({
   const hairline = alpha(theme.palette.text.primary, 0.05);
   return (
     <Paper
-      variant="outlined"
+      padding={0}
       data-testid="lessons-category-card"
-      sx={{
-        borderRadius: 1,
+      style={{
+        // `overflow: hidden` est conservé volontairement : sans lui, le bandeau
+        // dégradé du premier enfant déborde du coin arrondi de la surface.
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
