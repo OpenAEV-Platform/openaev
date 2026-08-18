@@ -78,11 +78,7 @@ export const InformationGrid = ({ title, action, children }: {
   // column once `title` is set.
   <div style={{
     display: 'grid',
-    // `minmax(0, 1fr)` and not just `1fr`: an implicit grid column is `auto`,
-    // i.e. sized to max-content, so the library's wrapper grew past the panel
-    // (measured 354px inside a 340px track) and the title never truncated —
-    // it overflowed. The explicit 0 minimum is what lets `min-w-0 truncate`
-    // do its job inside.
+    // `minmax(0, 1fr)`, not `1fr` — see Section above.
     gridTemplateColumns: 'minmax(0, 1fr)',
     gridTemplateRows: '1fr',
     height: '100%',
@@ -166,11 +162,7 @@ export const SectionBlock = ({ title, action, children, disablePadding, centerCo
   // column once `title` is set.
   <div style={{
     display: 'grid',
-    // `minmax(0, 1fr)` and not just `1fr`: an implicit grid column is `auto`,
-    // i.e. sized to max-content, so the library's wrapper grew past the panel
-    // (measured 354px inside a 340px track) and the title never truncated —
-    // it overflowed. The explicit 0 minimum is what lets `min-w-0 truncate`
-    // do its job inside.
+    // `minmax(0, 1fr)`, not `1fr` — see Section above.
     gridTemplateColumns: 'minmax(0, 1fr)',
     gridTemplateRows: '1fr',
     height: '100%',

@@ -28,8 +28,8 @@ const IconBar: FunctionComponent<Props> = ({ elements }) => {
       padding={8}
       // The scrollbar rules are pseudo-elements: they cannot live in `style`,
       // so they move to a class. `className` reaches the surface, and no DOM
-      // level is added. The tinted colour the census read as the surface's own
-      // background belongs to the scrollbar THUMB, not to the surface.
+      // level is added. The tinted colour here is the scrollbar THUMB's, not
+      // the surface's.
       className={classes.barre}
       style={{
         marginBottom: 20,

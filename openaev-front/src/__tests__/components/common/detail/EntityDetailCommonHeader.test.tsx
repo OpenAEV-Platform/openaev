@@ -79,8 +79,7 @@ describe('EntityDetailCommon — titled wrappers use the library header', () => 
     it('keeps flex on the surface and stretches through a grid row', () => {
       // The library's wrapper cannot be styled by a consumer: `style` reaches
       // the SURFACE. The wrapper is stretched by the product's own container
-      // being a one-row grid — measured 58px vs 130px without it, see
-      // PAPER-GAP-INVENTORY §13.2.
+      // being a one-row grid — see PAPER-GAP-INVENTORY §13.2.
       const { container } = render(renderWrapper('Panel title'));
       // jsdom normalises the shorthand: `flex: 1` reads back as `1 1 0%`.
       expect(surfaceOf(container).style.flex).toBe('1 1 0%');
@@ -104,9 +103,7 @@ describe('EntityDetailCommon — titled wrappers use the library header', () => 
     // Pinned here because these three wrappers always pass `title`, so the
     // header is unconditional for them — a call site whose title resolves to
     // an empty string would show a blank band, not a tight panel.
-    // No such call site exists today: all `?? ''` titles in the product belong
-    // to Drawer/Tooltip, never to these wrappers. This test is the tripwire if
-    // that changes.
+    // This test is the tripwire if such a call site appears.
     const { container } = render(<SectionBlock title="">{BODY}</SectionBlock>);
     const header = surfaceOf(container).previousElementSibling as HTMLElement;
     expect(header).not.toBeNull();

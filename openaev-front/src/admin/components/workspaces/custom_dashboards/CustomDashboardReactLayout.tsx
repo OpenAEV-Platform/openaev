@@ -191,9 +191,6 @@ const CustomDashboardReactLayout: FunctionComponent<{
     }
   };
 
-  // The sheen gradient goes: the library paints no gradient, and the loss was
-  // arbitrated. The radius goes too — the surface now carries the library's.
-  // Everything else is kept.
   const paperStyle = {
     height: '100%',
     margin: 0,

@@ -24,9 +24,7 @@ import GettingStartedSectionHeader from './GettingStartedSectionHeader';
 // header band, clamped title, expandable description, platforms / tags meta
 // row and the launch CTA.
 // The hover lives in a class rather than in `style`: a pseudo-selector cannot
-// be written inline, and a class adds no DOM level. The shadow is dropped — the
-// library draws none — while the lift and the tinted border stay, so the
-// affordance survives.
+// be written inline, and a class adds no DOM level.
 const useStyles = makeStyles()(theme => ({
   carte: {
     'transition': 'transform 150ms ease, border-color 150ms ease',

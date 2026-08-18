@@ -583,8 +583,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
           "(plan mode)" marker, so the dedicated banner is dropped to save vertical space. */}
       <Paper
         padding={16}
-        // The vertical mission gradient is dropped (arbitrated); the accent
-        // border colour stays, it is what marks plan mode.
+        // The accent border colour is what marks plan mode.
         style={{ borderColor: alpha(missionAccent, 0.4) }}
       >
         <Stack sx={{

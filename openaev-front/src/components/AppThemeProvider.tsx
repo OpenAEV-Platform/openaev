@@ -85,12 +85,10 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
   // `--border-elevation-subtle-soft` (the alias) is re-declared inside every
   // `.layer-N` block, so setting it here does nothing; the per-layer BASE
   // `--border-elevation-subtle-soft-layer-1` is the one that lands, and the
-  // library applies its own dilution on top — 15% since library #125 (it was
-  // 40% before; the diluted token was renamed with it, which is precisely why
-  // this override targets the BASE and not the diluted variant, and why the
-  // rename went through without touching this file). Sandy's arbitration for
-  // phase 1: on a customer theme the border takes the customer's card colour,
-  // and ONLY then
+  // library applies its own dilution on top. Targeting the BASE and not the
+  // diluted variant is what makes this survive a rename of the diluted token.
+  // Arbitrated for phase 1: on a customer theme the border takes the
+  // customer's card colour, and ONLY then
   // — with no override, both properties are removed and the library's own
   // tokens stay in charge, so the default themes are untouched.
   useEffect(() => {
