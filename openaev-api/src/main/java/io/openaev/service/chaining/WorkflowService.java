@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,9 @@ public class WorkflowService {
 
   static final String DUPLICATE_SCOPE_VARIABLE_MESSAGE =
       "A variable with this key and type already exists. Please change the name or the type.";
+
+  /** Unique constraint on (key, type, workflow) */
+  static final String UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW = "uk_scope_variable_key_type_workflow";
 
   private static final Gson GSON = new Gson();
 
@@ -198,7 +203,7 @@ public class WorkflowService {
     if (change.changed()) {
       boolean workflowExecutedNotEmpty = !workflow.getWorkflowsExecuted().isEmpty();
       workflow.setEdited(workflowExecutedNotEmpty);
-      workflowRepository.save(workflow);
+      saveConfiguration(workflow);
     }
     if (change.scopeRulesChanged()) {
       realignTemplateActionTargets(workflow);
@@ -619,7 +624,6 @@ public class WorkflowService {
       existing.clear();
       return true;
     }
-    assertNoDuplicateScopeVariable(variableInputs);
 
     Set<String> inputIds =
         variableInputs.stream()
@@ -648,23 +652,27 @@ public class WorkflowService {
   }
 
   /**
-   * Rejects a configuration payload that would breach the per-workflow uniqueness of a scope
-   * variable (key + type). Without this guard the {@code uk_scope_variable_key_type_workflow}
-   * database constraint is what fails, and it surfaces to the client as a raw integrity violation
-   * naming the constraint, which is neither actionable nor safe to display.
+   * Persists the configuration and translates the scope-variable uniqueness breach reported by the
+   * database into an actionable business error.
    *
-   * <p>The comparison deliberately mirrors the database constraint exactly (no normalisation), so
-   * this never rejects a payload the database would have accepted.
+   * <p>The write is flushed explicitly: with the default deferred flush the {@code
+   * uk_scope_variable_key_type_workflow} violation would only be raised at commit, outside this
+   * method, and would reach the client as a raw integrity violation naming the constraint - which
+   * is neither actionable nor safe to display.
    *
-   * @param variableInputs the scope variables submitted for the workflow
-   * @throws AlreadyExistingException if two variables share the same key and type
+   * @param workflow the workflow carrying the new configuration
+   * @throws AlreadyExistingException if two scope variables share the same key and type
    */
-  private void assertNoDuplicateScopeVariable(List<ScopeVariableInput> variableInputs) {
-    Set<String> seenKeyTypePairs = new HashSet<>();
-    for (ScopeVariableInput input : variableInputs) {
-      if (!seenKeyTypePairs.add(input.getKey() + "|" + input.getType())) {
+  private void saveConfiguration(Workflow workflow) {
+    try {
+      workflowRepository.save(workflow);
+      workflowRepository.flush();
+    } catch (DataIntegrityViolationException e) {
+      if (e.getCause() instanceof ConstraintViolationException violation
+          && UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW.equalsIgnoreCase(violation.getConstraintName())) {
         throw new AlreadyExistingException(DUPLICATE_SCOPE_VARIABLE_MESSAGE);
       }
+      throw e;
     }
   }
 
