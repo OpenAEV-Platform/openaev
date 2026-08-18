@@ -72,12 +72,14 @@ class CredentialApiTest extends IntegrationTest {
               .getContentAsString();
 
       // Assert
-      assertThatJson(response).isArray().size().isEqualTo(2);
+      assertThatJson(response).isArray().size().isEqualTo(4);
       List<String> authMethods = JsonPath.read(response, "$[*].credential_auth_method");
       assertThat(authMethods)
           .containsExactlyInAnyOrder(
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD.name(),
-              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH.name());
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH.name(),
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY.name(),
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE.name());
     }
   }
 
