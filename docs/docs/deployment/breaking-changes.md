@@ -17,6 +17,7 @@ implemented.
 | [OpenAEV CSRF (Cross-Site Request Forgery)](#openaev-csrf)     | -             | 2.3.4      |
 | [URL access token enforcement](#url-access-token-enforcement) | -             | 2.260622.0 |
 | [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
+| [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
 
 ## OpenAEV 2.2.0
 
@@ -115,3 +116,11 @@ For more details, see [this migration guide](breaking-changes/2.260622.0-url-acc
 Starting with **OpenAEV \[MigrationVersion\]**, the `predefinedExpectations` list in `injector_contract_content` has been removed. All expectations are now under a single `availableExpectations` list, each with an `expectation_is_predefined` flag.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-injector-contract-expectation-format.md)
+
+<a id="tenant-users-groups-and-roles-capabilities"></a>
+
+#### Tenant users, groups and roles capabilities
+
+Starting with **OpenAEV \[MigrationVersion\]**, managing a tenant's users, groups and roles is governed by its own *Access / Manage / Delete tenant users, groups and roles* capabilities, instead of the *tenant settings* ones which also cover collectors, injectors and tag rules. Existing roles are migrated automatically and keep the access they had.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md)

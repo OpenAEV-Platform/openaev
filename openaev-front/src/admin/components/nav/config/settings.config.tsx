@@ -21,6 +21,10 @@ export const SETTINGS_ACCESS_CHECKS: {
   },
   {
     action: ACTIONS.ACCESS,
+    subject: SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES,
+  },
+  {
+    action: ACTIONS.ACCESS,
     subject: SUBJECTS.PLATFORM_SETTINGS,
   },
   {
@@ -52,6 +56,7 @@ export const canAccessTenantSettings = (ability: AppAbility): boolean => {
 
 const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
   const hasTenantSettingsAccess = canAccessTenantSettings(ability);
+  const canAccessTenantUsers = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const canAccessPlatformSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
   const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
@@ -67,7 +72,7 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
     {
       link: '/admin/settings/security',
       label: 'Security',
-      userRight: hasTenantSettingsAccess || canAccessPlatformUGR || canAccessTenants,
+      userRight: hasTenantSettingsAccess || canAccessTenantUsers || canAccessPlatformUGR || canAccessTenants,
     },
     {
       // Section root: redirects to asset_rules; Notifiers and Lessons learned
