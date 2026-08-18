@@ -1,0 +1,34 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The CIS Control name. For example: <i>4.8 Uninstall or Disable Unnecessary Services on Enterprise Assets and Software.</i>",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "version" : {
+      "type" : "string_t",
+      "description" : "The CIS Control version. For example: <i>v8</i>.",
+      "requirement" : "recommended",
+      "caption" : "Version",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The CIS Control description. For example: <i>Uninstall or disable unnecessary services on enterprise assets and software, such as an unused file sharing service, web application module, or service function.</i>",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    }
+  },
+  "name" : "cis_control",
+  "description" : "The CIS Control (aka Critical Security Control) object describes a prioritized set of actions to protect your organization and data from cyber-attack vectors. The CIS Controls are defined by the Center for Internet Security.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "CIS Controls",
+    "url" : "https://www.cisecurity.org/controls"
+  } ],
+  "caption" : "CIS Control",
+  "_links" : [ ]
+}

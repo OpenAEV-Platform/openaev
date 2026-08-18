@@ -1,0 +1,91 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the aircraft, such as the such as the flight name or callsign.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "speed" : {
+      "type" : "string_t",
+      "description" : "Ground speed of flight. This value is provided in meters per second with a minimum resolution of 0.25 m/s. Special Values: <code>Invalid</code>, <code>No Value</code>, or <code>Unknown: 255 m/s</code>.",
+      "requirement" : "optional",
+      "caption" : "Speed",
+      "type_name" : "String"
+    },
+    "location" : {
+      "type" : "object_t",
+      "description" : "The detailed geographical location usually associated with an IP address.",
+      "requirement" : "recommended",
+      "caption" : "Geo Location",
+      "object_type" : "location",
+      "object_name" : "Geo Location"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The primary identification identifier for an aircraft, such as the 24-bit International Civil Aviation Organization (ICAO) identifier of the aircraft, as 6 hex digits.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "model" : {
+      "type" : "string_t",
+      "description" : "The model name of the aircraft or unmanned system.",
+      "requirement" : "optional",
+      "caption" : "Model",
+      "type_name" : "String"
+    },
+    "serial_number" : {
+      "type" : "string_t",
+      "description" : "The serial number of the aircraft.",
+      "requirement" : "optional",
+      "caption" : "Serial Number",
+      "type_name" : "String",
+      "observable" : 37
+    },
+    "speed_accuracy" : {
+      "type" : "string_t",
+      "description" : "Provides quality/containment on horizontal ground speed. Measured in meters/second.",
+      "requirement" : "optional",
+      "caption" : "Speed Accuracy",
+      "type_name" : "String"
+    },
+    "track_direction" : {
+      "type" : "string_t",
+      "description" : "Direction of flight expressed as a “True North-based” ground track angle. This value is provided in clockwise degrees with a minimum resolution of 1 degree. If aircraft is not moving horizontally, use the “Unknown” value",
+      "requirement" : "optional",
+      "caption" : "Track Direction",
+      "type_name" : "String"
+    },
+    "uid_alt" : {
+      "type" : "string_t",
+      "description" : "A secondary identification identifier for an aircraft, such as the 4-digit squawk (octal representation).",
+      "requirement" : "optional",
+      "caption" : "Alternate ID",
+      "type_name" : "String"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    },
+    "vertical_speed" : {
+      "type" : "string_t",
+      "description" : "Vertical speed upward relative to the WGS-84 datum, measured in meters per second. Special Values: <code>Invalid</code>, <code>No Value</code>, or <code>Unknown: 63 m/s</code>.",
+      "requirement" : "optional",
+      "caption" : "Vertical Speed",
+      "type_name" : "String"
+    }
+  },
+  "name" : "aircraft",
+  "description" : "The Aircraft object represents any aircraft or otherwise airborne asset such as an unmanned system, airplane, balloon, spacecraft, or otherwise. The Aircraft object is intended to normalized data captured or otherwise logged from active radar, passive radar, multi-spectral systems, or the Automatic Dependant Broadcast - Surveillance (ADS-B), and/or Mode S systems.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "serial_number", "uid", "uid_alt" ]
+  },
+  "caption" : "Aircraft",
+  "_links" : [ ]
+}

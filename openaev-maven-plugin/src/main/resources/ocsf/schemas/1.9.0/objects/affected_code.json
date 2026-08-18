@@ -1,0 +1,70 @@
+{
+  "attributes" : {
+    "owner" : {
+      "type" : "object_t",
+      "description" : "Details about the user that owns the affected file.",
+      "requirement" : "optional",
+      "caption" : "Owner",
+      "object_type" : "user",
+      "object_name" : "User"
+    },
+    "file" : {
+      "type" : "object_t",
+      "description" : "Details about the file that contains the affected code block.",
+      "requirement" : "required",
+      "caption" : "File",
+      "object_type" : "file",
+      "object_name" : "File"
+    },
+    "end_line" : {
+      "type" : "integer_t",
+      "description" : "The line number of the last line of code block identified as vulnerable.",
+      "requirement" : "recommended",
+      "caption" : "End Line",
+      "type_name" : "Integer"
+    },
+    "end_column" : {
+      "type" : "integer_t",
+      "description" : "The column number of the last part of the assessed code identified as vulnerable.",
+      "requirement" : "recommended",
+      "caption" : "End Column",
+      "type_name" : "Integer"
+    },
+    "remediation" : {
+      "type" : "object_t",
+      "description" : "Describes the recommended remediation steps to address identified issue(s).",
+      "requirement" : "optional",
+      "caption" : "Remediation Guidance",
+      "object_type" : "remediation",
+      "object_name" : "Remediation"
+    },
+    "rule" : {
+      "type" : "object_t",
+      "description" : "Details about the specific rule, e.g., those defined as part of a larger <code>policy</code>, that triggered the finding.",
+      "requirement" : "recommended",
+      "caption" : "Related Rule",
+      "object_type" : "rule",
+      "object_name" : "Rule"
+    },
+    "start_column" : {
+      "type" : "integer_t",
+      "description" : "The column number of the first part of the assessed code identified as vulnerable.",
+      "requirement" : "recommended",
+      "caption" : "Start Column",
+      "type_name" : "Integer"
+    },
+    "start_line" : {
+      "type" : "integer_t",
+      "description" : "The line number of the first line of code block identified as vulnerable.",
+      "requirement" : "recommended",
+      "caption" : "Start Line",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "affected_code",
+  "description" : "The Affected Code object describes details about a code block identified as vulnerable.",
+  "extends" : "object",
+  "caption" : "Affected Code",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}

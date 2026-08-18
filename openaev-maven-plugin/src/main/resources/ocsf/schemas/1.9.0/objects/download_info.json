@@ -1,0 +1,87 @@
+{
+  "attributes" : {
+    "type" : {
+      "type" : "string_t",
+      "description" : "The download type, normalized to the caption of the <code>type_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The file was downloaded from a trusted server.",
+          "caption" : "Trusted"
+        },
+        "0" : {
+          "description" : "The file's download type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The file was downloaded from a server running on device.",
+          "caption" : "Local Machine"
+        },
+        "2" : {
+          "description" : "The file was downloaded from an intranet server.",
+          "caption" : "Intranet"
+        },
+        "99" : {
+          "description" : "The file's download type is not mapped. See the <code>type</code> attribute, which contains an event source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "The file was downloaded from an internet server.",
+          "caption" : "Internet"
+        },
+        "5" : {
+          "description" : "The file was downloaded from an untrusted server.",
+          "caption" : "Untrusted"
+        }
+      },
+      "description" : "The download type ID. The values correspond to the five permitted values of the <code>ZoneId</code> property in the Mark of the Web metadata of a downloaded file on Windows. Note however that each numeric value is 1 greater than its <code>ZoneId</code> equivalent.",
+      "requirement" : "recommended",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "referrer" : {
+      "type" : "string_t",
+      "description" : "The URL that referred to <code>src_url</code>. This is typically the URL of a web page containing a download link.",
+      "requirement" : "optional",
+      "caption" : "HTTP Referrer",
+      "type_name" : "String"
+    },
+    "src_endpoint" : {
+      "type" : "object_t",
+      "description" : "Information about the network endpoint from which the file was downloaded.",
+      "requirement" : "optional",
+      "caption" : "Source Endpoint",
+      "object_type" : "network_endpoint",
+      "object_name" : "Network Endpoint"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "The URL from which the file was downloaded.",
+      "requirement" : "recommended",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    }
+  },
+  "name" : "download_info",
+  "description" : "The Download Info object contains metadata pertaining to a downloaded file.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "src_endpoint", "src_url", "type_id" ]
+  },
+  "references" : [ {
+    "description" : "File download metadata on Windows",
+    "url" : "https://en.wikipedia.org/wiki/Mark_of_the_Web"
+  }, {
+    "description" : "File download metadata on macOS",
+    "url" : "https://developer.apple.com/documentation/coreservices/kmditemwherefroms?language=objc"
+  } ],
+  "caption" : "Download Info",
+  "profiles" : [ "container" ],
+  "_links" : [ ]
+}

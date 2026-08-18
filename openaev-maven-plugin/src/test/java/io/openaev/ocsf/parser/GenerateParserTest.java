@@ -52,7 +52,7 @@ public class GenerateParserTest {
     PluginContext ctx = new PluginContext(resources, Paths.get(""));
 
     SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
-    schema.refreshAllSources();
+    //schema.refreshAllSources();
 
     JsonNode objects = schema.getContents(SchemaDimension.OBJECTS.name());
     JsonNode reg_key = schema.getContents("reg_key");
