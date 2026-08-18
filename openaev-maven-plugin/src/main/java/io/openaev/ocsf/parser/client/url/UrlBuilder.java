@@ -1,5 +1,6 @@
 package io.openaev.ocsf.parser.client.url;
 
+import io.openaev.ocsf.parser.schema.Version;
 import java.text.MessageFormat;
 import java.util.HashSet;
 import java.util.Set;
@@ -11,6 +12,7 @@ public class UrlBuilder {
   private OcsfSchemaEndpoints endpoint;
   private String endpointArgument;
   private final Set<OcsfSchemaExtensions> extensions = new HashSet<>();
+  private Version version;
 
   private UrlBuilder() {}
 
@@ -18,8 +20,8 @@ public class UrlBuilder {
     return new UrlBuilder();
   }
 
-  public UrlBuilder withEndpoint(OcsfSchemaEndpoints endpoint) {
-    this.endpoint = endpoint;
+  public UrlBuilder withVersion(Version version) {
+    this.version = version;
     return this;
   }
 
@@ -27,10 +29,6 @@ public class UrlBuilder {
     this.endpoint = endpoint;
     this.endpointArgument = argument;
     return this;
-  }
-
-  public UrlBuilder withExtension(OcsfSchemaExtensions extension) {
-    return this.withExtensions(Set.of(extension));
   }
 
   public UrlBuilder withExtensions(Set<OcsfSchemaExtensions> extensions) {
@@ -41,6 +39,9 @@ public class UrlBuilder {
   public String build() {
     StringBuilder sb = new StringBuilder("https://");
     sb.append(OCSF_SCHEMA_HOSTNAME);
+    if (this.version != null) {
+      sb.append("/").append(this.version.getVersionNumber().getValue());
+    }
     sb.append(MessageFormat.format(this.endpoint.getValue(), endpointArgument));
     if (!this.extensions.isEmpty()) {
       sb.append("?extensions=");

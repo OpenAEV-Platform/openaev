@@ -27,7 +27,6 @@ public abstract class Resource {
         ctx.getPluginResourcesDirectory()
             .resolve(baseResourcePath)
             .resolve(version.getVersionNumber().getValue());
-    ensureDirectoryExists(getFullDirectoryPath());
   }
 
   protected String getResourceSubPath() {
@@ -47,7 +46,12 @@ public abstract class Resource {
     Files.createDirectories(path);
   }
 
+  public boolean fileExists() {
+    return Files.exists(getFullFilepath());
+  }
+
   public void write(JsonNode node) throws IOException {
+    ensureDirectoryExists(getFullDirectoryPath());
     try (FileOutputStream fs = new FileOutputStream(getFullFilepath().toString())) {
       fs.write(node.toPrettyString().getBytes(StandardCharsets.UTF_8));
     }

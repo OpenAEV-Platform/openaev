@@ -6,10 +6,13 @@ import java.io.IOException;
 
 public class SingleObjectResource extends Resource {
   private final String name;
+  private final String extension;
 
-  public SingleObjectResource(Version version, PluginContext ctx, String name) throws IOException {
+  public SingleObjectResource(Version version, PluginContext ctx, String name, String extension)
+      throws IOException {
     super(version, ctx);
     this.name = name;
+    this.extension = extension;
   }
 
   @Override
@@ -19,6 +22,10 @@ public class SingleObjectResource extends Resource {
 
   @Override
   protected String getResourceSubPath() {
-    return "objects";
+    StringBuilder sb = new StringBuilder("objects");
+    if (extension != null && !extension.isBlank()) {
+      sb.append("/").append(extension);
+    }
+    return sb.toString();
   }
 }

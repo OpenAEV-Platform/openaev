@@ -11,7 +11,7 @@ public class ClassesResource extends ReferentialResource {
   }
 
   @Override
-  public List<String> getSubresourceKeys() {
+  public List<ResourceKey> getSubresourceKeys() {
     return List.of();
   }
 

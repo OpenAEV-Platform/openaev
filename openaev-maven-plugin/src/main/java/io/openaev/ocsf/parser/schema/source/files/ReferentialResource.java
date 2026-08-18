@@ -10,5 +10,5 @@ public abstract class ReferentialResource extends Resource {
     super(version, ctx);
   }
 
-  public abstract List<String> getSubresourceKeys() throws IOException;
+  public abstract List<ResourceKey> getSubresourceKeys() throws IOException;
 }

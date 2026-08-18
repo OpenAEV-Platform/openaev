@@ -6,9 +6,10 @@ public enum OcsfSchemaEndpoints {
   DATATYPES("/api/data_types"),
   DICTIONARY("/api/dictionary"),
   OBJECTS_INVENTORY("/api/objects"),
-  OBJECT_SCHEMA("/schema/objects/{0}"),
+  OBJECT_SCHEMA("/api/objects/{0}"),
   CLASSES_INVENTORY("/api/classes"),
-  CLASS_SCHEMA("/schema/classes/{0}");
+  CLASS_SCHEMA("/api/classes/{0}"),
+  VERSIONS("/api/versions");
 
   @Getter private final String value;
 

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.ocsf.parser.client.url.OcsfSchemaEndpoints;
 import io.openaev.ocsf.parser.client.url.OcsfSchemaExtensions;
 import io.openaev.ocsf.parser.client.url.UrlBuilder;
+import io.openaev.ocsf.parser.schema.Version;
 import java.io.IOException;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -17,9 +18,14 @@ import org.apache.hc.core5.http.HttpEntity;
 @Slf4j
 public class OcsfApiClient {
   private final ObjectMapper objectMapper = new ObjectMapper();
+  private final Version version;
 
   private CloseableHttpClient getClient() {
     return HttpClients.createDefault();
+  }
+
+  public OcsfApiClient(Version version) {
+    this.version = version;
   }
 
   public JsonNode fetch(OcsfSchemaEndpoints endpoint) throws IOException {
@@ -29,6 +35,7 @@ public class OcsfApiClient {
   public JsonNode fetch(OcsfSchemaEndpoints endpoint, String endpointArgument) throws IOException {
     return this.get(
         UrlBuilder.builder()
+            .withVersion(this.version)
             .withEndpoint(endpoint, endpointArgument)
             .withExtensions(
                 Set.of(

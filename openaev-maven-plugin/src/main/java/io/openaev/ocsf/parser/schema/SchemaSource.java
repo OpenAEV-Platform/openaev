@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.ocsf.parser.PluginContext;
 import io.openaev.ocsf.parser.schema.source.ReferentialSource;
 import io.openaev.ocsf.parser.schema.source.Source;
+import io.openaev.ocsf.parser.schema.source.files.ResourceKey;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,10 +18,11 @@ public class SchemaSource {
     this.version = version;
     this.pluginContext = pluginContext;
 
-    initialiseSourcesFromCache(version, pluginContext);
+    initialiseReferentialsFromCache(version, pluginContext);
   }
 
-  private void initialiseSourcesFromCache(Version version, PluginContext ctx) throws IOException {
+  private void initialiseReferentialsFromCache(Version version, PluginContext ctx)
+      throws IOException {
     // static sources; always initialised
     sources.putAll(
         Map.of(
@@ -34,14 +36,18 @@ public class SchemaSource {
             new ReferentialSource(version, SchemaDimension.DATATYPES, ctx)));
 
     // found locally cached files for single object, single class
-    for (String key :
+    for (ResourceKey key :
         ((ReferentialSource) this.getSource(SchemaDimension.OBJECTS.name())).getSubsourceKeys()) {
-      sources.put(key, new Source(version, SchemaDimension.SINGLE_OBJECT, ctx, key));
+      sources.put(
+          key.key(),
+          new Source(version, SchemaDimension.SINGLE_OBJECT, ctx, key.key(), key.extension()));
     }
 
-    for (String key :
+    for (ResourceKey key :
         ((ReferentialSource) this.getSource(SchemaDimension.CLASSES.name())).getSubsourceKeys()) {
-      sources.put(key, new Source(version, SchemaDimension.SINGLE_CLASS, ctx, key));
+      sources.put(
+          key.key(),
+          new Source(version, SchemaDimension.SINGLE_CLASS, ctx, key.key(), key.extension()));
     }
   }
 
@@ -50,7 +56,11 @@ public class SchemaSource {
   }
 
   public Source getSource(String key) {
-    Source src = this.sources.getOrDefault(key, null);
+    return this.getSource(key, this.sources);
+  }
+
+  private <T extends Source> Source getSource(String key, Map<String, T> sources) {
+    Source src = sources.getOrDefault(key, null);
     if (src == null) {
       throw new IllegalStateException("Missing initialised source for key %s".formatted(key));
     }

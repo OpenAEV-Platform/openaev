@@ -34,7 +34,7 @@ public class GenerateParserTest {
     Path resources = Paths.get(getClass().getResource("").getPath());
     PluginContext ctx = new PluginContext(resources, Paths.get(""));
 
-    SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_8_0, ctx);
+    SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
     schema.refreshAllSources();
 
     DatatypeGenerator gen = new DatatypeGenerator();
@@ -51,10 +51,11 @@ public class GenerateParserTest {
     Path resources = Paths.get(getClass().getResource("").getPath());
     PluginContext ctx = new PluginContext(resources, Paths.get(""));
 
-    SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_8_0, ctx);
+    SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
     schema.refreshAllSources();
 
     JsonNode objects = schema.getContents(SchemaDimension.OBJECTS.name());
+    JsonNode reg_key = schema.getContents("reg_key");
     ((ReferentialSource) schema.getSource("OBJECTS")).getSubsourceKeys();
   }
 

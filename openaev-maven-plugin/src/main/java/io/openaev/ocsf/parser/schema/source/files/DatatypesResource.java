@@ -5,7 +5,6 @@ import io.openaev.ocsf.parser.PluginContext;
 import io.openaev.ocsf.parser.schema.Version;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 public class DatatypesResource extends ReferentialResource {
   public DatatypesResource(Version version, PluginContext ctx) throws IOException {
@@ -13,10 +12,10 @@ public class DatatypesResource extends ReferentialResource {
   }
 
   @Override
-  public List<String> getSubresourceKeys() throws IOException {
+  public List<ResourceKey> getSubresourceKeys() throws IOException {
     JsonNode contents = read();
 
-    return contents.propertyStream().map(Map.Entry::getKey).toList();
+    return contents.propertyStream().map(entry -> new ResourceKey(entry.getKey(), null)).toList();
   }
 
   @Override
