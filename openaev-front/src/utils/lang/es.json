@@ -83,6 +83,7 @@
   "A prerequisite check failed before the main command could run. Review prerequisite dependencies and ensure they are met on the target.": "Una verificación de requisito previo falló antes de ejecutar el comando principal. Revise las dependencias y asegúrese de que se cumplan en el objetivo.",
   "A simulation will be launched based on this scenario and will start immediately. Are you sure you want to proceed?": "Se lanzará una simulación basada en este escenario y comenzará inmediatamente. ¿Está seguro de que desea continuar?",
   "A valid http(s) URL is required": "Se requiere una URL http(s) valida",
+  "A variable with this key and type already exists. Please change the name or the type.": "Ya existe una variable con esta clave y este tipo. Cambia el nombre o el tipo.",
   "Aa": "Aa",
   "ABSOLUTE_TIME_WITHOUT_START_DATE": "Su importación contiene inyecciones activadas sólo con la hora del día (por ejemplo: 9:30) pero no se ha especificado una fecha de lanzamiento para este escenario. Por favor, especifique una fecha de lanzamiento para este escenario.",
   "Abused a server-side request forgery to read the metadata endpoint and exfiltrate cloud keys.": "Se abuso de una falsificacion de solicitud del lado del servidor para leer el endpoint de metadatos y exfiltrar claves de la nube.",

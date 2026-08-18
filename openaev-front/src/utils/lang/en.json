@@ -83,6 +83,7 @@
   "A prerequisite check failed before the main command could run. Review prerequisite dependencies and ensure they are met on the target.": "A prerequisite check failed before the main command could run. Review prerequisite dependencies and ensure they are met on the target.",
   "A simulation will be launched based on this scenario and will start immediately. Are you sure you want to proceed?": "A simulation will be launched based on this scenario and will start immediately. Are you sure you want to proceed?",
   "A valid http(s) URL is required": "A valid http(s) URL is required",
+  "A variable with this key and type already exists. Please change the name or the type.": "A variable with this key and type already exists. Please change the name or the type.",
   "Aa": "Aa",
   "ABSOLUTE_TIME_WITHOUT_START_DATE": "Your import contains injects triggered only with the time of the day (e.g.: 9:30) but there is no launch date specified for this scenario. Please specify a launch date for this scenario.",
   "Abused a server-side request forgery to read the metadata endpoint and exfiltrate cloud keys.": "Abused a server-side request forgery to read the metadata endpoint and exfiltrate cloud keys.",
