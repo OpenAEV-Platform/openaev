@@ -25,8 +25,8 @@ const THEME_LIGHT_DEFAULT_PRIMARY = FDS.colors.light['--color-filigran-brand-pri
 const THEME_LIGHT_DEFAULT_SECONDARY = EE_COLOR;
 const THEME_LIGHT_DEFAULT_ACCENT = FDS.colors.light['--bg-elevation-default-layer-3'];
 const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--bg-elevation-default-layer-1'];
-// NAV intentionally left as a raw literal — see TOKEN-MAPPING.md "7th item" flag (Sandy hasn't signed
-// off on this specific, visibly-notable white -> #f2f2f3 shift yet).
+// NAV intentionally left as a raw literal — see TOKEN-MAPPING.md "7th item"
+// flag: this specific, visibly-notable white -> #f2f2f3 shift is not signed off.
 const THEME_LIGHT_DEFAULT_NAV = '#ffffff';
 const THEME_LIGHT_DEFAULT_TEXT = '#18191B';
 export const THEME_LIGHT_DIALOG_BACKGROUND = '#FFFFFF';

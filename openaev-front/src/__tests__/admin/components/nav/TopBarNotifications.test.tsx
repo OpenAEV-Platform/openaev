@@ -47,7 +47,7 @@ describe('TopBarNotifications unread marker', () => {
   });
 
   it('announces the count to assistive technology, not merely into the DOM', async () => {
-    // Review #7305 (Sandy): the previous version of this test asserted
+    // Review #7305: the previous version of this test asserted
     // `document.body.textContent`, which passed while the badge sat inside the
     // icon slot's `aria-hidden` subtree — announced to nobody. Only the COMPUTED
     // description can tell those two apart, so that is what is asserted here.
