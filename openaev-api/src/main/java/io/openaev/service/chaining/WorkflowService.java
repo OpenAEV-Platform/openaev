@@ -18,6 +18,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -32,6 +33,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +46,12 @@ import org.springframework.util.CollectionUtils;
 public class WorkflowService {
 
   public static final long DEFAULT_TIMEOUT_SECONDS = 3600L;
+
+  static final String DUPLICATE_SCOPE_VARIABLE_MESSAGE =
+      "A variable with this key and type already exists. Please change the name or the type.";
+
+  /** Unique constraint on (key, type, workflow) */
+  static final String UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW = "uk_scope_variable_key_type_workflow";
 
   private static final Gson GSON = new Gson();
 
@@ -194,7 +203,7 @@ public class WorkflowService {
     if (change.changed()) {
       boolean workflowExecutedNotEmpty = !workflow.getWorkflowsExecuted().isEmpty();
       workflow.setEdited(workflowExecutedNotEmpty);
-      workflowRepository.save(workflow);
+      saveConfiguration(workflow);
     }
     if (change.scopeRulesChanged()) {
       realignTemplateActionTargets(workflow);
@@ -640,6 +649,31 @@ public class WorkflowService {
       }
     }
     return changed;
+  }
+
+  /**
+   * Persists the configuration and translates the scope-variable uniqueness breach reported by the
+   * database into an actionable business error.
+   *
+   * <p>The write is flushed explicitly: with the default deferred flush the {@code
+   * uk_scope_variable_key_type_workflow} violation would only be raised at commit, outside this
+   * method, and would reach the client as a raw integrity violation naming the constraint - which
+   * is neither actionable nor safe to display.
+   *
+   * @param workflow the workflow carrying the new configuration
+   * @throws AlreadyExistingException if two scope variables share the same key and type
+   */
+  private void saveConfiguration(Workflow workflow) {
+    try {
+      workflowRepository.save(workflow);
+      workflowRepository.flush();
+    } catch (DataIntegrityViolationException e) {
+      if (e.getCause() instanceof ConstraintViolationException violation
+          && UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW.equalsIgnoreCase(violation.getConstraintName())) {
+        throw new AlreadyExistingException(DUPLICATE_SCOPE_VARIABLE_MESSAGE);
+      }
+      throw e;
+    }
   }
 
   private boolean hasVariableChanged(ScopeVariable existing, ScopeVariableInput input) {
