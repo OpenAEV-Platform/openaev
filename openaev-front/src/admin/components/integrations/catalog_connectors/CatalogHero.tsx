@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import { Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
@@ -18,14 +19,12 @@ const CatalogHero = ({ title, subtitle }: Props) => {
   const { t } = useFormatter();
 
   return (
-    <header
+    <Paper
+      as="header"
+      padding={24}
       style={{
         position: 'relative',
         overflow: 'hidden',
-        borderRadius: theme.shape.borderRadius,
-        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-        backgroundColor: theme.palette.background.paper,
-        padding: theme.spacing(3),
       }}
     >
       {/* Decorative glow, purely visual. */}
@@ -64,7 +63,7 @@ const CatalogHero = ({ title, subtitle }: Props) => {
           {subtitle ?? t('Browse, filter and deploy collectors, injectors and executors from the XTM ecosystem.')}
         </Typography>
       </div>
-    </header>
+    </Paper>
   );
 };
 

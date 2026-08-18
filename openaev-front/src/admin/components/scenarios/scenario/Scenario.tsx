@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { AutoAwesome, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Avatar, Box, Button, Paper, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, Button, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -321,16 +322,13 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null }
 
       {isSample && (
         <Paper
-          variant="outlined"
-          sx={{
+          padding={16}
+          style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 2,
+            gap: 16,
             flexWrap: 'wrap',
-            padding: 2,
-            borderRadius: 1,
             border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, transparent 60%)`,
           }}
         >
           <RocketLaunchOutlined color="primary" />

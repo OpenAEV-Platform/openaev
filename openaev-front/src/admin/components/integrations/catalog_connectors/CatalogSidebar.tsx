@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import {
   CheckOutlined,
   CloudOutlined,
@@ -281,15 +282,13 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
         },
       }}
     >
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: theme.spacing(2),
-        padding: theme.spacing(2),
-        borderRadius: theme.shape.borderRadius,
-        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-        backgroundColor: theme.palette.background.paper,
-      }}
+      <Paper
+        padding={16}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+        }}
       >
         <header style={{
           display: 'flex',
@@ -352,7 +351,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             ))}
           </section>
         ))}
-      </div>
+      </Paper>
     </Box>
   );
 };

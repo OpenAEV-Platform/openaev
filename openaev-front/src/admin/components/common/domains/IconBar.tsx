@@ -1,30 +1,42 @@
-import { Card, CardContent, IconButton, Paper, Typography } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Card, CardContent, IconButton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type { FunctionComponent } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type IconBarElement } from './IconBar-model';
 
 interface Props { elements: IconBarElement[] }
+const useStyles = makeStyles()(theme => ({
+  barre: {
+    '&::-webkit-scrollbar': { height: theme.spacing(1) },
+    '&::-webkit-scrollbar-thumb': {
+      backgroundColor: theme.palette.action.focus,
+      borderRadius: 2,
+    },
+  },
+}));
+
 const IconBar: FunctionComponent<Props> = ({ elements }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { classes } = useStyles();
 
   return (
     <Paper
-      variant="outlined"
-      sx={{
-        'marginBottom': theme.spacing(2.5),
-        'display': 'flex',
-        'flexWrap': 'nowrap',
-        'overflowX': 'auto',
-        'padding': theme.spacing(1),
-        '&::-webkit-scrollbar': { height: theme.spacing(1) },
-        '&::-webkit-scrollbar-thumb': {
-          backgroundColor: theme.palette.action.focus,
-          borderRadius: 2,
-        },
-        'gap': theme.spacing(1),
+      padding={8}
+      // The scrollbar rules are pseudo-elements: they cannot live in `style`,
+      // so they move to a class. `className` reaches the surface, and no DOM
+      // level is added. The tinted colour the census read as the surface's own
+      // background belongs to the scrollbar THUMB, not to the surface.
+      className={classes.barre}
+      style={{
+        marginBottom: 20,
+        display: 'flex',
+        flexWrap: 'nowrap',
+        overflowX: 'auto',
+        gap: 8,
       }}
     >
       {elements.map((element: IconBarElement) => {

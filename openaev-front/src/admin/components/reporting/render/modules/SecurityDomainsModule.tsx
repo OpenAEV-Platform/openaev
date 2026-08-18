@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
@@ -95,16 +96,13 @@ const SecurityDomainsModule: FunctionComponent<Props> = ({ domains }) => {
         const hasData = data.data.length > 0;
         const hasScore = score >= 0;
         return (
-          <Box
+          <Paper
             key={name}
-            sx={{
+            padding={16}
+            style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 1.25,
-              padding: 2,
-              borderRadius: 1,
-              border: `1px solid ${theme.palette.divider}`,
-              backgroundColor: alpha(theme.palette.background.paper, hasData ? 1 : 0.5),
+              gap: 10,
               breakInside: 'avoid',
             }}
           >
@@ -215,7 +213,7 @@ const SecurityDomainsModule: FunctionComponent<Props> = ({ domains }) => {
                 );
               })}
             </Box>
-          </Box>
+          </Paper>
         );
       })}
     </Box>
