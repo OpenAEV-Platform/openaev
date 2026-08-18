@@ -3,7 +3,8 @@ package io.openaev.ocsf.parser;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.ocsf.parser.generator.DatatypeGenerator;
+import io.openaev.ocsf.parser.generator.Generator;
+import io.openaev.ocsf.parser.generator.emission.DatatypeClassGenerator;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.cls.ClassMeta;
@@ -37,13 +38,23 @@ public class GenerateParserTest {
     SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
     schema.refreshAllSources();
 
-    DatatypeGenerator gen = new DatatypeGenerator();
+    DatatypeClassGenerator gen = new DatatypeClassGenerator();
 
     JsonNode datatypes = schema.getContents(SchemaDimension.DATATYPES.name());
 
     for (Map.Entry<String, JsonNode> prop : datatypes.properties()) {
-      gen.emit(prop.getKey(), prop.getValue());
+      gen.metadata(prop.getKey(), prop.getValue());
     }
+  }
+
+  @Test
+  void emitDatatypes2() throws IOException {
+    Path resources = Paths.get(getClass().getResource("").getPath());
+    PluginContext ctx = new PluginContext(resources, Paths.get(""));
+
+    SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
+    Generator gen = new Generator(schema);
+    gen.generate();
   }
 
   @Test
@@ -52,7 +63,7 @@ public class GenerateParserTest {
     PluginContext ctx = new PluginContext(resources, Paths.get(""));
 
     SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
-    //schema.refreshAllSources();
+    // schema.refreshAllSources();
 
     JsonNode objects = schema.getContents(SchemaDimension.OBJECTS.name());
     JsonNode reg_key = schema.getContents("reg_key");

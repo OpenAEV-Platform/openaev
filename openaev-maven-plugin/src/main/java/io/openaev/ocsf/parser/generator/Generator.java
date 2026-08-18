@@ -1,19 +1,40 @@
 package io.openaev.ocsf.parser.generator;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.utils.StringUtils;
+import io.openaev.ocsf.parser.generator.emission.ClassClassGenerator;
+import io.openaev.ocsf.parser.generator.emission.ClassMetadata;
+import io.openaev.ocsf.parser.generator.emission.DatatypeClassGenerator;
+import io.openaev.ocsf.parser.generator.emission.ObjectClassGenerator;
+import io.openaev.ocsf.parser.schema.SchemaSource;
+import io.openaev.ocsf.parser.schema.source.Source;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class Generator {
-  protected final StringUtils stringUtils = new StringUtils();
+public class Generator {
+  private final ClassClassGenerator classClassGenerator = new ClassClassGenerator();
+  private final ObjectClassGenerator objectClassGenerator = new ObjectClassGenerator();
+  private final DatatypeClassGenerator datatypeClassGenerator = new DatatypeClassGenerator();
   private final Map<String, ClassMetadata> tracker = new HashMap<>();
+  private final SchemaSource schemaSource;
 
-  protected abstract ClassMetadata innerEmit(String name, JsonNode source);
+  public Generator(SchemaSource schemaSource) {
+    this.schemaSource = schemaSource;
+  }
 
-  public ClassMetadata emit(String name, JsonNode source) {
-    ClassMetadata md = innerEmit(name, source);
-    tracker.put(name, md);
-    return md;
+  public void generate() throws IOException {
+    for (Source src : schemaSource.getSources()) {
+      switch (src.getDimension()) {
+        case SINGLE_OBJECT, SINGLE_CLASS ->
+            tracker.put(src.getName(), objectClassGenerator.metadata(src.getName(), src.get()));
+        case DATATYPES ->
+            src.get()
+                .propertyStream()
+                .forEach(
+                    prop ->
+                        tracker.put(
+                            prop.getKey(),
+                            datatypeClassGenerator.metadata(prop.getKey(), prop.getValue())));
+      }
+    }
   }
 }

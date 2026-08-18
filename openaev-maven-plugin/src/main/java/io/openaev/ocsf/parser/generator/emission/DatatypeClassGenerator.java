@@ -1,4 +1,4 @@
-package io.openaev.ocsf.parser.generator;
+package io.openaev.ocsf.parser.generator.emission;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
@@ -8,16 +8,17 @@ import io.openaev.ocsf.parser.generator.emission.meta.cls.ExtendMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.ArgumentMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
 
-public class DatatypeGenerator extends Generator {
+public class DatatypeClassGenerator extends ClassGenerator {
   private static final String datatypesPackageName = "io.openaev.ocsf.datatypes";
 
   @Override
-  public ClassMetadata innerEmit(String name, JsonNode source) {
-    return emitDatatypeClass(name, source);
+  public ClassMetadata metadata(String name, JsonNode source) {
+    return new ClassMetadata(name, compositeOcsfClassName(name), datatypesPackageName);
   }
 
-  private ClassMetadata emitDatatypeClass(String name, JsonNode source) {
-    String actualType = name;
+  @Override
+  public String emit(ClassMetadata metadata, JsonNode source) {
+    String actualType = metadata.ocsfIdentifier();
     if (source.get("type") != null) {
       actualType = source.get("type").asText();
     }
@@ -26,12 +27,16 @@ public class DatatypeGenerator extends Generator {
 
     ClassMeta meta =
         new ClassMeta()
-            .withName(compositeOcsfClassName(name))
+            .withName(compositeOcsfClassName(metadata.ocsfIdentifier()))
             .withPackage(datatypesPackageName)
             .withExtend(new ExtendMeta("BaseType").withGenericTypeArgument(type))
             // ctor
             .withMethod(
-                new MethodMeta(Modifier.PUBLIC, compositeOcsfClassName(name), "", "super(value);")
+                new MethodMeta(
+                        Modifier.PUBLIC,
+                        compositeOcsfClassName(metadata.ocsfIdentifier()),
+                        "",
+                        "super(value);")
                     .withArgument(new ArgumentMeta(type, "value")));
     if (source.get("regex") != null) {
       meta.withMethod(
@@ -40,12 +45,13 @@ public class DatatypeGenerator extends Generator {
                   "boolean",
                   "validate",
                   """
-                  return getValue().matches("%s");
-                  """
+                      return getValue().matches("%s");
+                      """
                       .formatted(source.get("regex").asText().replace("\n", "")))
               .withAnnotation(new AnnotationMeta(Override.class)));
     }
-    return new ClassMetadata(name, compositeOcsfClassName(name), datatypesPackageName);
+
+    return meta.emit();
   }
 
   private String compositeOcsfClassName(String name) {

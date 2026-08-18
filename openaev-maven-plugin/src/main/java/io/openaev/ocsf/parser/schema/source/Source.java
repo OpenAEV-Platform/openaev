@@ -9,15 +9,15 @@ import io.openaev.ocsf.parser.schema.Version;
 import io.openaev.ocsf.parser.schema.source.files.*;
 import java.io.IOException;
 import java.util.Map;
+import lombok.Getter;
 
 public class Source {
   private final OcsfApiClient client;
   protected Resource fileResource;
   private final Version version;
-  private final SchemaDimension dimension;
-  private final PluginContext ctx;
-  private final String name;
-  private String extension;
+  @Getter private final SchemaDimension dimension;
+  @Getter private final String name;
+  private final String extension;
 
   private static final Map<SchemaDimension, OcsfSchemaEndpoints> dimensionToEndpointMap =
       Map.of(
@@ -37,7 +37,6 @@ public class Source {
       throws IOException {
     this.version = version;
     this.dimension = dimension;
-    this.ctx = ctx;
     this.client = new OcsfApiClient(version);
     this.name = name;
     this.extension = extension;

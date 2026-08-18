@@ -51,8 +51,7 @@ public class OcsfApiClient {
       try (CloseableHttpResponse res = client.execute(get)) {
         int statusCode = res.getCode();
         if (statusCode != 200) {
-          log.warn(
-              String.format("Error downloading file from %s with status code %s", url, statusCode));
+          log.warn("Error downloading file from {} with status code {}", url, statusCode);
           return null;
         }
 

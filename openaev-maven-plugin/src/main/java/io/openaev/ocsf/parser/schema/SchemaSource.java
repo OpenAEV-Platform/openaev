@@ -7,6 +7,7 @@ import io.openaev.ocsf.parser.schema.source.Source;
 import io.openaev.ocsf.parser.schema.source.files.ResourceKey;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class SchemaSource {
@@ -57,6 +58,10 @@ public class SchemaSource {
 
   public Source getSource(String key) {
     return this.getSource(key, this.sources);
+  }
+
+  public List<Source> getSources() {
+    return this.sources.values().stream().toList();
   }
 
   private <T extends Source> Source getSource(String key, Map<String, T> sources) {
