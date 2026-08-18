@@ -132,16 +132,16 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonProperty("payload_elevation_required")
   private boolean elevationRequired;
 
-  @Setter
   @Type(JsonType.class)
-  @Column(name = "payload_arguments")
+  @Column(name = "payload_arguments", nullable = false)
   @JsonProperty("payload_arguments")
+  @NotNull
   private List<PayloadArgument> arguments = new ArrayList<>();
 
-  @Setter
   @Type(JsonType.class)
-  @Column(name = "payload_prerequisites")
+  @Column(name = "payload_prerequisites", nullable = false)
   @JsonProperty("payload_prerequisites")
+  @NotNull
   private List<PayloadPrerequisite> prerequisites = new ArrayList<>();
 
   @Setter
@@ -310,6 +310,31 @@ public class Payload implements GrantableBase, TenantBase {
         .filter(payloadArgument -> PrimitiveType.Document == payloadArgument.getType())
         .map(PayloadArgument::getDefaultValue)
         .toList();
+  }
+
+  /**
+   * Null-safe accessor: {@code payload_arguments} is semantically "no arguments" when empty, and
+   * {@code null} never carries a distinct meaning. Returning an empty list avoids NPEs on the many
+   * call sites that stream over the arguments (export, import, ingestion) when a legacy row or an
+   * input DTO left the field {@code null}.
+   */
+  public List<PayloadArgument> getArguments() {
+    return this.arguments == null ? new ArrayList<>() : this.arguments;
+  }
+
+  /** Null-safe setter: a {@code null} assignment is normalised to an empty list. */
+  public void setArguments(List<PayloadArgument> arguments) {
+    this.arguments = arguments == null ? new ArrayList<>() : arguments;
+  }
+
+  /** Null-safe accessor: prerequisites do not carry a distinct null semantics. */
+  public List<PayloadPrerequisite> getPrerequisites() {
+    return this.prerequisites == null ? new ArrayList<>() : this.prerequisites;
+  }
+
+  /** Null-safe setter: a {@code null} assignment is normalised to an empty list. */
+  public void setPrerequisites(List<PayloadPrerequisite> prerequisites) {
+    this.prerequisites = prerequisites == null ? new ArrayList<>() : prerequisites;
   }
 
   @Override
