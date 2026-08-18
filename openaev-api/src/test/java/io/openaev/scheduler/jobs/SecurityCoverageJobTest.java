@@ -20,7 +20,6 @@ import io.openaev.stix.objects.Bundle;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
