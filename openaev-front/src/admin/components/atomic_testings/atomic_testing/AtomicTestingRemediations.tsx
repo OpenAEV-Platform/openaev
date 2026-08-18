@@ -214,7 +214,7 @@ const AtomicTestingRemediations = () => {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        // `gap: 1.5` valait theme.spacing(1.5) dans le sx : 12px, pas 1.5px.
+        // `gap: 1.5` meant theme.spacing(1.5) in the sx: 12px, not 1.5px.
         gap: 12,
         textAlign: 'center',
         flex: 1,

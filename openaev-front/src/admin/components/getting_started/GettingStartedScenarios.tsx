@@ -23,10 +23,10 @@ import GettingStartedSectionHeader from './GettingStartedSectionHeader';
 // A starter-pack scenario rendered as a marketplace card: category + severity
 // header band, clamped title, expandable description, platforms / tags meta
 // row and the launch CTA.
-// Le survol vit dans une classe et non dans `style` : un pseudo-sélecteur ne
-// peut pas être écrit en style inline, et une classe n'ajoute aucun niveau dans
-// le DOM. L'ombre en est retirée — la bibliothèque n'en dessine aucune — la
-// translation et la bordure teintée restent, donc l'affordance survit.
+// The hover lives in a class rather than in `style`: a pseudo-selector cannot
+// be written inline, and a class adds no DOM level. The shadow is dropped — the
+// library draws none — while the lift and the tinted border stay, so the
+// affordance survives.
 const useStyles = makeStyles()(theme => ({
   carte: {
     'transition': 'transform 150ms ease, border-color 150ms ease',

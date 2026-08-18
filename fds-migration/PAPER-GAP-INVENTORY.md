@@ -1,954 +1,275 @@
-# Inventaire des écarts — Paper (lib) vs surfaces conteneur OpenAEV
+# Gap inventory — library `Paper` vs OpenAEV container surfaces
 
-Rendu **avant** toute conversion, comme prérequis bloquant de la vague pilote
-Paper. Les sections 0 à 5 sont l'inventaire tel qu'il a été rendu au pin
-`35a4768`, quand rien n'était converti — elles ne sont pas réécrites. Les
-arbitrages (§4, §6), le deuxième passage du gate (§7) et le résultat de la
-conversion (§8) sont ajoutés à la suite.
+What survives here are the RULES and the measured references the code and the
+render guard point at. The round-by-round narrative that produced them was cut
+on 2026-08-18 — see §20 for the two rules that pruning taught.
 
-- Produit : OpenAEV, branche `fds/paper-pilot` sur `design-system/current`
-  (base `dd758996369665e479453bdf71620c19a61cab88`).
-- Lib au moment de l'inventaire : **pin `35a476849ba72d48cacae2568643f0b5638bc468`**.
-  Lib après le bump de phase 0 : **pin `2e774922e1c667ee3a1e2424b5b4014dfd1a4f55`**
-  (#121 + #123) — voir §7.
-- Toutes les valeurs ci-dessous sont **mesurées sur le build installé** et sur
-  les composants réels du produit montés dans le vrai thème MUI
-  (`ThemeDark`/`ThemeLight`, `spacing: 8`) — jamais lues dans les types, le
-  changelog ou la doc.
-- Périmètre mesuré : les 10 surfaces du lot `admin/components/lessons` et les
-  4 balises `Paper` de `components/common/detail/EntityDetailCommon.tsx`.
+- Product: OpenAEV, branch `fds/paper-pilot` onto `design-system/current`.
+- Every value below is **measured on the installed build** and on the product's
+  real components mounted in the real MUI theme (`ThemeDark`/`ThemeLight`,
+  `spacing: 8`) — never read from types, changelog or docs.
 
 ---
 
-## 0. Étape 0 — ce que le Paper de la lib sait faire aujourd'hui
+## 5. Child paddings — the sites the "no doubling" rule covers
 
-Mesuré en rendant le `Paper` **du build installé** (`node_modules/@filigran/
-design-system/packages/filigran-design-system/dist/index.js`) et en relevant
-les styles calculés dans le navigateur.
+Read at the DOM on the real components: computed padding of the direct
+children, and of the first inner row that carries one. Four families, and they
+do not call for the same decision.
 
-| Capacité attendue | État | Preuve mesurée |
-|---|---|---|
-| prop `padding`, échelle 0 / 8 / 16 / 24 / 32 | ❌ **absente** | `<Paper padding={16}>` rend `class="… p-6 …" padding="16"` : la valeur **fuit en attribut DOM** et n'a aucun effet. Padding calculé : **24px dans tous les cas**. |
-| élévations 0-3 | ✅ **présentes** | `elevation={n}` → classe `layer-n`. Fonds calculés — dark : `#070d18` / `#0d172b` / `#13213e` / `#1f3965` ; light : `#f2f2f3` / `#ffffff` / `#f4f4f6` / `#e4e5e7`. Quatre niveaux réellement distincts dans les deux thèmes. |
-| prop `title` | ❌ **absente** | `<Paper title="X">` ne rend aucun en-tête : la valeur retombe sur l'**attribut HTML natif `title`**, c'est-à-dire une infobulle navigateur au survol de tout le panneau. Régression silencieuse pour qui l'utiliserait. |
-| prop `action` | ❌ **absente** | `<Paper action={<button/>}>` sort `action="[object Object]"` sur un `<div>` — attribut invalide, React émet un avertissement. |
+### 5.1 — The padding lives in the child, the Paper is at 0 (**6 sites**)
 
-Autres constantes relevées sur le build installé, non demandées mais
-structurantes pour la suite :
+If the Paper takes a non-zero padding, the child's must go.
 
-| Propriété | Valeur du Paper lib | Remarque |
-|---|---|---|
-| rayon | `4px` (`rounded-sm`) | identique au produit |
-| ombre | `none` à tous les niveaux | identique au produit |
-| bordure | toujours dessinée, non désactivable | voir écart **G2** |
-| `box-sizing` | `border-box` | conforme |
-| props publiques | `elevation`, `as`, `className`, `children` | aucune autre |
-
-**Verdict étape 0 : GATE ROUGE.** Deux des trois capacités demandées manquent
-(`padding`, `title`/`action`). Rien n'a été bricolé côté produit.
-
-### 0 bis — l'échappatoire `className` ne referme pas le trou
-
-`Paper.meta.ts` documente `className` comme le moyen de surcharger `p-6`
-(« e.g. override the default p-6 »). Mesuré sur la feuille livrée
-(`dist/index.css`), les utilitaires de padding réellement présents sont :
-
-| classe | valeur calculée | échelle demandée |
-|---|---|---|
-| `p-0` | 0px | ✅ 0 |
-| `p-1` | 4px | — |
-| `p-2` | 8px | ✅ 8 |
-| `p-3` | 12px | — |
-| `p-4` | 16px | ✅ 16 |
-| `p-6` | 24px | ✅ 24 (défaut) |
-| **`p-8`** | **0px — la classe n'existe pas dans la feuille livrée** | ❌ 32 inexprimable |
-| `p-16` | 64px | — |
-
-Donc : 0/8/16/24 sont atteignables *par une classe en dur*, 32 ne l'est pas du
-tout. Et le produit ne compile pas Tailwind (voir LIBRARY-FEEDBACK #13) : il
-consomme la feuille pré-construite, une classe inventée ne résoudrait rien.
-Passer par `className="p-4"` reviendrait exactement à réintroduire le padding
-en dur que la garde de conformité doit faire rougir — c'est une compensation,
-pas une capacité.
-
----
-
-## 1. Les sites réels, relevés un par un
-
-### Lot 1 — `admin/components/lessons` (10 surfaces)
-
-| id | site | padding produit | rayon | bordure | fond | autres |
-|---|---|---|---|---|---|---|
-| L1 | `LessonsObjectives.jsx:26` | **0** | 4px | 1px | paper | `overflow:hidden`, `flex:1`, hôte d'une `List` à séparateurs |
-| L2 | `simulations/CrysisIntensity.jsx:35` | **0** | 4px | 1px | paper | `overflow:hidden`, `flex:1`, hôte d'un graphe ApexCharts pleine largeur |
-| L3 | `simulations/LessonsCategories.jsx:140` | **0** | 4px | 1px | paper | `overflow:hidden`, `flex:1`, `List` |
-| L4 | `simulations/LessonsCategories.jsx:203` | **0** | 4px | 1px | paper | `overflow:hidden`, `flex:1`, `List` |
-| L5 | `simulations/LessonsCategories.jsx:306` | **16** | 4px | 1px | paper | `display:flex`, `flexWrap`, `gap:8`, `alignContent:flex-start` |
-| L6 | `scenarios/LessonsCategories.jsx:115` | **0** | 4px | 1px | paper | `overflow:hidden`, `flex:1`, `List` |
-| L7 | `scenarios/LessonsCategories.jsx:189` | **16** | 4px | 1px | paper | `display:flex`, `flexWrap`, `gap:8` |
-| L8 | `simulations/Lessons.tsx:152` | **16** | 4px | 1px | paper | barre de `HeroStats` |
-| L9 | `simulations/Lessons.tsx:355` | **0** | 4px | 1px | paper | placeholder centré |
-| L10 | `scenarios/Lessons.tsx:217` | **0** | 4px | 1px | paper | placeholder centré |
-
-Répartition des paddings du lot : **7 sites à 0px, 3 sites à 16px, 0 site à 24px**.
-
-Note : les `PaperProps={{ elevation: 1 }}` croisés dans ce dossier
-(`CreateObjective.jsx:50`, `LessonsApplyTemplateDialog.tsx:46`,
-`ObjectivePopover.jsx:104`, `Lessons.tsx:385/407/427/451/482`,
-`CreateLessonsCategory.jsx:63`, `CreateLessonsQuestion.jsx:80`) portent sur le
-papier interne d'un `Dialog`/`Popover` MUI, pas sur une balise `Paper` : hors
-périmètre de cette vague.
-
-### Lot 2 — `components/common/detail/EntityDetailCommon.tsx` (4 balises)
-
-| id | balise | ligne | padding produit | rayon | particularités |
-|---|---|---|---|---|---|
-| E1 | `Section` | 36 | **16** | 4px | titre **hors surface** (au-dessus), `flex:1` |
-| E2 | `InformationGrid` | 91 | **16** | 4px | titre + `action` hors surface ; la surface est elle-même la grille (`grid-template-columns: repeat(auto-fit, minmax(180px,1fr))`, `gap:12`, `rowGap:16`, `alignContent:start`) |
-| E3 | `SectionBlock` | 188 | **16 ou 0** (`disablePadding`) | 4px | titre + `action` hors surface ; `centerContent` transforme la surface en conteneur flex centré |
-| E4 | `DetailHero` | 356 | **16** | 4px | **dégradé d'accent** `linear-gradient(135deg, alpha(primary,0.08), transparent 60%)` + `background-color` annulé, `flex column`, `gap:16`, `data-testid="detail-hero"` |
-
-Portée mesurée sur cette branche : **127 usages dans 42 fichiers**
-(`Section` 24/10, `InformationGrid` 21/16, `SectionBlock` 61/20,
-`DetailHero` 21/21) — un peu plus que les « 112 écrans dans 38 fichiers »
-annoncés au cadrage, la branche ayant avancé depuis.
-
----
-
-## 2. Les écarts, un par un
-
-Chaque écart : le site, sa fréquence, la valeur produit, la valeur lib, et
-l'effet mesuré. Les planches AVANT/APRÈS (même cadrage, dark / light / thème
-client) sont jointes au rapport de session, hors de l'arbre.
-
----
-
-### G1 — Padding : la lib impose 24px, aucun site du périmètre n'est à 24px
-
-| | |
-|---|---|
-| **Sites** | les 14 du périmètre |
-| **Fréquence** | **14/14 — 100 %** |
-| **Valeur produit** | 0px (9 sites) ou 16px (5 sites) |
-| **Valeur lib** | 24px, non paramétrable |
-| **Effet mesuré** | +24px de padding sur les 9 sites nus, +8px sur les 5 sites à 16px |
-
-Conséquences concrètes, visibles sur les planches :
-
-- Les 7 surfaces `lessons` à padding 0 hébergent des `List` **à séparateurs
-  pleine largeur** (ou un graphe pleine largeur, L2). Avec 24px, les
-  séparateurs se détachent des bords et le graphe se retrouve encadré de
-  blanc : ce n'est pas une densité différente, c'est un motif visuel
-  différent.
-- Sur E2 (`InformationGrid`), la surface **est** la grille : +8px de padding
-  décale toute la grille et peut faire retomber une colonne (les pistes font
-  `minmax(180px, 1fr)`).
-- La consigne de vague est explicitement ISO (« aucun écran ne doit changer de
-  densité »). Sans prop `padding`, ISO est **inatteignable** sans réintroduire
-  un padding en dur — donc sans déclencher la garde qu'on doit précisément
-  installer.
-
-**Ce qu'il faudrait côté lib** : la prop `padding` de l'étape 0, échelle
-0/8/16/24/32 (24 restant le défaut). L'échelle demandée couvre exactement les
-valeurs mesurées ici (0 et 16) et le 32 aujourd'hui inexprimable même en dur.
-
----
-
-### G2 — Bordure : OpenAEV en dessine une, mais pas la même
-
-Vérification demandée : côté OpenCTI les panneaux rendent **sans** bordure
-alors que le Paper lib en dessine une. **Côté OpenAEV, c'est différent** : les
-14 sites utilisent `variant="outlined"` et rendent **avec** une bordure.
-L'écart n'est donc pas la présence, c'est la **couleur** — et elle n'est pas
-symétrique entre les deux thèmes.
-
-| | produit (MUI `outlined`) | Paper lib | composite |
+| site | Paper padding | measured child padding | what it carries |
 |---|---|---|---|
-| dark | `rgba(255,255,255,0.12)` sur `#0d172b` | `rgba(43,79,141,0.1)` sur `#0d172b` | `#2a3344` → **`#101d35`** |
-| light | `rgba(0,0,0,0.12)` sur `#ffffff` | `rgba(228,229,231,0.1)` sur `#ffffff` | `#e0e0e0` → **`#fcfcfd`** |
+| **L1** `LessonsObjectives.jsx:26` | 0 | `MuiListItem` **8px 16px** | MUI row gutters |
+| **L3** `simulations/LessonsCategories.jsx:140` | 0 | `MuiListItem` **8px 16px** | same |
+| **L4** `simulations/LessonsCategories.jsx:203` | 0 | `MuiListItem` **8px 16px** | same |
+| **L6** `scenarios/LessonsCategories.jsx:115` | 0 | `MuiListItem` **8px 16px** | same |
+| **L9** `simulations/Lessons.tsx:355` | 0 | `LessonsPlaceholder` **32px** | the empty state's own margin |
+| **L10** `scenarios/Lessons.tsx:217` | 0 | `LessonsPlaceholder` **32px** | same |
 
-Contraste bordure/surface mesuré :
+- **L1/L3/L4/L6** — the rows carry **full-width dividers**. Removing the
+  gutters and giving the padding to the Paper **pulls the dividers in too**:
+  the edge-to-edge pattern disappears. That is not a padding transfer, it is a
+  change of pattern. Under strict iso these four keep `padding=0` and an
+  untouched child.
+- **L9/L10** — clear case: the placeholder carries 32px, no divider, no side
+  effect. **`LessonsPlaceholder` is a shared component** — the removal happens
+  at the CALL SITE, never in the component, or its other consumers break.
 
-| thème | produit | Paper lib |
-|---|---|---|
-| dark | **1,41:1** | **1,06:1** |
-| light | **1,32:1** | **1,03:1** |
+### 5.2 — Doubling **already present** in the product (**1 site**)
 
-- **Fréquence : 14/14 — 100 %.**
-- En **light**, le résultat est une bordure **pratiquement invisible**
-  (1,03:1) : sur la planche light, les panneaux APRÈS flottent en blanc sur le
-  fond gris clair, sans contour. C'est l'écart le plus visible du lot après le
-  thème client.
-- En **dark**, la bordure passe d'un gris froid à un bleu très sombre, deux
-  fois moins contrasté.
-- Aucune de ces valeurs n'est un critère WCAG (surface non interactive, et la
-  lib documente explicitement sa bordure comme décorative et non gatante) —
-  c'est un écart **de rendu**, pas de conformité. Mais « décoratif » côté lib
-  et « seul contour du panneau » côté produit ne sont pas la même fonction.
-
-**Ce qu'il faudrait côté lib** : soit une bordure dont la couleur reste
-perceptible en light, soit un moyen supporté de ne pas la dessiner (le produit
-ne peut pas la neutraliser : `border-*` n'est pas dans les utilitaires
-livrés — LIBRARY-FEEDBACK #13).
-
----
-
-### G3 — Fond : le Paper lib **ignore le thème client**
-
-C'est l'écart le plus lourd de l'inventaire, et il n'est visible que sur une
-install à thème personnalisé.
-
-Mesuré avec un thème client (`platform_dark_theme` : `background #2b1a3d`,
-`paper #3b2450`, `primary #ff8a3d`) passé à `themeDark()` exactement comme le
-fait `AppThemeProvider` :
-
-| | fond mesuré |
-|---|---|
-| produit (MUI Paper) | **`rgb(59,36,80)` = `#3b2450`** — la couleur du client |
-| Paper lib | **`rgb(13,23,43)` = `#0d172b`** — le défaut Filigran |
-
-- **Fréquence : 14/14 sur toute install ayant un `paper_color` personnalisé.**
-- Contraste entre les deux fonds : **1,32:1** — soit, sur la planche « thème
-  client », des panneaux violets (non migrés) juxtaposés à des panneaux bleu
-  Filigran (migrés). Rupture de charte immédiate, par tenant.
-- Sur les thèmes par défaut, en revanche, le fond est **identique au pixel**
-  (`#0d172b` en dark, `#ffffff` en light) : le pont de tokens
-  (`fds-tokens.generated.ts`) a déjà aligné `background.paper` sur
-  `--bg-elevation-default-layer-1`. C'est précisément ce qui rend l'écart
-  invisible tant qu'on ne teste pas un thème client.
-- `migration-state.json` note que dans **cet** environnement tous les champs
-  `platform_*_theme` sont nuls ; ce n'est pas une garantie de déploiement, le
-  réglage existe dans l'UI d'administration.
-
-**Ce qu'il faudrait côté lib** : le hook déjà demandé en LIBRARY-FEEDBACK #17
-pour `Header`, généralisé aux surfaces — une propriété personnalisée lue par
-le composant (`--fds-paper-background`), ou une garantie documentée qu'un
-consommateur peut redéclarer le token de fond par élément.
-
----
-
-### G4 — `DetailHero` : dégradé d'accent et fond transparent, perdus
-
-| | |
-|---|---|
-| **Site** | E4 `DetailHero` (`EntityDetailCommon.tsx:356`) |
-| **Fréquence** | **21 écrans, 21 fichiers** — le héros de toutes les pages de détail |
-| **Valeur produit** | `background: linear-gradient(135deg, alpha(primary,0.08), transparent 60%)` **et** `background-color` calculé à `rgba(0,0,0,0)` (le raccourci `background` du `sx` écrase le fond du papier) |
-| **Valeur lib** | fond plat `bg-elevation-default`, aucun dégradé, aucune prise |
-| **Effet mesuré** | dark : `linear-gradient(135deg, rgba(66,202,255,0.08), transparent 60%)` → `none` ; light : `rgba(0,21,168,0.08)` → `none` ; client : `rgba(255,138,61,0.08)` → `none` |
-
-Deux pertes distinctes, pas une :
-
-1. **Le dégradé d'accent** suit `palette.primary.main`, donc la couleur du
-   client. Le Paper lib n'expose aucun moyen de le poser (et `bg-gradient-*`
-   n'est pas dans les utilitaires livrés au produit).
-2. **La transparence du fond** : aujourd'hui le héros laisse voir le dégradé
-   de page (`MuiCssBaseline`, deux stops) ; le Paper lib pose un fond opaque.
-   Même sans dégradé d'accent, le héros changerait d'aspect.
-
-C'est le site « à traiter en dernier et à montrer » du cadrage : il est montré
-ici, avant conversion, parce que l'écart est structurel et pas cosmétique.
-
----
-
-### G5 — En-tête hors surface : `title`/`action` n'existent pas
-
-| | |
-|---|---|
-| **Sites** | E1, E2, E3 (titre hors surface, plus `action` pour E2/E3) |
-| **Fréquence** | **106 usages sur 127** (`Section` 24, `InformationGrid` 21, `SectionBlock` 61) |
-| **Valeur produit** | en-tête au-dessus de la surface : `Typography` `SECTION_LABEL_SX` (Geologica 11px, 600, `letter-spacing .12em`, majuscules, `margin-bottom: 12px`), et pour `action` une rangée `min-height: 32px`, `gap: 8px`, action poussée à droite |
-| **Valeur lib** | aucune prop `title`/`action` (mesuré : elles fuient en attributs DOM) |
-
-**Ce n'est pas bloquant** : le mapping arbitré prévoit exactement ce cas —
-« sinon garde l'en-tête côté produit au-dessus du Paper, à l'identique ». Les
-en-têtes restent donc du code produit, inchangés, et seule la surface devient
-un `Paper`. L'écart est listé pour mémoire (et parce que `title` qui devient
-une infobulle navigateur est un piège à documenter), pas comme un blocage.
-
-**Piège mesuré à signaler quand même** : un agent qui écrit
-`<Paper title="Section">` en croyant utiliser une prop obtient une infobulle
-sur tout le panneau, sans erreur ni au type ni au rendu.
-
----
-
-### G6 — Rayon, ombre, densité, états : **aucun écart**
-
-Vérifiés parce que demandés, et négatifs — c'est une bonne nouvelle qu'il faut
-écrire :
-
-| propriété | produit | Paper lib | écart |
-|---|---|---|---|
-| rayon | `4px` (`borderRadius: 1` × `shape.borderRadius: 4`) | `4px` (`rounded-sm`) | **aucun** |
-| ombre | `none` (14/14 sites, `variant="outlined"`) | `none` (4 niveaux) | **aucun** |
-| couleur de texte | `#f2f2f3` dark / `#18191b` light | idem | **aucun** |
-| `box-sizing` | `border-box` | `border-box` | **aucun** |
-| états (hover/focus/selected) | aucun sur ces 14 surfaces (aucune n'est interactive) | aucun | **aucun** |
-| élévation | tous les sites sont à l'élévation « papier » par défaut | `elevation=1` par défaut, même fond | **aucun** |
-
-Aucun des 14 sites n'est cliquable, aucun ne porte d'état, aucun n'est
-semi-transparent — le périmètre choisi est bien du conteneur nu ou à
-titre hors surface, pas de la carte cliquable.
-
----
-
-## 3. Récapitulatif pour arbitrage
-
-| écart | sites touchés | fréquence | bloquant pour une migration ISO ? |
-|---|---|---|---|
-| **G1** padding imposé à 24px | 14/14 | 100 % | **oui** |
-| **G2** couleur de bordure (invisible en light) | 14/14 | 100 % | **oui** (rendu light) |
-| **G3** fond insensible au thème client | 14/14 | 100 % des installs personnalisées | **oui** |
-| **G4** dégradé + transparence du `DetailHero` | 1 balise → 21 écrans | 21 écrans | **oui** pour E4 |
-| **G5** pas de `title`/`action` | 3 balises → 106 usages | 84 % | non (en-tête reste produit) |
-| **G6** rayon / ombre / états / densité | — | — | non — aucun écart |
-
-**Aucune conversion n'a été faite.** Les quatre écarts bloquants ci-dessus
-sortent tous du même constat : le Paper de la lib est aujourd'hui une surface
-**fermée** (padding fixe, bordure fixe, fond fixe), alors que les 14 sites du
-périmètre sont des surfaces **paramétrées** par le produit et, pour trois
-d'entre elles, par le client final.
-
-Ce qui manque est listé ici et repris en entrées numérotées dans
-`LIBRARY-FEEDBACK.md` (#26 à #30) — rien n'a été compensé côté produit.
-
----
-
-## 4. Arbitrages Sandy — 2026-08-14
-
-Rendus après lecture de l'inventaire ci-dessus. Ils **modifient le périmètre**
-de la vague et ajoutent une règle de conversion.
-
-| # | Arbitrage |
-|---|---|
-| **G1** padding | On **attend la prop côté lib** (PR lib en cours). Pas de vague non-ISO. **+ règle nouvelle** : quand le Paper porte le padding, le padding interne des enfants est **retiré** — pas de doublement. Traitement au cas par cas, voir §5. |
-| **G2** bordure | La lib **mesure d'abord l'écart au nœud Figma**, Sandy tranche ensuite. **Rien à bricoler côté produit.** |
-| **G3** fond / thème client | **Point le plus important.** Le fond du Paper doit suivre le thème hôte, **comme la Navbar et le Header**. Demandé à la lib dans la même PR. **On ne migre PAS** en acceptant la perte pour les tenants personnalisés. |
-| **G4** `DetailHero` | **Hors de cette vague.** Deux pertes (dégradé d'accent + fond transparent), et le fond transparent tombe sous l'exclusion « conteneurs semi-transparents = temps 2 ». Listé, non converti. |
-| **G5** gate | La modification du template `check-fds-conformity` part **côté lib** (c'est là qu'il vit), pas en script produit séparé. |
-| **G6** périmètre | On part sur le **mesuré** : 127 usages / 42 fichiers pour les 4 balises. |
-| **G7** cartes MUI | Aucune dans ce périmètre — la règle « Paper dans le composant parent » est **gardée pour une vague suivante**. |
-
-### Périmètre après arbitrage
-
-`DetailHero` sortant, la vague porte sur **13 surfaces** :
-
-- **10** dans `admin/components/lessons` (L1 → L10) ;
-- **3** balises dans `EntityDetailCommon.tsx` — `Section`, `InformationGrid`,
-  `SectionBlock` — qui pilotent **106 usages dans 33 fichiers** (mesuré).
-
-`DetailHero` (E4) reste sur MUI : 21 usages, 21 fichiers, non convertis, motif
-ci-dessus.
-
----
-
-## 5. Paddings enfants — les sites concernés par la règle « pas de doublement »
-
-Relevé au DOM sur les composants réels (padding calculé des enfants directs, et
-de la première ligne interne qui en porte un). Trois familles, et elles
-n'appellent pas la même décision.
-
-### 5.1 — Le padding vit dans l'enfant, le Paper est à 0 (**6 sites, à traiter**)
-
-Si le Paper prend un padding non nul, celui de l'enfant doit partir.
-
-| site | padding Paper | padding enfant mesuré | ce qu'il porte |
-|---|---|---|---|
-| **L1** `LessonsObjectives.jsx:26` | 0 | `MuiListItem` **8px 16px** | gouttières MUI des lignes |
-| **L3** `simulations/LessonsCategories.jsx:140` | 0 | `MuiListItem` **8px 16px** | idem |
-| **L4** `simulations/LessonsCategories.jsx:203` | 0 | `MuiListItem` **8px 16px** | idem |
-| **L6** `scenarios/LessonsCategories.jsx:115` | 0 | `MuiListItem` **8px 16px** | idem |
-| **L9** `simulations/Lessons.tsx:355` | 0 | `LessonsPlaceholder` **32px** (4 côtés) | marge propre du vide |
-| **L10** `scenarios/Lessons.tsx:217` | 0 | `LessonsPlaceholder` **32px** (4 côtés) | idem |
-
-Point de décision, à montrer avant de trancher :
-
-- **L1/L3/L4/L6** — les 16px horizontaux des `ListItem` sont la marge visuelle
-  du panneau, mais les lignes portent **des séparateurs pleine largeur**.
-  Retirer les gouttières et donner le padding au Paper **rentre aussi les
-  séparateurs** : le motif « séparateur bord à bord » disparaît. Ce n'est pas
-  un simple transfert de padding, c'est un changement de motif. En migration
-  ISO stricte, ces 4 sites gardent Paper `padding=0` et l'enfant intact —
-  rien à retirer.
-- **L9/L10** — cas franc : le placeholder porte 32px, aucun séparateur, aucun
-  effet de bord. Si le Paper prend 24px, les 32px de `LessonsPlaceholder`
-  doivent tomber (sinon 56px). **Attention** : `LessonsPlaceholder` est un
-  composant partagé — le retrait doit se faire **au site d'appel**, pas dans le
-  composant, sous peine de casser ses autres consommateurs.
-
-### 5.2 — Doublement **déjà présent** dans le produit (**1 site**)
-
-| site | padding Paper | padding enfant | cumul horizontal réel |
+| site | Paper padding | child padding | real horizontal total |
 |---|---|---|---|
 | **E3** `SectionBlock` (`EntityDetailCommon.tsx:188`) | 16px | `MuiListItem` **8px 16px** | **32px** |
 
-C'est le seul endroit du périmètre où le padding du conteneur et celui des
-lignes s'additionnent déjà aujourd'hui, avant toute migration. Deux des 61
-usages de `SectionBlock` passent `disablePadding` pour l'éviter
-(`GeneralVulnerabilityInfoTab.tsx:114`, `Validations.jsx:155`) — les autres
-cumulent. À arbitrer séparément : c'est une correction de densité existante,
-pas un effet de la migration, et la corriger **ne serait pas ISO**.
+The only place in the perimeter where the container's padding and the rows'
+already add up, before any migration. Two of the 61 `SectionBlock` usages pass
+`disablePadding` to avoid it; the others accumulate. Correcting it **would not
+be iso**, so it is arbitrated separately — see §5.7.
 
-### 5.3 — Padding enfant **intrinsèque**, à ne PAS retirer (**4 sites**)
+### 5.3 — **Intrinsic** child padding, NOT to be removed (**4 sites**)
 
-| site | padding Paper | padding enfant | pourquoi il reste |
+| site | Paper padding | child padding | why it stays |
 |---|---|---|---|
-| **L5** `simulations/LessonsCategories.jsx:306` | 16px | puces **4px 8px** | padding interne d'une puce, pas d'un conteneur — le retirer écrase la puce |
-| **L7** `scenarios/LessonsCategories.jsx:189` | 16px | puces **4px 8px** | idem |
-| **L8** `simulations/Lessons.tsx:152` | 16px | `HeroStat` **4px 32px 4px 4px** | le 32px à droite est la gouttière du séparateur `HeroStats`, structurelle |
-| **E4** `DetailHero` | 16px | `HeroStat` **4px** | hors vague (§4) |
+| **L5** `simulations/LessonsCategories.jsx:306` | 16px | chips **4px 8px** | a chip's inner padding, not a container's — removing it crushes the chip |
+| **L7** `scenarios/LessonsCategories.jsx:189` | 16px | chips **4px 8px** | same |
+| **L8** `simulations/Lessons.tsx:152` | 16px | `HeroStat` **4px 32px 4px 4px** | the 32px on the right is the `HeroStats` divider gutter, structural |
+| **E4** `DetailHero` | 16px | `HeroStat` **4px** | out of the waves, see §5.8 |
 
-### 5.4 — Rien à faire (**3 sites**)
+### 5.4 — Nothing to do (**3 sites**)
 
-**L2** (graphe ApexCharts : marges internes en SVG, aucun padding DOM à
-retirer — mais rien ne compense non plus si le Paper reste à 0), **E1**
-`Section` et **E2** `InformationGrid` (enfants `Field` sans aucun padding ;
-pour E2 l'espacement vient des `gap` de la grille, pas d'un padding).
+**L2** (ApexCharts graph: inner margins are SVG, no DOM padding to remove),
+**E1** `Section` and **E2** `InformationGrid` (their `Field` children carry no
+padding; E2's spacing comes from grid `gap`).
 
-### Récapitulatif
+### 5.5 — Strict iso: transfer nothing
 
-| famille | sites | action à la conversion |
-|---|---|---|
-| padding dans l'enfant, Paper à 0 | 6 (L1, L3, L4, L6, L9, L10) | **décision requise** — 4 sites à séparateurs pleine largeur (motif en jeu), 2 sites francs |
-| doublement déjà présent | 1 (E3) | **arbitrage séparé** — corriger ne serait pas ISO |
-| padding intrinsèque | 4 (L5, L7, L8, E4) | **ne rien retirer** |
-| rien à faire | 3 (L2, E1, E2) | — |
+`padding={0}` on the Paper. The `MuiListItem` gutters (8px 16px) **stay**.
+Reason: **the dividers must keep touching the edges** — this is the "the
+padding means something" case of the general rule.
 
----
+> **General rule.** When the Paper carries the padding, the children's padding
+> is REMOVED — **except when that padding means something**: a full-width
+> divider, a structural gutter.
 
-## 6. Arbitrages de conversion — à appliquer au bump
+Applies to L1, L3, L4 and L6: `padding={0}`, child unchanged.
 
-Pris après le recensement §5. **À appliquer tels quels** quand la PR lib phase 0
-sera mergée et le pin bumpé — pas à ré-arbitrer.
+### 5.6 — Transfer to the Paper, removal AT THE CALL SITE
 
-### Règle générale
+The padding moves onto the Paper; the **32px of `LessonsPlaceholder` are
+removed at the call site**. The shared component is not modified, or its other
+consumers go with it. Applies to L9 and L10.
 
-> Quand le Paper porte le padding, le padding des children est **retiré** —
-> **sauf quand ce padding porte un sens** : séparateur pleine largeur,
-> gouttière structurelle.
+### 5.7 — Cumulated 32px on `SectionBlock`: not corrected here
 
-### 6.1 — L1 / L3 / L4 / L6 : ISO strict, on ne transfère rien
+A density decision of its own, taken cold, outside this wave. Converting
+`SectionBlock` therefore reproduces the existing total unchanged.
 
-`padding=0` sur le Paper. Les gouttières `MuiListItem` (8px 16px) **restent**.
-Motif : **les séparateurs doivent continuer à toucher les bords** — c'est le cas
-« ce padding porte un sens » de la règle générale.
-
-| site | Paper après conversion | enfant |
-|---|---|---|
-| L1 `LessonsObjectives.jsx:26` | `padding={0}` | inchangé |
-| L3 `simulations/LessonsCategories.jsx:140` | `padding={0}` | inchangé |
-| L4 `simulations/LessonsCategories.jsx:203` | `padding={0}` | inchangé |
-| L6 `scenarios/LessonsCategories.jsx:115` | `padding={0}` | inchangé |
-
-### 6.2 — L9 / L10 : transfert au Paper, retrait AU SITE D'APPEL
-
-Le padding passe sur le Paper ; les **32px de `LessonsPlaceholder` sont
-retirés au site d'appel**. `LessonsPlaceholder` est un composant partagé —
-**il n'est pas modifié**, sous peine d'emporter ses autres consommateurs.
-
-| site | Paper après conversion | enfant |
-|---|---|---|
-| L9 `simulations/Lessons.tsx:355` | padding porté par le Paper | 32px retirés **au site d'appel** |
-| L10 `scenarios/Lessons.tsx:217` | padding porté par le Paper | idem |
-
-### 6.3 — E3 `SectionBlock` : les 32px cumulés ne sont PAS corrigés ici
-
-Décision de densité **séparée**, à prendre à froid — hors de cette vague. La
-conversion de `SectionBlock` reproduit donc le cumul existant à l'identique.
-
-État mesuré et les deux corrections possibles, capturées en planche
-(`planche-e3-densite-{dark,light}.png`, transmise hors dépôt) :
-
-| état | Paper | gouttières de ligne | cumul horizontal | effet sur les séparateurs |
+| state | Paper | row gutters | horizontal total | effect on dividers |
 |---|---|---|---|---|
-| **Actuel** — 59 des 61 usages | 16px | 16px | **32px** | rentrés de 32px |
-| **Option A** — `disablePadding` | 0 | 16px | 16px | **bord à bord** |
-| **Option B** — gouttières retirées | 16px | 0 | 16px | rentrés de 16px |
+| **Current** — 59 of 61 usages | 16px | 16px | **32px** | pulled in by 32px |
+| **Option A** — `disablePadding` | 0 | 16px | 16px | **edge to edge** |
 
-Les 2 usages qui passent déjà `disablePadding`
-(`GeneralVulnerabilityInfoTab.tsx:114`, `Validations.jsx:155`) sont déjà en
-option A.
+### 5.8 — `DetailHero` leaves the Paper waves for good
 
-#### Décision : **option A**, mais **par usage** — pas en défaut du composant
+It becomes its own component. Recorded here because the code points at this
+decision: two losses (accent gradient, transparent background), and the
+transparent background falls under the "semi-transparent containers are a later
+wave" exclusion. Listed, never converted.
 
-Option A est retenue. Le recensement du contenu réel des 61 usages montre
-qu'elle ne peut pas être appliquée comme défaut de `SectionBlock` : la planche
-ne montrait qu'un panneau hébergeant une liste, et ils sont 23 sur 61.
+---
 
-| ce que le `SectionBlock` héberge | usages | option A ? |
+## 10. Method — a product inventory read by name misses what it does not name
+
+Worth writing down, because it will happen again at the next bump, OpenCTI
+included.
+
+Renaming 17 tokens left **three dead product references**, and **two were
+silent**:
+
+| reference | file | signal |
 |---|---|---|
-| une `List`/`Table` directe | 3 | ✅ oui |
-| un composant de liste (`AgentList`, `FindingList`, `ExpectationList`, `InjectResultList`, …) qui rend lui-même `List`+`ListItem` | 18 | ✅ oui, **à vérifier site par site** (ils rendent aussi une barre `PaginationComponentV2` au-dessus de la liste, qui passerait bord à bord elle aussi) |
-| déjà `disablePadding` | 2 | ✅ déjà fait |
-| **contenu libre** (formulaire, aperçu, `Box`, texte, puces) | **30** | ❌ **non** — l'enfant n'a aucune gouttière, le panneau tomberait à **0px** de padding |
-| **graphe / chart** | **8** | ❌ **non** — le chart toucherait la bordure |
+| `FDS.colors.*['--color-feedback-info-secondary-transparency']` | `ThemeDark.ts`, `ThemeLight.ts` | TypeScript error — **loud** |
+| `var(--color-filigran-brand-primary-transparency)` | `TopBarIconLink.tsx` | **silent** — a `var()` hanging inside a string |
+| `'bg-filigran-ia-secondary-transparency'` | `AskArianeButton.tsx` | **silent** — a utility class absent from the shipped sheet |
 
-Soit **23 usages en option A** et **38 qui restent à 16px**.
+Neither `tsc`, nor ESLint, nor the conformity gate, nor the build says anything
+about the last two. The only signal is visual, on states no screenshot of that
+wave covered.
 
-La deuxième rangée de la planche montre ce que donne option A appliquée à un
-panneau sans liste : le libellé et le champ collés à la bordure, le graphe à
-fleur de cadre. C'est le mode d'échec, et il concerne la majorité des usages.
+**What the inventory must look for at the next bump.** Regenerating the bridge
+is necessary and not sufficient. Grep the product source — not only the
+`wiredFiles` — for **both forms**:
 
-Formulée par usage, la décision rejoint exactement la règle générale de §6 :
-le padding de l'enfant (ici la gouttière de ligne) porte un sens **quand il y
-a une ligne** — sinon il n'y a rien à ne pas doubler.
+- `var(--<token>)` inside `.ts`/`.tsx` strings, `style` objects and CSS;
+- **library utility classes written as literals** (`bg-…`, `text-…`, `border-…`).
 
-**Toujours hors de cette vague** : la conversion reproduit l'existant à
-l'identique, et l'application d'option A aux 23 usages est un changement de
-densité qui se fait dans son propre commit, isolable et réversible.
-
----
-
-## 7. Gate étape 0 — deuxième passage, au pin `2e77492`
-
-Re-mesuré sur le **nouveau build installé** (cache vidé, `yarn cache clean` +
-`node_modules/@filigran/design-system` supprimé avant réinstallation ; pin
-prouvé par la résolution du lockfile, pas par le `package.json`).
-
-| Point | État | Mesure |
-|---|---|---|
-| prop `padding` 0/8/16/24/32 | ✅ | rend `p-0` / `p-2` / `p-4` / `p-6` / `p-8`, et **les cinq classes existent dans `dist/index.css`** (`p-8` résolvait à `0px` avant). Défaut 24. Plus aucune fuite : `padding` ne sort plus en attribut DOM. |
-| `title` / `action` | ✅ | rangée d'en-tête **au-dessus** de la surface, hors bordure et hors padding. `as`, `className`, `ref` et le reste des props restent sur la surface dans les deux branches (vérifié : `as="section"` + `title` → `<section class="… p-6 custom-x" data-testid>`). |
-| contrat de thème hôte | ✅ | `:root { --bg-elevation-default-layer-1: #3b2450 }` **repeint** (mesuré `rgb(59,36,80)`) ; `--bg-elevation-default: #ff0000` posé au même moment **ne fait rien**. Contrat conforme à ce que la lib documente. |
-| bordure | ✅ | token propre par couche. Light, sur les panneaux convertis : composite `rgb(223,223,226)` sur blanc, **1,33:1** — là où MUI mesurait 1,32:1. L'invisibilité à 1,03:1 a disparu. |
-| élévations 0-3 | ✅ | inchangées, quatre surfaces distinctes. |
-
-Un comportement relevé au passage : une valeur **hors échelle**
-(`padding={12}`) ne rend **aucune** classe de padding — la surface tombe à 0px,
-sans erreur ni avertissement. TypeScript la refuse, mais **4 des 7 fichiers
-convertis par cette vague sont des `.jsx`** et le tsconfig du produit a
-`allowJs` sans `checkJs` : ces sites-là n'ont aucune vérification de props. La
-garde `no-hardcoded-padding` ne l'attrape pas non plus — elle vise le padding
-re-déclaré en `className`/`sx`, pas une valeur de prop hors échelle. Remonté en
-LIBRARY-FEEDBACK #32.
+Then cross every occurrence against the tokens and utilities actually present
+in the **installed** `dist/index.css` — the shipped sheet, not the source
+`theme.css`. Both forms live in ordinary component files, outside the
+`wiredFiles` by construction: that is exactly why they were missed. Also
+recorded as LIBRARY-FEEDBACK #33.
 
 ---
 
-## 8. Conversion — ce qui a été fait
-
-**13 surfaces converties**, `DetailHero` exclu.
-
-| lot | sites | padding avant → après |
-|---|---|---|
-| échauffement (`lessons`) | L1, L2, L3, L4, L6 | 0 → `padding={0}` |
-| | L5, L7, L8 | 16 → `padding={16}` |
-| | L9, L10 | 0 (+32 dans le placeholder) → `padding={32}` + `disablePadding` au site d'appel |
-| pilote (`EntityDetailCommon`) | E1 `Section`, E2 `InformationGrid` | 16 → `padding={16}` |
-| | E3 `SectionBlock` | 16 / 0 → `padding={disablePadding ? 0 : 16}` |
-
-**ISO vérifié au DOM** sur les 13 sites : padding, fond, rayon identiques
-avant/après, dans les trois thèmes.
-
-Décisions appliquées sans les rejouer :
-
-- **§6.1** — L1/L3/L4/L6 restent à `padding={0}`, gouttières intactes : les
-  séparateurs touchent toujours les bords.
-- **§6.2** — L9/L10 : le padding passe au Paper, les 32px partent **au site
-  d'appel** via un `disablePadding` *optionnel* ajouté à `LessonsPlaceholder`.
-  Le composant partagé garde son rendu par défaut, donc ses deux autres
-  consommateurs (`LessonsObjectives`, `CrysisIntensity`) sont inchangés. C'est
-  la seule façon d'exprimer « retrait au site d'appel » sans changer le rendu
-  des autres ; si la lecture ne convient pas, revenir à `padding={0}` sur ces
-  deux Paper est un changement d'une ligne.
-- **§6.3** — E3 reproduit le cumul 16+16 tel quel. Non corrigé ici.
-- **§4 / G4** — `DetailHero` reste sur MUI (`Paper as MuiPaper`), commenté sur
-  place.
-
-**En-têtes** : `title`/`action` de la lib existent maintenant, mais ne sont
-**pas** adoptés dans cette vague. L'en-tête produit (`SECTION_LABEL_SX`,
-Geologica 11px/600/0.12em, rangée d'action à 32px) n'a ni la même typographie
-ni la même hauteur que celui de la lib ; l'adopter changerait le rendu des 106
-écrans, ce qui n'est pas ISO. À traiter comme une décision design séparée.
-
-**Contrat de thème hôte** : câblé dans `AppThemeProvider` — `paper_color`
-d'un thème client est posé sur `--bg-elevation-default-layer-1`, et retiré
-quand la plateforme n'a pas d'override.
-
-**Gate** : le motif Paper est déclaré dans `migration-state.json`
-(`libComponentUsage`), avec les deux gardes livrées par la lib —
-`imported-from-library` et `no-hardcoded-padding`. Cette dernière est la garde
-« compensation perdue » demandée : elle rougit si un `className="p-4"` ou un
-`sx={{ p: 2 }}` réapparaît sur un Paper lib. Sur `EntityDetailCommon.tsx`,
-`imported-from-library` n'est **pas** armée — le fichier importe les deux Papers
-à dessein tant que `DetailHero` n'a pas migré ; raison inscrite dans le
-manifeste, écart remonté en LIBRARY-FEEDBACK #31.
-
----
-
-## 9. Bordure et thème client — arbitrage temps 1
-
-**Question posée : est-ce faisable entièrement côté produit ? Oui. Rien ne
-manque à la lib.** Mesuré dans le navigateur, les trois voies possibles :
-
-| ce qu'on redéclare | effet mesuré |
-|---|---|
-| `--border-elevation-subtle-soft` (l'alias) | **aucun** — même piège que la surface : chaque `.layer-N` redéclare l'alias sur l'élément lui-même |
-| **`--border-elevation-subtle-soft-layer-1`** (la base par couche) | ✅ **fonctionne** — la lib applique elle-même la dilution à 40 % |
-| `--border-elevation-subtle-soft-layer-1-transparency-40` | fonctionne aussi mais court-circuite la dilution : à éviter, c'est la valeur finie |
-
-Appliqué dans `AppThemeProvider`, au même endroit et sous la même condition que
-la surface : quand `paper_color` est posé, la base de bordure de la couche 1
-prend cette même couleur ; sans thème client, les deux propriétés sont retirées
-et les tokens de la lib reprennent la main. **Les thèmes par défaut ne bougent
-pas** — vérifié : dark et light rendent exactement les mêmes valeurs qu'avant.
-
-### La conséquence, mesurée, à voir sur la planche
-
-Dériver la bordure de la couleur de fond des cartes la rend **invisible contre
-sa propre surface** :
-
-| | bordure | fond | composite de la bordure |
-|---|---|---|---|
-| avant | `rgba(43,79,141,0.4)` — la valeur lib, bleutée sur du violet | `#3b2450` | ≈ `#2b2a4a`, visible et **désaccordée** |
-| après | `rgba(59,36,80,0.4)` — la couleur du client | `#3b2450` | **`#3b2450`**, soit exactement la surface |
-
-Le panneau ne perd pas sa lisibilité — il se détache encore du fond de page
-(`#2b1a3d` contre `#3b2450`) — mais il n'a plus de contour propre.
-
-**Statut : compromis ASSUMÉ du temps 1** (arbitrage Sandy, 2026-08-15). Plus
-aucune couleur étrangère à la charte du client, au prix du contour. Ce n'est ni
-un défaut ni une dette cachée : c'est le choix explicite de cette étape, mesuré
-et montré avant d'être retenu. **Une entrée de thème dédiée le lèvera si le
-besoin se confirme** — elle n'est délibérément pas créée maintenant, pour ne pas
-inventer une surface de configuration avant que le besoin soit avéré.
-
----
-
-## 10. Leçon de méthode — l'inventaire produit était incomplet
-
-À écrire noir sur blanc, parce que ça se reproduira au prochain bump, OpenCTI
-compris.
-
-Le renommage de 17 tokens par #121 a laissé **trois références produit mortes**,
-et **deux l'ont été silencieusement** :
-
-| référence | fichier | signal |
-|---|---|---|
-| `FDS.colors.*['--color-feedback-info-secondary-transparency']` | `ThemeDark.ts`, `ThemeLight.ts` | erreur TypeScript — **bruyante** |
-| `var(--color-filigran-brand-primary-transparency)` | `TopBarIconLink.tsx` | **silencieuse** — `var()` pendant dans une chaîne |
-| `'bg-filigran-ia-secondary-transparency'` | `AskArianeButton.tsx` | **silencieuse** — classe utilitaire absente de la feuille livrée |
-
-Ni `tsc`, ni eslint, ni le gate de conformité, ni le build ne disent quoi que
-ce soit sur les deux dernières. Le seul signal est visuel, sur des états
-(lien sélectionné du top bar, bouton Ariane ouvert) qu'aucune capture de cette
-vague ne couvre.
-
-**Ce que l'inventaire doit chercher au prochain bump.** Régénérer le pont est
-nécessaire et insuffisant. Il faut grepper le code produit — pas seulement les
-`wiredFiles` — sur les **deux formes** :
-
-- `var(--<token>)` dans les chaînes `.ts`/`.tsx`, les objets `style` et les CSS ;
-- les **classes utilitaires de la lib écrites en littéral** (`bg-…`, `text-…`,
-  `border-…`) ;
-
-puis recouper chaque occurrence avec les tokens et utilitaires réellement
-présents dans le `dist/index.css` **installé** — la feuille livrée, pas le
-`theme.css` source. Ces deux formes vivent dans des fichiers de composants
-ordinaires, hors des `wiredFiles` par construction : c'est exactement pour ça
-qu'elles ont été manquées ici. Repris en LIBRARY-FEEDBACK #33.
-
-
----
-
-## 11. Page de login — la surface du formulaire était à la mauvaise couche
-
-Signalé par Sandy sur le rendu réel, vérifié dans l'app tournante (la page de
-login est publique : mesurée sans authentification, sur `localhost:3001`).
-
-| thème | avant | après | déplacement |
-|---|---|---|---|
-| **sombre** | `#13213e` (= valeur de la **couche 2**) | `#0d172b` (**couche 1**) | 1 cran |
-| **clair** | `#e4e5e7` (= valeur de la **couche 3**) | `#ffffff` (**couche 1**) | **3 crans** |
-
-**Cause.** `Login.tsx:118` posait `backgroundColor: 'background.secondary'`, et
-`palette.background.secondary` résout sur `--bg-elevation-highlight-layer-0` —
-un token dont la valeur **coïncide** avec la couche 2 en sombre et avec la
-couche **3** en clair. Le décalage n'était donc pas le même dans les deux
-modes : d'un cran en sombre, de trois en clair. Le champ de palette ne nommait
-aucune couche, ce qui rendait l'écart invisible à la lecture.
-
-**Correction.** L'override est retiré : le `Paper` reprend le
-`background.paper` de MUI, c'est-à-dire layer 1 — et il continue de suivre le
-`paper_color` d'un thème client, ce que `background.secondary` faisait déjà par
-sa branche ternaire.
-
-**Les autres surfaces de la page, vérifiées une par une** (la question était
-« y en a-t-il d'autres dans le même cas ? ») :
-
-| surface | état |
-|---|---|
-| `Login.tsx:80` — panneau du message de consentement | `variant="outlined"` → `background.paper` = **layer 1**, déjà correct |
-| `Reset.jsx:54` — panneau de réinitialisation | `variant="outlined"` → **layer 1**, déjà correct |
-| `LoginLayout.tsx` — fond de page et aside | `background.default` = layer 0 et l'image/dégradé de l'aside : ce ne sont pas des `Paper`, hors sujet |
-
-**Une seule surface était donc en cause.** Les deux autres panneaux ne sont pas
-rendus dans cette configuration (pas de message de consentement, pas d'écran de
-reset), mais leur code est lu et correct.
-
-Note de portée : cette page n'est pas dans le périmètre de la vague Paper, et
-elle n'est pas migrée vers le `Paper` de la lib — c'est une correction de
-couleur d'une surface MUI, pas une conversion. Le motif Paper du gate ne la
-couvre donc pas.
-
----
-
-## 12. Dernier re-bump — bordure à 15 % (lib #125)
-
-Pin `0472f45` → **`a22b188b28bc151f930d19d4f8ed7114df581e6e`**. Serveurs
-**arrêtés** avant la purge de `node_modules/.vite` (jamais sous leurs pieds),
-paquet supprimé, réinstallation, redémarrage, puis **découverte forcée des
-routes à import dynamique** (`/src/admin/Index.tsx`, `/src/public/.../Login.tsx`)
-depuis un vrai navigateur avant toute conclusion.
-
-**Pin prouvé par les octets servis**, pas par le lockfile : dans le CSS que le
-serveur de dev délivre, `transparency-15` est présent une fois et
-`transparency-40` zéro fois.
-
-### Contraste bordure/surface mesuré, 4 élévations, deux thèmes
-
-| élévation | dark | light |
-|---|---|---|
-| 0 | **1,09** | 1,13 |
-| 1 (défaut) | **1,09** | **1,15** |
-| 2 | **1,09** | 1,13 |
-| 3 | 1,05 | 1,12 |
-
-Attendu ~1,09 en sombre et ~1,15 en clair : conforme. L'élévation 3 en sombre
-descend à 1,05 — la surface y est la plus claire (`#1f3965`), donc la bordure
-diluée s'en rapproche ; c'est la même mécanique que l'écart déjà signé en
-arbitration #11 côté lib, pas une nouveauté de ce pin.
-
-La base claire a bien baissé d'un cran : `#afb0b6` → **`#95969d`**.
-
-### §10 appliquée au renommage `-transparency-40` → `-transparency-15`
-
-Cassant côté lib, **sans effet ici** — et vérifié plutôt que supposé :
-
-| forme cherchée dans le code produit | résultat |
-|---|---|
-| `var(--…-transparency-40)` en chaîne | **aucune** |
-| classe utilitaire en littéral contenant `transparency-40` | **aucune** |
-| pont régénéré : clés disparues / apparues | les 4 `-transparency-40` par couche → `-transparency-15` ; **le NOM de la base par couche est inchangé** |
-
-**Précision, parce que le fichier se contredisait :** seul le **nom** de la base
-par couche est inchangé. Sa **valeur** bouge en clair, sur les quatre couches —
-`#afb0b6` → `#95969d` (c'est la « base claire descendue d'un cran » de #125).
-En sombre, la valeur ne bouge pas.
-
-La conclusion tient quand même, et pour deux raisons : la surcharge de thème
-client vise la **BASE** (`--border-elevation-subtle-soft-layer-1`) et non la
-variante diluée, dont le nom a changé — le renommage est donc passé sans toucher
-une ligne de `AppThemeProvider` ; et sur une install à thème client, **la
-surcharge écrase cette base de toute façon**, donc le déplacement de valeur en
-clair n'y est même pas observable. Il ne l'est que sur les thèmes par défaut.
-Le commentaire du fichier, qui annonçait « 40 % », a été corrigé.
-
-### Thème client — l'arête reste absente, et c'est voulu
-
-Sur une install à thème personnalisé, la bordure composite toujours exactement
-à la surface : le panneau n'a pas d'arête propre. **Non corrigé, compromis
-assumé du temps 1** (voir §9). Visible sur la planche « thème client » du
-checkpoint.
-
-## 13. Lot A — les trois wrappers titrés adoptent l'en-tête de la lib
-
-`EntityDetailCommon.tsx` porte trois conteneurs titrés — `Section`,
-`InformationGrid`, `SectionBlock` — utilisés **106 fois dans 33 fichiers**. La
-surface était déjà le Paper de la lib depuis la vague 1 ; ce lot fait passer le
-**titre** dans la prop `title` de la lib au lieu de le dessiner au-dessus avec
-`SECTION_LABEL_SX`.
-
-### 13.1 Ce que le titre devient — mesuré dans un vrai navigateur
-
-|                  | avant (produit)              | après (lib)          |
-| ---------------- | ---------------------------- | -------------------- |
-| police           | Geologica                    | IBM Plex Sans        |
-| taille           | 11px                         | 12px                 |
-| graisse          | 600                          | 400                  |
-| casse            | MAJUSCULES (`textTransform`) | casse d'origine      |
-| interlettrage    | 1,32px                       | 0,09px               |
-| rangée           | 11px + `marginBottom: 12px`  | 24px, hauteur fixe   |
-| couleur (sombre) | `rgba(255,255,255,0.7)`      | `rgb(175,176,182)`   |
-| couleur (clair)  | `rgba(0,0,0,0.6)`            | `rgb(73,74,80)`      |
-
-Le nombre de surfaces de la lib rendues est **identique des deux côtés** sur les
-quatre écrans capturés (5 / 11 / 6 / 8) : aucune surface gagnée ni perdue.
-
-### 13.2 Le piège du flex — pourquoi le conteneur devient une grille
-
-`style` atteint la **surface**, jamais l'enveloppe que la lib ajoute quand
-`title` est posé. Un `flex: 1` sur la surface ne peut donc plus étirer le
-panneau : c'est l'enveloppe qui doit être étirée par le conteneur produit.
-Mesuré sur un panneau voisin d'un panneau plus haut : **58px contre 130px**
-attendus. Le conteneur produit devient une grille à une rangée `1fr` — mesuré
-ensuite **268 / 268**. Corrigé côté produit, sans demande à la lib.
-
-### 13.3 Le correctif de colonne — `minmax(0, 1fr)` et non `1fr`
-
-Une colonne de grille **implicite** vaut `auto` : elle se dimensionne au
-contenu. Avec la seule rangée déclarée, l'enveloppe de la lib mesurait donc
-**354px dans une piste de 340px** — elle débordait de 15px et le titre ne se
-tronquait pas, il sortait du panneau. Avec `gridTemplateColumns: 'minmax(0, 1fr)'` :
-enveloppe **338px**, débordement **−1px**, titre tronqué de 16px avec ellipse.
-Appliqué aux **trois** wrappers. Planche : `planche-lotA-colonne-{dark,light}.png`.
-
-### 13.4 Troncature multilingue — écart CONNU ET ACCEPTÉ
-
-14 titres distincts sont passés à ces wrappers. Toutes locales confondues, **un
-seul** dépasse la piste la plus étroite que `DetailSections` puisse produire
-(340px) : l'espagnol *« Distribución de la puntuación total esperada por tipo de
-inyección »*, 66 caractères, **16px coupés**.
-
-Décision : **on accepte l'ellipse**. Un titre sur quatorze, à la piste la plus
-étroite, n'est pas un motif pour raccourcir une traduction, ni pour appliquer
-une compensation côté produit sur un composant de la lib. Le texte complet reste
-annoncé aux lecteurs d'écran. La lib **n'expose pas** le titre complet au survol
-quand elle tronque : c'est l'objet du **feedback #37**. À écrire tel quel dans le
-corps de la PR — ce n'est pas une découverte à venir.
-
-### 13.5 `action={null}` — l'idiome est devenu sans effet
-
-Trois sites passent `action={null}` : `Channel.tsx:172`, `Lessons.tsx:122`
-(scénarios), `PhishingEmailTemplate.tsx:129`. L'idiome venait de l'en-tête
-produit, qui avait **deux hauteurs** (courte sans action, 32px avec) : le `null`
-forçait la haute pour aligner le haut du panneau sur son voisin.
-
-La rangée de la lib est à **hauteur constante**. Mesuré, trois panneaux côte à
-côte dans un vrai `DetailSections` :
-
-| cas               | en-tête | haut de surface |
-| ----------------- | ------- | --------------- |
-| avec une action   | 24px    | 86              |
-| `action={null}`   | 24px    | 86              |
-| sans la prop      | 24px    | 86              |
-
-Identique en sombre et en clair. L'alignement que l'idiome protégeait se produit
-donc **tout seul** : ce n'est pas une perte, c'est un besoin qui disparaît.
-
-**L'idiome est laissé en place** (le retirer serait un nettoyage hors périmètre),
-mais **son commentaire a été mis à jour sur les trois sites** et dans la
-documentation des deux props, pour qu'aucune session ne re-dérive dans six mois
-un besoin d'alignement qui n'existe plus.
-
-`InjectCreationConfig.tsx:136` porte aussi `action={null}` avec un titre qui peut
-valoir `''` — c'est un `InjectCardComponent`, **pas** un de ces trois wrappers.
-L'assertion « aucun site d'appel n'a de titre potentiellement vide » de la garde
-de rendu tient.
-
-### 13.6 Bordure du bas doublée — corrigé, vague 1 incluse
-
-Sur un Paper à `padding=0` contenant une liste à séparateurs, le séparateur de
-la **dernière** ligne tombe 1px au-dessus de la bordure du Paper : mesuré
-**1px + 1px de blanc + 1px = un trait de 2px** là où toutes les autres lignes en
-ont un de 1px.
-
-Correctif : `sx={{ '& > :last-child': { borderBottom: 0 } }}` sur la `List`.
-Appliqué aux **4 listes de la vague 1** — `LessonsObjectives.jsx`,
-`scenarios/LessonsCategories.jsx`, `simulations/LessonsCategories.jsx` (deux
-listes). Mesuré après : bordures par ligne **1px / 1px / 0px**, trait du bas
-**1px** — aucune ligne intermédiaire ne perd son séparateur. Sombre et clair.
-Planche : `planche-lotA-bordure-{dark,light}.png`, avec le coin bas-gauche à la
-densité 8×.
-
-### 13.7 Garde de rendu
+## 13. The three titled wrappers adopt the library header
+
+`EntityDetailCommon.tsx` holds three titled containers — `Section`,
+`InformationGrid`, `SectionBlock` — used **106 times across 33 files**. Their
+surface was already the library `Paper`; this passes the **title** into the
+library's `title` slot instead of drawing it above with `SECTION_LABEL_SX`.
+
+### 13.1 What the title becomes — measured in a real browser
+
+|                 | before (product)             | after (library)     |
+| --------------- | ---------------------------- | ------------------- |
+| font            | Geologica                    | IBM Plex Sans       |
+| size            | 11px                         | 12px                |
+| weight          | 600                          | 400                 |
+| case            | UPPERCASE (`textTransform`)  | as written          |
+| letter-spacing  | 1.32px                       | 0.09px              |
+| row             | 11px + `marginBottom: 12px`  | 24px, fixed height  |
+| colour (dark)   | `rgba(255,255,255,0.7)`      | `rgb(175,176,182)`  |
+| colour (light)  | `rgba(0,0,0,0.6)`            | `rgb(73,74,80)`     |
+
+The number of library surfaces rendered is **identical on both sides** across
+the four screens captured (5 / 11 / 6 / 8): none gained, none lost.
+
+### 13.2 The flex trap — why the container becomes a grid
+
+`style` reaches the **surface**, never the wrapper the library adds once
+`title` is set. A `flex: 1` on the surface can therefore no longer stretch the
+panel: the wrapper is what the product container must stretch. Measured on a
+panel beside a taller one: **58px against an expected 130px**. The product
+container becomes a one-row `1fr` grid — measured afterwards **268 / 268**.
+Fixed product-side, with nothing asked of the library.
+
+### 13.3 The column fix — `minmax(0, 1fr)`, not `1fr`
+
+An **implicit** grid column is `auto`: it sizes to its content. With only the
+row declared, the library wrapper measured **354px inside a 340px track** — it
+overflowed by 15px and the title did not truncate, it left the panel. With
+`gridTemplateColumns: 'minmax(0, 1fr)'`: wrapper **338px**, overflow **−1px**,
+title ellipsized by 16px. Applied to all **three** wrappers.
+
+### 13.4 Multilingual truncation — a KNOWN AND ACCEPTED gap
+
+14 distinct titles reach these wrappers. Across every locale, **one** exceeds
+the narrowest track `DetailSections` can produce (340px): the Spanish
+*"Distribución de la puntuación total esperada por tipo de inyección"*, 66
+characters, **16px cut**.
+
+Decision: **the ellipsis is accepted**. One title in fourteen, at the narrowest
+track, is no reason to shorten a translation or to compensate product-side on a
+library component. The full text stays announced to screen readers. The library
+does **not** expose the full title on hover when it truncates: that is
+**feedback #37**.
+
+### 13.7 Render guard
 
 `src/__tests__/components/common/detail/EntityDetailCommonHeader.test.tsx`,
-11 tests. Les deux gardes de `check-fds-conformity.mjs` regardent les imports et
-les paddings en dur : **aucune ne voit un en-tête**. La garde teste la
-**structure** (le titre est dans l'en-tête et pas dans la surface, aucune casse
-ni police réimposée, `flex` sur la surface, conteneur en grille), jamais le style
-calculé — jsdom n'applique pas la feuille de styles de la lib. Les valeurs en
-pixels sont mesurées dans un vrai navigateur et vivent ici, en §13.1.
+11 tests. The two checks `check-fds-conformity.mjs` runs look at imports and at
+hardcoded paddings: **neither can see a header**. The guard asserts
+**structure** — the title is in the header and not in the surface, no case or
+font re-imposed, `flex` on the surface, grid container — never computed style,
+because jsdom does not apply the library stylesheet. The pixel values are
+measured in a real browser and live here, in §13.1.
 
-### 13.8 Planches
+---
 
-Capturées dans l'**application réelle** (`localhost:3001`, jeu de données
-ensemencé par l'API), pas sur le banc : « avant » = arbre de travail détaché sur
-`bc20bf76a`, « après » = lot A. L'arbre servi est **prouvé** à chaque passe en
-lisant le fichier pilote à travers le serveur de développement, pas déclaré.
-Quatre écrans × deux thèmes, plus les deux planches dédiées (colonne, bordure) :
-douze planches en tout, avec un zoom 1:1 sur le premier en-tête titré de chaque
-écran.
+## 14. Method — a surface qualifies on its ANCESTOR STACK
 
+**Read this before any surface census, in any Filigran product. This section is
+self-contained: it assumes nothing from the rest of the document.**
 
-## 14. Règle de méthode — une surface se qualifie sur sa PILE D'ANCÊTRES
+### The problem it addresses
 
-**À lire avant tout recensement de surfaces, dans n'importe quel produit
-Filigran. Cette section est autonome : elle ne suppose rien de connu du reste du
-document.**
+Migrating a product's surfaces to the library `Paper` first means knowing
+**which ones are in scope**. The perimeter is **first-level containers**: the
+blocks laid on the page carrying the elevated background, of the kind a
+dashboard tile is. Excluded: cards, tooltips, alerts, dialogs, popovers, menus,
+autocompletes, accordions, and any surface **internal to another component**.
 
-### Le problème qu'elle traite
+A census by text search gives a wrong answer, and wrong in the dangerous
+direction: it lets in surfaces that have no business being there. On OpenAEV,
+777 raw hits gave 395 containers then 130 in the perimeter — and **two surfaces
+recommended for conversion should never have been listed**. Both times it was a
+FLOATING surface.
 
-Migrer les surfaces d'un produit vers le `Paper` de la bibliothèque suppose
-d'abord de savoir **lesquelles sont concernées**. Le périmètre retenu est celui
-des **conteneurs de premier niveau** : les blocs posés sur la page, portant le
-fond élevé, du type des tuiles d'un tableau de bord. En sont exclus les cartes,
-les infobulles, les alertes, les dialogues, les popovers, les menus, les
-autocomplétions, les accordéons, et toute surface **interne à un autre
-composant**.
+### The rule
 
-Recenser cela par recherche textuelle donne un résultat faux, et faux dans le
-sens dangereux : il fait entrer dans le périmètre des surfaces qui n'ont rien à
-y faire. Sur OpenAEV, 777 relevés bruts ont donné 395 conteneurs puis 130 dans
-le périmètre — et **deux surfaces recommandées à la conversion n'auraient jamais
-dû y figurer**. Les deux fois, c'était une surface FLOTTANTE.
+> **Every surface qualifies on its complete JSX ancestor stack, never on a
+> window of lines. A surface carried by a floating component — tooltip, drawer,
+> popover, popper, menu, dialog, autocomplete — NEVER enters the first-level
+> container perimeter, whatever it looks like.**
 
-### La règle
+### How to apply it
 
-> **Toute surface se qualifie sur sa pile d'ancêtres JSX complète, jamais sur une
-> fenêtre de lignes. Une surface portée par un composant flottant — infobulle,
-> tiroir, popover, popper, menu, dialogue, autocomplétion — n'entre JAMAIS dans
-> le périmètre des conteneurs de premier niveau, quel que soit son aspect.**
+1. **Collect wide.** Search for the UI library's surface components (`Paper`,
+   `Card`, `Accordion`, `Dialog`, `Popover`, `Menu`, `Drawer`, `Tooltip`,
+   `Alert`…), **plus** the hand-painted surfaces: a `Box`/`div` whose style sets
+   the elevated background colour. Those are invisible to any search by
+   component name. On OpenAEV there were **48** of them, more than a third of
+   the final perimeter.
+2. **Compute each hit's ancestor stack over the whole file**, pushing opening
+   tags and popping closing ones. A window of lines is not enough: a `Drawer`
+   opened sixty lines above is out of reach of a forty-line window.
+3. **Exclude every hit whose stack contains an open floating component.**
+   Mechanical, no exceptions.
+4. **Re-read by hand everything the tool classes as "convert".** On OpenAEV both
+   catches came from that re-reading, not from a better-tuned detector.
 
-### Comment l'appliquer
+### The four traps, each paid for by a real mistake
 
-1. **Relever large.** Chercher les composants de surface de la bibliothèque
-   d'interface utilisée (`Paper`, `Card`, `Accordion`, `Dialog`, `Popover`,
-   `Menu`, `Drawer`, `Tooltip`, `Alert`…), **plus** les surfaces peintes à la
-   main : un `Box`/`div` dont le style pose la couleur de fond élevé. Ces
-   dernières sont invisibles à toute recherche par nom de composant. Sur
-   OpenAEV, elles étaient **48**, soit plus du tiers du périmètre final.
-2. **Calculer la pile d'ancêtres de chaque relevé** sur le fichier entier, en
-   empilant les balises ouvrantes et en dépilant les fermantes. Une fenêtre de
-   lignes ne suffit pas : un `Drawer` ouvert soixante lignes plus haut est hors
-   de portée d'une fenêtre de quarante.
-3. **Exclure tout relevé dont la pile contient un composant flottant encore
-   ouvert.** C'est mécanique et sans exception.
-4. **Relire à la main tout ce que l'outil classe en « à convertir ».** Sur
-   OpenAEV, les deux rattrapages viennent de cette relecture, pas d'un détecteur
-   mieux réglé.
+- **Do not look for a prop name, look for an ancestor.** A component paints its
+  surface through `slotProps`, whose key is the name of the PART being styled:
+  `slotProps={{ tooltip: { sx: { backgroundColor: … } } }}`. The word `paper`
+  appears nowhere. Searching `PaperProps`/`slotProps.paper` misses it; looking
+  for the `Tooltip` ancestor finds it.
+- **A window of lines lies.** Moving from a 40-line window to the full stack
+  took OpenAEV from 2 to 6 floating surfaces detected.
+- **A hand-painted "elevated" background says nothing about the role.** The same
+  `background.paper` serves page panels, chips, graph nodes and tooltip fills.
+- **A role inferred from a file name is a hypothesis.** `…Panel.tsx` may be a
+  page container; `…Card.tsx` may not be a card. The name orients the reading,
+  it does not replace it.
 
-### Les quatre pièges, chacun payé par une erreur réelle
+### Corollary for review
 
-- **Ne pas chercher un nom de prop, chercher un ancêtre.** Un composant peint sa
-  surface via `slotProps`, dont la clé porte le nom de la PARTIE stylée :
-  `slotProps={{ tooltip: { sx: { backgroundColor: … } } }}`. Le mot `paper`
-  n'apparaît nulle part. Chercher `PaperProps`/`slotProps.paper` rate le cas ;
-  chercher l'ancêtre `Tooltip` le trouve.
-- **Une fenêtre de lignes ment.** Passer d'une fenêtre de 40 lignes à la pile
-  complète a fait passer OpenAEV de 2 à 6 surfaces flottantes détectées.
-- **Un fond « élevé » peint à la main ne dit rien du rôle.** Le même
-  `background.paper` sert des panneaux de page, des pastilles, des nœuds de
-  graphe et des fonds d'infobulle.
-- **Le rôle déduit du nom de fichier est une hypothèse.** `…Panel.tsx` peut être
-  un conteneur de page ; `…Card.tsx` peut ne pas être une carte. Le nom oriente
-  la relecture, il ne la remplace pas.
+When a human arbitration is needed on a surface's role, **provide the ancestor
+stack rather than a screenshot**. The stack is verifiable evidence; a thumbnail
+shows an appearance, and a tooltip styled as a card looks exactly like a
+first-level container.
 
-### Corollaire pour la revue
+### Tool
 
-Quand un arbitrage humain est demandé sur le rôle d'une surface, **fournir la
-pile d'ancêtres plutôt qu'une capture**. La pile est une preuve vérifiable ; une
-vignette montre une apparence, et une infobulle stylée en carte ressemble
-exactement à un conteneur de premier niveau.
-
-### Outil
-
-Le détecteur d'ancêtres utilisé pour OpenAEV ne dépend que de la structure JSX,
-pas du produit : il empile les balises ouvrantes du fichier et signale celles
-des relevés dont la pile contient un composant flottant. Il se réutilise tel
-quel sur un autre produit en changeant le chemin des sources et la liste des
-composants flottants de sa bibliothèque d'interface.
-
+The ancestor detector used for OpenAEV depends only on JSX structure, not on the
+product: it pushes the file's opening tags and reports the hits whose stack
+contains a floating component. It is reused as-is on another product by changing
+the source path and the list of that UI library's floating components.
 
 ## 15. Class A — what the census got wrong about padding, and the twelve it blocks
 
@@ -960,11 +281,11 @@ faulty numbers.
 
 **The padding often lives in a `makeStyles` block**, reached through
 `classes={{ root }}`, not in `sx`. The extractor read `sx` and `style` only, so
-**18 sites** were recorded as "padding 0 conservé" when they carry one.
+**18 sites** were recorded as carrying no padding when they carry one.
 
 **And a bare number in `sx` is not a pixel.** In MUI's `sx`, `padding: 2` means
 `theme.spacing(2)` = **16px**. Reading it as CSS made the first pass declare
-fourteen perfectly on-scale sites "hors échelle". The interpretation now depends
+fourteen perfectly on-scale sites off-scale. The interpretation now depends
 on the source: spacing units inside `sx`, raw pixels inside `makeStyles` or
 `style`.
 
@@ -1215,3 +536,33 @@ closing tag too** — the opening and closing tags are edited separately, and a
 > **Before converting, count the container surfaces in the file** and check
 > whether any of them is out of the wave. If so, plan the alias from the start
 > instead of discovering it from a type error.
+
+
+## 20. Two rules for pruning this document
+
+Learned while cutting 888 lines out of it.
+
+### 20.1 Numbers are addresses, not a table of contents
+
+Sections keep their number for ever, even when the ones before them are
+removed. The gaps left behind cost nothing; renumbering would break every
+`§13.2` written in a code comment, in a commit message already pushed, or in a
+feedback entry. **Never renumber. Fold a surviving rule into another section and
+give it a fresh sub-number there.**
+
+### 20.2 A section the code cites is never round memory
+
+The first pass of this cut classified §6 as "conversion arbitrations for a bump
+that happened" and marked it for deletion. Its heading said exactly that. But
+its three sub-sections carried standing rules, and **seven code comments pointed
+at them** — deleting the section would have left those comments addressing
+nothing.
+
+> **Before cutting a section, grep the source tree for its number.** A citation
+> from the code is proof the section still serves someone: it is the reader of
+> that comment, tomorrow, following the pointer.
+
+The same pass found §4 in the same position, for one line that records why
+`DetailHero` stays out of the waves. Both were folded into §5 instead of being
+dropped, and the seven comments were re-addressed in the same commit — a cut
+that breaks what it claims to preserve is not a cut, it is a regression.

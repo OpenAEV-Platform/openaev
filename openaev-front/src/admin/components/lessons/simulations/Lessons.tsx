@@ -350,7 +350,7 @@ const Lessons: FunctionComponent<Props> = ({
         {lessonsCategories.length === 0 ? (
           /* padding=32 carried by the Paper, and the placeholder's own 32px
              dropped HERE, at the call site: the shared component keeps its
-             default rendering for its other consumers — PAPER-GAP-INVENTORY §6.2. */
+             default rendering for its other consumers — PAPER-GAP-INVENTORY §5.6. */
           <Paper padding={32}>
             <LessonsPlaceholder
               disablePadding

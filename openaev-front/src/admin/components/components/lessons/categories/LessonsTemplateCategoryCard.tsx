@@ -38,8 +38,8 @@ const LessonsTemplateCategoryCard: FunctionComponent<Props> = ({
       padding={0}
       data-testid="lessons-category-card"
       style={{
-        // `overflow: hidden` est conservé volontairement : sans lui, le bandeau
-        // dégradé du premier enfant déborde du coin arrondi de la surface.
+        // `overflow: hidden` is carried over on purpose: without it the first
+        // child's gradient band overflows the surface's rounded corner.
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',

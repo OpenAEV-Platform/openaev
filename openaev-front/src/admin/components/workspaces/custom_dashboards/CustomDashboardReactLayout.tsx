@@ -191,9 +191,9 @@ const CustomDashboardReactLayout: FunctionComponent<{
     }
   };
 
-  // Le dégradé de lustre disparaît : la bibliothèque ne peint pas de dégradé,
-  // et l'arbitrage a accepté la perte. Le rayon part aussi — la surface porte
-  // désormais celui de la bibliothèque. Tout le reste est conservé.
+  // The sheen gradient goes: the library paints no gradient, and the loss was
+  // arbitrated. The radius goes too — the surface now carries the library's.
+  // Everything else is kept.
   const paperStyle = {
     height: '100%',
     margin: 0,

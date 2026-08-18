@@ -25,7 +25,7 @@ const LessonsObjectives = ({
   );
   return (
     /* padding=0 (iso): the row gutters carry the inset, and their dividers
-       must keep touching the edges — PAPER-GAP-INVENTORY §6.1. */
+       must keep touching the edges — PAPER-GAP-INVENTORY §5.5. */
     <Paper
       padding={0}
       style={{

@@ -9,7 +9,7 @@ const LessonsPlaceholder = ({ icon: Icon, message, action, disablePadding }: {
   message: string;
   action?: ReactNode;
   // Opt-in: drops this component's own 32px so the surface above it can own
-  // the padding instead (PAPER-GAP-INVENTORY §6.2). Default keeps today's
+  // the padding instead (PAPER-GAP-INVENTORY §5.6). Default keeps today's
   // rendering, so the call sites that don't pass it are untouched.
   disablePadding?: boolean;
 }) => {

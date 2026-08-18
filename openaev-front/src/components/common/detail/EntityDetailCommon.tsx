@@ -179,7 +179,7 @@ export const SectionBlock = ({ title, action, children, disablePadding, centerCo
   >
     {/* padding=16 (iso), 0 under `disablePadding`. The 16+16 cumulation with
         the row gutters is REPRODUCED as-is: correcting it is a density decision
-        outside this wave — PAPER-GAP-INVENTORY §6.3. */}
+        outside this wave — PAPER-GAP-INVENTORY §5.7. */}
     <Paper
       padding={disablePadding ? 0 : 16}
       title={title}
@@ -353,7 +353,7 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
     // DetailHero stays on MUI: accent gradient + transparent fill, and the
     // transparency falls under the "semi-transparent = phase 2" exclusion.
     // It also leaves the Paper waves permanently — it becomes its own
-    // component (PAPER-GAP-INVENTORY §4, arbitration G4).
+    // component (PAPER-GAP-INVENTORY §5.8).
     <MuiPaper
       variant="outlined"
       data-testid="detail-hero"
