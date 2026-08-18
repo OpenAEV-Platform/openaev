@@ -28,7 +28,6 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -44,7 +43,6 @@ public class ScenarioExecutionJob implements Job {
   private final TenantRepository tenantRepository;
 
   @Override
-  @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     // Disable tenant filter — this job runs cross-tenant
