@@ -79,8 +79,8 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
       (SELECT array_agg(ag.agent_id) FILTER (WHERE ag.agent_id IS NOT NULL)
        FROM agents ag WHERE ag.agent_asset = a.asset_id) as vulnerable_endpoint_agents,
       array_agg(f.finding_id) FILTER ( WHERE f.finding_id IS NOT NULL AND f.finding_type = 'CVE' ) as vulnerable_endpoint_cves,
-      (SELECT array_agg(ag.agent_last_seen) FILTER (WHERE ag.agent_id IS NOT NULL)
-       FROM agents ag WHERE ag.agent_asset = a.asset_id) as vulnerable_endpoint_agents_last_seen,
+      (SELECT array_agg(ag.agent_status) FILTER (WHERE ag.agent_id IS NOT NULL)
+       FROM agents ag WHERE ag.agent_asset = a.asset_id) as vulnerable_endpoint_agents_statuses,
       (SELECT array_agg(ag.agent_privilege) FILTER (WHERE ag.agent_id IS NOT NULL)
        FROM agents ag WHERE ag.agent_asset = a.asset_id) as vulnerable_endpoint_agents_privileges
     FROM ranked_vulnerable_endpoints rve

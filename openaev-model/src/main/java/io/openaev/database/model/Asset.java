@@ -297,15 +297,15 @@ public class Asset implements TenantBase {
 
   // Read-only activity status derived from the agents linked to this asset (agents live on the
   // Endpoint subclass, but the correlated subquery works on the base assets table for every
-  // category - non-agent assets simply resolve to AGENTLESS). The active window mirrors
-  // AgentHelper.ACTIVE_THRESHOLD (1 hour). Filterable so the inventory can filter by status.
+  // category - non-agent assets simply resolve to AGENTLESS). Filterable so the inventory can
+  // filter by status.
   @Queryable(filterable = true, sortable = true, refEnumClazz = ASSET_ACTIVITY_STATUS.class)
   @Formula(
       "(CASE"
           + " WHEN NOT EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = asset_id)"
           + " THEN 'AGENTLESS'"
           + " WHEN EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = asset_id"
-          + " AND ag.agent_last_seen > now() - interval '1 hour') THEN 'ACTIVE'"
+          + " AND ag.agent_status = 'ACTIVE') THEN 'ACTIVE'"
           + " ELSE 'INACTIVE' END)")
   @Enumerated(EnumType.STRING)
   @JsonProperty("asset_status")

@@ -471,9 +471,11 @@ class InjectsExecutionJobTest extends IntegrationTest {
               AgentComposer.Composer activeAgentComposer =
                   agentComposer.forAgent(AgentFixture.createDefaultAgentService());
               activeAgentComposer.get().setLastSeen(Instant.now());
+              activeAgentComposer.get().setStatus(AgentStatus.ACTIVE);
               AgentComposer.Composer inactiveAgentComposer =
                   agentComposer.forAgent(AgentFixture.createDefaultAgentSession());
               inactiveAgentComposer.get().setLastSeen(Instant.now().minus(2, ChronoUnit.HOURS));
+              inactiveAgentComposer.get().setStatus(AgentStatus.INACTIVE);
 
               EndpointComposer.Composer endpointWithoutAgentComposer =
                   endpointComposer.forEndpoint(EndpointFixture.createEndpoint());

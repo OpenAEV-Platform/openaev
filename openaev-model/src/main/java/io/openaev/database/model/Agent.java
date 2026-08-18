@@ -10,7 +10,6 @@ import io.openaev.database.audit.AuditStateCapturable;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
-import io.openaev.helper.AgentHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -34,6 +33,7 @@ import org.hibernate.annotations.JoinFormula;
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Agent implements TenantBase, AuditStateCapturable {
 
+  public static final long ACTIVE_THRESHOLD_MILLIS = 3_600_000L;
   public static final String ADMIN_SYSTEM_WINDOWS = "nt authority\\system";
   public static final String ADMIN_SYSTEM_UNIX = "root";
 
@@ -125,8 +125,14 @@ public class Agent implements TenantBase, AuditStateCapturable {
 
   @JsonProperty("agent_active")
   public boolean isActive() {
-    return new AgentHelper().isAgentActiveFromLastSeen(this.getLastSeen());
+    return this.status == AgentStatus.ACTIVE;
   }
+
+  @AuditStateIgnore
+  @Column(name = "agent_status", nullable = false)
+  @Enumerated(EnumType.STRING)
+  @JsonIgnore
+  private AgentStatus status = AgentStatus.ACTIVE;
 
   /** Used for Caldera only */
   @Column(name = "agent_process_name")

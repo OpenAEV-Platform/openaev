@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.AgentInactivityMonitorJob.AGENT_INACTIVITY_MONITOR_JOB;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_JOB;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_JOB;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
@@ -76,6 +77,14 @@ public class PlatformJobDefinitions {
     return JobBuilder.newJob(OpenCTIConnectorRegisterPingJob.class)
         .storeDurably()
         .withIdentity(jobKey("ConnectorPingJob"))
+        .build();
+  }
+
+  @Bean
+  public JobDetail agentInactivityMonitorJobDetail() {
+    return JobBuilder.newJob(AgentInactivityMonitorJob.class)
+        .withIdentity(AGENT_INACTIVITY_MONITOR_JOB)
+        .storeDurably()
         .build();
   }
 
