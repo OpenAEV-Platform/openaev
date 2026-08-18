@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  * enforces the invariant with defaults and {@code NOT NULL} constraints.
  */
 @Component
-public class V6_20260818100000000__Backfill_null_payload_arguments extends BaseJavaMigration {
+public class V6_20260818173849000__Backfill_null_payload_arguments extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -41,3 +41,4 @@ public class V6_20260818100000000__Backfill_null_payload_arguments extends BaseJ
     }
   }
 }
+
