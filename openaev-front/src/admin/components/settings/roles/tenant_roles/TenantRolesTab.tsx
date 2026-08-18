@@ -1,6 +1,6 @@
 import { SecurityOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
 import PaginatedList from '../../../../../components/common/list/PaginatedList';
@@ -12,8 +12,8 @@ import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { ROLE_BASE_URL } from '../../../../../constants/BaseUrls';
 import { type RoleOutput } from '../../../../../utils/api-types';
-import { Can } from '../../../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import CreateRole from './CreateRole';
 import useTenantRoles from './hooks/useTenantRoles';
 import RolePopover from './RolePopover';
@@ -25,6 +25,9 @@ import {
 } from './tenantRoles.queryable';
 
 const TenantRolesTab = () => {
+  const ability = useContext(AbilityContext);
+  // MANAGE is greyed out rather than hidden: the affordance stays discoverable.
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const { t } = useFormatter();
   const navigate = useNavigate();
 
@@ -54,9 +57,7 @@ const TenantRolesTab = () => {
         availableFilterNames={TENANT_ROLE_FILTERS}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-            <CreateRole onCreate={addRole} />
-          </Can>
+          <CreateRole onCreate={addRole} disabled={!canManage} disabledMessage={PERMISSION_REQUIRED} />
         )}
       />
       <List>

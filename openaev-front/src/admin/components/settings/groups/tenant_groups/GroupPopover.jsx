@@ -1,22 +1,24 @@
-import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 
 import { deleteGroup, fetchGroup, updateGroupInformation, updateGroupRoles, updateGroupUsers } from '../../../../../actions/Group';
+import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import inject18n from '../../../../../components/i18n';
-import { Can } from '../../../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import GroupManageGrants from './grants/GroupManageGrants.tsx';
 import GroupForm from './GroupForm';
 import GroupManageRoles from './GroupManageRoles';
 import GroupManageUsers from './GroupManageUsers';
 
 class GroupPopoverComponent extends Component {
+  static contextType = AbilityContext;
+
   constructor(props) {
     super(props);
     this.state = {
@@ -24,7 +26,6 @@ class GroupPopoverComponent extends Component {
       openEdit: false,
       openUsers: false,
       openGrants: false,
-      openPopover: false,
       keyword: '',
       tags: [],
       usersIds: props.groupUsersIds,
@@ -32,17 +33,8 @@ class GroupPopoverComponent extends Component {
     };
   }
 
-  handlePopoverOpen(event) {
-    this.setState({ anchorEl: event.currentTarget });
-  }
-
-  handlePopoverClose() {
-    this.setState({ anchorEl: null });
-  }
-
   handleOpenEdit() {
     this.setState({ openEdit: true });
-    this.handlePopoverClose();
   }
 
   handleCloseEdit() {
@@ -66,7 +58,6 @@ class GroupPopoverComponent extends Component {
       openUsers: true,
       usersIds: this.props.groupUsersIds,
     });
-    this.handlePopoverClose();
   }
 
   handleAddTag(value) {
@@ -89,7 +80,6 @@ class GroupPopoverComponent extends Component {
 
   handleOpenGrants() {
     this.setState({ openGrants: true });
-    this.handlePopoverClose();
   }
 
   handleCloseGrants() {
@@ -101,7 +91,6 @@ class GroupPopoverComponent extends Component {
       openRoles: true,
       rolesIds: this.props.groupRolesIds,
     });
-    this.handlePopoverClose();
   }
 
   submitUpdateRoles(roleIds) {
@@ -123,7 +112,6 @@ class GroupPopoverComponent extends Component {
 
   handleOpenDelete() {
     this.setState({ openDelete: true });
-    this.handlePopoverClose();
   }
 
   handleCloseDelete() {
@@ -143,6 +131,41 @@ class GroupPopoverComponent extends Component {
 
   render() {
     const { t, group } = this.props;
+    // Reading the group is enough to open the menu; the actions inside are greyed out instead,
+    // each carrying the shared "Permission required" tooltip.
+    const canManage = this.context.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
+    const canDelete = this.context.can(ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
+    const entries = [
+      {
+        label: 'Update',
+        action: this.handleOpenEdit.bind(this),
+        disabled: !canManage,
+      },
+      {
+        label: 'Manage users',
+        action: this.handleOpenUsers.bind(this),
+        disabled: !canManage,
+      },
+      {
+        label: 'Manage grants',
+        action: this.handleOpenGrants.bind(this),
+        disabled: !canManage,
+      },
+      {
+        label: 'Manage roles',
+        action: this.handleOpenRoles.bind(this),
+        disabled: !canManage,
+      },
+      {
+        label: 'Delete',
+        action: this.handleOpenDelete.bind(this),
+        disabled: !canDelete,
+      },
+    ].map(entry => ({
+      ...entry,
+      userRight: true,
+      disabledMessage: PERMISSION_REQUIRED,
+    }));
     const initialValues = R.pick(
       [
         'group_name',
@@ -154,38 +177,7 @@ class GroupPopoverComponent extends Component {
     return (
       <>
 
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <IconButton
-            color="primary"
-            onClick={this.handlePopoverOpen.bind(this)}
-            aria-haspopup="true"
-            size="small"
-            sx={{ borderRadius: 1 }}
-          >
-            <MoreVert fontSize="small" />
-          </IconButton>
-        </Can>
-        <Menu
-          anchorEl={this.state.anchorEl}
-          open={Boolean(this.state.anchorEl)}
-          onClose={this.handlePopoverClose.bind(this)}
-        >
-          <MenuItem onClick={this.handleOpenEdit.bind(this)}>
-            {t('Update')}
-          </MenuItem>
-          <MenuItem onClick={this.handleOpenUsers.bind(this)}>
-            {t('Manage users')}
-          </MenuItem>
-          <MenuItem onClick={this.handleOpenGrants.bind(this)}>
-            {t('Manage grants')}
-          </MenuItem>
-          <MenuItem onClick={this.handleOpenRoles.bind(this)}>
-            {t('Manage roles')}
-          </MenuItem>
-          <MenuItem onClick={this.handleOpenDelete.bind(this)}>
-            {t('Delete')}
-          </MenuItem>
-        </Menu>
+        <ButtonPopover entries={entries} variant="icon" />
         <Dialog
           open={this.state.openDelete}
           TransitionComponent={Transition}

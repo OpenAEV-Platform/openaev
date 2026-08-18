@@ -118,6 +118,14 @@ Below is a full list of capabilities in OpenAEV:
 | **Platform settings** |                                                                                                                                           |
 | `Access platform settings` | Read-only access to platform-wide configuration and administration settings.                                                              |
 | &nbsp;&nbsp;`Manage platform settings` | Modify platform-wide settings including security configuration, integrations, and system parameters. Requires *Access platform settings*. |
+| **Tenant settings** |                                                                                                                                           |
+| `Access tenant settings` | Read-only access to the tenant administration surface: tags, tag rules, attack patterns, organizations, collectors, injectors, notifiers. |
+| &nbsp;&nbsp;`Manage tenant settings` | Create and update them. Requires *Access tenant settings*.                                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant settings` | Permanently delete them. Requires *Manage tenant settings*.                                                                               |
+| **Security** |                                                                                                                                           |
+| `Access tenant users, groups and roles` | Read-only access to the tenant's users, groups and roles.                                                                                 |
+| &nbsp;&nbsp;`Manage tenant users, groups and roles` | Create and update the tenant's users, groups and roles. Requires *Access tenant users, groups and roles*.                                 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant users, groups and roles` | Permanently delete them. Requires *Manage tenant users, groups and roles*.                                                                |
 
 
 
