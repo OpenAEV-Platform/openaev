@@ -25,25 +25,51 @@ jobs:
               return;
             }
 
-            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'core-ci.yml',
-              event: 'push',
-              per_page: 100,
-            });
+            // Tag-triggered runs usually have head_branch = null, so resolve the
+            // commit behind the release tag and match by head_sha instead.
+            let tagSha;
+            try {
+              const refResponse = await github.rest.git.getRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${tag}`,
+              });
 
-            const matchingRuns = runs
-              .filter(run =>
-                run.status === 'completed'
-                && run.conclusion === 'success'
-                && run.head_branch === tag
-              )
-              .sort((left, right) =>
-                Date.parse(right.created_at) - Date.parse(left.created_at)
+              tagSha = refResponse.data.object.sha;
+              if (refResponse.data.object.type === 'tag') {
+                const tagObject = await github.rest.git.getTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag_sha: tagSha,
+                });
+                tagSha = tagObject.data.object.sha;
+              }
+            } catch (error) {
+              core.notice(`Unable to resolve tag ref for ${tag}: ${error.message}`);
+              return;
+            }
+
+            let run;
+            for (let page = 1; page <= 5 && !run; page += 1) {
+              const runsResponse = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'core-ci.yml',
+                event: 'push',
+                status: 'completed',
+                per_page: 100,
+                page,
+              });
+
+              run = runsResponse.data.workflow_runs.find(candidate =>
+                candidate.conclusion === 'success' && candidate.head_sha === tagSha
               );
 
-            const run = matchingRuns[0];
+              if (runsResponse.data.workflow_runs.length < 100) {
+                break;
+              }
+            }
+
             if (!run) {
               core.notice(`No successful [Core] CI run found for tag ${tag}`);
               return;
