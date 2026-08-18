@@ -538,6 +538,31 @@ closing tag too** — the opening and closing tags are edited separately, and a
 > instead of discovering it from a type error.
 
 
+### 19.1 In a `.jsx` file, not even the typechecker sees it
+
+The library's `IconButton` takes its content through an **`icon` prop**, not
+through children: it renders `<span aria-hidden>{icon}</span>` after spreading
+`...props`, so a child passed the JSX way is not just ignored — it is
+overwritten.
+
+Written as `<IconButton size="sm">{<Add />}</IconButton>` in a `.jsx` file, the
+result is a button of the right size, in the right place, clickable, focusable
+— **and completely empty**. ESLint passes. The typechecker passes too, because
+the file is `.jsx`: it has no props to check. The unit suite passes, because
+nothing asserted that control's content. It was caught by measuring the
+rendered page and finding no `<svg>` inside the button.
+
+> **Rule.** Before swapping a MUI control for a library one, read the library
+> component's signature — `icon`, `startIcon`, `label`, children are not
+> interchangeable. And in a `.jsx` file, assume nothing will tell you: the only
+> proof that a control still renders what it rendered before is a measurement
+> of the running page.
+
+An icon-only button also has no accessible name once the icon is
+`aria-hidden`. That is true of the MUI original too and is not introduced
+here, but it is a real defect and it deserves its own fix rather than a silent
+one inside a container wave.
+
 ## 20. Two rules for pruning this document
 
 Learned while cutting 888 lines out of it.

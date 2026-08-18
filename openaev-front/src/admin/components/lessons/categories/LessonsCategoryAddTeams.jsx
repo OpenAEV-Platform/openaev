@@ -131,9 +131,8 @@ const LessonsCategoryAddTeams = ({
         aria-haspopup="true"
         size="sm"
         priority="tertiary"
-      >
-        <Add fontSize="small" />
-      </FdsIconButton>
+        icon={<Add fontSize="small" />}
+      />
       <SelectListPicker
         open={open}
         onClose={handleClose}
