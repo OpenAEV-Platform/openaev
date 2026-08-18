@@ -67,6 +67,10 @@ const injectIconFor = (inject: InjectStore) => (
 
 // One lane of the live board: accent-tinted header with a count badge and a
 // capped, internally scrollable body.
+// A column header, NOT a section title: it sits inside the surface and carries
+// an icon, a count and an accent band the library's `title` slot cannot hold.
+// Do not "harmonise" it onto the library header — that drops those three.
+// PAPER-GAP-INVENTORY §23 records the distinction and why this stays.
 const BoardColumn = ({ icon: Icon, label, count, accent, children }: {
   icon: ComponentType<{ sx?: object }>;
   label: string;

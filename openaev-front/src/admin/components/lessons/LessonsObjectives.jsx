@@ -1,4 +1,3 @@
-import { Paper } from '@filigran/design-system';
 import { FlagOutlined } from '@mui/icons-material';
 import { Box, LinearProgress, List, ListItem, ListItemButton, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -24,15 +23,9 @@ const LessonsObjectives = ({
     objectives,
   );
   return (
-    /* padding=0 (iso): the row gutters carry the inset, and their dividers
-       must keep touching the edges — PAPER-GAP-INVENTORY §5.5. */
-    <Paper
-      padding={0}
-      style={{
-        flex: 1,
-        overflow: 'hidden',
-      }}
-    >
+    /* No surface here: ConfigurationSection owns it now, with the library
+       header above it. Two Papers would nest — PAPER-GAP-INVENTORY §5.5. */
+    <>
       {sortedObjectives.length > 0 ? (
         <List
           disablePadding
@@ -129,7 +122,7 @@ const LessonsObjectives = ({
             : t('No objectives in this simulation.')}
         />
       )}
-    </Paper>
+    </>
   );
 };
 

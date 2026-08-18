@@ -1,6 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { AddOutlined, ControlPointOutlined } from '@mui/icons-material';
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -56,10 +56,8 @@ const CreateVariable: FunctionComponent<Props> = ({ inline }) => {
         </ListItemButton>
       ) : (
         <Button
-          variant="contained"
-          color="primary"
-          size="small"
-          startIcon={<AddOutlined />}
+          size="sm"
+          startIcon={<AddOutlined fontSize="small" />}
           onClick={() => setOpen(true)}
         >
           {t('Add variable')}

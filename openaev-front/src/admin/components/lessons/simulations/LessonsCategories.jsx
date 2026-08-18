@@ -5,7 +5,6 @@ import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext } from 'react';
 
-import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../../components/i18n';
 import { truncate } from '../../../../utils/String';
 import { LessonContext, PermissionsContext } from '../../common/Context';
@@ -137,10 +136,11 @@ const LessonsCategories = ({
                 flexDirection: 'column',
               }}
               >
-                <Typography sx={SECTION_LABEL_SX}>{t('Questions')}</Typography>
-                {/* padding=0 (iso): row dividers stay edge to edge — PAPER-GAP-INVENTORY §5.5. */}
+                {/* The title goes into the Paper's own header slot: nothing is
+                    copied and nothing can drift — PAPER-GAP-INVENTORY §5.5. */}
                 <Paper
                   padding={0}
+                  title={t('Questions')}
                   style={{
                     flex: 1,
                     overflow: 'hidden',
@@ -206,10 +206,11 @@ const LessonsCategories = ({
                 flexDirection: 'column',
               }}
               >
-                <Typography sx={SECTION_LABEL_SX}>{t('Results')}</Typography>
-                {/* padding=0 (iso): row dividers stay edge to edge — PAPER-GAP-INVENTORY §5.5. */}
+                {/* The title goes into the Paper's own header slot: nothing is
+                    copied and nothing can drift — PAPER-GAP-INVENTORY §5.5. */}
                 <Paper
                   padding={0}
+                  title={t('Results')}
                   style={{
                     flex: 1,
                     overflow: 'hidden',
@@ -304,9 +305,14 @@ const LessonsCategories = ({
                 flexDirection: 'column',
               }}
               >
-                <Typography sx={SECTION_LABEL_SX}>
-                  {t('Targeted teams')}
-                  {!isReport && permissions.canManage && (
+                {/* Title and action in the Paper's own header slots — the add
+                    control was inline in the label before. padding=16 (iso):
+                    the chips' own padding is intrinsic and stays,
+                    PAPER-GAP-INVENTORY §5.3. */}
+                <Paper
+                  padding={16}
+                  title={t('Targeted teams')}
+                  action={!isReport && permissions.canManage && (
                     <LessonsCategoryAddTeams
                       lessonsCategoryId={category.lessonscategory_id}
                       lessonsCategoryTeamsIds={category.lessons_category_teams}
@@ -315,10 +321,6 @@ const LessonsCategories = ({
                       teamsMap={teamsMap}
                     />
                   )}
-                </Typography>
-                {/* padding=16 (iso): the chips' own padding is intrinsic and stays — PAPER-GAP-INVENTORY §5.3. */}
-                <Paper
-                  padding={16}
                   style={{
                     flex: 1,
                     display: 'flex',

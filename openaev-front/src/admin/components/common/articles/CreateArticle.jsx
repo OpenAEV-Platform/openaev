@@ -34,7 +34,7 @@ const CreateArticle = (props) => {
   return (
     <>
       {/* Same compact creation button whether standalone or in a picker header. */}
-      <ButtonCreate onClick={handleOpenCreate} label={t('Create an article')} />
+      <ButtonCreate size="sm" onClick={handleOpenCreate} label={t('Create an article')} />
       <Dialog
         open={openCreate}
         TransitionComponent={Transition}

@@ -1,4 +1,3 @@
-import { Paper } from '@filigran/design-system';
 import { TimelineOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
@@ -32,15 +31,9 @@ const CrysisIntensity = ({ injects }) => {
     },
   ];
   return (
-    /* padding=0 (iso): the chart fills the surface edge to edge. No dividers
-       here — this site keeps 0 for the full-bleed chart, not for row dividers. */
-    <Paper
-      padding={0}
-      style={{
-        flex: 1,
-        overflow: 'hidden',
-      }}
-    >
+    /* No surface here: ConfigurationSection owns it now, with the library
+       header above it. Two Papers would nest — PAPER-GAP-INVENTORY §5.5. */
+    <>
       {injectsData.length > 0 ? (
         <Chart
           options={areaChartOptions(theme, true, nsdt, null, undefined)}
@@ -55,7 +48,7 @@ const CrysisIntensity = ({ injects }) => {
           message={t('No data to display or the simulation has not started yet')}
         />
       )}
-    </Paper>
+    </>
   );
 };
 

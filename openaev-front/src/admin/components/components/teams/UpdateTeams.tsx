@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { AddOutlined, GroupsOutlined } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 
 import { findTeams } from '../../../../actions/teams/team-actions';
@@ -95,10 +95,8 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
   return (
     <>
       <Button
-        variant="contained"
-        color="primary"
-        size="small"
-        startIcon={<AddOutlined />}
+        size="sm"
+        startIcon={<AddOutlined fontSize="small" />}
         onClick={() => setOpen(true)}
       >
         {t('Add team')}

@@ -11,15 +11,13 @@ import {
   DialogTitle,
   FormControlLabel,
   Switch,
-  Typography,
-  useTheme,
 } from '@mui/material';
 import * as R from 'ramda';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
-import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import { Field, HeroStat, HeroStats, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
+import LibHeaderRow from '../../../../components/common/LibHeaderRow';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Inject, type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsSendInput, type LessonsTemplate, type Objective, type Team, type User } from '../../../../utils/api-types';
@@ -81,7 +79,6 @@ const Lessons: FunctionComponent<Props> = ({
   usersMap,
 }) => {
   // Standard hooks
-  const theme = useTheme();
   const { t, nsdt } = useFormatter();
   const dispatch = useAppDispatch();
   const { permissions } = useContext(PermissionsContext);
@@ -314,6 +311,7 @@ const Lessons: FunctionComponent<Props> = ({
           title={t('Objectives')}
           count={objectives.length}
           action={source.isUpdatable ? <CreateObjective /> : undefined}
+          withSurface
         >
           <LessonsObjectives
             objectives={objectives}
@@ -321,54 +319,44 @@ const Lessons: FunctionComponent<Props> = ({
             source={source}
           />
         </ConfigurationSection>
-        <ConfigurationSection title={t('Crisis intensity (injects by hour)')}>
+        <ConfigurationSection title={t('Crisis intensity (injects by hour)')} withSurface>
           <CrysisIntensity injects={injects} />
         </ConfigurationSection>
       </Box>
 
       {/* Categories and questions */}
       <section>
-        <header style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing(1),
-          marginBottom: theme.spacing(1.5),
-        }}
+        <LibHeaderRow
+          title={t('Categories and questions')}
+          action={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+              <CreateLessonsCategory />
+            </Can>
+          )}
         >
-          <Typography sx={{
-            ...SECTION_LABEL_SX,
-            marginBottom: 0,
-          }}
-          >
-            {t('Categories and questions')}
-          </Typography>
-          <div style={{ flex: 1 }} />
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-            <CreateLessonsCategory />
-          </Can>
-        </header>
-        {lessonsCategories.length === 0 ? (
+          {lessonsCategories.length === 0 ? (
           /* padding=32 carried by the Paper, and the placeholder's own 32px
              dropped HERE, at the call site: the shared component keeps its
              default rendering for its other consumers — PAPER-GAP-INVENTORY §5.6. */
-          <Paper padding={32}>
-            <LessonsPlaceholder
-              disablePadding
-              icon={BallotOutlined}
-              message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
+            <Paper padding={32}>
+              <LessonsPlaceholder
+                disablePadding
+                icon={BallotOutlined}
+                message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
+              />
+            </Paper>
+          ) : (
+            <LessonsCategories
+              lessonsCategories={lessonsCategories}
+              lessonsAnswers={lessonsAnswers}
+              setSelectedQuestion={setSelectedQuestion}
+              lessonsQuestions={lessonsQuestions}
+              teamsMap={teamsMap}
+              teams={teams}
+              isReport={false}
             />
-          </Paper>
-        ) : (
-          <LessonsCategories
-            lessonsCategories={lessonsCategories}
-            lessonsAnswers={lessonsAnswers}
-            setSelectedQuestion={setSelectedQuestion}
-            lessonsQuestions={lessonsQuestions}
-            teamsMap={teamsMap}
-            teams={teams}
-            isReport={false}
-          />
-        )}
+          )}
+        </LibHeaderRow>
       </section>
 
       {/* Dialogs */}
