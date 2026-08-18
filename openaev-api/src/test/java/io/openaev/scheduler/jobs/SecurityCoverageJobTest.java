@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.SecurityCoverageSendJob;
 import io.openaev.database.model.Tenant;
@@ -18,10 +19,13 @@ import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.stix.objects.Bundle;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -40,6 +44,7 @@ class SecurityCoverageJobTest {
   @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private SecurityCoverageService securityCoverageService;
   @Mock private OpenCTIConnectorService openCTIConnectorService;
+  @Mock private TenantScopedTransaction tenantTx;
 
   @InjectMocks private SecurityCoverageJob job;
 
@@ -93,6 +98,9 @@ class SecurityCoverageJobTest {
   @Test
   @DisplayName("a registered connector still gets its bundle built, pushed and the job consumed")
   void given_registeredConnector_should_pushAndConsume() throws Exception {
+    when(tenantTx.execute(any(), ArgumentMatchers.<Supplier<Bundle>>any()))
+        .thenAnswer(invocation -> invocation.<Supplier<Bundle>>getArgument(1).get());
+
     SecurityCoverageSendJob sendJob = pendingJobForTenant();
     when(securityCoverageSendJobService.getPendingSecurityCoverageSendJobs())
         .thenReturn(List.of(sendJob));
