@@ -83,7 +83,7 @@
   "A prerequisite check failed before the main command could run. Review prerequisite dependencies and ensure they are met on the target.": "メインコマンドの実行前に前提条件チェックが失敗しました。前提条件の依存関係を確認し、ターゲット上で満たされていることを確認してください。",
   "A simulation will be launched based on this scenario and will start immediately. Are you sure you want to proceed?": "このシナリオに基づいてシミュレーションが開始され、直ちに開始されます。本当に続行しますか？",
   "A valid http(s) URL is required": "有効なhttp(s) URLが必要です",
-  "A variable with this key and type already exists. Please change the name or the type.": "このキーと型を持つ変数がすでに存在します。名前または型を変更してください。",
+  "A variable with this key and type already exists. Please change the key or the type.": "このキーと型の変数はすでに存在します。キーまたは型を変更してください。",
   "Aa": "Aa",
   "ABSOLUTE_TIME_WITHOUT_START_DATE": "インポートファイルに時刻のみ（例：9:30）のインジェクトが含まれていますが、このシナリオには開始日が指定されていません。このシナリオの開始日を指定してください。",
   "Abused a server-side request forgery to read the metadata endpoint and exfiltrate cloud keys.": "サーバーサイドリクエストフォージェリを悪用してメタデータエンドポイントを読み取り、クラウドキーを持ち出しました。",

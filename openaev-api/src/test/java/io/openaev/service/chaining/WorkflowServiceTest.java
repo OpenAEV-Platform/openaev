@@ -1,5 +1,6 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.service.chaining.WorkflowService.DUPLICATE_SCOPE_VARIABLE_MESSAGE;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -14,6 +15,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
@@ -1375,6 +1377,66 @@ class WorkflowServiceTest {
       ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
       assertEquals(PrimitiveType.Text, updated.getType());
       assertEquals("TopSecret", updated.getValue());
+      verify(workflowRepository).save(workflow);
+    }
+
+    @Test
+    @DisplayName("should reject a duplicate key and type with a business message")
+    void given_duplicateKeyAndType_should_throwAlreadyExistingException() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(
+              new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null),
+              new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Globex", null)));
+
+      // Act
+      AlreadyExistingException exception =
+          assertThrows(
+              AlreadyExistingException.class,
+              () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+
+      // Assert - the business message replaces the raw DB constraint error
+      assertEquals(DUPLICATE_SCOPE_VARIABLE_MESSAGE, exception.getMessage());
+      verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should reject a duplicate key and type differing only by case of the value")
+    void given_duplicateKeyAndTypeWithDifferentValues_should_throwAlreadyExistingException() {
+      // Arrange - only the key and the type take part in the uniqueness, not the value
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(
+              new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", "first"),
+              new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "acme", "second")));
+
+      // Act & Assert
+      assertThrows(
+          AlreadyExistingException.class,
+          () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+      verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should accept the same key when the type differs")
+    void given_sameKeyDifferentType_should_createBothVariables() {
+      // Arrange - the uniqueness is on (key, type, workflow), so the same key with another type
+      // is legitimate
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(
+              new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null),
+              new ScopeVariableInput(null, "company_name", PrimitiveType.IPv4, "10.0.0.1", null)));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertEquals(2, result.getWorkflowScopeVariables().size());
       verify(workflowRepository).save(workflow);
     }
 

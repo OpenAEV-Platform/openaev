@@ -80,7 +80,7 @@ const ScopeVariableCreateDialog = ({
         const pairKey = `${normalizedKey}::${data.scope_variable_type}`;
         if (existingVariablePairs.has(pairKey)) {
           const message
-            = 'A variable with this key and type already exists. Please change the name or the type.';
+            = 'A variable with this key and type already exists. Please change the key or the type.';
           context.addIssue({
             code: 'custom',
             path: ['scope_variable_key'],

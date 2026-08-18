@@ -18,6 +18,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -43,6 +44,9 @@ import org.springframework.util.CollectionUtils;
 public class WorkflowService {
 
   public static final long DEFAULT_TIMEOUT_SECONDS = 3600L;
+
+  static final String DUPLICATE_SCOPE_VARIABLE_MESSAGE =
+      "A variable with this key and type already exists. Please change the name or the type.";
 
   private static final Gson GSON = new Gson();
 
@@ -615,6 +619,7 @@ public class WorkflowService {
       existing.clear();
       return true;
     }
+    assertNoDuplicateScopeVariable(variableInputs);
 
     Set<String> inputIds =
         variableInputs.stream()
@@ -640,6 +645,27 @@ public class WorkflowService {
       }
     }
     return changed;
+  }
+
+  /**
+   * Rejects a configuration payload that would breach the per-workflow uniqueness of a scope
+   * variable (key + type). Without this guard the {@code uk_scope_variable_key_type_workflow}
+   * database constraint is what fails, and it surfaces to the client as a raw integrity violation
+   * naming the constraint, which is neither actionable nor safe to display.
+   *
+   * <p>The comparison deliberately mirrors the database constraint exactly (no normalisation), so
+   * this never rejects a payload the database would have accepted.
+   *
+   * @param variableInputs the scope variables submitted for the workflow
+   * @throws AlreadyExistingException if two variables share the same key and type
+   */
+  private void assertNoDuplicateScopeVariable(List<ScopeVariableInput> variableInputs) {
+    Set<String> seenKeyTypePairs = new HashSet<>();
+    for (ScopeVariableInput input : variableInputs) {
+      if (!seenKeyTypePairs.add(input.getKey() + "|" + input.getType())) {
+        throw new AlreadyExistingException(DUPLICATE_SCOPE_VARIABLE_MESSAGE);
+      }
+    }
   }
 
   private boolean hasVariableChanged(ScopeVariable existing, ScopeVariableInput input) {
