@@ -27,8 +27,6 @@ FROM eclipse-temurin:21.0.11_10-jre AS app
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-# pebble ships in the Ubuntu base but is never executed here (tini is the entrypoint), and its Go stdlib
-# carries 8 high CVEs that fail the container scan; libsystemd0 is upgraded for CVE-2026-16742/15059/15060.
 RUN DEBIAN_FRONTEND=noninteractive apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y --only-upgrade libsystemd0 && rm -f /usr/bin/pebble && rm -rf /var/lib/apt/lists/*
 COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 # Install Chromium and its system libraries for server-side report rendering. The boot jar uses

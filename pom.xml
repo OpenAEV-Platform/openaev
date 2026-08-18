@@ -39,13 +39,9 @@
         <!-- Override Spring Boot BOM: httpcore5-h2 HTTP/2 HPACK DoS CVE-2026-54428 -->
         <httpcore5.version>5.4.3</httpcore5.version>
         <velocity-engine-core.version>2.4.1</velocity-engine-core.version>
-        <!-- Override Spring Boot BOM: logback-core expression injection CVE-2026-13006 (fixed in 1.5.36) -->
         <logback.version>1.6.3</logback.version>
-        <!-- Override Spring Boot BOM: log4j-api improper output escaping CVE-2026-49844 (fixed in 2.25.5) -->
         <log4j2.version>2.25.5</log4j2.version>
-        <!-- Override Spring Boot BOM: httpclient5 resource leak CVE-2026-64607 (fixed in 5.6.3) -->
         <httpclient5.version>5.6.3</httpclient5.version>
-        <!-- Override Spring Boot BOM: kotlin-stdlib information exposure CVE-2020-29582 (fixed in 2.1.0) -->
         <kotlin.version>2.1.21</kotlin.version>
         <opentelemetry.version>1.65.0</opentelemetry.version>
     </properties>
@@ -140,8 +136,6 @@
                 <artifactId>velocity-engine-core</artifactId>
                 <version>${velocity-engine-core.version}</version>
             </dependency>
-            <!-- elasticsearch-java drags opentelemetry-api 1.49.0 into model/framework; import the BOM here
-                 so CVE-2026-45292 (unbounded resource allocation) is fixed for every module, not just api. -->
             <dependency>
                 <groupId>io.opentelemetry</groupId>
                 <artifactId>opentelemetry-bom</artifactId>
