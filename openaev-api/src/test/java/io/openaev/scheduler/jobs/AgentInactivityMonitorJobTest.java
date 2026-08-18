@@ -35,7 +35,7 @@ class AgentInactivityMonitorJobTest {
 
   private AgentInactivityMonitorJob createJob() {
     return new AgentInactivityMonitorJob(
-            agentRepository, tenantTx, java.util.Optional.of(auditLogger));
+        agentRepository, tenantTx, java.util.Optional.of(auditLogger));
   }
 
   @Nested
