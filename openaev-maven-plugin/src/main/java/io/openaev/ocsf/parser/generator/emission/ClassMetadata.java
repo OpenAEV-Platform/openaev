@@ -1,7 +1,9 @@
 package io.openaev.ocsf.parser.generator.emission;
 
-public record ClassMetadata(String ocsfIdentifier, String className, String classPackage) {
+import com.fasterxml.jackson.databind.JsonNode;
 
+public record ClassMetadata(
+    String ocsfIdentifier, String className, String classPackage, JsonNode source) {
   public String fullyQualifiedClassName() {
     return String.join(".", classPackage(), className());
   }

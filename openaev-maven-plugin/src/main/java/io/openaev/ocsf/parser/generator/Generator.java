@@ -26,7 +26,7 @@ public class Generator {
       switch (src.getDimension()) {
         case SINGLE_OBJECT ->
             tracker.put(src.getName(), objectClassGenerator.metadata(src.getName(), src.get()));
-          case SINGLE_CLASS ->
+        case SINGLE_CLASS ->
             tracker.put(src.getName(), classClassGenerator.metadata(src.getName(), src.get()));
         case DATATYPES ->
             src.get()

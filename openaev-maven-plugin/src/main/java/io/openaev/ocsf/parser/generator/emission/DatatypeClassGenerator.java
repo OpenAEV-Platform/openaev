@@ -13,7 +13,7 @@ public class DatatypeClassGenerator extends ClassGenerator {
 
   @Override
   public ClassMetadata metadata(String name, JsonNode source) {
-    return new ClassMetadata(name, compositeOcsfClassName(name), datatypesPackageName);
+    return new ClassMetadata(name, compositeOcsfClassName(name), datatypesPackageName, source);
   }
 
   @Override

@@ -7,7 +7,7 @@ public class ObjectClassGenerator extends ClassGenerator {
 
   @Override
   public ClassMetadata metadata(String name, JsonNode source) {
-    return new ClassMetadata(name, compositeOcsfClassName(name), objectsPackageName);
+    return new ClassMetadata(name, compositeOcsfClassName(name), objectsPackageName, source);
   }
 
   @Override
