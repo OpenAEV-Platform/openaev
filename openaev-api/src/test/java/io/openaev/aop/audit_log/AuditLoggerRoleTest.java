@@ -224,7 +224,7 @@ class AuditLoggerRoleTest extends IntegrationTest {
     @Test
     @WithMockUser(
         withCapabilities = {
-          Capability.MANAGE_TENANT_SETTINGS,
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
           Capability.ACCESS_ASSESSMENT,
           Capability.ACCESS_TAGS,
           Capability.MANAGE_TAGS,

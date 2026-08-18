@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  * ends up with ACCESS+MANAGE even if its parent grants were never materialized.
  */
 @Component
-public class V6_20260813130000000__Grant_tenant_users_groups_and_roles_capabilities
+public class V6_20260818100000000__Grant_tenant_users_groups_and_roles_capabilities
     extends BaseJavaMigration {
 
   @Override
