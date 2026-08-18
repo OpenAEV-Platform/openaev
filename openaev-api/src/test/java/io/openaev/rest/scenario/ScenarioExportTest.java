@@ -9,13 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Base;
-import io.openaev.database.model.ContractOutputElement;
-import io.openaev.database.model.OutputParser;
-import io.openaev.database.model.Scenario;
-import io.openaev.database.model.Step;
-import io.openaev.database.model.Tag;
-import io.openaev.database.model.Workflow;
+import io.openaev.database.model.*;
 import io.openaev.export.Mixins;
 import io.openaev.utils.ZipUtils;
 import io.openaev.utils.fixtures.*;
@@ -324,6 +318,55 @@ public class ScenarioExportTest extends IntegrationTest {
 
       // Assert
       assertThatJson(actualJson).node("scenario_injects").isArray().isEqualTo("[]");
+    }
+  }
+
+  @Nested
+  @DisplayName("Scenario payload nullable export")
+  class ScenarioPayloadNullableExport {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_payloadWithNullJsonLists_should_exportScenarioWithoutError")
+    void given_payloadWithNullJsonLists_should_exportScenarioWithoutError() throws Exception {
+      // Arrange
+      Payload payload = PayloadFixture.createDefaultCommand();
+      payload.setArguments(null);
+      payload.setPrerequisites(null);
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withInjectorContract(
+                          injectorContractComposer
+                              .forInjectorContract(
+                                  InjectorContractFixture.createDefaultInjectorContract())
+                              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                              .withPayload(payloadComposer.forPayload(payload))))
+              .persist()
+              .get();
+
+      manager.flush();
+      manager.clear();
+
+      // Act
+      byte[] response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + scenario.getId() + "/export")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+      String actualJson = getJsonExportFromZip(response, scenario.getName());
+
+      // Assert
+      assertThatJson(actualJson)
+          .node("scenario_information.scenario_id")
+          .isEqualTo(scenario.getId());
+      assertThatJson(actualJson).node("scenario_injects").isArray().isNotEmpty();
     }
   }
 }
