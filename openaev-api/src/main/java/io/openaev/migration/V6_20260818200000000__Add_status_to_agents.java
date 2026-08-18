@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260818100000000__Add_status_to_agents extends BaseJavaMigration {
+public class V6_20260818200000000__Add_status_to_agents extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
