@@ -65,7 +65,7 @@ describe('Admin TopBar built on the design system Header', () => {
   });
 
   it('tags a non-production licence with the design system Chip, not a MUI one', () => {
-    // Review #7305: the "EE DEV LICENSE" tag was the last MUI control
+    // Review #7305 (Sandy): the "EE DEV LICENSE" tag was the last MUI control
     // left in the bar - a MUI `Chip` inside the product's generic `ItemBoolean`,
     // painted from hardcoded literals (#f44336 on rgba(244, 67, 54, 0.08)).
     // Same treatment as the EE chip the Navbar pilot already converted
@@ -143,7 +143,7 @@ describe('Admin TopBar built on the design system Header', () => {
   });
 
   it('bounds the search field between 200px and 500px', () => {
-    // Arbitrated: the field runs from a 200px floor to a
+    // Design decision (Sandy, round 4): the field runs from a 200px floor to a
     // 500px ceiling. The library's growing group caps at 400px, BELOW that
     // ceiling, so grow="unbounded" stays the supported way to say "I supply my
     // own window" - and the window is this one.

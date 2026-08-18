@@ -93,13 +93,13 @@
     "palette.background.paper (+ paperInCard dark, code dark via THEME_*_ACCENT)",
     "palette.background.accent (dark) / background.code (both modes) via THEME_*_ACCENT -- NOT the same as the standalone light background.accent literal, see notMigrated",
     "palette.background.secondary (newly wired -- was declared in Theme.ts but never assigned before this lot)",
-    "MuiCssBaseline html/body background (newly wired two-stop gradient, ISO OpenCTI's getAppBodyGradientEndColor pattern -- OpenAEV previously had zero gradient, flat fill only; found during Sandy's Phase 5 review)"
+    "MuiCssBaseline html/body background (newly wired two-stop gradient, ISO OpenCTI's getAppBodyGradientEndColor pattern -- OpenAEV previously had zero gradient, flat fill only; found during the Phase 5 review)"
   ],
   "notMigrated": [
     "palette.background.accent (light, standalone '#d3eaff' literal, ItemCopy.tsx/AttackPatternBox.tsx) -- no FDS token match on either OpenCTI or OpenAEV side, genuine cross-product gap, see TOKEN-MAPPING.md §3.5 and the Figma backlog",
-    "palette.severity.* (7 levels) -- explicit design decision deferred to Sandy+Thibault; a portable 5/7-level mapping already validated by the OpenCTI pilot is documented (not applied) in TOKEN-MAPPING.md §4",
-    "THEME_LIGHT_DEFAULT_NAV -- FDS token identified (--bg-elevation-heading-layer-0, #f2f2f3) but deliberately NOT applied pending explicit sign-off (the '7th item', a real visible white -> pale-gray delta not in Sandy's originally arbitrated list) -- see TOKEN-MAPPING.md §1",
-    "palette.designSystem (full DesignSystemPalette type, Theme.ts) -- dead code (0 consumers), explicitly left unresurrected per Sandy's arbitration (option 2); see TOKEN-MAPPING.md §5 and PR #5204/#5523 history",
+    "palette.severity.* (7 levels) -- explicit design decision deferred to the product owners; a portable 5/7-level mapping already validated by the OpenCTI pilot is documented (not applied) in TOKEN-MAPPING.md §4",
+    "THEME_LIGHT_DEFAULT_NAV -- FDS token identified (--bg-elevation-heading-layer-0, #f2f2f3) but deliberately NOT applied pending explicit sign-off (the '7th item', a real visible white -> pale-gray delta outside the originally arbitrated list) -- see TOKEN-MAPPING.md §1",
+    "palette.designSystem (full DesignSystemPalette type, Theme.ts) -- dead code (0 consumers), explicitly left unresurrected, arbitrated (option 2); see TOKEN-MAPPING.md §5 and PR #5204/#5523 history",
     "palette.background.gradient.{start,end} / palette.leftBar.* -- dead code, 0 consumers, left as-is",
     "borderRadius / typography / spacing -- out of scope for this color-only lot (borderRadius: 4 already numerically matches --radius-sm, not wired symbolically)"
   ],

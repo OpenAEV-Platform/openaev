@@ -969,7 +969,7 @@ token?" has no answer yet. Worth settling once, at token level.
 ## 18. `grow` and `grow="unbounded"` — the cap is right, its discoverability is not
 
 **Needed.** A search cluster whose window is `min-width: 200px`,
-`max-width: 500px` (design decision, Sandy, round 4 — it replaced the
+`max-width: 500px` (arbitrated, round 4 — it replaced the
 `550px / 50% / 680px` window the pilot first shipped).
 
 **Today.** `HeaderGroup grow` caps at Figma's 400px — **below this product's
@@ -1161,7 +1161,7 @@ badges in the bar are gone, and the compensation markers with them:
 
 Two consequences, both accepted rather than compensated:
 
-- the counter grows from **16px to 20px** (`h-5 min-w-5`). Sandy's arbitration:
+- the counter grows from **16px to 20px** (`h-5 min-w-5`). Arbitrated:
   it displays a count, so it takes the default counter size; the growth is
   assumed. The three `sx` overrides that forced the old size are deleted, not
   re-expressed.
@@ -1227,7 +1227,7 @@ answered by the library, and the product now takes each one:
 |---|---|---|---|
 | spinner capped at 24px, sitting ON a 24px glyph (0.00px clearance) | PR #119 adds an `xl` tier | `Spinner size="xl"` — 32px, **4.00px** clearance, measured |
 | `ProgressBar` has no colour axis, so the bars lost their per-status colour | PR #118 adds `tone` | `tone` = success / error / default from `bulk_operation_status`; the completed bar is green again |
-| `Badge` default was `brand` | PR #119 makes `error` the default | both badges are red **with no product change** — the product passes no `tone`; per-site arbitration is Sandy's |
+| `Badge` default was `brand` | PR #119 makes `error` the default | both badges are red **with no product change** — the product passes no `tone`; the per-site call is the product's |
 
 One gap remains inside a shipped component, worth naming rather than working
 around: **`ProgressBar` has no `warning` tone**. Nothing in this bar needs one
@@ -1635,7 +1635,7 @@ itself surfaced.
 - **#27 border — CLOSED AS ARBITRATED, not as "satisfied".** What the entry
   asked for exists: the border is now its own per-layer token
   (`--border-elevation-subtle-soft`), themeable by a host. The **opacity is
-  Sandy's decision** (15% since #125), and the measured consequence is that the
+  arbitrated** (15% since #125), and the measured consequence is that the
   converted panels' border is **weaker than before migration**, not equal to it:
 
   | | before migration (MUI) | after, at pin `a22b188` |
@@ -1653,7 +1653,7 @@ itself surfaced.
   semantic alias `--bg-elevation-default` at the same time does **nothing**.
   Wiring `paper_color` → `--bg-elevation-default-layer-1` was a three-line change
   in this product's `AppThemeProvider`.
-- **#29 DetailHero — CLOSED as a Paper question, 2026-08-15.** Sandy's decision:
+- **#29 DetailHero — CLOSED as a Paper question, 2026-08-15.** Arbitrated:
   `DetailHero` becomes **its own component** (accent gradient + transparent
   fill). It therefore leaves the Paper waves **permanently** — this is not "a
   site still to migrate", and no future wave should pick it up. What the entry

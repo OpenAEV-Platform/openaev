@@ -58,7 +58,7 @@ describe('BulkOperationsIndicator running counter', () => {
     renderIndicator();
     const counter = screen.getByText('3');
     const classes = String(counter.getAttribute('class') ?? '');
-    // Arbitrated: it displays a count, so it takes the library's
+    // Sandy's arbitration: it displays a count, so it takes the library's
     // default 20px counter - the 16px -> 20px growth is assumed.
     for (const cls of LIBRARY_COUNTER_SIZE) expect(classes).toContain(cls);
     expect(document.querySelectorAll('[class*="MuiBadge-"]')).toHaveLength(0);

@@ -101,7 +101,7 @@ describe('AskArianeButton', () => {
     });
 
     it('marks the Enterprise Edition feature with the library EE chip, decoratively', () => {
-      // Rule: an implemented component is composed of library components
+      // Sandy's rule: an implemented component is composed of library components
       // only. This marker was a hand-styled span in a MUI Tooltip (9px text,
       // 21x14 box, theme.palette.ee.*) - now the library's own EE severity.
       renderButton({ platform_license: { license_is_validated: false } });

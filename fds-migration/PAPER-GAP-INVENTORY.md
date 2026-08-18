@@ -158,6 +158,11 @@ library's `title` slot instead of drawing it above with `SECTION_LABEL_SX`.
 The number of library surfaces rendered is **identical on both sides** across
 the four screens captured (5 / 11 / 6 / 8): none gained, none lost.
 
+> This line is **evidence for this wave, not a rule**: it is the iso proof a
+> reviewer may want to read while the change is under review. It records one
+> measurement of one state and prescribes nothing — do not carry it forward as
+> a target, and do not re-derive anything from those four numbers.
+
 ### 13.2 The flex trap — why the container becomes a grid
 
 `style` reaches the **surface**, never the wrapper the library adds once
@@ -277,17 +282,14 @@ Converting class A surfaced two defects in the census tooling and one hard
 limit in the library. Recorded here because the arbitration was made on the
 faulty numbers.
 
-### 15.1 The two extractor defects
+### 15.1 Where a padding lives decides what it means
 
-**The padding often lives in a `makeStyles` block**, reached through
-`classes={{ root }}`, not in `sx`. The extractor read `sx` and `style` only, so
-**18 sites** were recorded as carrying no padding when they carry one.
+**A padding often lives in a `makeStyles` block**, reached through
+`classes={{ root }}`, not in `sx` — reading `sx` and `style` alone misses it.
 
 **And a bare number in `sx` is not a pixel.** In MUI's `sx`, `padding: 2` means
-`theme.spacing(2)` = **16px**. Reading it as CSS made the first pass declare
-fourteen perfectly on-scale sites off-scale. The interpretation now depends
-on the source: spacing units inside `sx`, raw pixels inside `makeStyles` or
-`style`.
+`theme.spacing(2)` = **16px**. The interpretation depends on the source:
+spacing units inside `sx`, raw pixels inside `makeStyles` or `style`.
 
 After both fixes: **36 of the 51 convert as they stand, 15 do not.**
 
