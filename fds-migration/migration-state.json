@@ -61,11 +61,13 @@
     {
       "component": "Paper",
       "importFrom": "@filigran/design-system",
-      "guards": ["imported-from-library", "no-hardcoded-padding"],
-      "reason": "Paper pilot wave 1, warm-up lot — the 10 lessons surfaces. Fully migrated files: both guards apply.",
+      "guards": [
+        "imported-from-library",
+        "no-hardcoded-padding"
+      ],
+      "reason": "Paper pilot wave 1, warm-up lot — the lessons surfaces. Fully migrated files: both guards apply. LessonsObjectives and CrysisIntensity left this list in the header wave: they no longer own a surface, ConfigurationSection does, and it is guarded here in their place — coverage moved, not dropped.",
       "files": [
-        "openaev-front/src/admin/components/lessons/LessonsObjectives.jsx",
-        "openaev-front/src/admin/components/lessons/simulations/CrysisIntensity.jsx",
+        "openaev-front/src/admin/components/common/ConfigurationSection.tsx",
         "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.jsx",
         "openaev-front/src/admin/components/lessons/simulations/Lessons.tsx",
         "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.jsx",
@@ -75,7 +77,9 @@
     {
       "component": "Paper",
       "importFrom": "@filigran/design-system",
-      "guards": ["no-hardcoded-padding"],
+      "guards": [
+        "no-hardcoded-padding"
+      ],
       "reason": "Paper pilot wave 1, pilot lot — Section, InformationGrid and SectionBlock drive 106 usages across 33 files and are migrated. `imported-from-library` is deliberately NOT armed on this ONE file: DetailHero legitimately stays on MUI (accent gradient + transparent fill, semi-transparent exclusion, PAPER-GAP-INVENTORY.md §4), so the file imports both Papers on purpose and the guard, which is file-granular, would report a fallback that is not one. Arming it here would mean either a permanent false red or dodging it with an import style chosen to fool the check — neither is acceptable. Gap raised upstream as LIBRARY-FEEDBACK #31. Re-arm this guard the day DetailHero migrates.",
       "files": [
         "openaev-front/src/components/common/detail/EntityDetailCommon.tsx"
