@@ -46,14 +46,14 @@ public class TenantRoleApiTest extends IntegrationTest {
   class Create {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("Given MANAGE_TENANT_SETTINGS, should create a tenant role")
-    void given_manageTenantSettings_should_createRole() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, should create a tenant role")
+    void given_manageTenantUsersGroupsAndRoles_should_createRole() throws Exception {
       // -------- Arrange --------
       RoleInput input =
           RoleInput.builder()
               .name("Analyst")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
               .build();
 
       // -------- Act --------
@@ -73,13 +73,13 @@ public class TenantRoleApiTest extends IntegrationTest {
       assertNotNull(JsonPath.read(response, "$.role_id"));
       assertEquals("Analyst", JsonPath.read(response, "$.role_name"));
       List<String> caps = JsonPath.read(response, "$.role_capabilities");
-      assertTrue(caps.contains(Capability.MANAGE_TENANT_SETTINGS.name()));
+      assertTrue(caps.contains(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES.name()));
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
-    @DisplayName("Given ACCESS_TENANT_SETTINGS only, should be forbidden to create")
-    void given_accessTenantSettings_should_forbidCreate() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given ACCESS_TENANT_USERS_GROUPS_AND_ROLES only, should be forbidden to create")
+    void given_accessTenantUsersGroupsAndRoles_should_forbidCreate() throws Exception {
       // -------- Arrange --------
       RoleInput input =
           RoleInput.builder()
@@ -98,9 +98,11 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("Given MANAGE_TENANT_SETTINGS, should be forbidden to assign unowned capabilities")
-    void given_manageTenantSettings_should_forbidCreateWithUnownedCapabilities() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, should be forbidden to assign unowned capabilities")
+    void given_manageTenantUsersGroupsAndRoles_should_forbidCreateWithUnownedCapabilities()
+        throws Exception {
       // -------- Arrange --------
       RoleInput input =
           RoleInput.builder()
@@ -119,17 +121,18 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName(
-        "Given MANAGE_TENANT_SETTINGS, the rejection should name the capabilities that cannot be granted")
-    void given_manageTenantSettings_should_nameUnownedCapabilitiesInError() throws Exception {
+        "Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, the rejection should name the capabilities that cannot be granted")
+    void given_manageTenantUsersGroupsAndRoles_should_nameUnownedCapabilitiesInError()
+        throws Exception {
       // -------- Arrange --------
       RoleInput input =
           RoleInput.builder()
               .name("Forbidden")
               .capabilities(
                   Set.of(
-                      Capability.MANAGE_TENANT_SETTINGS,
+                      Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
                       Capability.ACCESS_ASSETS,
                       Capability.ACCESS_CHALLENGES))
               .build();
@@ -153,14 +156,14 @@ public class TenantRoleApiTest extends IntegrationTest {
       List<String> refused = JsonPath.read(response, "$.errors.children.message.errors");
       assertTrue(refused.contains(Capability.ACCESS_ASSETS.name()));
       assertTrue(refused.contains(Capability.ACCESS_CHALLENGES.name()));
-      assertFalse(refused.contains(Capability.MANAGE_TENANT_SETTINGS.name()));
+      assertFalse(refused.contains(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES.name()));
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName(
-        "Given MANAGE_TENANT_SETTINGS, no role should be persisted when the grant is refused")
-    void given_manageTenantSettings_should_notPersistRefusedRole() throws Exception {
+        "Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, no role should be persisted when the grant is refused")
+    void given_manageTenantUsersGroupsAndRoles_should_notPersistRefusedRole() throws Exception {
       // -------- Arrange --------
       RoleInput input =
           RoleInput.builder()
@@ -188,9 +191,9 @@ public class TenantRoleApiTest extends IntegrationTest {
   class Read {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
-    @DisplayName("Given ACCESS_TENANT_SETTINGS, should find a tenant role by ID")
-    void given_accessTenantSettings_should_findRoleById() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given ACCESS_TENANT_USERS_GROUPS_AND_ROLES, should find a tenant role by ID")
+    void given_accessTenantUsersGroupsAndRoles_should_findRoleById() throws Exception {
       // -------- Arrange --------
       Role role =
           tenantRoleComposer
@@ -215,9 +218,10 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
-    @DisplayName("Given ACCESS_TENANT_SETTINGS, should return 404 for nonexistent role")
-    void given_accessTenantSettings_should_return404() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given ACCESS_TENANT_USERS_GROUPS_AND_ROLES, should return 404 for nonexistent role")
+    void given_accessTenantUsersGroupsAndRoles_should_return404() throws Exception {
       mvc.perform(
               get(tenantUri("/api/tenants/{tenantId}/roles/") + "nonexistent")
                   .accept(MediaType.APPLICATION_JSON)
@@ -226,9 +230,9 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
-    @DisplayName("Given ACCESS_TENANT_SETTINGS, should list all tenant roles")
-    void given_accessTenantSettings_should_listRoles() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given ACCESS_TENANT_USERS_GROUPS_AND_ROLES, should list all tenant roles")
+    void given_accessTenantUsersGroupsAndRoles_should_listRoles() throws Exception {
       // -------- Arrange --------
       tenantRoleComposer
           .forRole(TenantRoleFixture.getRole("RoleA", Set.of(Capability.ACCESS_ASSETS)))
@@ -254,9 +258,10 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
-    @DisplayName("Given ACCESS_TENANT_SETTINGS, should search tenant roles with pagination")
-    void given_accessTenantSettings_should_searchRoles() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given ACCESS_TENANT_USERS_GROUPS_AND_ROLES, should search tenant roles with pagination")
+    void given_accessTenantUsersGroupsAndRoles_should_searchRoles() throws Exception {
       // -------- Arrange --------
       tenantRoleComposer
           .forRole(TenantRoleFixture.getRole("Search1", Set.of(Capability.ACCESS_ASSETS)))
@@ -306,9 +311,9 @@ public class TenantRoleApiTest extends IntegrationTest {
   class Update {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("Given MANAGE_TENANT_SETTINGS, should update a tenant role")
-    void given_manageTenantSettings_should_updateRole() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, should update a tenant role")
+    void given_manageTenantUsersGroupsAndRoles_should_updateRole() throws Exception {
       // -------- Arrange --------
       Role role =
           tenantRoleComposer
@@ -319,7 +324,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("NewName")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
               .build();
 
       // -------- Act --------
@@ -340,7 +345,7 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName(
         "Given a tenant role polluted with a platform-only capability, update should drop it"
             + " instead of rejecting the payload")
@@ -359,7 +364,9 @@ public class TenantRoleApiTest extends IntegrationTest {
           RoleInput.builder()
               .name("Healed")
               .capabilities(
-                  Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_PLATFORM_SETTINGS))
+                  Set.of(
+                      Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+                      Capability.ACCESS_PLATFORM_SETTINGS))
               .build();
 
       // -------- Act --------
@@ -380,13 +387,13 @@ public class TenantRoleApiTest extends IntegrationTest {
       assertFalse(
           caps.contains(Capability.ACCESS_PLATFORM_SETTINGS.name()),
           "the platform-only capability should have been dropped");
-      assertTrue(caps.contains(Capability.MANAGE_TENANT_SETTINGS.name()));
+      assertTrue(caps.contains(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES.name()));
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
-    @DisplayName("Given ACCESS_TENANT_SETTINGS only, should be forbidden to update")
-    void given_accessTenantSettings_should_forbidUpdate() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given ACCESS_TENANT_USERS_GROUPS_AND_ROLES only, should be forbidden to update")
+    void given_accessTenantUsersGroupsAndRoles_should_forbidUpdate() throws Exception {
       // -------- Arrange --------
       Role role =
           tenantRoleComposer
@@ -411,10 +418,11 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName(
-        "Given MANAGE_TENANT_SETTINGS, should be forbidden to update with unowned capabilities")
-    void given_manageTenantSettings_should_forbidUpdateWithUnownedCapabilities() throws Exception {
+        "Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, should be forbidden to update with unowned capabilities")
+    void given_manageTenantUsersGroupsAndRoles_should_forbidUpdateWithUnownedCapabilities()
+        throws Exception {
       // -------- Arrange --------
       Role role =
           tenantRoleComposer
@@ -444,9 +452,9 @@ public class TenantRoleApiTest extends IntegrationTest {
   class Delete {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_SETTINGS})
-    @DisplayName("Given DELETE_TENANT_SETTINGS, should delete a tenant role")
-    void given_deleteTenantSettings_should_deleteRole() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given DELETE_TENANT_USERS_GROUPS_AND_ROLES, should delete a tenant role")
+    void given_deleteTenantUsersGroupsAndRoles_should_deleteRole() throws Exception {
       // -------- Arrange --------
       Role role =
           tenantRoleComposer
@@ -466,9 +474,10 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_SETTINGS})
-    @DisplayName("Given DELETE_TENANT_SETTINGS, should return 404 when deleting nonexistent role")
-    void given_deleteTenantSettings_should_return404() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given DELETE_TENANT_USERS_GROUPS_AND_ROLES, should return 404 when deleting nonexistent role")
+    void given_deleteTenantUsersGroupsAndRoles_should_return404() throws Exception {
       mvc.perform(
               delete(tenantUri("/api/tenants/{tenantId}/roles/") + "nonexistent")
                   .accept(MediaType.APPLICATION_JSON)
@@ -477,9 +486,9 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("Given MANAGE_TENANT_SETTINGS only, should be forbidden to delete")
-    void given_manageTenantSettings_should_forbidDelete() throws Exception {
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES only, should be forbidden to delete")
+    void given_manageTenantUsersGroupsAndRoles_should_forbidDelete() throws Exception {
       // -------- Arrange --------
       Role role =
           tenantRoleComposer
@@ -498,7 +507,7 @@ public class TenantRoleApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Tenant Isolation")
-  @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
+  @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES})
   class TenantIsolation {
 
     @Test
@@ -565,15 +574,17 @@ public class TenantRoleApiTest extends IntegrationTest {
       Tenant tenantX =
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant X",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+              Set.of(
+                  Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+                  Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
       Tenant tenantY =
           tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
 
       RoleInput input =
           RoleInput.builder()
               .name("Isolated Role")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
               .build();
 
       String createResponse =
@@ -614,16 +625,20 @@ public class TenantRoleApiTest extends IntegrationTest {
       Tenant tenantX =
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant X",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+              Set.of(
+                  Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+                  Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
       Tenant tenantY =
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+              Set.of(
+                  Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+                  Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
 
       RoleInput input =
           RoleInput.builder()
               .name("Update Isolation Role")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
               .build();
 
       String createResponse =
@@ -644,7 +659,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput updateInput =
           RoleInput.builder()
               .name("Hijacked Role")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
               .build();
 
       int status =
@@ -672,16 +687,20 @@ public class TenantRoleApiTest extends IntegrationTest {
       Tenant tenantX =
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant X",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+              Set.of(
+                  Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+                  Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
       Tenant tenantY =
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y",
-              Set.of(Capability.DELETE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+              Set.of(
+                  Capability.DELETE_TENANT_USERS_GROUPS_AND_ROLES,
+                  Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
 
       RoleInput input =
           RoleInput.builder()
               .name("Delete Isolation Role")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_SETTINGS))
+              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
               .build();
 
       String createResponse =

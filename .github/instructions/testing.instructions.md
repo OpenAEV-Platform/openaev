@@ -15,7 +15,7 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 - **AAA pattern**: `// Arrange` / `// Act` / `// Assert`
 - JSON: `assertThatJson(response).node("field").isEqualTo(...)` (json-unit library)
 - URI constant at class level: `public static final String FEATURE_URI = "/api/..."`
-- **Public endpoints** (`@RBAC(skipRBAC = true)`): test WITHOUT `@WithMockUser` to verify unauthenticated access works
+- **Public endpoints** (`@AccessControl(skipRBAC = true)`): test WITHOUT `@WithMockUser` to verify unauthenticated access works
 - **Constant sharing**: reuse constants from the controller via package-private `static final` + `static import` in the test — never duplicate literal values between source and test
 
 ### Tenant Isolation Tests (API)

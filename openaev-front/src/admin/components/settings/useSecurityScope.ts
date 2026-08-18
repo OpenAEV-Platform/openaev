@@ -16,7 +16,12 @@ export type SecurityScope = 'tenant' | 'platform';
 const PLATFORM_ONLY_PATHS = ['/admin/settings/security/tenants'];
 interface UseSecurityScope {
   scope: SecurityScope;
+  /** Access to the tenant scope through either of its two capabilities. */
   canAccessTenant: boolean;
+  /** Tenant settings only: organizations, sessions, policies. */
+  canAccessTenantSettings: boolean;
+  /** Tenant users, groups and roles, granted independently of the settings. */
+  canAccessTenantUsers: boolean;
   canAccessPlatform: boolean;
   isEnterpriseEdition: boolean;
 }
@@ -24,7 +29,9 @@ interface UseSecurityScope {
 const useSecurityScope = (): UseSecurityScope => {
   const ability = useContext(AbilityContext);
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
-  const canAccessTenant = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
+  const canAccessTenantSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
+  const canAccessTenantUsers = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
+  const canAccessTenant = canAccessTenantSettings || canAccessTenantUsers;
   const canAccessPlatform = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
 
   const [searchParams] = useSearchParams();
@@ -49,6 +56,8 @@ const useSecurityScope = (): UseSecurityScope => {
   return {
     scope,
     canAccessTenant,
+    canAccessTenantSettings,
+    canAccessTenantUsers,
     canAccessPlatform,
     isEnterpriseEdition,
   };

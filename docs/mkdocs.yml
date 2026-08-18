@@ -148,6 +148,7 @@ nav:
         - CSRF token enforcement for frontend API calls: deployment/breaking-changes/2.3.4-csrf-token-enforcement.md
         - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
         - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
+        - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:
