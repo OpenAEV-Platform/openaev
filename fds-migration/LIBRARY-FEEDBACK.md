@@ -2000,14 +2000,15 @@ for that reason; recorded so the trade-off is explicit rather than rediscovered.
 sites that carry an asymmetric padding today.
 
 `padding` takes one value from the `0 | 8 | 16 | 24 | 32` scale and applies it to
-all four sides. Fifteen container surfaces in OpenAEV cannot express their padding with the
-prop as it stands. Twelve pad their sides differently:
+all four sides. Seventeen container surfaces in OpenAEV cannot express their padding with the
+prop as it stands. Fourteen pad their sides differently:
 
 | value in the product | sites | what it does |
 | --- | --- | --- |
 | `0 20px 0 0` | 9 — the simulation overview charts | right gutter only, so a chart's axis labels clear the panel edge while the plot itself runs full-bleed |
 | `20px 20px 0 20px` | 2 — the simulation e-mail panels | no bottom padding: the last row of the list sits flush on the border |
-| `10px 15px 20px 15px` | 1 — the lessons player | a heavier bottom than top |
+| `10px 15px 20px 15px` | 2 — the lessons player and the lessons preview | a heavier bottom than top |
+| `6px 12px` | 1 — the attack-path header badge | asymmetric AND off-scale on both axes (`theme.spacing(0.75, 1.5)`) |
 
 **This is not a rounding question.** The other off-scale paddings we met (12, 15,
 20, 48) each have a nearest neighbour on the scale, and the product picked one.
@@ -2041,12 +2042,13 @@ pushes consumers back to physical sides.
   allows.
 
 Each side still constrained to the scale. On the OpenAEV sites: the per-side
-form covers 11 of the 15 blocked surfaces, logical covers 1, responsive covers
-1; the remaining 2 also need a value off the scale and will round.
+form covers 13 of the 17 blocked surfaces, logical covers 1, responsive covers
+1; the remaining 2 also need a value off the scale and will round — including
+`theme.spacing(0.75, 1.5)`, which is off-scale on both axes at once.
 
 The layered background is a separate question and not part of this request —
 recorded here only so the two are not confused when the padding work is scoped.
 
-**Not urgent, but it caps the wave.** Twelve surfaces out of the 130 in the
-OpenAEV container perimeter — 9%, and they are the only ones with no path
+**Not urgent, but it caps the wave.** Seventeen surfaces out of the 130 in the
+OpenAEV container perimeter — 13%, and they are the only ones with no path
 forward. Everything else either converts or is out of scope by design.
