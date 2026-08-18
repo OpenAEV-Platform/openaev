@@ -8,7 +8,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260811100000000__Tenant_scope_security_coverages_external_id
+public class V6_20260818110000000__Tenant_scope_security_coverages_external_id
     extends BaseJavaMigration {
 
   @Override

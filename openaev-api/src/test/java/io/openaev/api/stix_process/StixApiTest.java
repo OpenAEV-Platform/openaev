@@ -989,7 +989,10 @@ class StixApiTest extends IntegrationTest {
       entityManager.clear();
       scenarioRepository.deleteById(scenarioId);
       entityManager.clear();
-      assertThat(securityCoverageRepository.findByExternalId(securityCoverageId)).isNotNull();
+      assertThat(
+              securityCoverageRepository.findAllByExternalIdAndTenantId(
+                  securityCoverageId, scenario.getTenant().getId()))
+          .isNotNull();
     }
 
     @Test

@@ -2,7 +2,6 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.SecurityCoverage;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
@@ -10,8 +9,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SecurityCoverageRepository
     extends CrudRepository<SecurityCoverage, String>, JpaSpecificationExecutor<SecurityCoverage> {
-
-  Optional<SecurityCoverage> findByExternalId(String id);
 
   // Defensive variant: duplicates are prevented by the unique constraint on
   // (security_coverage_external_id, tenant_id), but a legacy-duplicated database must never fail

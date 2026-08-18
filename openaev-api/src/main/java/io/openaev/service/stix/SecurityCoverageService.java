@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
@@ -104,13 +103,9 @@ public class SecurityCoverageService {
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#securityCoverageStixId")
   @Transactional(rollbackFor = Exception.class)
   public Scenario handleSecurityCoverageProcessing(
-      String securityCoverageStixId,
-      ObjectBase securityCoverageObj,
-      Bundle bundle,
-      String tenantId,
-      TxCtx ctx)
+      String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle, String tenantId)
       throws ParsingException, BundleValidationError, ConnectorError, IOException {
-    Objects.requireNonNull(ctx, "security coverage processing requires transaction scope");
+    Objects.requireNonNull(tenantId, "security coverage processing requires transaction scope");
     // Telemetry: one CTI security coverage bundle processed (attempts semantics).
     resultsMetricCollector.recordSecurityCoverageProcessed();
     String bundleHash = md5Hex(bundle.toStix(objectMapper).toString());
