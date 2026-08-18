@@ -18,6 +18,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutpu
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.schema.model.PropertySchemaDTO;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
