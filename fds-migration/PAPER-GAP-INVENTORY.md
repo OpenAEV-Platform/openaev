@@ -566,3 +566,105 @@ The same pass found §4 in the same position, for one line that records why
 `DetailHero` stays out of the waves. Both were folded into §5 instead of being
 dropped, and the seven comments were re-addressed in the same commit — a cut
 that breaks what it claims to preserve is not a cut, it is a regression.
+
+
+## 21. Header-row controls take the library's 24px size; nothing else moves
+
+The library `Button` measures **24px** at `size="sm"` — exactly the height of
+the `Paper` header row. A header action has to use it: anything taller
+overflows the row and eats into the 8px gap to the surface below.
+
+`ButtonCreate`, the product's shared creation button, is used **52 times**. It
+renders MUI's `size="small"`, which measures **31px in the running app** — MUI
+computes 40px and a `MuiButton` override in `ThemeDark`/`ThemeLight` brings it
+down. Only the **three** call sites that sit in a header row opt into the
+library button, through a `size="sm"` prop. **The other 49 keep their exact
+current rendering.**
+
+The rule is the ROW, not the component. `ButtonCreate` is not the only control
+a header slot receives: `LessonsCategoryAddTeams` puts an icon button there,
+and MUI's `size="small"` renders it at **30px** — over the row by six. It takes
+the library `IconButton` at `size="sm"` (`h-6 w-6`) instead. Any control landing
+in a header row has to be checked against 24px, whatever component it is.
+
+> **How to find them.** Measuring the code is not enough: what matters is the
+> rendered height of every control inside a `.flex.h-6` row or a
+> `[data-testid="lib-header-row"]`, on every screen that has one. Measured that
+> way, this wave had **five** such controls and **three** were over the row.
+
+> **Why they do not move.** Adopting the library button everywhere would make
+> those 49 buttons GROW, 31px to 36px. That is a deliberate design change — the
+> product joining the design system's medium size — and it deserves its own
+> wave with its own boards. This wave is iso by contract: it changes surfaces,
+> not control sizes.
+
+Recorded because the reflex is to "finish the job" and convert all 51 at once,
+and because the 31px figure is easy to get wrong: the bench renders 40px, the
+app renders 31px, and only the second is what a reviewer sees.
+
+
+## 22. A composite typography class is used whole, never as its parts
+
+The library's `Paper` puts its header typography on the row as **one** class:
+
+```
+content-compact text-default-secondary
+```
+
+Not as the four utilities that look equivalent —
+`text-content-compact font-content-compact leading-* tracking-*`. The library's
+own comment records why, and it is worth repeating product-side because the
+mistake is invisible:
+
+> Those four carry font-SIZE, font-FAMILY, line-height and letter-spacing — **no
+> weight**. The `@utility content-compact` block carries all five. Left on the
+> four-class form, the title inherits its weight from whatever wraps it:
+> measured at 700 inside a `font-weight: 700` ancestor, against the node's 400.
+
+The library paid for this twice before writing it down. A product that
+reproduces a library header — see `components/common/LibHeaderRow.tsx` — must
+copy the composite class, and its guard asserts the split form is absent:
+
+```
+expect(row.className).not.toMatch(/\btext-content-compact\b/);
+```
+
+> **Rule.** When copying typography from the design system, copy the class the
+> system composes, never the utilities it decomposes into. The decomposition
+> loses whatever the composite adds — here, the weight — and it loses it
+> silently, because every other property still matches.
+
+## 23. A section title and a column header are not the same object
+
+The mixing criterion this wave ended on is **not** "no mixed row" but "no
+visible mixing on one screen": the eye does not compare by row, it compares
+what it sees at once. Applying it turned up four remaining product-styled
+labels on the timeline screen — `Scheduled`, `Up next`, `In flight`,
+`Completed`. They were deliberately **left alone**, and the reason has to
+survive this document, because the next reader will see four product titles
+next to a library one and reach for the same fix twice.
+
+They are a different object.
+
+| | section title | column header |
+|---|---|---|
+| position | **above** the surface, or in its header slot | **inside** the surface, below its edge |
+| carries | the section's name | a name **plus** an icon, a count, and an accent |
+| background | the surface's own | a tinted band, `alpha(accent, 0.05)` |
+| separator | none — the surface's border does the work | its own `border-bottom` |
+| what the library offers | `Paper`'s `title` / `action` slots | nothing equivalent |
+
+`ExecutionBoard.tsx`'s `BoardColumn` is the single point that draws the three;
+`ExecutionHero.tsx`'s `Scheduled` is not even a header but a **status badge
+label**, which the mixing probe reports only because its typography matches.
+
+Aligning them on the library header means dropping the tinted band, the icon
+and the count, or reimplementing all three around a slot that was not built to
+hold them. That is a **redesign**, and a redesign is a decision for whoever
+owns the timeline — not a side effect of a consistency pass.
+
+> **Rule.** Convert or align what the library has a slot for. When the product
+> object carries something the slot cannot hold — an icon, a count, a tinted
+> band — the honest answer is to leave it and say so, not to shed the parts
+> that do not fit. A consistency pass that removes a feature has stopped being
+> a consistency pass.
