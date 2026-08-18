@@ -1,0 +1,140 @@
+name: "[Core] Release Trivy Report Upload"
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  upload:
+    name: "📎 Attach Trivy reports to release"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve CI run and artifact ids
+        id: context
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const tag = context.payload.release.tag_name;
+            if (!tag) {
+              core.notice('No release tag found in payload');
+              return;
+            }
+
+            // Tag-triggered runs usually have head_branch = null, so resolve the
+            // commit behind the release tag and match by head_sha instead.
+            let tagSha;
+            try {
+              const refResponse = await github.rest.git.getRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${tag}`,
+              });
+
+              tagSha = refResponse.data.object.sha;
+              if (refResponse.data.object.type === 'tag') {
+                const tagObject = await github.rest.git.getTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag_sha: tagSha,
+                });
+                tagSha = tagObject.data.object.sha;
+              }
+            } catch (error) {
+              core.notice(`Unable to resolve tag ref for ${tag}: ${error.message}`);
+              return;
+            }
+
+            let run;
+            for (let page = 1; page <= 5 && !run; page += 1) {
+              const runsResponse = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'core-ci.yml',
+                event: 'push',
+                status: 'completed',
+                per_page: 100,
+                page,
+              });
+
+              run = runsResponse.data.workflow_runs.find(candidate =>
+                candidate.conclusion === 'success' && candidate.head_sha === tagSha
+              );
+
+              if (runsResponse.data.workflow_runs.length < 100) {
+                break;
+              }
+            }
+
+            if (!run) {
+              core.notice(`No successful [Core] CI run found for tag ${tag}`);
+              return;
+            }
+
+            const artifacts = await github.paginate(
+              github.rest.actions.listWorkflowRunArtifacts,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id,
+                per_page: 100,
+              },
+            );
+
+            function findArtifactId(name) {
+              const artifact = artifacts.find(candidate =>
+                candidate.name === name && !candidate.expired
+              );
+              return artifact ? String(artifact.id) : '';
+            }
+
+            core.setOutput('tag', tag);
+            core.setOutput('run-id', String(run.id));
+            core.setOutput('standard-artifact-id', findArtifactId('container-vulnerability-report-standard'));
+            core.setOutput('ubi9-artifact-id', findArtifactId('container-vulnerability-report-ubi9'));
+
+      - name: Download standard report
+        if: ${{ steps.context.outputs.standard-artifact-id != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ steps.context.outputs.standard-artifact-id }}
+          path: ${{ runner.temp }}/container-vulnerability-reports/standard
+          run-id: ${{ steps.context.outputs.run-id }}
+          github-token: ${{ github.token }}
+
+      - name: Download UBI9 report
+        if: ${{ steps.context.outputs.ubi9-artifact-id != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ steps.context.outputs.ubi9-artifact-id }}
+          path: ${{ runner.temp }}/container-vulnerability-reports/ubi9
+          run-id: ${{ steps.context.outputs.run-id }}
+          github-token: ${{ github.token }}
+
+      - name: Upload reports to release assets
+        if: ${{ steps.context.outputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.context.outputs.tag }}
+          REPORT_ROOT: ${{ runner.temp }}/container-vulnerability-reports
+        run: |
+          set -euo pipefail
+
+          files=()
+          if [ -f "${REPORT_ROOT}/standard/container-vulnerability-standard.json" ]; then
+            files+=("${REPORT_ROOT}/standard/container-vulnerability-standard.json#trivy-${TAG}-standard.json")
+          fi
+          if [ -f "${REPORT_ROOT}/ubi9/container-vulnerability-ubi9.json" ]; then
+            files+=("${REPORT_ROOT}/ubi9/container-vulnerability-ubi9.json#trivy-${TAG}-ubi9.json")
+          fi
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No Trivy reports available to upload for tag ${TAG}"
+            exit 0
+          fi
+
+          gh release upload "${TAG}" "${files[@]}" --clobber
