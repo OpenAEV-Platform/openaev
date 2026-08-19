@@ -17,9 +17,10 @@ public class V6_20260818200000000__Add_status_to_agents extends BaseJavaMigratio
           "UPDATE agents SET agent_status = 'INACTIVE'"
               + " WHERE agent_last_seen IS NULL"
               + " OR agent_last_seen < NOW() - INTERVAL '1 hour';");
+      statement.execute("DROP INDEX IF EXISTS idx_agents_status_last_seen;");
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_agents_status_last_seen"
-              + " ON agents(agent_status, agent_last_seen);");
+              + " ON agents(tenant_id, agent_status, agent_last_seen);");
     }
   }
 }
