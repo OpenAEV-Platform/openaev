@@ -317,7 +317,10 @@ public class Payload implements GrantableBase, TenantBase {
    * input DTO left the field {@code null}.
    */
   public List<PayloadArgument> getArguments() {
-    return this.arguments == null ? new ArrayList<>() : this.arguments;
+    if (this.arguments == null) {
+      this.arguments = new ArrayList<>();
+    }
+    return this.arguments;
   }
 
   /** Null-safe setter: a {@code null} assignment is normalised to an empty list. */
@@ -327,7 +330,10 @@ public class Payload implements GrantableBase, TenantBase {
 
   /** Null-safe accessor: prerequisites do not carry a distinct null semantics. */
   public List<PayloadPrerequisite> getPrerequisites() {
-    return this.prerequisites == null ? new ArrayList<>() : this.prerequisites;
+    if (this.prerequisites == null) {
+      this.prerequisites = new ArrayList<>();
+    }
+    return this.prerequisites;
   }
 
   /** Null-safe setter: a {@code null} assignment is normalised to an empty list. */
