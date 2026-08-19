@@ -21,6 +21,15 @@ public class Generator {
     this.schemaSource = schemaSource;
   }
 
+  /**
+   * Generates the code for all classes, objects and data types of the OCSF specification
+   * at the chosen version.
+   * This is done in two passes: first, gather the generated Java class name and associate
+   * it with the OCSF name. Second, iterate over every item and output the Java code for their
+   * respective Java classes.
+   *
+   * @throws IOException there was an issue reading or writing a local file.
+   */
   public void generate() throws IOException {
     for (Source src : schemaSource.getSources()) {
       switch (src.getDimension()) {
