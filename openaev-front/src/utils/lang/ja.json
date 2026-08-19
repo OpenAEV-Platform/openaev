@@ -179,6 +179,7 @@
   "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES": "プラットフォームのユーザー、グループ、ロールへのアクセス",
   "ACCESS_REPORTINGS": "レポーティングへのアクセス",
   "ACCESS_SECURITY_PLATFORMS": "セキュリティプラットフォームへのアクセス",
+  "ACCESS_SNAPSHOT_OBSERVATION": "観測スナップショットへのアクセス",
   "ACCESS_TAGS": "タグへのアクセス",
   "ACCESS_TEAMS_AND_PLAYERS": "チームと人物へのアクセス",
   "ACCESS_TENANT_SETTINGS": "テナント設定へのアクセス",
