@@ -87,7 +87,7 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations() throws Exception {
+  protected void runMigrations(String tenantId) throws Exception {
     // Catalog-first executor: no legacy properties to migrate (same pattern as PaloAltoCortex).
   }
 

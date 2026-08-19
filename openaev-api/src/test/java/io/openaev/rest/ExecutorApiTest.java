@@ -601,7 +601,6 @@ public class ExecutorApiTest extends IntegrationTest {
       // context. Evict it so the assertions below hit the DB instead of the stale L1 cache.
       entityManager.flush();
       entityManager.clear();
-
       assertThat(executorRepository.findByExecutorId(executor.getId())).isEmpty();
       assertThat(agentRepository.findById(agent.getId())).isEmpty();
     }

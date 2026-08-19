@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
+import io.openaev.database.model.Tenant;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
@@ -71,7 +72,7 @@ public class LocalSecretsProviderIntegrationTest {
     void given_initializedFactory_should_reportAutostartInstance() throws Exception {
       // Arrange
       IntegrationFactory factory = getFactory();
-      factory.initialise();
+      factory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
       // Act
       List<ConnectorInstance> instances = factory.findRelatedInstances("test-tenant");
@@ -95,7 +96,7 @@ public class LocalSecretsProviderIntegrationTest {
         throws Exception {
       // Arrange
       IntegrationFactory factory = getFactory();
-      factory.initialise();
+      factory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
       // Act
       List<Integration> integrations = factory.sync(factory.findRelatedInstances("test-tenant"));
@@ -112,7 +113,7 @@ public class LocalSecretsProviderIntegrationTest {
     void given_startedIntegration_should_exposeLocalSecretsProviderComponent() throws Exception {
       // Arrange
       IntegrationFactory factory = getFactory();
-      factory.initialise();
+      factory.initialise(Tenant.DEFAULT_TENANT_UUID);
       List<Integration> integrations = factory.sync(factory.findRelatedInstances("test-tenant"));
       Integration integration = integrations.getFirst();
 
