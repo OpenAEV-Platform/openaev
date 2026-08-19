@@ -236,7 +236,7 @@ public class MinioService implements DependenciesManager {
       try {
         usedSize += result.get().size();
       } catch (Exception e) {
-        log.warn("Error while computing the size of a stored object: {}", e.getMessage());
+        log.warn("Error while computing the size of a stored object", e);
       }
     }
     return usedSize;

@@ -1,7 +1,7 @@
 package io.openaev.rest.health_check;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.rest.health_check.dto.HealthCheckDetailsOutput;
+import io.openaev.api.health_check.dto.HealthCheckDetailsOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.HealthCheckService;
 import io.openaev.service.HealthCheckService.StorageUsage;
