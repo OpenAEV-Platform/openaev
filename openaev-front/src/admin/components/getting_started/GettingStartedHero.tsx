@@ -5,7 +5,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { Link } from 'react-router';
 
 import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
-import LIB_SURFACE_BORDER from '../../../components/common/libSurfaceBorder';
+import LIB_SURFACE_BORDER, { LIB_SURFACE_LAYER } from '../../../components/common/libSurfaceBorder';
 import { useFormatter } from '../../../components/i18n';
 import { SCENARIO_BASE_URL } from '../../../constants/BaseUrls';
 import { XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
@@ -75,6 +75,7 @@ const GettingStartedHero = () => {
   return (
     <Paper
       variant="outlined"
+      className={LIB_SURFACE_LAYER}
       sx={{
         position: 'relative',
         overflow: 'hidden',
