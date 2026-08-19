@@ -121,6 +121,10 @@ public class ExerciseImportApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public void injectsImport(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this write (importInjectsForSimulation reads InjectorContract#
+      // getFirstInjector() to attach an injector to each imported inject).
+      TxCtx ctx,
       @RequestPart("file") MultipartFile file,
       @PathVariable @NotBlank final String simulationId,
       HttpServletResponse response)

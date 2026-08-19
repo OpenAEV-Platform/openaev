@@ -93,8 +93,17 @@ public class PayloadService {
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
+    // A contract lives in its payload's tenant. findAllByPayloads is scoped only by the ambient
+    // TxCtx, which for a global (non-selector) request authorizes every tenant the caller can see -
+    // built-in payload injectors repeat across tenants, so the raw result can mix several tenants'
+    // rows. Narrow to the payload's own tenant before picking the reference injector and building
+    // the injector links, otherwise the contract (stamped on the payload's tenant) could reference
+    // another tenant's injector or fail on the injectors_injector_contracts FK.
+    String payloadTenantId = payload.getTenant().getId();
     List<Injector> injectors =
-        this.injectorRepository.findAllByPayloadsAndTenantId(true, payload.getTenant().getId());
+        this.injectorRepository.findAllByPayloads(true).stream()
+            .filter(injector -> payloadTenantId.equals(injector.getTenantId()))
+            .toList();
 
     Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
     if (referenceInjector == null) {

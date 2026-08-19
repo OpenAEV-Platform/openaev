@@ -99,6 +99,12 @@ public class V20260101_Starter_pack extends DataPack {
       return true;
     }
 
+    // TODO v2: once tags get v2 activated
+    // https://github.com/OpenAEV-Platform/openaev/issues/6424, and tag_rules get v2 activated
+    // https://github.com/OpenAEV-Platform/openaev/issues/6407, remove this call - the SQL
+    // rewriter will scope both entities independently of the v1 filter
+    enableV1TenantFilter();
+
     // unconditionally run this code
     Set<Tag> tags = tagService.ensureWellKnownTags();
     Set<TagRule> tagRules = tagRuleService.ensurePresetRules();

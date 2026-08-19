@@ -1,7 +1,9 @@
 package io.openaev.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Tenant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,8 +26,13 @@ class ManagerFactoryTest {
   @BeforeEach
   void setUp() {
     // Creation goes through a real ManagerCreator with no factories and no built-in registrables,
-    // so this plain unit test never touches the DB and needs no active transaction.
-    managerFactory = new ManagerFactory(new ManagerCreator(List.of(), List.of()));
+    // so this plain unit test never touches the DB and needs no active transaction. The
+    // TenantScopedTransaction dependency is mocked: ManagerCreator.createManager() calls
+    // setScopeOnCurrentTransaction() unconditionally, which would otherwise throw since there is
+    // no real Spring-managed transaction in this plain unit test (no @Transactional proxy here).
+    managerFactory =
+        new ManagerFactory(
+            new ManagerCreator(List.of(), List.of(), mock(TenantScopedTransaction.class)));
   }
 
   @Nested

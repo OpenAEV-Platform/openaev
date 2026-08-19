@@ -7,6 +7,7 @@ import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Inject;
@@ -82,7 +83,11 @@ public class SimulationInjectTestApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public InjectTestStatusOutput testInject(
-      @PathVariable @NotBlank String simulationId, @PathVariable @NotBlank String injectId)
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this read (testInject reads Inject#getInjector()/getFirstInjector()).
+      TxCtx ctx,
+      @PathVariable @NotBlank String simulationId,
+      @PathVariable @NotBlank String injectId)
       throws Exception {
     return injectTestStatusService.testInject(injectId);
   }
@@ -128,6 +133,9 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @LogExecutionTime
   public List<InjectTestStatusOutput> bulkTestInject(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope (bulkTestInjects reads Inject#getInjector()/getFirstInjector() per inject).
+      TxCtx ctx,
       @PathVariable @NotBlank String simulationId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
 

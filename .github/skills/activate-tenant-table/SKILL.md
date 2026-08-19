@@ -61,9 +61,11 @@ incident. Do not trade them away to make a test pass.
    inserts are not blocked by the inspector), never READS the table, and
    attributes `tenant_id` correctly (listener + `TenantContext`, or explicit) may
    ship unconverted IF a test pins that write shape under activation AND the
-   conversion is a tracked follow-up. Example: the tenant-provisioning datapack
-   writing `cwes` (pinned by the provisioning-style test in
-   `CweHttpIsolationTest`, conversion tracked with the migration-engine work).
+   conversion is a tracked follow-up. The tenant-provisioning datapack writing
+   `cwes` was the original example; it has since been converted (it now writes
+   under the primitive scope MigrationProcessor sets), so no active waiver relies
+   on this today. Use it only for a genuinely INSERT-only, never-reads writer you
+   cannot convert in the same PR.
    A background READER, or any read-then-write path, gets no waiver. Background code must never use `@Transactional`
    for the write (self-invocation trap) and must never open raw transactions;
    both are guarded by the ArchUnit rules in
@@ -210,52 +212,135 @@ Write down every hit and classify it:
 - background writer → convert to the primitive in Phase 5b. If you are not
   converting it in this run, it is a blocker: stop and report (Phase 0)
 
-Then walk the call graph up UNTIL you reach every entrypoint (`@RestController`
-method), not just one hop. Stopping at the first caller is the #7188-class
-regression: the executors activation (#6409) found `ExerciseService
-.throwIfExerciseNotLaunchable`'s callers `updateExerciseStart` and
-`deprecatedUpdateExerciseStart` and wired `TxCtx` on both, but
-`ExerciseApi#changeExerciseStatus` — a third, equally direct caller of the
-exact same gate — was never enumerated and shipped with the tenant-scope gap
-undetected. Every intermediate method found this way (a shared gate/helper
-like `throwIfXNotLaunchable`, a mapper, a projection builder, ...) becomes its
-own grep target:
+**Walk the FULL transitive closure of callers, not just one hop.** A single
+hop only finds direct callers of the repository. It misses the case where the
+repository sits behind a shared utility (`InjectUtils.resolveInjector`,
+`CollectorService.getCollectorRelationsId`, ...) that is itself called from
+several unrelated controllers through several unrelated services — each of
+those is a separate hop, and a one-hop walk stops at the first layer. This is
+exactly the gap that let `injectors` ship without `AtomicTestingApi` wired
+(#7026-class): the inventory found `InjectorRepository` used by
+`InjectUtils.resolveInjector`, walked one hop to its callers, and stopped at
+the ones already expected (`InjectService`, `SimulationInjectApi`) — a SECOND
+independent caller two hops away, `AtomicTestingService.createOrUpdate`
+(parallel implementation, not routed through `InjectService`), was never
+visited because nothing re-ran the caller-search on `InjectUtils` itself as a
+newly flagged symbol.
+
+Treat this as a worklist/BFS over caller edges, not a fixed one-hop lookup:
+
+```bash
+# 1.0 Seed the worklist with every accessor method the repository exposes
+#     that a caller could invoke to reach {table} (repository method names,
+#     the entity's association accessors, and any shared utility already
+#     found wrapping the repository, e.g. resolveInjector).
+seeds=("findByInjectorId" "resolveInjector" "getConnectorRelationsId")  # adapt per table
+
+visited=()
+frontier=("${seeds[@]}")
+
+while [ "${#frontier[@]}" -gt 0 ]; do
+  next=()
+  for symbol in "${frontier[@]}"; do
+    # every call site of this symbol, anywhere in main code
+    hits=$(grep -rln "\.${symbol}(\|${symbol}(" \
+      openaev-api/src/main/java openaev-model/src/main/java --include="*.java")
+    for file in $hits; do
+      # extract the enclosing method name(s) in this file that contain a call
+      # to $symbol - read the file, do not trust this blindly, grep only
+      # narrows candidates
+      methods=$(grep -B40 "\.${symbol}(\|${symbol}(" "$file" \
+        | grep -oE '(public|private|protected)[^(]*\s([a-zA-Z0-9_]+)\(' \
+        | grep -oE '[a-zA-Z0-9_]+\(' | tail -1 | tr -d '(')
+      for m in $methods; do
+        if [[ ! " ${visited[*]} " =~ " ${m} " ]]; then
+          visited+=("$m")
+          next+=("$m")
+        fi
+      done
+    done
+  done
+  frontier=("${next[@]}")
+done
+echo "Transitive callers found: ${visited[*]}"
+```
+
+This is a heuristic, not a real call graph (the enclosing-method extraction is
+approximate and multi-method files need manual review) — treat its output as
+candidates to READ, not as ground truth. If a proper call-hierarchy tool is
+available (an IDE's "Find Usages"/"Call Hierarchy", a language server, or a
+code-intelligence tool in this environment), prefer it over the grep worklist
+and use it recursively on every newly found method until the frontier is
+empty. The point is the STOPPING RULE, not the tool: stop only when every leaf
+in the closure is a real entrypoint (a `@RequestMapping` controller method, a
+`@Scheduled`/`@RabbitListener` background entrypoint, or a public API of a
+module you are not touching) — never stop at "a service I already expected to
+see," which is exactly the trap that hid `AtomicTestingService`.
+
+**Explicitly hunt for parallel/sibling implementations.** The recurring
+pattern behind these misses is two independent services doing the same
+conceptual operation on the same entity: `AtomicTestingService.createOrUpdate`
+duplicates what `InjectService` does for scenario/simulation injects;
+`AbstractConnectorService.getConnectorRelationsId` has a near-identical
+sibling in `CollectorService.getCollectorRelationsId`. Neither grep (name nor
+one-hop caller) reliably surfaces the sibling, because they are different
+classes with different method names calling the same shared utility or
+repository. After the transitive closure above, explicitly search for other
+services that plausibly do the same kind of operation on the entity that owns
+{table}'s data (e.g. `grep -rln "class.*Service" openaev-api/src/main/java
+--include="*.java" | xargs grep -l "{Entity}\b"` and read each one, not just
+the one the greps already flagged) and confirm each either shares the wired
+code path or gets its own `TxCtx`. This is also where DEPRECATED controllers
+hide: the cwes activation had to wire `CveApi` (deprecated since 1.19, still
+deployed, same `VulnerabilityService` underneath) alongside
+`VulnerabilityApi`; neither grep sees it because it only references the
+service. A deprecated controller that still ships is a live path.
+
+**Walk shared gates up to every entrypoint, not just one hop.** A helper
+method shared by several controllers (a launch gate, a mapper, a projection
+builder, ...) can have more callers than the ones you happened to notice.
+Stopping at the first caller is the #7188-class regression: the executors
+activation (#6409) found `ExerciseService.throwIfExerciseNotLaunchable`'s
+callers `updateExerciseStart` and `deprecatedUpdateExerciseStart` and wired
+`TxCtx` on both, but `ExerciseApi#changeExerciseStatus` — a third, equally
+direct caller of the exact same gate — was never enumerated and shipped with
+the tenant-scope gap undetected. Every intermediate method found this way
+becomes its own grep target, repeated until every hit is a real entrypoint
+(`@RestController` method, `@Scheduled`/`@RabbitListener`, ...):
 
 ```bash
 # for EVERY shared method discovered while walking up (not just the first one
-# found) - repeat until the hit list is only @RestController entrypoints
+# found) - repeat until the hit list is only entrypoints
 grep -rn "\.{sharedMethodName}(" openaev-api/src/main/java --include="*.java"
 ```
 
-List ALL of its callers — they are part of the surface even though they match
-neither the repository grep nor the table-name grep. This is where parallel
-and DEPRECATED controllers hide: the cwes activation had to wire `CveApi`
-(deprecated since 1.19, still deployed, same `VulnerabilityService`
-underneath) alongside `VulnerabilityApi`; neither grep sees it because it only
-references the service. A deprecated controller that still ships is a live
-path. When the walk reaches a shared gate with N callers, count them: N
-entrypoints in the inventory must produce N `TxCtx` additions (or N documented
-exceptions) — a gate found with only "the callers I happened to notice" is not
-a complete inventory.
+When a shared gate has N callers, count them: N entrypoints in the inventory
+must produce N `TxCtx` additions (or N documented exceptions) — a gate found
+with only "the callers I happened to notice" is not a complete inventory.
 
-Separately, ALWAYS list every caller of the association accessor for any
-entity that holds a `@ManyToOne`/`@ManyToMany`/`@OneToMany` reference to the
-entity being activated
-(`grep -rn "\.get{Entities}()\|\.get{Entity}()" ... --include="*.java"`), even
-when `{table}` has its own API. Having an own API and being reached through
-another aggregate's eager/lazy association are independent facts — the
-executors table has `ExecutorApi`, yet `Agent.getExecutor()` (an EAGER
-`@ManyToOne`, read by `EnterpriseEditionService.detectEEExecutors` several
-calls away from any executor-specific code) was the exact path that broke.
-Lazy or eager, an association load bypasses the repository entirely, so the
-repository grep and the table-name grep cannot see it — only an explicit scan
-of every entity that references `{Entity}` finds it:
+**Hunt every association accessor, whether or not the table has its own API.**
+An association load (`entity.get{Entities}()`) bypasses the repository
+entirely, so neither the repository grep nor the table-name grep sees it.
+This applies in two shapes:
+- the table has NO API of its own and is reached only through another
+  aggregate's association (the cwes model: only `Vulnerability`'s
+  `@ManyToMany` reaches it);
+- the table HAS its own API, but a separate, unrelated aggregate also holds an
+  eager or lazy reference to it. Having an own API and being reached through
+  another aggregate's association are independent facts — the executors table
+  has `ExecutorApi`, yet `Agent.getExecutor()` (an EAGER `@ManyToOne`, read by
+  `EnterpriseEditionService.detectEEExecutors` several calls away from any
+  executor-specific code) was the exact path that broke.
+
+Find every owning entity and every caller of its accessor, then confirm each
+caller either runs inside an already-scoped transaction or gets its own
+`TxCtx`:
 
 ```bash
 # every entity field of type {Entity} (or a collection of it), anywhere in the model
 grep -rln "private {Entity} \|private List<{Entity}>\|private Set<{Entity}>" openaev-model/src/main/java --include="*.java"
 # then, for each owning entity found, every caller of its accessor
-grep -rn "\.get{Entity}()" openaev-api/src/main/java openaev-model/src/main/java --include="*.java"
+grep -rn "\.get{Entity}()\|\.get{Entities}()" openaev-api/src/main/java openaev-model/src/main/java --include="*.java"
 ```
 
 Also list child tables (FKs pointing at `{table}`). A child without its own
@@ -448,6 +533,107 @@ Model: `openaev-api/src/main/java/io/openaev/rest/mapper/MapperApi.java`.
 
 Re-run the test class after each endpoint. Read tests go green one by one.
 Do not move to writes until all reads are green.
+
+### Phase 3b — Every direct or indirect link to the table, everywhere
+
+Phase 1 finds code that reads `{table}` through `{EntityRepository}` or a
+literal string match. It does NOT reliably find another aggregate's
+association pointing at `{Entity}` (`@OneToMany`, `@ManyToMany`,
+`@ManyToOne`) that some UNRELATED API lazy-loads and serializes — that
+association never mentions `{table}` or `{EntityRepository}` by name, so
+neither Phase 1 grep sees it. This is exactly what #7026 shipped to
+production for the `collectors` activation, months after go-live: model it.
+
+Root cause of #7026, read it before running this phase — it is the failure
+mode you are hunting for: `security_platform_collectors` was always
+serialized as an empty array because `SecurityPlatform#collectors` is a lazy
+association, serialized by `MultiIdListSerializer` AFTER the controller's
+`@Transactional` method returned (open-in-view). By then
+`TenantScopeTransactionAspect`'s scope was gone. `SecurityPlatformApi`'s
+endpoints carried no `TxCtx` at all (nobody had reason to add one — that API
+does not read `collectors` directly, it reads `SecurityPlatform`), so
+`app.current_tenants` was never set, and the fail-closed
+`TenantStatementInspector` rewrote the lazy collectors query to
+`can_access_tenant(...) = false` for every row. The endpoint kept returning
+200 with an empty list, not an error — so nothing failed loudly, and CI never
+saw it either: the test profile ships an EMPTY `active-tables`, so the
+inspector never fires (the same gap #7007 already names). The frontend then
+silently mis-derived `isCollectorManaged()` from that empty array and unlocked
+Update/Delete on a platform whose collector was still running.
+
+This phase runs at go-live AND belongs in the permanent Definition of Done for
+every activation, not just once: a NEW association to `{Entity}` can be added
+by an unrelated PR at any time after `{table}` is already active, and nothing
+today stops it from shipping unscoped. Re-run this phase's greps whenever a
+new `@OneToMany`/`@ManyToMany`/`@ManyToOne` targeting `{Entity}` appears
+in review (the `{table}` entry in `TenantActiveTableAccessArchTest` from
+Phase 6 is what makes a future miss fail the build instead of shipping silently).
+
+**3b.1 — find every association pointing at the entity, anywhere, not just its own aggregate:**
+
+```bash
+# every field typed as {Entity} or a collection of it, in ANY entity
+grep -rn "{Entity}>\|{Entity} " openaev-model/src/main/java/io/openaev/database/model --include="*.java" | grep -i "@OneToMany\|@ManyToMany\|@ManyToOne\|@OneToOne" -A1 -B1
+# faster two-step: list the annotation lines, then check the next line's type
+grep -rln "@OneToMany\|@ManyToMany\|@ManyToOne\|@OneToOne" openaev-model/src/main/java/io/openaev/database/model --include="*.java" \
+  | xargs grep -B1 -n "{Entity}" 
+```
+
+Read every hit's owning entity (`{OwningEntity}`), not just `{Entity}` itself
+— the collectors bug lived on `SecurityPlatform`, an entity that has nothing
+else to do with the collectors activation.
+
+**3b.2 — for every `{OwningEntity}` found, find every accessor call across the whole codebase, including serialization:**
+
+```bash
+grep -rn "\.get{Entities}()\|\.get{Entity}()" openaev-api/src/main/java openaev-model/src/main/java --include="*.java"
+```
+
+Classify each call site:
+- inside an explicit query (`JOIN FETCH`, a `@Query` projecting the
+  association) → already eagerly resolved inside the query's own
+  transaction; check that query's controller/service carries `TxCtx`
+  (same rule as Phase 1/5).
+- a lazy getter called directly in a `@Transactional` method body → resolves
+  inside that transaction; the CALLER method needs `TxCtx` (Phase 5 if it is
+  not the table's own API).
+- a lazy getter reached ONLY through JSON serialization (a custom serializer
+  like `MultiIdListSerializer`, a DTO mapper invoked by Jackson, a
+  `@JsonSerialize` field) → **the dangerous case**. With open-in-view or any
+  serialization step that runs after the controller method returns, the
+  association resolves OUTSIDE the transaction the aspect scoped. Fix per the
+  #7026 pattern: force-initialize the association INSIDE the scoped
+  transaction, before the method returns, with a documented helper
+  (`Hibernate.initialize(owning.get{Entities}())`, or eager-fetch it in the
+  query that loaded `{OwningEntity}`), and make sure that controller method
+  itself carries `TxCtx` — a lazy association resolved eagerly under no scope
+  still reads zero rows. Model: `SecurityPlatformApi`'s
+  `withCollectorsInitialized` helper (PR #7026).
+- no controller ever serializes it, only used inside a background job → treat
+  as Phase 5b (background reader), not this phase.
+
+**3b.3 — pin every fixed accessor with an ArchUnit rule and a scoped test:**
+
+- Add every `{OwningEntity}#get{Entities}` caller found above to the
+  association-accessor allowlist rule in
+  `TenantActiveTableAccessArchTest` (same rule described in Phase 6, step 5), even
+  for `{OwningEntity}`s that are not the table's own aggregate. A new,
+  un-allowlisted caller must fail the build.
+- Add every serializing entrypoint from 3b.2 to
+  `TenantScopedEntrypointsTxCtxArchTest` (`TX_SCOPED_ENTRYPOINTS`), same as
+  any other `TxCtx`-bearing entrypoint.
+- Write one test per fixed entrypoint, modeled on
+  `SecurityPlatformCollectorsTenantScopeTest` (PR #7026): run with
+  `@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`
+  (production-like, inspector active — the default test profile's empty
+  allowlist is exactly what let #7026 through) and assert the association
+  serializes the live link for an in-scope row, and comes back empty only
+  once the linked `{Entity}` row is genuinely gone (not merely
+  out-of-scope).
+
+Do not defer this phase to "later regression pass" — an association missed
+here degrades silently (200 OK, empty array) exactly like #7026, so nothing
+in Phase 8's regression run will catch it unless the new test from 3b.3 exists.
 
 ### Phase 4 — RED then GREEN: write attribution
 
@@ -848,6 +1034,22 @@ patterns that conflict with or duplicate the v2 mechanism.
    attribution is now explicit via `TenantWriteScopeResolver`, the listener is
    dead code for this entity and should be removed to avoid a hidden fallback
    to `TenantContext`.
+4. **`// TODO v2:` markers anywhere in the codebase naming `{table}`** — a
+   previous activation or bugfix may have left an explicit tenant-scoping
+   workaround (an extra `tenantId` parameter on a native query, a manual
+   filter, a duplicated lookup) specifically BECAUSE `{table}` (or an entity it
+   joins) was still on v1, with a comment pointing at this table's activation
+   issue as the trigger to remove it. This is the ONLY mechanism that carries
+   such a workaround forward from one activation to the next — the skill's own
+   Phase 7 audit is scoped to the table being activated NOW and does not
+   revisit it later, so a workaround left on another table's query is invisible
+   to this phase unless it is grepped for explicitly. Model: the `tenantId`
+   param added to `ConnectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId`
+   (issue #6408 for `connector_instances`) — a native query joining
+   `connector_instances` had to carry the tenant predicate by hand because the
+   join target was still v1; once `connector_instances` activates, the
+   inspector scopes that join automatically and the parameter becomes
+   removable.
 
 **How to search:**
 
@@ -870,6 +1072,11 @@ grep -rn "TenantContext" \
 # 7.4 TenantBaseListener still on entity
 grep -n "TenantBaseListener" \
   openaev-model/src/main/java/io/openaev/database/model/{Entity}.java
+
+# 7.5 codebase-wide: workarounds left for THIS table's activation, wherever
+# they live (may be on a repository/service far from {table}'s own package)
+grep -rln "// TODO v2:" openaev-api/src/main/java openaev-model/src/main/java --include="*.java" \
+  | xargs grep -l "{table}\|{Entity}\|{table_or_entity}"
 ```
 
 **Classification and action:**
@@ -882,6 +1089,8 @@ grep -n "TenantBaseListener" \
 | `findByIdAndTenantId` on a *different* repository | No | **Report only** — that table is still on v1 |
 | `TenantBaseListener` on `{Entity}` | Yes | **Remove** — it is a v1 pattern that reads from `TenantContext`; write attribution is now explicit via the resolver. Fix any test or code path that relied on the listener to auto-populate tenant; set `tenantId` explicitly instead |
 | Specification with `tenant_id` predicate on `{table}` | Yes | **Remove the predicate** — inspector handles it |
+| `// TODO v2:` comment naming `{table}`'s activation issue | Yes | **Resolve it now**: drop the explicit tenant workaround, add/update a regression test proving the inspector's automatic scoping covers the case, remove the comment |
+| `// TODO v2:` comment naming a *different* table's activation issue | No | **Report only** — leave it, it is that other table's future trigger |
 
 **Output: audit report**
 
@@ -889,6 +1098,13 @@ Produce a table listing every hit, its file and line, whether it targets the
 activated table, and the action taken (removed / reported-only). Include it
 in the Phase 9 report. Hits on other tables are informational — they document
 the v1 surface that remains for future activations.
+
+When THIS activation itself introduces a new explicit tenant-scoping
+workaround on a query that joins a still-v1 table (the mirror image of 7.5 —
+you are now the one leaving a marker for someone else's future activation),
+leave a `// TODO v2: once {other_table} get v2 activated <issue-url>, <what to
+remove>` comment on that workaround so the eventual `{other_table}` activation
+finds it via its own Phase 7.5 grep.
 
 ### Phase 8 — Full regression pass
 
@@ -922,6 +1138,9 @@ Before marking the issue done, write down:
   (`forEachTenant` / `forTenant` / `allTenants`) and the reason, and its
   isolation test
 - the v1 remnant audit table from Phase 7 (hits found, actions taken, reported-only items)
+- every direct or indirect association to the entity found in Phase 3b: its
+  owning entity, whether it was lazy-loaded outside the transaction (the #7026
+  shape) or already safe, the fix applied, and its scoped test
 - background readers left degraded (from Phase 0/1), each with a one-line impact
 - child tables and how they are covered
 - client impact: writes now require a single-tenant scope. Calls using the tenant path
@@ -949,6 +1168,11 @@ Before marking the issue done, write down:
 - [ ] writes: attribution asserted at the SQL level, no selector → 400;
       upsert of the same business key from two tenants yields two rows
 - [ ] other APIs from the inventory wired and tested
+- [ ] every association (direct or indirect, lazy or eager) pointing at the
+      entity from ANY other aggregate found (Phase 3b); every lazy accessor
+      reached through serialization (custom serializer, DTO mapper) force-
+      initialized inside a scoped transaction; each fixed entrypoint pinned in
+      both arch tests and covered by a production-like scoped test
 - [ ] background writers converted to the primitive (no `@Transactional`, no raw
       plumbing), each with a per-tenant or `allTenants` scope and a green
       background isolation test (Phase 5b)
@@ -965,6 +1189,7 @@ Before marking the issue done, write down:
 - [ ] arch tests updated and green
 - [ ] go-live is one commit: @Filter removed + allowlist entry + re-enabled test + config guard
 - [ ] v1 remnant audit complete: no `TenantContext`/`findByIdAndTenantId`/`TenantBaseListener`
-      targeting the activated table remains in the call stack
+      targeting the activated table remains in the call stack; codebase-wide
+      `// TODO v2:` markers naming this table's activation issue resolved
 - [ ] spotless, compile
 - [ ] report written (degradations, children, client impact, v1 audit table)

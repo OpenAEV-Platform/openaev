@@ -47,7 +47,7 @@ public class TestIntegrationFactoryInitThrows extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations() throws Exception {
+  protected void runMigrations(String tenantId) throws Exception {
     throw new RuntimeException("%s: deliberate throw!".formatted(this.getClassName()));
   }
 
