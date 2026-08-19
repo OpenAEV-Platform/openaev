@@ -113,6 +113,13 @@ const Login = () => {
               // panel in the app: no `background` override, so it takes MUI's
               // `background.paper` and keeps following a customer's
               // `paper_color`.
+              //
+              // It therefore also draws the library Paper's border, which the
+              // panel did not have before. That is WANTED, not a side effect:
+              // the border is what every other elevation-1 panel in the product
+              // draws, and moving this panel to layer 1 is what puts it in that
+              // family. Arbitrated. Do not remove it to restore the borderless
+              // look — that would put the panel back outside the system.
               <Paper
                 padding={24}
                 style={{

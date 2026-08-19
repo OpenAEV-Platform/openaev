@@ -1645,8 +1645,9 @@ itself surfaced.
 
   The invisible 1.03:1 that opened this entry **is gone**. Parity with MUI's
   `divider` is explicitly **no longer an objective** — the library's border is
-  its own design decision, not a reproduction of the product's. Full table
-  across all four elevations and both themes: PAPER-GAP-INVENTORY §12.
+  its own design decision, not a reproduction of the product's. Measured across
+  all four elevations and both themes; the layer-1 figures above are the ones
+  the product renders.
 - **#28 host theme — CLOSED, and the contract is the important part.** Measured
   both directions in a real browser: re-declaring `--bg-elevation-default-layer-1`
   on `:root` repaints the surface to the customer's colour, and re-declaring the

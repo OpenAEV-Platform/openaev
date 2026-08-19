@@ -102,6 +102,38 @@ wave" exclusion. Listed, never converted.
 
 ---
 
+### 5.9 An unlayered product class beats the library's padding prop
+
+`InjectorPage.tsx` renders `<Paper padding={0} className={`paper …`}>`. It does
+not render 0. `paper` is a global class in `openaev-front/src/static/css/index.css`
+carrying `padding: 20px`, and it is **unlayered**, while the library ships its
+utilities inside Tailwind's `utilities` layer. Unlayered CSS wins over layered
+CSS whatever the specificity and whatever the source order.
+
+Measured in the running app:
+
+| element | rendered padding |
+| --- | --- |
+| `.paper` alone | 20px |
+| `p-0` alone (what `padding={0}` applies) | 0px |
+| `p-0 paper` | **20px** |
+| `paper p-0` | **20px** |
+
+The surface therefore renders the same 20px it rendered before the migration.
+It is **iso by accident**: the prop lost the cascade, and nothing anywhere says
+so — no warning, no type error, no guard, and a reader of the call site has
+every reason to believe the number in the prop.
+
+> **Rule.** A library prop that resolves to a utility class can be silently
+> overridden by any unlayered product CSS on the same element. When a converted
+> surface also carries a global product class, the class decides — read the
+> stylesheet, not the prop. Changing the prop there changes nothing; only
+> removing the class or the rule does.
+
+This site is left as it renders. Removing `paper` from it would change the
+padding on a screen this wave is not converting, which is exactly the kind of
+drive-by the wave excludes.
+
 ## 10. Method — a product inventory read by name misses what it does not name
 
 Worth writing down, because it will happen again at the next bump, OpenCTI
@@ -579,8 +611,9 @@ give it a fresh sub-number there.**
 
 ### 20.2 A section the code cites is never round memory
 
-The first pass of this cut classified §6 as "conversion arbitrations for a bump
-that happened" and marked it for deletion. Its heading said exactly that. But
+The first pass of this cut classified §6 — a section number that no longer
+exists, and is named here only to tell the story — as "conversion arbitrations
+for a bump that happened", and marked it for deletion. Its heading said exactly that. But
 its three sub-sections carried standing rules, and **seven code comments pointed
 at them** — deleting the section would have left those comments addressing
 nothing.
@@ -589,8 +622,8 @@ nothing.
 > from the code is proof the section still serves someone: it is the reader of
 > that comment, tomorrow, following the pointer.
 
-The same pass found §4 in the same position, for one line that records why
-`DetailHero` stays out of the waves. Both were folded into §5 instead of being
+The same pass found §4, likewise gone, in the same position, for one line that
+records why `DetailHero` stays out of the waves. Both were folded into §5 instead of being
 dropped, and the seven comments were re-addressed in the same commit — a cut
 that breaks what it claims to preserve is not a cut, it is a regression.
 
@@ -614,10 +647,28 @@ and MUI's `size="small"` renders it at **30px** — over the row by six. It take
 the library `IconButton` at `size="sm"` (`h-6 w-6`) instead. Any control landing
 in a header row has to be checked against 24px, whatever component it is.
 
-> **How to find them.** Measuring the code is not enough: what matters is the
-> rendered height of every control inside a `.flex.h-6` row or a
-> `[data-testid="lib-header-row"]`, on every screen that has one. Measured that
-> way, this wave had **five** such controls and **three** were over the row.
+> **How to find them, and how this census got it wrong.** Measuring the code is
+> not enough: what matters is the rendered height of every control inside a
+> `.flex.h-6` row or a `[data-testid="lib-header-row"]`. The first pass claimed
+> a complete census on that basis and **was not complete** — it walked a list of
+> screen URLs and never checked that each screen had actually rendered. Two of
+> them returned nothing but the navigation, and their configuration sections
+> live in a floating panel that no URL reaches at all: they are behind the
+> simulation and scenario **Configuration** button, and the census never opened
+> it. Six controls were sitting there unmeasured. A census must assert that the
+> thing it is counting is on screen before it reports a count of zero.
+
+The controls known to be over the row, and not moved by this wave:
+
+| site | control | height | why it stays |
+| --- | --- | --- | --- |
+| `Channel.tsx` — Dark theme logo tile | `ChannelAddLogo` | 31px | MUI `size="small"` IS the small size; reaching 24px means the library button — Button wave |
+| `Channel.tsx` — Light theme logo tile | `ChannelAddLogo` | 31px | same |
+
+Both sit in a **product-drawn** row that imitates the library header — a 12px
+label over an 8px gap — rather than in a library one, so they are not header
+actions in the sense above. They are recorded here so the next census does not
+have to rediscover them.
 
 > **Why they do not move.** Adopting the library button everywhere would make
 > those 49 buttons GROW, 31px to 36px. That is a deliberate design change — the
