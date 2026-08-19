@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.fs.ClassFileWriter;
 import io.openaev.migration.ClassContentsGenerator;
 import io.openaev.migration.ClassNameGenerator;
+import io.openaev.ocsf.parser.generator.Generator;
 import io.openaev.ocsf.parser.schema.*;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -18,7 +20,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 
 /** Generate source files for a java OCSF parser */
 @Slf4j
-@Mojo(name = "generate-ocsf-parser", defaultPhase = LifecyclePhase.NONE)
+@Mojo(name = "generate-ocsf-parser", defaultPhase = LifecyclePhase.NONE, aggregator = true)
 public class GenerateParser extends AbstractMojo {
   @Parameter(
       property = "basedir",
@@ -68,7 +70,7 @@ public class GenerateParser extends AbstractMojo {
   }
 
   private final String defaultReason;
-  private final String subLocation = "src/main/java/io/openaev/migration";
+  private final String subLocation = "src/main/java";
 
   private String getClassName() {
     return StringUtils.isBlank(reason) ? defaultReason : reason;
@@ -87,15 +89,16 @@ public class GenerateParser extends AbstractMojo {
   }
 
   public void execute() throws MojoExecutionException {
+    URI absoluteRoot = getFinalBaseDir().getAbsoluteFile().toURI();
     PluginContext ctx =
         new PluginContext(
-            Paths.get(getFinalBaseDir().getAbsoluteFile().toURI())
+            Paths.get(absoluteRoot)
                 .resolve("openaev-maven-plugin/src/main/resources"),
-            Paths.get(""));
+            Paths.get(absoluteRoot).resolve("openaev-model").resolve(subLocation));
     try {
       SchemaSource schemaSource = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
-      schemaSource.refreshAllSources();
-      JsonNode datatypes = schemaSource.getContents(SchemaDimension.DATATYPES.name());
+      Generator generator = new Generator(schemaSource, ctx);
+      generator.generate();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
