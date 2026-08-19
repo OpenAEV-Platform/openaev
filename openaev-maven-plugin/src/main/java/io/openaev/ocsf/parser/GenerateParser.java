@@ -1,8 +1,8 @@
 package io.openaev.ocsf.parser;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.fs.ClassFileWriter;
 import io.openaev.migration.ClassContentsGenerator;
-import io.openaev.migration.ClassFileWriter;
 import io.openaev.migration.ClassNameGenerator;
 import io.openaev.ocsf.parser.schema.*;
 import java.io.File;

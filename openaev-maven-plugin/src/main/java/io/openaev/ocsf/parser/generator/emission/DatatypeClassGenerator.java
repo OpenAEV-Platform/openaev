@@ -7,20 +7,26 @@ import io.openaev.ocsf.parser.generator.emission.meta.cls.ClassMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.cls.ExtendMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.ArgumentMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
+import io.openaev.ocsf.parser.schema.SchemaDimension;
 
 public class DatatypeClassGenerator extends ClassGenerator {
   private static final String datatypesPackageName = "io.openaev.ocsf.datatypes";
 
   @Override
   public ClassMetadata metadata(String name, JsonNode source) {
-    return new ClassMetadata(name, compositeOcsfClassName(name), datatypesPackageName, source);
+    return new ClassMetadata(
+        name,
+        SchemaDimension.DATATYPES,
+        compositeOcsfClassName(name),
+        datatypesPackageName,
+        source);
   }
 
   @Override
-  public String emit(ClassMetadata metadata, JsonNode source) {
+  public String emit(ClassMetadata metadata) {
     String actualType = metadata.ocsfIdentifier();
-    if (source.get("type") != null) {
-      actualType = source.get("type").asText();
+    if (metadata.source().get("type") != null) {
+      actualType = metadata.source().get("type").asText();
     }
 
     Class<?> type = mapDatatypeToClass(actualType);
@@ -38,7 +44,7 @@ public class DatatypeClassGenerator extends ClassGenerator {
                         "",
                         "super(value);")
                     .withArgument(new ArgumentMeta(type, "value")));
-    if (source.get("regex") != null) {
+    if (metadata.source().get("regex") != null) {
       meta.withMethod(
           new MethodMeta(
                   Modifier.PROTECTED,
@@ -47,7 +53,7 @@ public class DatatypeClassGenerator extends ClassGenerator {
                   """
                       return getValue().matches("%s");
                       """
-                      .formatted(source.get("regex").asText().replace("\n", "")))
+                      .formatted(metadata.source().get("regex").asText().replace("\n", "")))
               .withAnnotation(new AnnotationMeta(Override.class)));
     }
 

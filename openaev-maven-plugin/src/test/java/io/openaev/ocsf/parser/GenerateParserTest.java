@@ -50,10 +50,10 @@ public class GenerateParserTest {
   @Test
   void emitDatatypes2() throws IOException {
     Path resources = Paths.get(getClass().getResource("").getPath());
-    PluginContext ctx = new PluginContext(resources, Paths.get(""));
+    PluginContext ctx = new PluginContext(resources, resources);
 
     SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
-    Generator gen = new Generator(schema);
+    Generator gen = new Generator(schema, ctx);
     gen.generate();
   }
 

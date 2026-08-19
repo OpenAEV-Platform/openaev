@@ -8,5 +8,5 @@ public abstract class ClassGenerator {
 
   public abstract ClassMetadata metadata(String name, JsonNode source);
 
-  public abstract String emit(ClassMetadata metadata, JsonNode source);
+  public abstract String emit(ClassMetadata metadata);
 }
