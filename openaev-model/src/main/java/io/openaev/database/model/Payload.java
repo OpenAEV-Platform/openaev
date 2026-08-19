@@ -310,37 +310,6 @@ public class Payload implements GrantableBase, TenantBase {
         .toList();
   }
 
-  /**
-   * Null-safe accessor: {@code payload_arguments} is semantically "no arguments" when empty, and
-   * {@code null} never carries a distinct meaning. Returning an empty list avoids NPEs on the many
-   * call sites that stream over the arguments (export, import, ingestion) when a legacy row or an
-   * input DTO left the field {@code null}.
-   */
-  public List<PayloadArgument> getArguments() {
-    if (this.arguments == null) {
-      this.arguments = new ArrayList<>();
-    }
-    return this.arguments;
-  }
-
-  /** Null-safe setter: a {@code null} assignment is normalised to an empty list. */
-  public void setArguments(List<PayloadArgument> arguments) {
-    this.arguments = arguments == null ? new ArrayList<>() : arguments;
-  }
-
-  /** Null-safe accessor: prerequisites do not carry a distinct null semantics. */
-  public List<PayloadPrerequisite> getPrerequisites() {
-    if (this.prerequisites == null) {
-      this.prerequisites = new ArrayList<>();
-    }
-    return this.prerequisites;
-  }
-
-  /** Null-safe setter: a {@code null} assignment is normalised to an empty list. */
-  public void setPrerequisites(List<PayloadPrerequisite> prerequisites) {
-    this.prerequisites = prerequisites == null ? new ArrayList<>() : prerequisites;
-  }
-
   @Override
   public int hashCode() {
     return Objects.hash(id);
