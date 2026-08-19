@@ -1,5 +1,5 @@
-import { LocalPoliceOutlined } from '@mui/icons-material';
-import { Box, Checkbox, Divider } from '@mui/material';
+import { LocalPoliceOutlined, LockOutlined } from '@mui/icons-material';
+import { Box, Checkbox, Divider, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Controller, type FieldValues, type Path, useFormContext, useWatch } from 'react-hook-form';
 
@@ -119,6 +119,17 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
         >
           <LocalPoliceOutlined sx={{ opacity: isCapabilityDisabled ? 0.5 : 1 }} />
           {t(capability.capability_value)}
+          {isCapabilityDisabled && (
+            <Tooltip title={t('the user can not assign or revoke the capability')}>
+              <LockOutlined
+                sx={{
+                  ml: 0.5,
+                  fontSize: 16,
+                  color: 'text.disabled',
+                }}
+              />
+            </Tooltip>
+          )}
         </Box>
         {capability.capability_checkable && capability.capability_value
           && (
