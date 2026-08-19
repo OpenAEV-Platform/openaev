@@ -13,12 +13,12 @@ public class CapabilityMapper {
 
   public static CapabilityOutput toOutput(Capability capability, List<CapabilityOutput> children) {
     return new CapabilityOutput(
-        capability.name(), capability.isCheckable(), scopeNames(capability), children);
+        capability.name(), capability.isCheckable(), false, scopeNames(capability), children);
   }
 
   public static CapabilityOutput toOutput(
       CapabilityGroup capability, List<Capability> groupRoots, List<CapabilityOutput> children) {
-    return new CapabilityOutput(capability.name(), false, scopeNames(groupRoots), children);
+    return new CapabilityOutput(capability.name(), false, false, scopeNames(groupRoots), children);
   }
 
   private static Set<String> scopeNames(Capability cap) {

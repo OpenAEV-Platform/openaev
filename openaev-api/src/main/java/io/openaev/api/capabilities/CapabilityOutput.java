@@ -17,6 +17,12 @@ public record CapabilityOutput(
         @Schema(description = "Whether this capability can be assigned to a role")
         @NotNull
         boolean checkable,
+    @JsonProperty("capability_user_can_have")
+        @Schema(
+            description =
+                "Whether the current authenticated user is allowed to grant this capability")
+        @NotNull
+        boolean userCanHave,
     @JsonProperty("capability_scopes")
         @Schema(description = "Scopes where this capability applies (PLATFORM, TENANT)")
         @NotBlank

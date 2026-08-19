@@ -117,8 +117,13 @@ public class TenantRoleService {
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
     Set<Capability> scopedCapabilities = Capability.filterForTenantRole(capabilities);
+    Role role = findByIdInTenant(roleId);
+    Set<Capability> currentScopedCapabilities =
+        Capability.filterForTenantRole(role.getCapabilities());
+    Set<Capability> capabilitiesToAuthorize = new HashSet<>(currentScopedCapabilities);
+    capabilitiesToAuthorize.addAll(scopedCapabilities);
     assertCanAssignCapabilities(
-        userService.currentUser(), scopedCapabilities, CapabilityScope.TENANT);
+        userService.currentUser(), capabilitiesToAuthorize, CapabilityScope.TENANT);
     ReservedKeyValidator.validateRoleId(roleId);
     return updateRoleInternal(
         roleId, roleName, roleDescription, scopedCapabilities, TenantContext.getCurrentTenant());

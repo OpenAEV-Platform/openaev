@@ -2094,6 +2094,8 @@ export interface CapabilityOutput {
    * @uniqueItems true
    */
   capability_scopes: string[];
+  /** Whether the current authenticated user is allowed to grant this capability */
+  capability_user_can_have: boolean;
   /**
    * Enum key of the capability or group
    * @minLength 1

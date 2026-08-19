@@ -305,7 +305,11 @@ public class PlatformRoleApiTest extends IntegrationTest {
   class Update {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES,
+          Capability.ACCESS_PLATFORM_SETTINGS
+        })
     @DisplayName("Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should update a platform role")
     void given_managePlatform_should_updateRole() throws Exception {
       // -------- Arrange --------
@@ -340,7 +344,11 @@ public class PlatformRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES,
+          Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES
+        })
     @DisplayName(
         "Given a platform role polluted with a tenant-only capability, update should drop it"
             + " instead of rejecting the payload")
@@ -432,6 +440,48 @@ public class PlatformRoleApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES,
+          Capability.ACCESS_PLATFORM_SETTINGS
+        })
+    @DisplayName(
+        "Given a platform role containing capabilities the caller does not hold, update should reject removing those unheld capabilities")
+    void given_updateRemovingUnheldCapabilities_should_beRejected() throws Exception {
+      // -------- Arrange --------
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(
+                  PlatformRoleFixture.getPlatformRole(
+                      "EscalationGuard",
+                      Set.of(Capability.ACCESS_PLATFORM_SETTINGS, Capability.ACCESS_TENANTS)))
+              .persist()
+              .get();
+
+      PlatformRoleInput input =
+          new PlatformRoleInput(
+              "EscalationGuard", "desc", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  put(PLATFORM_ROLES_URI + "/" + role.getId())
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      assertEquals(UNHELD_CAPABILITIES, JsonPath.read(response, "$.message"));
+      List<String> refused = JsonPath.read(response, "$.errors.children.message.errors");
+      assertTrue(refused.contains(Capability.ACCESS_TENANTS.name()));
     }
   }
 

@@ -445,6 +445,46 @@ public class TenantRoleApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isBadRequest());
     }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_ASSETS})
+    @DisplayName(
+        "Given a role containing capabilities the caller does not hold, update should reject removing those unheld capabilities")
+    void given_updateRemovingUnheldCapabilities_should_beRejected() throws Exception {
+      // -------- Arrange --------
+      Role role =
+          tenantRoleComposer
+              .forRole(
+                  TenantRoleFixture.getRole(
+                      "EscalationGuard",
+                      Set.of(Capability.ACCESS_ASSETS, Capability.ACCESS_CHALLENGES)))
+              .persist()
+              .get();
+
+      RoleInput input =
+          RoleInput.builder()
+              .name("EscalationGuard")
+              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .build();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  put(tenantUri("/api/tenants/{tenantId}/roles/") + role.getId())
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      assertEquals(UNHELD_CAPABILITIES, JsonPath.read(response, "$.message"));
+      List<String> refused = JsonPath.read(response, "$.errors.children.message.errors");
+      assertTrue(refused.contains(Capability.ACCESS_CHALLENGES.name()));
+    }
   }
 
   @Nested

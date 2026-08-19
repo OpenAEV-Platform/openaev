@@ -42,6 +42,16 @@ public final class PrivilegeEscalationValidator {
     }
   }
 
+  public static boolean canAssignCapability(
+      @NotNull final User currentUser,
+      @NotNull final Capability capability,
+      @NotNull final CapabilityScope scope) {
+    if (currentUser.isAdmin() || currentUser.hasBypassIn(scope)) {
+      return true;
+    }
+    return currentUser.getCapabilities(scope).contains(capability);
+  }
+
   // -- GRANT --
 
   private static PrivilegeGrantException unheldGrant(

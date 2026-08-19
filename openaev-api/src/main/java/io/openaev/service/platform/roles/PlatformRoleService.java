@@ -14,6 +14,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -106,9 +107,13 @@ public class PlatformRoleService {
       final String description,
       @NotNull final Set<Capability> capabilities) {
     Set<Capability> scopedCapabilities = Capability.filterForPlatformRole(capabilities);
-    assertCanAssignCapabilities(
-        userService.currentUser(), scopedCapabilities, CapabilityScope.PLATFORM);
     Role role = findById(roleId);
+    Set<Capability> currentScopedCapabilities =
+        Capability.filterForPlatformRole(role.getCapabilities());
+    Set<Capability> capabilitiesToAuthorize = new HashSet<>(currentScopedCapabilities);
+    capabilitiesToAuthorize.addAll(scopedCapabilities);
+    assertCanAssignCapabilities(
+        userService.currentUser(), capabilitiesToAuthorize, CapabilityScope.PLATFORM);
     role.setName(name);
     role.setDescription(description);
     role.setCapabilities(scopedCapabilities);
