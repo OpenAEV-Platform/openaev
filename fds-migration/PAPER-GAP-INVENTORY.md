@@ -597,6 +597,39 @@ An icon-only button also has no accessible name once the icon is
 here, but it is a real defect and it deserves its own fix rather than a silent
 one inside a container wave.
 
+### 19.2 The base is what you WRITE, the alias is what you READ
+
+The design system exposes the same colour under three names, and which one is
+correct depends entirely on the direction of travel.
+
+| name | shape | write | read |
+| --- | --- | --- | --- |
+| `--token-layer-N` | per-layer BASE, undiluted | **yes** | no |
+| `--token-layer-N-transparency-15` | diluted variant | no | **no** |
+| `--token` | per-layer alias | no | **yes**, inside `.layer-N` |
+
+**Writing** — a host overriding a colour targets the per-layer BASE, because
+the library's own dilution is declared on top of it and must keep applying.
+`AppThemeProvider` does this for a customer's `paper_color`.
+
+**Reading** — a product painting a surface with a library colour targets the
+ALIAS, because the base alone is undiluted: measured `rgb(43, 79, 141)` opaque
+against the Paper's 15%. The alias resolves to the diluted per-layer value and
+carries no percentage in its name.
+
+Never the diluted variant, in either direction. Its opacity is part of its
+identifier, so changing the opacity renames it — the library has done this once
+already, 40% to 15%. And an unresolvable `var()` does not fall back to a wrong
+colour: it invalidates the whole declaration. Measured, a `border` shorthand
+naming a token that no longer exists computes to **`0px none`** — the border
+vanishes, with no type, lint, build or guard error.
+
+> **Rule.** Base to write, alias to read, never the diluted variant. And when
+> reading the alias, apply the layer scope: it is redeclared inside each
+> `.layer-N` block, so outside one it silently resolves to layer 0 — the same
+> colour as layer 1 today, which makes the mistake invisible until the day it
+> is not. Iso by accident is not iso.
+
 ## 20. Two rules for pruning this document
 
 Learned while cutting 888 lines out of it.

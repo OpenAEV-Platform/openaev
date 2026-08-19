@@ -215,6 +215,11 @@ const Channel = () => {
           height: '100%',
         }}
         >
+          {/* Measured on a real channel, both themes: before this, the two
+              column headings sat 5px apart (y=288 against 293) and the surfaces
+              under them 12px apart (317 against 329), because only the left
+              column had adopted the library header. Both emit it now: 0px on
+              both counts, in both themes. */}
           <LibHeaderRow
             title={(
               <span style={{
