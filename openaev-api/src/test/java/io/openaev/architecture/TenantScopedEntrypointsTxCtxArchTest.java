@@ -219,6 +219,16 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#createAction",
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#updateAction",
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#duplicateAction",
+          // threat arsenal reads: same InjectorContractService projection/association as
+          // InjectorContractApi#injectorContracts (already listed above), reached through a
+          // separate sibling controller - resolves injector_contract_injector_type via the v2
+          // tenant-scoped injectors table. Missed on the original injectors activation (#6410)
+          // because the inventory stopped at the expected InjectorContractApi caller and never
+          // re-ran the caller-search on the shared InjectorContractService search/association
+          // methods themselves (regression fixed here).
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#threatArsenal",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#threatArsenals",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#threatArsenalsNonTabletop",
           // stix: security-coverage processing creates DNS-resolution/drop-file payloads via
           // PayloadService#getDynamicDnsResolutionPayload / getFileDropPayloadByDocument, which
           // lazily create the payload's injector contract through the same
