@@ -9,7 +9,6 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantIdBaseListener;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -21,16 +20,20 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "injectors")
-@EntityListeners({ModelBaseListener.class, TenantIdBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 @IdClass(ConnectorCompositeId.class)
+/**
+ * Fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant). The v1
+ * {@code @Filter("tenantFilter")} and {@code TenantIdBaseListener} were removed at go-live: the
+ * inspector scopes every query, and write attribution is explicit via TenantWriteScopeResolver. Do
+ * not re-add either.
+ */
 public class Injector extends BaseConnectorEntity implements TenantIdBase {
 
   @Id

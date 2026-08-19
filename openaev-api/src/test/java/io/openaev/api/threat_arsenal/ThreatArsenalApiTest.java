@@ -88,6 +88,13 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     domainComposer.reset();
     detectionRemediationComposer.reset();
     securityPlatformComposer.reset();
+    // The write endpoints resolve a single write tenant from the request scope (injectors /
+    // connector_instances v2 activation). The mock user from @WithMockUser has no tenant
+    // membership row, so without this grant the resolved scope is empty and tenantForWrite
+    // refuses the write with a 400. Skipped for tests that manage their own users.
+    if (testUserHolder.isSet()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 
   @BeforeAll

@@ -42,7 +42,7 @@ public class SessionApi extends RestBehavior {
 
   @GetMapping({SESSION_URI, TENANT_SESSION_URI})
   @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SESSION)
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The list of live sessions")})
   @Operation(
@@ -63,7 +63,7 @@ public class SessionApi extends RestBehavior {
 
   @GetMapping({SESSION_URI + "/user/{userId}", TENANT_SESSION_URI + "/user/{userId}"})
   @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SESSION)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "The list of live sessions of the user")
@@ -79,7 +79,7 @@ public class SessionApi extends RestBehavior {
 
   @DeleteMapping({SESSION_URI + "/{sessionId}", TENANT_SESSION_URI + "/{sessionId}"})
   @Transactional
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SESSION)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "The session was killed"),
@@ -102,7 +102,7 @@ public class SessionApi extends RestBehavior {
 
   @DeleteMapping({SESSION_URI + "/user/{userId}", TENANT_SESSION_URI + "/user/{userId}"})
   @Transactional
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SESSION)
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The user sessions were killed")})
   @Operation(summary = "Kill user sessions", description = "Kill every live session of a user")
