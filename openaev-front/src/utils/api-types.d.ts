@@ -7738,6 +7738,7 @@ export interface NotificationTriggerInput {
     | "WORKFLOW"
     | "STEP"
     | "CONDITION"
+    | "SESSION"
     | "SKIP_RBAC";
   /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
   notification_trigger_time?: string;
@@ -7841,6 +7842,7 @@ export interface NotificationTriggerOutput {
     | "WORKFLOW"
     | "STEP"
     | "CONDITION"
+    | "SESSION"
     | "SKIP_RBAC";
   /** Digest firing time (UTC) */
   notification_trigger_time?: string;
@@ -9465,6 +9467,7 @@ export interface PlatformRoleInput {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "MANAGE_SESSIONS"
   )[];
   platform_role_description?: string;
   /** @minLength 1 */
@@ -10295,6 +10298,7 @@ export interface RoleInput {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "MANAGE_SESSIONS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -12429,6 +12433,7 @@ export interface User {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "MANAGE_SESSIONS"
   )[];
   /** City of the user */
   user_city?: string;
