@@ -14,6 +14,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface FindingRepository
@@ -209,6 +210,7 @@ public interface FindingRepository
   // reason: this is a column bulk-update, not an entity load, so the Hibernate tenant filter never
   // applies regardless.
   @Modifying
+  @Transactional
   @Query(
       value =
           "UPDATE findings SET finding_soft_deleted_at = now()"
