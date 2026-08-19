@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -256,7 +257,13 @@ public class ElasticService implements EngineService {
     BoolQuery.Builder emptyRestrictBuilder = new BoolQuery.Builder();
     Query existField = ExistsQuery.of(b -> b.field("base_restrictions.keyword"))._toQuery();
     Query emptyRestrictQuery = emptyRestrictBuilder.mustNot(existField).build()._toQuery();
-    return authQuery.should(compliantField, emptyRestrictQuery).build()._toQuery();
+    // Explicit: this bool is nested in a filter clause, where an implicit minimum_should_match
+    // would silently make the ACL match everything.
+    return authQuery
+        .should(compliantField, emptyRestrictQuery)
+        .minimumShouldMatch("1")
+        .build()
+        ._toQuery();
   }
 
   private Query queryFromSearch(String search) {
@@ -372,9 +379,10 @@ public class ElasticService implements EngineService {
                   String index = model.getIndex(engineConfig);
                   Instant fetchInstant =
                       indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
+                  String fetchId = indexingStatus.map(IndexingStatus::getLastId).orElse(null);
                   long fetchStart = System.currentTimeMillis();
                   List<? extends EsBase> results =
-                      handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
+                      handler.fetch(fetchInstant, fetchId, engineConfig.getIndexingBatchSize());
                   long fetchMs = System.currentTimeMillis() - fetchStart;
                   if (fetchMs > 1000) {
                     log.warn(
@@ -435,17 +443,32 @@ public class ElasticService implements EngineService {
                             fetchInstant);
                       }
                       // Update the status for the next round
-                      Instant newCursor =
-                          EsIndexingUtils.computeNewCursor(
-                              results, engineConfig.getIndexingBatchSize(), model.getName(), log);
+                      IndexingCursor newCursor;
+                      if (handler.isKeysetPaged()) {
+                        newCursor = EsIndexingUtils.computeKeysetCursor(results);
+                      } else {
+                        Instant timestamp =
+                            EsIndexingUtils.computeNewCursor(
+                                results, engineConfig.getIndexingBatchSize(), model.getName(), log);
+                        newCursor = timestamp == null ? null : new IndexingCursor(timestamp, null);
+                      }
                       if (newCursor == null) {
                         log.error(
-                            "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={})",
+                            "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={}, last_row_id={})",
                             model.getName(),
-                            fetchInstant);
+                            fetchInstant,
+                            results.getLast().getBase_id());
                         return null;
                       }
-                      if (fetchInstant != null && !newCursor.isAfter(fetchInstant)) {
+                      boolean cursorAdvanced =
+                          fetchInstant == null
+                              || newCursor.timestamp().isAfter(fetchInstant)
+                              || (handler.isKeysetPaged()
+                                  && newCursor.timestamp().equals(fetchInstant)
+                                  && newCursor.lastId() != null
+                                  && (fetchId == null
+                                      || newCursor.lastId().compareTo(fetchId) > 0));
+                      if (fetchInstant != null && !cursorAdvanced) {
                         log.error(
                             "Stuck cursor detected for model {} — cursor did not advance (from={}, last_row={}). "
                                 + "This indicates a query bug: ranked rows have sort_ts <= cursor.",
@@ -458,14 +481,16 @@ public class ElasticService implements EngineService {
                       // forever (the fetch is strictly greater-than). Keep the cursor at least the
                       // grace window behind wall-clock; recent rows are re-fetched and re-upserted
                       // (idempotent) on every round until they age past the window.
-                      Instant persistedCursor =
-                          EsIndexingUtils.capCursorToGraceWindow(
+                      IndexingCursor persistedCursor =
+                          EsIndexingUtils.capToGraceWindow(
                               newCursor,
                               Instant.now(),
                               engineConfig.getIndexingGraceWindowSeconds());
-                      if (persistedCursor.equals(fetchInstant)) {
+                      if (persistedCursor.timestamp().equals(fetchInstant)
+                          && Objects.equals(persistedCursor.lastId(), fetchId)) {
                         // The cap lands exactly on the current cursor: persisting would be a
-                        // no-op, keep it and re-process those rows next round.
+                        // no-op, keep it and re-process those rows next round. The id is part of
+                        // the comparison because a keyset batch can advance on the id alone.
                         return null;
                       }
                       // persistedCursor may be BEHIND fetchInstant when the stored cursor is
@@ -474,12 +499,14 @@ public class ElasticService implements EngineService {
                       // rows committing late inside the window are fetched again.
                       if (indexingStatus.isPresent()) {
                         IndexingStatus status = indexingStatus.get();
-                        status.setLastIndexing(persistedCursor);
+                        status.setLastIndexing(persistedCursor.timestamp());
+                        status.setLastId(persistedCursor.lastId());
                         return status;
                       } else {
                         IndexingStatus status = new IndexingStatus();
                         status.setType(model.getName());
-                        status.setLastIndexing(persistedCursor);
+                        status.setLastIndexing(persistedCursor.timestamp());
+                        status.setLastId(persistedCursor.lastId());
                         return status;
                       }
                     } catch (IOException e) {
@@ -1142,6 +1169,96 @@ public class ElasticService implements EngineService {
             .filter(esBaseEsModel -> entity_name.equals(esBaseEsModel.getName()))
             .findAny();
     return model.get().getModel();
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public <T extends EsBase> List<T> searchCursorPaged(
+      RawUserAuth user, Class<T> model, CursorPageQuery query) {
+    if (query.size() <= 0 || query.size() > CURSOR_PAGE_MAX_SIZE) {
+      throw new IllegalArgumentException(
+          "size must be in [1, " + CURSOR_PAGE_MAX_SIZE + "], was " + query.size());
+    }
+    EsModel<T> esModel =
+        searchEngine.getModels().stream()
+            .filter(candidate -> model.equals(candidate.getModel()))
+            .findAny()
+            .map(candidate -> (EsModel<T>) candidate)
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException("Model not registered: " + model.getSimpleName()));
+    String index = esModel.getIndex(engineConfig);
+
+    // Every Instant bound is truncated here, once, so the query cannot disagree with the
+    // millisecond resolution of the engine's `date` field (base_updated_at is not date_nanos).
+    Instant windowEnd = query.windowEnd().truncatedTo(ChronoUnit.MILLIS);
+    Instant since = query.since() != null ? query.since().truncatedTo(ChronoUnit.MILLIS) : null;
+    CursorPageQuery.Keyset after = query.after();
+
+    List<Query> filters = new ArrayList<>();
+    // Strict tenant match: snapshot streams always extend EsTenantBase, so unlike buildQuery there
+    // is no "no tenant field" escape branch here.
+    filters.add(
+        TermQuery.of(
+                t -> t.field("base_tenant_side.keyword").value(TenantContext.getCurrentTenant()))
+            ._toQuery());
+    filters.add(
+        DateRangeQuery.of(d -> d.field("base_updated_at").lte(String.valueOf(windowEnd)))
+            ._toRangeQuery()
+            ._toQuery());
+    if (since != null) {
+      filters.add(
+          DateRangeQuery.of(d -> d.field("base_updated_at").gte(String.valueOf(since)))
+              ._toRangeQuery()
+              ._toQuery());
+    }
+    if (after != null) {
+      Instant afterTs = after.ts().truncatedTo(ChronoUnit.MILLIS);
+      filters.add(
+          buildKeysetPredicate("base_updated_at", toElasticField("base_id"), afterTs, after.id()));
+    }
+    // issue/3768: buildQueryRestrictions is otherwise dead code (its call site in buildQuery is
+    // commented out); it is re-enabled here only, because an unfiltered export would leak across
+    // grants. Returns null for an admin user, which therefore bypasses this filter entirely.
+    Query restrictionQuery = buildQueryRestrictions(user);
+    if (restrictionQuery != null) {
+      filters.add(restrictionQuery);
+    }
+    Query finalQuery = BoolQuery.of(b -> b.filter(filters))._toQuery();
+
+    // base_id is `text` with a normalized (lowercase/asciifolding, ignore_above:512) `.keyword`
+    // subfield: sorting on the raw text field fails at query time. The sort order therefore
+    // matches the client's cursor only because every snapshot base_id is md5 hex, already
+    // lowercase ASCII and 32 chars long.
+    List<SortOptions> sorts =
+        List.of(
+            SortOptions.of(
+                so ->
+                    so.field(FieldSort.of(fs -> fs.field("base_updated_at").order(SortOrder.Asc)))),
+            SortOptions.of(
+                so ->
+                    so.field(
+                        FieldSort.of(
+                            fs -> fs.field(toElasticField("base_id")).order(SortOrder.Asc)))));
+
+    try {
+      SearchResponse<T> response =
+          elasticClient.search(
+              b ->
+                  b.index(index)
+                      // The index exists from startup, but cleanUpIndex drops it and its template
+                      // until the next write: a momentarily absent stream pages as empty.
+                      .ignoreUnavailable(true)
+                      .allowNoIndices(true)
+                      .size(query.size())
+                      .query(finalQuery)
+                      .sort(sorts),
+              model);
+      return response.hits().hits().stream().map(Hit::source).filter(Objects::nonNull).toList();
+    } catch (IOException e) {
+      log.error("searchCursorPaged exception: {}", e.getMessage(), e);
+      throw new AnalyticsEngineException("searchCursorPaged failed", e);
+    }
   }
 
   /**

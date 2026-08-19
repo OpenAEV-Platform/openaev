@@ -94,6 +94,7 @@ Below is a full list of capabilities in OpenAEV:
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete Dashboards` | Permanently delete Dashboards. Requires *Manage Dashboards*.                                                                              |
 | **Findings** |                                                                                                                                           |
 | `Access Findings` | Read-only access to assessment Findings and results generated from Simulations and Atomic Tests.                                          |
+| `Access observation snapshots` | Read-only access to the bulk snapshot export endpoints, which return the current verified state of every Endpoint as a machine-readable feed. |
 | **Content** |                                                                                                                                           |
 | `Access documents` | Read-only access to documents stored in the platform (reports, attachments, playbooks).                                                   |
 | &nbsp;&nbsp;`Manage documents` | Upload, create, and update documents. Requires *Access documents*.                                                                        |

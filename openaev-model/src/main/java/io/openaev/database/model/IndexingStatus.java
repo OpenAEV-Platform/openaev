@@ -23,4 +23,9 @@ public class IndexingStatus {
   @Column(name = "indexing_status_indexing_date")
   @JsonProperty("indexing_status_indexing_date")
   private Instant lastIndexing;
+
+  @Getter
+  @Column(name = "indexing_status_last_id")
+  @JsonProperty("indexing_status_last_id")
+  private String lastId;
 }

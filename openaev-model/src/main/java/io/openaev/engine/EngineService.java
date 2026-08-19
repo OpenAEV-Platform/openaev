@@ -12,6 +12,7 @@ import io.openaev.engine.query.EsCountInterval;
 import io.openaev.engine.query.EsEntities;
 import io.openaev.engine.query.EsSeries;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -25,6 +26,9 @@ public interface EngineService {
    * and the side-cleanup script parameters bounded however large the deletion cascade is.
    */
   int BULK_DELETE_BATCH_SIZE = 1000;
+
+  /** Upper bound on the page size of {@link #searchCursorPaged}, per FR28. */
+  int CURSOR_PAGE_MAX_SIZE = 1000;
 
   /**
    * Process models in bulk
@@ -143,6 +147,32 @@ public interface EngineService {
    * @return entities result containing data and total count
    */
   EsEntities entities(RawUserAuth user, ListRuntime runtime);
+
+  /**
+   * Reads one page of a single model index in {@code (base_updated_at, base_id)} order, resuming
+   * from an arbitrary point in that order, without an offset.
+   *
+   * <p>The order is {@code (base_updated_at, base_id)} ascending on the engine-normalized values:
+   * {@code base_updated_at} is a {@code date} field, compared at millisecond resolution, and {@code
+   * base_id} is compared on its normalized {@code .keyword} subfield. Every {@link Instant} bound
+   * carried by {@code query} is truncated to milliseconds by the implementation before the engine
+   * query is built, so callers do not need to truncate themselves.
+   *
+   * <p>Results are restricted to the current tenant and to the grants of {@code user}; an admin
+   * {@code user} bypasses the grant filter entirely.
+   *
+   * <p>There is no total: the page is exactly {@code query.size()} documents when more remain, by
+   * design (see the story plan) — {@code has_more} is for the caller to derive.
+   *
+   * @param user the user to use; a non-admin user only sees documents its grants allow
+   * @param model the model class to search; its handler bean must be registered
+   * @param query the page bounds
+   * @return the page of documents, in {@code (base_updated_at, base_id)} ascending order
+   * @throws IllegalArgumentException if {@code query.size()} is out of {@code [1,
+   *     CURSOR_PAGE_MAX_SIZE]}, or if {@code model} has no registered handler
+   */
+  <T extends EsBase> List<T> searchCursorPaged(
+      RawUserAuth user, Class<T> model, CursorPageQuery query);
 
   /**
    * Create the list configuration using entities and filters

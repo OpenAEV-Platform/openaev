@@ -23,8 +23,13 @@ class EsIndexingUtilsTest {
   private static final Instant T0 = Instant.parse("2026-01-01T00:00:00Z");
 
   private static EsBase row(Instant updatedAt) {
+    return row(updatedAt, null);
+  }
+
+  private static EsBase row(Instant updatedAt, String baseId) {
     EsBase row = new EsBase();
     row.setBase_updated_at(updatedAt);
+    row.setBase_id(baseId);
     return row;
   }
 
@@ -179,6 +184,79 @@ class EsIndexingUtilsTest {
 
       assertThat(EsIndexingUtils.capCursorToGraceWindow(ts(999), now, -30)).isEqualTo(ts(999));
       assertThat(EsIndexingUtils.capCursorToGraceWindow(ts(1030), now, -30)).isEqualTo(now);
+    }
+  }
+
+  @Nested
+  @DisplayName("Keyset cursor")
+  class KeysetCursor {
+
+    @Test
+    @DisplayName("Keyset batch returns the last row's timestamp and id")
+    void given_keysetBatch_should_returnLastRowTimestampAndId() {
+      // A batch with distinct timestamps: the cursor must be the last row's pair, not the greatest
+      // timestamp of the batch alone.
+      List<EsBase> batch = List.of(row(ts(1), "a"), row(ts(2), "b"), row(ts(3), "c"));
+
+      IndexingCursor cursor = EsIndexingUtils.computeKeysetCursor(batch);
+
+      assertThat(cursor).isEqualTo(new IndexingCursor(ts(3), "c"));
+    }
+
+    @Test
+    @DisplayName("Full batch sharing one timestamp advances on the id alone")
+    void given_fullKeysetBatchSharingOneTimestamp_should_advanceOnTheIdAlone() {
+      // Unlike computeNewCursor, a keyset handler can safely advance past a full batch where every
+      // row shares the same timestamp: the id makes progress observable even when the timestamp
+      // does not move.
+      List<EsBase> batch = List.of(row(ts(5), "a"), row(ts(5), "b"), row(ts(5), "c"));
+
+      IndexingCursor cursor = EsIndexingUtils.computeKeysetCursor(batch);
+
+      assertThat(cursor).isEqualTo(new IndexingCursor(ts(5), "c"));
+    }
+
+    @Test
+    @DisplayName("Null timestamp on the last row yields a null cursor")
+    void given_keysetBatchWithNullTimestamp_should_returnNull() {
+      List<EsBase> batch = List.of(row(ts(1), "a"), row(null, "b"));
+
+      IndexingCursor cursor = EsIndexingUtils.computeKeysetCursor(batch);
+
+      assertThat(cursor).isNull();
+    }
+
+    @Test
+    @DisplayName("Grace-window cap moving the timestamp drops the last id")
+    void given_capMovesTheTimestamp_should_dropTheLastId() {
+      Instant now = ts(1000);
+      IndexingCursor cursor = new IndexingCursor(ts(990), "a");
+
+      IndexingCursor capped = EsIndexingUtils.capToGraceWindow(cursor, now, 60);
+
+      assertThat(capped).isEqualTo(new IndexingCursor(ts(940), null));
+    }
+
+    @Test
+    @DisplayName("Grace-window cap not moving the timestamp keeps the last id")
+    void given_capDoesNotMoveTheTimestamp_should_keepTheLastId() {
+      Instant now = ts(1000);
+      IndexingCursor cursor = new IndexingCursor(ts(900), "a");
+
+      IndexingCursor capped = EsIndexingUtils.capToGraceWindow(cursor, now, 60);
+
+      assertThat(capped).isEqualTo(cursor);
+    }
+
+    @Test
+    @DisplayName("Negative grace window never caps into the future")
+    void given_negativeGraceWindow_should_notCapIntoTheFuture() {
+      Instant now = ts(1000);
+      IndexingCursor cursor = new IndexingCursor(ts(1030), "a");
+
+      IndexingCursor capped = EsIndexingUtils.capToGraceWindow(cursor, now, -30);
+
+      assertThat(capped).isEqualTo(new IndexingCursor(now, null));
     }
   }
 }

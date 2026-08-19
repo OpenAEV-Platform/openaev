@@ -363,7 +363,11 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.autonomous.AutonomousRunApi#promoteFindingToAsset",
           "io.openaev.api.autonomous.AutonomousRunApi#ensureTargetTeam",
           "io.openaev.rest.scenario.ScenarioApi#deleteScenario",
-          "io.openaev.rest.scenario.ScenarioApi#bulkDeleteScenarios");
+          "io.openaev.rest.scenario.ScenarioApi#bulkDeleteScenarios",
+          // bulk snapshot export (#7505): the service trusts the {tenantId} path variable, so
+          // resolving TxCtx is what refuses a tenant the caller is not a member of.
+          "io.openaev.api.snapshot.SnapshotObservationApi#searchAttackObservations",
+          "io.openaev.api.snapshot.SnapshotObservationApi#searchVulnerabilityObservations");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =
