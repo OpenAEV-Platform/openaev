@@ -1,4 +1,5 @@
-import { Button, Paper } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Button } from '@mui/material';
 import { useState } from 'react';
 import { Form } from 'react-final-form';
 import { useDispatch } from 'react-redux';
@@ -51,7 +52,7 @@ const Reset = ({ onCancel }) => {
   const onSubmitValidatePassword = data => dispatch(resetPassword(token, data));
   return (
     <div className={classes.container}>
-      <Paper variant="outlined">
+      <Paper padding={0}>
         <div style={{ padding: 15 }}>
           {step === STEP_ASK_RESET && (
             <Form

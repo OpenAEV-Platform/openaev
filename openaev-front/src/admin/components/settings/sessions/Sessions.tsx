@@ -1,8 +1,8 @@
+import { Paper } from '@filigran/design-system';
 import { DeleteOutlined, PersonOutlined } from '@mui/icons-material';
 import {
   Box,
   Button,
-  Paper,
   Typography,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -142,11 +142,7 @@ const Sessions = () => {
           }}
           >
             {sessionsByUser.map(([userId, userSessions]) => (
-              <Paper
-                key={userId}
-                variant="outlined"
-                sx={{ borderRadius: 1 }}
-              >
+              <Paper key={userId} padding={0}>
                 <Box sx={{
                   display: 'flex',
                   alignItems: 'center',

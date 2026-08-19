@@ -1,4 +1,5 @@
-import { Box, Checkbox, Paper, Stack, Typography } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Box, Checkbox, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 
@@ -77,14 +78,7 @@ const Login = () => {
         }}
       >
         {isConsentMessage && (
-          <Paper
-            variant="outlined"
-            sx={{
-              padding: 2,
-              borderRadius: 1,
-              textAlign: 'center',
-            }}
-          >
+          <Paper padding={16} style={{ textAlign: 'center' }}>
             <Markdown>{consentMessage}</Markdown>
             <Box display="flex" justifyContent="center" alignItems="center">
               <Markdown>{consentConfirmText}</Markdown>
@@ -115,12 +109,20 @@ const Login = () => {
         {consentOk && (
           <>
             {isLocal && !reset && (
+              // The login panel is an elevation-1 surface, like every other
+              // panel in the app: no `background` override, so it takes MUI's
+              // `background.paper` and keeps following a customer's
+              // `paper_color`.
+              //
+              // It therefore also draws the library Paper's border, which the
+              // panel did not have before. That is WANTED, not a side effect:
+              // the border is what every other elevation-1 panel in the product
+              // draws, and moving this panel to layer 1 is what puts it in that
+              // family. Arbitrated. Do not remove it to restore the borderless
+              // look — that would put the panel back outside the system.
               <Paper
-                elevation={0}
-                sx={{
-                  padding: 3,
-                  borderRadius: 1,
-                  backgroundColor: 'background.secondary',
+                padding={24}
+                style={{
                   display: 'flex',
                   flexDirection: 'column',
                 }}

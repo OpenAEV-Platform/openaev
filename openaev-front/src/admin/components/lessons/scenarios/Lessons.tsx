@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import { BallotOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, VisibilityOutlined } from '@mui/icons-material';
 import {
   Box,
@@ -8,16 +9,13 @@ import {
   DialogContentText,
   DialogTitle,
   FormControlLabel,
-  Paper,
   Switch,
-  Typography,
-  useTheme,
 } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
-import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import { Field, InformationGrid } from '../../../../components/common/detail/EntityDetailCommon';
+import LibHeaderRow from '../../../../components/common/LibHeaderRow';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsTemplate, type Objective, type Team } from '../../../../utils/api-types';
@@ -64,7 +62,6 @@ const Lessons: FunctionComponent<Props> = ({
   lessonsTemplates,
 }) => {
   // Standard hooks
-  const theme = useTheme();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const { permissions } = useContext(PermissionsContext);
@@ -116,8 +113,9 @@ const Lessons: FunctionComponent<Props> = ({
         alignItems: 'stretch',
       }}
       >
-        {/* action={null} adopts the 32px action-row header so the Paper
-            top-aligns with the Objectives column (which carries a create
+        {/* action={null} is now a NO-OP, kept only to avoid churn: the
+            library's header row is a constant 24px with or without an action,
+            so this panel top-aligns with the Objectives column (which carries a create
             button in its header). */}
         <InformationGrid title={t('Parameters')} action={null}>
           {permissions.canManage && (
@@ -183,6 +181,7 @@ const Lessons: FunctionComponent<Props> = ({
           title={t('Objectives')}
           count={objectives.length}
           action={source.isUpdatable ? <CreateObjective /> : undefined}
+          withSurface
         >
           <LessonsObjectives
             objectives={objectives}
@@ -194,44 +193,35 @@ const Lessons: FunctionComponent<Props> = ({
 
       {/* Categories and questions */}
       <section>
-        <header style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing(1),
-          marginBottom: theme.spacing(1.5),
-        }}
+        <LibHeaderRow
+          title={t('Categories and questions')}
+          action={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+              <CreateLessonsCategory />
+            </Can>
+          )}
         >
-          <Typography sx={{
-            ...SECTION_LABEL_SX,
-            marginBottom: 0,
-          }}
-          >
-            {t('Categories and questions')}
-          </Typography>
-          <div style={{ flex: 1 }} />
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-            <CreateLessonsCategory />
-          </Can>
-        </header>
-        {lessonsCategories.length === 0 ? (
-          <Paper
-            variant="outlined"
-            sx={{ borderRadius: 1 }}
-          >
-            <LessonsPlaceholder
-              icon={BallotOutlined}
-              message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
+          {lessonsCategories.length === 0 ? (
+          /* padding=32 carried by the Paper, and the placeholder's own 32px
+             dropped HERE, at the call site: the shared component keeps its
+             default rendering for its other consumers — PAPER-GAP-INVENTORY §5.6. */
+            <Paper padding={32}>
+              <LessonsPlaceholder
+                disablePadding
+                icon={BallotOutlined}
+                message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
+              />
+            </Paper>
+          ) : (
+            <LessonsCategories
+              lessonsCategories={lessonsCategories}
+              lessonsQuestions={lessonsQuestions}
+              teamsMap={teamsMap}
+              teams={teams}
+              isReport={false}
             />
-          </Paper>
-        ) : (
-          <LessonsCategories
-            lessonsCategories={lessonsCategories}
-            lessonsQuestions={lessonsQuestions}
-            teamsMap={teamsMap}
-            teams={teams}
-            isReport={false}
-          />
-        )}
+          )}
+        </LibHeaderRow>
       </section>
 
       {/* Dialogs */}

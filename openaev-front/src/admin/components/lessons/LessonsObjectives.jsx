@@ -1,5 +1,5 @@
 import { FlagOutlined } from '@mui/icons-material';
-import { Box, LinearProgress, List, ListItem, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
+import { Box, LinearProgress, List, ListItem, ListItemButton, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext } from 'react';
@@ -23,16 +23,17 @@ const LessonsObjectives = ({
     objectives,
   );
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        borderRadius: 1,
-        flex: 1,
-        overflow: 'hidden',
-      }}
-    >
+    /* No surface here: ConfigurationSection owns it now, with the library
+       header above it. Two Papers would nest — PAPER-GAP-INVENTORY §5.5. */
+    <>
       {sortedObjectives.length > 0 ? (
-        <List disablePadding>
+        <List
+          disablePadding
+          // The last row's divider lands 1px above the Paper's own border and
+          // reads as a 2px line (measured: 1px divider, 1px gap, 1px border).
+          // Only the last child loses it — intermediate rows keep theirs.
+          sx={{ '& > :last-child': { borderBottom: 0 } }}
+        >
           {sortedObjectives.map(objective => (
             <ListItem
               key={objective.objective_id}
@@ -121,7 +122,7 @@ const LessonsObjectives = ({
             : t('No objectives in this simulation.')}
         />
       )}
-    </Paper>
+    </>
   );
 };
 

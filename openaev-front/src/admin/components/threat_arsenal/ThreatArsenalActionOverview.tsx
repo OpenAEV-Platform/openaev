@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import {
   AttachFileOutlined,
   BugReportOutlined,
@@ -752,16 +753,13 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
           }}
           >
             {payload.payload_prerequisites?.map((prereq: PayloadPrerequisite, idx) => (
-              <Box
+              <Paper
                 key={`${prereq.executor}-${idx}`}
-                sx={{
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 1,
-                  padding: 1.5,
-                  backgroundColor: alpha(theme.palette.background.paper, 0.4),
+                padding={16}
+                style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 1,
+                  gap: 8,
                 }}
               >
                 {prereq.executor && (
@@ -777,7 +775,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                     <CodeBlock content={prereq.check_command} />
                   </Field>
                 )}
-              </Box>
+              </Paper>
             ))}
           </Box>
         </Section>

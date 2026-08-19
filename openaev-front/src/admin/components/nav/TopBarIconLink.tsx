@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 // FDS-WORKAROUND #21: icon button that is really a link, library variants reused — remove when `IconButton` accepts `asChild` — see fds-migration/LIBRARY-FEEDBACK.md
 
 /** The background `IconButton` paints for `active`, as the library's own token. */
-const SELECTED_BACKGROUND = 'var(--color-filigran-brand-primary-transparency)';
+const SELECTED_BACKGROUND = 'var(--color-filigran-brand-primary-transparency-10)';
 
 interface TopBarIconLinkProps {
   /** Required accessible label — icon-only controls have no visible text. */

@@ -1,10 +1,10 @@
+import { Paper } from '@filigran/design-system';
 import { BallotOutlined, CastForEducationOutlined, HelpOutlined } from '@mui/icons-material';
-import { Box, Chip, LinearProgress, List, ListItem, ListItemButton, ListItemText, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, LinearProgress, List, ListItem, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext } from 'react';
 
-import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../../components/i18n';
 import { truncate } from '../../../../utils/String';
 import { LessonContext, PermissionsContext } from '../../common/Context';
@@ -136,16 +136,23 @@ const LessonsCategories = ({
                 flexDirection: 'column',
               }}
               >
-                <Typography sx={SECTION_LABEL_SX}>{t('Questions')}</Typography>
+                {/* The title goes into the Paper's own header slot: nothing is
+                    copied and nothing can drift — PAPER-GAP-INVENTORY §5.5. */}
                 <Paper
-                  variant="outlined"
-                  sx={{
-                    borderRadius: 1,
+                  padding={0}
+                  title={t('Questions')}
+                  style={{
                     flex: 1,
                     overflow: 'hidden',
                   }}
                 >
-                  <List disablePadding>
+                  <List
+                    disablePadding
+                    // The last row's divider lands 1px above the Paper's own border and
+                    // reads as a 2px line (measured: 1px divider, 1px gap, 1px border).
+                    // Only the last child loses it — intermediate rows keep theirs.
+                    sx={{ '& > :last-child': { borderBottom: 0 } }}
+                  >
                     {questions.map(question => (
                       <ListItem
                         key={question.lessonsquestion_id}
@@ -199,16 +206,23 @@ const LessonsCategories = ({
                 flexDirection: 'column',
               }}
               >
-                <Typography sx={SECTION_LABEL_SX}>{t('Results')}</Typography>
+                {/* The title goes into the Paper's own header slot: nothing is
+                    copied and nothing can drift — PAPER-GAP-INVENTORY §5.5. */}
                 <Paper
-                  variant="outlined"
-                  sx={{
-                    borderRadius: 1,
+                  padding={0}
+                  title={t('Results')}
+                  style={{
                     flex: 1,
                     overflow: 'hidden',
                   }}
                 >
-                  <List disablePadding>
+                  <List
+                    disablePadding
+                    // The last row's divider lands 1px above the Paper's own border and
+                    // reads as a 2px line (measured: 1px divider, 1px gap, 1px border).
+                    // Only the last child loses it — intermediate rows keep theirs.
+                    sx={{ '& > :last-child': { borderBottom: 0 } }}
+                  >
                     {questions.map((question) => {
                       const consolidatedAnswer = consolidatedAnswers[
                         question.lessonsquestion_id
@@ -291,9 +305,14 @@ const LessonsCategories = ({
                 flexDirection: 'column',
               }}
               >
-                <Typography sx={SECTION_LABEL_SX}>
-                  {t('Targeted teams')}
-                  {!isReport && permissions.canManage && (
+                {/* Title and action in the Paper's own header slots — the add
+                    control was inline in the label before. padding=16 (iso):
+                    the chips' own padding is intrinsic and stays,
+                    PAPER-GAP-INVENTORY §5.3. */}
+                <Paper
+                  padding={16}
+                  title={t('Targeted teams')}
+                  action={!isReport && permissions.canManage && (
                     <LessonsCategoryAddTeams
                       lessonsCategoryId={category.lessonscategory_id}
                       lessonsCategoryTeamsIds={category.lessons_category_teams}
@@ -302,16 +321,11 @@ const LessonsCategories = ({
                       teamsMap={teamsMap}
                     />
                   )}
-                </Typography>
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    padding: 2,
-                    borderRadius: 1,
+                  style={{
                     flex: 1,
                     display: 'flex',
                     flexWrap: 'wrap',
-                    gap: 1,
+                    gap: 8,
                     alignContent: 'flex-start',
                   }}
                 >

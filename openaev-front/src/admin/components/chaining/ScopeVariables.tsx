@@ -1,9 +1,9 @@
+import { Paper } from '@filigran/design-system';
 import { Add, DataObjectOutlined, DeleteOutlined } from '@mui/icons-material';
 import {
   Box,
   Chip,
   IconButton,
-  Paper,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -55,14 +55,13 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
 
   return (
     <Paper
-      variant="outlined"
-      sx={{
+      padding={16}
+      style={{
         height: '100%',
         display: 'grid',
         gridTemplateRows: 'min-content 1fr',
-        gap: 1.5,
+        gap: 12,
         minHeight: 168,
-        p: theme.spacing(2),
       }}
     >
       {/* Header */}

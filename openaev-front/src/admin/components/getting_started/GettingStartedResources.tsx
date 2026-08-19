@@ -4,6 +4,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { Github, Slack } from 'mdi-material-ui';
 import { type ComponentType } from 'react';
 
+import LIB_SURFACE_BORDER, { LIB_SURFACE_LAYER } from '../../../components/common/libSurfaceBorder';
 import { useFormatter } from '../../../components/i18n';
 import { XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import GettingStartedSectionHeader from './GettingStartedSectionHeader';
@@ -28,6 +29,7 @@ const ResourceCard = ({ resource }: { resource: Resource }) => {
       href={resource.href}
       target="_blank"
       rel="noopener noreferrer"
+      className={LIB_SURFACE_LAYER}
       sx={{
         'display': 'flex',
         'alignItems': 'flex-start',
@@ -35,6 +37,10 @@ const ResourceCard = ({ resource }: { resource: Resource }) => {
         'padding': 2,
         'borderRadius': 1,
         'textDecoration': 'none',
+        // Stays on MUI: the surface IS the link (component="a", target=_blank),
+        // and converting would cost cmd-click and the new tab. Border aligned
+        // on the library's, so the screen stays homogeneous.
+        'border': LIB_SURFACE_BORDER,
         'transition': 'transform 150ms ease, border-color 150ms ease',
         '&:hover': {
           transform: 'translateY(-2px)',

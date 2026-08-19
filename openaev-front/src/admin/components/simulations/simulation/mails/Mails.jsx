@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import { BarChartOutlined, KeyboardArrowRight, MailOutlined, ReorderOutlined } from '@mui/icons-material';
 import {
   Box,
@@ -8,7 +9,6 @@ import {
   ListItemIcon,
   ListItemSecondaryAction,
   ListItemText,
-  Paper,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -263,7 +263,7 @@ const Mails = () => {
         {viewMode === 'list' && (
           sortedInjects.length === 0
             ? (
-                <Paper variant="outlined" sx={{ borderRadius: 1 }}>
+                <Paper padding={0}>
                   <Empty
                     icon={MailOutlined}
                     message={t('No mails have been sent yet')}

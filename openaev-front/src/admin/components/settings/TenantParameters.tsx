@@ -1,4 +1,5 @@
-import { ListItem, ListItemText, Paper, Switch } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { ListItem, ListItemText, Switch } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 
@@ -119,11 +120,8 @@ const TenantParameters = () => {
           >
             <SectionLabel>{t('Configuration')}</SectionLabel>
             <Paper
-              variant="outlined"
-              style={{
-                padding: theme.spacing(2),
-                flex: 1,
-              }}
+              padding={16}
+              style={{ flex: 1 }}
             >
               <TenantParametersForm
                 onSubmit={onSubmit}
@@ -193,7 +191,7 @@ const TenantParameters = () => {
         >
           <div>
             <SectionLabel>{t('Dark theme')}</SectionLabel>
-            <Paper variant="outlined" style={{ padding: theme.spacing(2) }}>
+            <Paper padding={16}>
               <ThemeForm
                 onSubmit={onUpdateDarkTheme}
                 initialValues={initialValuesDark}
@@ -203,7 +201,7 @@ const TenantParameters = () => {
           </div>
           <div>
             <SectionLabel>{t('Light theme')}</SectionLabel>
-            <Paper variant="outlined" style={{ padding: theme.spacing(2) }}>
+            <Paper padding={16}>
               <ThemeForm
                 onSubmit={onUpdateLightTheme}
                 initialValues={initialValuesLight}

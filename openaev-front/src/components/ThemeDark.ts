@@ -270,7 +270,7 @@ const ThemeDark = (
       },
       // fds-migration/TOKEN-MAPPING.md § 4 — grey/darkBlue/turquoise/green/red retokenized on scalar
       // ramps (mode-invariant, hence FDS.scalars). blue.500/900: resolved in § 9 on
-      // --color-feedback-info-secondary-transparency (mode-dependent color token, not a scalar —
+      // --color-feedback-info-secondary-transparency-30 (mode-dependent color token, not a scalar —
       // both keys collapse to the same semi-transparent value; ⚠ semantic change if ever consumed:
       // was two distinct opaque colors, now one alpha overlay. 0 consumers confirmed, lib gap-fix
       // lib#52).
@@ -281,8 +281,8 @@ const ThemeDark = (
           800: FDS.scalars['--gray-800'],
         },
         blue: {
-          500: FDS.colors.dark['--color-feedback-info-secondary-transparency'],
-          900: FDS.colors.dark['--color-feedback-info-secondary-transparency'],
+          500: FDS.colors.dark['--color-feedback-info-secondary-transparency-30'],
+          900: FDS.colors.dark['--color-feedback-info-secondary-transparency-30'],
         },
         darkBlue: {
           300: FDS.scalars['--darkblue-300'],

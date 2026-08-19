@@ -1,9 +1,11 @@
+import { Paper as FdsPaper } from '@filigran/design-system';
 import { OpenInNew, RocketLaunchOutlined } from '@mui/icons-material';
 import { Box, Button, Link as MUILink, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Link } from 'react-router';
 
 import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
+import LIB_SURFACE_BORDER, { LIB_SURFACE_LAYER } from '../../../components/common/libSurfaceBorder';
 import { useFormatter } from '../../../components/i18n';
 import { SCENARIO_BASE_URL } from '../../../constants/BaseUrls';
 import { XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
@@ -17,17 +19,14 @@ const JourneyStep = ({ index, title, children }: {
   title: string;
   children: string;
 }) => {
-  const theme = useTheme();
   return (
-    <Box sx={{
-      border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-      borderRadius: 1,
-      padding: 2,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 1,
-      backgroundColor: alpha(theme.palette.background.paper, 0.4),
-    }}
+    <FdsPaper
+      padding={16}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}
     >
       <Box sx={{
         display: 'flex',
@@ -62,7 +61,7 @@ const JourneyStep = ({ index, title, children }: {
       >
         {children}
       </Typography>
-    </Box>
+    </FdsPaper>
   );
 };
 
@@ -76,6 +75,7 @@ const GettingStartedHero = () => {
   return (
     <Paper
       variant="outlined"
+      className={LIB_SURFACE_LAYER}
       sx={{
         position: 'relative',
         overflow: 'hidden',
@@ -84,6 +84,10 @@ const GettingStartedHero = () => {
         display: 'flex',
         flexDirection: 'column',
         gap: 3,
+        // Stays on MUI: its two radial gradients are the screen's identity and
+        // the library Paper paints no gradient. Only the border is aligned, so
+        // the block reads as one with its converted neighbours.
+        border: LIB_SURFACE_BORDER,
         background: `radial-gradient(ellipse at top left, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 55%),
           radial-gradient(ellipse at bottom right, ${alpha(theme.palette.secondary.main, 0.05)} 0%, transparent 55%)`,
       }}

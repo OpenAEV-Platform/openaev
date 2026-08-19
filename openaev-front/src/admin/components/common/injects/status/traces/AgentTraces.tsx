@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
@@ -21,12 +22,10 @@ const AgentTraces = ({ traces }: Props) => {
   const agentStatus = useAgentStatus(traces);
 
   return (
-    <Box
-      sx={{
-        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-        borderRadius: 1,
-        marginBottom: 1,
-        backgroundColor: alpha(theme.palette.background.paper, 0.4),
+    <Paper
+      padding={0}
+      style={{
+        marginBottom: 8,
         overflow: 'hidden',
       }}
     >
@@ -157,7 +156,7 @@ const AgentTraces = ({ traces }: Props) => {
           );
         })}
       </Box>
-    </Box>
+    </Paper>
   );
 };
 

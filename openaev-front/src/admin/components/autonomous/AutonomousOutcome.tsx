@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, Divider, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Divider, Stack, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -581,12 +582,9 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
       {/* Mission card. In plan mode it turns orange (OCTI draft tone) and its title carries the
           "(plan mode)" marker, so the dedicated banner is dropped to save vertical space. */}
       <Paper
-        variant="outlined"
-        sx={{
-          padding: 2,
-          borderColor: alpha(missionAccent, 0.4),
-          background: `linear-gradient(180deg, ${alpha(missionAccent, 0.08)} 0%, ${alpha(missionAccent, 0)} 100%)`,
-        }}
+        padding={16}
+        // The accent border colour is what marks plan mode.
+        style={{ borderColor: alpha(missionAccent, 0.4) }}
       >
         <Stack sx={{
           flexDirection: 'row',

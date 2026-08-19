@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import { HourglassEmptyOutlined, InfoOutlined, SpeedOutlined } from '@mui/icons-material';
 import {
   Box,
@@ -5,7 +6,6 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   type SelectChangeEvent,
   Switch,
@@ -156,10 +156,9 @@ const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate, autonomous = fa
 
   return (
     <Paper
-      variant="outlined"
-      sx={{
+      padding={16}
+      style={{
         height: '100%',
-        p: theme.spacing(2),
         display: 'grid',
         gap: theme.spacing(2),
         alignContent: 'start',

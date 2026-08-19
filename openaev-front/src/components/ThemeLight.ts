@@ -25,8 +25,8 @@ const THEME_LIGHT_DEFAULT_PRIMARY = FDS.colors.light['--color-filigran-brand-pri
 const THEME_LIGHT_DEFAULT_SECONDARY = EE_COLOR;
 const THEME_LIGHT_DEFAULT_ACCENT = FDS.colors.light['--bg-elevation-default-layer-3'];
 const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--bg-elevation-default-layer-1'];
-// NAV intentionally left as a raw literal — see TOKEN-MAPPING.md "7th item" flag (Sandy hasn't signed
-// off on this specific, visibly-notable white -> #f2f2f3 shift yet).
+// NAV intentionally left as a raw literal — see TOKEN-MAPPING.md "7th item"
+// flag: this specific, visibly-notable white -> #f2f2f3 shift is not signed off.
 const THEME_LIGHT_DEFAULT_NAV = '#ffffff';
 const THEME_LIGHT_DEFAULT_TEXT = '#18191B';
 export const THEME_LIGHT_DIALOG_BACKGROUND = '#FFFFFF';
@@ -284,7 +284,7 @@ const ThemeLight = (
       },
       // fds-migration/TOKEN-MAPPING.md § 4 — grey/darkBlue/turquoise/green/red retokenized on scalar
       // ramps (mode-invariant, hence FDS.scalars — identical values to dark mode's ramp). blue.500/900:
-      // resolved in § 9 on --color-feedback-info-secondary-transparency (mode-dependent color token,
+      // resolved in § 9 on --color-feedback-info-secondary-transparency-30 (mode-dependent color token,
       // not a scalar — both keys collapse to the same semi-transparent value; ⚠ semantic change if
       // ever consumed: was two distinct opaque colors, now one alpha overlay. 0 consumers confirmed,
       // lib gap-fix lib#52).
@@ -295,8 +295,8 @@ const ThemeLight = (
           800: FDS.scalars['--gray-800'],
         },
         blue: {
-          500: FDS.colors.light['--color-feedback-info-secondary-transparency'],
-          900: FDS.colors.light['--color-feedback-info-secondary-transparency'],
+          500: FDS.colors.light['--color-feedback-info-secondary-transparency-30'],
+          900: FDS.colors.light['--color-feedback-info-secondary-transparency-30'],
         },
         darkBlue: {
           300: FDS.scalars['--darkblue-300'],

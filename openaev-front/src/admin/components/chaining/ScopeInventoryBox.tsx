@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { Add, Close, FileDownloadOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, IconButton, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ChangeEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
@@ -170,14 +171,13 @@ const ScopeInventoryBox = ({
 
       {parsedValues.length > 0 && (
         <Paper
-          variant="outlined"
-          sx={{
-            mt: 0.5,
-            padding: 1.5,
+          padding={16}
+          style={{
+            marginTop: 4,
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
-            gap: 1,
+            gap: 8,
             borderColor: theme.palette.primary.main,
           }}
         >

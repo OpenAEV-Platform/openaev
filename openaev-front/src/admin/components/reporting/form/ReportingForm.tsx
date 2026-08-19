@@ -1,3 +1,4 @@
+import { Paper as FdsPaper } from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DeleteOutlined, DragIndicatorOutlined, RestartAltOutlined } from '@mui/icons-material';
@@ -551,17 +552,15 @@ const ReportingForm: FunctionComponent<Props> = ({
                 return (
                   <Draggable key={field.id} draggableId={field.id} index={index}>
                     {draggableProvided => (
-                      <Paper
+                      <FdsPaper
                         ref={draggableProvided.innerRef}
                         {...draggableProvided.draggableProps}
-                        variant="outlined"
-                        sx={{
+                        padding={8}
+                        style={{
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: 1,
-                          padding: 1,
-                          marginBottom: 1,
-                          borderRadius: 1,
+                          gap: 8,
+                          marginBottom: 8,
                         }}
                       >
                         <Box sx={{
@@ -634,7 +633,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                             )}
                           />
                         )}
-                      </Paper>
+                      </FdsPaper>
                     )}
                   </Draggable>
                 );

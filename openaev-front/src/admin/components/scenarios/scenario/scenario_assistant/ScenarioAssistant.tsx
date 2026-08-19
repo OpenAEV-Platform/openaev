@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import {
   AddOutlined,
   ArrowBackOutlined,
@@ -13,7 +14,6 @@ import {
   Box,
   Button,
   IconButton,
-  Paper,
   SvgIcon,
   TextField,
   ToggleButton,
@@ -315,13 +315,11 @@ const ScenarioAssistant: FunctionComponent = () => {
         }}
         >
           <Paper
-            variant="outlined"
-            sx={{
-              padding: 2,
-              borderRadius: 1,
+            padding={16}
+            style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 2,
+              gap: 16,
             }}
           >
             <Box sx={{
@@ -398,13 +396,11 @@ const ScenarioAssistant: FunctionComponent = () => {
           </Paper>
 
           <Paper
-            variant="outlined"
-            sx={{
-              padding: 2,
-              borderRadius: 1,
+            padding={16}
+            style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 2,
+              gap: 16,
             }}
           >
             <Box sx={{
@@ -497,13 +493,11 @@ const ScenarioAssistant: FunctionComponent = () => {
 
         {/* Right column: attack matrix (any kill chain) */}
         <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderRadius: 1,
+          padding={16}
+          style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 1.5,
+            gap: 12,
             minWidth: 0,
           }}
         >

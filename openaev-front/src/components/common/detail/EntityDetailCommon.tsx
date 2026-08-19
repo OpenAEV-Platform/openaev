@@ -1,4 +1,5 @@
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Box, Paper as MuiPaper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -26,19 +27,32 @@ export const Section = ({ title, children }: {
   title: string;
   children: ReactNode;
 }) => (
+  // GRID, not flex-column: with `title` set the library renders its own wrapper
+  // around header + surface, and `style` reaches the SURFACE, never that
+  // wrapper. A flex column therefore leaves the wrapper at content height and
+  // side-by-side panels stop aligning (measured: 58px vs 130px). One grid row
+  // at `1fr` stretches the wrapper without needing to style it, and `flex: 1`
+  // below makes the surface fill it — PAPER-GAP-INVENTORY §13.2.
   <div style={{
-    display: 'flex',
-    flexDirection: 'column',
+    display: 'grid',
+    // `minmax(0, 1fr)` and not just `1fr`: an implicit grid column is `auto`,
+    // i.e. sized to max-content, so the library's wrapper grew past the panel
+    // (measured 354px inside a 340px track) and the title never truncated —
+    // it overflowed. The explicit 0 minimum is what lets `min-w-0 truncate`
+    // do its job inside.
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gridTemplateRows: '1fr',
     height: '100%',
+    minHeight: 0,
   }}
   >
-    <Typography sx={SECTION_LABEL_SX}>{title}</Typography>
     <Paper
-      variant="outlined"
-      sx={{
-        padding: 2,
-        borderRadius: 1,
+      padding={16}
+      title={title}
+      data-testid="section-paper"
+      style={{
         flex: 1,
+        minHeight: 0,
       }}
     >
       {children}
@@ -48,56 +62,43 @@ export const Section = ({ title, children }: {
 
 // An information grid section (auto-fitting labelled fields), packed densely
 // into as many columns as fit - the compact, OpenCTI-style overview card.
-// The optional `action` slot renders right-aligned in a 32px header row (the
-// ConfigurationSection height); pass `action={null}` to adopt the taller
-// header without an action, so the Paper top-aligns with an action-bearing
-// sibling column in the same grid row.
+// The optional `action` slot renders right-aligned in the library header row.
+// That row is a CONSTANT 24px whether or not an action is present, so a Paper
+// top-aligns with an action-bearing sibling column for free. `action={null}`
+// call sites predate the library header — back then the product drew a short
+// header without an action and a 32px one with, and the null forced the tall
+// variant. It no longer does anything; keep or drop it, but do not re-derive
+// an alignment need from it.
 export const InformationGrid = ({ title, action, children }: {
   title: string;
   action?: ReactNode;
   children: ReactNode;
 }) => (
-  // Flex column + Paper flex:1 so that, when several InformationGrids sit side by
-  // side in a stretched DetailSections row, every Paper fills the row height and
-  // shares the same bottom edge (matching SectionBlock everywhere in the app).
+  // One grid row at `1fr` — see Section above for why this cannot be a flex
+  // column once `title` is set.
   <div style={{
-    display: 'flex',
-    flexDirection: 'column',
+    display: 'grid',
+    // `minmax(0, 1fr)`, not `1fr` — see Section above.
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gridTemplateRows: '1fr',
     height: '100%',
+    minHeight: 0,
   }}
   >
-    {action !== undefined
-      ? (
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            minHeight: 32,
-            marginBottom: 1.5,
-          }}
-          >
-            <Typography sx={{
-              ...SECTION_LABEL_SX,
-              marginBottom: 0,
-            }}
-            >
-              {title}
-            </Typography>
-            <div style={{ flex: 1 }} />
-            {action}
-          </Box>
-        )
-      : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
+    {/* padding=16 (iso): the surface IS the grid, +8px would drop a column
+        (tracks are minmax(180px, 1fr)). */}
     <Paper
-      variant="outlined"
-      sx={{
-        padding: 2,
-        borderRadius: 1,
+      padding={16}
+      title={title}
+      action={action ?? undefined}
+      data-testid="information-grid-paper"
+      style={{
         flex: 1,
+        minHeight: 0,
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: 1.5,
-        rowGap: 2,
+        gap: 12,
+        rowGap: 16,
         alignContent: 'start',
       }}
     >
@@ -144,10 +145,10 @@ export const SectionLabel = ({ children }: { children: ReactNode }) => (
 
 export const SectionBlock = ({ title, action, children, disablePadding, centerContent }: {
   title: string;
-  // Right-aligned node in a 32px header row (same geometry as the
-  // InformationGrid action slot). Pass `action={null}` to adopt the taller
-  // header without an action, so the Paper top-aligns with an action-bearing
-  // sibling column in the same grid row.
+  // Right-aligned node in the library header row (same geometry as the
+  // InformationGrid action slot). That row is a constant 24px with or without
+  // an action, so `action={null}` — an idiom from the product's own two-height
+  // header — is now a no-op rather than an alignment lever.
   action?: ReactNode;
   children: ReactNode;
   disablePadding?: boolean;
@@ -157,40 +158,28 @@ export const SectionBlock = ({ title, action, children, disablePadding, centerCo
   // so the Paper itself must become the centering flex container.
   centerContent?: boolean;
 }) => (
+  // One grid row at `1fr` — see Section above for why this cannot be a flex
+  // column once `title` is set.
   <div style={{
-    display: 'flex',
-    flexDirection: 'column',
+    display: 'grid',
+    // `minmax(0, 1fr)`, not `1fr` — see Section above.
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gridTemplateRows: '1fr',
     height: '100%',
+    minHeight: 0,
   }}
   >
-    {action !== undefined
-      ? (
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            minHeight: 32,
-            marginBottom: 1.5,
-          }}
-          >
-            <Typography sx={{
-              ...SECTION_LABEL_SX,
-              marginBottom: 0,
-            }}
-            >
-              {title}
-            </Typography>
-            <div style={{ flex: 1 }} />
-            {action}
-          </Box>
-        )
-      : <Typography sx={SECTION_LABEL_SX}>{title}</Typography>}
+    {/* padding=16 (iso), 0 under `disablePadding`. The 16+16 cumulation with
+        the row gutters is REPRODUCED as-is: correcting it is a density decision
+        outside this wave — PAPER-GAP-INVENTORY §5.7. */}
     <Paper
-      variant="outlined"
-      sx={{
-        padding: disablePadding ? 0 : 2,
-        borderRadius: 1,
+      padding={disablePadding ? 0 : 16}
+      title={title}
+      action={action ?? undefined}
+      data-testid="section-block-paper"
+      style={{
         flex: 1,
+        minHeight: 0,
         ...(centerContent && {
           display: 'flex',
           alignItems: 'center',
@@ -353,7 +342,11 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
   const theme = useTheme();
   const accent = theme.palette.primary.main;
   return (
-    <Paper
+    // DetailHero stays on MUI: accent gradient + transparent fill, and the
+    // transparency falls under the "semi-transparent = phase 2" exclusion.
+    // It also leaves the Paper waves permanently — it becomes its own
+    // component (PAPER-GAP-INVENTORY §5.8).
+    <MuiPaper
       variant="outlined"
       data-testid="detail-hero"
       sx={{
@@ -477,6 +470,6 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
       </Box>
       {stats && <HeroStats>{stats}</HeroStats>}
       {footer}
-    </Paper>
+    </MuiPaper>
   );
 };

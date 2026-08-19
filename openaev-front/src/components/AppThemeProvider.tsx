@@ -72,6 +72,37 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
     activeThemeConfig?.secondary_color,
     activeThemeConfig?.accent_color,
   ].join('|');
+  // A customer-configured `paper_color` must reach the design-system surfaces
+  // (Paper), not only MUI's. The library's contract is explicit and measured
+  // (Paper.tsx, "SURFACE COLOUR AND HOST THEMING"): a host re-declares
+  // `--bg-elevation-default-layer-N`, the per-layer token. Re-declaring the
+  // semantic alias `--bg-elevation-default` does NOTHING — every `.layer-N`
+  // class re-declares that alias on the Paper element itself, so an inherited
+  // value can never win. Paper's default elevation is 1, hence layer-1.
+  // Cleared when the platform has no override, so the library's own token
+  // stays in charge.
+  // The border follows the same rule and the same trap, verified the same way:
+  // `--border-elevation-subtle-soft` (the alias) is re-declared inside every
+  // `.layer-N` block, so setting it here does nothing; the per-layer BASE
+  // `--border-elevation-subtle-soft-layer-1` is the one that lands, and the
+  // library applies its own dilution on top. Targeting the BASE and not the
+  // diluted variant is what makes this survive a rename of the diluted token.
+  // Arbitrated for phase 1: on a customer theme the border takes the
+  // customer's card colour, and ONLY then
+  // — with no override, both properties are removed and the library's own
+  // tokens stay in charge, so the default themes are untouched.
+  useEffect(() => {
+    const root = document.documentElement;
+    const paperColor = activeThemeConfig?.paper_color;
+    if (paperColor) {
+      root.style.setProperty('--bg-elevation-default-layer-1', paperColor);
+      root.style.setProperty('--border-elevation-subtle-soft-layer-1', paperColor);
+    } else {
+      root.style.removeProperty('--bg-elevation-default-layer-1');
+      root.style.removeProperty('--border-elevation-subtle-soft-layer-1');
+    }
+  }, [activeThemeConfig?.paper_color]);
+
   const muiTheme = useMemo(() => {
     const buildTheme = theme === 'light' ? themeLight : themeDark;
     return createTheme(

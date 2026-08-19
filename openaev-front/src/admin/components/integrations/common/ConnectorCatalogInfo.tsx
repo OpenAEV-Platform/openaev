@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { InfoOutlined, LibraryBooksOutlined, OpenInNewOutlined, VerifiedOutlined } from '@mui/icons-material';
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 
@@ -142,14 +143,7 @@ const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
       }}
       >
         <Typography sx={SECTION_LABEL_SX}>{t('Description')}</Typography>
-        <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderRadius: 1,
-            flex: 1,
-          }}
-        >
+        <Paper padding={16} style={{ flex: 1 }}>
           <Typography
             variant="body1"
             sx={{
@@ -168,14 +162,12 @@ const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
       >
         <Typography sx={SECTION_LABEL_SX}>{t('Basic Information')}</Typography>
         <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderRadius: 1,
+          padding={16}
+          style={{
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            gap: 2.5,
+            gap: 20,
           }}
         >
           {catalogConnector.catalog_connector_container_version && (

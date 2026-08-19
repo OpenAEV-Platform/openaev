@@ -6,7 +6,7 @@ import TopBarIconLink from '../../../../admin/components/nav/TopBarIconLink';
 
 // The selected background this control must show, as the design system's own
 // token. Asserted as a token reference, never as a literal colour.
-const SELECTED_BACKGROUND = 'var(--color-filigran-brand-primary-transparency)';
+const SELECTED_BACKGROUND = 'var(--color-filigran-brand-primary-transparency-10)';
 
 const renderLink = (props: Partial<Parameters<typeof TopBarIconLink>[0]> = {}) => render(
   <MemoryRouter>
@@ -29,7 +29,7 @@ describe('TopBarIconLink current-page state', () => {
     // notifications page. The class route cannot carry this state. The library's
     // `iconButtonVariants` already emits `bg-transparent` for the tertiary
     // priority, and in the compiled stylesheet `.bg-transparent` comes AFTER
-    // `.bg-filigran-brand-primary-transparency` — same cascade layer, same
+    // `.bg-filigran-brand-primary-transparency-10` — same cascade layer, same
     // specificity, so source order decides and the transparent one wins.
     // Appending the selected utility to the class list therefore renders
     // nothing. The library's own IconButton escapes this because it merges its

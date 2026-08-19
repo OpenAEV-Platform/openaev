@@ -61,7 +61,7 @@ const AskArianeButton = () => {
       priority="tertiary"
       onClick={handleClick}
       // FDS-WORKAROUND #23: open state via the class the library's active state uses — remove when `Button` gets `active` — see fds-migration/LIBRARY-FEEDBACK.md
-      className={isOpen ? 'bg-filigran-ia-secondary-transparency' : undefined}
+      className={isOpen ? 'bg-filigran-ia-secondary-transparency-10' : undefined}
       startIcon={(
         <SvgIcon
           component={LogoXtmOneIcon}

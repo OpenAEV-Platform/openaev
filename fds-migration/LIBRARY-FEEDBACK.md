@@ -21,6 +21,23 @@ is **resolved** too, by the `Menu` component (#74). The entries left open are 2,
 blocking and is now **resolved** (#79), with a consumer-install proof running on
 every library pull request.
 
+**Status of the Paper-pilot entries (26 → 34), at pin `a22b188`.**
+
+| entry | state |
+|---|---|
+| 26 padding prop | **closed** — the 0/8/16/24/32 scale ships and all five classes exist in `dist` |
+| 27 border | **closed as ARBITRATED** — the per-layer token exists; the 15% opacity is a decision, and the converted panels end up with a weaker border than before (see the entry) |
+| 28 host theming | **closed** — `--bg-elevation-default-layer-N` repaints, the alias does nothing |
+| 29 DetailHero | **closed as a Paper question** — it becomes its own component and leaves the Paper waves permanently |
+| 30 title/action | **closed** — both are real props; the product now adopts them |
+| 31 guard vs mixed file | **open** |
+| 32 off-scale padding → 0px | **open** |
+| 33 incomplete rename inventory | **open** (method finding, not a library defect) |
+| 34 host `outline` reset | **open** |
+| 35 clickable card must be a real link | **open** (raised for the future `Card`) |
+| 36 header renders on prop presence, not value | **open** |
+| 37 truncated title unreadable in full | **open** |
+
 ---
 
 ## 1. `NavbarItem` has no link destination (`href` / `to`)
@@ -952,7 +969,7 @@ token?" has no answer yet. Worth settling once, at token level.
 ## 18. `grow` and `grow="unbounded"` — the cap is right, its discoverability is not
 
 **Needed.** A search cluster whose window is `min-width: 200px`,
-`max-width: 500px` (design decision, Sandy, round 4 — it replaced the
+`max-width: 500px` (arbitrated, round 4 — it replaced the
 `550px / 50% / 680px` window the pilot first shipped).
 
 **Today.** `HeaderGroup grow` caps at Figma's 400px — **below this product's
@@ -1144,7 +1161,7 @@ badges in the bar are gone, and the compensation markers with them:
 
 Two consequences, both accepted rather than compensated:
 
-- the counter grows from **16px to 20px** (`h-5 min-w-5`). Sandy's arbitration:
+- the counter grows from **16px to 20px** (`h-5 min-w-5`). Arbitrated:
   it displays a count, so it takes the default counter size; the growth is
   assumed. The three `sx` overrides that forced the old size are deleted, not
   re-expressed.
@@ -1210,7 +1227,7 @@ answered by the library, and the product now takes each one:
 |---|---|---|---|
 | spinner capped at 24px, sitting ON a 24px glyph (0.00px clearance) | PR #119 adds an `xl` tier | `Spinner size="xl"` — 32px, **4.00px** clearance, measured |
 | `ProgressBar` has no colour axis, so the bars lost their per-status colour | PR #118 adds `tone` | `tone` = success / error / default from `bulk_operation_status`; the completed bar is green again |
-| `Badge` default was `brand` | PR #119 makes `error` the default | both badges are red **with no product change** — the product passes no `tone`; per-site arbitration is Sandy's |
+| `Badge` default was `brand` | PR #119 makes `error` the default | both badges are red **with no product change** — the product passes no `tone`; the per-site call is the product's |
 
 One gap remains inside a shipped component, worth naming rather than working
 around: **`ProgressBar` has no `warning` tone**. Nothing in this bar needs one
@@ -1433,3 +1450,606 @@ own `onKeyDown`.
 **The second-order consequence is resolved too.** Under the old behaviour the
 UA cross cleared the DOM value and a controlled consumer stayed in sync only by
 luck, while `onClear` never ran. Both paths now go through the same `clear()`.
+
+---
+
+Raised during: the **Paper pilot** (first container-surface wave in OpenAEV —
+`admin/components/lessons` + `components/common/detail/EntityDetailCommon.tsx`),
+library pin `35a476849ba72d48cacae2568643f0b5638bc468`. Every number below is
+measured on the **installed build** (`dist/`) and on the product's own
+components mounted in the real MUI theme — not read from types, meta or
+changelog. See `fds-migration/PAPER-GAP-INVENTORY.md` for the site-by-site
+inventory these entries summarise. Entries 26-29 blocked the wave: no
+conversion was made.
+
+## 26. `Paper` has no `padding` prop, and 24px is nobody's value
+
+**Needed.** An iso-density migration: each converted surface keeps the exact
+padding it renders today. Across the 14 sites of this wave that means **0px on
+9 sites and 16px on 5** — measured, not estimated.
+
+**Today.** `Paper` hardcodes `p-6` (24px) in its `cva()` base. There is no
+`padding` prop. Passing one is not a type error at the call site of a
+polymorphic component: `<Paper padding={16}>` renders
+`class="… p-6 …" padding="16"` — the value **leaks to the DOM as an
+attribute** and changes nothing. Measured padding stays 24px in every case.
+
+**Consequence.** Not a single site of the wave is at 24px, so a mechanical swap
+changes the density of 100% of them. Worse, the 7 zero-padding surfaces host
+full-bleed content — `List`s with edge-to-edge dividers, one full-width
+ApexCharts area chart. At 24px those dividers detach from the edges: it is a
+different visual pattern, not a slightly roomier one.
+
+**The documented escape hatch does not close the gap.** `Paper.meta.ts` points
+at `className` ("e.g. override the default p-6"). Measured against the shipped
+stylesheet, `p-0` (0px), `p-2` (8px), `p-3` (12px), `p-4` (16px) and `p-6`
+(24px) exist — but **`p-8` resolves to `0px`: the class is simply not in
+`dist/index.css`**, so 32px is unreachable even in hardcoded form. And a
+consumer with no Tailwind build of its own (see [#13]) cannot invent one.
+Beyond that, re-adding a hardcoded padding class on a library Paper is exactly
+what this migration's conformity guard is meant to redden — it is a
+compensation, not a capability.
+
+**Ask.** The `padding` prop on the 0 / 8 / 16 / 24 / 32 scale, 24 staying the
+default. That scale covers every value measured in this product plus the 32
+that no class can express today.
+
+---
+
+## 27. `Paper`'s border is invisible in light mode
+
+**Needed.** The border is what delimits a panel in this product: all 14 sites
+render MUI's `variant="outlined"`, i.e. they draw one on purpose. (Worth noting
+for cross-product readers: unlike OpenCTI's panels, which render borderless,
+OpenAEV's do render a border — the gap here is the colour, not the presence.)
+
+**Today.** `Paper` draws
+`border-[color:color-mix(in_srgb,var(--border-elevation-subtle)_10%,transparent)]`
+— always on, not disableable. Measured composites and border-vs-surface
+contrast:
+
+| mode | product (MUI outlined) | Paper | product ratio | Paper ratio |
+|---|---|---|---|---|
+| dark | `rgba(255,255,255,0.12)` → `#2a3344` | `rgba(43,79,141,0.1)` → `#101d35` | **1.41:1** | **1.06:1** |
+| light | `rgba(0,0,0,0.12)` → `#e0e0e0` | `rgba(228,229,231,0.1)` → `#fcfcfd` | **1.32:1** | **1.03:1** |
+
+**Consequence.** In light mode the border is effectively **not there** — 1.03:1
+against its own surface. On the before/after board, converted panels float as
+white blocks on the light-grey page with no outline at all. In dark mode the
+outline survives but at half the contrast, and shifts from neutral grey to a
+dark blue.
+
+This is not a WCAG finding — the surfaces are non-interactive and the library
+documents its border as decorative and non-gating, which is a defensible
+arbitration. It is a *rendering* gap: what the library treats as decoration is,
+in this product, the panel's only delimiter.
+
+**Ask.** Either a border colour that stays perceptible in light mode, or a
+supported way to opt out of it. The product cannot neutralise it: `border-*`
+utilities are not in the shipped stylesheet either ([#13] again).
+
+---
+
+## 28. `Paper` ignores a customer-configured surface colour
+
+**Needed.** This product's theme is customer-configurable per tenant
+(`platform_dark_theme` / `platform_light_theme`, editable from the admin UI).
+`background.paper` is one of those fields. A migrated panel must keep following
+it, exactly as the top bar had to keep following `background_color` in [#17].
+
+**Today.** `Paper` paints `bg-elevation-default`, resolved from the library's
+own token family. Measured with a customer theme
+(`paper_color: #3b2450`) passed through `themeDark()` the same way
+`AppThemeProvider` does it:
+
+| | measured background |
+|---|---|
+| product (MUI Paper) | `rgb(59,36,80)` = `#3b2450` — the customer's colour |
+| library `Paper` | `rgb(13,23,43)` = `#0d172b` — the Filigran default |
+
+**Consequence.** On any install with a custom paper colour, every converted
+panel reverts to Filigran's default, right next to unconverted panels still
+wearing the customer's. Contrast between the two surfaces: **1.32:1** — clearly
+two different colours side by side, per tenant, silently.
+
+**Why it stayed invisible until now.** On the *default* themes the two are
+byte-identical (`#0d172b` dark, `#ffffff` light): the token bridge already
+aligned `background.paper` onto `--bg-elevation-default-layer-1`. The gap only
+appears once a customer theme exists — which is why this was measured against
+one rather than assumed from the default.
+
+**Ask.** This is [#17]'s "Generalisation" paragraph coming true on a second
+component, so the answer should be the token-level one that entry already
+asked for, not a Paper-specific patch: a first-class, documented hook by which
+a consumer supplies a surface colour (`--fds-paper-background`, or a documented
+guarantee that the background token may be re-declared per element).
+
+---
+
+## 29. A gradient-backed surface has no expressible equivalent
+
+**Needed.** `DetailHero` — the hero header of **every** entity detail page in
+this product (21 screens, 21 files) — is a surface with two properties the
+library's `Paper` cannot reproduce:
+
+1. an accent gradient following the theme's primary colour, therefore the
+   customer's: `linear-gradient(135deg, alpha(primary,0.08), transparent 60%)`
+   — measured `rgba(66,202,255,0.08)` dark, `rgba(0,21,168,0.08)` light,
+   `rgba(255,138,61,0.08)` on a customer theme;
+2. **a transparent background**: the `sx` `background` shorthand zeroes the
+   paper fill (measured `rgba(0,0,0,0)`), so the page's own two-stop gradient
+   shows through the hero.
+
+**Today.** `Paper` paints an opaque `bg-elevation-default` and exposes no
+gradient or transparency affordance; `bg-gradient-*` utilities are not in the
+shipped stylesheet, so the product cannot supply one by class either.
+
+**Consequence.** A mechanical swap loses both at once — the accent *and* the
+see-through. Even a Paper that grew a gradient prop would still need the
+opt-out on its own fill, so the two are worth answering together.
+
+**Ask.** Not necessarily a gradient prop. The question to settle is whether a
+`Paper` can ever be transparent / consumer-painted at all, or whether a hero
+surface is simply a different component. Either answer unblocks this site; no
+answer means it stays on MUI while everything around it moves.
+
+---
+
+## 30. `title` and `action` silently become HTML attributes
+
+**Not a blocker** — the wave's arbitration already says the product keeps its
+own header above the surface when the library has no slot for it. Recorded
+because of the failure mode, not the missing feature.
+
+**Today.** `Paper` has no `title` / `action` props. Being polymorphic, it
+spreads unknown props onto the rendered element. Measured:
+
+- `<Paper title="Section">` → `title="Section"` on the `<div>`, i.e. a **browser
+  tooltip on the entire panel**. No error, no warning, no type complaint, and a
+  plausible-looking render.
+- `<Paper action={<button/>}>` → `action="[object Object]"` on a `<div>`, an
+  invalid attribute (React does warn on this one).
+
+**Consequence.** `title` is the dangerous half: an agent migrating a titled
+panel will reach for it by name, get no feedback of any kind, and ship a panel
+that shows a tooltip instead of a heading. 106 of this wave's 127 usages are
+titled panels, so the temptation is not hypothetical.
+
+**Ask.** Either the props, or a line in `Paper.meta.ts` / the docs stating that
+`title` is not a slot and lands on the native attribute. The cheap half of this
+(the documentation line) is worth doing even if the props never come.
+
+---
+
+Raised during: the **Paper pilot, wave 1 conversion** (after the phase-0 bump to
+pin `2e774922e1c667ee3a1e2424b5b4014dfd1a4f55`, carrying #121 and #123).
+Entries 26-29 are **closed by that bump**; what follows is what the conversion
+itself surfaced.
+
+**Closure of 26-29, re-measured on the new installed build, not assumed:**
+
+- **#26 padding — CLOSED.** `padding={0|8|16|24|32}` renders `p-0/p-2/p-4/p-6/p-8`,
+  and all five now exist in the shipped `dist/index.css` (`p-8` used to resolve
+  to `0px`). Default 24. The 13 converted sites render byte-identical padding to
+  their pre-migration state.
+- **#27 border — CLOSED AS ARBITRATED, not as "satisfied".** What the entry
+  asked for exists: the border is now its own per-layer token
+  (`--border-elevation-subtle-soft`), themeable by a host. The **opacity is
+  arbitrated** (15% since #125), and the measured consequence is that the
+  converted panels' border is **weaker than before migration**, not equal to it:
+
+  | | before migration (MUI) | after, at pin `a22b188` |
+  |---|---|---|
+  | dark | 1.42:1 | **1.09:1** |
+  | light | 1.32:1 | **1.15:1** |
+
+  The invisible 1.03:1 that opened this entry **is gone**. Parity with MUI's
+  `divider` is explicitly **no longer an objective** — the library's border is
+  its own design decision, not a reproduction of the product's. Measured across
+  all four elevations and both themes; the layer-1 figures above are the ones
+  the product renders.
+- **#28 host theme — CLOSED, and the contract is the important part.** Measured
+  both directions in a real browser: re-declaring `--bg-elevation-default-layer-1`
+  on `:root` repaints the surface to the customer's colour, and re-declaring the
+  semantic alias `--bg-elevation-default` at the same time does **nothing**.
+  Wiring `paper_color` → `--bg-elevation-default-layer-1` was a three-line change
+  in this product's `AppThemeProvider`.
+- **#29 DetailHero — CLOSED as a Paper question, 2026-08-15.** Arbitrated:
+  `DetailHero` becomes **its own component** (accent gradient + transparent
+  fill). It therefore leaves the Paper waves **permanently** — this is not "a
+  site still to migrate", and no future wave should pick it up. What the entry
+  asked ("can a Paper ever be transparent or consumer-painted") is answered by
+  not asking Paper to be either: the need gets a component of its own. The
+  product keeps it on MUI until that component exists.
+
+### Status, pin `a22b188` — #30 is CLOSED
+
+`title` and `action` became real props at pin `2e77492`, so the two documented
+breakages this entry described are gone:
+
+- `<Paper title="X">` no longer lands on the native `title` attribute (no more
+  browser tooltip over the whole panel) — it renders a header row above the
+  surface, outside its border and padding;
+- `<Paper action={node}>` no longer serialises to `action="[object Object]"` on
+  a `<div>` — it renders in a right-aligned slot.
+
+Measured on the installed build, not read from the changelog. The product now
+**adopts** both props (see PAPER-GAP-INVENTORY §13): the visual change they
+bring is deliberate, the library being the reference.
+
+---
+
+## 31. The `imported-from-library` guard cannot express a mixed file
+
+**Context.** `check-fds-conformity.mjs` now ships two named guards, and both are
+exactly what this migration needed — this entry is a limit found by using them,
+not a complaint about them.
+
+**Needed.** `EntityDetailCommon.tsx` holds four surfaces. Three are migrated
+(`Section`, `InformationGrid`, `SectionBlock`); the fourth, `DetailHero`, stays
+on MUI by arbitration. So the file legitimately imports **both** Papers, and
+will keep doing so until DetailHero's gap is answered.
+
+**Today.** `imported-from-library` is file-granular: it fails as soon as the
+file contains `import { … Paper … } from "@mui/material"`. An alias
+(`Paper as MuiPaper`) still matches, correctly — the regex reads the imported
+name, not the local one.
+
+**Consequence.** Three ways out, and two of them are bad:
+
+- arm the guard → a permanent red on a file that is in the state its
+  arbitration says it should be in;
+- switch the MUI import to a deep default import (`@mui/material/Paper`) purely
+  because the guard's regex does not look there → the gate reports green about
+  something it did not verify, which is worse than the red;
+- **what this product did**: split the declaration in two, arm both guards on
+  the six fully-migrated files, and arm only `no-hardcoded-padding` on this one,
+  with the reason recorded in `migration-state.json` and a note to re-arm the
+  day DetailHero moves.
+
+**Ask.** A way to say "this file is partially migrated, and here is the symbol
+that is allowed to remain" — e.g. an `allowMuiFor: ["DetailHero"]` field the
+guard checks the enclosing component of, or simply a documented
+`guards`-per-file granularity so the third option above is the *supported*
+answer rather than a workaround a product invented. The middle option
+(dodging the regex) is the one worth making impossible.
+
+---
+
+## 32. An off-scale `padding` renders 0px, and half this wave's call sites are untyped
+
+**Measured on the installed build at `2e77492`**: `<Paper padding={12}>` — a
+value outside the 0/8/16/24/32 scale — renders **no padding class at all**:
+
+```
+<div class="box-border bg-elevation-default … border-elevation-subtle-soft layer-1">X</div>
+```
+
+No `p-*`, so the surface computes to **0px**, silently. Not 24 (the default),
+not the nearest step, not a warning: zero.
+
+**Why this is not just a typing footnote.** TypeScript rejects `padding={12}`,
+so in a `.tsx` call site the trap is closed at compile time. But **4 of the 7
+files this wave converted are `.jsx`** (`LessonsObjectives.jsx`,
+`CrysisIntensity.jsx`, and both `LessonsCategories.jsx`), and this product's
+tsconfig sets `allowJs` **without** `checkJs` — so those files get no prop
+checking whatsoever. The same is true of any product with legacy JSX, which is
+most of them at this stage of the migration. A dynamic value
+(`padding={someTheme.spacing}`) escapes the types even in `.tsx`.
+
+**The conformity guard does not catch it either**, and correctly so:
+`no-hardcoded-padding` looks for padding re-declared through `className`/`sx`/
+`style`, which is a different mistake. An off-scale *prop value* passes every
+gate and renders a panel with no padding.
+
+**Ask.** Make the runtime say something. The library already has the precedent
+and the rule for exactly this shape — AGENTS.md, "Prop contract violations —
+dev-only warning, never throw": a `console.warn` behind
+`process.env.NODE_ENV !== "production"`, naming the component, the offending
+prop and the effective fallback. Falling back to the default 24 rather than 0
+would also be defensible, but the warning matters more than the fallback: 0px
+is at least visible, whereas a silent 24 on a site that asked for 12 would just
+move the problem. Whichever is chosen, it belongs in `Paper.meta.ts` too.
+
+
+---
+
+## 33. The product-side inventory of a token rename was incomplete — and two of the misses were silent
+
+**Not a library defect. A method finding, recorded here because the next
+product bump will hit it.**
+
+When #121 renamed 17 alpha tokens, this product's migration state pointed at
+one thing: the generated bridge (`fds-tokens.generated.ts`) and the two theme
+files declared as `wiredFiles`. Regenerating the bridge and fixing the theme
+files felt like the whole job. It was not. **Three product references were
+dead after the bump, and only one of them said so:**
+
+| reference | where | how it failed |
+|---|---|---|
+| `FDS.colors.*['--color-feedback-info-secondary-transparency']` | `ThemeDark.ts`, `ThemeLight.ts` | **TypeScript error** — loud, caught by `tsc` |
+| `var(--color-filigran-brand-primary-transparency)` | `TopBarIconLink.tsx` | **silent** — a dangling `var()` in a plain string, no error anywhere |
+| `'bg-filigran-ia-secondary-transparency'` | `AskArianeButton.tsx` | **silent** — a utility class that no longer exists in the shipped sheet, so it resolves to nothing |
+
+The two silent ones are the point. Neither `tsc`, nor eslint, nor the
+conformity gate, nor the build says a word: the class simply stops matching and
+the custom property simply stops resolving. The only signal is visual, on a
+state (a selected top-bar link, an open Ariane button) that no screenshot in
+this wave's checkpoint even covers.
+
+**What the inventory has to look for at the next bump — OpenCTI included.**
+Regenerating the bridge is necessary and not sufficient. Grep the product
+source, not just the wired files, for **both** of these shapes:
+
+```
+var(--<token>)          # in .ts/.tsx string literals, style objects, CSS files
+bg-/text-/border-<name> # library utility classes written as string literals
+```
+
+and cross-check every hit against the tokens and utilities actually present in
+the **installed** `dist/index.css` — the shipped sheet, not the source
+`theme.css`. `migration-state.json`'s `wiredFiles` describes the *theme*
+wiring; these two shapes live in ordinary component files, outside it by
+design, and that is exactly why they were missed here.
+
+**Ask (small, and optional).** The renames are documented in the token diff, so
+a product can already do this. What would make it mechanical is a machine-
+readable rename map in the release — old name → new name — so a consumer can
+grep for the old names rather than having to notice their absence.
+
+
+---
+
+## 34. A product reset can silently disarm a library focus indicator
+
+**Found by accident, worth more than the accident.** When this pilot's bench was
+corrected to load the app's COMPLETE stylesheet stack (it had been loading 2 of
+the 5 sheets `index.tsx` imports), exactly one measured value moved across the
+navbar's ten states:
+
+```
+outline:  3px none   →   0px none
+```
+
+The cause is one rule in this product's own global CSS
+(`src/static/css/index.css`, line 5):
+
+```css
+:focus { outline: 0; }
+```
+
+It wins over the library sheet, and it applies to **every** focusable element in
+the app.
+
+**Why nothing broke.** #123 had just replaced the navbar's focus ring with an
+**inset border**. A border is not an outline, so the product rule cannot touch
+it. The focus indicator survives — by construction, not by luck.
+
+**Why it matters anyway.** The previous shape — `focus-visible:ring-2` — is
+`outline`-based in Tailwind, and the library's own accessibility contract
+mandates exactly that pattern for every interactive component:
+
+> `focus-visible:outline-none focus-visible:ring-2 ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-focus`
+
+So **every other library component this product adopts is one `:focus { outline: 0 }`
+away from having no visible focus indicator at all** — a WCAG 2.4.7 failure that
+is invisible in the library's own test suite, invisible in the docs site, and
+invisible in any bench that does not load the host's global CSS. Nothing in the
+library or in the product would report it; only a measurement in the host's real
+cascade shows it.
+
+**Two asks, and the first is cheap:**
+
+1. **Document the host prerequisite.** The consumer section already lists what a
+   host must do (theme class, fonts, no preflight). Add this: a host must not
+   neutralise `outline` globally, or must exempt the library's focus pattern —
+   and say which rule shape the library relies on, so a host can check.
+2. **Consider the sturdier indicator.** #123's inset border is immune to the
+   most common reset in the wild. If that is a deliberate robustness property
+   and not only a Figma alignment, it is worth stating as such — and worth
+   asking whether the ring-based pattern should move the same way for the other
+   components.
+
+**Product-side note for OpenAEV:** the rule is old, broad, and not this
+migration's to remove. Flagged here rather than deleted, because deleting it
+changes focus rendering across the entire application — a decision, not a fix.
+
+---
+
+## 35. A clickable card must be a real link, not a click handler
+
+**Raised while classifying the 81 container surfaces still on MUI** (Paper pilot,
+wave 2 preparation). Recorded now, before `Card` is designed, because it is a
+behaviour to preserve — not an implementation detail to rediscover afterwards.
+
+**What the product does today.** Three surfaces are clickable cards, and all
+three carry the same comment in their source:
+
+```tsx
+// Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.
+component={Link}
+to={`/admin/reporting/${reporting.reporting_id}`}
+```
+
+| site | screen |
+|---|---|
+| `SecurityPlatformCard.tsx:30` | Security platforms |
+| `ReportingCard.tsx:34` | Reporting |
+| `CustomDashboardCard.tsx:28` | Custom dashboards |
+
+The whole surface is the control, and it is a **real `<a href>`** — deliberately,
+not a `<div onClick={navigate}>`. That single choice is what makes ⌘-click and
+middle-click open the card in a new tab, what puts the destination in the
+browser's status bar on hover, and what lets "copy link address" work. A JS
+click handler silently loses all three, and nothing in a test suite notices.
+
+**Why this belongs to the library now.** This is the same shape as
+[#1](#1-navbaritem-has-no-link-destination-href--to): `NavbarItem` had to grow
+`href`/`to` for exactly this reason, and until it did, the product had to reach
+for `asChild` and re-declare the row's internals by hand. A `Card` that only
+offers `onClick` will push products into the same corner — either a `div` that
+breaks ⌘-click, or an `asChild` escape that forces them to re-declare the card's
+anatomy and drift from the library's own styling.
+
+**Ask.** When `Card` is designed, give it a link destination as a first-class
+prop (`href` / `to`, or a documented polymorphic `as`), and state in its meta
+that a clickable card renders an `<a>` by default. Two properties worth pinning
+in its tests, because both are invisible to a snapshot: the rendered element is
+an anchor with a real `href`, and a modified click is not intercepted.
+
+**Product-side status.** Nothing is forced meanwhile: these three cards, plus
+`Logs.jsx:211` (a `ButtonBase` surface) and `ReportingForm.tsx:511` (a choice
+card carrying `onClick` and a `selected` state), are all held out of the Paper
+waves under the "clickable card" motif, waiting for `Card`. They are listed as
+class (g) of the wave-2 decision sheet.
+
+---
+
+## 36. `Paper` renders its header on the PRESENCE of the prop, not on its value
+
+**Measured on the installed build at pin `a22b188`, while writing the render
+guard for the three converted wrappers** — not read from the source.
+
+```tsx
+<Paper title="">body</Paper>
+```
+
+renders the full header row — a 24px band, empty — above the surface. The
+library keys the header on whether the prop was passed, not on whether it
+carries anything. `title={undefined}` correctly renders no header; `title=""`,
+`title={null}` and any expression that resolves to an empty string all render a
+blank band.
+
+**Why it matters beyond one product.** A wrapper that always forwards `title`
+makes the header unconditional for every one of its call sites. OpenAEV's three
+wrappers do exactly that, so a call site whose title resolves to `''` would show
+a blank 24px band instead of a tight panel — a silent, purely visual defect.
+
+Checked here rather than assumed: **no such call site exists in OpenAEV today**.
+Every `?? ''` title in the product belongs to `Drawer` or `Tooltip`, never to a
+`Paper` wrapper. A regression test now pins the behaviour as a tripwire.
+
+**OpenCTI is the exposed one.** Its panel titles frequently come from data —
+entity names, external references, observable values — where an empty string is
+a normal runtime value, not a coding mistake. There, the blank band is not a
+hypothetical: it is what an unnamed entity will render.
+
+**Nothing warns.** Not TypeScript (`string` accepts `""`), not a lint rule, not
+the conformity gate, not a snapshot — the DOM is *correct*, it simply contains
+an empty row. Only a human looking at the screen sees it.
+
+**Ask.** Pick one and document it, either is defensible:
+
+- **treat an empty title as absent** — render no header when the resolved title
+  is empty and no `action` is set, which is what a consumer intuitively expects;
+- **or keep the current behaviour and say so** in `Paper.meta.ts`, so a product
+  knows it must guard its own call sites.
+
+What should not stay is the current silence: the behaviour is reasonable, it is
+just undiscoverable until it renders wrong on someone's screen.
+
+---
+
+## 37. A truncated `Paper` title offers no way to read the full text
+
+**Measured on the installed build at pin `a22b188`**, with real translations at
+the narrowest panel width this product can produce.
+
+`Paper`'s header truncates its title — `<div class="min-w-0 truncate">` — which
+is the right behaviour for a fixed 24px row. What it does not do is give a
+sighted user any way back to the full string:
+
+| checked on the truncated element | result |
+|---|---|
+| native `title` attribute | **absent** |
+| `aria-label` / `aria-labelledby` | **absent** |
+| tooltip trigger (Radix or otherwise) | **absent** |
+| full text present in the DOM | **yes**, as `textContent` |
+
+**The important nuance, so the severity is not overstated.** Because the full
+string stays in the DOM, a screen reader announces it in full. This is **not**
+an assistive-technology failure. It is a loss for the sighted user who sees
+`Distribución de la puntuación total esperada por tipo de iny…` and has no
+hover, no focus and no click that reveals the rest.
+
+**How often, measured rather than feared.** Across the 68 distinct titles this
+product passes to its three wrappers, in nine locales: median 13 characters in
+English, 66 at worst in Spanish, and 15 titles whose translation grows by 60% or
+more. At the narrowest track (`minmax(340px, 1fr)`, with an action in the row)
+exactly **one** title truncates today. So this is rare here — and it is rare
+*because* the component happens to fit, not because anything guarantees it. A
+product with data-driven titles (OpenCTI) has no such luck.
+
+**Ask.** Have the header expose the full title when, and only when, it actually
+truncates — the standard shape is a `title` attribute set from a width
+comparison, or the library's own `Tooltip` on the trigger. Doing it in the
+library is what makes it conditional: only the component knows whether its own
+text overflowed.
+
+**What a product can do meanwhile, and why it is not free.** A consumer can pass
+a node instead of a string — `title={<span title={text}>{text}</span>}` — and
+the native tooltip then works; verified, the attribute survives into the
+library's truncating div. But a consumer cannot know whether truncation
+happened, so the tooltip appears on **every** header, truncated or not: 106
+panels in this product would grow a hover tooltip to fix one. Not applied here
+for that reason; recorded so the trade-off is explicit rather than rediscovered.
+
+
+## 38. `Paper`'s `padding` cannot express a per-side value
+
+**Measured on the installed build at pin `a22b188`**, against the real product
+sites that carry an asymmetric padding today.
+
+`padding` takes one value from the `0 | 8 | 16 | 24 | 32` scale and applies it to
+all four sides. Seventeen container surfaces in OpenAEV cannot express their padding with the
+prop as it stands. Fourteen pad their sides differently:
+
+| value in the product | sites | what it does |
+| --- | --- | --- |
+| `0 20px 0 0` | 9 — the simulation overview charts | right gutter only, so a chart's axis labels clear the panel edge while the plot itself runs full-bleed |
+| `20px 20px 0 20px` | 2 — the simulation e-mail panels | no bottom padding: the last row of the list sits flush on the border |
+| `10px 15px 20px 15px` | 2 — the lessons player and the lessons preview | a heavier bottom than top |
+| `6px 12px` | 1 — the attack-path header badge | asymmetric AND off-scale on both axes (`theme.spacing(0.75, 1.5)`) |
+
+**This is not a rounding question.** The other off-scale paddings we met (12, 15,
+20, 48) each have a nearest neighbour on the scale, and the product picked one.
+A per-side value has no nearest neighbour: any single value changes the layout
+on at least one side.
+
+**Why the product will not work around it.** The obvious workaround is
+`padding={0}` plus an inner wrapper carrying the asymmetric padding. It renders
+identically, and it adds one technical level inside twelve files for no reason
+other than a prop signature. That is exactly the debt this migration exists to
+remove, so these twelve stay on MUI until the library can express it.
+
+**Three more forms, found while converting the hand-painted surfaces.** The
+request is wider than asymmetry:
+
+| form | site | what it does |
+| --- | --- | --- |
+| **responsive** — `padding: { xs: 2, md: 3 }` | threat-arsenal hero | 16px on a narrow screen, 24px from the medium breakpoint up |
+| **logical** — `paddingBlock: 8` + `paddingInline: 4` | threat-arsenal empty state | 64px vertical, 32px horizontal, expressed on the block/inline axes rather than per physical side |
+| **layered background** — `padding: 6` with a four-layer `backgroundImage` | report cover module | the surface paints a 28px grid pattern over its colour; padding is only half the story |
+
+The logical form matters beyond padding: it is the writing-mode-aware way to
+express spacing, and a design system that only offers `top/right/bottom/left`
+pushes consumers back to physical sides.
+
+**Ask.** Let `padding` accept, alongside the scalar:
+
+- a **per-side** form — an object (`{ top, right, bottom, left }`) or a tuple;
+- a **logical** form — `{ block, inline }`;
+- a **responsive** form — a value per breakpoint, as the host UI library already
+  allows.
+
+Each side still constrained to the scale. On the OpenAEV sites: the per-side
+form covers 13 of the 17 blocked surfaces, logical covers 1, responsive covers
+1; the remaining 2 also need a value off the scale and will round — including
+`theme.spacing(0.75, 1.5)`, which is off-scale on both axes at once.
+
+The layered background is a separate question and not part of this request —
+recorded here only so the two are not confused when the padding work is scoped.
+
+**Not urgent, but it caps the wave.** Seventeen surfaces out of the 130 in the
+OpenAEV container perimeter — 13%, and they are the only ones with no path
+forward. Everything else either converts or is out of scope by design.
