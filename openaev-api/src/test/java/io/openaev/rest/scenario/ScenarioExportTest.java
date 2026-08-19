@@ -1,6 +1,6 @@
 package io.openaev.rest.scenario;
 
-import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
+import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -349,7 +349,7 @@ public class ScenarioExportTest extends IntegrationTest {
       createActionBody.putNull("action_prerequisites");
 
       mvc.perform(
-              post(THREAT_ARSENAL_URL)
+              post(tenantUri(TENANT_THREAT_ARSENAL_URL))
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(createActionBody.toString())
                   .with(csrf()))
