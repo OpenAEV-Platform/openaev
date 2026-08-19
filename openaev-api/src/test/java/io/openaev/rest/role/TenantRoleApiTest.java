@@ -46,7 +46,11 @@ public class TenantRoleApiTest extends IntegrationTest {
   class Create {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+          Capability.ACCESS_ASSETS
+        })
     @DisplayName("Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, should create a tenant role")
     void given_manageTenantUsersGroupsAndRoles_should_createRole() throws Exception {
       // -------- Arrange --------
@@ -84,7 +88,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("Forbidden")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .capabilities(Set.of(Capability.ACCESS_ASSETS, Capability.ACCESS_CHALLENGES))
               .build();
 
       // -------- Act & Assert --------
@@ -311,7 +315,11 @@ public class TenantRoleApiTest extends IntegrationTest {
   class Update {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+          Capability.ACCESS_ASSETS
+        })
     @DisplayName("Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, should update a tenant role")
     void given_manageTenantUsersGroupsAndRoles_should_updateRole() throws Exception {
       // -------- Arrange --------
@@ -324,6 +332,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("NewName")
+              .description("updated")
               .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
               .build();
 
@@ -345,7 +354,11 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+          Capability.ACCESS_ASSETS
+        })
     @DisplayName(
         "Given a tenant role polluted with a platform-only capability, update should drop it"
             + " instead of rejecting the payload")
@@ -363,6 +376,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("Healed")
+              .description("healed")
               .capabilities(
                   Set.of(
                       Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
@@ -404,6 +418,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("Forbidden")
+              .description("forbidden")
               .capabilities(Set.of(Capability.ACCESS_CHALLENGES))
               .build();
 
@@ -433,6 +448,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("Forbidden")
+              .description("forbidden")
               .capabilities(Set.of(Capability.ACCESS_ASSETS))
               .build();
 
@@ -447,7 +463,11 @@ public class TenantRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_ASSETS})
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+          Capability.ACCESS_ASSETS
+        })
     @DisplayName(
         "Given a role containing capabilities the caller does not hold, update should reject removing those unheld capabilities")
     void given_updateRemovingUnheldCapabilities_should_beRejected() throws Exception {
@@ -464,6 +484,7 @@ public class TenantRoleApiTest extends IntegrationTest {
       RoleInput input =
           RoleInput.builder()
               .name("EscalationGuard")
+              .description("desc")
               .capabilities(Set.of(Capability.ACCESS_ASSETS))
               .build();
 

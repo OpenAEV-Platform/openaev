@@ -108,12 +108,6 @@ public class PlatformRoleService {
       @NotNull final Set<Capability> capabilities) {
     Set<Capability> scopedCapabilities = Capability.filterForPlatformRole(capabilities);
     Role role = findById(roleId);
-    Set<Capability> currentScopedCapabilities =
-        Capability.filterForPlatformRole(role.getCapabilities());
-    Set<Capability> capabilitiesToAuthorize = new HashSet<>(currentScopedCapabilities);
-    capabilitiesToAuthorize.addAll(scopedCapabilities);
-    assertCanAssignCapabilities(
-        userService.currentUser(), capabilitiesToAuthorize, CapabilityScope.PLATFORM);
     role.setName(name);
     role.setDescription(description);
     role.setCapabilities(scopedCapabilities);
