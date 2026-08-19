@@ -3533,6 +3533,7 @@
   "The team {name} has been {status}.": "チーム {name} は {status} されました。",
   "The time and start date do not match, as the time provided is either too close to the current moment or in the past": "時刻と開始日が一致しない。提供された時刻が現在に近すぎるか、過去のものであるため。",
   "The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.": "プラットフォーム設定にトークンが含まれていませんので、Filigran の担当者にトークンの提供またはオンプレミスでの導入方法をお問い合わせください。そのためには、サポートチケットを開いてください。",
+  "The value should be a number": "値は数値である必要があります",
   "The widget behind this drill-down could not be resolved.": "このドリルダウンの元となるウィジェットを解決できませんでした。",
   "Theme": "テーマ",
   "There is no evaluation for this objective yet": "このテーマに対する評価はまだありません。",
