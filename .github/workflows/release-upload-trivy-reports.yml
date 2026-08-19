@@ -3,6 +3,12 @@ name: "[Core] Release Trivy Report Upload"
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to fetch reports from and upload to (example: 3.260818.1)"
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -19,9 +25,11 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const tag = context.payload.release.tag_name;
+            const tag = context.eventName === 'workflow_dispatch'
+              ? core.getInput('tag')
+              : context.payload.release.tag_name;
             if (!tag) {
-              core.notice('No release tag found in payload');
+              core.notice('No release tag provided');
               return;
             }
 
@@ -119,6 +127,7 @@ jobs:
         if: ${{ steps.context.outputs.tag != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ steps.context.outputs.tag }}
           REPORT_ROOT: ${{ runner.temp }}/container-vulnerability-reports
         run: |
