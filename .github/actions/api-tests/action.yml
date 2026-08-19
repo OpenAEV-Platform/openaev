@@ -222,6 +222,28 @@ runs:
         mvn -B -ntp -pl openaev-api test
         -Dmaven.compiler.skip=true
         ${{ steps.suite.outputs.surefire_arg }}
+    - name: Diagnose test discovery/fork failures
+      # Surefire's *.dump/*.dumpstream files carry the real "Caused by" chain
+      # for JVM-fork and TestEngine discovery failures (e.g. ArchUnit init
+      # errors). They're never printed to the console, so without this the
+      # only symptom in CI is the generic "TestEngine with ID 'archunit'
+      # failed to discover tests" line, and diagnosing requires reproducing
+      # locally.
+      if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
+      shell: bash
+      run: |
+        REPORTS_DIR=openaev-api/target/surefire-reports
+        shopt -s nullglob
+        DUMPS=("$REPORTS_DIR"/*.dump "$REPORTS_DIR"/*.dumpstream)
+        if [ ${#DUMPS[@]} -eq 0 ]; then
+          echo "ℹ️ No surefire dump files found in $REPORTS_DIR"
+        else
+          for f in "${DUMPS[@]}"; do
+            echo "::group::📄 $f"
+            cat "$f"
+            echo "::endgroup::"
+          done
+        fi
     - name: Verify JaCoCo exec data
       if: ${{ !cancelled() }}
       shell: bash
