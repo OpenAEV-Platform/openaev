@@ -86,4 +86,25 @@ describe('LibHeaderRow mirrors the library Paper header', () => {
       expect(titre.className).toContain(token);
     }
   });
+
+  it('does not force the title to uppercase product-side', () => {
+    // The same assertion the three titled wrappers carry, for the five
+    // surfaceless sections that go through this component instead. The
+    // product's own SECTION_LABEL_SX carried `textTransform: uppercase` and a
+    // Geologica `fontFamily`; adopting the library's typography means the
+    // casing and the family are the library's business, and nothing here may
+    // re-impose either through an inline style.
+    const { container } = render(
+      <LibHeaderRow title={TITLE} action={<button type="button">{ACTION_LABEL}</button>}>
+        <div>{BODY}</div>
+      </LibHeaderRow>,
+    );
+    const row = container.querySelector('[data-testid="lib-header-row"]') as HTMLElement;
+    const styled = [row, ...Array.from(row.querySelectorAll('*'))] as HTMLElement[];
+    for (const node of styled) {
+      expect(node.style.textTransform).toBe('');
+      expect(node.style.fontFamily).toBe('');
+      expect(node.style.letterSpacing).toBe('');
+    }
+  });
 });
