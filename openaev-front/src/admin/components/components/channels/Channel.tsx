@@ -8,8 +8,8 @@ import { useParams } from 'react-router';
 import { fetchDocumentsChannels, updateChannel, updateChannelLogos } from '../../../../actions/channels/channel-action';
 import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
 import { type DocumentHelper } from '../../../../actions/helper';
-import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import { DetailSections, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
+import LibHeaderRow, { LIB_HEADER_ROW_HEIGHT } from '../../../../components/common/LibHeaderRow';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Channel as ChannelType, type ChannelUpdateInput, type Document } from '../../../../utils/api-types';
@@ -167,13 +167,9 @@ const Channel = () => {
           gap: 16,
         }}
         >
-          {/* action={null} is now a NO-OP, kept only to avoid churn: since the
-              library's header was adopted its row is a constant 24px whether or
-              not an action is present, so this panel top-aligns with the Live
-              preview column (whose header holds the theme toggle) on its own.
-              Measured — with action, action={null} and no prop at all, the three
-              surfaces start at the same y. Do not re-derive a need from this
-              line. */}
+          {/* action={null} is now a NO-OP: the library header row is a constant
+              24px with or without an action. Keep or drop it, but do not
+              re-derive an alignment need from it. */}
           <SectionBlock title={t('Parameters')} action={null}>
             <ChannelParametersForm
               initialValues={initialValues}
@@ -219,61 +215,54 @@ const Channel = () => {
           height: '100%',
         }}
         >
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            minHeight: 32,
-            marginBottom: 1.5,
-          }}
-          >
-            <Typography sx={{
-              ...SECTION_LABEL_SX,
-              marginBottom: 0,
-            }}
-            >
-              {t('Live preview')}
-            </Typography>
-            <Typography sx={{
-              fontSize: 11,
-              color: 'text.secondary',
-            }}
-            >
-              {t('Unsaved edits are reflected instantly')}
-            </Typography>
-            <div style={{ flex: 1 }} />
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={previewMode}
-              onChange={(_, value: 'dark' | 'light' | null) => value && setPreviewMode(value)}
-              // The global MuiToggleButtonGroup override pins the group to
-              // 36px; cap it (and its buttons) at the 32px header height so
-              // this column's Paper top-aligns with the Parameters column
-              // (same normalization as DetailHero).
-              sx={{
-                'height': 32,
-                '& .MuiToggleButton-root': {
-                  width: 32,
-                  height: 32,
-                },
+          <LibHeaderRow
+            title={(
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'baseline',
+                gap: 8,
+                minWidth: 0,
               }}
-            >
-              <ToggleButton value="dark" aria-label={t('Dark theme')}>
-                <Tooltip title={t('Dark theme')}>
-                  <DarkModeOutlined fontSize="small" />
-                </Tooltip>
-              </ToggleButton>
-              <ToggleButton value="light" aria-label={t('Light theme')}>
-                <Tooltip title={t('Light theme')}>
-                  <LightModeOutlined fontSize="small" />
-                </Tooltip>
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
-          <Paper padding={8} style={{ flex: 1 }}>
-            <ChannelPreview channel={previewChannel} mode={previewMode} />
-          </Paper>
+              >
+                <span>{t('Live preview')}</span>
+                <span style={{ opacity: 0.75 }}>{t('Unsaved edits are reflected instantly')}</span>
+              </span>
+            )}
+            action={(
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={previewMode}
+                onChange={(_, value: 'dark' | 'light' | null) => value && setPreviewMode(value)}
+                // The global MuiToggleButtonGroup override pins the group to
+                // 36px. The library header row is a constant 24px, so the group
+                // and its buttons are capped to it: a taller control overflows
+                // the row and eats into the 8px gap below.
+                sx={{
+                  'height': LIB_HEADER_ROW_HEIGHT,
+                  '& .MuiToggleButton-root': {
+                    width: LIB_HEADER_ROW_HEIGHT,
+                    height: LIB_HEADER_ROW_HEIGHT,
+                  },
+                }}
+              >
+                <ToggleButton value="dark" aria-label={t('Dark theme')}>
+                  <Tooltip title={t('Dark theme')}>
+                    <DarkModeOutlined fontSize="small" />
+                  </Tooltip>
+                </ToggleButton>
+                <ToggleButton value="light" aria-label={t('Light theme')}>
+                  <Tooltip title={t('Light theme')}>
+                    <LightModeOutlined fontSize="small" />
+                  </Tooltip>
+                </ToggleButton>
+              </ToggleButtonGroup>
+            )}
+          >
+            <Paper padding={8} style={{ flex: 1 }}>
+              <ChannelPreview channel={previewChannel} mode={previewMode} />
+            </Paper>
+          </LibHeaderRow>
         </div>
       </DetailSections>
     </div>
