@@ -311,6 +311,11 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // of updateInjectExpectation are covered by the single name entry.
           "io.openaev.rest.expectation.ExpectationApi#getAiDefenseExpectationsNotFilledForSource",
           "io.openaev.rest.expectation.ExpectationApi#updateInjectExpectation",
+          "io.openaev.rest.expectation.ExpectationApi#deleteInjectExpectationResult",
+          // challenge flows update inject expectations; missing TxCtx here silently de-scopes
+          // security_coverages reads in the propagation path.
+          "io.openaev.rest.challenge.ChallengeApi#tryChallenge",
+          "io.openaev.rest.challenge.SimulationChallengeApi#validateChallenge",
           // security platforms: serialize the collectors association (tenant-active table) so the
           // UI can keep collector-managed platforms read-only (#7025). Both overloads of
           // securityPlatforms (GET list and POST search) are covered by the single name entry.
