@@ -2772,7 +2772,10 @@ class WorkflowServiceTest {
           .thenReturn(new ArrayList<>(List.of(activeStepWithInject, activeStepWithoutInject)));
 
       // Act
-      workflowService.cancelSimulationEndWorkflowRun(List.of(run));
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+        workflowService.cancelSimulationEndWorkflowRun(List.of(run));
+      }
 
       // Assert
       assertEquals(WorkflowStatus.END, run.getStatus());
@@ -2781,7 +2784,7 @@ class WorkflowServiceTest {
       verify(workflowStateService).deleteAllBySimulationId("sim-1");
       assertEquals(StepStatus.END, activeStepWithInject.getStatus());
       assertEquals(StepStatus.END, activeStepWithoutInject.getStatus());
-      verify(assetAgentJobRepository).deleteAllByInjectIds(List.of("inject-1"));
+      verify(assetAgentJobRepository).deleteAllByInjectIdsAndTenantId(List.of("inject-1"), TENANT);
       verify(stepService).saveSteps(List.of(activeStepWithInject, activeStepWithoutInject));
     }
 
@@ -2822,12 +2825,16 @@ class WorkflowServiceTest {
           .thenReturn(new ArrayList<>(List.of(step2)));
 
       // Act
-      workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+        workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
+      }
 
       // Assert
       verify(workflowStateService).deleteAllBySimulationId("sim-1");
       verify(workflowStateService).deleteAllBySimulationId("sim-2");
-      verify(assetAgentJobRepository).deleteAllByInjectIds(List.of("inject-1", "inject-2"));
+      verify(assetAgentJobRepository)
+          .deleteAllByInjectIdsAndTenantId(List.of("inject-1", "inject-2"), TENANT);
       verify(stepService).saveSteps(List.of(step1, step2));
     }
 
@@ -2845,7 +2852,10 @@ class WorkflowServiceTest {
       when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1")).thenReturn(new ArrayList<>());
 
       // Act
-      workflowService.cancelSimulationEndWorkflowRun(List.of(run));
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+        workflowService.cancelSimulationEndWorkflowRun(List.of(run));
+      }
 
       // Assert
       assertEquals(WorkflowStatus.END, run.getStatus());

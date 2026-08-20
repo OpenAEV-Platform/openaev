@@ -991,14 +991,14 @@ public class WorkflowService {
           deleteWorkflowStatesBySimulationId(workflow.getSimulation().getId());
         });
 
-    // Asset agent jobs -> DELETE all  by inject id
-    deleteAllAssetAgentJobs(injectsIds);
+    // Asset agent jobs -> DELETE all by inject id
+    deleteAllAssetAgentJobs(injectsIds, TenantContext.getCurrentTenant());
 
     stepService.saveSteps(stepsToUpdate);
   }
 
-  private void deleteAllAssetAgentJobs(List<String> injectsIds) {
-    assetAgentJobRepository.deleteAllByInjectIds(injectsIds);
+  private void deleteAllAssetAgentJobs(List<String> injectsIds, String tenantId) {
+    assetAgentJobRepository.deleteAllByInjectIdsAndTenantId(injectsIds, tenantId);
   }
 
   /**
