@@ -2746,6 +2746,7 @@ class WorkflowServiceTest {
   @Nested
   @DisplayName("cancelSimulationEndWorkflowRun")
   class CancelSimulationEndWorkflowRunTests {
+    private static final String TENANT = "tenant-1";
 
     @Test
     @DisplayName(
